@@ -82,26 +82,6 @@ function activePageId() {
   }
 
 function collectEmployee() {
-  const adminMode = localStorage.getItem('phfAdminTestMode') === 'true';
-
-  if (adminMode) {
-    employeeId = 'admin-test-phf';
-    localStorage.setItem('phfEmployeeId', employeeId);
-
-    const adminEmployee = {
-      id: employeeId,
-      fullName: 'Admin Test PHF',
-      branch: 'Văn phòng',
-      birthday: '',
-      phone: '',
-      department: 'Admin/HCNS',
-      position: 'Admin test - mở khóa toàn bộ'
-    };
-
-    localStorage.setItem('phfEmployeeProfile', JSON.stringify(adminEmployee));
-    return adminEmployee;
-  }
-
   const fullNameEl = document.getElementById('fullName');
   const branchEl = document.getElementById('branch');
   const dobEl = document.getElementById('dob');
@@ -167,22 +147,6 @@ function collectEmployee() {
 
 function detectTestResult() {
   try {
-    if (window.__phfLastStep2TestResult) {
-      const last = window.__phfLastStep2TestResult;
-
-      return {
-        page: last.page || activePageId(),
-        score: typeof last.score === 'number' ? last.score : null,
-        correct: typeof last.correct === 'number' ? last.correct : null,
-        total: typeof last.total === 'number' ? last.total : null,
-        passScore: last.passScore || PASS_SCORE,
-        status: last.status || (
-          typeof last.score === 'number' && last.score >= PASS_SCORE ? 'Đạt' : 'Chưa đạt'
-        ),
-        resultText: last.resultText || ''
-      };
-    }
-
     const page = activePageId();
 
     const resultText = [
@@ -198,8 +162,6 @@ function detectTestResult() {
       return {
         page,
         score: null,
-        correct: null,
-        total: null,
         passScore: PASS_SCORE,
         status: 'Chưa có kết quả',
         resultText: ''
@@ -209,10 +171,6 @@ function detectTestResult() {
     const scoreMatch = resultText.match(/(\d{1,3})\s*\/\s*100|điểm\s*(\d{1,3})|(\d{1,3})\s*%/i);
     const score = scoreMatch ? Number(scoreMatch[1] || scoreMatch[2] || scoreMatch[3]) : null;
 
-    const correctMatch = resultText.match(/(\d{1,2})\s*\/\s*(\d{1,2})\s*câu/i);
-    const correct = correctMatch ? Number(correctMatch[1]) : null;
-    const total = correctMatch ? Number(correctMatch[2]) : null;
-
     const passed =
       /đạt|pass|mở bước|hoàn thành/i.test(resultText) &&
       !/chưa đạt|không đạt|fail/i.test(resultText);
@@ -220,8 +178,6 @@ function detectTestResult() {
     return {
       page,
       score,
-      correct,
-      total,
       passScore: PASS_SCORE,
       status: passed || (score !== null && score >= PASS_SCORE) ? 'Đạt' : 'Chưa đạt',
       resultText
@@ -232,8 +188,6 @@ function detectTestResult() {
     return {
       page: activePageId(),
       score: null,
-      correct: null,
-      total: null,
       passScore: PASS_SCORE,
       status: 'Lỗi đọc kết quả test',
       resultText: ''
@@ -247,85 +201,39 @@ function detectTestResult() {
       .filter(Boolean);
   }
 
-async function saveLocal(type) {
-  try {
-    const testResult = type === 'test' ? detectTestResult() : null;
+  async function saveLocal(type) {
+    try {
+      const payload = {
+        type: type || 'autosave',
+        employee: collectEmployee(),
+        currentPage: activePageId(),
+        completedPages: completedPagesFromDom(),
+        unlockedSteps: [activePageId()],
+        testResult: type === 'test' ? detectTestResult() : null
+      };
 
-    const isStep2Passed =
-      testResult &&
-      (
-        testResult.status === 'Đạt' ||
-        (typeof testResult.score === 'number' && testResult.score >= PASS_SCORE)
-      );
-
-    if (isStep2Passed) {
-      localStorage.setItem('phfStep2FinalPassed', 'true');
-    }
-
-    const step2Passed = localStorage.getItem('phfStep2FinalPassed') === 'true';
-    const adminMode = localStorage.getItem('phfAdminTestMode') === 'true';
-
-    const completedPages = completedPagesFromDom();
-    const unlockedSteps = [activePageId()];
-
-    if (step2Passed || adminMode) {
-      completedPages.push('GD2');
-      completedPages.push('step2FinalTest');
-      completedPages.push('Bước 2 - Đã đạt test cuối');
-
-      unlockedSteps.push('GD3');
-      unlockedSteps.push('Bước 3 - Quy trình');
-    }
-
-    if (adminMode) {
-      ['GD1', 'GD2', 'GD3', 'GD4', 'GD5'].forEach(function (step) {
-        unlockedSteps.push(step);
-        completedPages.push(step + ' - Admin test mở khóa');
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      unlockedSteps.push('Bước 1 - Hội nhập');
-      unlockedSteps.push('Bước 2 - CSKH & Kỹ năng');
-      unlockedSteps.push('Bước 3 - Quy trình');
-      unlockedSteps.push('Bước 4 - Thực hành');
-      unlockedSteps.push('Bước 5 - Đánh giá');
+const json = await res.json();
 
-      completedPages.push('ADMIN_TEST_UNLOCK_ALL');
-    }
+localData = json.data || localData;
 
-    const payload = {
-      type: type || 'autosave',
-      employee: collectEmployee(),
-      currentPage: activePageId(),
-      completedPages: Array.from(new Set(completedPages)),
-      unlockedSteps: Array.from(new Set(unlockedSteps)),
-      testResult: testResult
-    };
-
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const json = await res.json();
-
-    localData = json.data || localData;
-
-    if (json.ok) {
-      if (isStep2Passed) {
-        updateSaveBadge('Đã lưu · Mở GĐ3');
-      } else {
-        updateSaveBadge('Đã lưu');
-      }
-    } else {
-      console.warn('PHF save failed:', json);
-      updateSaveBadge('Chưa lưu được');
-    }
-  } catch (err) {
-    updateSaveBadge('Không kết nối server.js');
-    console.warn('PHF local save error:', err);
-  }
+if (json.ok) {
+  updateSaveBadge('Đã lưu');
+} else {
+  console.warn('PHF save failed:', json);
+  updateSaveBadge('Chưa lưu được');
 }
+    } catch (err) {
+      updateSaveBadge('Không kết nối server.js');
+      console.warn('PHF local save error:', err);
+    }
+  }
+
   async function loadLocal() {
     try {
       const res = await fetch(API);
@@ -489,80 +397,5 @@ document.addEventListener('click', function (e) {
     saveLocal('test');
   }, 300);
 }, true);
-
-
-/* PATCH: Admin test mode - mở khóa để test giao diện, không cần làm bài thật */
-function enableAdminTestMode() {
-  localStorage.setItem('phfAdminTestMode', 'true');
-  localStorage.setItem('phfStep2FinalPassed', 'true');
-  localStorage.setItem('phfEmployeeId', 'admin-test-phf');
-  localStorage.setItem('phfEmployeeProfile', JSON.stringify({
-    id: 'admin-test-phf',
-    fullName: 'Admin Test PHF',
-    branch: 'Văn phòng',
-    birthday: '',
-    phone: '',
-    department: 'Admin/HCNS',
-    position: 'Admin test - mở khóa toàn bộ'
-  }));
-
-  updateSaveBadge('Admin test · đang lưu');
-  saveLocal('admin-test-unlock');
-}
-
-function disableAdminTestMode() {
-  localStorage.removeItem('phfAdminTestMode');
-  localStorage.removeItem('phfStep2FinalPassed');
-  localStorage.removeItem('phfEmployeeId');
-  localStorage.removeItem('phfEmployeeProfile');
-  updateSaveBadge('Đã tắt Admin test');
-  setTimeout(function () { location.reload(); }, 500);
-}
-
-function addAdminTestButton() {
-  if (document.getElementById('phfAdminTestButton')) return;
-
-  const box = document.createElement('div');
-  box.id = 'phfAdminTestBox';
-  box.style.cssText =
-    'position:fixed;right:16px;bottom:16px;z-index:99999;display:flex;gap:8px;align-items:center';
-
-  const btn = document.createElement('button');
-  btn.id = 'phfAdminTestButton';
-  btn.type = 'button';
-  btn.textContent = localStorage.getItem('phfAdminTestMode') === 'true'
-    ? 'Admin test: Đang bật'
-    : 'Bật Admin test';
-  btn.style.cssText =
-    'border:0;border-radius:999px;padding:10px 13px;background:#7a4b00;color:#fff;font:800 12px Segoe UI,Arial;box-shadow:0 10px 24px rgba(0,0,0,.18);cursor:pointer';
-
-  const off = document.createElement('button');
-  off.type = 'button';
-  off.textContent = 'Tắt';
-  off.style.cssText =
-    'border:0;border-radius:999px;padding:10px 11px;background:#f3eadc;color:#7a4b00;font:800 12px Segoe UI,Arial;box-shadow:0 10px 24px rgba(0,0,0,.10);cursor:pointer';
-
-  btn.addEventListener('click', function () {
-    enableAdminTestMode();
-    btn.textContent = 'Admin test: Đang bật';
-  });
-
-  off.addEventListener('click', function () {
-    disableAdminTestMode();
-  });
-
-  box.appendChild(btn);
-  box.appendChild(off);
-  document.body.appendChild(box);
-}
-
-if (location.search.includes('admin=1') || localStorage.getItem('phfAdminTestMode') === 'true') {
-  addAdminTestButton();
-  if (location.search.includes('admin=1')) {
-    enableAdminTestMode();
-  }
-} else {
-  addAdminTestButton();
-}
 
 })();

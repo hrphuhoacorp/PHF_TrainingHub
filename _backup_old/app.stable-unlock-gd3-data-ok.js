@@ -82,26 +82,6 @@ function activePageId() {
   }
 
 function collectEmployee() {
-  const adminMode = localStorage.getItem('phfAdminTestMode') === 'true';
-
-  if (adminMode) {
-    employeeId = 'admin-test-phf';
-    localStorage.setItem('phfEmployeeId', employeeId);
-
-    const adminEmployee = {
-      id: employeeId,
-      fullName: 'Admin Test PHF',
-      branch: 'Văn phòng',
-      birthday: '',
-      phone: '',
-      department: 'Admin/HCNS',
-      position: 'Admin test - mở khóa toàn bộ'
-    };
-
-    localStorage.setItem('phfEmployeeProfile', JSON.stringify(adminEmployee));
-    return adminEmployee;
-  }
-
   const fullNameEl = document.getElementById('fullName');
   const branchEl = document.getElementById('branch');
   const dobEl = document.getElementById('dob');
@@ -263,33 +243,17 @@ async function saveLocal(type) {
     }
 
     const step2Passed = localStorage.getItem('phfStep2FinalPassed') === 'true';
-    const adminMode = localStorage.getItem('phfAdminTestMode') === 'true';
 
     const completedPages = completedPagesFromDom();
     const unlockedSteps = [activePageId()];
 
-    if (step2Passed || adminMode) {
+    if (step2Passed) {
       completedPages.push('GD2');
       completedPages.push('step2FinalTest');
       completedPages.push('Bước 2 - Đã đạt test cuối');
 
       unlockedSteps.push('GD3');
       unlockedSteps.push('Bước 3 - Quy trình');
-    }
-
-    if (adminMode) {
-      ['GD1', 'GD2', 'GD3', 'GD4', 'GD5'].forEach(function (step) {
-        unlockedSteps.push(step);
-        completedPages.push(step + ' - Admin test mở khóa');
-      });
-
-      unlockedSteps.push('Bước 1 - Hội nhập');
-      unlockedSteps.push('Bước 2 - CSKH & Kỹ năng');
-      unlockedSteps.push('Bước 3 - Quy trình');
-      unlockedSteps.push('Bước 4 - Thực hành');
-      unlockedSteps.push('Bước 5 - Đánh giá');
-
-      completedPages.push('ADMIN_TEST_UNLOCK_ALL');
     }
 
     const payload = {
@@ -489,80 +453,5 @@ document.addEventListener('click', function (e) {
     saveLocal('test');
   }, 300);
 }, true);
-
-
-/* PATCH: Admin test mode - mở khóa để test giao diện, không cần làm bài thật */
-function enableAdminTestMode() {
-  localStorage.setItem('phfAdminTestMode', 'true');
-  localStorage.setItem('phfStep2FinalPassed', 'true');
-  localStorage.setItem('phfEmployeeId', 'admin-test-phf');
-  localStorage.setItem('phfEmployeeProfile', JSON.stringify({
-    id: 'admin-test-phf',
-    fullName: 'Admin Test PHF',
-    branch: 'Văn phòng',
-    birthday: '',
-    phone: '',
-    department: 'Admin/HCNS',
-    position: 'Admin test - mở khóa toàn bộ'
-  }));
-
-  updateSaveBadge('Admin test · đang lưu');
-  saveLocal('admin-test-unlock');
-}
-
-function disableAdminTestMode() {
-  localStorage.removeItem('phfAdminTestMode');
-  localStorage.removeItem('phfStep2FinalPassed');
-  localStorage.removeItem('phfEmployeeId');
-  localStorage.removeItem('phfEmployeeProfile');
-  updateSaveBadge('Đã tắt Admin test');
-  setTimeout(function () { location.reload(); }, 500);
-}
-
-function addAdminTestButton() {
-  if (document.getElementById('phfAdminTestButton')) return;
-
-  const box = document.createElement('div');
-  box.id = 'phfAdminTestBox';
-  box.style.cssText =
-    'position:fixed;right:16px;bottom:16px;z-index:99999;display:flex;gap:8px;align-items:center';
-
-  const btn = document.createElement('button');
-  btn.id = 'phfAdminTestButton';
-  btn.type = 'button';
-  btn.textContent = localStorage.getItem('phfAdminTestMode') === 'true'
-    ? 'Admin test: Đang bật'
-    : 'Bật Admin test';
-  btn.style.cssText =
-    'border:0;border-radius:999px;padding:10px 13px;background:#7a4b00;color:#fff;font:800 12px Segoe UI,Arial;box-shadow:0 10px 24px rgba(0,0,0,.18);cursor:pointer';
-
-  const off = document.createElement('button');
-  off.type = 'button';
-  off.textContent = 'Tắt';
-  off.style.cssText =
-    'border:0;border-radius:999px;padding:10px 11px;background:#f3eadc;color:#7a4b00;font:800 12px Segoe UI,Arial;box-shadow:0 10px 24px rgba(0,0,0,.10);cursor:pointer';
-
-  btn.addEventListener('click', function () {
-    enableAdminTestMode();
-    btn.textContent = 'Admin test: Đang bật';
-  });
-
-  off.addEventListener('click', function () {
-    disableAdminTestMode();
-  });
-
-  box.appendChild(btn);
-  box.appendChild(off);
-  document.body.appendChild(box);
-}
-
-if (location.search.includes('admin=1') || localStorage.getItem('phfAdminTestMode') === 'true') {
-  addAdminTestButton();
-  if (location.search.includes('admin=1')) {
-    enableAdminTestMode();
-  }
-} else {
-  addAdminTestButton();
-}
 
 })();
