@@ -40,29 +40,19 @@ function collectEmployee() {
   const phoneEl = document.getElementById('phone');
   const departmentEl = document.getElementById('department');
 
-  const savedEmployee = JSON.parse(localStorage.getItem('phfEmployeeProfile') || '{}');
-
   const rawName = fullNameEl ? (fullNameEl.value || '').trim() : '';
-
   const rawBranch = branchEl
-    ? (
-        branchEl.tagName === 'SELECT'
-          ? (branchEl.options[branchEl.selectedIndex]?.text || branchEl.value || '')
-          : (branchEl.value || '')
-      ).trim()
-    : '';
-
+  ? (
+      branchEl.tagName === 'SELECT'
+        ? (branchEl.options[branchEl.selectedIndex]?.text || branchEl.value || '')
+        : (branchEl.value || '')
+    ).trim()
+  : '';
   const rawBirthday = dobEl ? (dobEl.value || '').trim() : '';
   const rawPhone = phoneEl ? (phoneEl.value || '').trim() : '';
   const rawDepartment = departmentEl ? (departmentEl.value || '').trim() : '';
 
   const normalizedName = rawName.replace(/\s+/g, ' ').trim();
-
-  const finalFullName = normalizedName || savedEmployee.fullName || 'Nhân viên demo PHF';
-  const finalBranch = rawBranch || savedEmployee.branch || 'Chưa phân chi nhánh';
-  const finalBirthday = rawBirthday || savedEmployee.birthday || '';
-  const finalPhone = rawPhone || savedEmployee.phone || '';
-  const finalDepartment = rawDepartment || savedEmployee.department || '';
 
   if (normalizedName) {
     employeeId = normalizedName
@@ -75,21 +65,15 @@ function collectEmployee() {
     localStorage.setItem('phfEmployeeId', employeeId);
   }
 
-  const employee = {
+  return {
     id: employeeId,
-    fullName: finalFullName,
-    branch: finalBranch,
-    birthday: finalBirthday,
-    phone: finalPhone,
-    department: finalDepartment,
+    fullName: normalizedName || 'Nhân viên demo PHF',
+    branch: rawBranch || 'Chưa phân chi nhánh',
+    birthday: rawBirthday,
+    phone: rawPhone,
+    department: rawDepartment,
     position: 'Nhân viên bán hàng mới'
   };
-
-  if (normalizedName || rawBranch || rawBirthday || rawPhone || rawDepartment) {
-    localStorage.setItem('phfEmployeeProfile', JSON.stringify(employee));
-  }
-
-  return employee;
 }
 
   function getVisibleText(selector) {
