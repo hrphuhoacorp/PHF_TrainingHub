@@ -1,0 +1,21 @@
+{
+  "name": "phf-training-hub-local-prototype-full",
+  "version": "1.0.0",
+  "description": "PHF Training Hub local prototype - full flow from welcome to completion, save demo data to data.json",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "phf",
+    "training",
+    "local",
+    "prototype"
+  ],
+  "author": "PHF internal prototype",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "dotenv": "^17.4.2"
+  }
+}

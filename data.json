@@ -1,0 +1,141 @@
+{
+  "settings": {
+    "passScore": 80,
+    "appName": "PHF Training Hub - Local Prototype Full Flow",
+    "note": "Bản local không dùng database. Dữ liệu demo được lưu vào data.json."
+  },
+  "employees": [
+    {
+      "id": "demo-nv-001",
+      "fullName": "Nhân viên demo PHF",
+      "branch": "PL",
+      "position": "Nhân viên bán hàng mới",
+      "createdAt": "2026-06-26T03:44:06.600Z",
+      "lastActiveAt": null
+    },
+    {
+      "id": "chua-phan-chi-nhanh",
+      "fullName": "Chưa phân chi nhánh",
+      "branch": "Chưa phân chi nhánh",
+      "position": "Nhân viên bán hàng mới",
+      "birthday": "",
+      "createdAt": "2026-06-26T03:52:05.542Z",
+      "lastActiveAt": "2026-06-26T03:52:15.640Z"
+    }
+  ],
+  "progress": {
+    "demo-nv-001": {
+      "currentPage": "welcomePage",
+      "unlockedSteps": [
+        "welcomePage"
+      ],
+      "completedPages": [],
+      "lastUpdatedAt": null
+    },
+    "chua-phan-chi-nhanh": {
+      "currentPage": "afternoonPage",
+      "completedPages": [
+        "welcomePage",
+        "infoPage",
+        "ruleLeavePage",
+        "ruleTimePage",
+        "styleIntroPage",
+        "ruleAssetPage",
+        "ruleCleanPage",
+        "ruleLatePage",
+        "ruleFeedbackPage",
+        "cultureIntroPage",
+        "b3IntroPage",
+        "morningTestPage",
+        "afternoonPage"
+      ],
+      "unlockedSteps": [
+        "ruleLeavePage",
+        "ruleFeedbackPage",
+        "morningTestPage",
+        "afternoonPage"
+      ],
+      "lastUpdatedAt": "2026-06-26T03:52:15.640Z"
+    }
+  },
+  "testResults": [],
+  "activityLog": [
+    {
+      "id": "log-1782445925542",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleLeavePage",
+      "savedAt": "2026-06-26T03:52:05.542Z"
+    },
+    {
+      "id": "log-1782445927658",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleFeedbackPage",
+      "savedAt": "2026-06-26T03:52:07.658Z"
+    },
+    {
+      "id": "log-1782445928000",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleFeedbackPage",
+      "savedAt": "2026-06-26T03:52:08.000Z"
+    },
+    {
+      "id": "log-1782445929025",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "morningTestPage",
+      "savedAt": "2026-06-26T03:52:09.025Z"
+    },
+    {
+      "id": "log-1782445930225",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:10.225Z"
+    },
+    {
+      "id": "log-1782445931708",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:11.708Z"
+    },
+    {
+      "id": "log-1782445932152",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:12.152Z"
+    },
+    {
+      "id": "log-1782445933124",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:13.124Z"
+    },
+    {
+      "id": "log-1782445933808",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:13.808Z"
+    },
+    {
+      "id": "log-1782445934230",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:14.230Z"
+    },
+    {
+      "id": "log-1782445935640",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "test",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:15.640Z"
+    }
+  ]
+}
