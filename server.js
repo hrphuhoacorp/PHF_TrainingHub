@@ -44,7 +44,6 @@ function safeStaticPath(urlPath) {
   const requested = clean === '/' ? '/index.html' : clean;
   const filePath = path.normalize(path.join(ROOT, requested));
   if (!filePath.startsWith(ROOT)) return null;
-  // Không serve các file nhạy cảm
   const blocked = ['.env', '.json', 'server.js', 'lib/', 'scripts/', 'api/'];
   if (blocked.some(b => filePath.includes(b))) return null;
   return filePath;
@@ -78,5 +77,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`PHF Training Hub: http://localhost:${PORT}`);
-  console.log('Dữ liệu lưu trên Supabase.');
+  console.log(process.env.SUPABASE_URL ? 'Dữ liệu lưu trên Supabase.' : 'Dữ liệu tạm lưu vào data.json.');
 });
