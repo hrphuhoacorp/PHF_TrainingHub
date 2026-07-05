@@ -2302,6 +2302,30 @@ body.phf-intro-active > .app{display:none!important}
 }
 </style>
 
+
+<style id="phf-phone-entry-restore-style">
+/* PHF - màn nhận diện SĐT sau khi chọn Học viên */
+.phf-phone-entry-overlay{position:fixed;inset:0;z-index:999999;background:rgba(5,38,30,.62);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.phf-phone-entry-card{width:min(560px,94vw);background:#fff;border:1px solid #dce8e1;border-radius:28px;box-shadow:0 28px 90px rgba(5,38,30,.34);padding:26px;color:#164d39}
+.phf-phone-entry-head{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.phf-phone-entry-head img{width:138px;height:auto;object-fit:contain;flex:0 0 auto}
+.phf-phone-entry-head div{border-left:1px solid rgba(22,77,57,.14);padding-left:13px;min-width:0}
+.phf-phone-entry-head h2{margin:0;color:#164d39;font-size:22px;line-height:1.12;letter-spacing:-.02em}
+.phf-phone-entry-head p{margin:4px 0 0;color:#63766d;font-size:13px;font-weight:750}
+.phf-phone-entry-card .lead{margin:12px 0 18px;color:#425d52;font-size:14.5px;line-height:1.55;font-weight:650}
+.phf-phone-entry-field{display:grid;gap:7px;margin-bottom:10px}
+.phf-phone-entry-field label{font-size:13px;font-weight:900;color:#164d39}
+.phf-phone-entry-field input{width:100%;height:50px;border:1px solid #cfe4d8;border-radius:16px;padding:0 15px;font-size:17px;font-weight:850;color:#143b2d;outline:none;background:#fbfefc}
+.phf-phone-entry-field input:focus{border-color:#0b6b48;box-shadow:0 0 0 4px rgba(22,131,84,.12)}
+.phf-phone-entry-error{min-height:22px;color:#b42318;font-size:13px;font-weight:850;margin:8px 0 0}
+.phf-phone-entry-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px}
+.phf-phone-entry-actions button{border-radius:999px;padding:12px 17px;font-weight:900;cursor:pointer;border:1px solid #dce8e1;background:#fff;color:#164d39}
+.phf-phone-entry-actions .primary{border-color:#164d39;background:#164d39;color:#fff;box-shadow:0 12px 28px rgba(22,77,57,.18)}
+.phf-phone-entry-actions .soft{background:#edf6f1;border-color:#cfe4d8}
+.phf-phone-entry-note{margin-top:14px;border:1px solid #f1e0ad;background:#fffaf0;color:#6a5520;border-radius:16px;padding:11px 13px;font-size:12.5px;font-weight:750;line-height:1.45}
+@media(max-width:640px){.phf-phone-entry-card{padding:20px;border-radius:22px}.phf-phone-entry-head{align-items:flex-start;flex-direction:column}.phf-phone-entry-head div{border-left:0;padding-left:0}.phf-phone-entry-actions button{flex:1 1 100%}}
+</style>
+
 </head>
 <body class="phf-intro-active">
 
@@ -4027,6 +4051,102 @@ function phfCloseLegacyLearnerLogin(){
     try{ el.remove(); }catch(e){ el.classList.remove('show'); el.style.display='none'; }
   });
 }
+
+/* PHF learner phone entry restore - sau intro/chọn vai trò */
+function phfPhoneClean(v){ return String(v || '').replace(/\D+/g,''); }
+function phfSetLearnerProfileFromRow(row){
+  const profile = phfEmployeeFromRow(row || {});
+  if(!profile.id) profile.id = 'learner-' + phfPhoneClean(profile.phone || Date.now());
+  try{
+    localStorage.setItem('phfEmployeeId', profile.id);
+    localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
+    if(profile.studyStartDate) localStorage.setItem('phfStudyStartDate', profile.studyStartDate);
+  }catch(e){}
+  return profile;
+}
+function phfFindLearnerByPhone(phone){
+  const clean = phfPhoneClean(phone);
+  const rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+  return rows.map(phfEmployeeFromRow).find(function(e){ return phfPhoneClean(e.phone) === clean; }) || null;
+}
+function phfOpenLearnerAfterPhone(profile){
+  const overlay = document.getElementById('phfPhoneEntryOverlay');
+  if(overlay) overlay.remove();
+  phfShowRoleSwitcher();
+  const data = window.__phfLocalData || {};
+  const progress = (data.progress && data.progress[profile.id]) || {};
+  const page = progress.currentPage || '';
+  if(page && typeof window.phfGoByCurrentPage === 'function' && window.phfGoByCurrentPage(page)){ return; }
+  try{ if(typeof current !== 'undefined') current = 1; }catch(e){}
+  render();
+}
+function phfCreateTemporaryLearnerFromPhone(phone){
+  const clean = phfPhoneClean(phone);
+  const profile = {
+    id:'learner-' + clean,
+    fullName:'Học viên mới',
+    phone:clean,
+    branch:'',
+    department:'Bán hàng',
+    position:'Nhân viên bán hàng mới',
+    studyStartDate:'',
+    programId:'new_sales'
+  };
+  phfSetLearnerProfileFromRow(profile);
+  try{ if(typeof current !== 'undefined') current = 1; }catch(e){}
+  phfOpenLearnerAfterPhone(profile);
+}
+function phfShowLearnerPhoneEntry(){
+  phfCloseLegacyLearnerLogin();
+  let overlay = document.getElementById('phfPhoneEntryOverlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'phfPhoneEntryOverlay';
+    overlay.className = 'phf-phone-entry-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<section class="phf-phone-entry-card" role="dialog" aria-modal="true" aria-label="Nhận diện học viên">
+    <div class="phf-phone-entry-head"><img src="assets/logo/phf-logo.png" alt="Phú Hòa Fresh"><div><h2>Tiếp tục chương trình đào tạo</h2><p>Nhận diện học viên bằng số điện thoại</p></div></div>
+    <p class="lead">Nhập số điện thoại để hệ thống tìm lại hồ sơ và tiến độ. Nếu chưa có hồ sơ, bạn có thể chuyển sang màn nhập thông tin người học.</p>
+    <div class="phf-phone-entry-field"><label for="phfLearnerPhoneInput">Số điện thoại học viên</label><input id="phfLearnerPhoneInput" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Ví dụ: 09xxxxxxxx"></div>
+    <div class="phf-phone-entry-error" id="phfLearnerPhoneError"></div>
+    <div class="phf-phone-entry-actions"><button type="button" class="soft" id="phfPhoneBackRole">Đổi vai trò</button><button type="button" id="phfPhoneCreate">Tạo hồ sơ mới</button><button type="button" class="primary" id="phfPhoneContinue">Tiếp tục học</button></div>
+    <div class="phf-phone-entry-note">Màn này chỉ dùng để nhận diện học viên trước khi vào chương trình. Không thay đổi quyền Quản lý/Quản trị.</div>
+  </section>`;
+  const input = overlay.querySelector('#phfLearnerPhoneInput');
+  const err = overlay.querySelector('#phfLearnerPhoneError');
+  const showErr = function(msg){ if(err) err.textContent = msg || ''; };
+  const continueBtn = overlay.querySelector('#phfPhoneContinue');
+  continueBtn.onclick = async function(){
+    const phone = phfPhoneClean(input.value);
+    if(phone.length < 8){ showErr('Vui lòng nhập đúng số điện thoại để nhận diện học viên.'); input.focus(); return; }
+    continueBtn.classList.add('phf-btn-loading');
+    continueBtn.disabled = true;
+    showErr('');
+    try{ await phfRefreshTrainingData(); }catch(e){}
+    const found = phfFindLearnerByPhone(phone);
+    continueBtn.classList.remove('phf-btn-loading');
+    continueBtn.disabled = false;
+    if(found){
+      const profile = phfSetLearnerProfileFromRow(found);
+      phfOpenLearnerAfterPhone(profile);
+    }else{
+      showErr('Chưa tìm thấy hồ sơ theo số điện thoại này. Có thể tạo hồ sơ mới để bắt đầu chương trình.');
+    }
+  };
+  overlay.querySelector('#phfPhoneCreate').onclick = function(){
+    const phone = phfPhoneClean(input.value);
+    if(phone.length < 8){ showErr('Nhập số điện thoại trước khi tạo hồ sơ mới.'); input.focus(); return; }
+    phfCreateTemporaryLearnerFromPhone(phone);
+  };
+  overlay.querySelector('#phfPhoneBackRole').onclick = function(){
+    overlay.remove();
+    phfShowRoleChooser(true);
+  };
+  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') continueBtn.click(); });
+  setTimeout(function(){ input.focus(); }, 60);
+}
+
 function phfSetInternalRole(role){
   role = String(role || 'learner').toLowerCase();
   if(!['admin','manager','learner'].includes(role)) role = 'learner';
@@ -4041,7 +4161,8 @@ function phfSetInternalRole(role){
     setTimeout(phfCloseLegacyLearnerLogin, 80);
     setTimeout(phfCloseLegacyLearnerLogin, 450);
   }else{
-    render();
+    if(typeof phfShowLearnerPhoneEntry === 'function') phfShowLearnerPhoneEntry();
+    else render();
   }
 }
 function phfClearInternalRole(){
@@ -4207,6 +4328,167 @@ function phfReviewPolishV2(){
     setTimeout(phfReviewPolishV2, 0);
   };
   setTimeout(phfReviewPolishV2, 0);
+})();
+
+
+/* PHF resume progress fix - nhận diện SĐT xong mở đúng phần đang học */
+(function(){
+  function cleanPhone(v){ return String(v || '').replace(/\D+/g,''); }
+  function pageToLessonIndex(page){
+    const raw = String(page || '').trim();
+    const p = raw.toLowerCase();
+    if(!p) return null;
+    const m = p.match(/^lesson[:\-](\d+)$/);
+    if(m){
+      const n = Number(m[1]);
+      if(Number.isFinite(n) && Array.isArray(window.LESSONS || LESSONS) && n >= 0 && n < LESSONS.length) return n;
+    }
+    const fixed = {welcomepage:0, infopage:1, ruletimepage:2};
+    if(Object.prototype.hasOwnProperty.call(fixed, p)) return fixed[p];
+    if(Array.isArray(LESSONS)){
+      const idx = LESSONS.findIndex(function(x){
+        const hay = String((x.title||'') + ' ' + (x.nav||'') + ' ' + (x.sub||'') + ' ' + (x.badge||'')).toLowerCase();
+        return hay.includes(p) || p.includes(String(x.title||'').toLowerCase());
+      });
+      if(idx >= 0) return idx;
+    }
+    return null;
+  }
+  function isMeaningfulPage(page){
+    const idx = pageToLessonIndex(page);
+    return idx !== null && idx >= 2;
+  }
+  function getLocalProgress(profile){
+    const id = profile && profile.id ? String(profile.id) : '';
+    const phone = cleanPhone(profile && profile.phone);
+    const out = [];
+    try{
+      const map = JSON.parse(localStorage.getItem('phfProgressByEmployee') || '{}') || {};
+      if(id && map[id]) out.push(map[id]);
+      if(phone && map['phone:' + phone]) out.push(map['phone:' + phone]);
+    }catch(e){}
+    ['phfCurrentPage','phfLastPage','phfCurrentLessonKey'].forEach(function(k){
+      try{ const v = localStorage.getItem(k); if(v) out.push({currentPage:v,lastUpdatedAt:''}); }catch(e){}
+    });
+    try{
+      const v = localStorage.getItem('phfCurrentLessonIndex') || localStorage.getItem('phfLastLessonIndex');
+      if(v !== null && v !== '') out.push({currentPage:'lesson:' + Number(v),lastUpdatedAt:''});
+    }catch(e){}
+    return out;
+  }
+  function getServerProgress(profile){
+    const data = window.__phfLocalData || {};
+    const id = profile && profile.id ? String(profile.id) : '';
+    const phone = cleanPhone(profile && profile.phone);
+    const list = [];
+    const progress = data.progress || {};
+    if(id && progress[id]) list.push(progress[id]);
+    if(phone && progress['phone:' + phone]) list.push(progress['phone:' + phone]);
+    if(phone && Array.isArray(data.employees)){
+      data.employees.forEach(function(e){
+        const empPhone = cleanPhone(e && (e.phone || e.mobile || e.tel));
+        const empId = e && (e.id || e.employeeId || e.employee_id);
+        if(empPhone === phone && empId && progress[empId]) list.push(progress[empId]);
+      });
+    }
+    return list;
+  }
+  function getActivityCandidates(profile){
+    const data = window.__phfLocalData || {};
+    const id = profile && profile.id ? String(profile.id) : '';
+    const phone = cleanPhone(profile && profile.phone);
+    if(!Array.isArray(data.activityLog)) return [];
+    const empIds = new Set();
+    if(id) empIds.add(id);
+    if(phone && Array.isArray(data.employees)){
+      data.employees.forEach(function(e){
+        if(cleanPhone(e && e.phone) === phone){
+          const empId = e && (e.id || e.employeeId || e.employee_id);
+          if(empId) empIds.add(String(empId));
+        }
+      });
+    }
+    return data.activityLog
+      .filter(function(l){ return l && empIds.has(String(l.employeeId || l.employee_id || '')); })
+      .map(function(l){ return {currentPage:l.currentPage || l.current_page || '', lastUpdatedAt:l.savedAt || l.saved_at || ''}; });
+  }
+  function latestByTime(items){
+    return items.slice().sort(function(a,b){ return new Date(b.lastUpdatedAt || b.savedAt || b.saved_at || 0) - new Date(a.lastUpdatedAt || a.savedAt || a.saved_at || 0); });
+  }
+  function completedToNext(progressList){
+    let best = null;
+    progressList.forEach(function(p){
+      const pages = Array.isArray(p && p.completedPages) ? p.completedPages : (Array.isArray(p && p.completed_pages) ? p.completed_pages : []);
+      pages.forEach(function(pg){
+        const idx = pageToLessonIndex(pg);
+        if(idx !== null && (best === null || idx > best)) best = idx;
+      });
+    });
+    if(best === null) return null;
+    return Math.min(best + 1, LESSONS.length - 1);
+  }
+  window.phfResolveResumeLessonIndex = function(profile){
+    const progressList = [].concat(getServerProgress(profile), getLocalProgress(profile));
+    const activityList = getActivityCandidates(profile);
+    const direct = latestByTime(progressList.concat(activityList)).find(function(x){ return isMeaningfulPage(x.currentPage || x.current_page); });
+    if(direct){
+      const idx = pageToLessonIndex(direct.currentPage || direct.current_page);
+      if(idx !== null) return idx;
+    }
+    const next = completedToNext(progressList);
+    if(next !== null && next >= 2) return next;
+    return 1;
+  };
+  window.phfSaveProgressNow = async function(reason){
+    try{
+      const profile = (typeof phfCurrentEmployeeProfile === 'function') ? phfCurrentEmployeeProfile() : (typeof phfGetSavedProfile === 'function' ? phfGetSavedProfile() : {});
+      if(!profile || !profile.id) return false;
+      const idx = (typeof current !== 'undefined' && Number.isFinite(Number(current))) ? Number(current) : 1;
+      const page = 'lesson:' + idx;
+      const completedPages = [];
+      for(let i=0;i<idx;i++) completedPages.push('lesson:' + i);
+      const rec = {currentPage:page, completedPages:completedPages, lastUpdatedAt:new Date().toISOString()};
+      try{
+        const map = JSON.parse(localStorage.getItem('phfProgressByEmployee') || '{}') || {};
+        map[profile.id] = rec;
+        if(profile.phone) map['phone:' + cleanPhone(profile.phone)] = rec;
+        localStorage.setItem('phfProgressByEmployee', JSON.stringify(map));
+        localStorage.setItem('phfCurrentPage', page);
+        localStorage.setItem('phfCurrentLessonIndex', String(idx));
+      }catch(e){}
+      try{
+        const res = await fetch('/api/data', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:reason || 'autosave', employee:profile, currentPage:page, completedPages:completedPages})
+        });
+        const json = await res.json().catch(function(){ return {}; });
+        if(res.ok && json && (json.data || json.ok)) window.__phfLocalData = json.data || window.__phfLocalData;
+      }catch(e){}
+      return true;
+    }catch(err){ console.warn('PHF save progress fallback error', err); return false; }
+  };
+  const previousOpenLearnerAfterPhone = window.phfOpenLearnerAfterPhone || phfOpenLearnerAfterPhone;
+  window.phfOpenLearnerAfterPhone = phfOpenLearnerAfterPhone = function(profile){
+    const overlay = document.getElementById('phfPhoneEntryOverlay');
+    if(overlay) overlay.remove();
+    phfShowRoleSwitcher();
+    let idx = 1;
+    try{ idx = window.phfResolveResumeLessonIndex(profile); }catch(e){ idx = 1; }
+    try{
+      if(typeof current !== 'undefined') current = idx;
+      window.phfCurrentLessonIndex = idx;
+      window.phfCurrentLessonKey = 'lesson:' + idx;
+    }catch(e){}
+    if(typeof render === 'function') render();
+    setTimeout(function(){
+      try{
+        const main = document.getElementById('mainLesson') || document.querySelector('.main') || document.body;
+        const top = Math.max(0, main.getBoundingClientRect().top + window.pageYOffset - 12);
+        window.scrollTo({top:top,left:0,behavior:'auto'});
+      }catch(e){}
+    }, 60);
+  };
 })();
 
 </script>
