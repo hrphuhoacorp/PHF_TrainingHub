@@ -7196,3 +7196,573 @@ button[data-action="login"]:hover {
     min-height: 0;
   }
 }
+
+
+/* Stage 3.15.0G - Login intro layout fix
+   Fixes: logo/text overlap on 100% zoom and mockup scrollbar/overflow on the pre-login screen. */
+.phf-feature-intro-section{
+  min-height:100vh !important;
+  height:100vh !important;
+  overflow:hidden !important;
+  display:grid !important;
+  grid-template-rows:auto 1fr !important;
+  padding:clamp(26px, 4vh, 44px) clamp(42px, 5vw, 86px) clamp(30px, 5vh, 54px) !important;
+  position:relative !important;
+}
+
+.phf-feature-intro-section .brand,
+.phf-feature-intro-section .phf-feature-brand,
+.phf-feature-intro-section .phf-intro-brand,
+.phf-feature-intro-section .brand-row{
+  position:relative !important;
+  left:auto !important;
+  top:auto !important;
+  z-index:6 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:22px !important;
+  width:fit-content !important;
+  max-width:calc(100% - 190px) !important;
+}
+
+.phf-feature-intro-section .brand-logo,
+.phf-feature-intro-section .phf-feature-logo{
+  width:clamp(220px, 23vw, 315px) !important;
+  max-width:315px !important;
+  flex:0 0 auto !important;
+}
+
+.phf-feature-intro-section .brand-logo img,
+.phf-feature-intro-section .phf-feature-logo img{
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+}
+
+.phf-feature-intro-login,
+.phf-intro-login-btn{
+  position:fixed !important;
+  top:clamp(24px, 4.4vh, 42px) !important;
+  right:clamp(34px, 4.8vw, 78px) !important;
+  z-index:30 !important;
+  border-radius:12px !important;
+  min-height:46px !important;
+  padding:0 18px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:9px !important;
+  background:#004D3A !important;
+  color:#fff !important;
+  border:1px solid rgba(0,77,58,.18) !important;
+  box-shadow:0 12px 26px rgba(0,77,58,.16) !important;
+  font-size:15px !important;
+  font-weight:700 !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+
+.phf-feature-intro-layout,
+.phf-feature-intro-section .layout,
+.phf-feature-intro-section .intro-layout{
+  position:relative !important;
+  z-index:2 !important;
+  width:100% !important;
+  max-width:1480px !important;
+  margin:0 auto !important;
+  height:100% !important;
+  min-height:0 !important;
+  display:grid !important;
+  grid-template-columns:minmax(420px, .9fr) minmax(460px, 1.1fr) !important;
+  gap:clamp(28px, 5vw, 80px) !important;
+  align-items:center !important;
+  padding:0 !important;
+}
+
+.phf-feature-intro-section .content,
+.phf-feature-intro-section .intro-content,
+.phf-feature-intro-section .phf-feature-copy{
+  position:relative !important;
+  left:auto !important;
+  top:auto !important;
+  width:auto !important;
+  max-width:660px !important;
+  min-height:360px !important;
+  margin:0 !important;
+  align-self:center !important;
+}
+
+.phf-feature-intro-section .scene{
+  position:absolute !important;
+  inset:0 auto auto 0 !important;
+  width:100% !important;
+  max-width:660px !important;
+}
+
+.phf-feature-intro-section h1{
+  font-size:clamp(40px, 4.4vw, 58px) !important;
+  line-height:1.08 !important;
+  max-width:660px !important;
+}
+
+.phf-feature-intro-section h2{
+  font-size:clamp(34px, 3.6vw, 48px) !important;
+  line-height:1.12 !important;
+  max-width:650px !important;
+}
+
+.phf-feature-intro-section p{
+  font-size:clamp(18px, 1.55vw, 23px) !important;
+  line-height:1.5 !important;
+  max-width:620px !important;
+}
+
+/* Mockup: lock height and remove any visible internal scrollbar. */
+.phf-feature-intro-section .mockup-shell,
+.phf-feature-intro-section .mockup,
+.phf-feature-intro-section .mockup-body,
+.phf-feature-intro-section .mockup-grid{
+  overflow:hidden !important;
+  scrollbar-width:none !important;
+}
+
+.phf-feature-intro-section .mockup-shell{
+  position:relative !important;
+  right:auto !important;
+  top:auto !important;
+  width:100% !important;
+  max-width:620px !important;
+  max-height:min(66vh, 560px) !important;
+  align-self:center !important;
+  justify-self:end !important;
+  margin:0 !important;
+  transform:none !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+
+.phf-feature-intro-section .mockup{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+}
+
+.phf-feature-intro-section .mockup-body,
+.phf-feature-intro-section .mockup-grid{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:14px !important;
+  padding:18px !important;
+}
+
+.phf-feature-intro-section .mock-card{
+  min-height:0 !important;
+  height:auto !important;
+  padding:15px !important;
+}
+
+.phf-feature-intro-section .mock-icon{
+  width:42px !important;
+  height:42px !important;
+}
+
+.phf-feature-intro-section .mock-card strong{
+  font-size:16px !important;
+}
+
+.phf-feature-intro-section .mock-card span{
+  font-size:12.5px !important;
+  line-height:1.45 !important;
+}
+
+.phf-feature-intro-section .mockup-top{
+  flex:0 0 auto !important;
+  padding:16px 20px !important;
+}
+
+.phf-feature-intro-section .mockup-title{
+  white-space:nowrap !important;
+}
+
+.phf-feature-intro-section .mockup-chip{
+  white-space:nowrap !important;
+}
+
+.phf-feature-intro-section .progress,
+.phf-feature-intro-section .caption{
+  display:none !important;
+}
+
+@media (max-width:1100px){
+  .phf-feature-intro-section{
+    padding:24px 28px 34px !important;
+  }
+  .phf-feature-intro-section .brand,
+  .phf-feature-intro-section .phf-feature-brand,
+  .phf-feature-intro-section .phf-intro-brand,
+  .phf-feature-intro-section .brand-row{
+    max-width:calc(100% - 160px) !important;
+  }
+  .phf-feature-intro-section .brand-logo,
+  .phf-feature-intro-section .phf-feature-logo{
+    width:210px !important;
+  }
+  .phf-feature-intro-layout,
+  .phf-feature-intro-section .layout,
+  .phf-feature-intro-section .intro-layout{
+    grid-template-columns:1fr 1fr !important;
+    gap:28px !important;
+  }
+  .phf-feature-intro-section .mockup-shell{
+    max-height:60vh !important;
+  }
+}
+
+@media (max-width:820px){
+  .phf-feature-intro-section{
+    height:auto !important;
+    min-height:100vh !important;
+    overflow:auto !important;
+    display:block !important;
+    padding:22px 18px 30px !important;
+  }
+  .phf-feature-intro-section .brand,
+  .phf-feature-intro-section .phf-feature-brand,
+  .phf-feature-intro-section .phf-intro-brand,
+  .phf-feature-intro-section .brand-row{
+    max-width:calc(100% - 126px) !important;
+  }
+  .phf-feature-intro-section .brand-logo,
+  .phf-feature-intro-section .phf-feature-logo{
+    width:170px !important;
+  }
+  .phf-feature-intro-login,
+  .phf-intro-login-btn{
+    top:20px !important;
+    right:18px !important;
+    min-height:42px !important;
+    padding:0 14px !important;
+    font-size:14px !important;
+  }
+  .phf-feature-intro-layout,
+  .phf-feature-intro-section .layout,
+  .phf-feature-intro-section .intro-layout{
+    display:block !important;
+    height:auto !important;
+    margin-top:54px !important;
+  }
+  .phf-feature-intro-section .content,
+  .phf-feature-intro-section .intro-content,
+  .phf-feature-intro-section .phf-feature-copy{
+    min-height:320px !important;
+    max-width:100% !important;
+  }
+  .phf-feature-intro-section .mockup-shell{
+    max-width:100% !important;
+    max-height:none !important;
+    margin-top:24px !important;
+    opacity:.55 !important;
+  }
+}
+
+
+/* Stage 3.15.0H - Login intro responsive rebuild
+   Rebuild pre-login intro as a normal web layout: no overlap at 100% zoom, no internal mockup scrollbar. */
+body.phf-intro-login-mode,
+body:not(.phf-logged-in) {
+  overflow-x: hidden;
+}
+
+/* Main pre-login section: allow natural height and page scroll. */
+.phf-feature-intro-section {
+  min-height: 100svh !important;
+  height: auto !important;
+  overflow: visible !important;
+  display: grid !important;
+  grid-template-rows: auto 1fr !important;
+  gap: clamp(26px, 4vh, 48px) !important;
+  padding: clamp(24px, 4vh, 42px) clamp(28px, 5vw, 84px) clamp(34px, 5vh, 58px) !important;
+  position: relative !important;
+}
+
+/* Top header area. Logo/title are no longer absolute; they stay in the page flow. */
+.phf-feature-intro-section .brand,
+.phf-feature-intro-section .phf-feature-brand,
+.phf-feature-intro-section .phf-intro-brand,
+.phf-feature-intro-section .brand-row {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 5 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: clamp(14px, 1.8vw, 24px) !important;
+  width: fit-content !important;
+  max-width: calc(100% - 170px) !important;
+  margin: 0 !important;
+}
+
+.phf-feature-intro-section .brand-logo,
+.phf-feature-intro-section .phf-feature-logo {
+  width: clamp(190px, 20vw, 300px) !important;
+  max-width: 300px !important;
+  flex: 0 0 auto !important;
+}
+
+.phf-feature-intro-section .brand-logo img,
+.phf-feature-intro-section .phf-feature-logo img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Login button belongs to the header area visually, but remains fixed for easy access. */
+.phf-feature-intro-login,
+.phf-intro-login-btn {
+  position: fixed !important;
+  top: clamp(22px, 4vh, 38px) !important;
+  right: clamp(26px, 4.5vw, 74px) !important;
+  z-index: 30 !important;
+  border-radius: 12px !important;
+  min-height: 46px !important;
+  padding: 0 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  background: #004D3A !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(0,77,58,.18) !important;
+  box-shadow: 0 12px 26px rgba(0,77,58,.16) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* Content layout: normal grid, no absolute positioning for the main columns. */
+.phf-feature-intro-layout,
+.phf-feature-intro-section .layout,
+.phf-feature-intro-section .intro-layout {
+  position: relative !important;
+  z-index: 2 !important;
+  width: min(100%, 1480px) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(360px, .92fr) minmax(440px, 1.08fr) !important;
+  gap: clamp(30px, 5vw, 82px) !important;
+  align-items: center !important;
+}
+
+/* Left copy: lock a safe scene area without overlapping logo/header. */
+.phf-feature-intro-section .content,
+.phf-feature-intro-section .intro-content,
+.phf-feature-intro-section .phf-feature-copy {
+  position: relative !important;
+  inset: auto !important;
+  width: auto !important;
+  max-width: 660px !important;
+  min-height: clamp(300px, 38vh, 420px) !important;
+  margin: 0 !important;
+  align-self: center !important;
+}
+
+.phf-feature-intro-section .scene {
+  position: absolute !important;
+  inset: 0 auto auto 0 !important;
+  width: 100% !important;
+  max-width: 660px !important;
+}
+
+.phf-feature-intro-section h1 {
+  font-size: clamp(38px, 4vw, 56px) !important;
+  line-height: 1.08 !important;
+  max-width: 660px !important;
+  margin: 0 !important;
+}
+
+.phf-feature-intro-section h2 {
+  font-size: clamp(32px, 3.35vw, 46px) !important;
+  line-height: 1.13 !important;
+  max-width: 650px !important;
+  margin: 0 !important;
+}
+
+.phf-feature-intro-section p {
+  font-size: clamp(18px, 1.45vw, 22px) !important;
+  line-height: 1.52 !important;
+  max-width: 620px !important;
+}
+
+/* Right mockup: no internal scrollbar; height is controlled by content and viewport. */
+.phf-feature-intro-section .mockup-shell {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: 620px !important;
+  max-height: none !important;
+  height: auto !important;
+  align-self: center !important;
+  justify-self: end !important;
+  margin: 0 !important;
+  transform: none !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+.phf-feature-intro-section .mockup,
+.phf-feature-intro-section .mockup-body,
+.phf-feature-intro-section .mockup-grid {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.phf-feature-intro-section .mockup::-webkit-scrollbar,
+.phf-feature-intro-section .mockup-body::-webkit-scrollbar,
+.phf-feature-intro-section .mockup-grid::-webkit-scrollbar {
+  display: none !important;
+}
+
+.phf-feature-intro-section .mockup {
+  height: auto !important;
+  max-height: none !important;
+}
+
+.phf-feature-intro-section .mockup-top {
+  flex: 0 0 auto !important;
+  padding: clamp(14px, 1.6vw, 18px) clamp(16px, 2vw, 22px) !important;
+}
+
+.phf-feature-intro-section .mockup-body,
+.phf-feature-intro-section .mockup-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: clamp(12px, 1.2vw, 14px) !important;
+  padding: clamp(14px, 1.6vw, 20px) !important;
+}
+
+.phf-feature-intro-section .mock-card {
+  min-height: 0 !important;
+  height: auto !important;
+  padding: clamp(13px, 1.3vw, 16px) !important;
+}
+
+.phf-feature-intro-section .mock-card-top {
+  margin-bottom: 12px !important;
+}
+
+.phf-feature-intro-section .mock-icon {
+  width: clamp(38px, 3.2vw, 44px) !important;
+  height: clamp(38px, 3.2vw, 44px) !important;
+}
+
+.phf-feature-intro-section .mock-card strong {
+  font-size: clamp(15px, 1.25vw, 17px) !important;
+}
+
+.phf-feature-intro-section .mock-card span {
+  font-size: clamp(12px, .95vw, 13px) !important;
+  line-height: 1.45 !important;
+}
+
+.phf-feature-intro-section .progress,
+.phf-feature-intro-section .caption {
+  display: none !important;
+}
+
+/* Low-height desktop / 100% zoom: make everything compact but still in normal flow. */
+@media (max-height: 760px) and (min-width: 821px) {
+  .phf-feature-intro-section {
+    min-height: 100vh !important;
+    padding-top: 22px !important;
+    padding-bottom: 28px !important;
+    gap: 24px !important;
+  }
+  .phf-feature-intro-section .brand-logo,
+  .phf-feature-intro-section .phf-feature-logo {
+    width: clamp(170px, 17vw, 250px) !important;
+  }
+  .phf-feature-intro-section .brand-text strong {
+    font-size: clamp(18px, 1.8vw, 23px) !important;
+  }
+  .phf-feature-intro-section .brand-text span {
+    font-size: 13px !important;
+  }
+  .phf-feature-intro-layout,
+  .phf-feature-intro-section .layout,
+  .phf-feature-intro-section .intro-layout {
+    align-items: start !important;
+  }
+  .phf-feature-intro-section .content,
+  .phf-feature-intro-section .intro-content,
+  .phf-feature-intro-section .phf-feature-copy {
+    min-height: 300px !important;
+  }
+  .phf-feature-intro-section h1 {
+    font-size: clamp(34px, 3.5vw, 48px) !important;
+  }
+  .phf-feature-intro-section h2 {
+    font-size: clamp(30px, 3vw, 40px) !important;
+  }
+  .phf-feature-intro-section p {
+    font-size: clamp(16px, 1.35vw, 20px) !important;
+  }
+  .phf-feature-intro-section .mockup-shell {
+    max-width: 560px !important;
+  }
+}
+
+/* Tablet/mobile: stack naturally and allow page scroll. */
+@media (max-width: 900px) {
+  .phf-feature-intro-section {
+    min-height: 100vh !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    padding: 22px 18px 34px !important;
+  }
+
+  .phf-feature-intro-section .brand,
+  .phf-feature-intro-section .phf-feature-brand,
+  .phf-feature-intro-section .phf-intro-brand,
+  .phf-feature-intro-section .brand-row {
+    max-width: calc(100% - 118px) !important;
+  }
+
+  .phf-feature-intro-section .brand-logo,
+  .phf-feature-intro-section .phf-feature-logo {
+    width: clamp(150px, 45vw, 190px) !important;
+  }
+
+  .phf-feature-intro-login,
+  .phf-intro-login-btn {
+    top: 18px !important;
+    right: 18px !important;
+    min-height: 42px !important;
+    padding: 0 14px !important;
+    font-size: 14px !important;
+  }
+
+  .phf-feature-intro-layout,
+  .phf-feature-intro-section .layout,
+  .phf-feature-intro-section .intro-layout {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 46px !important;
+  }
+
+  .phf-feature-intro-section .content,
+  .phf-feature-intro-section .intro-content,
+  .phf-feature-intro-section .phf-feature-copy {
+    min-height: 320px !important;
+    max-width: 100% !important;
+  }
+
+  .phf-feature-intro-section .mockup-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 24px !important;
+    justify-self: stretch !important;
+  }
+}
