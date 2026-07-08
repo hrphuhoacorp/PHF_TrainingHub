@@ -12,7 +12,7 @@
 <link rel="manifest" href="site.webmanifest">
 <meta name="theme-color" content="#0b4b39">
 
-<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=stage395_mobile_header_fix">
+<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=stage310_shared_header">
 
 
 
@@ -135,6 +135,7 @@
       <button type="button" data-phf-main-nav="intro" onclick="phfGoIntroWelcome()">Giới thiệu PHUHOA FRESH</button>
       <button type="button" class="active" data-phf-main-nav="home" onclick="phfGoHome()">Bài học của tôi</button>
       <button type="button" data-phf-main-nav="profile" onclick="phfGoMyProfile()">Hồ sơ của tôi</button>
+      <button type="button" data-phf-main-nav="reports" onclick="phfRenderTrainingReports()">Báo cáo</button>
       <button type="button" data-phf-main-nav="guide" onclick="phfGoGuide()">Hướng dẫn</button>
       <button type="button" data-phf-main-nav="directTrainingTest" onclick="phfGoDirectTrainingTest()">Kiểm tra</button>
     </nav>
@@ -1399,25 +1400,15 @@ function phfRenderEvaluationHistory(periods, employeeId){
 
 
 function phfRenderHubTopbar(active, profile, canEdit){
-  profile = profile || phfCurrentEmployeeProfile();
-  const first = esc((profile.fullName || 'HV').slice(0,1).toUpperCase());
-  const userTitle = esc(canEdit ? phfRoleLabel() : (profile.fullName || 'Học viên'));
-  const userSub = esc(canEdit ? 'Quyền đánh giá' : 'Học viên');
-  const navItems = canEdit
-    ? [['intro','Giới thiệu PHUHOA FRESH'], ['overview','Bài học của tôi'], ['evaluation','Đánh giá'], ['reports','Báo cáo'], ['guide','Hướng dẫn'], ['directTrainingTest','Kiểm tra']]
-    : [['intro','Giới thiệu PHUHOA FRESH'], ['overview','Bài học của tôi'], ['learning','Học tiếp'], ['evaluation','Hồ sơ của tôi'], ['guide','Hướng dẫn'], ['directTrainingTest','Kiểm tra']];
-  const nav = navItems.map(function(item){
-    const key = item[0], label = item[1];
-    const handler = key === 'intro' ? 'phfGoIntroWelcome()' : `phfOpenHubTab('${key}')`;
-    return `<button type="button" class="${active===key?'active':''}" onclick="${handler}">${label}</button>`;
-  }).join('');
-  return `<header class="eval-admin-topbar phf-site-header"><button type="button" class="eval-admin-brand phf-logo-home" onclick="phfGoIntroWelcome()" title="Về trang giới thiệu PHF"><div class="eval-admin-logo"><img src="assets/logo/phf-logo.png" alt="Phuhoa Fresh"></div><h1>PHF Training Hub</h1></button><nav class="eval-admin-nav">${nav}</nav><button type="button" class="phf-login-entry eval-login-entry" onclick="phfGoLogin()"><span>Đăng nhập / Đổi tài khoản</span><small>${userTitle} · ${userSub}</small></button></header>`;
+  // Header/menu chung hiện đã nằm cố định ở đầu .app.
+  // Các module con không tự render thêm header riêng nữa để tránh trùng/chồng lấn trên mobile.
+  return '';
 }
 function phfOpenHubTab(tab){
   const canEdit = phfCanEditEvaluation();
-  if(tab === 'overview') return phfRenderTrainingOverview();
+  if(tab === 'home' || tab === 'overview') return phfRenderTrainingOverview();
   if(tab === 'learning') return phfIsAdminMode() ? render() : (canEdit ? phfRenderTrainingOverview() : render());
-  if(tab === 'evaluation') return renderEvaluationRecords();
+  if(tab === 'profile' || tab === 'evaluation') return renderEvaluationRecords();
   if(tab === 'reports') return canEdit ? phfRenderTrainingReports() : phfRenderTrainingOverview();
   if(tab === 'guide') return phfGoGuide();
   if(tab === 'directTrainingTest') return phfGoDirectTrainingTest();
@@ -1425,8 +1416,10 @@ function phfOpenHubTab(tab){
 }
 function phfSetMainNavActive(key){
   try{
+    const alias = {overview:'home', learning:'home', evaluation:'profile'};
+    const activeKey = alias[key] || key;
     document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){
-      btn.classList.toggle('active', btn.getAttribute('data-phf-main-nav') === key);
+      btn.classList.toggle('active', btn.getAttribute('data-phf-main-nav') === activeKey);
     });
   }catch(e){}
 }
@@ -1503,6 +1496,7 @@ function phfRenderGuidePage(){
       <b>Lưu ý khi dùng máy chung:</b> người dùng cần nhập đúng số điện thoại của mình để tránh mở nhầm hồ sơ học tập của người khác. Khi gặp lỗi, nên chụp lại màn hình và báo người phụ trách hoặc admin để được hỗ trợ.
     </div>
   </section>`;
+  try{ if(window.phfInitMobileMenus) setTimeout(window.phfInitMobileMenus, 0); }catch(e){}
   phfScrollToPageTop();
 }
 function phfGoDirectTrainingTest(){
@@ -1540,6 +1534,7 @@ function phfRenderDirectTrainingTestPage(){
       <div class="record-note">Hiện tại chỉ hiển thị khung định hướng, chưa tạo câu hỏi, chưa phát hành bài kiểm tra và chưa ghi dữ liệu mới.</div>
     </div>
   </section>`;
+  try{ if(window.phfInitMobileMenus) setTimeout(window.phfInitMobileMenus, 0); }catch(e){}
   phfScrollToPageTop();
 }
 function phfGoLogin(){
@@ -1756,6 +1751,7 @@ function phfRenderTrainingOverview(){
 }
 
 function phfRenderTrainingReports(filters){
+  phfSetMainNavActive('reports');
   document.body.classList.add('phf-eval-mode');
   const canEdit = phfCanEditEvaluation();
   if(!canEdit) return phfRenderTrainingOverview();
@@ -2825,38 +2821,37 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
   }
   function initMobileMenus(){
     document.querySelectorAll('.phf-mobile-menu-toggle').forEach(function(btn){
-      if(btn.dataset.phfMenuReady === '1') return;
-      btn.dataset.phfMenuReady = '1';
-      btn.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        var header = btn.closest('.phf-landing-header, .phf-site-header');
-        if(!header) return;
-        var willOpen = !header.classList.contains('phf-mobile-open');
-        closeAllMobileMenus();
-        if(willOpen){
-          header.classList.add('phf-mobile-open');
-          btn.setAttribute('aria-expanded','true');
-          btn.textContent = 'Đóng';
-        }
-      });
-    });
-    document.querySelectorAll('.phf-landing-nav button,.phf-main-nav button,.eval-admin-nav button,.phf-landing-login,.phf-login-entry').forEach(function(item){
-      if(item.dataset.phfMenuCloseReady === '1') return;
-      item.dataset.phfMenuCloseReady = '1';
-      item.addEventListener('click', function(){
-        if(window.matchMedia && window.matchMedia('(max-width: 760px)').matches){
-          setTimeout(closeAllMobileMenus, 0);
-        }
-      });
+      btn.setAttribute('aria-expanded', btn.closest('.phf-mobile-open') ? 'true' : 'false');
     });
   }
+  document.addEventListener('click', function(e){
+    var toggle = e.target && e.target.closest ? e.target.closest('.phf-mobile-menu-toggle') : null;
+    if(toggle){
+      var header = toggle.closest('.phf-landing-header, .phf-site-header, .eval-admin-topbar');
+      if(!header) return;
+      var willOpen = !header.classList.contains('phf-mobile-open');
+      closeAllMobileMenus();
+      if(willOpen){
+        header.classList.add('phf-mobile-open');
+        toggle.setAttribute('aria-expanded','true');
+        toggle.textContent = 'Đóng';
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    var navItem = e.target && e.target.closest ? e.target.closest('.phf-landing-nav button,.phf-main-nav button,.eval-admin-nav button,.phf-landing-login,.phf-login-entry') : null;
+    if(navItem && window.matchMedia && window.matchMedia('(max-width: 760px)').matches){
+      setTimeout(closeAllMobileMenus, 0);
+    }
+  });
   document.addEventListener('DOMContentLoaded', initMobileMenus);
   setTimeout(initMobileMenus, 0);
   window.addEventListener('resize', function(){
     if(!window.matchMedia || !window.matchMedia('(max-width: 760px)').matches){ closeAllMobileMenus(); }
   });
   window.phfCloseMobileMenus = closeAllMobileMenus;
+  window.phfInitMobileMenus = initMobileMenus;
 })();
 </script>
 
