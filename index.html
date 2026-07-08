@@ -36,6 +36,7 @@
   <div class="phf-intro-shell">
     <header class="phf-intro-top phf-landing-header">
       <button class="phf-intro-brand phf-landing-brand" type="button" data-intro-home aria-label="Về trang chủ PHF Training Hub"><img src="assets/intro/phf-falogo.png" alt="Phuhoa Fresh"><div><b>PHF Training Hub</b><span>Cổng đào tạo nội bộ PHUHOA FRESH</span></div></button>
+      <button class="phf-mobile-menu-toggle phf-landing-menu-toggle" type="button" aria-expanded="false" aria-label="Mở menu điều hướng">☰ Menu</button>
       <nav class="phf-landing-nav" aria-label="Điều hướng trang chủ">
         <button type="button" data-intro-about>Giới thiệu PHUHOA FRESH</button>
         <button type="button" data-intro-start>Bài học của tôi</button>
@@ -129,6 +130,7 @@
 <div class="app">
   <header class="topbar phf-site-header">
     <button type="button" class="brand phf-logo-home" onclick="phfGoIntroWelcome()" title="Về trang giới thiệu PHF"><div class="logo"><img src="assets/logo/phf-logo.png" alt="Phuhoa Fresh"></div><div><h1>PHF Training Hub</h1><p>Cổng đào tạo nội bộ PHUHOA FRESH</p></div></button>
+    <button class="phf-mobile-menu-toggle phf-app-menu-toggle" type="button" aria-expanded="false" aria-label="Mở menu điều hướng">☰ Menu</button>
     <nav class="phf-main-nav" aria-label="Điều hướng chính">
       <button type="button" data-phf-main-nav="intro" onclick="phfGoIntroWelcome()">Giới thiệu PHUHOA FRESH</button>
       <button type="button" class="active" data-phf-main-nav="home" onclick="phfGoHome()">Bài học của tôi</button>
@@ -2812,5 +2814,51 @@ function phfReviewPolishV2(){
 <script>
 function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1AfternoonQuiz');if(!wrap)return;var questions=wrap.querySelectorAll('.phf-quiz-question');var correct=0;questions.forEach(function(q){q.classList.remove('correct','wrong');var checked=q.querySelector('input[type="radio"]:checked');if(checked&&checked.value===q.getAttribute('data-answer')){correct++;q.classList.add('correct');}else{q.classList.add('wrong');}});var result=document.getElementById('day1AfternoonQuizResult');if(result){result.classList.add('show');result.innerHTML='Bạn đã trả lời đúng '+correct+'/'+questions.length+' câu. Phần này không khóa bài; hãy đọc lại giải thích ở những câu chưa đúng rồi bấm tiếp tục.';}}
 </script>
+<script>
+(function(){
+  function closeAllMobileMenus(){
+    document.querySelectorAll('.phf-mobile-open').forEach(function(el){ el.classList.remove('phf-mobile-open'); });
+    document.querySelectorAll('.phf-mobile-menu-toggle').forEach(function(btn){
+      btn.setAttribute('aria-expanded','false');
+      btn.textContent = '☰ Menu';
+    });
+  }
+  function initMobileMenus(){
+    document.querySelectorAll('.phf-mobile-menu-toggle').forEach(function(btn){
+      if(btn.dataset.phfMenuReady === '1') return;
+      btn.dataset.phfMenuReady = '1';
+      btn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var header = btn.closest('.phf-landing-header, .phf-site-header');
+        if(!header) return;
+        var willOpen = !header.classList.contains('phf-mobile-open');
+        closeAllMobileMenus();
+        if(willOpen){
+          header.classList.add('phf-mobile-open');
+          btn.setAttribute('aria-expanded','true');
+          btn.textContent = 'Đóng';
+        }
+      });
+    });
+    document.querySelectorAll('.phf-landing-nav button,.phf-main-nav button,.eval-admin-nav button,.phf-landing-login,.phf-login-entry').forEach(function(item){
+      if(item.dataset.phfMenuCloseReady === '1') return;
+      item.dataset.phfMenuCloseReady = '1';
+      item.addEventListener('click', function(){
+        if(window.matchMedia && window.matchMedia('(max-width: 760px)').matches){
+          setTimeout(closeAllMobileMenus, 0);
+        }
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', initMobileMenus);
+  setTimeout(initMobileMenus, 0);
+  window.addEventListener('resize', function(){
+    if(!window.matchMedia || !window.matchMedia('(max-width: 760px)').matches){ closeAllMobileMenus(); }
+  });
+  window.phfCloseMobileMenus = closeAllMobileMenus;
+})();
+</script>
+
 </body>
 </html>
