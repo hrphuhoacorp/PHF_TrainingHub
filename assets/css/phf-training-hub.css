@@ -5184,3 +5184,159 @@ body.phf-eval-mode .main{
   .phf-landing-nav{gap:2px!important;}
   .phf-landing-nav button{padding-left:11px!important;padding-right:11px!important;}
 }
+
+
+/* PHF PATCH 2026-07-08: Đồng bộ font cho khu Xem nội dung học chi tiết */
+.original,
+.original *,
+details,
+details *,
+summary,
+.original-content,
+.original-content *,
+.lesson-card,
+.lesson-card *,
+.phf-details-card,
+.phf-details-card *{
+  font-family: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif !important;
+}
+summary{
+  line-height:1.45;
+}
+.original-content{
+  line-height:1.62;
+}
+
+
+/* PATCH STAGE 3.12.6 - originalFull chỉ là nội dung trong cột giữa, không được phá khung học */
+#mainLesson .phf-original-inline{margin-top:18px;border-top:1px solid #edf3f0;padding-top:18px;}
+#mainLesson .phf-original-inline .original-goc-screen{font-family:var(--phf-font-main,Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif)!important;}
+#mainLesson .phf-original-inline .original-goc-screen .topline,
+#mainLesson .phf-original-inline .original-goc-screen .footer-note{display:none!important;}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-card{display:block!important;border-radius:20px!important;box-shadow:none!important;border:1px solid var(--line)!important;background:#fff!important;}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-card:before{display:none!important;}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-left{padding:22px!important;}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-right{display:none!important;}
+#mainLesson .phf-original-inline .original-goc-screen h1{font-size:28px!important;line-height:1.15!important;letter-spacing:-.3px!important;}
+#mainLesson .phf-original-inline .original-goc-screen .lead{font-size:16px!important;line-height:1.55!important;}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-note{font-size:14px!important;line-height:1.6!important;}
+#mainLesson .phf-original-inline .original-goc-screen .form-card{border-radius:20px!important;box-shadow:none!important;border:1px solid var(--line)!important;}
+#mainLesson .phf-original-inline .original-goc-screen .form-head{border-radius:20px 20px 0 0!important;}
+#mainLesson .phf-original-inline .original-goc-screen .shell{max-width:100%!important;margin:0!important;}
+
+/* PHF Stage 3.12.7 - Contain legacy originalFull content inside the unified learning shell */
+#mainLesson .phf-original-contained,
+#mainLesson .phf-original-contained *{
+  font-family: Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .shell,
+#mainLesson .phf-original-inline .original-goc-screen .form-wrap{
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .topline,
+#mainLesson .phf-original-inline .original-goc-screen .footer-note{
+  display: none !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .form-card,
+#mainLesson .phf-original-inline .original-goc-screen .welcome-card{
+  border-radius: 20px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--line,#d9eadf) !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-card:before{
+  display: none !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-left,
+#mainLesson .phf-original-inline .original-goc-screen .welcome-right,
+#mainLesson .phf-original-inline .original-goc-screen .form-body{
+  padding: 20px !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .welcome-right{
+  display: none !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen h1{
+  font-size: 30px !important;
+  line-height: 1.15 !important;
+}
+#mainLesson .phf-original-inline .original-goc-screen .lead,
+#mainLesson .phf-original-inline .original-goc-screen .welcome-note{
+  font-size: 15px !important;
+}
+
+
+/* PHF STAGE 3.12.8 - Hard fix F5/resume: không cho legacy originalFull phá khung học */
+body.phf-original-full-mode .phase-strip{display:grid!important;}
+body.phf-original-full-mode .context-bar{display:grid!important;}
+body.phf-original-full-mode .layout{
+  display:grid!important;
+  grid-template-columns:265px minmax(730px,1fr) 230px!important;
+  gap:16px!important;
+  align-items:start!important;
+}
+body.phf-original-full-mode .todo-panel,
+body.phf-original-full-mode .right-panel{display:block!important;}
+body.phf-original-full-mode .main{
+  width:auto!important;
+  max-width:none!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+body.phf-original-full-mode .focus-head,
+body.phf-original-full-mode .focus-body{display:block!important;}
+body.phf-original-full-mode .app{max-width:1440px!important;}
+@media(max-width:1160px){
+  body.phf-original-full-mode .layout{grid-template-columns:1fr!important;}
+  body.phf-original-full-mode .todo-panel,
+  body.phf-original-full-mode .right-panel{position:static!important;max-height:none!important;}
+}
+/* Đồng bộ phông chữ phần Xem nội dung học chi tiết và toàn bộ nội dung mở rộng */
+.original,
+.original details,
+.original summary,
+.original .original-content,
+.original .original-content *,
+#mainLesson details,
+#mainLesson summary,
+#mainLesson .original-content,
+#mainLesson .original-content *,
+#mainLesson .phf-original-contained,
+#mainLesson .phf-original-contained *{
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif!important;
+}
+#mainLesson summary{
+  line-height:1.45!important;
+  letter-spacing:0!important;
+}
+
+
+/* PHF Stage 3.12.9 - hard lock learning shell after F5/refresh
+   Khi đang ở Bài học của tôi, mọi class cũ của module/eval không được ẩn phase/context/sidebar. */
+body.phf-learning-mode > .app{max-width:1440px!important;margin:0 auto!important;padding:22px!important;}
+body.phf-learning-mode > .app > .topbar.phf-site-header{display:flex!important;}
+body.phf-learning-mode > .app > .phase-strip{display:grid!important;}
+body.phf-learning-mode > .app > .context-bar{display:grid!important;}
+body.phf-learning-mode .layout{display:grid!important;grid-template-columns:265px minmax(730px,1fr) 230px!important;gap:16px!important;align-items:start!important;max-width:100%!important;margin:0!important;padding:0!important;}
+body.phf-learning-mode .todo-panel,
+body.phf-learning-mode .right-panel{display:block!important;visibility:visible!important;position:sticky!important;top:18px!important;max-height:calc(100vh - 36px)!important;overflow:auto!important;}
+body.phf-learning-mode .main{display:block!important;background:#fff!important;border:1px solid var(--line)!important;border-radius:28px!important;box-shadow:var(--shadow)!important;overflow:hidden!important;padding:0!important;max-width:none!important;}
+body.phf-learning-mode #mainLesson{display:block!important;}
+body.phf-learning-mode .focus-body,
+body.phf-learning-mode .focus-head{font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif!important;}
+body.phf-learning-mode details,
+body.phf-learning-mode summary,
+body.phf-learning-mode .original,
+body.phf-learning-mode .original-content,
+body.phf-learning-mode .original-content *{font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif!important;}
+@media(max-width:1160px){body.phf-learning-mode .layout{grid-template-columns:1fr!important;}body.phf-learning-mode .todo-panel,body.phf-learning-mode .right-panel{position:static!important;max-height:none!important;}}
+@media(max-width:760px){body.phf-learning-mode > .app{padding:12px!important;}body.phf-learning-mode > .app > .phase-strip{grid-template-columns:1fr!important;}body.phf-learning-mode > .app > .context-bar{display:block!important;}}
