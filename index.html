@@ -2855,5 +2855,97 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
 })();
 </script>
 
+
+
+<!-- PHF STAGE 3.11: Main shell/header baseline + font baseline -->
+<script>
+(function(){
+  var PHF_STAGE311_FONT = 'Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif';
+
+  function phfEnsureSharedShell(activeKey){
+    try{
+      document.body.classList.remove('phf-intro-active','phf-landing-active','phf-guide-intro-active');
+      document.body.classList.add('phf-main-shell-mode');
+      if(activeKey && activeKey !== 'learning') document.body.classList.add('phf-module-page-mode','phf-eval-mode');
+      if(activeKey === 'learning') document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-guide-standalone-mode');
+      var intro = document.getElementById('introSection');
+      if(intro) intro.hidden = true;
+      var app = document.querySelector('.app');
+      if(app) app.hidden = false;
+      if(typeof window.phfSetMainNavActive === 'function') window.phfSetMainNavActive(activeKey || 'home');
+      if(typeof window.phfCloseMobileMenus === 'function') window.phfCloseMobileMenus();
+      window.__phfTrainingEntryReady = true;
+    }catch(e){}
+  }
+
+  function phfApplyFontBaseline(){
+    try{
+      document.documentElement.style.setProperty('--phf-font-main', PHF_STAGE311_FONT);
+      document.documentElement.style.fontFamily = PHF_STAGE311_FONT;
+      document.body.style.fontFamily = PHF_STAGE311_FONT;
+      document.querySelectorAll('button,input,select,textarea,table,th,td,label,a,span,small,b,strong,p,h1,h2,h3,h4,h5,h6,div,section,article,aside,main,nav').forEach(function(el){
+        el.style.fontFamily = PHF_STAGE311_FONT;
+      });
+    }catch(e){}
+  }
+
+  function phfAfterSharedRender(activeKey){
+    setTimeout(function(){
+      phfEnsureSharedShell(activeKey);
+      phfApplyFontBaseline();
+      try{ if(typeof window.phfInitMobileMenus === 'function') window.phfInitMobileMenus(); }catch(e){}
+    },0);
+  }
+
+  window.phfEnsureSharedShell = phfEnsureSharedShell;
+  window.phfApplyFontBaseline = phfApplyFontBaseline;
+
+  function wrap(name, activeKey){
+    var old = window[name];
+    if(typeof old !== 'function' || old.__phfStage311Wrapped) return;
+    var fn = function(){
+      phfEnsureSharedShell(activeKey);
+      var r = old.apply(this, arguments);
+      phfAfterSharedRender(activeKey);
+      return r;
+    };
+    fn.__phfStage311Wrapped = true;
+    window[name] = fn;
+  }
+
+  // Tất cả trang/module chính đi qua cùng shell/header chung.
+  wrap('phfGoHome','home');
+  wrap('phfGoLearning','learning');
+  wrap('phfGoMyProfile','profile');
+  wrap('phfGoGuide','guide');
+  wrap('phfGoDirectTrainingTest','directTrainingTest');
+  wrap('phfRenderTrainingOverview','home');
+  wrap('phfRenderTrainingReports','reports');
+  wrap('renderEvaluationRecords','profile');
+
+  // Trang Giới thiệu là ngoại lệ có intro riêng; khi rời intro các trang khác dùng shell chung.
+  var oldIntro = window.phfGoIntroWelcome;
+  if(typeof oldIntro === 'function' && !oldIntro.__phfStage311IntroWrapped){
+    var introFn = function(){
+      try{ document.body.classList.remove('phf-main-shell-mode','phf-module-page-mode','phf-eval-mode'); }catch(e){}
+      var r = oldIntro.apply(this, arguments);
+      setTimeout(function(){
+        try{ if(typeof window.phfSetMainNavActive === 'function') window.phfSetMainNavActive('intro'); }catch(e){}
+        phfApplyFontBaseline();
+      },0);
+      return r;
+    };
+    introFn.__phfStage311IntroWrapped = true;
+    window.phfGoIntroWelcome = introFn;
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    phfApplyFontBaseline();
+    if(!document.body.classList.contains('phf-intro-active')) phfEnsureSharedShell('home');
+  });
+  setTimeout(phfApplyFontBaseline, 0);
+})();
+</script>
+
 </body>
 </html>

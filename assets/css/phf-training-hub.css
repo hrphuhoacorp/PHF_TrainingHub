@@ -4911,3 +4911,186 @@ body.phf-module-page-mode .context-bar{
   img,video,canvas,svg{max-width:100%!important;height:auto;}
   .eval-table-wrap,.table-wrap,.weekly-eval-table-wrap{overflow-x:auto!important;max-width:100%!important;-webkit-overflow-scrolling:touch!important;}
 }
+
+/* === PHF Stage 3.10.1: true shared header fix for Reports/Profile/Evaluation ===
+   Purpose: pages rendered in phf-eval-mode (Tổng quan/Báo cáo/Hồ sơ đánh giá)
+   must keep the same official header/menu as Trang chủ/Hướng dẫn/Kiểm tra.
+   This overrides older evaluation CSS that hid the topbar and created a separate header flow. */
+body.phf-eval-mode > .app > .topbar.phf-site-header,
+body.phf-module-page-mode.phf-eval-mode > .app > .topbar.phf-site-header{
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+body.phf-eval-mode > .app > .phase-strip{
+  display:none!important;
+}
+body.phf-eval-mode > .app{
+  max-width:none!important;
+  margin:0!important;
+  padding:18px 24px 24px!important;
+}
+body.phf-eval-mode .layout{
+  display:block!important;
+  width:100%!important;
+  max-width:1440px!important;
+  margin:0 auto!important;
+  padding:0!important;
+}
+body.phf-eval-mode .todo-panel,
+body.phf-eval-mode .right-panel{
+  display:none!important;
+}
+body.phf-eval-mode .main{
+  width:100%!important;
+  max-width:1280px!important;
+  margin:0 auto!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.eval-admin-shell > .eval-admin-topbar,
+.eval-admin-shell > .eval-admin-topbar.phf-site-header{
+  display:none!important;
+}
+@media (min-width: 761px){
+  .topbar.phf-site-header{
+    display:flex!important;
+    align-items:center!important;
+    flex-wrap:nowrap!important;
+    gap:16px!important;
+    min-height:64px!important;
+    overflow:visible!important;
+  }
+  .topbar.phf-site-header .brand{
+    flex:0 0 310px!important;
+    max-width:330px!important;
+    min-width:260px!important;
+  }
+  .topbar.phf-site-header .phf-main-nav{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    overflow:visible!important;
+    gap:4px!important;
+  }
+  .topbar.phf-site-header .phf-main-nav button{
+    flex:0 0 auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    padding:18px 10px 15px!important;
+    font-size:13px!important;
+    line-height:1.2!important;
+    white-space:nowrap!important;
+  }
+  .topbar.phf-site-header .phf-login-entry{
+    flex:0 0 auto!important;
+    width:auto!important;
+    min-width:150px!important;
+    max-width:205px!important;
+    margin-left:8px!important;
+  }
+  .topbar.phf-site-header .phf-login-entry span,
+  .topbar.phf-site-header .phf-login-entry small{
+    max-width:180px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+}
+@media (max-width: 760px){
+  body.phf-eval-mode > .app > .topbar.phf-site-header,
+  body.phf-module-page-mode.phf-eval-mode > .app > .topbar.phf-site-header{
+    display:grid!important;
+  }
+  body.phf-eval-mode > .app{
+    padding:10px 12px 16px!important;
+    max-width:100%!important;
+  }
+  body.phf-eval-mode .layout,
+  body.phf-eval-mode .main,
+  body.phf-eval-mode #mainLesson{
+    max-width:100%!important;
+    overflow-x:hidden!important;
+  }
+  body.phf-eval-mode .eval-admin-page,
+  body.phf-eval-mode .eval-admin-main,
+  body.phf-eval-mode .hub-overview-page,
+  body.phf-eval-mode .hub-report-page{
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+  }
+}
+
+/* PHF STAGE 3.11 — MAIN SHELL + FONT BASELINE
+   Mục tiêu: một header/menu chung cho các module chính, không còn header phụ lẻ tẻ gây kẹt/vỡ layout. */
+:root{--phf-font-main:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif!important;}
+html,body,body *,button,input,select,textarea,table,th,td,label,a,span,small,b,strong,p,h1,h2,h3,h4,h5,h6,div,section,article,aside,main,nav{
+  font-family:var(--phf-font-main)!important;
+}
+
+body.phf-main-shell-mode:not(.phf-intro-active) > .app{display:block!important;max-width:1440px!important;margin:0 auto!important;padding:14px 22px!important;}
+body.phf-main-shell-mode:not(.phf-intro-active) > .app > .topbar.phf-site-header,
+body.phf-main-shell-mode.phf-eval-mode > .app > .topbar.phf-site-header,
+body.phf-main-shell-mode.phf-module-page-mode.phf-eval-mode > .app > .topbar.phf-site-header{
+  display:flex!important;visibility:visible!important;opacity:1!important;position:sticky!important;top:0!important;z-index:1000!important;
+}
+body.phf-main-shell-mode > .app > .topbar.phf-site-header{
+  width:100%!important;box-sizing:border-box!important;margin:0 0 14px!important;
+}
+body.phf-main-shell-mode .topbar.phf-site-header .brand{flex:0 0 auto!important;min-width:250px!important;max-width:360px!important;}
+body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav{flex:1 1 auto!important;min-width:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;overflow:visible!important;}
+body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry{flex:0 0 auto!important;margin-left:auto!important;}
+
+/* Các module như Hồ sơ/Báo cáo/Hướng dẫn/Kiểm tra dùng nội dung dưới shell chung: ẩn panel học phụ để tránh bị kẹt trong layout bài học. */
+body.phf-main-shell-mode.phf-module-page-mode > .app > .phase-strip,
+body.phf-main-shell-mode.phf-module-page-mode > .app > .context-bar{display:none!important;}
+body.phf-main-shell-mode.phf-module-page-mode .layout{display:block!important;width:100%!important;max-width:1200px!important;margin:0 auto!important;}
+body.phf-main-shell-mode.phf-module-page-mode .todo-panel,
+body.phf-main-shell-mode.phf-module-page-mode .right-panel{display:none!important;}
+body.phf-main-shell-mode.phf-module-page-mode .main{display:block!important;width:100%!important;max-width:none!important;margin:0!important;border:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;overflow:visible!important;}
+body.phf-main-shell-mode.phf-module-page-mode .eval-admin-shell{min-height:0!important;background:transparent!important;}
+body.phf-main-shell-mode.phf-module-page-mode .eval-admin-shell > .eval-admin-topbar,
+body.phf-main-shell-mode.phf-module-page-mode .eval-admin-shell > .eval-admin-topbar.phf-site-header{display:none!important;}
+body.phf-main-shell-mode.phf-module-page-mode .eval-admin-page{padding:0!important;display:block!important;}
+body.phf-main-shell-mode.phf-module-page-mode .eval-admin-main{width:100%!important;max-width:none!important;}
+
+/* Bảng/card dài cuộn trong chính vùng bảng, không làm vỡ toàn trang. */
+.eval-table-wrap,.hub-table-wrap,.table-wrap{max-width:100%!important;overflow-x:auto!important;}
+.eval-table-wrap table,.hub-action-table,.hub-report-table{width:100%!important;}
+
+@media(max-width:980px){
+  body.phf-main-shell-mode .topbar.phf-site-header{flex-wrap:wrap!important;gap:10px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand{min-width:220px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav{order:3;flex-basis:100%!important;justify-content:flex-start!important;overflow-x:auto!important;}
+}
+@media(max-width:760px){
+  body.phf-main-shell-mode:not(.phf-intro-active) > .app{padding:10px 12px!important;max-width:100%!important;overflow-x:hidden!important;}
+  body.phf-main-shell-mode > .app > .topbar.phf-site-header{position:relative!important;top:auto!important;margin:0 0 12px!important;padding:10px 12px!important;display:grid!important;grid-template-columns:1fr auto!important;align-items:center!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand{min-width:0!important;max-width:none!important;width:auto!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand .logo{width:118px!important;height:40px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand h1{font-size:16px!important;line-height:1.15!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand p{display:none!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-mobile-menu-toggle{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:40px!important;padding:8px 12px!important;border:1px solid #cfe1d7!important;background:#fff!important;color:#063f31!important;font-weight:800!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav,
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry{display:none!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-main-nav{grid-column:1/-1!important;display:grid!important;grid-template-columns:1fr!important;gap:6px!important;width:100%!important;margin-top:10px!important;overflow:visible!important;background:#fff!important;border:1px solid #dbe9e1!important;padding:8px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-main-nav button{width:100%!important;text-align:left!important;justify-content:flex-start!important;min-height:42px!important;border:1px solid #e3eee8!important;background:#fff!important;padding:10px 12px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-main-nav button.active{background:#ecf7f1!important;border-color:#0b5b43!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-login-entry{grid-column:1/-1!important;display:flex!important;width:100%!important;margin:0!important;justify-content:center!important;}
+  body.phf-main-shell-mode.phf-module-page-mode .layout{max-width:100%!important;}
+  body.phf-main-shell-mode.phf-module-page-mode .eval-admin-page{padding:0!important;}
+  body.phf-main-shell-mode.phf-module-page-mode .eval-admin-sidebar,
+  body.phf-main-shell-mode.phf-module-page-mode .hub-insight-grid,
+  body.phf-main-shell-mode.phf-module-page-mode .hub-dashboard-grid,
+  body.phf-main-shell-mode.phf-module-page-mode .hub-full-top-grid,
+  body.phf-main-shell-mode.phf-module-page-mode .hub-report-grid,
+  body.phf-main-shell-mode.phf-module-page-mode .hub-report-top,
+  body.phf-main-shell-mode.phf-module-page-mode .eval-summary-strip{grid-template-columns:1fr!important;}
+}
