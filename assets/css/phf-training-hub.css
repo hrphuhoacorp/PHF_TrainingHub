@@ -3553,3 +3553,382 @@ body.phf-module-page-mode.phf-eval-mode .main{
   .phf-landing-nav{justify-content:flex-start!important;}
   .phf-landing-nav button{padding-left:10px!important;padding-right:10px!important;font-size:13.5px!important;}
 }
+
+
+/* Stage 3.9.4 - Mobile responsive / vertical menu fix
+   Scope: display only. Do not change data, Supabase, progress, or learning logic. */
+html, body{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+*, *:before, *:after{
+  box-sizing:border-box!important;
+}
+img, video, canvas, svg{
+  max-width:100%!important;
+}
+
+@media(max-width:760px){
+  html, body{
+    width:100%!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+  }
+  body{
+    margin:0!important;
+  }
+  .app,
+  .phf-intro-shell,
+  .phf-homepage-wrap,
+  .eval-admin-shell,
+  .eval-admin-page,
+  .focus-body,
+  .hub-page,
+  .phf-guide-app,
+  .phf-direct-test-page{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+  }
+
+  /* Landing/header on phone: logo first, menu vertical below. */
+  .phf-intro-top.phf-landing-header{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:10px 12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:10px!important;
+    overflow:visible!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:50!important;
+  }
+  .phf-landing-brand,
+  .phf-intro-brand.phf-landing-brand{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    flex:0 0 auto!important;
+    justify-content:flex-start!important;
+    padding:0!important;
+  }
+  .phf-landing-brand img,
+  .phf-intro-brand.phf-landing-brand img{
+    width:104px!important;
+    max-width:104px!important;
+    height:auto!important;
+    flex:0 0 auto!important;
+  }
+  .phf-landing-brand div,
+  .phf-intro-brand.phf-landing-brand div{
+    min-width:0!important;
+  }
+  .phf-landing-brand b,
+  .phf-intro-brand.phf-landing-brand b{
+    font-size:15px!important;
+    line-height:1.2!important;
+  }
+  .phf-landing-brand span,
+  .phf-intro-brand.phf-landing-brand span{
+    display:none!important;
+  }
+  .phf-landing-nav{
+    width:100%!important;
+    min-width:0!important;
+    overflow:visible!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:6px!important;
+    order:2!important;
+    padding:0!important;
+  }
+  .phf-landing-nav button{
+    width:100%!important;
+    height:38px!important;
+    min-height:38px!important;
+    padding:0 12px!important;
+    justify-content:flex-start!important;
+    text-align:left!important;
+    white-space:normal!important;
+    border:1px solid #dfe8e2!important;
+    border-bottom:1px solid #dfe8e2!important;
+    background:#fff!important;
+    font-size:13.5px!important;
+    line-height:1.25!important;
+  }
+  .phf-landing-nav button:first-child,
+  #introSection.is-guide-page .phf-landing-nav button[data-intro-guide],
+  #introSection.is-landing .phf-landing-nav button:first-child{
+    border-left:4px solid var(--phf-brand)!important;
+    border-bottom:1px solid #dfe8e2!important;
+    background:#f4f8f5!important;
+  }
+  .phf-intro-top-btn.phf-landing-login{
+    width:100%!important;
+    height:40px!important;
+    order:3!important;
+    margin:0!important;
+  }
+
+  /* App/internal header on phone: vertical menu, no sideways scrolling. */
+  .topbar.phf-site-header,
+  .eval-admin-topbar.phf-site-header{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0 0 10px 0!important;
+    padding:10px 12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:10px!important;
+    overflow:visible!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:40!important;
+  }
+  .topbar.phf-site-header .brand,
+  .eval-admin-brand{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    flex:0 0 auto!important;
+    padding:0!important;
+  }
+  .topbar.phf-site-header .brand .logo,
+  .eval-admin-logo{
+    width:104px!important;
+    max-width:104px!important;
+    height:34px!important;
+    flex:0 0 104px!important;
+  }
+  .topbar.phf-site-header .brand h1,
+  .eval-admin-brand h1{
+    font-size:15.5px!important;
+    line-height:1.2!important;
+    white-space:normal!important;
+  }
+  .topbar.phf-site-header .brand p{
+    display:none!important;
+  }
+  .phf-main-nav,
+  .eval-admin-nav{
+    width:100%!important;
+    min-width:0!important;
+    overflow:visible!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:6px!important;
+    padding:0!important;
+    order:2!important;
+  }
+  .phf-main-nav button,
+  .eval-admin-nav button{
+    width:100%!important;
+    height:38px!important;
+    min-height:38px!important;
+    padding:0 12px!important;
+    text-align:left!important;
+    justify-content:flex-start!important;
+    white-space:normal!important;
+    border:1px solid #dfe8e2!important;
+    border-bottom:1px solid #dfe8e2!important;
+    background:#fff!important;
+    font-size:13.5px!important;
+    line-height:1.25!important;
+  }
+  .phf-main-nav button.active,
+  .eval-admin-nav button.active{
+    border-left:4px solid var(--phf-deep)!important;
+    border-bottom:1px solid #dfe8e2!important;
+    background:#f4f8f5!important;
+  }
+  .phf-main-nav button.active:after,
+  .eval-admin-nav button.active:after{
+    display:none!important;
+  }
+  .phf-login-entry,
+  .eval-login-entry,
+  .student-card{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    order:3!important;
+  }
+
+  /* Page containers: never wider than phone screen. */
+  .app{
+    padding:10px!important;
+  }
+  .layout,
+  body.phf-eval-mode .layout,
+  .eval-admin-page,
+  .eval-clean-layout,
+  .eval-top-line,
+  .weekly-eval-shell,
+  .phf-homepage-hero,
+  .phf-homepage-bottom,
+  .phf-homepage-program-grid,
+  .phf-homepage-gallery-grid,
+  .phf-homepage-learn,
+  .phf-guide-grid,
+  .phf-admin-test-steps,
+  .grid,
+  .learning-grid,
+  .b4-grid,
+  .criteria-grid,
+  .weekly-text-grid,
+  .weekly-months,
+  .eval-summary-strip{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+  }
+  .main,
+  body.phf-module-page-mode.phf-eval-mode .main,
+  body.phf-eval-mode .main,
+  .panel,
+  .focus-body,
+  .focus-head,
+  .hub-panel,
+  .eval-card,
+  .eval-table-card,
+  .eval-detail-panel,
+  .lesson-card,
+  .form-card,
+  .phf-guide-section,
+  .phf-guide-note,
+  .phf-building-box{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  /* Homepage mobile: one column, no image/card overflow. */
+  .phf-homepage-wrap{
+    padding:0 10px 16px!important;
+  }
+  .phf-homepage-hero{
+    padding:20px 0 14px!important;
+    gap:18px!important;
+  }
+  .phf-homepage-copy{
+    padding:0!important;
+  }
+  .phf-homepage-copy h1{
+    font-size:34px!important;
+    line-height:1.12!important;
+    letter-spacing:-.4px!important;
+  }
+  .phf-homepage-subtitle{
+    font-size:15px!important;
+    line-height:1.55!important;
+    max-width:100%!important;
+  }
+  .phf-homepage-actions{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+  .phf-homepage-actions .phf-intro-primary,
+  .phf-homepage-actions .phf-intro-ghost{
+    width:100%!important;
+  }
+  .phf-homepage-visual{
+    min-height:0!important;
+    width:100%!important;
+    overflow:hidden!important;
+  }
+  .phf-homepage-visual:before{
+    display:none!important;
+  }
+  .phf-homepage-main-photo{
+    border-width:6px!important;
+    width:100%!important;
+  }
+  .phf-homepage-main-photo img{
+    height:auto!important;
+    aspect-ratio:4/3!important;
+  }
+  .phf-homepage-photo-strip{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    margin:10px 0 0!important;
+    gap:8px!important;
+  }
+  .phf-homepage-photo-strip figure{
+    height:auto!important;
+    border-width:5px!important;
+  }
+  .phf-homepage-photo-strip img{
+    height:auto!important;
+    aspect-ratio:16/9!important;
+  }
+  .phf-homepage-bottom{
+    border:0!important;
+    box-shadow:none!important;
+    background:transparent!important;
+    gap:10px!important;
+  }
+  .phf-homepage-block{
+    padding:16px 12px!important;
+    border:1px solid #e2eae3!important;
+    background:#fff!important;
+  }
+  .phf-homepage-block + .phf-homepage-block{
+    border-left:1px solid #e2eae3!important;
+  }
+
+  /* Tables are allowed to scroll inside their own box, not break the whole page. */
+  .table-wrap,
+  .b4-table-wrap,
+  .eval-table-wrap,
+  .weekly-table-wrap,
+  .record-table-wrap{
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  table{
+    max-width:none!important;
+  }
+
+  .context-bar,
+  .phase-strip{
+    width:100%!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+  }
+  .context-main,
+  .weekly-form-head,
+  .eval-toolbar,
+  .eval-table-head,
+  .hub-panel-head{
+    display:block!important;
+  }
+  .focus-head h2,
+  .lesson-hero h2,
+  .phf-guide-app h2{
+    font-size:24px!important;
+    line-height:1.22!important;
+  }
+  .btn,
+  .btn-primary,
+  .btn-soft,
+  .eval-action,
+  .thin-btn,
+  .context-action{
+    max-width:100%!important;
+    white-space:normal!important;
+  }
+}
