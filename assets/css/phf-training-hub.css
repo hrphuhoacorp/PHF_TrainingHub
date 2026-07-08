@@ -5094,3 +5094,93 @@ body.phf-main-shell-mode.phf-module-page-mode .eval-admin-main{width:100%!import
   body.phf-main-shell-mode.phf-module-page-mode .hub-report-top,
   body.phf-main-shell-mode.phf-module-page-mode .eval-summary-strip{grid-template-columns:1fr!important;}
 }
+
+/* Stage 3.11.1 - Unified menu baseline: all menu items visible, same component style */
+.topbar.phf-site-header .phf-main-nav button[data-phf-main-nav]{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0 14px!important;
+  margin:0!important;
+  line-height:1!important;
+  border:0!important;
+  border-bottom:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif!important;
+  font-size:15px!important;
+  font-weight:600!important;
+  color:#2b3932!important;
+  white-space:nowrap!important;
+  vertical-align:middle!important;
+}
+.topbar.phf-site-header .phf-main-nav button[data-phf-main-nav="directTrainingTest"]{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0 14px!important;
+  margin:0!important;
+  line-height:1!important;
+}
+.topbar.phf-site-header .phf-main-nav button[data-phf-main-nav].active{
+  color:var(--phf-corporate-green,#064533)!important;
+  font-weight:700!important;
+  background:transparent!important;
+}
+.topbar.phf-site-header .phf-main-nav button[data-phf-main-nav].active:after{
+  content:""!important;
+  position:absolute!important;
+  left:12px!important;
+  right:12px!important;
+  bottom:0!important;
+  height:3px!important;
+  background:var(--phf-corporate-green,#064533)!important;
+}
+/* Keep the single official header visible on module/report/profile screens. */
+body.phf-eval-mode > .app > .topbar.phf-site-header{
+  display:grid!important;
+}
+body.phf-eval-mode > .app > .phase-strip,
+body.phf-eval-mode > .app > .context-bar{
+  display:none!important;
+}
+body.phf-eval-mode .layout{
+  display:block!important;
+  max-width:1440px!important;
+  margin:0 auto!important;
+  padding:0!important;
+}
+body.phf-eval-mode .todo-panel,
+body.phf-eval-mode .right-panel{
+  display:none!important;
+}
+body.phf-eval-mode .main{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+@media(max-width:760px){
+  .topbar.phf-site-header .phf-main-nav button[data-phf-main-nav],
+  .topbar.phf-site-header .phf-main-nav button[data-phf-main-nav="directTrainingTest"]{
+    justify-content:flex-start!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:42px!important;
+    padding:10px 12px!important;
+    line-height:1.25!important;
+  }
+}
+
+/* Stage 3.11.2: đồng bộ menu Trang chủ/Giới thiệu với menu chính */
+.phf-landing-nav button[data-intro-report]{
+  font-family: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif !important;
+}
+@media (min-width: 761px){
+  .phf-landing-nav{gap:2px!important;}
+  .phf-landing-nav button{padding-left:11px!important;padding-right:11px!important;}
+}
