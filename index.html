@@ -1420,7 +1420,7 @@ function phfOpenHubTab(tab){
 }
 function phfSetMainNavActive(key){
   try{
-    const alias = {home:'learning', overview:'reports', evaluation:'profile'};
+    const alias = {home:'', overview:'', evaluation:'profile'};
     const activeKey = alias[key] || key;
     document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){
       btn.classList.toggle('active', btn.getAttribute('data-phf-main-nav') === activeKey);
@@ -2373,8 +2373,100 @@ function phfTryNextFromLesson(){
   if(!phfValidateConfidentialityCommitment(false)) return;
   go(current+1);
 }
+
+
+/* PHF PATCH STAGE 3.13.9 - Quiz scoring + content polish helpers */
+function phfMarkQuizAnswers(questions, attrName){
+  var total = questions.length, correct = 0, missing = 0;
+  questions.forEach(function(q){
+    q.classList.remove('phf-quiz-correct','phf-quiz-wrong','b3-correct','b3-incorrect','b4-correct','b4-incorrect','correct','wrong');
+    var answer = q.getAttribute(attrName) || q.getAttribute('data-correct') || q.getAttribute('data-answer') || '';
+    var checked = q.querySelector('input[type="radio"]:checked');
+    if(!checked){ missing++; q.classList.add('phf-quiz-wrong'); return; }
+    if(String(checked.value) === String(answer)){
+      correct++;
+      q.classList.add('phf-quiz-correct','b3-correct','b4-correct','correct');
+    }else{
+      q.classList.add('phf-quiz-wrong','b3-incorrect','b4-incorrect','wrong');
+    }
+  });
+  return {total:total, correct:correct, missing:missing, score: total ? Math.round(correct/total*100) : 0};
+}
+function phfRenderQuizResult(el, stat, passScore){
+  if(!el) return;
+  var passed = stat.score >= (passScore || 80);
+  el.classList.remove('pass','fail','show');
+  el.classList.add(passed ? 'pass' : 'fail','show');
+  var missingText = stat.missing ? ' · Còn ' + stat.missing + ' câu chưa chọn.' : '';
+  el.innerHTML = '<b>' + (passed ? 'Đạt' : 'Chưa đạt') + ' · ' + stat.score + '/100 điểm</b><br>Đúng ' + stat.correct + '/' + stat.total + ' câu.' + missingText + (passed ? '<br>Bạn có thể tiếp tục phần tiếp theo.' : '<br>Vui lòng xem lại các câu chưa đúng/chưa chọn rồi chấm lại.');
+}
+function phfStoreQuizResult(key, stat){
+  try{
+    var list = JSON.parse(localStorage.getItem('phfQuizResults') || '[]');
+    list.push({key:key, lessonIndex: (typeof current !== 'undefined' ? current : null), score:stat.score, correct:stat.correct, total:stat.total, savedAt:new Date().toISOString()});
+    localStorage.setItem('phfQuizResults', JSON.stringify(list.slice(-80)));
+  }catch(e){}
+}
+function phfGradeStep2Test(btn){
+  var root = document.getElementById('mainLesson'); if(!root) return;
+  var questions = Array.from(root.querySelectorAll('.step2-question[data-correct]'));
+  var result = document.getElementById('step2TestResult');
+  if(!questions.length){ phfNotice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+  phfSetButtonLoading(btn, true, 'Đang chấm điểm...');
+  setTimeout(function(){
+    var stat = phfMarkQuizAnswers(questions, 'data-correct');
+    phfRenderQuizResult(result, stat, 80);
+    phfStoreQuizResult('step2-final', stat);
+    phfSetButtonLoading(btn, false);
+  }, 80);
+}
+function phfGradeB3Test(btn){
+  var root = document.getElementById('b3Test') || document.getElementById('mainLesson'); if(!root) return;
+  var questions = Array.from(root.querySelectorAll('.b3-mini[data-answer]'));
+  var result = document.getElementById('b3Result');
+  if(!questions.length){ phfNotice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+  phfSetButtonLoading(btn, true, 'Đang chấm điểm...');
+  setTimeout(function(){
+    var stat = phfMarkQuizAnswers(questions, 'data-answer');
+    phfRenderQuizResult(result, stat, 80);
+    var next = document.getElementById('goB3Complete');
+    if(next) next.style.display = stat.score >= 80 ? 'inline-flex' : 'none';
+    phfStoreQuizResult('step3-final', stat);
+    phfSetButtonLoading(btn, false);
+  }, 80);
+}
+function phfGradeB4Final(btn){
+  var root = document.getElementById('b4FinalTest') || document.getElementById('mainLesson'); if(!root) return;
+  var questions = Array.from(root.querySelectorAll('.b4-final-question[data-correct]'));
+  var result = document.getElementById('b4FinalResult');
+  if(!questions.length){ phfNotice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+  phfSetButtonLoading(btn, true, 'Đang chấm điểm...');
+  setTimeout(function(){
+    var stat = phfMarkQuizAnswers(questions, 'data-correct');
+    phfRenderQuizResult(result, stat, 80);
+    var next = document.getElementById('goB4Complete');
+    if(next) next.style.display = stat.score >= 80 ? 'inline-flex' : 'none';
+    phfStoreQuizResult('step4-final', stat);
+    phfSetButtonLoading(btn, false);
+  }, 80);
+}
+function phfBindLessonQuizScoring(){
+  var root = document.getElementById('mainLesson'); if(!root) return;
+  var step2 = document.getElementById('gradeStep2Test');
+  if(step2 && step2.dataset.phfBound !== '1'){ step2.dataset.phfBound='1'; step2.addEventListener('click', function(){ phfGradeStep2Test(step2); }); }
+  var b3 = document.getElementById('gradeB3Test');
+  if(b3 && b3.dataset.phfBound !== '1'){ b3.dataset.phfBound='1'; b3.addEventListener('click', function(){ phfGradeB3Test(b3); }); }
+  var b4 = document.getElementById('gradeB4Final');
+  if(b4 && b4.dataset.phfBound !== '1'){ b4.dataset.phfBound='1'; b4.addEventListener('click', function(){ phfGradeB4Final(b4); }); }
+  var goB3 = document.getElementById('goB3Complete');
+  if(goB3 && goB3.dataset.phfBound !== '1'){ goB3.dataset.phfBound='1'; goB3.addEventListener('click', function(){ phfTryNextFromLesson(); }); }
+  var goB4 = document.getElementById('goB4Complete');
+  if(goB4 && goB4.dataset.phfBound !== '1'){ goB4.dataset.phfBound='1'; goB4.addEventListener('click', function(){ phfTryNextFromLesson(); }); }
+}
+
 function phfInitContentForms(){
   phfPrefillBMTTForm(false);
+  phfBindLessonQuizScoring();
   const paper = document.getElementById('phfBmtPaper');
   if(paper && !paper.dataset.phfBound){
     paper.dataset.phfBound = '1';
@@ -3363,8 +3455,8 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
     try{
       document.body.classList.remove('phf-intro-active','phf-landing-active','phf-guide-intro-active');
       document.body.classList.add('phf-main-shell-mode');
-      if(activeKey && activeKey !== 'learning' && activeKey !== 'home') document.body.classList.add('phf-module-page-mode','phf-eval-mode'), document.body.classList.remove('phf-learning-mode');
-      if(activeKey === 'learning' || activeKey === 'home') document.body.classList.add('phf-learning-mode'), document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-guide-standalone-mode');
+      if(activeKey && activeKey !== 'learning') document.body.classList.add('phf-module-page-mode','phf-eval-mode'), document.body.classList.remove('phf-learning-mode');
+      if(activeKey === 'learning') document.body.classList.add('phf-learning-mode'), document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-guide-standalone-mode');
       var intro = document.getElementById('introSection');
       if(intro) intro.hidden = true;
       var app = document.querySelector('.app');
@@ -3564,6 +3656,87 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
   window.phfApplySystemFont = applyFont;
   window.phfModuleLoadingStart = startLoading;
   window.phfModuleLoadingDone = stopLoading;
+})();
+</script>
+
+
+
+<!-- PHF STAGE 3.13.8: Tách module ngoài học khỏi learning shell trước giai đoạn dùng thử -->
+<script>
+(function(){
+  function setModuleShell(activeKey){
+    try{
+      document.body.classList.remove('phf-learning-mode','phf-original-full-mode','phf-guide-intro-active','phf-landing-active');
+      document.body.classList.add('phf-main-shell-mode','phf-module-page-mode','phf-eval-mode');
+      if(activeKey === 'guide') document.body.classList.add('phf-guide-standalone-mode');
+      else document.body.classList.remove('phf-guide-standalone-mode');
+      var intro = document.getElementById('introSection');
+      if(intro) intro.hidden = true;
+      var app = document.querySelector('.app');
+      if(app) app.hidden = false;
+      if(typeof window.phfCloseMobileMenus === 'function') window.phfCloseMobileMenus();
+      window.__phfTrainingEntryReady = true;
+    }catch(e){}
+  }
+  function setLearningShell(){
+    try{
+      document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-guide-standalone-mode','phf-original-full-mode');
+      document.body.classList.add('phf-main-shell-mode','phf-learning-mode');
+      var intro = document.getElementById('introSection');
+      if(intro) intro.hidden = true;
+      var app = document.querySelector('.app');
+      if(app) app.hidden = false;
+      if(typeof window.phfCloseMobileMenus === 'function') window.phfCloseMobileMenus();
+      window.__phfTrainingEntryReady = true;
+    }catch(e){}
+  }
+  function clearMainActiveForOverview(){
+    try{ document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){ btn.classList.remove('active'); }); }catch(e){}
+  }
+  if(typeof window.phfSetMainNavActive === 'function' && !window.phfSetMainNavActive.__phfStage3138){
+    var oldActive = window.phfSetMainNavActive;
+    window.phfSetMainNavActive = function(key){
+      if(key === 'home' || key === 'overview'){
+        clearMainActiveForOverview();
+        return;
+      }
+      return oldActive.apply(this, arguments);
+    };
+    window.phfSetMainNavActive.__phfStage3138 = true;
+  }
+  function wrap(name, mode){
+    var fn = window[name];
+    if(typeof fn !== 'function' || fn.__phfStage3138) return;
+    var w = function(){
+      if(mode === 'learning') setLearningShell(); else setModuleShell(mode);
+      var out = fn.apply(this, arguments);
+      setTimeout(function(){
+        if(mode === 'learning') setLearningShell(); else setModuleShell(mode);
+        if(mode === 'home') clearMainActiveForOverview();
+      },0);
+      return out;
+    };
+    w.__phfStage3138 = true;
+    window[name] = w;
+  }
+  wrap('phfRenderTrainingOverview','home');
+  wrap('phfGoHome','home');
+  wrap('phfRenderTrainingReports','reports');
+  wrap('phfGoMyProfile','profile');
+  wrap('renderEvaluationRecords','profile');
+  wrap('phfGoGuide','guide');
+  wrap('phfRenderGuidePage','guide');
+  wrap('phfGoDirectTrainingTest','directTrainingTest');
+  wrap('phfRenderDirectTrainingTestPage','directTrainingTest');
+  wrap('phfGoLearning','learning');
+  try{
+    var oldEnsure = window.phfEnsureSharedShell;
+    window.phfEnsureSharedShell = function(activeKey){
+      if(activeKey === 'learning') return setLearningShell();
+      if(activeKey === 'intro' && typeof oldEnsure === 'function') return oldEnsure.apply(this, arguments);
+      return setModuleShell(activeKey || 'home');
+    };
+  }catch(e){}
 })();
 </script>
 

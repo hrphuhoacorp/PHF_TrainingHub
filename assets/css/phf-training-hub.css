@@ -5487,3 +5487,163 @@ body,button,input,select,textarea,label,summary,details,.original summary,.origi
   min-width:74px!important;
   max-width:74px!important;
 }
+
+/* PHF PATCH STAGE 3.13.9 - Learner content polish + quiz fixes */
+#mainLesson .form-head,
+#mainLesson .original-goc-screen .form-head{
+  background:linear-gradient(135deg,#064533,#0b6b48)!important;
+  color:#fff!important;
+}
+#mainLesson .form-head h1,
+#mainLesson .form-head h2,
+#mainLesson .form-head h3,
+#mainLesson .form-head p,
+#mainLesson .form-head .badge,
+#mainLesson .original-goc-screen .form-head h2,
+#mainLesson .original-goc-screen .form-head p{
+  color:#fff!important;
+}
+#mainLesson .form-head .badge,
+#mainLesson .original-goc-screen .form-head .badge{
+  background:rgba(255,255,255,.12)!important;
+  border-color:rgba(255,255,255,.35)!important;
+  color:#fff!important;
+}
+#mainLesson .original{
+  border:1px solid #d8eadf!important;
+  border-radius:18px!important;
+  background:#fbfefc!important;
+  padding:0!important;
+  overflow:hidden!important;
+  margin-top:18px!important;
+}
+#mainLesson .original details{padding:0!important;border:0!important;background:transparent!important}
+#mainLesson .original summary{
+  list-style:none!important;
+  cursor:pointer!important;
+  padding:14px 16px!important;
+  font-family:var(--phf-font-main,Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif)!important;
+  font-weight:900!important;
+  color:#064533!important;
+  background:#f3faf6!important;
+  border-bottom:1px solid #d8eadf!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+#mainLesson .original summary::-webkit-details-marker{display:none!important}
+#mainLesson .original summary::before{content:'▾';font-size:13px;color:#064533;line-height:1}
+#mainLesson .original-content{
+  padding:18px!important;
+  background:#fff!important;
+  color:#163a2e!important;
+  font-family:var(--phf-font-main,Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif)!important;
+  line-height:1.65!important;
+}
+#mainLesson .original-content h1,
+#mainLesson .original-content h2,
+#mainLesson .original-content h3{color:#064533!important;line-height:1.22!important;margin:14px 0 10px!important}
+#mainLesson .original-content p{margin:8px 0 12px!important;color:#24493d!important}
+#mainLesson .phf-original-contained .shell,
+#mainLesson .phf-original-contained .form-wrap{
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+}
+#mainLesson .phf-original-contained .topline{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  padding:0 0 14px!important;
+  margin:0 0 16px!important;
+  border-bottom:1px solid #e2efe7!important;
+  background:transparent!important;
+}
+#mainLesson .phf-original-contained .topline .brand{display:flex!important;gap:12px!important;align-items:center!important;min-width:0!important}
+#mainLesson .phf-original-contained .logo-placeholder{width:150px!important;min-width:150px!important;height:auto!important;box-shadow:none!important;background:transparent!important;border:0!important}
+#mainLesson .phf-original-contained .logo-placeholder img{max-width:150px!important;height:auto!important;display:block!important}
+#mainLesson .phf-original-contained .brand-title b{font-size:16px!important;color:#064533!important;display:block!important}
+#mainLesson .phf-original-contained .brand-title span{font-size:12.5px!important;color:#5b7169!important}
+#mainLesson .phf-original-contained .topline .badge,
+#mainLesson .phf-original-contained .kicker,
+#mainLesson .phf-original-contained .b3-tag{
+  display:inline-flex!important;
+  width:auto!important;
+  background:#eef9f3!important;
+  border:1px solid #cbe4d6!important;
+  color:#064533!important;
+  border-radius:999px!important;
+  padding:6px 10px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  line-height:1.2!important;
+}
+#mainLesson .phf-original-contained .welcome-card{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.05fr) minmax(260px,.95fr)!important;
+  gap:16px!important;
+  border:1px solid #d8eadf!important;
+  border-radius:18px!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+#mainLesson .phf-original-contained .welcome-card:before{display:none!important}
+#mainLesson .phf-original-contained .welcome-left,
+#mainLesson .phf-original-contained .welcome-right{padding:18px!important;background:#fff!important;color:#163a2e!important}
+#mainLesson .phf-original-contained .welcome-right{background:#f8fcfa!important;border-left:1px solid #e2efe7!important;display:block!important}
+#mainLesson .phf-original-contained .welcome-left h1{font-size:26px!important;margin:12px 0!important;color:#064533!important}
+#mainLesson .phf-original-contained .primary-row{display:flex!important;flex-wrap:wrap!important;gap:10px!important;align-items:center!important;margin-top:14px!important}
+#mainLesson .phf-original-contained .benefits{display:grid!important;gap:10px!important;margin-top:12px!important}
+#mainLesson .phf-original-contained .benefit{display:grid!important;grid-template-columns:34px 1fr!important;gap:10px!important;border:1px solid #d8eadf!important;background:#fff!important;border-radius:14px!important;padding:10px!important}
+#mainLesson .phf-original-contained .benefit .icon{width:34px;height:34px;border-radius:10px;background:#064533;color:#fff;display:grid;place-items:center;font-weight:900}
+#mainLesson .phf-original-contained .benefit span{display:block;color:#5b7169;font-size:13px;line-height:1.45;margin-top:3px}
+#mainLesson .phf-original-contained .bottom-note{margin-top:12px;padding:11px 12px;border-radius:14px;background:#fff8e6;border:1px solid #ead8a8;color:#694600;font-weight:800}
+#mainLesson .b3-screen{
+  border:1px solid #d8eadf!important;
+  border-radius:20px!important;
+  background:#fff!important;
+  padding:20px!important;
+  box-shadow:0 10px 24px rgba(7,59,45,.04)!important;
+}
+#mainLesson .b3-screen h2{font-size:24px!important;color:#064533!important;margin:12px 0 10px!important}
+#mainLesson .b3-flow,
+#mainLesson .b3-grid,
+#mainLesson .b3-grid-3{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;
+  margin:16px 0!important;
+}
+#mainLesson .b3-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#mainLesson .b3-flow .step,
+#mainLesson .b3-mini{
+  border:1px solid #d8eadf!important;
+  background:#fbfefc!important;
+  border-radius:18px!important;
+  padding:14px 15px!important;
+  line-height:1.55!important;
+  color:#24493d!important;
+  box-shadow:none!important;
+}
+#mainLesson .b3-flow .step .num,
+#mainLesson .b3-mini .num{
+  width:34px!important;height:34px!important;border-radius:10px!important;background:#064533!important;color:#fff!important;display:grid!important;place-items:center!important;font-weight:900!important;margin-bottom:10px!important;
+}
+#mainLesson .b3-flow .step strong,
+#mainLesson .b3-mini strong{display:block!important;color:#064533!important;font-size:15.5px!important;margin-bottom:5px!important}
+#mainLesson .b3-script{border-left:4px solid #0b6b48!important;background:#f3faf6!important;border-radius:12px!important;padding:10px 12px!important;margin:10px 0!important;color:#173b2e!important;font-weight:750!important}
+#mainLesson .phf-quiz-correct{border-color:#8ccfa2!important;background:#f0fbf4!important}
+#mainLesson .phf-quiz-wrong{border-color:#efb4a8!important;background:#fff7f4!important}
+#step2TestResult.pass,#day1AfternoonQuizResult.pass,.b3-result.pass,.b4-result.pass{border-color:#9ed2b4!important;background:#eef9f2!important;color:#124c2b!important;display:block!important}
+#step2TestResult.fail,#day1AfternoonQuizResult.fail,.b3-result.fail,.b4-result.fail{border-color:#efb4a8!important;background:#fff7f4!important;color:#7d261c!important;display:block!important}
+@media(max-width:900px){
+  #mainLesson .phf-original-contained .welcome-card,
+  #mainLesson .b3-flow,
+  #mainLesson .b3-grid,
+  #mainLesson .b3-grid-3{grid-template-columns:1fr!important}
+  #mainLesson .phf-original-contained .welcome-right{border-left:0!important;border-top:1px solid #e2efe7!important}
+}
