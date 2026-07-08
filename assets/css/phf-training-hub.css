@@ -5647,3 +5647,652 @@ body,button,input,select,textarea,label,summary,details,.original summary,.origi
   #mainLesson .b3-grid-3{grid-template-columns:1fr!important}
   #mainLesson .phf-original-contained .welcome-right{border-left:0!important;border-top:1px solid #e2efe7!important}
 }
+
+
+/* Stage 3.14.0 - Hình minh họa bài học: dùng chọn lọc, không cắt xén ảnh */
+.phf-lesson-visual{
+  margin: 18px 0 20px;
+  border: 1px solid rgba(0,77,58,.12);
+  border-radius: 22px;
+  background: linear-gradient(180deg,#ffffff 0%,#f6fbf8 100%);
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(0,77,58,.07);
+}
+.phf-lesson-visual-img{
+  width: 100%;
+  background: #f4faf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.phf-lesson-visual-img img{
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+.phf-lesson-visual-caption{
+  display: grid;
+  gap: 5px;
+  padding: 14px 18px 16px;
+  border-top: 1px solid rgba(0,77,58,.08);
+  font-family: inherit;
+}
+.phf-lesson-visual-caption span{
+  width: max-content;
+  max-width: 100%;
+  color: #004D3A;
+  background: #eef8f1;
+  border: 1px solid rgba(99,173,48,.24);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.phf-lesson-visual-caption b{
+  color: #063d32;
+  font-size: 17px;
+  line-height: 1.35;
+}
+.phf-lesson-visual-caption small{
+  color: #526c64;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+@media (max-width: 760px){
+  .phf-lesson-visual{border-radius: 16px;margin:14px 0 16px;}
+  .phf-lesson-visual-caption{padding:12px 14px 14px;}
+  .phf-lesson-visual-caption b{font-size:16px;}
+}
+
+
+/* Stage 3.14.1 - Chuẩn hóa logo: dùng asset logo thật, không dựa vào logo AI trong ảnh */
+.topbar.phf-site-header .brand .logo,
+.phf-intro-brand img,
+.phf-phone-entry-head img,
+.phf-role-dialog-brand img,
+.phf-print-logo img{
+  object-fit: contain !important;
+  background:#fff !important;
+}
+.topbar.phf-site-header .brand .logo img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+}
+.phf-logo-fallback::before{
+  content:'Phuhoa Fresh';
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:120px;
+  min-height:34px;
+  padding:4px 10px;
+  border-radius:10px;
+  color:#004D3A;
+  background:#fff;
+  font-family:inherit;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+.phf-lesson-visual-img{
+  position:relative;
+}
+.phf-lesson-visual-img::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:0;
+  box-shadow: inset 0 0 0 1px rgba(0,77,58,.04);
+}
+
+
+/* Stage 3.14.2 - Official logo from user + header anti-overlap fix */
+:root{ --phf-header-logo-w: 150px; --phf-header-logo-h: 46px; }
+.logo img,
+.phf-logo-home .logo img,
+.phf-intro-brand img,
+.phf-intro-logo-main,
+.phf-phone-entry-head img,
+.phf-role-dialog-brand img,
+.phf-print-logo img,
+.logo-placeholder img,
+img[src*="assets/logo/phf-logo"]{
+  object-fit: contain !important;
+  object-position: center !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+.phf-logo-home .logo,
+.brand .logo,
+button.brand .logo{
+  width: var(--phf-header-logo-w) !important;
+  min-width: var(--phf-header-logo-w) !important;
+  height: var(--phf-header-logo-h) !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow:hidden !important;
+}
+.phf-logo-home .logo img,
+.brand .logo img,
+button.brand .logo img{
+  max-height: var(--phf-header-logo-h) !important;
+  width: auto !important;
+  max-width: var(--phf-header-logo-w) !important;
+}
+.phf-logo-home,
+button.brand,
+.brand.phf-logo-home{
+  flex: 0 0 390px !important;
+  max-width: 390px !important;
+  min-width: 320px !important;
+  display:flex !important;
+  align-items:center !important;
+  gap: 16px !important;
+  white-space: nowrap !important;
+  overflow:hidden !important;
+}
+.phf-logo-home h1,
+button.brand h1,
+.brand.phf-logo-home h1{
+  font-size: clamp(20px, 1.45vw, 28px) !important;
+  line-height:1.05 !important;
+  margin:0 !important;
+  white-space: nowrap !important;
+}
+.phf-logo-home p,
+button.brand p,
+.brand.phf-logo-home p{
+  font-size: clamp(12px, .85vw, 15px) !important;
+  margin:4px 0 0 !important;
+  white-space: nowrap !important;
+}
+.topbar,
+header.topbar,
+.phf-main-header,
+.app-header,
+.training-header{
+  display:flex !important;
+  align-items:center !important;
+  gap: 20px !important;
+  min-width:0 !important;
+}
+.topbar nav,
+header.topbar nav,
+.nav,
+.phf-main-nav,
+.main-nav{
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap: clamp(12px, 1.3vw, 28px) !important;
+  white-space: nowrap !important;
+  overflow:hidden !important;
+}
+.topbar nav a,
+.topbar nav button,
+.nav a,
+.nav button,
+.nav-item{
+  flex:0 0 auto !important;
+}
+.account-pill,
+.phf-account,
+.login-switcher,
+.account-switcher,
+button[onclick*="Role"],
+button[onclick*="role"]{
+  flex:0 0 auto !important;
+}
+@media (max-width: 1240px){
+  :root{ --phf-header-logo-w: 122px; --phf-header-logo-h: 40px; }
+  .phf-logo-home, button.brand, .brand.phf-logo-home{ flex-basis: 320px !important; max-width:320px !important; min-width:270px !important; gap:12px !important; }
+  .topbar, header.topbar{ gap:12px !important; }
+  .topbar nav, header.topbar nav, .nav, .phf-main-nav, .main-nav{ gap: 14px !important; font-size: 14px !important; justify-content:flex-start !important; }
+}
+@media (max-width: 1020px){
+  .topbar, header.topbar, .phf-main-header, .app-header, .training-header{ flex-wrap:wrap !important; align-items:flex-start !important; }
+  .phf-logo-home, button.brand, .brand.phf-logo-home{ flex:1 1 100% !important; max-width:100% !important; }
+  .topbar nav, header.topbar nav, .nav, .phf-main-nav, .main-nav{ order:3 !important; width:100% !important; overflow-x:auto !important; padding-bottom:4px !important; justify-content:flex-start !important; }
+}
+@media (max-width: 640px){
+  :root{ --phf-header-logo-w: 108px; --phf-header-logo-h: 36px; }
+  .phf-logo-home h1, button.brand h1, .brand.phf-logo-home h1{ font-size:20px !important; }
+  .phf-logo-home p, button.brand p, .brand.phf-logo-home p{ font-size:12px !important; }
+}
+
+
+/* PHF STAGE 3.14.3 - Official logo/header fix + exact image placement */
+:root{
+  --phf-official-logo-w: 132px;
+  --phf-official-logo-h: 46px;
+}
+.topbar.phf-site-header{
+  display:grid !important;
+  grid-template-columns:minmax(300px, 370px) minmax(0, 1fr) auto !important;
+  align-items:center !important;
+  column-gap:18px !important;
+  row-gap:10px !important;
+  overflow:visible !important;
+}
+.topbar.phf-site-header .phf-logo-home,
+.topbar.phf-site-header button.brand.phf-logo-home,
+.topbar.phf-site-header .brand.phf-logo-home{
+  grid-column:1 !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:370px !important;
+  flex:0 1 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:12px !important;
+  overflow:hidden !important;
+  white-space:normal !important;
+}
+.topbar.phf-site-header .brand .logo,
+.topbar.phf-site-header .phf-logo-home .logo,
+.topbar.phf-site-header button.brand .logo{
+  width:var(--phf-official-logo-w) !important;
+  min-width:var(--phf-official-logo-w) !important;
+  max-width:var(--phf-official-logo-w) !important;
+  height:var(--phf-official-logo-h) !important;
+  flex:0 0 var(--phf-official-logo-w) !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:hidden !important;
+  padding:0 !important;
+}
+.topbar.phf-site-header .brand .logo img,
+.topbar.phf-site-header .phf-logo-home .logo img,
+.topbar.phf-site-header button.brand .logo img{
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center !important;
+}
+.topbar.phf-site-header .brand > div:not(.logo){
+  min-width:0 !important;
+  overflow:hidden !important;
+}
+.topbar.phf-site-header .brand h1{
+  margin:0 !important;
+  font-size:22px !important;
+  line-height:1.12 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  color:#004D3A !important;
+}
+.topbar.phf-site-header .brand p{
+  margin:2px 0 0 !important;
+  font-size:12.5px !important;
+  line-height:1.2 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+.topbar.phf-site-header .phf-main-nav{
+  grid-column:2 !important;
+  min-width:0 !important;
+  width:100% !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:clamp(8px, .85vw, 18px) !important;
+  overflow:hidden !important;
+  white-space:nowrap !important;
+}
+.topbar.phf-site-header .phf-main-nav button{
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  padding-left:8px !important;
+  padding-right:8px !important;
+}
+.topbar.phf-site-header .phf-login-entry,
+.topbar.phf-site-header .student-card{
+  grid-column:3 !important;
+  justify-self:end !important;
+  flex:0 0 auto !important;
+  max-width:230px !important;
+  min-width:0 !important;
+}
+.phf-lesson-visual-img{
+  background:#fff !important;
+}
+.phf-lesson-visual-img img{
+  width:100% !important;
+  height:auto !important;
+  max-height:none !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  display:block !important;
+}
+@media (max-width: 1280px){
+  :root{ --phf-official-logo-w:118px; --phf-official-logo-h:42px; }
+  .topbar.phf-site-header{
+    grid-template-columns:minmax(260px, 330px) minmax(0, 1fr) auto !important;
+    column-gap:12px !important;
+  }
+  .topbar.phf-site-header .brand h1{font-size:20px !important;}
+  .topbar.phf-site-header .brand p{font-size:11.8px !important;}
+  .topbar.phf-site-header .phf-main-nav{justify-content:flex-start !important;gap:8px !important;overflow-x:auto !important;scrollbar-width:thin !important;}
+}
+@media (max-width: 1040px){
+  .topbar.phf-site-header{
+    grid-template-columns:1fr auto !important;
+  }
+  .topbar.phf-site-header .phf-logo-home,
+  .topbar.phf-site-header button.brand.phf-logo-home,
+  .topbar.phf-site-header .brand.phf-logo-home{grid-column:1 !important;max-width:none !important;}
+  .topbar.phf-site-header .phf-mobile-menu-toggle{grid-column:2 !important;display:inline-flex !important;}
+  .topbar.phf-site-header .phf-main-nav,
+  .topbar.phf-site-header .phf-login-entry,
+  .topbar.phf-site-header .student-card{display:none !important;}
+  .topbar.phf-site-header.phf-mobile-open .phf-main-nav{
+    grid-column:1 / -1 !important;
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    width:100% !important;
+    overflow:visible !important;
+    gap:6px !important;
+  }
+  .topbar.phf-site-header.phf-mobile-open .phf-login-entry,
+  .topbar.phf-site-header.phf-mobile-open .student-card{
+    grid-column:1 / -1 !important;
+    display:flex !important;
+    width:100% !important;
+    max-width:none !important;
+    justify-self:stretch !important;
+  }
+}
+@media (max-width: 560px){
+  :root{ --phf-official-logo-w:106px; --phf-official-logo-h:38px; }
+  .topbar.phf-site-header .brand h1{font-size:17px !important;}
+  .topbar.phf-site-header .brand p{display:none !important;}
+}
+
+
+/* === PHF STAGE 3.14.6: homepage v4 font sync - interface only === */
+#introSection.is-landing .phf-intro-viewer{background:#eef4ee!important;}
+#introSection.is-landing .phf-intro-deck{height:calc(100vh - 76px)!important;overflow:auto!important;background:
+  radial-gradient(circle at top left, rgba(99,173,48,.08), transparent 26%),
+  radial-gradient(circle at top right, rgba(0,77,58,.06), transparent 22%),
+  linear-gradient(180deg,#f7fbf6 0%,#eef4ee 100%)!important;}
+#introSection.is-landing .phf-landing-slide{background:transparent!important;}
+.phf-home-v4-wrap,
+.phf-home-v4-wrap *{font-family:var(--phf-font-main,Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,BlinkMacSystemFont,sans-serif)!important;}
+.phf-home-v4-wrap{--home-green:#004D3A;--home-green2:#0B6A51;--home-leaf:#63AD30;--home-soft:#F4FAEF;--home-line:#DCE8D7;--home-text:#14211C;--home-muted:#6A7872;width:min(1200px,calc(100% - 32px));margin:24px auto 56px;color:var(--home-text);}
+.phf-home-v4-hero{display:grid;grid-template-columns:.9fr 1.1fr;gap:20px;align-items:stretch;margin-bottom:20px;}
+.phf-home-v4-copy{position:relative;overflow:hidden;border:1px solid rgba(0,77,58,.08);border-radius:30px;padding:28px;background:radial-gradient(circle at top left,rgba(99,173,48,.11),transparent 34%),linear-gradient(180deg,rgba(255,255,255,.96),rgba(248,253,246,.92));box-shadow:0 12px 30px rgba(0,77,58,.055);min-height:350px;display:flex;flex-direction:column;justify-content:center;}
+.phf-home-v4-copy:after{content:"";position:absolute;right:-44px;bottom:-56px;width:190px;height:190px;border-radius:40px;background:linear-gradient(135deg,rgba(99,173,48,.10),rgba(0,77,58,.02));transform:rotate(24deg);}
+.phf-home-v4-eyebrow{margin:0 0 12px!important;font-size:12.5px!important;font-weight:700!important;letter-spacing:.06em!important;text-transform:uppercase!important;color:var(--home-leaf)!important;}
+.phf-home-v4-copy h1{position:relative;z-index:1;margin:0!important;color:var(--home-green)!important;font-size:40px!important;line-height:1.10!important;font-weight:700!important;letter-spacing:-.35px!important;}
+.phf-home-v4-copy h1 span{display:block;color:var(--home-leaf);margin-top:6px;font-weight:700!important;}
+.phf-home-v4-lead{position:relative;z-index:1;margin:18px 0 0!important;max-width:520px;color:#2B3833!important;font-size:18px!important;line-height:1.62!important;font-weight:400!important;}
+.phf-home-v4-lead strong{color:var(--home-green);font-weight:700!important;}
+.phf-home-v4-actions{position:relative;z-index:1;margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;}
+.phf-home-v4-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px!important;padding:12px 17px!important;text-decoration:none!important;font-size:14px!important;font-weight:600!important;transition:.2s ease!important;cursor:pointer!important;border:0!important;line-height:1!important;}
+.phf-home-v4-btn.primary{background:var(--home-green)!important;color:#fff!important;box-shadow:0 10px 22px rgba(0,77,58,.13)!important;}
+.phf-home-v4-btn.light{background:var(--home-soft)!important;color:var(--home-green)!important;border:1px solid var(--home-line)!important;}
+.phf-home-v4-btn:hover{transform:translateY(-1px);}
+.phf-home-v4-photo{background:rgba(255,255,255,.82);border:1px solid rgba(0,77,58,.08);border-radius:30px;padding:12px;box-shadow:0 12px 30px rgba(0,77,58,.055);overflow:hidden;}
+.phf-home-v4-photo img{display:block;width:100%;height:100%;min-height:350px;object-fit:contain;object-position:center;border-radius:22px;background:#f8fbf7;}
+.phf-home-v4-shortcuts{position:relative;margin-bottom:20px;padding:18px;border:1px solid rgba(0,77,58,.08);background:rgba(255,255,255,.76);border-radius:28px;box-shadow:0 12px 30px rgba(0,77,58,.055);overflow:hidden;}
+.phf-home-v4-shortcuts:before{content:"";position:absolute;inset:auto -40px -48px auto;width:180px;height:180px;border-radius:38px;background:linear-gradient(135deg,rgba(99,173,48,.08),rgba(0,77,58,.02));transform:rotate(28deg);}
+.phf-home-v4-shortcut-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:16px;position:relative;z-index:1;}
+.phf-home-v4-shortcut-head h2{margin:0!important;font-size:25px!important;line-height:1.20!important;color:var(--home-green)!important;font-weight:700!important;letter-spacing:-.1px!important;}
+.phf-home-v4-shortcut-head>p{max-width:420px;margin:0!important;font-size:14px!important;line-height:1.55!important;color:var(--home-muted)!important;font-weight:400!important;}
+.phf-home-v4-shortcut-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;position:relative;z-index:1;}
+.phf-home-v4-shortcut-card{position:relative;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(247,252,246,.94));border:1px solid rgba(0,77,58,.10);border-radius:20px;padding:18px;min-height:146px;text-decoration:none;color:inherit;box-shadow:0 10px 24px rgba(0,77,58,.045);transition:.2s ease;overflow:hidden;cursor:pointer;}
+.phf-home-v4-shortcut-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(0,77,58,.085);border-color:rgba(0,77,58,.16);}
+.phf-home-v4-shortcut-card:before{content:"";position:absolute;top:-28px;right:-28px;width:92px;height:92px;border-radius:26px;background:linear-gradient(135deg,rgba(99,173,48,.10),rgba(0,77,58,.02));transform:rotate(22deg);}
+.phf-home-v4-icon{width:46px;height:46px;border-radius:15px;background:var(--home-soft);display:grid;place-items:center;color:var(--home-green);font-size:21px;font-weight:700!important;margin-bottom:14px;position:relative;z-index:1;}
+.phf-home-v4-shortcut-card strong{display:block;position:relative;z-index:1;font-size:17px!important;color:var(--home-green);margin-bottom:8px;line-height:1.3;font-weight:700!important;}
+.phf-home-v4-shortcut-card em{position:relative;z-index:1;display:block;color:var(--home-muted);font-size:14px;line-height:1.5;font-style:normal;font-weight:400;}
+.phf-home-v4-mission{position:relative;background:rgba(255,255,255,.82);border:1px solid rgba(0,77,58,.08);border-radius:30px;padding:28px;box-shadow:0 16px 42px rgba(0,77,58,.065);overflow:hidden;}
+.phf-home-v4-mission:before{content:"";position:absolute;left:-40px;top:-40px;width:150px;height:150px;border-radius:34px;background:linear-gradient(135deg,rgba(99,173,48,.07),rgba(0,77,58,.03));transform:rotate(-20deg);}
+.phf-home-v4-mission:after{content:"";position:absolute;right:-20px;bottom:-30px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(99,173,48,.07),transparent 70%);}
+.phf-home-v4-mission-inner{position:relative;z-index:1;}
+.phf-home-v4-mission-head{display:grid;grid-template-columns:1.15fr .95fr;gap:28px;align-items:start;margin-bottom:20px;}
+.phf-home-v4-mission-head h2{margin:0!important;color:var(--home-green)!important;font-size:30px!important;line-height:1.20!important;max-width:650px;font-weight:700!important;letter-spacing:-.15px!important;}
+.phf-home-v4-mission-head>p{padding-top:14px;margin:0!important;color:var(--home-muted)!important;font-size:15px!important;line-height:1.65!important;max-width:480px;font-weight:400!important;}
+.phf-home-v4-mission-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
+.phf-home-v4-mission-grid article{position:relative;background:rgba(255,255,255,.94);border:1px solid var(--home-line);border-radius:20px;padding:20px;min-height:154px;overflow:hidden;}
+.phf-home-v4-mission-grid article:before{content:"";position:absolute;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,var(--home-green),var(--home-leaf));}
+.phf-home-v4-mission-grid strong{display:block;color:var(--home-green);font-size:17px!important;line-height:1.35;margin-bottom:12px;font-weight:700!important;}
+.phf-home-v4-mission-grid span{display:block;color:var(--home-muted);font-size:14px;line-height:1.62;font-weight:400;}
+@media (max-width:1060px){.phf-home-v4-hero,.phf-home-v4-mission-head{grid-template-columns:1fr;}.phf-home-v4-shortcut-grid,.phf-home-v4-mission-grid{grid-template-columns:1fr 1fr;}}
+@media (max-width:720px){.phf-home-v4-wrap{width:min(100% - 22px,1200px);margin-top:16px;}.phf-home-v4-copy,.phf-home-v4-photo,.phf-home-v4-shortcuts,.phf-home-v4-mission{border-radius:22px;}.phf-home-v4-copy,.phf-home-v4-mission{padding:22px 18px;}.phf-home-v4-copy h1{font-size:32px!important;}.phf-home-v4-lead{font-size:17px!important;}.phf-home-v4-shortcut-head{display:block;}.phf-home-v4-shortcut-head h2{font-size:23px!important;}.phf-home-v4-mission-head h2{font-size:24px!important;}.phf-home-v4-shortcut-grid,.phf-home-v4-mission-grid{grid-template-columns:1fr;}}
+
+/* PHF STAGE 3.14.7: Phiếu đánh giá in sạch, không kéo header/menu/layout web. Không áp dụng cho BMTT. */
+@media print{
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) *{visibility:hidden!important;}
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .eval-document,
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .eval-document *,
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .final-paper,
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .final-paper *{visibility:visible!important;}
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .eval-document,
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) #weeklyFormBox .final-paper{
+    display:block!important;
+    position:absolute!important;
+    left:0!important;
+    top:0!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:14mm 13mm!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:#fff!important;
+    color:#111!important;
+    overflow:visible!important;
+    font-family:var(--phf-font-main, Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif)!important;
+  }
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) .eval-document-title h2{font-size:17pt!important;line-height:1.18!important;}
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) .eval-doc-section{break-inside:avoid-page;page-break-inside:avoid;}
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) .eval-sign-row,
+  body.phf-eval-mode:not(.phf-bmtt-print-mode) .final-signs{break-inside:avoid-page;page-break-inside:avoid;}
+}
+
+/* Stage 3.14.8 - rõ hóa danh sách việc đánh giá cần làm */
+.hub-eval-todo-table .hub-stt,
+.hub-action-table .hub-stt{
+  width:64px;
+  text-align:center;
+  color:#344054;
+  font-weight:850;
+}
+.hub-status-pill.upcoming{
+  border-color:#b8d6ff;
+  background:#eef6ff;
+  color:#175cd3;
+}
+#phfEvalTodoList{
+  scroll-margin-top:96px;
+}
+#phfEvalTodoList .hub-panel-head > div h3{
+  margin-bottom:4px;
+}
+
+/* Stage 3.14.9 - Font/style sync for Home + Admin training dashboard
+   Scope only: screen UI of homepage/admin/evaluation/report modules.
+   Purpose: make newer patched areas visually match the existing PHF Training Hub typography.
+   Do not touch BMTT print mode or evaluation print mode. */
+@media screen{
+  :root{
+    --phf-font-main:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+    --phf-ui-title:#064533;
+    --phf-ui-text:#18372d;
+    --phf-ui-muted:#536d62;
+    --phf-ui-line:#d9eadf;
+    --phf-ui-soft:#f8fcfa;
+  }
+
+  body:not(.phf-bmtt-print-mode):not(.phf-eval-print-mode),
+  body:not(.phf-bmtt-print-mode):not(.phf-eval-print-mode) button,
+  body:not(.phf-bmtt-print-mode):not(.phf-eval-print-mode) input,
+  body:not(.phf-bmtt-print-mode):not(.phf-eval-print-mode) select,
+  body:not(.phf-bmtt-print-mode):not(.phf-eval-print-mode) textarea{
+    font-family:var(--phf-font-main)!important;
+  }
+
+  .phf-home-v4-wrap,
+  .phf-home-v4-wrap *,
+  .eval-admin-shell,
+  .eval-admin-shell *,
+  .hub-overview-page,
+  .hub-overview-page *,
+  .hub-report-page,
+  .hub-report-page *,
+  .eval-history-card,
+  .eval-history-card *,
+  .eval-period-card,
+  .eval-period-card *{
+    font-family:var(--phf-font-main)!important;
+  }
+
+  .eval-admin-shell,
+  .hub-overview-page,
+  .hub-report-page{
+    color:var(--phf-ui-text)!important;
+    line-height:1.48!important;
+  }
+
+  .hub-dashboard-hero h2,
+  .hub-hero h2,
+  .hub-panel-head h3,
+  .hub-full-title,
+  .hub-eval-entry-card h3,
+  .eval-history-head h3,
+  .eval-card h3,
+  .eval-period-head h3,
+  .eval-detail-head h3{
+    font-family:var(--phf-font-main)!important;
+    color:var(--phf-ui-title)!important;
+    font-weight:700!important;
+    letter-spacing:0!important;
+    line-height:1.28!important;
+    text-transform:none!important;
+  }
+
+  .hub-dashboard-hero p,
+  .hub-hero p,
+  .hub-panel-head span,
+  .hub-row small,
+  .hub-work-row small,
+  .hub-kpi p,
+  .eval-history-head p,
+  .eval-profile-line,
+  .eval-tab-empty,
+  .hub-empty,
+  .hub-report-table-note{
+    font-family:var(--phf-font-main)!important;
+    color:var(--phf-ui-muted)!important;
+    font-weight:600!important;
+    letter-spacing:0!important;
+  }
+
+  .hub-kpi b,
+  .hub-report-metric b,
+  .final-eval-metric b,
+  .eval-history-metric b,
+  .hub-full-count{
+    font-family:var(--phf-font-main)!important;
+    font-weight:700!important;
+    letter-spacing:-.15px!important;
+    color:var(--phf-ui-title)!important;
+  }
+
+  .hub-kpi span,
+  .hub-report-metric span,
+  .final-eval-metric span,
+  .eval-history-metric span{
+    font-family:var(--phf-font-main)!important;
+    font-weight:700!important;
+    letter-spacing:.02em!important;
+  }
+
+  .eval-action,
+  .eval-save-btn,
+  .eval-tabbtn,
+  .hub-shortcuts .eval-action,
+  .hub-dashboard-foot .eval-action,
+  .hub-full-actions .eval-action{
+    font-family:var(--phf-font-main)!important;
+    font-weight:700!important;
+    letter-spacing:0!important;
+  }
+
+  .hub-panel,
+  .hub-kpi,
+  .hub-dashboard-hero,
+  .hub-full-eval-card,
+  .eval-card,
+  .eval-history-card,
+  .eval-period-card{
+    border-color:var(--phf-ui-line)!important;
+    border-radius:12px!important;
+    box-shadow:0 10px 26px rgba(7,59,45,.055)!important;
+  }
+
+  .hub-panel-head,
+  .hub-shortcuts,
+  .hub-dashboard-foot,
+  .hub-report-filters{
+    background:var(--phf-ui-soft)!important;
+    border-color:var(--phf-ui-line)!important;
+  }
+
+  .hub-action-table,
+  .hub-action-table th,
+  .hub-action-table td,
+  .eval-history-table,
+  .eval-history-table th,
+  .eval-history-table td{
+    font-family:var(--phf-font-main)!important;
+  }
+
+  .hub-action-table th,
+  .eval-history-table th{
+    background:#f7fbf8!important;
+    color:#344054!important;
+    font-size:12px!important;
+    font-weight:700!important;
+    letter-spacing:.02em!important;
+  }
+
+  .hub-action-table td,
+  .eval-history-table td{
+    color:#1f2933!important;
+    font-size:13px!important;
+    font-weight:600!important;
+  }
+
+  .hub-status-pill,
+  .eval-status-chip,
+  .weekly-pill{
+    font-family:var(--phf-font-main)!important;
+    font-weight:700!important;
+    letter-spacing:0!important;
+  }
+
+  /* Keep homepage v4 approved layout, but match real web typography more closely. */
+  .phf-home-v4-copy h1{font-size:38px!important;font-weight:700!important;letter-spacing:-.2px!important;}
+  .phf-home-v4-lead{font-size:17px!important;font-weight:400!important;line-height:1.62!important;}
+  .phf-home-v4-shortcut-head h2{font-size:24px!important;font-weight:700!important;}
+  .phf-home-v4-mission-head h2{font-size:28px!important;font-weight:700!important;}
+  .phf-home-v4-shortcut-card strong,
+  .phf-home-v4-mission-grid strong{font-weight:700!important;}
+}
