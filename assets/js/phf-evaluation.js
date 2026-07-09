@@ -942,7 +942,7 @@ function phfRenderDirectTrainingTestPage(){
   document.body.classList.remove('phf-guide-standalone-mode','phf-guide-intro-active');
   document.getElementById('miniStatus').textContent='Kiểm tra';
   document.getElementById('contextTitle').textContent='Công cụ kiểm tra bài thi';
-  document.getElementById('contextSub').textContent='Khu vực dành cho Trưởng ca/Quản lý/Admin kiểm tra giao diện bài thi và cách chấm điểm.';
+  document.getElementById('contextSub').textContent='Khu vực dành cho Trưởng ca/Quản lý/Admin kiểm tra bài thi và cách chấm điểm.';
   document.getElementById('contextAction').textContent= phfCanEditEvaluation() ? phfRoleLabel() : 'Học viên';
   if(!phfCanEditEvaluation()){
     document.getElementById('mainLesson').innerHTML = `

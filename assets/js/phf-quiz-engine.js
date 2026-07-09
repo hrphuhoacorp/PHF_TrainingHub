@@ -60,7 +60,7 @@
     var root = document.getElementById('mainLesson'); if(!root) return;
     var questions = Array.from(root.querySelectorAll('.step2-question[data-correct]'));
     var result = document.getElementById('step2TestResult');
-    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Chưa nhận được danh sách câu hỏi để chấm.'); return; }
     setButtonLoading(btn, true, 'Đang chấm điểm...');
     setTimeout(function(){
       var stat = phfMarkQuizAnswers(questions, 'data-correct');
@@ -74,7 +74,7 @@
     var root = document.getElementById('b3Test') || document.getElementById('mainLesson'); if(!root) return;
     var questions = Array.from(root.querySelectorAll('.b3-mini[data-answer]'));
     var result = document.getElementById('b3Result');
-    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Chưa nhận được danh sách câu hỏi để chấm.'); return; }
     setButtonLoading(btn, true, 'Đang chấm điểm...');
     setTimeout(function(){
       var stat = phfMarkQuizAnswers(questions, 'data-answer');
@@ -90,7 +90,7 @@
     var root = document.getElementById('b4FinalTest') || document.getElementById('mainLesson'); if(!root) return;
     var questions = Array.from(root.querySelectorAll('.b4-final-question[data-correct]'));
     var result = document.getElementById('b4FinalResult');
-    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Hệ thống chưa nhận được danh sách câu hỏi để chấm.'); return; }
+    if(!questions.length){ notice('warning','Chưa tìm thấy câu hỏi','Chưa nhận được danh sách câu hỏi để chấm.'); return; }
     setButtonLoading(btn, true, 'Đang chấm điểm...');
     setTimeout(function(){
       var stat = phfMarkQuizAnswers(questions, 'data-correct');

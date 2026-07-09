@@ -1,0 +1,275 @@
+/* PHF Training Hub - Bản 29.2: polish nhẹ, ưu tiên an toàn
+   Mục tiêu: giảm đậm chữ, chỉnh khoảng cách, làm nền xanh nhẹ hơn.
+   Không đổi màu chữ hàng loạt, không đổi nghiệp vụ/logic. */
+:root{
+  --phf-ui-green:#07543e;
+  --phf-ui-green-soft:#eef7f2;
+  --phf-ui-green-soft-2:#f5fbf7;
+  --phf-ui-line:#dfece6;
+  --phf-ui-shadow:0 8px 20px rgba(0,45,30,.045);
+}
+
+/* Font giữ theo hệ thống, không đổi màu chữ đại trà để tránh chữ bị chìm ở các trang chưa test hết. */
+html,body,
+button,input,select,textarea,
+table,th,td,label,a,span,small,b,strong,p,h1,h2,h3,h4,h5,h6,div,section,article,aside,main,nav{
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Helvetica Neue",Helvetica,sans-serif!important;
+}
+body{
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Giảm cảm giác quá đậm nhưng không đổi màu chữ. */
+h1,h2,h3,h4,h5,h6,
+.panel-title,.form-head h2,.focus-head h2,
+.phf-lib-hero h2,.phf-b23-detail h2,.phf-b23-panel-head h3,
+.phf-ban7-hero h2,.phf-ban7-section-head h3,
+.phf-admin-hero h2,.eval-admin-hero h2,
+.hub-dashboard-hero h2{
+  font-weight:650!important;
+  letter-spacing:-.01em!important;
+}
+b,strong,
+.panel-title,.context-main b,.status-item b,
+.phf-b23-card h4,.phf-b23-box b,
+.phf-ban7-card h4,.phf-admin-card h3,
+.question-block b,.quiz-card b,.b4-quiz b,
+.hub-panel h3,.hub-report-main-card h3{
+  font-weight:600!important;
+}
+button,.btn,.primary,
+.phf-ban7-mini-btn,.phf-ban7-tab,.phf-b23-action,.phf-lib-stage-btn,
+.phf-admin-card button,.eval-admin-card button,.eval-action,
+.phf-test-login-actions button{
+  font-weight:600!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+.chip,.pill,[class*="chip"],[class*="pill"],.phf-ban7-count,.phf-b23-badge,.phf-b23-type,.phf-b23-stage span{
+  font-weight:600!important;
+}
+
+/* Card/khung: chỉ làm gọn khoảng cách và viền nhẹ, không đổi màu chữ. */
+.panel,.main,
+.todo-panel,.right-panel,
+.progress-card,.status-item,
+.focus-card,.form-card,.sample-box,.today-box,.remember,.memory-card,
+.help-box,.callout,.scenario,.b4-callout,
+.question-block,.quiz-card,.b4-quiz,.step2-question,.b3-mini,.b4-final-question,
+.eval-admin-shell .eval-admin-main,
+.eval-admin-card,.eval-admin-panel,
+.phf-admin-card,.phf-admin-note,
+.phf-lib-side,.phf-lib-main,.phf-lib-card,.phf-lib-detail,
+.phf-b23-panel,.phf-b23-card,.phf-b23-detail,.phf-b23-box,
+.phf-ban7-section,.phf-ban7-card,.phf-ban7-col,.phf-ban7-tool-card,.phf-ban7-metric,
+.hub-panel,.hub-report-main-card,.hub-report-metric{
+  border-color:var(--phf-ui-line)!important;
+  box-shadow:var(--phf-ui-shadow)!important;
+}
+.layout{gap:18px!important;align-items:start!important;}
+.panel{padding:17px!important;border-radius:18px!important;}
+.main{padding:21px!important;border-radius:20px!important;}
+.status-list{gap:9px!important;}
+.status-item{padding:11px 12px!important;border-radius:13px!important;}
+
+/* Bài kiểm tra: sửa khoảng cách đáp án cho đều, tránh ô câu trả lời bị giãn lệch. */
+#mainLesson .question-block,
+#mainLesson .quiz-card,
+#mainLesson .b4-quiz,
+#mainLesson .step2-question,
+#mainLesson .b3-mini,
+#mainLesson .b4-final-question{
+  display:block!important;
+  padding:17px!important;
+  margin:13px 0!important;
+  border-radius:18px!important;
+}
+#mainLesson .question-block > p,
+#mainLesson .quiz-card > p,
+#mainLesson .b4-quiz > p,
+#mainLesson .step2-question > p,
+#mainLesson .b3-mini > p,
+#mainLesson .b4-final-question > p,
+#mainLesson .phf-question-title{
+  margin-top:0!important;
+  margin-bottom:11px!important;
+  font-weight:600!important;
+}
+#mainLesson .phf-quiz-option,
+#mainLesson .question-block label,
+#mainLesson .quiz-card label,
+#mainLesson .b4-quiz label,
+#mainLesson .step2-question label,
+#mainLesson .b3-mini label,
+#mainLesson .b4-final-question label{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:10px!important;
+  width:100%!important;
+  max-width:780px!important;
+  min-height:0!important;
+  margin:8px 0!important;
+  padding:10px 12px!important;
+  border-radius:13px!important;
+  line-height:1.42!important;
+  font-weight:450!important;
+  box-shadow:none!important;
+  box-sizing:border-box!important;
+}
+#mainLesson .phf-quiz-option input[type="radio"],
+#mainLesson .question-block label input[type="radio"],
+#mainLesson .quiz-card label input[type="radio"],
+#mainLesson .b4-quiz label input[type="radio"],
+#mainLesson .step2-question label input[type="radio"],
+#mainLesson .b3-mini label input[type="radio"],
+#mainLesson .b4-final-question label input[type="radio"]{
+  flex:0 0 auto!important;
+  margin:0!important;
+}
+#mainLesson .phf-quiz-option.is-selected,
+#mainLesson .phf-quiz-option.selected,
+#mainLesson .question-block label:has(input:checked),
+#mainLesson .quiz-card label:has(input:checked),
+#mainLesson .b4-quiz label:has(input:checked),
+#mainLesson .step2-question label:has(input:checked),
+#mainLesson .b3-mini label:has(input:checked),
+#mainLesson .b4-final-question label:has(input:checked){
+  font-weight:550!important;
+  box-shadow:0 0 0 2px rgba(7,84,62,.05)!important;
+}
+
+/* Ghi chú/cảnh báo: giữ rõ, không dùng chữ quá nhạt. */
+.help-box,.callout,.scenario,.b4-callout,
+[class*="notice"],[class*="message"],.record-note,.weekly-save-note,.eval-save-note{
+  line-height:1.55!important;
+}
+.phf-form-error-box,
+.result-box.fail,.quiz-result.fail,.test-result.fail{
+  box-shadow:none!important;
+}
+
+/* Tổng quan/Báo cáo/Đánh giá: nền xanh đậm đổi thành xanh rất nhẹ để dễ chụp gửi, chữ giữ rõ. */
+.phf-ban7-hero,
+.eval-admin-hero,
+.hub-dashboard-hero,
+.phf-admin-hero{
+  background:linear-gradient(135deg,#f3faf6,#e9f5ef)!important;
+  color:#063f31!important;
+  border:1px solid #d7e9df!important;
+  box-shadow:0 10px 26px rgba(0,45,30,.055)!important;
+}
+.phf-ban7-hero h2,
+.eval-admin-hero h2,
+.hub-dashboard-hero h2,
+.phf-admin-hero h2,
+.phf-ban7-hero p,
+.eval-admin-hero p,
+.hub-dashboard-hero p,
+.phf-admin-hero p,
+.phf-ban7-kicker{
+  color:#063f31!important;
+}
+.phf-ban7-kicker{
+  background:#e2f1e9!important;
+  border:1px solid #cfe7da!important;
+}
+.phf-ban7-role,
+.hub-dashboard-note{
+  background:#fff!important;
+  color:#063f31!important;
+  border:1px solid #d7e9df!important;
+  box-shadow:none!important;
+}
+.phf-ban7-role small,
+.hub-dashboard-note small{
+  color:#4e655b!important;
+}
+.phf-ban7-metrics{gap:11px!important;}
+.phf-ban7-metric,
+.hub-report-metric{
+  padding:14px!important;
+  border-radius:16px!important;
+}
+.phf-ban7-tabs{
+  gap:7px!important;
+  padding:7px!important;
+}
+.phf-ban7-tab{
+  padding:10px 13px!important;
+  border-radius:12px!important;
+}
+.phf-ban7-tab.active{
+  background:#07543e!important;
+  color:#fff!important;
+}
+.phf-ban7-kanban{gap:13px!important;padding:14px!important;}
+.phf-ban7-col{background:#fbfdfc!important;padding:11px!important;}
+.phf-ban7-card{padding:12px!important;margin-bottom:9px!important;}
+.phf-ban7-actions{gap:7px!important;}
+.phf-ban7-mini-btn{padding:7px 9px!important;border-radius:10px!important;}
+
+/* Nút tài khoản, nút nhập đánh giá: bớt dày nhưng vẫn rõ. */
+.context-action,
+.phf-login-entry,
+.phf-mobile-menu-toggle,
+.eval-action,.phf-ban7-mini-btn,.phf-b23-action{
+  padding-top:9px!important;
+  padding-bottom:9px!important;
+}
+.phf-account-trigger,
+.phf-user-chip,
+.phf-user-pill,
+.phf-test-user-pill,
+button[aria-label*="tài khoản" i]{
+  border-radius:14px!important;
+  box-shadow:none!important;
+}
+
+/* Nội dung đào tạo: spacing nhẹ, không đổi màu chữ. */
+.phf-b23-layout{gap:16px!important;}
+.phf-b23-main{gap:15px!important;}
+.phf-b23-card{padding:14px!important;border-radius:16px!important;}
+.phf-b23-stage{padding:9px 11px!important;border-radius:13px!important;}
+.phf-b23-body{line-height:1.65!important;}
+
+/* Form/input giữ rõ, chỉ đồng bộ bo góc. */
+input,select,textarea{
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none!important;
+  box-shadow:0 0 0 3px rgba(7,84,62,.08)!important;
+}
+
+@media(max-width:1100px){
+  .layout{gap:15px!important;}
+  .panel{padding:15px!important;}
+  .main{padding:18px!important;}
+}
+@media(max-width:720px){
+  .main{padding:15px!important;}
+  #mainLesson .question-block,
+  #mainLesson .quiz-card,
+  #mainLesson .b4-quiz,
+  #mainLesson .step2-question,
+  #mainLesson .b3-mini,
+  #mainLesson .b4-final-question{padding:14px!important;}
+}
+
+
+/* Bản 29.2 guard: chống chữ trắng bị chìm trên nền xanh nhạt ở các banner tổng quan/quản trị. */
+body .hub-dashboard-hero h2,
+body .phf-ban7-hero h2,
+body .eval-admin-hero h2,
+body .phf-admin-hero h2,
+body .hub-dashboard-hero p,
+body .phf-ban7-hero p,
+body .eval-admin-hero p,
+body .phf-admin-hero p{
+  color:#053f31!important;
+  opacity:1!important;
+  text-shadow:none!important;
+}
