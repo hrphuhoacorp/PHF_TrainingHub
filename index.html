@@ -5,7 +5,7 @@
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PHF Training Hub · đào tạo nội bộ</title>
+<title>PHF Training Hub · Sổ đào tạo nội bộ</title>
 <!-- PHF favicon -->
 <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/favicon-192.jpg">
@@ -1583,14 +1583,6 @@
     margin:0!important;
     color:#526960!important;
     line-height:1.55!important;
-  }
-  .phf-login-note::before{
-    content:"Quên mật khẩu hoặc chưa có tài khoản? Vui lòng liên hệ Admin/Quản lý để được hỗ trợ.";
-  }
-  .phf-login-note{
-    font-size:0!important;
-  }
-  .phf-login-note::before{
     font-size:13.5px!important;
   }
   .phf-account-menu{
@@ -2070,6 +2062,71 @@
   }
 </style>
 
+
+<style id="phf-ban30-6-loading-css">
+  /* PHF Bản 30.6: làm mượt lúc học viên vào web, không đổi nghiệp vụ. */
+  .phf-view-loading{
+    position:fixed;
+    inset:0;
+    background:rgba(244,248,245,.78);
+    backdrop-filter:blur(2px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:999999;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease;
+  }
+  .phf-view-loading.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .phf-view-loading-card{
+    min-width:260px;
+    max-width:360px;
+    padding:18px 20px;
+    border-radius:18px;
+    border:1px solid #dcebe4;
+    background:#ffffff;
+    box-shadow:0 14px 34px rgba(0,45,30,.10);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    color:#0a4737;
+    font-size:14px;
+    line-height:1.45;
+  }
+  .phf-view-loading-spinner{
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    border:2px solid #cde3d8;
+    border-top-color:#0a5a43;
+    animation:phfSpin .8s linear infinite;
+    flex:0 0 auto;
+  }
+  .phf-view-loading-text{
+    font-weight:600;
+    color:#0d4234;
+  }
+  @keyframes phfSpin{to{transform:rotate(360deg)}}
+  body.phf-view-loading-open{
+    overflow:hidden;
+  }
+  body .phf-admin-hero{
+    background:linear-gradient(135deg,#eef7f2,#e4f1ea)!important;
+    color:#053f31!important;
+    border:1px solid #d7e9df!important;
+  }
+  body .phf-admin-role{
+    background:#f7fbf8!important;
+    color:#063f31!important;
+    border:1px solid #d7e9df!important;
+    box-shadow:none!important;
+  }
+</style>
+
 </head>
 <body class="phf-intro-active">
 
@@ -2452,13 +2509,60 @@ function render(){
   window.phfEnsureSharedShell = phfEnsureSharedShell;
   window.phfApplyFontBaseline = phfApplyFontBaseline;
 
+  function phfShowViewLoading(message){
+    try{
+      var el = document.getElementById('phfViewLoading');
+      if(!el){
+        el = document.createElement('div');
+        el.id = 'phfViewLoading';
+        el.className = 'phf-view-loading';
+        el.innerHTML = '<div class="phf-view-loading-card"><div class="phf-view-loading-spinner" aria-hidden="true"></div><div class="phf-view-loading-text"></div></div>';
+        document.body.appendChild(el);
+      }
+      var text = el.querySelector('.phf-view-loading-text');
+      if(text) text.textContent = message || 'Đang tải dữ liệu...';
+      el.classList.add('show');
+      document.body.classList.add('phf-view-loading-open');
+    }catch(e){}
+  }
+
+  function phfHideViewLoading(delay){
+    var ms = Number(delay || 0);
+    setTimeout(function(){
+      try{
+        var el = document.getElementById('phfViewLoading');
+        if(el) el.classList.remove('show');
+        document.body.classList.remove('phf-view-loading-open');
+      }catch(e){}
+    }, ms);
+  }
+
+  function phfShouldSmoothLoad(activeKey){
+    try{
+      var user = typeof getUser === 'function' ? getUser() : null;
+      if(!user || String(user.role || '') !== 'learner') return false;
+      return ['home','learning','profile'].indexOf(String(activeKey || '')) >= 0;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function phfLoadingMessageFor(activeKey){
+    if(activeKey === 'learning') return 'Đang chuẩn bị lộ trình học của bạn...';
+    if(activeKey === 'profile') return 'Đang chuẩn bị hồ sơ học tập...';
+    return 'Đang tải dữ liệu học tập...';
+  }
+
   function wrap(name, activeKey){
     var old = window[name];
     if(typeof old !== 'function' || old.__phfStage311Wrapped) return;
     var fn = function(){
+      var smoothLoad = phfShouldSmoothLoad(activeKey);
+      if(smoothLoad) phfShowViewLoading(phfLoadingMessageFor(activeKey));
       phfEnsureSharedShell(activeKey);
       var r = old.apply(this, arguments);
       phfAfterSharedRender(activeKey);
+      if(smoothLoad) phfHideViewLoading(280);
       return r;
     };
     fn.__phfStage311Wrapped = true;
@@ -3036,7 +3140,9 @@ function render(){
       if(!authUser){ if(err) err.textContent='Không tìm thấy tài khoản này.'; return; }
       if(String(authUser.status || 'active') === 'locked'){ if(err) err.textContent='Tài khoản này đang bị khóa.'; return; }
       if(String(authUser.password || '123456')!==p){ if(err) err.textContent='Mật khẩu chưa đúng.'; return; }
-      setLogin(e); removeLoginOverlay(); applyMenu();
+      setLogin(e); removeLoginOverlay();
+      try{ if(authUser && authUser.role==='learner') phfShowViewLoading('Đang tải dữ liệu học tập...'); }catch(e){}
+      applyMenu();
       try{ if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome(); else if(typeof window.phfGoLearning==='function') window.phfGoLearning(); }catch(ex){}
       setTimeout(applyMenu, 0); setTimeout(applyMenu, 250);
     }
