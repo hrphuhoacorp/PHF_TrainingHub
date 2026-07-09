@@ -479,7 +479,7 @@ function phfCurrentProfileForForms(){
       phone: phfDigits(val('phone') || saved.phone || ''),
       department: val('department') || saved.department || '',
       branch: val('branch') || saved.branch || '',
-      position: val('position') || saved.position || 'Nhân viên bán hàng mới',
+      position: val('position') || saved.position || 'Nhân viên bán hàng',
       studyStartDate: val('studyStartDate') || saved.studyStartDate || ''
     };
   }catch(e){ return {}; }
@@ -1117,7 +1117,7 @@ function phfCreateTemporaryLearnerFromPhone(phone){
     phone:clean,
     branch:'',
     department:'Bán hàng',
-    position:'Nhân viên bán hàng mới',
+    position:'Nhân viên bán hàng',
     studyStartDate:'',
     programId:'new_sales',
     __phfIsNewLearner:true

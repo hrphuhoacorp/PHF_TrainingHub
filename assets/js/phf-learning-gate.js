@@ -597,7 +597,7 @@
     merged.phone = cleanPhone(real.phone || fallback.phone || '');
     merged.branch = real.branch || fallback.branch || fallback.store || '';
     merged.department = real.department || fallback.department || '';
-    merged.position = real.position || fallback.position || 'Nhân viên bán hàng mới';
+    merged.position = real.position || fallback.position || 'Nhân viên bán hàng';
     merged.studyStartDate = real.studyStartDate || real.study_start_date || fallback.studyStartDate || fallback.study_start_date || '';
     merged.programId = real.programId || real.program_id || fallback.programId || 'new_sales';
     return merged;

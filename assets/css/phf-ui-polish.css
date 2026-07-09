@@ -273,3 +273,395 @@ body .phf-admin-hero p{
   opacity:1!important;
   text-shadow:none!important;
 }
+
+
+/* Bản 30 QA: lời chào tài khoản + rà nhẹ khoảng cách/câu chữ chính thức. */
+body .phf-login-entry{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:2px!important;
+  min-width:150px!important;
+  max-width:260px!important;
+  padding:10px 16px!important;
+  line-height:1.25!important;
+  text-align:left!important;
+}
+body .phf-login-entry span{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:15px!important;
+  font-weight:650!important;
+}
+body .phf-login-entry small{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:12.5px!important;
+  font-weight:450!important;
+  opacity:.96!important;
+}
+body .phf-ban7-note{
+  background:#f7fbf8!important;
+  border:1px solid #dfece6!important;
+  color:#294d40!important;
+  border-radius:14px!important;
+  padding:13px 15px!important;
+  line-height:1.55!important;
+}
+body .phf-ban7-note b{
+  color:#053f31!important;
+  font-weight:600!important;
+}
+body .phf-ban7-tool-card p,
+body .phf-ban7-section-head p,
+body .phf-ban7-hero p{
+  color:#294d40!important;
+  opacity:1!important;
+}
+@media(max-width:980px){
+  body .phf-login-entry{min-width:0!important;max-width:190px!important;padding:9px 12px!important;}
+  body .phf-login-entry span{font-size:14px!important;}
+  body .phf-login-entry small{font-size:12px!important;}
+}
+
+
+/* Bản 30.1: lời chào tài khoản gọn, tránh cắt chữ; tên nổi bật, tiền tố nhẹ. */
+body .phf-login-entry{
+  min-width:176px!important;
+  max-width:300px!important;
+}
+body .phf-login-entry span{
+  font-weight:500!important;
+}
+body .phf-login-entry span .phf-hello-prefix{
+  font-weight:450!important;
+  opacity:.98!important;
+}
+body .phf-login-entry span strong{
+  font-weight:760!important;
+}
+body .phf-login-entry small{
+  font-weight:450!important;
+}
+@media(max-width:980px){
+  body .phf-login-entry{max-width:230px!important;}
+}
+
+
+/* Bản 30.2: lời chào tài khoản phương án 1 - chỉ chữ, một dòng, không nền đậm. */
+body .phf-login-entry{
+  display:inline-flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:4px!important;
+  min-width:0!important;
+  max-width:none!important;
+  width:auto!important;
+  min-height:38px!important;
+  padding:6px 8px!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  border-radius:10px!important;
+  color:#053f31!important;
+  line-height:1.2!important;
+  text-align:right!important;
+  white-space:nowrap!important;
+}
+body .phf-login-entry:hover,
+body .phf-login-entry:focus-visible{
+  background:#f4faf6!important;
+  box-shadow:none!important;
+}
+body .phf-login-entry span{
+  display:inline!important;
+  max-width:none!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+  font-size:14.5px!important;
+  font-weight:500!important;
+  color:#053f31!important;
+  line-height:1.2!important;
+}
+body .phf-login-entry span .phf-hello-prefix{
+  font-weight:400!important;
+  color:#526b61!important;
+  opacity:1!important;
+}
+body .phf-login-entry span strong{
+  font-weight:700!important;
+  color:#053f31!important;
+}
+body .phf-login-entry span::after{
+  content:' ▾';
+  font-weight:500;
+  color:#526b61;
+}
+body .phf-login-entry small{
+  display:none!important;
+}
+@media(max-width:980px){
+  body .phf-login-entry{
+    max-width:48vw!important;
+    padding:6px 4px!important;
+  }
+  body .phf-login-entry span{
+    display:inline-block!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:14px!important;
+  }
+}
+
+
+/* Bản 30.3: sửa lời chào 1 dòng không bị cắt tên. */
+body .phf-site-header{
+  display:flex!important;
+  align-items:center!important;
+  gap:18px!important;
+}
+body .phf-site-header .brand,
+body .phf-site-header .phf-logo-home{
+  flex:0 0 auto!important;
+}
+body .phf-site-header .phf-main-nav{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  justify-content:center!important;
+  gap:12px!important;
+}
+body .phf-site-header .phf-main-nav button{
+  padding-left:10px!important;
+  padding-right:10px!important;
+  white-space:nowrap!important;
+}
+body .phf-site-header .phf-login-entry{
+  flex:0 0 auto!important;
+  min-width:max-content!important;
+  max-width:none!important;
+  width:auto!important;
+  overflow:visible!important;
+  white-space:nowrap!important;
+}
+body .phf-site-header .phf-login-entry span{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:3px!important;
+  max-width:none!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+}
+body .phf-site-header .phf-login-entry span::after{
+  content:none!important;
+}
+body .phf-site-header .phf-login-entry::after{
+  content:'▾';
+  margin-left:3px;
+  color:#526b61;
+  font-weight:500;
+  line-height:1;
+}
+@media(max-width:1180px){
+  body .phf-site-header{gap:12px!important;}
+  body .phf-site-header .phf-main-nav{gap:6px!important;}
+  body .phf-site-header .phf-main-nav button{padding-left:7px!important;padding-right:7px!important;font-size:13.5px!important;}
+  body .phf-site-header .phf-login-entry span{font-size:13.5px!important;}
+}
+@media(max-width:980px){
+  body .phf-site-header .phf-login-entry{
+    max-width:none!important;
+    min-width:max-content!important;
+  }
+  body .phf-site-header .phf-login-entry span{
+    max-width:none!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+}
+
+/* Bản 30.4: lời chào tách khỏi nút tài khoản, chỉ hiển thị tên, không chức danh, không rút gọn bằng dấu ... */
+body .phf-site-header .phf-login-entry,
+body .phf-login-entry{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-width:auto!important;
+  max-width:none!important;
+  width:auto!important;
+  min-height:36px!important;
+  padding:7px 11px!important;
+  border:1px solid #d7e8df!important;
+  background:#f7fbf8!important;
+  border-radius:999px!important;
+  color:#053f31!important;
+  box-shadow:none!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-align:center!important;
+}
+body .phf-site-header .phf-login-entry span,
+body .phf-login-entry span{
+  display:inline!important;
+  max-width:none!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+  font-size:14px!important;
+  font-weight:600!important;
+  color:#053f31!important;
+}
+body .phf-site-header .phf-login-entry span::after,
+body .phf-login-entry span::after{
+  content:none!important;
+}
+body .phf-site-header .phf-login-entry::after,
+body .phf-login-entry::after{
+  content:'▾';
+  margin-left:6px;
+  color:#60756c;
+  font-weight:500;
+  line-height:1;
+}
+body .phf-site-header .phf-login-entry small,
+body .phf-login-entry small{
+  display:none!important;
+}
+body .phf-user-greeting-row{
+  max-width:1320px;
+  margin:10px auto 0;
+  padding:0 22px;
+  color:#17382d;
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.45;
+  font-weight:400;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  white-space:normal;
+}
+body .phf-user-greeting-row span{
+  color:#60756c;
+  font-weight:400;
+}
+body .phf-user-greeting-row strong{
+  color:#053f31;
+  font-weight:700;
+}
+@media(max-width:720px){
+  body .phf-user-greeting-row{padding:0 16px;font-size:14px;margin-top:8px;}
+  body .phf-login-entry{padding:7px 10px!important;}
+}
+
+
+/* Bản 30.5: lời chào phương án 2 - nằm trong nút tài khoản, chỉ hiện tên, không chức danh, không dấu ... */
+body .phf-user-greeting-row{
+  display:none!important;
+}
+body .phf-site-header .phf-login-entry,
+body .phf-login-entry{
+  display:inline-flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:1px!important;
+  min-width:118px!important;
+  max-width:260px!important;
+  width:auto!important;
+  min-height:48px!important;
+  padding:8px 14px!important;
+  border:1px solid #dbeae2!important;
+  background:#f7fbf8!important;
+  border-radius:16px!important;
+  color:#053f31!important;
+  box-shadow:none!important;
+  text-align:left!important;
+  white-space:normal!important;
+  overflow:visible!important;
+}
+body .phf-site-header .phf-login-entry:hover,
+body .phf-site-header .phf-login-entry:focus-visible,
+body .phf-login-entry:hover,
+body .phf-login-entry:focus-visible{
+  background:#f1f8f4!important;
+  border-color:#cfe4d8!important;
+  box-shadow:none!important;
+}
+body .phf-site-header .phf-login-entry span,
+body .phf-login-entry span{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:1px!important;
+  max-width:100%!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:normal!important;
+  line-height:1.18!important;
+  color:#053f31!important;
+}
+body .phf-site-header .phf-login-entry .phf-hello-prefix,
+body .phf-login-entry .phf-hello-prefix{
+  display:block!important;
+  color:#526b61!important;
+  font-size:13px!important;
+  font-weight:400!important;
+  line-height:1.15!important;
+}
+body .phf-site-header .phf-login-entry strong,
+body .phf-login-entry strong{
+  display:block!important;
+  color:#053f31!important;
+  font-size:14px!important;
+  font-weight:700!important;
+  line-height:1.18!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  word-break:normal!important;
+  overflow-wrap:anywhere!important;
+}
+body .phf-site-header .phf-login-entry span::after,
+body .phf-login-entry span::after{
+  content:none!important;
+}
+body .phf-site-header .phf-login-entry::after,
+body .phf-login-entry::after{
+  content:'▾'!important;
+  position:absolute!important;
+  right:9px!important;
+  top:9px!important;
+  margin:0!important;
+  color:#60756c!important;
+  font-size:10px!important;
+  font-weight:500!important;
+  line-height:1!important;
+}
+body .phf-site-header .phf-login-entry small,
+body .phf-login-entry small{
+  display:none!important;
+}
+@media(max-width:980px){
+  body .phf-site-header .phf-login-entry,
+  body .phf-login-entry{
+    max-width:210px!important;
+    padding:8px 13px!important;
+  }
+  body .phf-site-header .phf-login-entry strong,
+  body .phf-login-entry strong{
+    font-size:13.5px!important;
+  }
+}

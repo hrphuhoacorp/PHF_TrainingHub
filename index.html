@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#0b4b39">
 
 <link rel="stylesheet" href="assets/css/phf-training-hub.css?v=stage3150c_postlogin_home_video">
-<link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=29_2">
+<link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=30_5">
 
 
 
@@ -2212,8 +2212,9 @@
       <button type="button" data-phf-main-nav="admin" onclick="phfRenderAdminManagement()">Quản trị</button>
       <button type="button" data-phf-main-nav="guide" onclick="phfGoGuide()">Hướng dẫn</button>
       </nav>
-    <button type="button" class="phf-login-entry" onclick="phfGoLogin()"><span>Đăng nhập / Tài khoản</span><small id="miniStatus">Sổ đào tạo</small></button>
+    <button type="button" class="phf-login-entry" onclick="phfGoLogin()"><span>Đăng nhập</span><small id="miniStatus">Tài khoản</small></button>
   </header>
+  <div class="phf-user-greeting-row" id="phfUserGreetingRow" style="display:none"><span>Xin chào, </span><strong id="phfUserGreetingName"></strong></div>
   <div class="phase-strip" id="phaseStrip"></div>
   <div class="context-bar">
     <div class="context-main"><div class="pin">📍</div><div><b id="contextTitle">Bạn đang ở...</b><span id="contextSub">Nội dung đào tạo được trình bày theo từng giai đoạn học.</span></div></div>
@@ -2838,7 +2839,7 @@ function render(){
   var AUTH_KEY = 'phfSimpleTestLoginEmail';
   var PROFILE_MARK = 'phfSimpleTestProfile';
   var USERS = {
-    'nv.test@phf.local': {password:'123456', role:'learner', name:'Nhân viên Test', label:'Học viên', phone:'0900000001', position:'Nhân viên bán hàng mới'},
+    'nv.test@phf.local': {password:'123456', role:'learner', name:'Nhân viên Test', label:'Học viên', phone:'0900000001', position:'Nhân viên bán hàng'},
     'truongca.test@phf.local': {password:'123456', role:'manager', name:'Trưởng ca Test', label:'Trưởng ca', phone:'0900000002', position:'Trưởng ca / CHT / Quản lý'},
     'admin.test@phf.local': {password:'123456', role:'admin', name:'Admin Test', label:'Admin', phone:'0900000003', position:'Quản trị đào tạo'}
   };
@@ -2874,7 +2875,7 @@ function render(){
       name:name,
       label: role === 'admin' ? 'Admin' : (role === 'manager' ? 'Trưởng ca' : 'Học viên'),
       phone:phone,
-      position: role === 'admin' ? 'Quản trị đào tạo' : (role === 'manager' ? 'Trưởng ca / CHT / Quản lý' : 'Nhân viên bán hàng mới'),
+      position: role === 'admin' ? 'Quản trị đào tạo' : (role === 'manager' ? 'Trưởng ca / CHT / Quản lý' : 'Nhân viên bán hàng'),
       status:String(a.status || 'active'),
       source:'account-admin'
     };
@@ -3014,7 +3015,7 @@ function render(){
       +'<section class="phf-test-login-brand" aria-label="PHF Training Hub">'
       +'<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Cổng đào tạo nội bộ</span></div>'
       +'<div><div class="phf-login-title">Đăng nhập PHF Training Hub</div><div class="phf-login-subtitle">Truy cập lộ trình đào tạo, hồ sơ học tập và khu quản lý theo phân quyền được cấp.</div></div>'
-      +'<div class="phf-login-points"><div class="phf-login-point"><span class="phf-login-dot">1</span><span>Học viên theo dõi bài học, tiến độ và hồ sơ cá nhân.</span></div><div class="phf-login-point"><span class="phf-login-dot">2</span><span>Trưởng ca/Admin quản lý học viên và xem tổng quan đào tạo.</span></div></div>'
+      +'<div class="phf-login-points"><div class="phf-login-point"><span class="phf-login-dot">1</span><span>Học viên theo dõi bài học, tiến độ và hồ sơ cá nhân.</span></div><div class="phf-login-point"><span class="phf-login-dot">2</span><span>Quản lý đào tạo theo dõi học viên và tổng quan đào tạo.</span></div></div>'
       +'</section>'
       +'<section class="phf-test-login-form" aria-label="Thông tin đăng nhập">'
       +(current?'<div class="phf-test-login-current">Đang đăng nhập: <b>'+escText(current.name)+'</b> · '+escText(current.label)+'</div>':'')
@@ -3065,8 +3066,27 @@ function render(){
       if(login){
         var span=login.querySelector('span'), small=login.querySelector('small');
         login.onclick=showLogin;
-        if(user){ if(span) span.textContent=user.name; if(small) small.textContent=user.label+' '; }
-        else { if(span) span.textContent='Đăng nhập'; if(small) small.textContent='Training Hub'; }
+        if(user){
+          var displayName = String(user.name || '').trim() || 'PHF';
+          var greetRow = document.getElementById('phfUserGreetingRow');
+          var greetName = document.getElementById('phfUserGreetingName');
+          if(span) span.innerHTML = '<span class="phf-hello-prefix">Xin chào,</span><strong></strong>';
+          var accountName = span ? span.querySelector('strong') : null;
+          if(accountName) accountName.textContent = displayName;
+          if(small) small.textContent = '';
+          if(greetRow) greetRow.style.setProperty('display','none','important');
+          if(greetName) greetName.textContent = '';
+          login.setAttribute('title', displayName);
+        }
+        else {
+          var greetRow = document.getElementById('phfUserGreetingRow');
+          var greetName = document.getElementById('phfUserGreetingName');
+          if(span) span.textContent='Đăng nhập';
+          if(small) small.textContent='Tài khoản';
+          if(greetRow) greetRow.style.setProperty('display','none','important');
+          if(greetName) greetName.textContent='';
+          login.removeAttribute('title');
+        }
       }
       if(!nav) return;
       if(!user){ nav.style.setProperty('display','none','important'); return; }
@@ -3199,7 +3219,7 @@ function render(){
     return '<section class="phf-ban7-section phf-ban7-hidden" id="phfBan7Learners"><div class="phf-ban7-section-head"><div><h3>Danh sách học viên</h3><p>Bảng chi tiết dùng để đối chiếu nhanh sau khi xem Kanban.</p></div></div><div class="phf-ban7-table-wrap"><table class="phf-ban7-table"><thead><tr><th>Học viên</th><th>Chi nhánh/Vị trí</th><th>Ngày bắt đầu</th><th>Giai đoạn</th><th>Mốc gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>'+ (trs || '<tr><td colspan="7">Chưa có học viên.</td></tr>') +'</tbody></table></div></section>';
   }
   function renderTools(rows){
-    return '<section class="phf-ban7-section phf-ban7-hidden" id="phfBan7Core"><div class="phf-ban7-section-head"><div><h3>Báo cáo đào tạo</h3><p>Khu theo dõi và tổng hợp tình hình đào tạo theo học viên, chương trình, tiến độ và kết quả.</p></div></div><div class="phf-ban7-tools"><article class="phf-ban7-tool-card"><h4>Báo cáo đào tạo</h4><p>Lọc học viên, theo dõi tiến độ, điểm kiểm tra và hồ sơ đánh giá. Sau này có thể xuất Excel/PDF.</p><button class="phf-ban7-mini-btn primary" type="button" onclick="phfRenderTrainingReports()">Mở Báo cáo</button></article><article class="phf-ban7-tool-card"><h4>Đánh giá thực tế</h4><p>Nhập nhận xét theo tuần/tháng/kết thúc. Kanban chỉ là màn ưu tiên việc cần xử lý.</p><button class="phf-ban7-mini-btn primary" type="button" onclick="renderEvaluationRecords(null,\'history\')">Mở Đánh giá</button></article></div><div class="phf-ban7-note"><b>Ghi chú triển khai:</b> Tổng quan dùng để theo dõi và tổng hợp vận hành đào tạo. Việc tạo đợt kiểm tra, câu hỏi, điểm đạt và đối tượng tham gia được quản lý trong khu Quản trị.</div></section>';
+    return '<section class="phf-ban7-section phf-ban7-hidden" id="phfBan7Core"><div class="phf-ban7-section-head"><div><h3>Báo cáo đào tạo</h3><p>Khu theo dõi và tổng hợp tình hình đào tạo theo học viên, chương trình, tiến độ và kết quả.</p></div></div><div class="phf-ban7-tools"><article class="phf-ban7-tool-card"><h4>Báo cáo đào tạo</h4><p>Lọc học viên, theo dõi tiến độ, điểm kiểm tra và hồ sơ đánh giá. Có thể xuất Excel/PDF khi cần.</p><button class="phf-ban7-mini-btn primary" type="button" onclick="phfRenderTrainingReports()">Mở Báo cáo</button></article><article class="phf-ban7-tool-card"><h4>Đánh giá thực tế</h4><p>Nhập nhận xét theo tuần/tháng/kết thúc. Kanban giúp ưu tiên các việc cần xử lý.</p><button class="phf-ban7-mini-btn primary" type="button" onclick="renderEvaluationRecords(null,\'history\')">Mở Đánh giá</button></article></div><div class="phf-ban7-note"><b>Thông tin theo dõi:</b> Tổng quan dùng để theo dõi tình hình học tập, tiến độ đào tạo và các hồ sơ cần xử lý. Việc tạo đợt kiểm tra, câu hỏi, điểm đạt và đối tượng tham gia được quản lý trong khu Quản trị.</div></section>';
   }
   window.phfBan7ShowTab = function(tab){
     ['kanban','learners','core'].forEach(function(k){ var el=document.getElementById(k==='kanban'?'phfBan7Kanban':(k==='learners'?'phfBan7Learners':'phfBan7Core')); if(el) el.classList.toggle('phf-ban7-hidden', k!==tab); });
@@ -3221,7 +3241,7 @@ function render(){
     var sub=document.getElementById('contextSub'); if(sub) sub.textContent='Kanban việc cần xử lý, kiểm tra chung và báo cáo theo quyền quản lý.';
     var act=document.getElementById('contextAction'); if(act) act.textContent=(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý');
     var main=document.getElementById('mainLesson'); if(!main) return;
-    main.innerHTML = '<section class="eval-admin-shell"><div class="eval-admin-page"><main class="eval-admin-main phf-ban7-dashboard" style="grid-column:1 / -1"><div class="phf-ban7-hero"><div><span class="phf-ban7-kicker">PHF Training Hub · Quản lý đào tạo</span><h2>Tổng quan theo dõi đào tạo</h2><p>Thiết kế theo góc nhìn Trưởng ca/Admin: nhìn nhanh ai cần xử lý hôm nay, ai quá hạn, ai đang học bình thường và khu báo cáo vận hành đào tạo.</p></div><div class="phf-ban7-role">'+safeEsc(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý')+'<small>'+total+' học viên</small></div></div><div class="phf-ban7-metrics"><div class="phf-ban7-metric"><b>'+total+'</b><span>Học viên</span><p>Trong dữ liệu hiện tại.</p></div><div class="phf-ban7-metric"><b>'+today+'</b><span>Cần xử lý hôm nay</span><p>Đến đúng ngày đánh giá.</p></div><div class="phf-ban7-metric"><b>'+overdue+'</b><span>Quá hạn</span><p>Đã qua mốc mà chưa có phiếu.</p></div><div class="phf-ban7-metric"><b>'+soon+'</b><span>Sắp đến hạn</span><p>Còn tối đa 3 ngày.</p></div><div class="phf-ban7-metric"><b>'+(testAgg.scored ? testAgg.avg+'%' : '-')+'</b><span>Điểm kiểm tra TB</span><p>'+safeEsc(testAgg.fail||0)+' chưa đạt · '+safeEsc(testAgg.none||0)+' chưa làm.</p></div></div><div class="phf-ban7-tabs"><button class="phf-ban7-tab active" data-ban7-tab="kanban" onclick="phfBan7ShowTab(\'kanban\')">Đánh giá Kanban</button><button class="phf-ban7-tab" data-ban7-tab="learners" onclick="phfBan7ShowTab(\'learners\')">Học viên</button><button class="phf-ban7-tab" data-ban7-tab="core" onclick="phfBan7ShowTab(\'core\')">Báo cáo</button></div>'+renderKanban(rows)+renderLearners(rows)+renderTools(rows)+'</main></div></section>';
+    main.innerHTML = '<section class="eval-admin-shell"><div class="eval-admin-page"><main class="eval-admin-main phf-ban7-dashboard" style="grid-column:1 / -1"><div class="phf-ban7-hero"><div><span class="phf-ban7-kicker">PHF Training Hub · Quản lý đào tạo</span><h2>Tổng quan theo dõi đào tạo</h2><p>theo dõi nhanh tình hình học tập, tiến độ đào tạo và các hồ sơ cần xử lý.</p></div><div class="phf-ban7-role">'+safeEsc(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý')+'<small>'+total+' học viên</small></div></div><div class="phf-ban7-metrics"><div class="phf-ban7-metric"><b>'+total+'</b><span>Học viên</span><p>Trong dữ liệu hiện tại.</p></div><div class="phf-ban7-metric"><b>'+today+'</b><span>Cần xử lý hôm nay</span><p>Đến đúng ngày đánh giá.</p></div><div class="phf-ban7-metric"><b>'+overdue+'</b><span>Quá hạn</span><p>Đã qua mốc mà chưa có phiếu.</p></div><div class="phf-ban7-metric"><b>'+soon+'</b><span>Sắp đến hạn</span><p>Còn tối đa 3 ngày.</p></div><div class="phf-ban7-metric"><b>'+(testAgg.scored ? testAgg.avg+'%' : '-')+'</b><span>Điểm kiểm tra TB</span><p>'+safeEsc(testAgg.fail||0)+' chưa đạt · '+safeEsc(testAgg.none||0)+' chưa làm.</p></div></div><div class="phf-ban7-tabs"><button class="phf-ban7-tab active" data-ban7-tab="kanban" onclick="phfBan7ShowTab(\'kanban\')">Đánh giá Kanban</button><button class="phf-ban7-tab" data-ban7-tab="learners" onclick="phfBan7ShowTab(\'learners\')">Học viên</button><button class="phf-ban7-tab" data-ban7-tab="core" onclick="phfBan7ShowTab(\'core\')">Báo cáo</button></div>'+renderKanban(rows)+renderLearners(rows)+renderTools(rows)+'</main></div></section>';
     if(typeof phfScrollToPageTop==='function') phfScrollToPageTop();
   };
 })();
@@ -3322,7 +3342,7 @@ function render(){
 
     var cards = [
       ['👤','Tài khoản & phân quyền','Tạo tài khoản đăng nhập, phân vai trò Học viên / Trưởng ca / Admin và quản lý trạng thái tài khoản.','Làm tiếp','primary','phfRenderAccountAdminSafe()'],
-      ['🧭','Chương trình đào tạo','Quản lý các chương trình như nhân viên bán hàng mới, kho, gói quà, online hoặc đào tạo định kỳ.','Khung định hướng','','phfRenderAdminPlaceholder("Chương trình đào tạo")'],
+      ['🧭','Chương trình đào tạo','Quản lý các chương trình như nhân viên bán hàng, kho, gói quà, online hoặc đào tạo định kỳ.','Khung định hướng','','phfRenderAdminPlaceholder("Chương trình đào tạo")'],
       ['🗂','Lộ trình & giai đoạn','Cấu hình giai đoạn, thứ tự học, số ngày dự kiến và điều kiện hoàn thành cho từng chương trình.','Khung định hướng','','phfRenderAdminPlaceholder("Lộ trình & giai đoạn")'],
       ['📘','Bài học','Quản lý nội dung bài học, thứ tự hiển thị, trạng thái ẩn/hiện và gắn bài vào chương trình.','Làm sau','','phfRenderAdminPlaceholder("Bài học")'],
       ['📝','Kiểm tra bài thi','Mở công cụ kiểm tra các bài thi chính, rà giao diện, đáp án và cách chấm điểm trước khi cho học viên sử dụng.','Đang sử dụng','primary','phfGoDirectTrainingTest()','Mở công cụ'],
