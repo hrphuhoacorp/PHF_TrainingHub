@@ -2141,8 +2141,7 @@
       <button type="button" data-phf-main-nav="reports" onclick="phfRenderTrainingOverview()">Tổng quan</button>
       <button type="button" data-phf-main-nav="admin" onclick="phfRenderAdminManagement()">Quản trị</button>
       <button type="button" data-phf-main-nav="guide" onclick="phfGoGuide()">Hướng dẫn</button>
-      <button type="button" data-phf-main-nav="directTrainingTest" onclick="phfGoDirectTrainingTest()">Kiểm tra</button>
-    </nav>
+      </nav>
     <button type="button" class="phf-login-entry" onclick="phfGoLogin()"><span>Đăng nhập / Tài khoản</span><small id="miniStatus">Sổ đào tạo</small></button>
   </header>
   <div class="phase-strip" id="phaseStrip"></div>
@@ -2287,12 +2286,11 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-learner-app.js"></script>
+<script src="assets/js/phf-evaluation.js?v=27_1"></script>
+<script src="assets/js/phf-learner-app.js?v=27"></script>
+<script src="assets/js/phf-progress-profile.js?v=27"></script>
+<script src="assets/js/phf-quiz-engine.js?v=27"></script>
 <!-- app.js cũ đã được tắt trong bản kiểm thử vai trò để tránh tự mở hộp nhập SĐT trước màn chọn vai trò. -->
-
-<script>
-function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1AfternoonQuiz');if(!wrap)return;var questions=wrap.querySelectorAll('.phf-quiz-question');var correct=0;questions.forEach(function(q){q.classList.remove('correct','wrong');var checked=q.querySelector('input[type="radio"]:checked');if(checked&&checked.value===q.getAttribute('data-answer')){correct++;q.classList.add('correct');}else{q.classList.add('wrong');}});var result=document.getElementById('day1AfternoonQuizResult');if(result){result.classList.add('show');result.innerHTML='Bạn đã trả lời đúng '+correct+'/'+questions.length+' câu. Phần này không khóa bài; hãy đọc lại giải thích ở những câu chưa đúng rồi bấm tiếp tục.';}}
-</script>
 <script>
 (function(){
   function closeAllMobileMenus(){
@@ -3257,19 +3255,19 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
       ['🧭','Chương trình đào tạo','Quản lý các chương trình như nhân viên bán hàng mới, kho, gói quà, online hoặc đào tạo định kỳ.','Khung định hướng','','phfRenderAdminPlaceholder("Chương trình đào tạo")'],
       ['🗂','Lộ trình & giai đoạn','Cấu hình giai đoạn, thứ tự học, số ngày dự kiến và điều kiện hoàn thành cho từng chương trình.','Khung định hướng','','phfRenderAdminPlaceholder("Lộ trình & giai đoạn")'],
       ['📘','Bài học','Quản lý nội dung bài học, thứ tự hiển thị, trạng thái ẩn/hiện và gắn bài vào chương trình.','Làm sau','','phfRenderAdminPlaceholder("Bài học")'],
-      ['📝','Kiểm tra','Tạo đợt kiểm tra, ngân hàng câu hỏi, điểm đạt, số lần làm lại và đối tượng tham gia.','Luồng chung','','phfRenderAdminPlaceholder("Kiểm tra")'],
+      ['📝','Kiểm tra bài thi','Mở công cụ kiểm tra các bài thi chính, rà giao diện, đáp án và cách chấm điểm trước khi cho học viên sử dụng.','Đang sử dụng','primary','phfGoDirectTrainingTest()','Mở công cụ'],
       ['⭐','Mẫu đánh giá','Quản lý mẫu đánh giá tuần/tháng/kết thúc, tiêu chí, thang điểm và trạng thái sử dụng.','Làm sau','','phfRenderAdminPlaceholder("Mẫu đánh giá")'],
       ['🏷','Danh mục chung','Cấu hình chi nhánh, bộ phận, vị trí đào tạo và các danh mục dùng chung trong biểu mẫu.','Nên ưu tiên','','phfRenderAdminPlaceholder("Danh mục chung")'],
-      ['📣','Thông báo / Hướng dẫn','Quản lý thông báo, hướng dẫn sử dụng và nội dung hỗ trợ hiển thị cho từng nhóm người dùng.','Làm sau','','phfRenderAdminPlaceholder("Thông báo / Hướng dẫn")']
+      ['📣','Thông báo / Hỗ trợ','Quản lý thông báo, nội dung hỗ trợ và thông tin cần phổ biến cho từng nhóm người dùng.','Làm sau','','phfRenderAdminPlaceholder("Thông báo / Hỗ trợ")']
     ];
 
     var html = '<section class="phf-admin-manage">'
       + '<div class="phf-admin-hero"><div><span class="phf-admin-kicker">PHF Training Hub · Quản trị</span><h2>Quản trị hệ thống đào tạo</h2><p>Khu vực dành cho Admin để thiết lập nền tảng: tài khoản, chương trình, lộ trình, kiểm tra, mẫu đánh giá và danh mục dùng chung. Tổng quan vẫn giữ vai trò theo dõi vận hành đào tạo hằng ngày.</p></div><div class="phf-admin-role">'+esc(roleLabel())+'<small>Quyền cấu hình hệ thống</small></div></div>'
       + '<div class="phf-admin-grid">';
     cards.forEach(function(c){
-      html += '<article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">'+c[0]+'</div><span class="phf-admin-status">'+esc(c[3])+'</span></div><h3>'+esc(c[1])+'</h3><p>'+esc(c[2])+'</p><button class="'+(c[4]||'')+'" type="button" onclick="'+c[5]+'">Mở module</button></article>';
+      html += '<article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">'+c[0]+'</div><span class="phf-admin-status">'+esc(c[3])+'</span></div><h3>'+esc(c[1])+'</h3><p>'+esc(c[2])+'</p><button class="'+(c[4]||'')+'" type="button" onclick="'+c[5]+'">'+esc(c[6]||'Mở module')+'</button></article>';
     });
-    html += '</div><div class="phf-admin-note"><b>Nguyên tắc:</b> Quản trị dùng để thiết lập/cấu hình hệ thống. Tổng quan dùng để theo dõi học viên, tiến độ, đánh giá và báo cáo vận hành. Riêng Kiểm tra được đặt trong Quản trị vì đây là nơi tạo đợt kiểm tra, câu hỏi và cấu hình điểm đạt.</div></section>';
+    html += '</div><div class="phf-admin-note"><b>Nguyên tắc:</b> Quản trị dùng để quản lý các phần nền tảng của chương trình đào tạo. Tổng quan dùng để theo dõi học viên, tiến độ, đánh giá và báo cáo vận hành.</div></section>';
     main.innerHTML = html;
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };
@@ -3283,7 +3281,7 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
     setActive();
     var main = document.getElementById('mainLesson');
     if(!main) return;
-    main.innerHTML = '<section class="phf-admin-manage"><div class="phf-admin-hero"><div><span class="phf-admin-kicker">PHF Training Hub · Quản trị</span><h2>'+esc(title)+'</h2><p>Module này đang ở mức khung định hướng để chốt cấu trúc trước, chưa nối dữ liệu thật và chưa thay đổi Supabase/schema.</p></div><div class="phf-admin-role">Admin<small>Khung chức năng</small></div></div><div class="phf-admin-note"><b>Ghi chú triển khai:</b> Bước này chỉ xác định vị trí và phạm vi module. Sau khi cấu trúc ổn, từng module sẽ được làm riêng để dễ test và dễ rollback.</div><div class="phf-admin-grid"><article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">←</div><span class="phf-admin-status">Quay lại</span></div><h3>Về Quản trị</h3><p>Quay lại danh sách module quản trị hệ thống.</p><button class="primary" type="button" onclick="phfRenderAdminManagement()">Quay lại Quản trị</button></article></div></section>';
+    main.innerHTML = '<section class="phf-admin-manage"><div class="phf-admin-hero"><div><span class="phf-admin-kicker">PHF Training Hub · Quản trị</span><h2>'+esc(title)+'</h2><p>Khu vực này sẽ được mở khi cần sử dụng trong vận hành đào tạo chính thức.</p></div><div class="phf-admin-role">Admin<small>Đang chuẩn bị</small></div></div><div class="phf-admin-note"><b>Thông tin:</b> Từng khu vực quản trị sẽ được hoàn thiện theo nhu cầu vận hành để đảm bảo dễ sử dụng và ổn định.</div><div class="phf-admin-grid"><article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">←</div><span class="phf-admin-status">Quay lại</span></div><h3>Về Quản trị</h3><p>Quay lại danh sách khu vực quản trị.</p><button class="primary" type="button" onclick="phfRenderAdminManagement()">Quay lại Quản trị</button></article></div></section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };
 
@@ -3806,215 +3804,6 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
 <script src="assets/js/phf-learning-gate.js"></script>
 <script src="assets/js/phf-account-admin-safe.js"></script>
 
-<script id="phf-ban19a-profile-isolation-js">
-(function(){
-  function phone(v){ return String(v||'').replace(/[^\d+]/g,'').trim(); }
-  function email(v){ return String(v||'').trim().toLowerCase(); }
-  function activeEmail(){ try{return email(localStorage.getItem('phfActiveLoginEmail') || localStorage.getItem('phfSimpleTestLoginEmail') || localStorage.getItem('phfLoginEmail') || '');}catch(e){return '';} }
-  function activePhone(){ try{return phone(localStorage.getItem('phfLoginPhone') || localStorage.getItem('phfCurrentLearnerPhone') || localStorage.getItem('phfLinkedPhone') || '');}catch(e){return '';} }
-  function readProfile(){ try{ return JSON.parse(localStorage.getItem('phfEmployeeProfile') || 'null') || null; }catch(e){ return null; } }
-  function clearMismatchProfile(reason){
-    try{
-      localStorage.removeItem('phfEmployeeProfile');
-      localStorage.removeItem('phfEmployeeId');
-      localStorage.removeItem('phfRefreshResumeState');
-      localStorage.removeItem('phfResumeLessonIndex');
-      localStorage.removeItem('phfResumeFromPhone');
-      window.currentProfile = null;
-      localStorage.setItem('phfLastProfileIsolationReason', reason || 'mismatch');
-    }catch(e){}
-  }
-  function ensureProfileIsolation(){
-    var p = readProfile();
-    if(!p) return;
-    var ap = activePhone();
-    var ae = activeEmail();
-    var pp = phone(p.phone);
-    var pe = email(p.accountEmail || p.email || '');
-    if(!ap && pp){ clearMismatchProfile('account-no-phone-profile-has-phone'); return; }
-    if(ap && pp && ap !== pp){ clearMismatchProfile('phone-mismatch'); return; }
-    if(ae && pe && ae !== pe){ clearMismatchProfile('email-mismatch'); return; }
-  }
-  function patchFn(name, fallbackToPhoneEntry){
-    var old = window[name];
-    if(typeof old !== 'function' || old.__phf19a) return;
-    var wrapped = function(){
-      ensureProfileIsolation();
-      try{
-        var role = String(localStorage.getItem('phfInternalTestRole') || localStorage.getItem('phfRole') || '').toLowerCase();
-        var ap = activePhone();
-        if(fallbackToPhoneEntry && role === 'learner' && !ap){
-          if(typeof phfShowLearnerPhoneEntry === 'function') return phfShowLearnerPhoneEntry();
-        }
-      }catch(e){}
-      return old.apply(this, arguments);
-    };
-    wrapped.__phf19a = true;
-    window[name] = wrapped;
-  }
-  function patchAll(){ patchFn('phfGoMyProfile', true); patchFn('phfGoLearning', true); }
-  document.addEventListener('DOMContentLoaded', function(){ ensureProfileIsolation(); patchAll(); });
-  window.addEventListener('storage', ensureProfileIsolation);
-  setTimeout(function(){ ensureProfileIsolation(); patchAll(); }, 200);
-  setTimeout(patchAll, 1000);
-})();
-</script>
-
-
-<script id="phf-ban19b-sync-phone-account-js">
-(function(){
-  var ACCOUNT_KEYS = [
-    'phfAdminAccountsSafeV18',
-    'phfAdminAccountsV17F',
-    'phfAdminAccountsV17C',
-    'phfAdminAccountsV17D',
-    'phfAdminAccountsV17B',
-    'phfAdminAccountsV1'
-  ];
-  function phone(v){ return String(v||'').replace(/[^\d+]/g,'').trim(); }
-  function email(v){ return String(v||'').trim().toLowerCase(); }
-  function readJSON(k){ try{return JSON.parse(localStorage.getItem(k)||'[]')||[]}catch(e){return []} }
-  function writeJSON(k,v){ try{localStorage.setItem(k,JSON.stringify(v||[]))}catch(e){} }
-  function activeEmail(){
-    try{
-      return email(
-        localStorage.getItem('phfActiveLoginEmail') ||
-        localStorage.getItem('phfSimpleTestLoginEmail') ||
-        localStorage.getItem('phfLoginEmail') ||
-        ''
-      );
-    }catch(e){return ''}
-  }
-  function currentPhone(){
-    var p = '';
-    try{
-      p = phone(
-        localStorage.getItem('phfLoginPhone') ||
-        localStorage.getItem('phfCurrentLearnerPhone') ||
-        localStorage.getItem('phfLinkedPhone') ||
-        ''
-      );
-      if(p) return p;
-      var profile = JSON.parse(localStorage.getItem('phfEmployeeProfile') || 'null');
-      if(profile && profile.phone) return phone(profile.phone);
-    }catch(e){}
-    try{
-      if(window.currentProfile && window.currentProfile.phone) return phone(window.currentProfile.phone);
-    }catch(e){}
-    return '';
-  }
-  function findWritableAccountList(){
-    for(var i=0;i<ACCOUNT_KEYS.length;i++){
-      var list = readJSON(ACCOUNT_KEYS[i]);
-      if(Array.isArray(list) && list.length) return {key:ACCOUNT_KEYS[i], list:list};
-    }
-    return {key:'phfAdminAccountsSafeV18', list:[]};
-  }
-  function syncPhoneToAccount(rawPhone, source){
-    var p = phone(rawPhone);
-    var em = activeEmail();
-    if(!p || !em) return false;
-
-    var pack = findWritableAccountList();
-    var list = pack.list;
-    var idx = -1;
-    for(var i=0;i<list.length;i++){
-      if(email(list[i] && list[i].email) === em){ idx = i; break; }
-    }
-    if(idx < 0) return false;
-
-    if(phone(list[idx].phone) === p) return true;
-    list[idx].phone = p;
-    list[idx].updatedAt = new Date().toISOString();
-    list[idx].phoneSyncedFrom = source || 'learner-phone-entry';
-    writeJSON(pack.key, list);
-
-    // Mirror into the current canonical safe key so Quản trị screen shows it immediately.
-    if(pack.key !== 'phfAdminAccountsSafeV18'){
-      var safe = readJSON('phfAdminAccountsSafeV18');
-      var sidx = -1;
-      for(var j=0;j<safe.length;j++){
-        if(email(safe[j] && safe[j].email) === em){ sidx = j; break; }
-      }
-      if(sidx >= 0){
-        safe[sidx].phone = p;
-        safe[sidx].updatedAt = new Date().toISOString();
-      }else{
-        safe = list;
-      }
-      writeJSON('phfAdminAccountsSafeV18', safe);
-    }
-
-    try{
-      localStorage.setItem('phfLoginPhone', p);
-      localStorage.setItem('phfCurrentLearnerPhone', p);
-      localStorage.setItem('phfLinkedPhone', p);
-      var profile = JSON.parse(localStorage.getItem('phfEmployeeProfile') || 'null') || {};
-      profile.phone = p;
-      profile.id = 'test-phone-' + p;
-      profile.accountEmail = em;
-      localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
-      localStorage.setItem('phfEmployeeId', profile.id);
-      if(window.currentProfile) {
-        window.currentProfile.phone = p;
-        window.currentProfile.id = profile.id;
-        window.currentProfile.accountEmail = em;
-      }
-    }catch(e){}
-    return true;
-  }
-  function syncFromCurrent(source){
-    var p = currentPhone();
-    if(p) syncPhoneToAccount(p, source || 'current-session');
-  }
-
-  // Khi hồ sơ theo SĐT được mở thành công, ghi ngược SĐT vào tài khoản đang đăng nhập.
-  function patchFunction(name){
-    var old = window[name];
-    if(typeof old !== 'function' || old.__phf19b) return;
-    var wrapped = function(){
-      var result = old.apply(this, arguments);
-      try{
-        var arg0 = arguments && arguments.length ? arguments[0] : null;
-        var p = phone(arg0 && (arg0.phone || arg0.mobile || arg0.sdt));
-        if(p) syncPhoneToAccount(p, name);
-        setTimeout(function(){ syncFromCurrent(name + ':after'); }, 60);
-        setTimeout(function(){ syncFromCurrent(name + ':after2'); }, 350);
-      }catch(e){}
-      return result;
-    };
-    wrapped.__phf19b = true;
-    window[name] = wrapped;
-  }
-  function patchAll(){
-    patchFunction('phfOpenLearnerAfterPhone');
-    patchFunction('phfSetLearnerProfileFromRow');
-    patchFunction('phfFindLearnerByPhone');
-    patchFunction('phfGoLearning');
-    patchFunction('phfGoMyProfile');
-  }
-
-  // Bắt thao tác ở modal nhập SĐT: sau khi bấm Tiếp tục học/Tạo hồ sơ mới thì sync lại.
-  document.addEventListener('click', function(ev){
-    var t = ev.target;
-    var txt = (t && (t.textContent || t.value) || '').toLowerCase();
-    if(txt.indexOf('tiếp tục học') >= 0 || txt.indexOf('tạo hồ sơ') >= 0 || txt.indexOf('lưu') >= 0){
-      setTimeout(function(){ syncFromCurrent('click:' + txt.slice(0,20)); }, 120);
-      setTimeout(function(){ syncFromCurrent('click-late'); }, 700);
-    }
-  }, true);
-
-  window.phfSyncCurrentPhoneToAccount = function(){ return syncFromCurrent('manual'); };
-
-  document.addEventListener('DOMContentLoaded', function(){ patchAll(); setTimeout(function(){syncFromCurrent('dom')}, 500); });
-  window.addEventListener('storage', function(){ setTimeout(function(){syncFromCurrent('storage')}, 80); });
-  setTimeout(function(){ patchAll(); syncFromCurrent('boot'); }, 200);
-  setTimeout(function(){ patchAll(); syncFromCurrent('boot2'); }, 1200);
-  setInterval(function(){ patchAll(); syncFromCurrent('interval'); }, 2500);
-})();
-</script>
-
-
 <script id="phf-ban20-chip-normalize-js">
 (function(){
   var chipWords = {
@@ -4083,7 +3872,11 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
   }
   window.phfRenderAdminPlaceholder = renderOfficialPlaceholder;
 
-  function closeAccountMenu(){ removeEl('phfAccountMenu'); }
+  function closeAccountMenu(){
+    var menu=document.getElementById('phfAccountMenu');
+    if(menu && menu.__phfCleanup){ try{ menu.__phfCleanup(); }catch(e){} }
+    removeEl('phfAccountMenu');
+  }
   function showAccountMenu(anchor){
     closeAccountMenu();
     var menu=document.createElement('div');
@@ -4095,6 +3888,17 @@ function PHF_checkDay1AfternoonQuiz(){var wrap=document.getElementById('day1Afte
     var top=Math.min(window.innerHeight-160, r.bottom+8);
     var left=Math.max(12, Math.min(window.innerWidth-232, r.right-220));
     menu.style.top=top+'px'; menu.style.left=left+'px';
+    function outside(ev){ if(menu && !menu.contains(ev.target) && !anchor.contains(ev.target)) closeAccountMenu(); }
+    function closeOnMove(){ closeAccountMenu(); }
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+    window.addEventListener('scroll', closeOnMove, true);
+    window.addEventListener('resize', closeOnMove, true);
+    document.addEventListener('keydown', function escClose(ev){ if(ev.key==='Escape') closeAccountMenu(); }, {once:true});
+    menu.__phfCleanup=function(){
+      document.removeEventListener('click', outside, true);
+      window.removeEventListener('scroll', closeOnMove, true);
+      window.removeEventListener('resize', closeOnMove, true);
+    };
     menu.onclick=function(ev){
       var btn=ev.target.closest('button[data-act]');
       if(!btn) return;
