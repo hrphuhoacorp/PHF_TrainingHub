@@ -2428,9 +2428,9 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-evaluation.js?v=29_1"></script>
-<script src="assets/js/phf-learner-app.js?v=29_1"></script>
-<script src="assets/js/phf-progress-profile.js?v=29_1"></script>
+<script src="assets/js/phf-evaluation.js?v=24_f5_logic_stable_1"></script>
+<script src="assets/js/phf-learner-app.js?v=24_f5_logic_stable_1"></script>
+<script src="assets/js/phf-progress-profile.js?v=24_f5_logic_stable_1"></script>
 <script src="assets/js/phf-quiz-engine.js?v=29_1"></script>
 <!-- app.js cũ đã được tắt trong bản kiểm thử vai trò để tránh tự mở hộp nhập SĐT trước màn chọn vai trò. -->
 <script>
@@ -4066,17 +4066,26 @@ function render(){
   function markActive(route){
     try{document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){btn.classList.toggle('active',normalizeRoute(btn.getAttribute('data-phf-main-nav'))===route);});}catch(e){}
   }
+  var lastCallResult=null;
   function call(name){
     var fn=window[name]; if(typeof fn!=='function') return false;
-    try{fn();return true;}catch(e){console.warn('[PHF 16.1F route]',name,e);return false;}
+    try{
+      lastCallResult=fn();
+      return true;
+    }catch(e){
+      console.warn('[PHF 16.1F route]',name,e);
+      lastCallResult=null;
+      return false;
+    }
   }
   function renderRoute(route,sub){
     route=normalizeRoute(route); sub=route==='admin'?(sub||'home'):'';
     suppressHistory=true; restoring=true; setStoredRoute(route,sub);
+    lastCallResult=null;
     try{
       if(route==='intro'){ call('phfRenderPostLoginHome')||call('phfGoHome'); }
       else if(route==='learning'){ call('phfGoLearning'); }
-      else if(route==='profile'){ call('phfGoMyProfile')||call('renderEvaluationRecords'); }
+      else if(route==='profile'){ call('phfGoMyProfile'); }
       else if(route==='reports'){ call('phfRenderTrainingOverview')||call('phfRenderTrainingReports'); }
       else if(route==='trainingLibrary'){ call('phfRenderTrainingLibrary'); }
       else if(route==='guide'){ call('phfGoGuide')||call('phfRenderGuidePage'); }
@@ -4085,17 +4094,24 @@ function render(){
         if(sub==='home'){
           call('phfRenderAdminManagement');
         }else{
-          if(typeof window.phfRenderAccountAdminSafe==='function') window.phfRenderAccountAdminSafe();
-          else call('phfRenderAdminManagement');
+          if(typeof window.phfRenderAccountAdminSafe==='function'){
+            lastCallResult=window.phfRenderAccountAdminSafe();
+          }else{
+            call('phfRenderAdminManagement');
+          }
           setTimeout(function(){
             try{if(typeof window.phfAcctSafeTab==='function') window.phfAcctSafeTab(sub||'accounts');}catch(e){}
           },20);
         }
       }
       markActive(route);
-    }finally{
-      setTimeout(function(){suppressHistory=false;restoring=false;},80);
+    }catch(e){
+      suppressHistory=false; restoring=false;
+      throw e;
     }
+    return Promise.resolve(lastCallResult).finally(function(){
+      setTimeout(function(){suppressHistory=false;restoring=false;},80);
+    });
   }
   function restoreView(route,sub,explicitView,done){
     route=normalizeRoute(route); sub=route==='admin'?(sub||'home'):'';
@@ -4117,7 +4133,9 @@ function render(){
     requestAnimationFrame(function(){ requestAnimationFrame(apply); });
   }
   function navigateAndRestore(route,sub,view){
-    renderRoute(route,sub); restoreView(route,sub,view);
+    Promise.resolve(renderRoute(route,sub)).then(function(){
+      restoreView(route,sub,view);
+    });
   }
 
   document.addEventListener('click',function(e){
@@ -4169,7 +4187,7 @@ function render(){
     route=normalizeRoute(route);
     if(route==='intro') return typeof window.phfRenderPostLoginHome==='function'||typeof window.phfGoHome==='function';
     if(route==='learning') return typeof window.phfGoLearning==='function';
-    if(route==='profile') return typeof window.phfGoMyProfile==='function'||typeof window.renderEvaluationRecords==='function';
+    if(route==='profile') return typeof window.phfGoMyProfile==='function';
     if(route==='reports') return typeof window.phfRenderTrainingOverview==='function'||typeof window.phfRenderTrainingReports==='function';
     if(route==='trainingLibrary') return typeof window.phfRenderTrainingLibrary==='function';
     if(route==='guide') return typeof window.phfGoGuide==='function'||typeof window.phfRenderGuidePage==='function';
@@ -4196,11 +4214,13 @@ function render(){
     (function restoreOnce(){
       install();
       if(!routeReady(route)&&attempts++<24){ setTimeout(restoreOnce,50); return; }
-      renderRoute(route,sub);
-      setTimeout(function(){
+      Promise.resolve(renderRoute(route,sub)).then(function(){
         restoreView(route,sub,null,function(){ setTimeout(reveal,40); });
-      }, route==='admin'?90:50);
-      setTimeout(reveal,900);
+      }).catch(function(err){
+        console.warn('[PHF F5 restore]',err);
+        reveal();
+      });
+      setTimeout(reveal,1800);
     })();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();

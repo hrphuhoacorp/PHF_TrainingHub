@@ -43,20 +43,25 @@ function phfEmployeeFromRow(e){
 }
 function phfAllEvaluationLearners(){
   const rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
-  const list = rows.map(phfEmployeeFromRow).filter(function(e){
+  const mapped = rows.map(phfEmployeeFromRow).filter(function(e){
     if(!e.id) return false;
     if(e.id === 'admin-test-phf') return false;
     if(/admin test/i.test(e.fullName + ' ' + e.position)) return false;
     return true;
   });
-  if(!list.length){
-    // Màn Quản lý/Admin không được fallback thành chính tài khoản đang đăng nhập,
-    // vì sẽ làm tổng học viên nhảy từ 1 sang toàn bộ danh sách khi Supabase tải xong.
-    if(typeof phfCanEditEvaluation === 'function' && phfCanEditEvaluation()) return [];
+
+  // Học viên tuyệt đối chỉ được nhìn thấy hồ sơ của chính mình trong giao diện.
+  if(typeof phfCanEditEvaluation === 'function' && !phfCanEditEvaluation()){
     const current = phfCurrentEmployeeProfile();
-    return current.id ? [current] : [];
+    const phone = String(current.phone||'').replace(/\D/g,'');
+    const own = mapped.find(function(e){
+      return (current.id && String(e.id)===String(current.id)) ||
+             (phone && String(e.phone||'').replace(/\D/g,'')===phone);
+    });
+    return own ? [own] : (current.id ? [current] : []);
   }
-  return list.sort(function(a,b){ return String(a.fullName||'').localeCompare(String(b.fullName||''),'vi'); });
+
+  return mapped.sort(function(a,b){ return String(a.fullName||'').localeCompare(String(b.fullName||''),'vi'); });
 }
 function phfEvaluationTargetProfile(){
   if(!phfCanEditEvaluation()) return phfCurrentEmployeeProfile();
@@ -891,15 +896,62 @@ function phfEvalResetProfileFilters(){
   phfRenderEvaluationWorkspace('profiles');
 }
 
+
+async function phfEnsureEvaluationDataReady(canEditWorkspace){
+  let ok = false;
+  try{
+    ok = await phfRefreshTrainingData();
+  }catch(e){
+    ok = false;
+  }
+
+  let rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+  const current = phfCurrentEmployeeProfile();
+  const ownPhone = String(current && current.phone || '').replace(/\D/g,'');
+  const hasExpectedData = canEditWorkspace
+    ? rows.length > 0
+    : rows.some(function(row){
+        const idMatch = current && current.id && String(row.id||'') === String(current.id);
+        const phoneMatch = ownPhone && String(row.phone||'').replace(/\D/g,'') === ownPhone;
+        return idMatch || phoneMatch;
+      });
+
+  if(!ok || !hasExpectedData){
+    await new Promise(function(resolve){ setTimeout(resolve, 220); });
+    try{
+      ok = await phfRefreshTrainingData({force:true});
+    }catch(e){
+      ok = false;
+    }
+    rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+  }
+
+  window.__phfEvalReadFresh = !!ok;
+  return !!ok;
+}
+
 async function phfRenderEvaluationWorkspace(view){
-  view=(view==='history'||view==='profiles')?view:'todo';
+  const canEditWorkspace = phfCanEditEvaluation();
+  const renderToken = (window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1);
+  view = canEditWorkspace ? ((view==='history'||view==='profiles')?view:'todo') : 'profiles';
   phfEnsureEvaluationOfficialUi();
   phfSetMainNavActive('profile');
   document.body.classList.add('phf-eval-mode','phf-module-page-mode');
   document.body.classList.remove('phf-guide-standalone-mode','phf-guide-intro-active');
-  if(!window.__phfEvalReadFresh){
-    window.__phfEvalReadFresh=true;
-    await phfRefreshTrainingData();
+
+  // Không để nội dung của tài khoản/phiên trước còn nằm trên màn hình trong lúc tải dữ liệu.
+  const loadingHost = document.getElementById('mainLesson');
+  if(loadingHost){
+    loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Đang tải dữ liệu phù hợp với tài khoản hiện tại...</p></div></div><section class="phf-eval-list-card"><div class="phf-eval-empty">Đang tải dữ liệu, vui lòng chờ.</div></section></section>`;
+  }
+
+  const loadOk = await phfEnsureEvaluationDataReady(canEditWorkspace);
+  if(renderToken !== window.__phfEvalRenderToken) return;
+  if(!loadOk){
+    if(loadingHost){
+      loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Chưa tải được dữ liệu phù hợp với tài khoản hiện tại.</p></div></div><section class="phf-eval-list-card"><div class="phf-eval-empty">Vui lòng kiểm tra kết nối rồi tải lại trang.</div></section></section>`;
+    }
+    return false;
   }
 
   document.getElementById('miniStatus').textContent='Học viên';
@@ -909,6 +961,10 @@ async function phfRenderEvaluationWorkspace(view){
 
   const learners=phfAllEvaluationLearners();
   const records=phfEvalAllRecords();
+  if(!canEditWorkspace){
+    const own = learners[0] || phfCurrentEmployeeProfile();
+    window.__phfEvalProfileSelectedId = own && own.id ? String(own.id) : '';
+  }
   const f=phfEvalWorkspaceFilters();
   window.__phfEvalWorkspaceState={
     view:view,
@@ -996,7 +1052,7 @@ async function phfRenderEvaluationWorkspace(view){
       <div class="phf-eval-work-metric"><b>${records.length}</b><span>Tổng phiếu đã lưu</span></div>
       <div class="phf-eval-work-metric"><b>${noStart}</b><span>Thiếu ngày bắt đầu</span></div>`;
     head=['STT','Học viên','SĐT / Mã NV','Chi nhánh','Ngày bắt đầu','Phiếu đánh giá','Trạng thái','Thao tác'];
-    filterHtml=`<section class="phf-eval-filter-card"><div class="phf-eval-filter-grid phf-eval-profile-filter-grid">
+    filterHtml=canEditWorkspace?`<section class="phf-eval-filter-card"><div class="phf-eval-filter-grid phf-eval-profile-filter-grid">
       <div class="phf-eval-filter-field"><label>Tìm học viên</label><input id="phfEvalFilterQ" type="search" value="${esc(f.q||'')}" placeholder="Tên, SĐT hoặc mã NV"></div>
       <div class="phf-eval-filter-field"><label>Trạng thái hồ sơ</label><select id="phfEvalFilterStatus">
         <option value="all">Tất cả</option>
@@ -1005,9 +1061,9 @@ async function phfRenderEvaluationWorkspace(view){
         <option value="watch" ${f.status==='watch'?'selected':''}>Thiếu ngày bắt đầu</option>
       </select></div>
       <div class="phf-eval-filter-actions"><button class="phf-eval-btn primary" type="button" onclick="phfRenderEvaluationWorkspace('profiles')">Lọc</button><button class="phf-eval-btn" type="button" onclick="phfEvalResetProfileFilters()">Xóa lọc</button></div>
-    </div></section>`;
-    title='Hồ sơ học viên';
-    description='Chọn học viên trong danh sách để xem thông tin và hồ sơ đánh giá ngay bên dưới.';
+    </div></section>`:'';
+    title=canEditWorkspace?'Hồ sơ học viên':'Hồ sơ của tôi';
+    description=canEditWorkspace?'Chọn học viên trong danh sách để xem thông tin và hồ sơ đánh giá ngay bên dưới.':'Thông tin và hồ sơ đánh giá của tài khoản hiện tại.';
   }else{
     rows=filtered.map(function(item,idx){
       const l=item.learner||{};
@@ -1047,7 +1103,7 @@ async function phfRenderEvaluationWorkspace(view){
         return `<tr><td>${idx+1}</td><td><b>${esc(phfEvalRecordType(r))}</b><small>${esc(phfEvalRecordPeriod(r))}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td>${esc(r.evaluator||'Chưa ghi nhận')}</td><td>${esc(phfEvalUpdatedText(r))}</td></tr>`;
       }).join('');
       inlineProfile=`<section class="phf-eval-list-card phf-eval-inline-profile">
-        <div class="phf-eval-list-head"><div><h3>Hồ sơ đang xem: ${esc(selectedLearner.fullName)}</h3><p>Thông tin học viên và các phiếu đánh giá được hiển thị ngay trong tab này.</p></div><button class="phf-eval-row-btn" type="button" onclick="phfEvalCloseProfileInline()">Đóng hồ sơ</button></div>
+        <div class="phf-eval-list-head"><div><h3>${canEditWorkspace?'Hồ sơ đang xem: ':'Hồ sơ của '}${esc(selectedLearner.fullName)}</h3><p>${canEditWorkspace?'Thông tin học viên và các phiếu đánh giá được hiển thị ngay trong tab này.':'Thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div>${canEditWorkspace?'<button class="phf-eval-row-btn" type="button" onclick="phfEvalCloseProfileInline()">Đóng hồ sơ</button>':''}</div>
         <div class="phf-eval-inline-profile-info">
           <div><span>Họ tên</span><b>${esc(selectedLearner.fullName)}</b></div>
           <div><span>SĐT</span><b>${esc(selectedLearner.phone||'Chưa có')}</b></div>
@@ -1067,15 +1123,17 @@ async function phfRenderEvaluationWorkspace(view){
   }
 
   document.getElementById('mainLesson').innerHTML=`<section class="phf-eval-workspace">
-    <div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>Học viên</h2><p>Tìm kiếm học viên, theo dõi tiến độ, kết quả kiểm tra và hồ sơ đánh giá.</p></div><div class="phf-eval-work-role phf-lib-role">${esc(phfRoleLabel())}<small>${learners.length} học viên trong dữ liệu</small></div></div>
+    <div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>${canEditWorkspace?'Tìm kiếm học viên, theo dõi tiến độ, kết quả kiểm tra và hồ sơ đánh giá.':'Xem thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div><div class="phf-eval-work-role phf-lib-role">${canEditWorkspace?esc(phfRoleLabel()):'Hồ sơ cá nhân'}<small>${canEditWorkspace?(learners.length+' học viên trong dữ liệu'):'Hồ sơ đào tạo của bạn'}</small></div></div>
     <div class="phf-eval-work-tabs">
-      <button class="phf-eval-work-tab ${view==='todo'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('todo')">Việc cần xử lý</button>
-      <button class="phf-eval-work-tab ${view==='history'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('history')">Lịch sử đánh giá</button>
-      <button class="phf-eval-work-tab ${view==='profiles'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('profiles')">Hồ sơ học viên</button>
+      ${canEditWorkspace
+        ? `<button class="phf-eval-work-tab ${view==='todo'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('todo')">Việc cần xử lý</button>
+           <button class="phf-eval-work-tab ${view==='history'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('history')">Lịch sử đánh giá</button>
+           <button class="phf-eval-work-tab ${view==='profiles'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('profiles')">Hồ sơ học viên</button>`
+        : `<button class="phf-eval-work-tab active" type="button">Hồ sơ của tôi</button>`}
     </div>
     <div class="phf-eval-work-metrics">${metrics}</div>
     ${filterHtml}
-    <section class="phf-eval-list-card"><div class="phf-eval-list-head"><div><h3>${title}</h3><p>${description}</p></div><span class="phf-eval-result-count">${filtered.length} kết quả</span></div><div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr>${head.map(function(x){return '<th>'+esc(x)+'</th>';}).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${head.length}"><div class="phf-eval-empty">Không có dữ liệu phù hợp bộ lọc.</div></td></tr>`}</tbody></table></div></section>
+    ${canEditWorkspace?`<section class="phf-eval-list-card"><div class="phf-eval-list-head"><div><h3>${title}</h3><p>${description}</p></div><span class="phf-eval-result-count">${filtered.length} kết quả</span></div><div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr>${head.map(function(x){return '<th>'+esc(x)+'</th>';}).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${head.length}"><div class="phf-eval-empty">Không có dữ liệu phù hợp bộ lọc.</div></td></tr>`}</tbody></table></div></section>`:''}
     ${inlineProfile}
   </section>`;
 
@@ -1086,14 +1144,26 @@ async function phfRenderEvaluationWorkspace(view){
     });
   });
 
-  if(view==='profiles'&&window.__phfEvalProfileSelectedId){
+  if(view==='profiles'&&window.__phfEvalProfileSelectedId&&canEditWorkspace){
     requestAnimationFrame(function(){
       const panel=document.querySelector('.phf-eval-inline-profile');
-      if(panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
+      if(!panel) return;
+      const rect=panel.getBoundingClientRect();
+      const viewportHeight=window.innerHeight||document.documentElement.clientHeight||800;
+
+      // Nếu đầu hồ sơ đã nằm trong vùng nhìn thấy thì giữ nguyên vị trí.
+      if(rect.top>=110 && rect.top<=viewportHeight-120) return;
+
+      // Đưa đầu hồ sơ vào khoảng nửa dưới màn hình để vẫn còn thấy
+      // phần cuối danh sách học viên phía trên, tránh cảm giác bị kéo xuống cuối trang.
+      const contextSpace=Math.min(Math.max(viewportHeight*0.48,260),420);
+      const target=Math.max(0,window.scrollY+rect.top-contextSpace);
+      window.scrollTo({top:target,behavior:'smooth'});
     });
   }else{
     phfScrollToPageTop();
   }
+  return true;
 }
 
 function phfShowEvaluationSavedDialog(record,profile,period){
@@ -1158,7 +1228,7 @@ function phfOpenHubTab(tab){
   const canEdit = phfCanEditEvaluation();
   if(tab === 'home' || tab === 'overview') return phfRenderTrainingOverview();
   if(tab === 'learning') return phfGoLearning();
-  if(tab === 'profile' || tab === 'evaluation') return renderEvaluationRecords();
+  if(tab === 'profile' || tab === 'evaluation') return phfGoMyProfile();
   if(tab === 'reports') return phfRenderTrainingReports();
   if(tab === 'guide') return phfGoGuide();
   if(tab === 'directTrainingTest') return phfGoDirectTrainingTest();
@@ -1187,24 +1257,28 @@ function phfHideIntroAndStopAuto(){
   }catch(e){}
 }
 function phfGoHome(){
+  window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('overview', {hubTab:'home'}); }catch(e){}
   return phfRenderTrainingOverview();
 }
 function phfGoLearning(){
+  window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('learning', {hubTab:'learning'}); }catch(e){}
   return render();
 }
 function phfGoMyProfile(){
+  window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('profile', {hubTab:'profile'}); }catch(e){}
-  if(phfCanEditEvaluation() && typeof window.phfRenderEvaluationWorkspace === 'function'){
-    return window.phfRenderEvaluationWorkspace('todo');
+  if(typeof window.phfRenderEvaluationWorkspace === 'function'){
+    return window.phfRenderEvaluationWorkspace(phfCanEditEvaluation() ? 'todo' : 'profiles');
   }
   return renderEvaluationRecords();
 }
 function phfGoGuide(){
+  window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('guide', {hubTab:'guide'}); }catch(e){}
   const out = phfRenderGuidePage();
@@ -1639,6 +1713,7 @@ function phfRenderHubPlaceholder(tab){
 }
 
 async function renderEvaluationRecords(selectedKey, mode, options){
+  const renderToken = (window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1);
   phfSetMainNavActive('profile');
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('profile', {hubTab:'profile'}); }catch(e){}
   options = options || {};
@@ -1646,10 +1721,15 @@ async function renderEvaluationRecords(selectedKey, mode, options){
   const returnView = options.returnView || (window.__phfEvalWorkspaceState && window.__phfEvalWorkspaceState.view) || 'history';
   document.body.classList.add('phf-eval-mode','phf-module-page-mode');
   document.body.classList.remove('phf-guide-standalone-mode','phf-guide-intro-active');
-  if(!window.__phfEvalReadFresh){
-    window.__phfEvalReadFresh = true;
-    await phfRefreshTrainingData();
-    phfToastClear('evaluation-load');
+  const detailLoadOk = await phfEnsureEvaluationDataReady(phfCanEditEvaluation());
+  phfToastClear('evaluation-load');
+  if(renderToken !== window.__phfEvalRenderToken) return;
+  if(!detailLoadOk){
+    const host = document.getElementById('mainLesson');
+    if(host){
+      host.innerHTML = '<section class="phf-eval-list-card"><div class="phf-eval-empty">Chưa tải được dữ liệu hồ sơ. Vui lòng kiểm tra kết nối rồi thử lại.</div></section>';
+    }
+    return false;
   }
   const canEdit = phfCanEditEvaluation();
   if(canEdit && !selectedKey && !options.forceProfile && (!mode || mode === 'history')){
@@ -1727,6 +1807,7 @@ async function renderEvaluationRecords(selectedKey, mode, options){
   }else{
     requestAnimationFrame(function(){ window.scrollTo({top:0, behavior:'auto'}); });
   }
+  return true;
 }
 
 

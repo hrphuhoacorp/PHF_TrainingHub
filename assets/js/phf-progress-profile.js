@@ -290,7 +290,10 @@
     }
     if(st.screen === 'profile'){
       hideIntroForRestore();
-      try{ if(typeof renderEvaluationRecords === 'function') renderEvaluationRecords(); }catch(e){}
+      try{
+        if(typeof phfGoMyProfile === 'function') phfGoMyProfile();
+        else if(typeof phfRenderEvaluationWorkspace === 'function') phfRenderEvaluationWorkspace(phfCanEditEvaluation()?'todo':'profiles');
+      }catch(e){}
       return true;
     }
     if(st.screen === 'admin' || st.screen === 'manager'){

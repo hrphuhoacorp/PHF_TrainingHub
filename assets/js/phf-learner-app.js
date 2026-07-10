@@ -353,13 +353,57 @@ function phfRoleLabel(){
   if(role === 'manager') return 'Trưởng ca / CHT / Quản lý';
   return 'Học viên';
 }
-async function phfRefreshTrainingData(){
-  try{
-    const res = await fetch('/api/data', {cache:'no-store'});
-    const json = await res.json().catch(function(){ return {}; });
-    if(res.ok && json){ window.__phfLocalData = json.data || json; return true; }
-  }catch(err){ console.warn('PHF refresh data error', err); }
-  return false;
+async function phfRefreshTrainingData(options){
+  options = options || {};
+  const force = !!options.force;
+  let role = 'learner';
+  try{ role = phfUserRole(); }catch(e){}
+  let profile = {};
+  try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
+
+  const scopeKey = role === 'learner'
+    ? ['learner', String(profile.id||''), String(profile.phone||'')].join('|')
+    : 'staff';
+
+  const now = Date.now();
+  if(!force && window.__phfTrainingDataLoadedAt && window.__phfTrainingDataScopeKey === scopeKey &&
+     now - window.__phfTrainingDataLoadedAt < 15000 && window.__phfLocalData){
+    return true;
+  }
+  if(window.__phfTrainingDataPromise && window.__phfTrainingDataPromiseScopeKey === scopeKey){
+    return window.__phfTrainingDataPromise;
+  }
+
+  const params = new URLSearchParams();
+  params.set('scope', role === 'learner' ? 'learner' : 'staff');
+  if(role === 'learner'){
+    if(profile.id) params.set('employeeId', String(profile.id));
+    if(profile.phone) params.set('phone', String(profile.phone).replace(/\D/g,''));
+  }
+
+  const request = (async function(){
+    try{
+      const res = await fetch('/api/data?' + params.toString(), {cache:'no-store'});
+      const json = await res.json().catch(function(){ return {}; });
+      if(res.ok && json){
+        window.__phfLocalData = json.data || json;
+        window.__phfTrainingDataLoadedAt = Date.now();
+        window.__phfTrainingDataScopeKey = scopeKey;
+        return true;
+      }
+    }catch(err){ console.warn('PHF refresh data error', err); }
+    return false;
+  })();
+
+  window.__phfTrainingDataPromise = request;
+  window.__phfTrainingDataPromiseScopeKey = scopeKey;
+  try{ return await request; }
+  finally{
+    if(window.__phfTrainingDataPromise === request){
+      window.__phfTrainingDataPromise = null;
+      window.__phfTrainingDataPromiseScopeKey = '';
+    }
+  }
 }
 function phfTodayOnly(){ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
 function phfGateInfo(l){
@@ -991,8 +1035,11 @@ function render(){
   const learningDesc = document.getElementById('phfLearningProfileDesc');
   const learningMode = document.getElementById('phfLearningProfileMode');
   const learningCount = document.getElementById('phfLearningProfileCount');
-  if(evalBtn){ evalBtn.onclick = function(){ renderEvaluationRecords(); }; }
-  if(evalHistoryBtn){ evalHistoryBtn.onclick = function(){ renderEvaluationRecords(null,'history'); }; }
+  if(evalBtn){ evalBtn.onclick = function(){ phfGoMyProfile(); }; }
+  if(evalHistoryBtn){ evalHistoryBtn.onclick = function(){
+    if(phfCanEditEvaluation()) phfRenderEvaluationWorkspace('history');
+    else phfGoMyProfile();
+  }; }
   try{
     const canEditProfile = phfCanEditEvaluation();
     const targetProfile = phfEvaluationTargetProfile();

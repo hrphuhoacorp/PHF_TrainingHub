@@ -84,6 +84,33 @@ function safeStaticPath(rawUrl) {
   return filePath;
 }
 
+
+function normalizePhone(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function filterDataForRequest(data, scope, employeeId, phone) {
+  if (String(scope || '').toLowerCase() !== 'learner') return data;
+  const id = String(employeeId || '').trim();
+  const cleanPhone = normalizePhone(phone);
+  const employees = Array.isArray(data.employees) ? data.employees : [];
+  const own = employees.find(e =>
+    (id && String(e.id || '') === id) ||
+    (cleanPhone && normalizePhone(e.phone) === cleanPhone)
+  );
+  const ownId = own ? String(own.id || '') : id;
+  const sameEmployee = row => row && ownId && String(row.employeeId || row.employee_id || '') === ownId;
+  return {
+    settings: data.settings || {},
+    employees: own ? [own] : [],
+    progress: ownId && data.progress ? { [ownId]: data.progress[ownId] || {} } : {},
+    testResults: (data.testResults || []).filter(sameEmployee),
+    activityLog: (data.activityLog || []).filter(sameEmployee),
+    evaluationRecords: (data.evaluationRecords || []).filter(sameEmployee),
+    confidentialityCommitments: (data.confidentialityCommitments || []).filter(sameEmployee)
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const pathname = String(req.url || '/').split('?')[0];
@@ -92,7 +119,14 @@ const server = http.createServer(async (req, res) => {
       assertSameOrigin(req);
       if (req.method === 'GET') {
         const data = await readData();
-        return sendJson(res, 200, data);
+        const url = new URL(req.url || '/api/data', 'http://localhost');
+        const scoped = filterDataForRequest(
+          data,
+          url.searchParams.get('scope'),
+          url.searchParams.get('employeeId'),
+          url.searchParams.get('phone')
+        );
+        return sendJson(res, 200, scoped);
       }
       if (req.method === 'POST') {
         assertJsonContentType(req);
@@ -103,6 +137,14 @@ const server = http.createServer(async (req, res) => {
         catch { throw new RequestError('Dữ liệu JSON không hợp lệ.', 400, 'JSON_INVALID'); }
         validatePayload(payload);
         const result = await saveData(payload);
+        if (result && result.data && !payload.adminMode && !payload.managerMode) {
+          result.data = filterDataForRequest(
+            result.data,
+            'learner',
+            payload.employee && payload.employee.id,
+            payload.employee && payload.employee.phone
+          );
+        }
         return sendJson(res, 200, result);
       }
       res.setHeader('Allow', 'GET, POST');
