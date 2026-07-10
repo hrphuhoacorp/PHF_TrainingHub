@@ -1,7 +1,7 @@
 {
-  "name": "phf-training-hub-local-prototype-full",
+  "name": "phf-training-hub",
   "version": "1.0.0",
-  "description": "PHF Training Hub local prototype - full flow from welcome to completion, save demo data to data.json",
+  "description": "PHF Training Hub - hệ thống đào tạo nội bộ PHUHOA FRESH",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,11 +9,9 @@
   "keywords": [
     "phf",
     "training",
-    
-    "local",
-    "prototype"
+    "internal-training"
   ],
-  "author": "PHF internal prototype",
+  "author": "PHUHOA FRESH",
   "license": "UNLICENSED",
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

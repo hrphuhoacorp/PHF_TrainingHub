@@ -11,13 +11,8 @@
   }
   function readRole(){
     try{
-      return String(
-        localStorage.getItem('phfInternalTestRole') ||
-        localStorage.getItem('phfTestRole') ||
-        localStorage.getItem('phfRole') ||
-        localStorage.getItem('phfUserRole') ||
-        ''
-      ).toLowerCase();
+      if(typeof window.phfGetSessionRole === 'function') return String(window.phfGetSessionRole() || '').toLowerCase();
+      return String(localStorage.getItem('phfInternalTestRole') || '').toLowerCase();
     }catch(e){ return ''; }
   }
   function isAdmin(){
@@ -203,7 +198,8 @@
   }
   function readRole(){
     try{
-      return String(localStorage.getItem('phfInternalTestRole') || localStorage.getItem('phfTestRole') || localStorage.getItem('phfRole') || localStorage.getItem('phfUserRole') || '').toLowerCase();
+      if(typeof window.phfGetSessionRole === 'function') return String(window.phfGetSessionRole() || '').toLowerCase();
+      return String(localStorage.getItem('phfInternalTestRole') || '').toLowerCase();
     }catch(e){ return ''; }
   }
   function isAdmin(){

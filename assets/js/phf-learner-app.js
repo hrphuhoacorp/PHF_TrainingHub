@@ -336,14 +336,11 @@ document.addEventListener('change', function(e){
 });
 
 function phfUserRole(){
-  const q = new URLSearchParams(location.search || '');
-  const qRole = String(q.get('role') || '').toLowerCase();
-  if(q.get('admin') === '1' || qRole === 'admin' || qRole === 'quantri' || qRole === 'quan-tri') return 'admin';
-  if(q.get('manager') === '1' || q.get('quanly') === '1' || qRole === 'manager' || qRole === 'lead' || qRole === 'quanly' || qRole === 'quan-ly' || qRole === 'cht') return 'manager';
-  if(qRole === 'learner' || qRole === 'hocvien' || qRole === 'hoc-vien') return 'learner';
   try{
-    const savedRole = String(localStorage.getItem('phfInternalTestRole') || '').toLowerCase();
-    if(['admin','manager','learner'].includes(savedRole)) return savedRole;
+    if(typeof window.phfGetSessionRole === 'function'){
+      const role = String(window.phfGetSessionRole() || '').toLowerCase();
+      if(['admin','manager','learner'].includes(role)) return role;
+    }
   }catch(e){}
   return 'learner';
 }
@@ -1180,9 +1177,13 @@ function phfShowLearnerPhoneEntry(){
 }
 
 function phfSetInternalRole(role){
-  role = String(role || 'learner').toLowerCase();
-  if(!['admin','manager','learner'].includes(role)) role = 'learner';
-  try{ localStorage.setItem('phfInternalTestRole', role); }catch(e){}
+  try{
+    if(typeof window.phfHasAuthenticatedSession === 'function' && window.phfHasAuthenticatedSession()){
+      role = (typeof window.phfGetSessionRole === 'function' ? window.phfGetSessionRole() : phfUserRole()) || 'learner';
+    }else{
+      role = 'learner';
+    }
+  }catch(e){ role = 'learner'; }
   const overlay = document.getElementById('phfRoleOverlay');
   if(overlay) overlay.remove();
   phfCloseLegacyLearnerLogin();
@@ -1199,11 +1200,19 @@ function phfSetInternalRole(role){
   }
 }
 function phfClearInternalRole(){
+  try{
+    if(typeof window.phfHasAuthenticatedSession === 'function' && window.phfHasAuthenticatedSession()) return;
+  }catch(e){}
   try{ localStorage.removeItem('phfInternalTestRole'); }catch(e){}
-  phfShowRoleChooser(true);
 }
 function phfShowRoleSwitcher(){
   let bar = document.getElementById('phfRoleSwitcher');
+  try{
+    if(typeof window.phfHasAuthenticatedSession === 'function' && window.phfHasAuthenticatedSession()){
+      if(bar) bar.remove();
+      return;
+    }
+  }catch(e){}
   const role = phfUserRole();
   const q = new URLSearchParams(location.search || '');
   if(q.get('hideRoleSwitch') === '1') return;
@@ -1217,6 +1226,13 @@ function phfShowRoleSwitcher(){
   bar.querySelector('button').onclick = function(){ phfShowRoleChooser(true); };
 }
 function phfShowRoleChooser(force){
+  try{
+    if(typeof window.phfHasAuthenticatedSession === 'function' && window.phfHasAuthenticatedSession()){
+      const overlay = document.getElementById('phfRoleOverlay'); if(overlay) overlay.remove();
+      const bar = document.getElementById('phfRoleSwitcher'); if(bar) bar.remove();
+      return;
+    }
+  }catch(e){}
   const q = new URLSearchParams(location.search || '');
   const hasUrlRole = q.get('admin') === '1' || q.get('manager') === '1' || q.get('quanly') === '1' || q.get('role');
   if(!force && hasUrlRole){

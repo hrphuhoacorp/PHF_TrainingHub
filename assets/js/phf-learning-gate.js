@@ -781,15 +781,25 @@
   if(typeof oldGoLearning === 'function'){
     window.phfGoLearning = function phfGoLearning16A(){
       var args = arguments;
-      setLearningShell();
-      refreshData(true).then(function(){
+      var loadingToken = (typeof window.phfLoadingShow === 'function') ? window.phfLoadingShow('learning') : null;
+      return refreshData(true).then(function(ok){
+        if(!ok) throw new Error('Không tải được dữ liệu học tập');
         var profile = linkedProfile(rawSavedProfile());
         var idx = resolveResumeIndex(profile);
+        setLearningShell();
         openLessonIndex(idx, 'login-resume-16A');
-      }).catch(function(){
-        try{ oldGoLearning.apply(this, args); }catch(e){ openLessonIndex(currentIndex(), 'learning-fallback-16A'); }
+        if(typeof window.phfLoadingSettle === 'function') window.phfLoadingSettle(loadingToken);
+        else if(typeof window.phfLoadingHide === 'function') window.phfLoadingHide(loadingToken);
+        return true;
+      }).catch(function(err){
+        console.warn('PHF learning load error', err);
+        if(typeof window.phfLoadingFail === 'function'){
+          window.phfLoadingFail('Chưa thể tải bài học và tiến độ. Vui lòng thử lại.', function(){ window.phfGoLearning(); });
+          return false;
+        }
+        try{ oldGoLearning.apply(this, args); }catch(e){ setLearningShell(); openLessonIndex(currentIndex(), 'learning-fallback-16A'); }
+        return false;
       });
-      return false;
     };
   }
 

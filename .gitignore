@@ -1,3 +1,11 @@
 /node_modules/
-.bsb.lock
 .env
+.env.*
+!.env.example
+.bsb.lock
+*.log
+*.tmp
+*.bak
+_backup_old/
+PHF_TrainingHub_GoiChiaSe_AnToan/
+PHF_TrainingHub_GoiChiaSe_AnToan.zip

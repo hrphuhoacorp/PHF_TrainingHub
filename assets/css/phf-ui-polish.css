@@ -665,3 +665,24 @@ body .phf-login-entry small{
     font-size:13.5px!important;
   }
 }
+
+
+/* Fix nhanh: đồng bộ nhãn PHF TRAINING HUB ở khu Học viên/Đánh giá theo phong cách Nội dung đào tạo */
+.phf-eval-work-head .phf-home-kicker,
+.hub-overview-page .phf-home-kicker{
+  display:inline-flex!important;
+  align-items:center!important;
+  width:auto!important;
+  margin:0 0 14px!important;
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.13)!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  color:#ffffff!important;
+  font-size:12px!important;
+  font-weight:560!important;
+  letter-spacing:.02em!important;
+  text-transform:none!important;
+  line-height:1.2!important;
+  box-shadow:none!important;
+}
