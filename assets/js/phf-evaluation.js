@@ -1100,7 +1100,15 @@ async function phfRenderEvaluationWorkspace(view){
       const missingCount=Math.max(0,selectedPeriods.filter(function(p){return !savedKeys.has(String(p.key||''));}).length);
       const recordRows=selectedRecords.map(function(r,idx){
         const st=phfEvalRecordStatus(r);
-        return `<tr><td>${idx+1}</td><td><b>${esc(phfEvalRecordType(r))}</b><small>${esc(phfEvalRecordPeriod(r))}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td>${esc(r.evaluator||'Chưa ghi nhận')}</td><td>${esc(phfEvalUpdatedText(r))}</td></tr>`;
+        const recordKey=String(r.periodKey||r.period_key||'');
+        return `<tr>
+          <td>${idx+1}</td>
+          <td><b>${esc(phfEvalRecordType(r))}</b><small>${esc(phfEvalRecordPeriod(r))}</small></td>
+          <td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td>
+          <td>${esc(r.evaluator||'Chưa ghi nhận')}</td>
+          <td>${esc(phfEvalUpdatedText(r))}</td>
+          <td><button class="phf-eval-row-btn primary" type="button" onclick="phfEvalOpenRecord('${esc(selectedLearner.id)}','${esc(recordKey)}','view','profiles')">Xem phiếu</button></td>
+        </tr>`;
       }).join('');
       inlineProfile=`<section class="phf-eval-list-card phf-eval-inline-profile">
         <div class="phf-eval-list-head"><div><h3>${canEditWorkspace?'Hồ sơ đang xem: ':'Hồ sơ của '}${esc(selectedLearner.fullName)}</h3><p>${canEditWorkspace?'Thông tin học viên và các phiếu đánh giá được hiển thị ngay trong tab này.':'Thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div>${canEditWorkspace?'<button class="phf-eval-row-btn" type="button" onclick="phfEvalCloseProfileInline()">Đóng hồ sơ</button>':''}</div>
@@ -1117,7 +1125,7 @@ async function phfRenderEvaluationWorkspace(view){
           <div><b>${missingCount}</b><span>Kỳ chưa có phiếu</span></div>
           <div><b>${selectedPeriods.length}</b><span>Tổng kỳ đánh giá</span></div>
         </div>
-        <div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr><th>STT</th><th>Loại phiếu / Kỳ đánh giá</th><th>Trạng thái</th><th>Người đánh giá</th><th>Cập nhật lần cuối</th></tr></thead><tbody>${recordRows||'<tr><td colspan="5"><div class="phf-eval-empty">Học viên này chưa có phiếu đánh giá đã lưu.</div></td></tr>'}</tbody></table></div>
+        <div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr><th>STT</th><th>Loại phiếu / Kỳ đánh giá</th><th>Trạng thái</th><th>Người đánh giá</th><th>Cập nhật lần cuối</th><th>Thao tác</th></tr></thead><tbody>${recordRows||'<tr><td colspan="6"><div class="phf-eval-empty">Chưa có phiếu đánh giá nào được lưu.</div></td></tr>'}</tbody></table></div>
       </section>`;
     }
   }
