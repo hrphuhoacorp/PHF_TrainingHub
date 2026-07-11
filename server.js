@@ -122,6 +122,16 @@ const server = http.createServer(async (req, res) => {
   try {
     const pathname = String(req.url || '/').split('?')[0];
 
+    if (pathname === '/api/health' && req.method === 'GET') {
+      const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
+      return sendJson(res, hasSupabase ? 200 : 503, {
+        ok: hasSupabase,
+        service: 'PHF Training Hub',
+        storage: hasSupabase ? 'supabase' : 'not-configured',
+        time: new Date().toISOString()
+      });
+    }
+
     if (pathname === '/api/auth/session' && req.method === 'GET') {
       const session = readSession(req);
       return sendJson(res, 200, { ok:true, authenticated:!!session, user:session ? session.account : null });
@@ -209,8 +219,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`PHF Training Hub: http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+  const publicUrl = String(process.env.PHF_PUBLIC_URL || '').trim();
+  console.log(`PHF Training Hub đang chạy tại ${publicUrl || `http://${HOST}:${PORT}`}`);
   const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
   const allowLocalData = String(process.env.PHF_ALLOW_LOCAL_DATA || '').trim().toLowerCase() === 'true';
   if (hasSupabase) console.log('Dữ liệu lưu trên Supabase.');

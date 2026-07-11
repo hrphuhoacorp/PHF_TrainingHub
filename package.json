@@ -1,6 +1,6 @@
 {
   "name": "phf-training-hub",
-  "version": "1.0.0",
+  "version": "1.0.0-online",
   "description": "PHF Training Hub - hệ thống đào tạo nội bộ PHUHOA FRESH",
   "main": "server.js",
   "scripts": {
@@ -16,5 +16,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2"
+  },
+  "engines": {
+    "node": ">=20 <25"
   }
 }
