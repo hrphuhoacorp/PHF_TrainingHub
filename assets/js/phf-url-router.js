@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '27.4.7-no-copy-link';
+  var ROUTER_VERSION = '27.5.2-post-login-role-home';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -162,8 +162,9 @@
     try{
       if(path==='/'){
         setUrl('/',!!fromPop);
-        if(authenticated()&&typeof window.phfRenderPostLoginHome==='function') await Promise.resolve(window.phfRenderPostLoginHome());
-        else if(typeof window.phfForceAnonymousPublicState==='function') window.phfForceAnonymousPublicState('url-home');
+        /* / luôn là trang giới thiệu công khai, kể cả khi trình duyệt đang có
+           phiên. Người dùng chỉ vào module sau khi bấm chức năng tương ứng. */
+        if(typeof window.phfForceAnonymousPublicState==='function') window.phfForceAnonymousPublicState('url-home');
         return true;
       }
       if(path==='/login'){
@@ -269,7 +270,7 @@
     wrapped[ROUTE_MARK]=true; wrapped.__phfOriginal=fn; window[name]=wrapped;
   }
   function installWrappers(){
-    wrap('phfRenderPostLoginHome',function(){return '/';});
+    wrap('phfRenderPostLoginHome',function(){return role()==='learner'?'/my-lessons':'/overview';});
     wrap('phfGoLearning',function(){return '/my-lessons';});
     wrap('phfGoMyProfile',function(){return '/my-profile';});
     wrap('phfRenderTrainingOverview',function(){return '/overview';});
@@ -361,7 +362,10 @@
 
   async function boot(){
     migrateRouteStorage();
-    installWrappers(); watchUi();
+    /* Router được nạp sau các module chính nên chỉ cần bọc hàm một lần.
+       Không chạy MutationObserver toàn trang khi mỗi màn render, tránh công
+       việc lặp không cần thiết sau khi chức năng sao chép link đã tắt. */
+    installWrappers();
     window.phfRestoreLastRouteAfterAuth=async function(){
       if(restoreInFlight) return restoreInFlight;
       restoreInFlight=(async function(){
@@ -371,13 +375,22 @@
         if(!authenticated()) return false;
 
         var stored='';try{stored=sessionStorage.getItem('phfRouteReturnTo')||'';}catch(e){}
-        var target=stored||pendingPath||(location.pathname==='/login'?'':location.pathname);
-        if(target&&target!=='/login'){
+        var explicitTarget=stored||pendingPath;
+        var currentPath=cleanPath(location.pathname);
+        var target=explicitTarget||(currentPath!=='/'&&currentPath!=='/login'?currentPath:'');
+
+        /* Trang / là trang giới thiệu công khai. Khi người dùng chủ động đăng
+           nhập tại đây mà không có returnTo, không được coi / là màn cần
+           khôi phục; phải để luồng đăng nhập mở trang mặc định theo vai trò. */
+        if(target&&target!=='/login'&&target!=='/'){
           await navigate(target,true);
           try{sessionStorage.removeItem('phfRouteReturnTo');}catch(e){}
           pendingPath='';
           return true;
         }
+
+        try{sessionStorage.removeItem('phfRouteReturnTo');}catch(e){}
+        pendingPath='';
         return false;
       })();
       try{return await restoreInFlight;}finally{restoreInFlight=null;}

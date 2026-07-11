@@ -9,7 +9,7 @@
   var appReadyResolve;
   var appReady = new Promise(function(resolve){ appReadyResolve = resolve; });
   var appReadySettled = false;
-  var trainingDataPromise = Promise.resolve(false);
+  var trainingDataPromise = null;
   var loginOpening = false;
   var authTransitioning = false;
   var authTransitionResolve = null;
@@ -46,7 +46,14 @@
   window.phfWhenAppReady = function(){
     return appReadySettled ? Promise.resolve(sessionUser || null) : appReady;
   };
-  window.phfWhenTrainingDataReady = function(){ return trainingDataPromise; };
+  window.phfWhenTrainingDataReady = function(){
+    if(!sessionUser) return Promise.resolve(false);
+    if(!trainingDataPromise){
+      trainingDataPromise = Promise.resolve(preloadProtectedData('route-data-needed'))
+        .catch(function(){ return false; });
+    }
+    return trainingDataPromise;
+  };
   window.phfIsAuthReady = function(){ return authPhase !== 'checking'; };
   window.phfGetAuthenticatedUser = function(){ return sessionUser; };
   window.phfGetSessionRole = function(){ return sessionUser ? String(sessionUser.role || '') : ''; };
@@ -122,23 +129,6 @@
     return json && json.authenticated ? json.user : null;
   }
 
-  async function readServerSessionWithRetry(maxAttempts, delayMs){
-    var attempts = Math.max(1, Number(maxAttempts) || 1);
-    var delay = Math.max(40, Number(delayMs) || 120);
-    var lastError = null;
-    for(var i=0;i<attempts;i++){
-      try{
-        var user = await readServerSession();
-        if(user) return user;
-      }catch(e){ lastError = e; }
-      if(i < attempts - 1){
-        await new Promise(function(resolve){ setTimeout(resolve, delay); });
-      }
-    }
-    if(lastError) throw lastError;
-    return null;
-  }
-
   async function preloadProtectedData(reason){
     try{
       if(typeof window.phfResetTrainingRuntime === 'function'){
@@ -169,12 +159,10 @@
     settleAppReady(user || null);
     try{ if(typeof window.phfApplySimpleRoleMenu === 'function') window.phfApplySimpleRoleMenu(); }catch(e){}
 
-    if(user){
-      trainingDataPromise = Promise.resolve(preloadProtectedData(reason || 'session-established'))
-        .catch(function(){ return false; });
-    }else{
-      trainingDataPromise = Promise.resolve(false);
-    }
+    /* Không preload /api/data ngay khi vừa xác nhận phiên. Dữ liệu đào tạo
+       chỉ được tải khi route thực sự cần, tránh làm chậm trang giới thiệu,
+       màn tài khoản Admin và các thao tác chỉ đổi giao diện. */
+    trainingDataPromise = null;
     return user || null;
   }
 
@@ -307,7 +295,7 @@
       submitButton.textContent = 'Đang xác minh...';
       beginAuthTransition();
       try{
-        await request('/api/auth/login',{
+        var loginResult = await request('/api/auth/login',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({
@@ -316,11 +304,11 @@
           })
         });
 
-        /* Một số môi trường local cần một nhịp ngắn để cookie phiên xuất hiện
-           trong lần gọi /session kế tiếp. Kiểm tra lại bằng trạng thái thật,
-           không dùng thời gian chờ cố định để quyết định thành công. */
-        var verified = await readServerSessionWithRetry(6, 120);
-        if(!verified) throw new Error('Máy chủ chưa ghi nhận phiên đăng nhập. Vui lòng thử lại.');
+        /* /api/auth/login đã xác thực tài khoản, tạo cookie HttpOnly và trả
+           user công khai hợp lệ. Dùng ngay kết quả này, không gọi lại
+           /api/auth/session và query user_accounts thêm một lần. */
+        var verified = loginResult && loginResult.user ? loginResult.user : null;
+        if(!verified) throw new Error('Chưa thể xác nhận tài khoản đăng nhập. Vui lòng thử lại.');
 
         await establishSession(verified, 'server-login');
         removeLogin();
@@ -426,22 +414,15 @@
       if(user){
         await renderAuthenticatedDefault(user,'server-session-restored');
       }else{
+        /* Trang gốc là trang giới thiệu công khai. Không tự bật đăng nhập;
+           chỉ route bảo vệ hoặc thao tác người dùng mới được mở form login. */
         showPublicIntro('anonymous-boot');
-        var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-        var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
-        if(!isReload) setTimeout(function(){
-          if(bootEpoch === authEpoch && !authTransitioning && !sessionUser) showLogin();
-        },80);
       }
     }catch(e){
       if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(null,'server-session-error');
+      /* Lỗi kiểm tra phiên không được biến trang công khai thành màn login. */
       showPublicIntro('session-error');
-      var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-      var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
-      if(!isReload) setTimeout(function(){
-        if(bootEpoch === authEpoch && !authTransitioning && !sessionUser) showLogin();
-      },80);
     }finally{
       try{
         document.documentElement.classList.remove('phf-f5-restoring');

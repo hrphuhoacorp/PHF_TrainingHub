@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     const body = requestBody(req);
     const result = await login(body.email, body.password);
     if (!result.ok) {
-      return send(res, 401, {ok:false,error:result.message,code:result.code});
+      return send(res, 401, {ok:false,error:'Email hoặc mật khẩu chưa đúng.',code:'LOGIN_INVALID'});
     }
 
     res.setHeader('Set-Cookie', cookieHeader(result.token));
