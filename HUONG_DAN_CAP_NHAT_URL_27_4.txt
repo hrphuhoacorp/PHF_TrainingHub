@@ -1,0 +1,85 @@
+PHF TRAINING HUB - BẢN 27.4 URL ROUTER AN TOÀN
+
+CHECKPOINT GỐC:
+PHF_TrainingHub_Checkpoint_Online_27_3_Stable.zip
+
+CÁC FILE CẦN COPY ĐÈ / THÊM MỚI:
+1. index.html                          (copy đè)
+2. server.js                          (copy đè)
+3. vercel.json                        (thêm mới hoặc copy đè)
+4. assets/js/phf-url-router.js        (thêm mới)
+
+KHÔNG COPY LÊN GITHUB:
+.env, private/, backups/, node_modules/
+
+CÁC URL ĐÃ HỖ TRỢ:
+/
+/login
+/my-lessons
+/my-profile
+/my-profile/tests
+/my-profile/evaluations
+/my-profile/probation
+/my-profile/commitments
+/programs/:programId
+/lessons/:lessonId
+/overview
+/training-content
+/employees
+/employees/:employeePublicId
+/employees/:employeePublicId/tests
+/employees/:employeePublicId/evaluations
+/employees/:employeePublicId/probation
+/employees/:employeePublicId/commitments
+/notifications
+/admin
+/admin/accounts
+
+LƯU Ý:
+- employeePublicId là mã liên kết băm dạng emp_..., không chứa số điện thoại, email hoặc họ tên.
+- Liên kết không truyền quyền. Người nhận phải đăng nhập và có quyền phù hợp.
+- Không thay đổi Supabase schema và không thay đổi dữ liệu thật.
+- Local server có fallback về index.html để F5 đúng route.
+- vercel.json giữ /api/* và /assets/* nguyên vẹn, các route giao diện trả về index.html.
+
+CHECKLIST TEST SAU KHI COPY ĐÈ:
+A. Công khai và đăng nhập
+[ ] Mở / thấy trang giới thiệu.
+[ ] Mở /login thấy popup đăng nhập.
+[ ] Đóng popup đăng nhập quay lại /.
+[ ] Chưa đăng nhập, mở /my-lessons -> đăng nhập -> quay lại /my-lessons.
+[ ] Chưa đăng nhập, mở link hồ sơ nhân viên -> đăng nhập đúng quyền -> quay lại đúng tab.
+
+B. Học viên
+[ ] Đăng nhập Học viên mở /my-lessons.
+[ ] F5 vẫn ở /my-lessons và đúng dữ liệu tài khoản.
+[ ] /my-profile mở đúng hồ sơ của mình.
+[ ] Mở /overview, /employees hoặc /admin bị chặn bằng popup PHF.
+[ ] Không thấy dữ liệu nhân viên khác.
+[ ] Logout về /.
+
+C. Quản lý
+[ ] Đăng nhập Quản lý mở /overview.
+[ ] /employees mở danh sách nhân viên.
+[ ] Mở từng tab hồ sơ: tests, evaluations, probation, commitments.
+[ ] F5 tại từng tab vẫn mở đúng nhân viên và đúng tab.
+[ ] Bấm Sao chép liên kết, mở tab ẩn danh, đăng nhập lại và trở về đúng tab.
+[ ] /admin và /admin/accounts bị chặn.
+
+D. Admin
+[ ] /admin và /admin/accounts hoạt động.
+[ ] /employees và toàn bộ tab hồ sơ hoạt động.
+[ ] F5, Back, Forward hoạt động đúng URL.
+[ ] Sao chép liên kết không chứa SĐT, email, họ tên.
+
+E. API và vận hành
+[ ] /api/health vẫn trả OK online.
+[ ] /api/auth/session hoạt động sau đăng nhập.
+[ ] /api/data vẫn chặn Học viên xem dữ liệu người khác.
+[ ] npm start chạy local bình thường.
+[ ] Không có .env, private/, backups/, node_modules/ trong commit GitHub.
+
+PHẠM VI KIỂM TRA ĐÃ THỰC HIỆN TRƯỚC KHI ĐÓNG GÓI:
+- node --check cho server.js và phf-url-router.js: đạt.
+- Local HTTP kiểm tra /, /my-lessons, route hồ sơ, /api/health và file assets: trả đúng.
+- Chưa tuyên bố đã test thao tác trên trình duyệt thật với tài khoản production.

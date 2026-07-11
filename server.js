@@ -198,10 +198,15 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 405, { ok: false, error: 'Phương thức không được hỗ trợ.', code: 'METHOD_NOT_ALLOWED' });
     }
 
-    const filePath = safeStaticPath(req.url || '/');
+    let filePath = safeStaticPath(req.url || '/');
     if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-      res.writeHead(404, baseHeaders({ 'Content-Type': 'text/plain; charset=utf-8' }));
-      return res.end('404 - Không tìm thấy');
+      const acceptsHtml = String(req.headers.accept || '').includes('text/html');
+      const isUiRoute = acceptsHtml && !pathname.startsWith('/api/') && !path.extname(pathname);
+      if (isUiRoute) filePath = path.join(ROOT, 'index.html');
+      else {
+        res.writeHead(404, baseHeaders({ 'Content-Type': 'text/plain; charset=utf-8' }));
+        return res.end('404 - Không tìm thấy');
+      }
     }
     const stat = fs.statSync(filePath);
     const headers = baseHeaders({

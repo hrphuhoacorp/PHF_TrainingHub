@@ -9,7 +9,14 @@
   var appReadyResolve;
   var appReady = new Promise(function(resolve){ appReadyResolve = resolve; });
   var appReadySettled = false;
+  var trainingDataPromise = Promise.resolve(false);
   var loginOpening = false;
+  var authTransitioning = false;
+  var authTransitionResolve = null;
+  var authTransitionPromise = Promise.resolve();
+  /* Mỗi thay đổi xác thực tăng một phiên bản. Kết quả kiểm tra phiên cũ
+     không được phép ghi đè phiên đăng nhập vừa hoàn tất. */
+  var authEpoch = 0;
 
   function esc(v){
     return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){
@@ -39,11 +46,26 @@
   window.phfWhenAppReady = function(){
     return appReadySettled ? Promise.resolve(sessionUser || null) : appReady;
   };
+  window.phfWhenTrainingDataReady = function(){ return trainingDataPromise; };
   window.phfIsAuthReady = function(){ return authPhase !== 'checking'; };
   window.phfGetAuthenticatedUser = function(){ return sessionUser; };
   window.phfGetSessionRole = function(){ return sessionUser ? String(sessionUser.role || '') : ''; };
   window.phfHasAuthenticatedSession = function(){ return !!sessionUser; };
   window.phfUserRole = function(){ return sessionUser ? String(sessionUser.role || 'learner') : 'learner'; };
+
+  function beginAuthTransition(){
+    authEpoch += 1;
+    authTransitioning = true;
+    authTransitionPromise = new Promise(function(resolve){ authTransitionResolve = resolve; });
+  }
+
+  function endAuthTransition(){
+    authTransitioning = false;
+    if(authTransitionResolve){ authTransitionResolve(sessionUser || null); authTransitionResolve = null; }
+  }
+
+  window.phfIsAuthTransitioning = function(){ return authTransitioning; };
+  window.phfWaitForAuthTransition = function(){ return authTransitioning ? authTransitionPromise : Promise.resolve(sessionUser || null); };
 
   function applySessionMirror(user){
     sessionUser = user || null;
@@ -100,6 +122,23 @@
     return json && json.authenticated ? json.user : null;
   }
 
+  async function readServerSessionWithRetry(maxAttempts, delayMs){
+    var attempts = Math.max(1, Number(maxAttempts) || 1);
+    var delay = Math.max(40, Number(delayMs) || 120);
+    var lastError = null;
+    for(var i=0;i<attempts;i++){
+      try{
+        var user = await readServerSession();
+        if(user) return user;
+      }catch(e){ lastError = e; }
+      if(i < attempts - 1){
+        await new Promise(function(resolve){ setTimeout(resolve, delay); });
+      }
+    }
+    if(lastError) throw lastError;
+    return null;
+  }
+
   async function preloadProtectedData(reason){
     try{
       if(typeof window.phfResetTrainingRuntime === 'function'){
@@ -122,10 +161,20 @@
       authReadyResolve(user || null);
       authReadyResolve = null;
     }
+
+    /* appReady chỉ đại diện cho phiên và giao diện nền đã sẵn sàng.
+       Không khóa toàn bộ hệ thống để chờ /api/data, vì các màn như
+       /admin/accounts không phụ thuộc dữ liệu đào tạo. */
     resetAppReady();
-    if(user) await preloadProtectedData(reason || 'session-established');
     settleAppReady(user || null);
     try{ if(typeof window.phfApplySimpleRoleMenu === 'function') window.phfApplySimpleRoleMenu(); }catch(e){}
+
+    if(user){
+      trainingDataPromise = Promise.resolve(preloadProtectedData(reason || 'session-established'))
+        .catch(function(){ return false; });
+    }else{
+      trainingDataPromise = Promise.resolve(false);
+    }
     return user || null;
   }
 
@@ -252,9 +301,11 @@
     var submitButton = root.querySelector('#phfTestSubmit');
 
     async function submit(){
+      if(authTransitioning) return;
       error.textContent = '';
       submitButton.disabled = true;
       submitButton.textContent = 'Đang xác minh...';
+      beginAuthTransition();
       try{
         await request('/api/auth/login',{
           method:'POST',
@@ -265,8 +316,11 @@
           })
         });
 
-        var verified = await readServerSession();
-        if(!verified) throw new Error('Máy chủ chưa ghi nhận phiên đăng nhập.');
+        /* Một số môi trường local cần một nhịp ngắn để cookie phiên xuất hiện
+           trong lần gọi /session kế tiếp. Kiểm tra lại bằng trạng thái thật,
+           không dùng thời gian chờ cố định để quyết định thành công. */
+        var verified = await readServerSessionWithRetry(6, 120);
+        if(!verified) throw new Error('Máy chủ chưa ghi nhận phiên đăng nhập. Vui lòng thử lại.');
 
         await establishSession(verified, 'server-login');
         removeLogin();
@@ -276,6 +330,8 @@
         error.textContent = e && e.message ? e.message : 'Đăng nhập chưa thành công.';
         submitButton.disabled = false;
         submitButton.textContent = 'Đăng nhập';
+      }finally{
+        endAuthTransition();
       }
     }
 
@@ -294,6 +350,8 @@
   }
 
   async function logout(){
+    authEpoch += 1;
+    if(authTransitioning) endAuthTransition();
     try{
       await request('/api/auth/logout',{
         method:'POST',
@@ -348,6 +406,7 @@
     return false;
   }
 
+  window.phfShowServerLogin = showLogin;
   window.phfGoLogin = showLogin;
   window.phfShowRoleChooser = showLogin;
   window.phfLogoutSession = logout;
@@ -356,23 +415,33 @@
   window.phfHandleAuthExpired = handleExpiredSession;
 
   async function bootAuth(){
+    /* Chụp phiên bản trước khi gọi mạng. Nếu trong lúc chờ người dùng đã
+       đăng nhập/logout, kết quả boot cũ phải bị bỏ qua. */
+    var bootEpoch = authEpoch;
     try{
       var user = await readServerSession();
+      if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(user,'server-session-restored');
+      if(bootEpoch !== authEpoch || authTransitioning) return;
       if(user){
         await renderAuthenticatedDefault(user,'server-session-restored');
       }else{
         showPublicIntro('anonymous-boot');
         var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
         var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
-        if(!isReload) setTimeout(showLogin,80);
+        if(!isReload) setTimeout(function(){
+          if(bootEpoch === authEpoch && !authTransitioning && !sessionUser) showLogin();
+        },80);
       }
     }catch(e){
+      if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(null,'server-session-error');
       showPublicIntro('session-error');
       var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
       var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
-      if(!isReload) setTimeout(showLogin,80);
+      if(!isReload) setTimeout(function(){
+        if(bootEpoch === authEpoch && !authTransitioning && !sessionUser) showLogin();
+      },80);
     }finally{
       try{
         document.documentElement.classList.remove('phf-f5-restoring');
