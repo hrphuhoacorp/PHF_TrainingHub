@@ -49,7 +49,21 @@
   function chip(text, cls){return '<span class="phf-chip '+(cls||'')+'">'+esc(text)+'</span>'}
   function roleChip(r){return chip(roleLabel(r),r==='admin'?'blue':(r==='manager'?'pink':''))}
   function statusChip(s){return chip(statusLabel(s),s==='locked'?'warn':(s==='inactive'?'muted':'done'))}
-  function isAdmin(){try{var r=String((typeof window.phfGetSessionRole==='function'?window.phfGetSessionRole():'')||'').toLowerCase();return r==='admin'}catch(e){return false}}
+  function sessionRole(){try{return String((typeof window.phfGetSessionRole==='function'?window.phfGetSessionRole():'')||'').toLowerCase()}catch(e){return''}}
+  function isAdmin(){return sessionRole()==='admin'}
+  function requireAdminUi(){
+    var role=sessionRole();
+    if(!role){
+      if(typeof window.phfGoLogin==='function')window.phfGoLogin();
+      else phfAlert('Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.','Chưa xác minh phiên','warn');
+      return false;
+    }
+    if(role!=='admin'){
+      phfAlert('Khu vực Quản trị tài khoản chỉ dành cho Admin.');
+      return false;
+    }
+    return true;
+  }
   function main(){return document.getElementById('mainLesson')||document.querySelector('main')||document.body}
   function setShell(){try{if(typeof window.phfHideIntroAndStopAuto==='function')window.phfHideIntroAndStopAuto()}catch(e){}try{if(typeof window.phfEnsureSharedShell==='function')window.phfEnsureSharedShell('admin')}catch(e){}try{if(typeof window.phfSetMainNavActive==='function')window.phfSetMainNavActive('admin')}catch(e){}var m=document.getElementById('miniStatus');if(m)m.textContent='Quản trị tài khoản';var t=document.getElementById('contextTitle');if(t)t.textContent='Quản trị tài khoản & danh mục';var s=document.getElementById('contextSub');if(s)s.textContent='Chuẩn hóa tài khoản, chi nhánh, phòng ban, vị trí và đối tượng đào tạo.';var a=document.getElementById('contextAction');if(a)a.textContent='Admin'}
   function currentAdminLabel(){try{var email=currentLoginEmail();var a=accounts().find(function(x){return cleanEmail(x.email)===email});return (a&&a.name?String(a.name):email)||'Admin'}catch(e){return'Admin'}}
@@ -76,7 +90,7 @@
 
   function normalizeAccount(a){a=a||{};a.email=cleanEmail(a.email);a.phone=cleanPhone(a.phone);a.role=a.role||'learner';a.status=a.status||'active';a.branch=a.branch||a.location||'';a.department=a.department||'';a.position=a.position||'';a.trainingAudience=a.trainingAudience||a.audience||a.suggestedPurposeGroup||'';if(a.trainingAudience==='Nhân viên cũ')a.trainingAudience='Nhân sự hiện hữu';if(a.trainingAudience==='Nhân viên mới')a.trainingAudience='Nhân sự mới';a.defaultProgram=a.defaultProgram||a.program||'';return a}
   function accounts(){var l=read(KEY,null);if(Array.isArray(l))return l.map(normalizeAccount);write(KEY,[]);return []}
-  function saveAccounts(l){write(KEY,(l||[]).map(normalizeAccount))}
+  function saveAccounts(l){write(KEY,(l||[]).map(normalizeAccount));try{if(typeof window.phfServerAuthSyncAccounts==='function')setTimeout(function(){window.phfServerAuthSyncAccounts()},0)}catch(e){}}
   function trim(v){return String(v==null?'':v).trim()}
   function emailOk(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail(v))}
   function phoneDigits(v){return cleanPhone(v).replace(/\D/g,'')}
@@ -170,8 +184,8 @@
     document.getElementById('phfPwSave').onclick=function(){var cur=String(document.getElementById('phfPwCurrent').value||''),nw=String(document.getElementById('phfPwNew').value||''),cf=String(document.getElementById('phfPwConfirm').value||'');if(cur!==String(a.password||a.tempPassword||''))return err('Mật khẩu hiện tại chưa đúng.');if(!passwordOk(nw))return err(passwordRuleText());if(nw!==cf)return err('Mật khẩu nhập lại chưa khớp.');if(nw===cur)return err('Mật khẩu mới phải khác mật khẩu hiện tại.');a.password=nw;a.tempPassword=nw;a.mustChangePassword=false;a.passwordUpdatedAt=new Date().toISOString();delete a.passwordResetAt;saveAccounts(list);addLog('Người dùng đổi mật khẩu '+a.email);root.remove();phfAlert('Mật khẩu đã được cập nhật.','Đổi mật khẩu thành công','')};
     setTimeout(function(){var x=document.getElementById('phfPwCurrent');if(x)x.focus()},30)
   };
-  window.phfRenderAccountAdminSafe=function(){if(!isAdmin()){phfAlert('Khu vực Quản trị tài khoản chỉ dành cho Admin.');return}try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen','accounts')}catch(e){}return renderAccounts()};
-  window.phfAcctSafeTab=function(tab){if(!isAdmin()){phfAlert('Khu vực Quản trị tài khoản chỉ dành cho Admin.');return}try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen',tab||'accounts')}catch(e){}if(tab==='staff')return renderStaff();if(tab==='catalogs')return renderCatalogs();if(tab==='bulk')return renderBulk();if(tab==='cleanup')return renderCleanup();return renderAccounts()};
+  window.phfRenderAccountAdminSafe=function(){if(!requireAdminUi())return;try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen','accounts')}catch(e){}return renderAccounts()};
+  window.phfAcctSafeTab=function(tab){if(!requireAdminUi())return;try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen',tab||'accounts')}catch(e){}if(tab==='staff')return renderStaff();if(tab==='catalogs')return renderCatalogs();if(tab==='bulk')return renderBulk();if(tab==='cleanup')return renderCleanup();return renderAccounts()};
   var oldAdmin=window.phfRenderAdminManagement;
   if(typeof oldAdmin==='function'&&!oldAdmin.__phfAcctGroupWrap){var wrapped=function(){var out=oldAdmin.apply(this,arguments);try{document.querySelectorAll('.phf-admin-card h3').forEach(function(h){if((h.textContent||'').indexOf('Tài khoản')>=0){h.textContent='Tài khoản & danh mục';var p=h.parentNode&&h.parentNode.querySelector('p');if(p)p.textContent='Tạo tài khoản, chuẩn hóa chi nhánh, phòng ban, vị trí và đối tượng đào tạo.'}})}catch(e){}return out};wrapped.__phfAcctGroupWrap=true;window.phfRenderAdminManagement=wrapped}
   document.addEventListener('DOMContentLoaded',function(){ensureAdminUi();branches();departments();positions();audiences();accounts();cleanupPositionCatalog()});

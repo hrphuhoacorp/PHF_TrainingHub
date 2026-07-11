@@ -832,6 +832,22 @@ function phfEnsureEvaluationOfficialUi(){
   .phf-home-account-name{color:#b45f1b!important;-webkit-text-fill-color:#b45f1b!important;font-weight:800!important;text-decoration:none!important;white-space:normal!important}
 .phf-eval-profile-filter-grid{grid-template-columns:minmax(320px,1.5fr) minmax(220px,.8fr) auto!important}
 .phf-eval-profile-row-selected td{background:#f2faf6!important}
+.phf-eval-row-btn.danger{border-color:#efc8bd!important;background:#fff4f0!important;color:#9a3412!important}
+.phf-eval-success-notice{position:fixed;inset:0;z-index:100001;display:flex;align-items:flex-start;justify-content:center;padding:84px 18px 18px;pointer-events:none;opacity:0;transform:translateY(-8px);transition:opacity .16s ease,transform .16s ease}
+.phf-eval-success-notice.show{opacity:1;transform:translateY(0)}
+.phf-eval-success-card{min-width:min(430px,calc(100vw - 36px));max-width:560px;display:grid;grid-template-columns:42px 1fr 30px;align-items:center;gap:12px;padding:14px 15px;border:1px solid #cfe8da;border-radius:16px;background:rgba(255,255,255,.98);box-shadow:0 18px 50px rgba(7,84,62,.2);pointer-events:auto;font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif}
+.phf-eval-success-mark{width:38px;height:38px;border-radius:12px;background:#e8f7ef;color:#08734f;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800}
+.phf-eval-success-card b{display:block;color:#07543e;font-size:15px;margin-bottom:3px}
+.phf-eval-success-card span{display:block;color:#557167;font-size:13px;line-height:1.45}
+.phf-eval-success-card button{border:0;background:transparent;color:#6b7f77;font-size:22px;line-height:1;cursor:pointer;padding:3px;border-radius:8px}
+.phf-eval-success-card button:hover{background:#f0f6f3;color:#17382d}
+@media(max-width:520px){.phf-eval-success-notice{padding-top:70px}.phf-eval-success-card{grid-template-columns:38px 1fr 28px}}
+.phf-eval-delete-backdrop{position:fixed;inset:0;z-index:100000;background:rgba(12,32,25,.42);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}
+.phf-eval-delete-card{width:min(520px,100%);display:grid;grid-template-columns:48px 1fr;gap:14px;background:#fff;border:1px solid #ead7d0;border-radius:18px;padding:20px;box-shadow:0 24px 70px rgba(0,40,28,.24);font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif}
+.phf-eval-delete-icon{width:44px;height:44px;border-radius:14px;background:#fff1ed;color:#9a3412;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+.phf-eval-delete-copy h3{margin:2px 0 7px;color:#17382d;font-size:19px}.phf-eval-delete-copy p{margin:0;color:#60756c;line-height:1.55;white-space:pre-line}
+.phf-eval-delete-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;padding-top:5px}
+@media(max-width:560px){.phf-eval-delete-card{grid-template-columns:1fr}.phf-eval-delete-icon{display:none}.phf-eval-delete-actions{grid-column:1;flex-direction:column-reverse}.phf-eval-delete-actions button{width:100%}}
 .phf-eval-inline-profile{margin-top:18px;scroll-margin-top:110px}
 .phf-eval-inline-profile-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:18px;border-top:1px solid #e3eee9}
 .phf-eval-inline-profile-info>div{display:grid;gap:5px;padding:13px 14px;border:1px solid #e1ece7;border-radius:12px;background:#fbfdfc}
@@ -904,6 +920,134 @@ function phfEvalFilterShell(view,f){
     : `<option value="all">Tất cả</option><option value="overdue" ${f.status==='overdue'?'selected':''}>Quá hạn</option><option value="due" ${f.status==='due'?'selected':''}>Đang đánh giá</option><option value="upcoming" ${f.status==='upcoming'?'selected':''}>Sắp đến hạn</option>`;
   return `<section class="phf-eval-filter-card"><div class="phf-eval-filter-grid"><div class="phf-eval-filter-field"><label>Tìm học viên</label><input id="phfEvalFilterQ" type="search" value="${esc(f.q||'')}" placeholder="Tên, SĐT hoặc mã NV"></div><div class="phf-eval-filter-field"><label>Trạng thái</label><select id="phfEvalFilterStatus">${statusOptions}</select></div><div class="phf-eval-filter-field"><label>Loại phiếu</label><select id="phfEvalFilterType"><option value="all">Tất cả</option><option value="weekly" ${f.type==='weekly'?'selected':''}>Phiếu tuần</option><option value="monthly" ${f.type==='monthly'?'selected':''}>Phiếu tháng</option><option value="final" ${f.type==='final'?'selected':''}>Kết thúc thử việc</option></select></div><div class="phf-eval-filter-field"><label>${view==='history'?'Cập nhật từ ngày':'Kỳ từ ngày'}</label><input id="phfEvalFilterFrom" type="date" value="${esc(f.from||'')}"></div><div class="phf-eval-filter-field"><label>${view==='history'?'Cập nhật đến ngày':'Kỳ đến ngày'}</label><input id="phfEvalFilterTo" type="date" value="${esc(f.to||'')}"></div><div class="phf-eval-filter-actions"><button class="phf-eval-btn primary" type="button" onclick="phfRenderEvaluationWorkspace('${view}')">Lọc</button><button class="phf-eval-btn" type="button" onclick="phfEvalWorkspaceReset('${view}')">Xóa lọc</button></div></div></section>`;
 }
+
+
+function phfEvalIsAdmin(){
+  try{return phfUserRole()==='admin'}catch(e){return false}
+}
+
+function phfEvalDeleteDialog(message, title, confirmText){
+  return new Promise(function(resolve){
+    const old=document.getElementById('phfEvalDeleteModal');
+    if(old)old.remove();
+    const root=document.createElement('div');
+    root.id='phfEvalDeleteModal';
+    root.className='phf-eval-delete-backdrop';
+    root.innerHTML=`<div class="phf-eval-delete-card" role="dialog" aria-modal="true">
+      <div class="phf-eval-delete-icon">!</div>
+      <div class="phf-eval-delete-copy"><h3>${esc(title||'Xác nhận xóa học viên')}</h3><p>${esc(message||'')}</p></div>
+      <div class="phf-eval-delete-actions">
+        <button type="button" class="phf-eval-row-btn" data-cancel>Quay lại</button>
+        <button type="button" class="phf-eval-row-btn danger" data-confirm>${esc(confirmText||'Xóa học viên')}</button>
+      </div>
+    </div>`;
+    function done(value){root.remove();resolve(!!value)}
+    root.querySelector('[data-cancel]').onclick=function(){done(false)};
+    root.querySelector('[data-confirm]').onclick=function(){done(true)};
+    document.body.appendChild(root);
+    root.querySelector('[data-cancel]').focus();
+  });
+}
+
+
+function phfEvalShowSuccessNotice(message){
+  const old=document.getElementById('phfEvalSuccessNotice');
+  if(old)old.remove();
+
+  const root=document.createElement('div');
+  root.id='phfEvalSuccessNotice';
+  root.className='phf-eval-success-notice';
+  root.setAttribute('role','status');
+  root.setAttribute('aria-live','polite');
+  root.innerHTML=`<div class="phf-eval-success-card">
+    <div class="phf-eval-success-mark">✓</div>
+    <div><b>Thao tác thành công</b><span>${esc(message||'Đã hoàn tất thao tác.')}</span></div>
+    <button type="button" aria-label="Đóng thông báo">×</button>
+  </div>`;
+
+  function close(){ if(root&&root.parentNode) root.remove(); }
+  root.querySelector('button').onclick=close;
+  document.body.appendChild(root);
+  requestAnimationFrame(function(){ root.classList.add('show'); });
+  setTimeout(close,3200);
+}
+
+async function phfEvalDeleteLearner(employeeId){
+  if(!phfEvalIsAdmin()){
+    if(typeof phfToast==='function') phfToast('Chỉ Admin được xóa học viên.','error');
+    return;
+  }
+
+  const learner=phfEvalLearnerById(employeeId);
+  if(!learner){
+    if(typeof phfToast==='function') phfToast('Không tìm thấy học viên cần xóa.','error');
+    return;
+  }
+
+  const current=phfCurrentEmployeeProfile();
+  const currentPhone=String(current&&current.phone||'').replace(/\D/g,'');
+  const learnerPhone=String(learner.phone||'').replace(/\D/g,'');
+  if((current&&current.id&&String(current.id)===String(learner.id)) ||
+     (currentPhone&&learnerPhone&&currentPhone===learnerPhone)){
+    if(typeof phfToast==='function') phfToast('Không thể xóa hồ sơ của tài khoản đang đăng nhập.','error');
+    return;
+  }
+
+  const first=await phfEvalDeleteDialog(
+    'Thao tác sẽ xóa hồ sơ học viên, tiến độ, kết quả kiểm tra, phiếu đánh giá và nhật ký liên quan khỏi dữ liệu chính. Tài khoản đăng nhập được quản lý riêng trong mục Quản trị tài khoản.',
+    'Xóa học viên '+String(learner.fullName||''),
+    'Tiếp tục'
+  );
+  if(!first)return;
+
+  const second=await phfEvalDeleteDialog(
+    'Đây là bước xác nhận cuối. Chỉ tiếp tục khi anh đã kiểm tra đúng học viên và đã có bản sao lưu Supabase.',
+    'Xác nhận lần cuối',
+    'Xóa vĩnh viễn'
+  );
+  if(!second)return;
+
+  const workspace=document.querySelector('.phf-eval-workspace');
+  if(workspace){
+    workspace.classList.add('phf-eval-is-busy');
+    workspace.setAttribute('aria-busy','true');
+  }
+
+  try{
+    const response=await fetch('/api/data',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'deleteEmployee',
+        adminMode:true,
+        employee:{
+          id:String(learner.id||''),
+          fullName:String(learner.fullName||''),
+          phone:String(learner.phone||'')
+        }
+      })
+    });
+    const result=await response.json().catch(function(){return{}});
+    if(!response.ok||!result.ok){
+      throw new Error(result.error||'Chưa thể xóa học viên.');
+    }
+
+    window.__phfEvalProfileSelectedId='';
+    window.__phfEvalReadFresh=false;
+    window.__phfTrainingDataLoadedAt=0;
+    window.__phfTrainingDataScopeKey='';
+    window.__phfLocalData=result.data||null;
+    await phfRenderEvaluationWorkspace('profiles');
+    phfEvalShowSuccessNotice('Đã xóa học viên và dữ liệu đào tạo liên quan.');
+  }catch(err){
+    if(workspace){
+      workspace.classList.remove('phf-eval-is-busy');
+      workspace.removeAttribute('aria-busy');
+    }
+    if(typeof phfToast==='function') phfToast((err&&err.message)||'Chưa thể xóa học viên.','error');
+  }
+}
+window.phfEvalDeleteLearner=phfEvalDeleteLearner;
 
 function phfEvalSelectProfileInline(employeeId){
   const id=String(employeeId||'').trim();
@@ -1085,7 +1229,7 @@ async function phfRenderEvaluationWorkspace(view){
         <td>${esc(l.studyStartDate||'Chưa nhập')}</td>
         <td><b>${recCount}</b><small>phiếu đã lưu</small></td>
         <td><span class="phf-eval-chip ${item.status.cls}">${esc(item.status.text)}</span></td>
-        <td><button class="phf-eval-row-btn ${selected?'':'primary'}" type="button" onclick="phfEvalSelectProfileInline('${esc(l.id)}')">${selected?'Đang xem':'Xem hồ sơ'}</button></td>
+        <td><div class="phf-eval-row-actions"><button class="phf-eval-row-btn ${selected?'':'primary'}" type="button" onclick="phfEvalSelectProfileInline('${esc(l.id)}')">${selected?'Đang xem':'Xem hồ sơ'}</button>${phfEvalIsAdmin()?`<button class="phf-eval-row-btn danger" type="button" onclick="phfEvalDeleteLearner('${esc(l.id)}')">Xóa học viên</button>`:''}</div></td>
       </tr>`;
     }).join('');
 

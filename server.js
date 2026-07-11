@@ -13,6 +13,7 @@ const {
   validatePayload,
   publicError
 } = require('./lib/request-guard');
+const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload } = require('./lib/auth');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
@@ -75,7 +76,7 @@ function safeStaticPath(rawUrl) {
   const requested = clean === '/' ? '/index.html' : clean;
   const relative = requested.replace(/^[/\\]+/, '');
   const segments = relative.split(/[\\/]+/).filter(Boolean);
-  const blockedSegments = new Set(['.git', 'api', 'lib', 'scripts', 'node_modules', 'backups']);
+  const blockedSegments = new Set(['.git', 'api', 'lib', 'scripts', 'node_modules', 'backups', 'private']);
   if (segments.some(segment => blockedSegments.has(segment.toLowerCase()))) return null;
   const blockedFiles = new Set(['.env', 'data.json', 'server.js', 'package-lock.json', 'package.json']);
   if (segments.some(segment => segment.startsWith('.')) || blockedFiles.has(String(segments.at(-1) || '').toLowerCase())) return null;
@@ -115,17 +116,41 @@ const server = http.createServer(async (req, res) => {
   try {
     const pathname = String(req.url || '/').split('?')[0];
 
+    if (pathname === '/api/auth/session' && req.method === 'GET') {
+      const session = readSession(req);
+      return sendJson(res, 200, { ok:true, authenticated:!!session, user:session ? session.account : null });
+    }
+    if (pathname === '/api/auth/login' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const raw = await readBody(req); let body={};
+      try { body=JSON.parse(raw||'{}'); } catch { throw new RequestError('Dữ liệu đăng nhập không hợp lệ.',400,'JSON_INVALID'); }
+      let result=login(body.email, body.password);
+      if(!result.ok && Array.isArray(body.localAccounts) && bootstrapFromLocal(req, body.localAccounts)) result=login(body.email, body.password);
+      if(!result.ok) return sendJson(res, 401, {ok:false,error:result.message,code:result.code});
+      res.setHeader('Set-Cookie', cookieHeader(result.token));
+      return sendJson(res, 200, {ok:true,user:result.user});
+    }
+    if (pathname === '/api/auth/logout' && req.method === 'POST') {
+      assertSameOrigin(req); res.setHeader('Set-Cookie', clearCookieHeader());
+      return sendJson(res, 200, {ok:true});
+    }
+    if (pathname === '/api/auth/accounts/sync' && req.method === 'POST') {
+      assertSameOrigin(req); const session=requireSession(req,['admin']);
+      assertJsonContentType(req); assertContentLength(req);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu tài khoản không hợp lệ.',400,'JSON_INVALID')}
+      const accounts=syncAccounts(body.accounts||[]);
+      return sendJson(res,200,{ok:true,count:accounts.length});
+    }
+
     if (pathname === '/api/data') {
       assertSameOrigin(req);
       if (req.method === 'GET') {
+        const session = requireSession(req, ['learner','manager','admin']);
         const data = await readData();
-        const url = new URL(req.url || '/api/data', 'http://localhost');
-        const scoped = filterDataForRequest(
-          data,
-          url.searchParams.get('scope'),
-          url.searchParams.get('employeeId'),
-          url.searchParams.get('phone')
-        );
+        const scoped = session.role === 'learner'
+          ? filterDataForRequest(data, 'learner', session.employeeId, session.phone)
+          : data;
         return sendJson(res, 200, scoped);
       }
       if (req.method === 'POST') {
@@ -135,15 +160,12 @@ const server = http.createServer(async (req, res) => {
         let payload;
         try { payload = JSON.parse(body || '{}'); }
         catch { throw new RequestError('Dữ liệu JSON không hợp lệ.', 400, 'JSON_INVALID'); }
+        const session = requireSession(req, ['learner','manager','admin']);
+        payload = authorizePayload(session, payload);
         validatePayload(payload);
         const result = await saveData(payload);
-        if (result && result.data && !payload.adminMode && !payload.managerMode) {
-          result.data = filterDataForRequest(
-            result.data,
-            'learner',
-            payload.employee && payload.employee.id,
-            payload.employee && payload.employee.phone
-          );
+        if (result && result.data && session.role === 'learner') {
+          result.data = filterDataForRequest(result.data, 'learner', session.employeeId, session.phone);
         }
         return sendJson(res, 200, result);
       }

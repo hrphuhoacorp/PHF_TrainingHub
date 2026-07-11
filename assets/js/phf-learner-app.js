@@ -399,6 +399,16 @@ window.phfResetTrainingRuntime = phfResetTrainingRuntime;
 async function phfRefreshTrainingData(options){
   options = options || {};
   const force = !!options.force;
+
+  try{
+    if(typeof window.phfWhenAuthReady==='function'){
+      const authUser = await window.phfWhenAuthReady();
+      if(!authUser) return false;
+    }
+  }catch(e){
+    return false;
+  }
+
   let role = 'learner';
   try{ role = phfUserRole(); }catch(e){}
   let profile = {};
@@ -446,8 +456,22 @@ async function phfRefreshTrainingData(options){
 
   const request = (async function(){
     try{
-      const res = await fetch('/api/data?' + params.toString(), {cache:'no-store'});
-      const json = await res.json().catch(function(){ return {}; });
+      let res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'include'});
+      let json = await res.json().catch(function(){ return {}; });
+
+      if(res.status===401){
+        try{
+          if(typeof window.phfHandleAuthExpired==='function'){
+            const recovered = await window.phfHandleAuthExpired();
+            if(recovered){
+              res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'same-origin'});
+              json = await res.json().catch(function(){return{}});
+            }
+          }
+        }catch(e){}
+      }
+
+      if(res.status===401) return false;
 
       if(requestGeneration !== window.__phfTrainingDataGeneration ||
          sessionKey !== window.__phfTrainingDataActiveSessionKey ||

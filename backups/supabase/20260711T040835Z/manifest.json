@@ -1,0 +1,47 @@
+{
+  "system": "PHF Training Hub",
+  "createdAt": "2026-07-11T04:08:35.649Z",
+  "backupFolder": "20260711T040835Z",
+  "tables": [
+    {
+      "table": "settings",
+      "rows": 1,
+      "file": "settings.json",
+      "sha256": "89990f62a2153d98f07f66ad27f631bd0161a06be5cb3e4bafd2e21d92ef79d2"
+    },
+    {
+      "table": "employees",
+      "rows": 27,
+      "file": "employees.json",
+      "sha256": "4f2b6359d8b418e16291d403f650ebf14aea91b6ae332a176e5c5ae72a128f8c"
+    },
+    {
+      "table": "progress",
+      "rows": 27,
+      "file": "progress.json",
+      "sha256": "847271e232699486a6e716ddf4d4978cdae9afdd5ba123176a920c1eaf998be4"
+    },
+    {
+      "table": "test_results",
+      "rows": 78,
+      "file": "test_results.json",
+      "sha256": "16df07c0c74f29f3f22de6303913c22bd0708a21fb94aa9fb242cbc179b93336"
+    },
+    {
+      "table": "activity_log",
+      "rows": 3316,
+      "file": "activity_log.json",
+      "sha256": "e2f3e94ebb7aed57efa7052e936840c8641f89407bb86cff5769fa7f05221963"
+    },
+    {
+      "table": "evaluation_records",
+      "rows": 10,
+      "file": "evaluation_records.json",
+      "sha256": "998361daf187bac16bfea96a4620c60f1e59273501e48f47548a087e3387aad1"
+    }
+  ],
+  "fullBackup": {
+    "file": "phf-supabase-full-backup.json",
+    "sha256": "1a33878fe87db518285cd0e47c638658d595df00512e7259ab45fe4c4ae3920c"
+  }
+}

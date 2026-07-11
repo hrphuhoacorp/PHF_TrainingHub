@@ -8,6 +8,7 @@ const {
   validatePayload,
   publicError
 } = require('../lib/request-guard');
+const { requireSession, authorizePayload } = require('../lib/auth');
 
 
 function normalizePhone(value) {
@@ -49,24 +50,21 @@ module.exports = async function handler(req, res) {
   try {
     assertSameOrigin(req);
     if (req.method === 'GET') {
+      const session = requireSession(req, ['learner','manager','admin']);
       const data = await readData();
-      const query = req.query || {};
-      const scoped = filterDataForRequest(data, query.scope, query.employeeId, query.phone);
+      const scoped = session.role === 'learner' ? filterDataForRequest(data, 'learner', session.employeeId, session.phone) : data;
       return res.status(200).json(scoped);
     }
     if (req.method === 'POST') {
       assertJsonContentType(req);
       assertContentLength(req);
       const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      const session = requireSession(req, ['learner','manager','admin']);
+      authorizePayload(session, payload);
       validatePayload(payload);
       const result = await saveData(payload);
-      if (result && result.data && !payload.adminMode && !payload.managerMode) {
-        result.data = filterDataForRequest(
-          result.data,
-          'learner',
-          payload.employee && payload.employee.id,
-          payload.employee && payload.employee.phone
-        );
+      if (result && result.data && session.role === 'learner') {
+        result.data = filterDataForRequest(result.data, 'learner', session.employeeId, session.phone);
       }
       return res.status(200).json(result);
     }

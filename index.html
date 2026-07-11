@@ -15,18 +15,18 @@
 <meta name="theme-color" content="#0b4b39">
 
 <style id="phf-stage3161g-boot-cloak">
-html.phf-f5-restoring body{visibility:hidden!important;}
+html.phf-auth-boot body>*{visibility:hidden!important}
+html.phf-auth-boot body::before{
+  content:"Đang tải dữ liệu...";
+  visibility:visible!important;
+  position:fixed;inset:0;z-index:2147483647;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;background:#f4f8f6;color:#07543e;
+  font:600 15px/1.5 "Segoe UI",Arial,system-ui,sans-serif;
+}
 </style>
 <script id="phf-stage3161g-boot-cloak-js">
-(function(){
-  try{
-    var nav=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];
-    var isReload=nav?nav.type==='reload':(performance.navigation&&performance.navigation.type===1);
-    var authEmail=String(localStorage.getItem('phfSimpleTestLoginEmail')||'').trim().toLowerCase();
-    var route=localStorage.getItem('phfLastMainNav')||'';
-    if(isReload&&authEmail&&route) document.documentElement.classList.add('phf-f5-restoring');
-  }catch(e){}
-})();
+document.documentElement.classList.add('phf-auth-boot');
 </script>
 <link rel="stylesheet" href="assets/css/phf-training-hub.css?v=stage3150c_postlogin_home_video">
 <link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=30_5">
@@ -2428,8 +2428,8 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-evaluation.js?v=24_stable_ui_transition_1"></script>
-<script src="assets/js/phf-learner-app.js?v=24_account_scope_reset_1"></script>
+<script src="assets/js/phf-evaluation.js?v=24_delete_success_notice_1"></script>
+<script src="assets/js/phf-learner-app.js?v=25_unified_auth_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=24_f5_logic_stable_1"></script>
 <script src="assets/js/phf-quiz-engine.js?v=29_1"></script>
 <!-- app.js cũ đã được tắt trong bản kiểm thử vai trò để tránh tự mở hộp nhập SĐT trước màn chọn vai trò. -->
@@ -2967,428 +2967,105 @@ function render(){
   @media(max-width:480px){.phf-test-login-overlay{padding:12px!important}.phf-test-login-card{width:100%!important;border-radius:20px!important}.phf-login-logo-line{align-items:flex-start!important;flex-direction:column!important}.phf-login-logo-box{width:170px!important;min-height:50px!important}.phf-login-title{font-size:26px!important}.phf-test-login-actions{flex-direction:column!important;align-items:stretch!important}.phf-test-login-actions button{width:100%!important}.phf-test-login-actions button.primary{min-width:0!important}}
   @media(max-height:760px) and (min-width:861px){.phf-test-login-overlay{align-items:flex-start!important}.phf-test-login-brand,.phf-test-login-form{padding-top:30px!important;padding-bottom:30px!important}.phf-login-title{font-size:32px!important}.phf-login-points{display:none!important}}
 </style>
-<script>
+<script id="phf-server-session-menu-bridge">
 (function(){
   'use strict';
-  var AUTH_KEY = 'phfSimpleTestLoginEmail';
-  var PROFILE_MARK = 'phfSimpleTestProfile';
-  var USERS = {
-    'nv.test@phf.local': {password:'123456', role:'learner', name:'Nhân viên Test', label:'Học viên', phone:'0900000001', position:'Nhân viên bán hàng'},
-    'truongca.test@phf.local': {password:'123456', role:'manager', name:'Trưởng ca Test', label:'Trưởng ca', phone:'0900000002', position:'Trưởng ca / CHT / Quản lý'},
-    'admin.test@phf.local': {password:'123456', role:'admin', name:'Admin Test', label:'Admin', phone:'0900000003', position:'Quản trị đào tạo'}
-  };
-  function getEmail(){ try{return String(localStorage.getItem(AUTH_KEY)||'').toLowerCase();}catch(e){return '';} }
 
-  // PHF Bản 19: một luồng login duy nhất, nhưng đọc thêm tài khoản tạo trong Quản trị.
-  function phfReadAccountList(){
-    var keys = [
-      'phfAdminAccountsSafeV18',
-      'phfAdminAccountsV17F',
-      'phfAdminAccountsV17C',
-      'phfAdminAccountsV17D',
-      'phfAdminAccountsV17B',
-      'phfAdminAccountsV1'
-    ];
-    for(var i=0;i<keys.length;i++){
-      try{
-        var list = JSON.parse(localStorage.getItem(keys[i]) || '[]');
-        if(Array.isArray(list) && list.length) return list;
-      }catch(e){}
-    }
-    return [];
-  }
-  function phfNormalizeAccount(a){
-    if(!a || !a.email) return null;
-    var role = String(a.role || 'learner');
-    var name = a.name || a.fullName || a.email;
-    var phone = String(a.phone || a.mobile || '').replace(/[^\d+]/g,'').trim();
-    return {
-      email:String(a.email).toLowerCase().trim(),
-      password:String(a.password || a.tempPassword || '123456'),
-      role:role,
-      name:name,
-      label: role === 'admin' ? 'Admin' : (role === 'manager' ? 'Trưởng ca' : 'Học viên'),
-      phone:phone,
-      position: a.position || (role === 'admin' ? 'Quản trị đào tạo' : (role === 'manager' ? 'Trưởng ca / CHT / Quản lý' : 'Nhân viên bán hàng')),
-      branch: a.branch || a.location || 'Phú Lợi',
-      department: a.department || 'Bán hàng',
-      groups: Array.isArray(a.groups) ? a.groups : (Array.isArray(a.trainingGroups) ? a.trainingGroups : []),
-      trainingAudience: a.trainingAudience || a.audience || '',
-      defaultProgram: a.defaultProgram || a.program || '',
-      employeeCode: a.employeeCode || '',
-      status:String(a.status || 'active'),
-      mustChangePassword:!!a.mustChangePassword,
-      source:'account-admin'
-    };
-  }
-  function findAuthUser(email){
-    email = String(email || '').toLowerCase().trim();
-    if(USERS[email]) return Object.assign({email:email, status:'active', source:'built-in'}, USERS[email]);
-    var list = phfReadAccountList();
-    for(var i=0;i<list.length;i++){
-      var u = phfNormalizeAccount(list[i]);
-      if(u && u.email === email) return u;
-    }
-    return null;
-  }
-  function phfAuthQuickUsers(){
-    var map = {};
-    Object.keys(USERS).forEach(function(email){
-      map[email] = Object.assign({email:email, status:'active', source:'built-in'}, USERS[email]);
-    });
-    phfReadAccountList().forEach(function(a){
-      var u = phfNormalizeAccount(a);
-      if(u) map[u.email] = u;
-    });
-    return Object.keys(map).map(function(k){ return map[k]; });
+  function currentUser(){
+    try{
+      return typeof window.phfGetAuthenticatedUser === 'function'
+        ? window.phfGetAuthenticatedUser()
+        : null;
+    }catch(e){ return null; }
   }
 
-  function phfNormalizeSessionRole(role){
-    role = String(role || '').toLowerCase().trim();
-    return role === 'admin' || role === 'manager' || role === 'learner' ? role : 'learner';
-  }
-  function phfIsAccountActive(user){
-    return !!user && String(user.status || 'active').toLowerCase() === 'active';
-  }
-  function getUser(){
-    var email = getEmail();
-    var user = findAuthUser(email);
-    return phfIsAccountActive(user) ? user : null;
-  }
-  function isLoggedIn(){ return !!getUser(); }
-  function phfSessionRole(){
-    var user = getUser();
-    return user ? phfNormalizeSessionRole(user.role) : '';
-  }
-  function phfSyncLegacyRoleKeys(user){
-    var role = user ? phfNormalizeSessionRole(user.role) : '';
-    var keys = ['phfInternalRole','phfInternalTestRole','phfTestRole','phfRole','phfUserRole'];
-    try{
-      keys.forEach(function(k){ if(role) localStorage.setItem(k, role); else localStorage.removeItem(k); });
-      if(user){
-        localStorage.setItem('phfSessionV1', JSON.stringify({
-          version:1,
-          email:String(user.email || '').toLowerCase().trim(),
-          role:role,
-          accountKey:phfLoginAccountKey(user),
-          startedAt:new Date().toISOString()
-        }));
-      }else{
-        localStorage.removeItem('phfSessionV1');
-      }
-    }catch(e){}
-    return role;
-  }
-  function phfClearSessionUiState(){
-    var keys = [
-      'phfLastMainNav','phfLastAdminSubscreen','phfRefreshResumeState','phfViewState3161F','phfViewStateV1',
-      'phfEvalSelectedEmployeeId','phfEvalWorkspaceTab','phfBan7FilterState','phfAdminActiveTab',
-      'phfCurrentPage','phfCurrentLessonKey'
-    ];
-    try{ keys.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
-  }
-  window.phfGetAuthenticatedUser = getUser;
-  window.phfGetSessionRole = phfSessionRole;
-  window.phfHasAuthenticatedSession = isLoggedIn;
-  function escText(v){ return String(v==null?'':v); }
-
-  // PHF Bản 19A: tách sạch hồ sơ/progress theo tài khoản đăng nhập.
-  function phfClearLearnerIdentityForLogin(){
-    var keys = [
-      'phfEmployeeProfile','phfEmployeeId','phfCurrentLearnerPhone','phfLinkedPhone','phfLoginPhone',
-      'phfRefreshResumeState','phfResumeLessonIndex','phfResumeFromPhone','phfLastLearnerPhone',
-      'phfLearnerPhone','phfPhoneEntryValue','phfQuizResults'
-    ];
-    try{
-      keys.forEach(function(k){ localStorage.removeItem(k); });
-      Object.keys(localStorage).forEach(function(k){
-        if(/^phfLearnerSession:/i.test(k) || /^phfQuizResults:/i.test(k) || /^phfProgressCache:/i.test(k)){
-          localStorage.removeItem(k);
-        }
-      });
-    }catch(e){}
-    try{ window.currentProfile = null; }catch(e){}
-  }
-  function phfLoginAccountKey(user){
-    var email = String(user && user.email || '').toLowerCase().trim();
-    var phone = String(user && user.phone || '').replace(/[^\\d+]/g,'').trim();
-    return phone ? ('phone:' + phone) : ('email:' + email);
-  }
-  function phfMarkAccountSession(user){
-    try{
-      localStorage.setItem('phfActiveAccountKey', phfLoginAccountKey(user));
-      localStorage.setItem('phfActiveLoginEmail', String(user.email || '').toLowerCase().trim());
-    }catch(e){}
-  }
-
-  function saveProfile(user){
-    try{
-      var today = new Date();
-      var iso = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-      var phone = String(user.phone || '').replace(/[^\d+]/g,'').trim();
-      var accountKey = phfLoginAccountKey(user);
-      var studyKey = 'phfStudyStartDate:' + accountKey;
-      var oldStudy = localStorage.getItem(studyKey) || '';
-      var profile = {
-        id: phone ? ('test-phone-' + phone) : ('acct-' + String(user.email || user.role || 'learner').toLowerCase().replace(/[^a-z0-9]+/g,'-')),
-        fullName:user.name,
-        phone:phone,
-        branch:user.branch || 'Phú Lợi',
-        department:user.department || 'Bán hàng',
-        position:user.position,
-        trainingAudience:user.trainingAudience || '',
-        studyStartDate: oldStudy || iso,
-        accountEmail: String(user.email || '').toLowerCase().trim()
-      };
-      localStorage.setItem(studyKey, profile.studyStartDate);
-      localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
-      localStorage.setItem('phfEmployeeId', profile.id);
-      localStorage.setItem('phfCurrentLearnerPhone', phone);
-      localStorage.setItem('phfLinkedPhone', phone);
-      localStorage.setItem('phfLoginPhone', phone);
-      localStorage.setItem('phfLoginEmail', user.email || '');
-      localStorage.setItem('phfLoginName', user.name || '');
-      localStorage.setItem(PROFILE_MARK, '1');
-      phfMarkAccountSession(user);
-    }catch(e){}
-  }
-  function phfResetRuntimeForAccountChange(reason){
-    try{
-      if(typeof window.phfResetTrainingRuntime==='function'){
-        window.phfResetTrainingRuntime(reason||'account-change');
-        return;
-      }
-    }catch(e){}
-    try{
-      window.__phfTrainingDataGeneration=(window.__phfTrainingDataGeneration||0)+1;
-      window.__phfTrainingDataActiveSessionKey='';
-      window.__phfTrainingDataScopeKey='';
-      window.__phfTrainingDataLoadedAt=0;
-      window.__phfTrainingDataPromise=null;
-      window.__phfTrainingDataPromiseScopeKey='';
-      window.__phfTrainingDataLatestRequestId=0;
-      window.__phfLocalData=null;
-      window.__phfEvalReadFresh=false;
-      window.__phfEvalRenderedScope='';
-      window.__phfEvalProfileSelectedId='';
-      window.__phfEvalRenderToken=(window.__phfEvalRenderToken||0)+1;
-      window.__phfOverviewDataReady=false;
-      window.__phfOverviewDataPromise=null;
-    }catch(e){}
-  }
-  function setLogin(email){
-    var user = findAuthUser(email);
-    if(!user) return false;
-    if(String(user.status || 'active') === 'locked' || String(user.status || 'active') === 'inactive') return false;
-    var nextEmail = String(user.email || email).toLowerCase().trim();
-    var previousEmail = getEmail();
-    if(previousEmail && previousEmail !== nextEmail) phfClearSessionUiState();
-    phfResetRuntimeForAccountChange('login:' + nextEmail);
-    try{
-      localStorage.setItem(AUTH_KEY, nextEmail);
-      localStorage.setItem('phfLastMainNav', 'intro');
-      localStorage.removeItem('phfLastAdminSubscreen');
-      localStorage.removeItem('phfRefreshResumeState');
-    }catch(e){}
-    phfSyncLegacyRoleKeys(user);
-    phfClearLearnerIdentityForLogin();
-    saveProfile(user);
-    return true;
-  }
-  function logout(){
-    phfResetRuntimeForAccountChange('logout');
-    try{
-      localStorage.removeItem(AUTH_KEY);
-      phfSyncLegacyRoleKeys(null);
-      phfClearSessionUiState();
-      ['phfActiveAccountKey','phfActiveLoginEmail','phfLoginEmail','phfLoginName','phfLoginPhone'].forEach(function(k){ localStorage.removeItem(k); });
-      if(localStorage.getItem(PROFILE_MARK)==='1'){
-        localStorage.removeItem('phfEmployeeProfile');
-        localStorage.removeItem('phfEmployeeId');
-        localStorage.removeItem(PROFILE_MARK);
-      }
-    }catch(e){}
-    try{ window.currentProfile = null; }catch(e){}
-    removeLoginOverlay();
-    applyMenu();
-    showPublicIntro();
-  }
-  window.phfLogoutSession = logout;
-  function removeLoginOverlay(){ var el=document.getElementById('phfTestLoginOverlay'); if(el) el.remove(); var old=document.getElementById('phfRoleOverlay'); if(old) old.remove(); var old2=document.getElementById('phfPhoneEntryOverlay'); if(old2) old2.remove(); }
-  function showPublicIntro(){
-    try{ var rs=document.getElementById('phfRoleSwitcher'); if(rs) rs.remove(); }catch(e){}
-    try{ window.__phfTrainingEntryReady=false; }catch(e){}
-    try{ var intro=document.getElementById('introSection'); if(intro) intro.hidden=false; }catch(e){}
-    try{ document.body.classList.add('phf-intro-active'); document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-learning-mode'); }catch(e){}
-    try{ if(typeof window.phfIntroGo==='function') window.phfIntroGo(0); }catch(e){}
-    try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
-  }
-  function showLogin(){
-    removeLoginOverlay();
-    var current=getUser();
-    var overlay=document.createElement('div');
-    overlay.id='phfTestLoginOverlay';
-    overlay.className='phf-test-login-overlay';
-    overlay.innerHTML='<section class="phf-test-login-card" role="dialog" aria-modal="true" aria-label="Đăng nhập PHF Training Hub">'
-      +'<section class="phf-test-login-brand" aria-label="PHF Training Hub">'
-      +'<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Cổng đào tạo nội bộ</span></div>'
-      +'<div><div class="phf-login-title">Đăng nhập PHF Training Hub</div><div class="phf-login-subtitle">Truy cập lộ trình đào tạo, hồ sơ học tập và khu quản lý theo phân quyền được cấp.</div></div>'
-      +'<div class="phf-login-points"><div class="phf-login-point"><span class="phf-login-dot">1</span><span>Học viên theo dõi bài học, tiến độ và hồ sơ cá nhân.</span></div><div class="phf-login-point"><span class="phf-login-dot">2</span><span>Quản lý đào tạo theo dõi học viên và tổng quan đào tạo.</span></div></div>'
-      +'</section>'
-      +'<section class="phf-test-login-form" aria-label="Thông tin đăng nhập">'
-      +(current?'<div class="phf-test-login-current">Đang đăng nhập: <b>'+escText(current.name)+'</b> · '+escText(current.label)+'</div>':'')
-      +'<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Nhập tài khoản nội bộ để tiếp tục vào Training Hub.</div>'
-      +'<div class="phf-test-login-field"><label for="phfTestEmail">Email</label><input id="phfTestEmail" type="email" autocomplete="username" placeholder="Nhập email nội bộ"></div>'
-      +'<div class="phf-test-login-field"><label for="phfTestPass">Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu"></div>'
-      +'<div class="phf-test-login-error" id="phfTestLoginError"></div>'
-      +'<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button>'+(current?'<button type="button" id="phfTestLogout">Đăng xuất</button>':'')+'</div>'
-      +'<div class="phf-test-login-help"><details><summary>Hỗ trợ đăng nhập</summary><div class="phf-test-login-quick">'+phfAuthQuickUsers().map(function(u){ return '<button type="button" data-email="'+escText(u.email)+'">'+escText(u.label || u.name)+'<small>'+escText(u.email)+'</small></button>'; }).join('')+'</div></details><p class="phf-login-note">Quên mật khẩu hoặc chưa có tài khoản? Vui lòng liên hệ Admin/Quản lý để được hỗ trợ.</p></div>'
-      +'</section></section>';
-    document.body.appendChild(overlay);
-    var email=overlay.querySelector('#phfTestEmail'), pass=overlay.querySelector('#phfTestPass'), err=overlay.querySelector('#phfTestLoginError');
-    if(current && email) email.value=current.email;
-    function submit(){
-      var e=String(email&&email.value||'').trim().toLowerCase();
-      var p=String(pass&&pass.value||'');
-      var authUser = findAuthUser(e);
-      if(!authUser){ if(err) err.textContent='Không tìm thấy tài khoản này.'; return; }
-      if(String(authUser.status || 'active') === 'locked'){ if(err) err.textContent='Tài khoản này đang tạm khóa.'; return; }
-      if(String(authUser.status || 'active') === 'inactive'){ if(err) err.textContent='Tài khoản này đã ngừng sử dụng.'; return; }
-      if(String(authUser.password || '123456')!==p){ if(err) err.textContent='Mật khẩu chưa đúng.'; return; }
-      setLogin(e); removeLoginOverlay();
-      try{ if(authUser && authUser.role==='learner') phfShowViewLoading('Đang tải dữ liệu học tập...'); }catch(e){}
-      applyMenu();
-      try{ if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome(); else if(typeof window.phfGoLearning==='function') window.phfGoLearning(); }catch(ex){}
-      setTimeout(applyMenu, 0); setTimeout(applyMenu, 250); if(authUser.mustChangePassword){setTimeout(function(){try{if(typeof window.phfOpenOwnPasswordChange==='function')window.phfOpenOwnPasswordChange(true)}catch(e){}},320)}
-    }
-    function closeLoginSafely(){
-      removeLoginOverlay();
-      if(isLoggedIn()){
-        applyMenu();
-        return;
-      }
-      showPublicIntro();
-      applyMenu();
-    }
-    overlay.querySelector('#phfTestSubmit').onclick=submit;
-    overlay.querySelector('#phfTestCancel').onclick=closeLoginSafely;
-    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) closeLoginSafely(); });
-    function phfLoginEscClose(ev){ if(ev.key==='Escape'){ closeLoginSafely(); document.removeEventListener('keydown', phfLoginEscClose, true); } }
-    document.addEventListener('keydown', phfLoginEscClose, true);
-    overlay.querySelectorAll('.phf-test-login-quick button[data-email]').forEach(function(btn){ btn.onclick=function(){ var em=btn.getAttribute('data-email')||''; var u=findAuthUser(em); if(email) email.value=em; if(pass) pass.value=''; if(err) err.textContent=''; try{ pass.focus(); }catch(e){} }; });
-    var lo=overlay.querySelector('#phfTestLogout'); if(lo) lo.onclick=logout;
-    [email,pass].forEach(function(inp){ if(inp) inp.addEventListener('keydown', function(ev){ if(ev.key==='Enter') submit(); }); });
-    setTimeout(function(){ try{ (email||pass).focus(); }catch(e){} },50);
-  }
-  function setBtn(btn, visible, label, handler){
+  function setButton(btn, visible, label, handler){
     if(!btn) return;
     if(label) btn.textContent = label;
-    if(handler) btn.onclick = handler;
+    btn.style.setProperty('display', visible ? '' : 'none', visible ? '' : 'important');
     if(visible) btn.style.removeProperty('display');
-    else btn.style.setProperty('display','none','important');
+    if(handler) btn.onclick = handler;
   }
+
   function applyMenu(){
-    try{
-      var user=getUser();
-      var nav=document.querySelector('.phf-main-nav');
-      var login=document.querySelector('.phf-login-entry');
-      var role=user && user.role;
-      if(login){
-        var span=login.querySelector('span'), small=login.querySelector('small');
-        login.onclick=showLogin;
+    var user = currentUser();
+    var nav = document.querySelector('.phf-main-nav');
+    var login = document.querySelector('.phf-login-entry');
+
+    if(login){
+      var span = login.querySelector('span');
+      var small = login.querySelector('small');
+      login.onclick = function(){
         if(user){
-          var displayName = String(user.name || '').trim() || 'PHF';
-          var greetRow = document.getElementById('phfUserGreetingRow');
-          var greetName = document.getElementById('phfUserGreetingName');
-          if(span) span.innerHTML = '<span class="phf-hello-prefix">Xin chào,</span><strong></strong>';
-          var accountName = span ? span.querySelector('strong') : null;
-          if(accountName) accountName.textContent = displayName;
-          if(small) small.textContent = '';
-          if(greetRow) greetRow.style.setProperty('display','none','important');
-          if(greetName) greetName.textContent = '';
-          login.setAttribute('title', displayName);
+          var ev = new MouseEvent('click', {bubbles:true,cancelable:true});
+          return;
         }
-        else {
-          var greetRow = document.getElementById('phfUserGreetingRow');
-          var greetName = document.getElementById('phfUserGreetingName');
-          if(span) span.textContent='Đăng nhập';
-          if(small) small.textContent='Tài khoản';
-          if(greetRow) greetRow.style.setProperty('display','none','important');
-          if(greetName) greetName.textContent='';
-          login.removeAttribute('title');
+        if(typeof window.phfGoLogin === 'function') window.phfGoLogin();
+      };
+      if(user){
+        var displayName = String(user.name || user.email || 'PHF').trim();
+        if(span){
+          span.innerHTML = '<span class="phf-hello-prefix">Xin chào,</span><strong></strong>';
+          var strong = span.querySelector('strong');
+          if(strong) strong.textContent = displayName;
         }
-      }
-      if(!nav) return;
-      if(!user){ nav.style.setProperty('display','none','important'); return; }
-      nav.style.removeProperty('display');
-      var intro=nav.querySelector('[data-phf-main-nav="intro"]');
-      var learning=nav.querySelector('[data-phf-main-nav="learning"]');
-      var profile=nav.querySelector('[data-phf-main-nav="profile"]');
-      var reports=nav.querySelector('[data-phf-main-nav="reports"]');
-      var guide=nav.querySelector('[data-phf-main-nav="guide"]');
-      var test=nav.querySelector('[data-phf-main-nav="directTrainingTest"]');
-      setBtn(intro,true,'Trang chủ',function(){ if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome(); setTimeout(applyMenu,0); });
-      if(role==='learner'){
-        setBtn(learning,true,'Bài học',function(){ if(typeof window.phfGoLearning==='function') window.phfGoLearning(); setTimeout(applyMenu,0); });
-        setBtn(profile,true,'Hồ sơ',function(){ if(typeof window.phfGoMyProfile==='function') window.phfGoMyProfile(); setTimeout(applyMenu,0); });
-        setBtn(reports,false,'Tổng quan');
+        if(small) small.textContent = '';
+        login.setAttribute('title', displayName);
       }else{
-        setBtn(learning,false,'Bài học');
-        setBtn(profile,true,'Học viên',function(){ if(typeof window.phfGoMyProfile==='function') window.phfGoMyProfile(); setTimeout(applyMenu,0); });
-        setBtn(reports,true,'Tổng quan',function(){ if(typeof window.phfRenderTrainingOverview==='function') window.phfRenderTrainingOverview(); setTimeout(applyMenu,0); });
+        if(span) span.textContent = 'Đăng nhập';
+        if(small) small.textContent = 'Tài khoản';
+        login.removeAttribute('title');
       }
-      setBtn(guide,false,'Hướng dẫn');
-      setBtn(test,false,'Kiểm tra');
-    }catch(e){ console.warn('PHF Bản 2 apply menu error', e); }
+    }
+
+    if(!nav) return;
+    if(!user){
+      nav.style.setProperty('display','none','important');
+      return;
+    }
+
+    nav.style.removeProperty('display');
+    var role = String(user.role || 'learner').toLowerCase();
+    var intro = nav.querySelector('[data-phf-main-nav="intro"]');
+    var learning = nav.querySelector('[data-phf-main-nav="learning"]');
+    var profile = nav.querySelector('[data-phf-main-nav="profile"]');
+    var reports = nav.querySelector('[data-phf-main-nav="reports"]');
+    var guide = nav.querySelector('[data-phf-main-nav="guide"]');
+    var test = nav.querySelector('[data-phf-main-nav="directTrainingTest"]');
+
+    setButton(intro, true, 'Trang chủ', function(){
+      if(typeof window.phfRenderPostLoginHome === 'function') window.phfRenderPostLoginHome();
+    });
+
+    if(role === 'learner'){
+      setButton(learning, true, 'Bài học của tôi', function(){
+        if(typeof window.phfGoLearning === 'function') window.phfGoLearning();
+      });
+      setButton(profile, true, 'Hồ sơ của tôi', function(){
+        if(typeof window.phfGoMyProfile === 'function') window.phfGoMyProfile();
+      });
+      setButton(reports, false, 'Tổng quan');
+    }else{
+      setButton(learning, false, 'Bài học');
+      setButton(profile, true, 'Học viên', function(){
+        if(typeof window.phfGoMyProfile === 'function') window.phfGoMyProfile();
+      });
+      setButton(reports, true, 'Tổng quan', function(){
+        if(typeof window.phfRenderTrainingOverview === 'function') window.phfRenderTrainingOverview();
+      });
+    }
+
+    setButton(guide, false, 'Hướng dẫn');
+    setButton(test, false, 'Kiểm tra');
   }
-  function wrap(name){
-    try{
-      var old=window[name];
-      if(typeof old!=='function' || old.__phfBan2Wrapped) return;
-      var fn=function(){ var out=old.apply(this, arguments); setTimeout(applyMenu,0); return out; };
-      fn.__phfBan2Wrapped=true; window[name]=fn;
-    }catch(e){}
-  }
-  var oldRole = window.phfUserRole;
-  if(typeof oldRole==='function' && !oldRole.__phfBan2Auth){
-    window.phfUserRole = function(){ return phfSessionRole() || 'learner'; };
-    window.phfUserRole.__phfBan2Auth = true;
-  }
-  try{
-    var bootUser = getUser();
-    if(bootUser) phfSyncLegacyRoleKeys(bootUser);
-    else phfSyncLegacyRoleKeys(null);
-  }catch(e){}
-  window.phfGoLogin = showLogin;
-  window.phfShowRoleChooser = showLogin;
-  window.phfBootInternalRoleTest = function(){ if(isLoggedIn()){ applyMenu(); try{ if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome(); }catch(e){} } else showLogin(); };
-  window.phfLogoutTestUser = logout;
+
   window.phfApplySimpleRoleMenu = applyMenu;
-  wrap('phfSetMainNavActive');
-  wrap('phfRenderPostLoginHome');
-  wrap('phfGoLearning');
-  wrap('phfGoMyProfile');
-  wrap('phfRenderTrainingOverview');
-  wrap('phfGoGuide');
-  wrap('phfGoDirectTrainingTest');
-  if(typeof window.goToTrainingEntry==='function' && !window.goToTrainingEntry.__phfBan2Auth){
-    var oldEntry=window.goToTrainingEntry;
-    window.goToTrainingEntry=function(){ if(isLoggedIn()) return oldEntry.apply(this, arguments); showLogin(); };
-    window.goToTrainingEntry.__phfBan2Auth=true;
-  }
-  if(typeof window.phfGoIntroWelcome==='function' && !window.phfGoIntroWelcome.__phfBan2Auth){
-    var oldIntro=window.phfGoIntroWelcome;
-    window.phfGoIntroWelcome=function(){ if(isLoggedIn()) return oldIntro.apply(this, arguments); showPublicIntro(); applyMenu(); };
-    window.phfGoIntroWelcome.__phfBan2Auth=true;
-  }
-  document.addEventListener('click', function(e){ if(e.target && e.target.closest && e.target.closest('.phf-main-nav,.phf-login-entry')) setTimeout(applyMenu,0); }, true);
+  window.addEventListener('phf-auth-changed', applyMenu);
   document.addEventListener('DOMContentLoaded', function(){
-    removeLoginOverlay();
     applyMenu();
-    if(!isLoggedIn()) showPublicIntro();
-    setTimeout(applyMenu,80); setTimeout(applyMenu,350);
+    setTimeout(applyMenu, 120);
+    setTimeout(applyMenu, 500);
   });
-  setTimeout(function(){ applyMenu(); if(!isLoggedIn()) showPublicIntro(); }, 500);
 })();
 </script>
 
@@ -3762,7 +3439,8 @@ function render(){
 
 <script src="assets/js/phf-learning-gate.js"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
-<script src="assets/js/phf-account-admin-safe.js?v=stage3e2_compact_actions"></script>
+<script src="assets/js/phf-account-admin-safe.js?v=24_server_session_ready_fix_1"></script>
+<script src="assets/js/phf-server-auth.js?v=25_4_public_login_loading_1"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){
@@ -4011,6 +3689,19 @@ function render(){
   function get(k){ try{return localStorage.getItem(k)||'';}catch(e){return '';} }
   function set(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
   function parse(raw,fallback){ try{return JSON.parse(raw);}catch(e){return fallback;} }
+  function sessionRole(){
+    try{return String((typeof window.phfGetSessionRole==='function'?window.phfGetSessionRole():'')||'').toLowerCase()}
+    catch(e){return''}
+  }
+  function sessionIdentity(){
+    try{
+      var u=typeof window.phfGetAuthenticatedUser==='function'?window.phfGetAuthenticatedUser():null;
+      return String((u&&(u.email||u.id||u.employeeId))||'anonymous').toLowerCase().replace(/[^a-z0-9._@-]+/g,'_');
+    }catch(e){return'anonymous'}
+  }
+  function scopedKey(base){return base+'::'+(sessionRole()||'guest')+'::'+sessionIdentity()}
+  function getScoped(base){return get(scopedKey(base))}
+  function setScoped(base,value){set(scopedKey(base),value)}
   function hasAuthenticatedSession(){
     try{
       if(typeof window.phfHasAuthenticatedSession==='function') return !!window.phfHasAuthenticatedSession();
@@ -4028,19 +3719,32 @@ function render(){
     if(route==='content'||route==='library') return 'trainingLibrary';
     return route||'intro';
   }
+  function routeAllowedForRole(route,role){
+    route=normalizeRoute(route); role=String(role||'').toLowerCase();
+    if(role==='learner') return ['intro','learning','profile'].indexOf(route)>=0;
+    if(role==='manager') return ['intro','reports','profile','trainingLibrary','guide','directTrainingTest'].indexOf(route)>=0;
+    if(role==='admin') return ['intro','reports','profile','trainingLibrary','guide','directTrainingTest','admin'].indexOf(route)>=0;
+    return route==='intro';
+  }
+  function safeRouteForRole(route){
+    var role=sessionRole();
+    route=normalizeRoute(route);
+    if(routeAllowedForRole(route,role)) return route;
+    return role==='learner'?'learning':'intro';
+  }
   function currentRoute(){
-    var key=normalizeRoute(get('phfLastMainNav'));
+    var key=normalizeRoute(getScoped('phfLastMainNav')||get('phfLastMainNav'));
     try{
       var active=document.querySelector('[data-phf-main-nav].active');
       if(active) key=normalizeRoute(active.getAttribute('data-phf-main-nav')||key);
     }catch(e){}
-    return key||'intro';
+    return safeRouteForRole(key||'intro');
   }
   function currentSub(route){
-    return route==='admin' ? (get('phfLastAdminSubscreen')||'home') : '';
+    return route==='admin' ? (getScoped('phfLastAdminSubscreen')||get('phfLastAdminSubscreen')||'home') : '';
   }
   function stateKey(route,sub){ return normalizeRoute(route)+'::'+(sub||''); }
-  function allViews(){ return parse(get(VIEW_KEY),{})||{}; }
+  function allViews(){ return parse(getScoped(VIEW_KEY),{})||{}; }
   function nearestAnchor(){
     try{
       var el=document.elementFromPoint(Math.min(window.innerWidth-1,Math.max(8,window.innerWidth*0.5)),Math.min(window.innerHeight-1,Math.max(8,window.innerHeight*0.28)));
@@ -4058,7 +3762,7 @@ function render(){
       x:Math.round(window.scrollX||0), y:Math.round(window.scrollY||0),
       anchorId:anchor.id||'', anchorOffset:anchor.offset||0, updatedAt:Date.now()
     };
-    set(VIEW_KEY,JSON.stringify(views));
+    setScoped(VIEW_KEY,JSON.stringify(views));
     return views[stateKey(route,sub)];
   }
   function replaceCurrentHistory(route,sub){
@@ -4069,8 +3773,15 @@ function render(){
   }
   function setStoredRoute(route,sub){
     if(!hasAuthenticatedSession()) return;
-    route=normalizeRoute(route); set('phfLastMainNav',route);
-    if(route==='admin'&&sub) set('phfLastAdminSubscreen',sub); else { try{ localStorage.removeItem('phfLastAdminSubscreen'); }catch(e){} }
+    route=safeRouteForRole(route);
+    setScoped('phfLastMainNav',route);
+    set('phfLastMainNav',route);
+    if(route==='admin'&&sub){
+      setScoped('phfLastAdminSubscreen',sub);
+      set('phfLastAdminSubscreen',sub);
+    }else{
+      try{localStorage.removeItem(scopedKey('phfLastAdminSubscreen'));localStorage.removeItem('phfLastAdminSubscreen')}catch(e){}
+    }
     if(route!=='learning'){ try{localStorage.removeItem('phfRefreshResumeState');}catch(e){} }
   }
   function pushRoute(route,sub){
@@ -4105,7 +3816,7 @@ function render(){
     }
   }
   function renderRoute(route,sub){
-    route=normalizeRoute(route); sub=route==='admin'?(sub||'home'):'';
+    route=safeRouteForRole(route); sub=route==='admin'?(sub||'home'):'';
     suppressHistory=true; restoring=true; setStoredRoute(route,sub);
     lastCallResult=null;
     try{
@@ -4221,35 +3932,46 @@ function render(){
     if(route==='admin') return typeof window.phfRenderAccountAdminSafe==='function'||typeof window.phfRenderAdminManagement==='function';
     return true;
   }
-  function boot(){
+  async function restoreLastRouteAfterAuth(user){
     install();
-    if(!hasAuthenticatedSession()){
-      try{ document.documentElement.classList.remove('phf-f5-restoring'); }catch(e){}
-      return;
-    }
-    var route=currentRoute(), sub=currentSub(route), reload=isReloadNavigation();
-    try{
-      var hs=history.state;
-      if(hs&&hs.phf){ route=normalizeRoute(hs.route||route); sub=route==='admin'?(hs.sub||sub||'home'):''; }
-      else history.replaceState({phf:true,route:route,sub:sub},'',location.href);
-    }catch(e){}
+    if(!user || !hasAuthenticatedSession()) return false;
 
-    if(!reload){ reveal(); setTimeout(install,180); return; }
+    var storedRoute = normalizeRoute(getScoped('phfLastMainNav') || '');
+    if(!storedRoute) return false;
 
-    var attempts=0;
-    (function restoreOnce(){
+    var route = safeRouteForRole(storedRoute);
+    var sub = route === 'admin' ? (getScoped('phfLastAdminSubscreen') || 'home') : '';
+
+    if(!routeAllowedForRole(route, sessionRole())) return false;
+
+    var attempts = 0;
+    while(!routeReady(route) && attempts < 30){
+      attempts++;
+      await new Promise(function(resolve){ setTimeout(resolve, 40); });
       install();
-      if(!routeReady(route)&&attempts++<24){ setTimeout(restoreOnce,50); return; }
-      Promise.resolve(renderRoute(route,sub)).then(function(){
-        restoreView(route,sub,null,function(){ setTimeout(reveal,40); });
-      }).catch(function(err){
-        console.warn('[PHF F5 restore]',err);
-        reveal();
-      });
-      setTimeout(reveal,1800);
-    })();
+    }
+    if(!routeReady(route)) return false;
+
+    await Promise.resolve(renderRoute(route, sub));
+    await new Promise(function(resolve){
+      restoreView(route, sub, null, resolve);
+    });
+    try{
+      history.replaceState({phf:true,route:route,sub:sub,role:sessionRole()},'',location.href);
+    }catch(e){}
+    return true;
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  window.phfRestoreLastRouteAfterAuth = restoreLastRouteAfterAuth;
+
+  async function boot(){
+    install();
+    try{
+      if(typeof window.phfWhenAppReady==='function') await window.phfWhenAppReady();
+      else if(typeof window.phfWhenAuthReady==='function') await window.phfWhenAuthReady();
+    }catch(e){}
+    setTimeout(install,180);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){boot()}); else boot();
 })();
 </script>
 
