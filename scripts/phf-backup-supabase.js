@@ -12,7 +12,10 @@ const TABLES = [
   'progress',
   'test_results',
   'activity_log',
-  'evaluation_records'
+  'evaluation_records',
+  'commitment_records',
+  'probation_records',
+  'system_notifications'
 ];
 
 const PAGE_SIZE = 1000;

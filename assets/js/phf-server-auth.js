@@ -363,12 +363,16 @@
         await renderAuthenticatedDefault(user,'server-session-restored');
       }else{
         showPublicIntro('anonymous-boot');
-        setTimeout(showLogin,80);
+        var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+        var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+        if(!isReload) setTimeout(showLogin,80);
       }
     }catch(e){
       await establishSession(null,'server-session-error');
       showPublicIntro('session-error');
-      setTimeout(showLogin,80);
+      var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+      var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+      if(!isReload) setTimeout(showLogin,80);
     }finally{
       try{
         document.documentElement.classList.remove('phf-f5-restoring');

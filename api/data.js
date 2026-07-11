@@ -32,8 +32,14 @@ function filterDataForRequest(data, scope, employeeId, phone) {
     progress: ownId && data.progress ? { [ownId]: data.progress[ownId] || {} } : {},
     testResults: (data.testResults || []).filter(sameEmployee),
     activityLog: (data.activityLog || []).filter(sameEmployee),
+    activityLogMeta: {
+      ...(data.activityLogMeta || {}),
+      scope: 'employee'
+    },
     evaluationRecords: (data.evaluationRecords || []).filter(sameEmployee),
-    confidentialityCommitments: (data.confidentialityCommitments || []).filter(sameEmployee)
+    confidentialityCommitments: (data.confidentialityCommitments || []).filter(sameEmployee),
+    probationRecords: (data.probationRecords || []).filter(sameEmployee),
+    systemNotifications: (data.systemNotifications || []).filter(sameEmployee)
   };
 }
 
@@ -51,7 +57,11 @@ module.exports = async function handler(req, res) {
     assertSameOrigin(req);
     if (req.method === 'GET') {
       const session = requireSession(req, ['learner','manager','admin']);
-      const data = await readData();
+      const data = await readData({
+        role: session.role,
+        employeeId: session.role === 'learner' ? session.employeeId : '',
+        activityLimit: session.role === 'learner' ? 100 : 200
+      });
       const scoped = session.role === 'learner' ? filterDataForRequest(data, 'learner', session.employeeId, session.phone) : data;
       return res.status(200).json(scoped);
     }
@@ -61,6 +71,7 @@ module.exports = async function handler(req, res) {
       const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const session = requireSession(req, ['learner','manager','admin']);
       authorizePayload(session, payload);
+      payload.actorName = session.account?.name || session.account?.email || '';
       validatePayload(payload);
       const result = await saveData(payload);
       if (result && result.data && session.role === 'learner') {

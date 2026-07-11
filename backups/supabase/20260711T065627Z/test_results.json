@@ -1,0 +1,782 @@
+[
+  {
+    "id": "test-1782461017093",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:03:36.473+00:00"
+  },
+  {
+    "id": "test-1782461127932",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:05:27.419+00:00"
+  },
+  {
+    "id": "test-1782461150722",
+    "employee_id": "nguyen-van-b",
+    "page": "19Kiểm tra tổngHoàn thành Bước 2",
+    "score": null,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "19Kiểm tra tổngHoàn thành Bước 2",
+    "saved_at": "2026-06-26T08:05:50.085+00:00"
+  },
+  {
+    "id": "test-1782461154264",
+    "employee_id": "nguyen-van-b",
+    "page": "19Kiểm tra tổngHoàn thành Bước 2",
+    "score": null,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "19Kiểm tra tổngHoàn thành Bước 2",
+    "saved_at": "2026-06-26T08:05:53.549+00:00"
+  },
+  {
+    "id": "test-1782461155405",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:05:54.986+00:00"
+  },
+  {
+    "id": "test-1782461168518",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:07.828+00:00"
+  },
+  {
+    "id": "test-1782461169868",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:09.397+00:00"
+  },
+  {
+    "id": "test-1782461182164",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:21.535+00:00"
+  },
+  {
+    "id": "test-1782461182841",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:22.213+00:00"
+  },
+  {
+    "id": "test-1782461182988",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:22.372+00:00"
+  },
+  {
+    "id": "test-1782461182985",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:22.546+00:00"
+  },
+  {
+    "id": "test-1782461184418",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:23.836+00:00"
+  },
+  {
+    "id": "test-1782461184618",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm. | 20Test tổng hợp20 câu · đạt 80/100",
+    "saved_at": "2026-06-26T08:06:24.034+00:00"
+  },
+  {
+    "id": "test-1782461335512",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:08:55.046+00:00"
+  },
+  {
+    "id": "test-1782461368161",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:09:27.761+00:00"
+  },
+  {
+    "id": "test-1782461369334",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:09:28.911+00:00"
+  },
+  {
+    "id": "test-1782461400013",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:09:59.574+00:00"
+  },
+  {
+    "id": "test-1782461427517",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:27.007+00:00"
+  },
+  {
+    "id": "test-1782461428437",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:27.759+00:00"
+  },
+  {
+    "id": "test-1782461428644",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:27.988+00:00"
+  },
+  {
+    "id": "test-1782461429156",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:28.487+00:00"
+  },
+  {
+    "id": "test-1782461429524",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:28.978+00:00"
+  },
+  {
+    "id": "test-1782461429521",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:28.99+00:00"
+  },
+  {
+    "id": "test-1782461430389",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:29.935+00:00"
+  },
+  {
+    "id": "test-1782461430697",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.288+00:00"
+  },
+  {
+    "id": "test-1782461430689",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.114+00:00"
+  },
+  {
+    "id": "test-1782461430854",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.433+00:00"
+  },
+  {
+    "id": "test-1782461431006",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.581+00:00"
+  },
+  {
+    "id": "test-1782461431348",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.753+00:00"
+  },
+  {
+    "id": "test-1782461431425",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:30.969+00:00"
+  },
+  {
+    "id": "test-1782461431534",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:31.122+00:00"
+  },
+  {
+    "id": "test-1782461431735",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:31.324+00:00"
+  },
+  {
+    "id": "test-1782461431938",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:31.525+00:00"
+  },
+  {
+    "id": "test-1782461432111",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:10:31.674+00:00"
+  },
+  {
+    "id": "test-1782461503600",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:11:42.484+00:00"
+  },
+  {
+    "id": "test-1782461526910",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:06.188+00:00"
+  },
+  {
+    "id": "test-1782461533841",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:13.288+00:00"
+  },
+  {
+    "id": "test-1782461534272",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:13.789+00:00"
+  },
+  {
+    "id": "test-1782461534734",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:14.258+00:00"
+  },
+  {
+    "id": "test-1782461534941",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:14.452+00:00"
+  },
+  {
+    "id": "test-1782461535245",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:12:14.714+00:00"
+  },
+  {
+    "id": "test-1782461865587",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:17:44.978+00:00"
+  },
+  {
+    "id": "test-1782462086772",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:21:26.09+00:00"
+  },
+  {
+    "id": "test-1782462138793",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 45,
+    "pass_score": 80,
+    "status": "Chưa đạt",
+    "result_text": "Kết quả: 9/20 câu đúng · 45/100 điểm · Chưa đạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:22:18.154+00:00"
+  },
+  {
+    "id": "test-1782462360696",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:26:00.113+00:00"
+  },
+  {
+    "id": "test-1782462388754",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 20,
+    "pass_score": 80,
+    "status": "Chưa đạt",
+    "result_text": "Kết quả: 4/20 câu đúng · 20/100 điểm · Chưa đạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:26:28.112+00:00"
+  },
+  {
+    "id": "test-1782462515116",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 20,
+    "pass_score": 80,
+    "status": "Chưa đạt",
+    "result_text": "Kết quả: 4/20 câu đúng · 20/100 điểm · Chưa đạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:28:34.504+00:00"
+  },
+  {
+    "id": "test-1782462662165",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 85,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Kết quả: 17/20 câu đúng · 85/100 điểm · ĐạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:31:01.485+00:00"
+  },
+  {
+    "id": "test-1782463870191",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:51:08.653+00:00"
+  },
+  {
+    "id": "test-1782463981807",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 90,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Kết quả: 18/20 câu đúng · 90/100 điểm · ĐạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:53:01.189+00:00"
+  },
+  {
+    "id": "test-1782464295463",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 90,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Kết quả: 18/20 câu đúng · 90/100 điểm · ĐạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:58:14.491+00:00"
+  },
+  {
+    "id": "test-1782464309082",
+    "employee_id": "nguyen-van-b",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 90,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Kết quả: 18/20 câu đúng · 90/100 điểm · ĐạtĐiểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T08:58:28.495+00:00"
+  },
+  {
+    "id": "test-1782465927021",
+    "employee_id": "admin-test-phf",
+    "page": "1Chào mừngNền tảng chung",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T09:25:26.28+00:00"
+  },
+  {
+    "id": "test-1782467471644",
+    "employee_id": "admin-test-phf",
+    "page": "19Kiểm tra tổngHoàn thành Bước 2",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T09:51:11.037+00:00"
+  },
+  {
+    "id": "test-1782467510763",
+    "employee_id": "admin-test-phf",
+    "page": "9Test Bước 3Quy trình bán hàng",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T09:51:50.037+00:00"
+  },
+  {
+    "id": "test-1782467602717",
+    "employee_id": "admin-test-phf",
+    "page": "37Hoàn thành Bước 4Hoàn thành",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T09:53:21.833+00:00"
+  },
+  {
+    "id": "test-1782468368842",
+    "employee_id": "admin-test-phf",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-26T10:06:07.716+00:00"
+  },
+  {
+    "id": "test-1782468381481",
+    "employee_id": "admin-test-phf",
+    "page": "9Test Bước 3Quy trình bán hàng",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T10:06:20.806+00:00"
+  },
+  {
+    "id": "test-1782468473436",
+    "employee_id": "admin-test-phf",
+    "page": "37Hoàn thành Bước 4Hoàn thành",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T10:07:52.623+00:00"
+  },
+  {
+    "id": "test-1782468537643",
+    "employee_id": "admin-test-phf",
+    "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-26T10:08:56.725+00:00"
+  },
+  {
+    "id": "test-1782788487241",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "19Kiểm tra tổngHoàn thành Bước 2",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-06-30T03:01:24.969+00:00"
+  },
+  {
+    "id": "test-1782788575719",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "20Test tổng hợp20 câu · đạt 80/100",
+    "score": 80,
+    "pass_score": 80,
+    "status": "Đạt",
+    "result_text": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+    "saved_at": "2026-06-30T03:02:53.529+00:00"
+  },
+  {
+    "id": "test-1782868483306",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "9Test Bước 3Quy trình bán hàng",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-01T01:14:41.786+00:00"
+  },
+  {
+    "id": "test-1782878605261",
+    "employee_id": "admin-test-phf",
+    "page": "lesson:90",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-01T04:03:24.451+00:00"
+  },
+  {
+    "id": "test-1783066603225",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "9Test Bước 3Quy trình bán hàng",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T08:16:40.517+00:00"
+  },
+  {
+    "id": "test-1783066618927",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "9Test Bước 3Quy trình bán hàng",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T08:16:57.422+00:00"
+  },
+  {
+    "id": "test-1783067571133",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "37Hoàn thành Bước 4Hoàn thành",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T08:32:50.397+00:00"
+  },
+  {
+    "id": "test-1783067610424",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T08:33:29.234+00:00"
+  },
+  {
+    "id": "test-1783085008456",
+    "employee_id": "chua-phan-chi-nhanh",
+    "page": "1Tổng quan Bước 4Bước 4",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T13:23:27.338+00:00"
+  },
+  {
+    "id": "test-1783091914070",
+    "employee_id": "hv-0934510194",
+    "page": "lesson:39",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T15:18:33.33+00:00"
+  },
+  {
+    "id": "test-1783092029591",
+    "employee_id": "hv-0934510194",
+    "page": "lesson:39",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-03T15:20:28.443+00:00"
+  },
+  {
+    "id": "test-1783190840886",
+    "employee_id": "hv-0934510194",
+    "page": "lesson:107",
+    "score": null,
+    "pass_score": 80,
+    "status": "Chưa có kết quả",
+    "result_text": "",
+    "saved_at": "2026-07-04T18:47:20.149+00:00"
+  },
+  {
+    "id": "test-1783602232068",
+    "employee_id": "learner-0909090909",
+    "page": "short-day1-afternoon",
+    "score": 0,
+    "pass_score": 80,
+    "status": "submitted",
+    "result_text": "Đã hoàn thành bài kiểm tra ngắn.",
+    "saved_at": "2026-07-09T13:03:51.243+00:00"
+  },
+  {
+    "id": "test-1783602265216",
+    "employee_id": "learner-0909090909",
+    "page": "short-step2-part1",
+    "score": 0,
+    "pass_score": 80,
+    "status": "submitted",
+    "result_text": "Đã hoàn thành bài kiểm tra ngắn.",
+    "saved_at": "2026-07-09T13:04:24.489+00:00"
+  },
+  {
+    "id": "test-1783603520578",
+    "employee_id": "test-admin",
+    "page": "step2-final",
+    "score": 0,
+    "pass_score": 80,
+    "status": "failed",
+    "result_text": "Chưa đạt bài kiểm tra chính.",
+    "saved_at": "2026-07-09T13:25:19.397+00:00"
+  },
+  {
+    "id": "test-1783603524251",
+    "employee_id": "test-admin",
+    "page": "step2-final",
+    "score": 0,
+    "pass_score": 80,
+    "status": "failed",
+    "result_text": "Chưa đạt bài kiểm tra chính.",
+    "saved_at": "2026-07-09T13:25:23.919+00:00"
+  },
+  {
+    "id": "test-1783603528456",
+    "employee_id": "test-admin",
+    "page": "step2-final",
+    "score": 0,
+    "pass_score": 80,
+    "status": "failed",
+    "result_text": "Chưa đạt bài kiểm tra chính.",
+    "saved_at": "2026-07-09T13:25:27.986+00:00"
+  },
+  {
+    "id": "test-1783677582138",
+    "employee_id": "demo-nv-001",
+    "page": "short-day1-afternoon",
+    "score": 0,
+    "pass_score": 80,
+    "status": "submitted",
+    "result_text": "Đã hoàn thành bài kiểm tra ngắn.",
+    "saved_at": "2026-07-10T09:59:41.287+00:00"
+  }
+]

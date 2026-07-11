@@ -1,0 +1,593 @@
+[
+  {
+    "id": "eval-weekly-hv-0934510194-week-4",
+    "employee_id": "hv-0934510194",
+    "form_type": "weekly",
+    "period_key": "week-4",
+    "period_label": "Tuần 4",
+    "period_start": "2026-07-18",
+    "period_end": "2026-07-24",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Đạt",
+      "customer": "Đạt",
+      "learning": "Đạt",
+      "practice": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "",
+    "created_at": "2026-07-03T14:54:52.109471+00:00",
+    "updated_at": "2026-07-03T14:54:51.819+00:00"
+  },
+  {
+    "id": "eval-final-phf-test-final-probation",
+    "employee_id": "phf-test",
+    "form_type": "final",
+    "period_key": "final-probation",
+    "period_label": "Kết thúc thử việc",
+    "period_start": "2026-08-13",
+    "period_end": "2026-08-26",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "sales-need": {
+        "no": "1.2",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Lắng nghe và nắm nhu cầu khách hàng",
+        "value": "Đạt"
+      },
+      "sales-close": {
+        "no": "1.5",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chốt đơn, hướng dẫn thanh toán và tiễn khách",
+        "value": "Đạt"
+      },
+      "sales-greet": {
+        "no": "1.1",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chủ động chào hỏi và tiếp cận khách hàng",
+        "value": "Đạt"
+      },
+      "display-date": {
+        "no": "2.3",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Theo dõi date, hàng cần ưu tiên bán và báo quản lý",
+        "value": "Đạt"
+      },
+      "process-time": {
+        "no": "3.1",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Chấm công, tuân thủ ca làm và nội quy cửa hàng",
+        "value": "Đạt"
+      },
+      "attitude-team": {
+        "no": "4.3",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Phối hợp với đồng nghiệp trong ca làm",
+        "value": "Đạt"
+      },
+      "display-clean": {
+        "no": "2.1",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Sắp xếp hàng hóa gọn gàng, sạch đẹp",
+        "value": "Đạt"
+      },
+      "display-label": {
+        "no": "2.4",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Bảng giá, tem nhãn và thông tin sản phẩm",
+        "value": "Đạt"
+      },
+      "sales-consult": {
+        "no": "1.3",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Tư vấn sản phẩm phù hợp với nhu cầu và ngân sách",
+        "value": "Đạt"
+      },
+      "attitude-learn": {
+        "no": "4.1",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Chủ động học hỏi trong quá trình làm việc",
+        "value": "Đạt"
+      },
+      "process-report": {
+        "no": "3.3",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Báo cáo vấn đề phát sinh đúng người, đúng thời điểm",
+        "value": "Đạt"
+      },
+      "display-quality": {
+        "no": "2.2",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Kiểm tra chất lượng hàng hóa khi bán",
+        "value": "Đạt"
+      },
+      "sales-objection": {
+        "no": "1.4",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Xử lý câu hỏi, từ chối hoặc tình huống khó của khách",
+        "value": "Đạt"
+      },
+      "process-handover": {
+        "no": "3.4",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Bàn giao ca rõ ràng",
+        "value": "Đạt"
+      },
+      "attitude-feedback": {
+        "no": "4.2",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tiếp thu góp ý và điều chỉnh sau khi được nhắc",
+        "value": "Đạt"
+      },
+      "process-checklist": {
+        "no": "3.2",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Thực hiện checklist cửa hàng theo hướng dẫn",
+        "value": "Đạt"
+      },
+      "__finalRequiredReason": {
+        "note": "",
+        "value": "Nội dung theo dõi/đề xuất"
+      },
+      "attitude-responsibility": {
+        "no": "4.4",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tinh thần trách nhiệm với công việc được giao",
+        "value": "Đạt"
+      }
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "Đạt, đề nghị tiếp nhận chính thức",
+    "created_at": "2026-07-04T16:04:03.340072+00:00",
+    "updated_at": "2026-07-04T16:04:02.783+00:00"
+  },
+  {
+    "id": "eval-weekly-demo-nv-001-week-1",
+    "employee_id": "demo-nv-001",
+    "form_type": "weekly",
+    "period_key": "week-1",
+    "period_label": "Tuần 1",
+    "period_start": "2026-07-05",
+    "period_end": "2026-07-11",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Đạt",
+      "customer": "Đạt",
+      "learning": "Đạt",
+      "practice": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "Đã ghi nhận",
+    "created_at": "2026-07-08T14:10:59.167155+00:00",
+    "updated_at": "2026-07-08T14:10:56.056+00:00"
+  },
+  {
+    "id": "eval-weekly-hv-0934510194-week-1",
+    "employee_id": "hv-0934510194",
+    "form_type": "weekly",
+    "period_key": "week-1",
+    "period_label": "Tuần 1",
+    "period_start": "2026-06-27",
+    "period_end": "2026-07-03",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Đạt",
+      "customer": "Đạt",
+      "learning": "Đạt",
+      "practice": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "test PL lần 3",
+    "issues": "test PL lần 2",
+    "next_focus": "test PL lần 3",
+    "conclusion": "Đã ghi nhận",
+    "created_at": "2026-07-01T05:42:54.469496+00:00",
+    "updated_at": "2026-07-03T16:24:08.102+00:00"
+  },
+  {
+    "id": "eval-final-demo-nv-001-final-probation",
+    "employee_id": "demo-nv-001",
+    "form_type": "final",
+    "period_key": "final-probation",
+    "period_label": "Kết thúc thử việc",
+    "period_start": "2026-08-22",
+    "period_end": "2026-09-04",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "sales-need": {
+        "no": "1.2",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Lắng nghe và nắm nhu cầu khách hàng",
+        "value": "Đạt"
+      },
+      "sales-close": {
+        "no": "1.5",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chốt đơn, hướng dẫn thanh toán và tiễn khách",
+        "value": "Đạt"
+      },
+      "sales-greet": {
+        "no": "1.1",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chủ động chào hỏi và tiếp cận khách hàng",
+        "value": "Đạt"
+      },
+      "display-date": {
+        "no": "2.3",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Theo dõi date, hàng cần ưu tiên bán và báo quản lý",
+        "value": "Đạt"
+      },
+      "process-time": {
+        "no": "3.1",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Chấm công, tuân thủ ca làm và nội quy cửa hàng",
+        "value": "Đạt"
+      },
+      "attitude-team": {
+        "no": "4.3",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Phối hợp với đồng nghiệp trong ca làm",
+        "value": "Đạt"
+      },
+      "display-clean": {
+        "no": "2.1",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Sắp xếp hàng hóa gọn gàng, sạch đẹp",
+        "value": "Đạt"
+      },
+      "display-label": {
+        "no": "2.4",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Bảng giá, tem nhãn và thông tin sản phẩm",
+        "value": "Đạt"
+      },
+      "sales-consult": {
+        "no": "1.3",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Tư vấn sản phẩm phù hợp với nhu cầu và ngân sách",
+        "value": "Đạt"
+      },
+      "attitude-learn": {
+        "no": "4.1",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Chủ động học hỏi trong quá trình làm việc",
+        "value": "Đạt"
+      },
+      "process-report": {
+        "no": "3.3",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Báo cáo vấn đề phát sinh đúng người, đúng thời điểm",
+        "value": "Đạt"
+      },
+      "display-quality": {
+        "no": "2.2",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Kiểm tra chất lượng hàng hóa khi bán",
+        "value": "Đạt"
+      },
+      "sales-objection": {
+        "no": "1.4",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Xử lý câu hỏi, từ chối hoặc tình huống khó của khách",
+        "value": "Đạt"
+      },
+      "process-handover": {
+        "no": "3.4",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Bàn giao ca rõ ràng",
+        "value": "Đạt"
+      },
+      "attitude-feedback": {
+        "no": "4.2",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tiếp thu góp ý và điều chỉnh sau khi được nhắc",
+        "value": "Đạt"
+      },
+      "process-checklist": {
+        "no": "3.2",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Thực hiện danh sách việc cửa hàng theo hướng dẫn",
+        "value": "Đạt"
+      },
+      "__finalRequiredReason": {
+        "note": "",
+        "value": "Nội dung theo dõi/đề xuất"
+      },
+      "attitude-responsibility": {
+        "no": "4.4",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tinh thần trách nhiệm với công việc được giao",
+        "value": "Đạt"
+      }
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "Đạt, đề nghị tiếp nhận chính thức",
+    "created_at": "2026-07-08T14:15:59.05571+00:00",
+    "updated_at": "2026-07-08T14:15:57.591+00:00"
+  },
+  {
+    "id": "eval-weekly-hv-0934510194-week-2",
+    "employee_id": "hv-0934510194",
+    "form_type": "weekly",
+    "period_key": "week-2",
+    "period_label": "Tuần 2",
+    "period_start": "2026-07-04",
+    "period_end": "2026-07-10",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Đạt",
+      "customer": "Đạt",
+      "learning": "Đạt",
+      "practice": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "Đã ghi nhận",
+    "created_at": "2026-07-09T15:23:22.604743+00:00",
+    "updated_at": "2026-07-09T15:23:20.173+00:00"
+  },
+  {
+    "id": "eval-weekly-hv-84934510194-week-2",
+    "employee_id": "hv-84934510194",
+    "form_type": "weekly",
+    "period_key": "week-2",
+    "period_label": "Tuần 2",
+    "period_start": "2026-07-04",
+    "period_end": "2026-07-10",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Đạt",
+      "customer": "Cần nhắc",
+      "learning": "Đạt",
+      "practice": "Cần nhắc",
+      "teamwork": "Chưa đạt",
+      "discipline": "Chưa đạt"
+    },
+    "notes": "test giao diện",
+    "issues": "test giao diện",
+    "next_focus": "test giao diện lan 2",
+    "conclusion": "Cần kèm thêm",
+    "created_at": "2026-07-04T14:14:54.035643+00:00",
+    "updated_at": "2026-07-04T14:38:04.498+00:00"
+  },
+  {
+    "id": "eval-monthly-hv-84934510194-month-1",
+    "employee_id": "hv-84934510194",
+    "form_type": "monthly",
+    "period_key": "month-1",
+    "period_label": "Tháng 1",
+    "period_start": "2026-06-27",
+    "period_end": "2026-07-26",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "sales": "Đạt",
+      "result": "Đạt",
+      "process": "Đạt",
+      "customer": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "test phiếu tháng",
+    "issues": "test phiếu tháng",
+    "next_focus": "test phiếu tháng",
+    "conclusion": "Đã ghi nhận",
+    "created_at": "2026-07-04T14:48:57.271587+00:00",
+    "updated_at": "2026-07-04T14:48:57.583+00:00"
+  },
+  {
+    "id": "eval-final-hv-84934510194-final-probation",
+    "employee_id": "hv-84934510194",
+    "form_type": "final",
+    "period_key": "final-probation",
+    "period_label": "Kết thúc thử việc",
+    "period_start": "2026-08-13",
+    "period_end": "2026-08-26",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "sales-need": {
+        "no": "1.2",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Lắng nghe và nắm nhu cầu khách hàng",
+        "value": "Đạt"
+      },
+      "sales-close": {
+        "no": "1.5",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chốt đơn, hướng dẫn thanh toán và tiễn khách",
+        "value": "Đạt"
+      },
+      "sales-greet": {
+        "no": "1.1",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Chủ động chào hỏi và tiếp cận khách hàng",
+        "value": "Đạt"
+      },
+      "display-date": {
+        "no": "2.3",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Theo dõi date, hàng cần ưu tiên bán và báo quản lý",
+        "value": "Đạt"
+      },
+      "process-time": {
+        "no": "3.1",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Chấm công, tuân thủ ca làm và nội quy cửa hàng",
+        "value": "Đạt"
+      },
+      "attitude-team": {
+        "no": "4.3",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Phối hợp với đồng nghiệp trong ca làm",
+        "value": "Đạt"
+      },
+      "display-clean": {
+        "no": "2.1",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Sắp xếp hàng hóa gọn gàng, sạch đẹp",
+        "value": "Đạt"
+      },
+      "display-label": {
+        "no": "2.4",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Bảng giá, tem nhãn và thông tin sản phẩm",
+        "value": "Đạt"
+      },
+      "sales-consult": {
+        "no": "1.3",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Tư vấn sản phẩm phù hợp với nhu cầu và ngân sách",
+        "value": "Đạt"
+      },
+      "attitude-learn": {
+        "no": "4.1",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Chủ động học hỏi trong quá trình làm việc",
+        "value": "Đạt"
+      },
+      "process-report": {
+        "no": "3.3",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Báo cáo vấn đề phát sinh đúng người, đúng thời điểm",
+        "value": "Đạt"
+      },
+      "display-quality": {
+        "no": "2.2",
+        "note": "",
+        "group": "Hàng hóa & trưng bày",
+        "title": "Kiểm tra chất lượng hàng hóa khi bán",
+        "value": "Đạt"
+      },
+      "sales-objection": {
+        "no": "1.4",
+        "note": "",
+        "group": "Bán hàng & CSKH",
+        "title": "Xử lý câu hỏi, từ chối hoặc tình huống khó của khách",
+        "value": "Đạt"
+      },
+      "process-handover": {
+        "no": "3.4",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Bàn giao ca rõ ràng",
+        "value": "Đạt"
+      },
+      "attitude-feedback": {
+        "no": "4.2",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tiếp thu góp ý và điều chỉnh sau khi được nhắc",
+        "value": "Đạt"
+      },
+      "process-checklist": {
+        "no": "3.2",
+        "note": "",
+        "group": "Quy trình & báo cáo",
+        "title": "Thực hiện checklist cửa hàng theo hướng dẫn",
+        "value": "Đạt"
+      },
+      "__finalRequiredReason": {
+        "note": "",
+        "value": "Nội dung theo dõi/đề xuất"
+      },
+      "attitude-responsibility": {
+        "no": "4.4",
+        "note": "",
+        "group": "Thái độ & phối hợp",
+        "title": "Tinh thần trách nhiệm với công việc được giao",
+        "value": "Đạt"
+      }
+    },
+    "notes": "",
+    "issues": "",
+    "next_focus": "",
+    "conclusion": "Đạt, đề nghị tiếp nhận chính thức",
+    "created_at": "2026-07-04T15:38:32.146391+00:00",
+    "updated_at": "2026-07-04T15:55:22.282+00:00"
+  },
+  {
+    "id": "eval-weekly-learner-0987654321-week-1",
+    "employee_id": "learner-0987654321",
+    "form_type": "weekly",
+    "period_key": "week-1",
+    "period_label": "Tuần 1",
+    "period_start": "2026-07-08",
+    "period_end": "2026-07-14",
+    "evaluator": "ThắngLV",
+    "status_items": {
+      "attitude": "Chưa đạt",
+      "customer": "Đạt",
+      "learning": "Đạt",
+      "practice": "Đạt",
+      "teamwork": "Đạt",
+      "discipline": "Đạt"
+    },
+    "notes": "ThắngLV lần 22222",
+    "issues": "ThắngLV lần 22222",
+    "next_focus": "ThắngLV lần 22222",
+    "conclusion": "Cần kèm thêm",
+    "created_at": "2026-07-10T10:22:01.630815+00:00",
+    "updated_at": "2026-07-10T13:50:06.712+00:00"
+  }
+]

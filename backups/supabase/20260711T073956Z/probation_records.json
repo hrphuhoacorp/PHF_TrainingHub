@@ -1,0 +1,477 @@
+[
+  {
+    "id": "probation-t",
+    "employee_id": "t",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-te",
+    "employee_id": "te",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-thanglv",
+    "employee_id": "thanglv",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-learner-0897654321",
+    "employee_id": "learner-0897654321",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-nguyen-van-a",
+    "employee_id": "nguyen-van-a",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-on",
+    "employee_id": "on",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-phf-test",
+    "employee_id": "phf-test",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-hv-0911111111",
+    "employee_id": "hv-0911111111",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-demo-nv-001",
+    "employee_id": "demo-nv-001",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-nguyen-van-b",
+    "employee_id": "nguyen-van-b",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-learner-0987654321",
+    "employee_id": "learner-0987654321",
+    "expected_end_date": "2026-09-05",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-admin-test-phf",
+    "employee_id": "admin-test-phf",
+    "expected_end_date": "2026-08-25",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-learner-0909090909",
+    "employee_id": "learner-0909090909",
+    "expected_end_date": "2026-09-06",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-phu-hoa",
+    "employee_id": "phu-hoa",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-chua-phan-chi-nhanh",
+    "employee_id": "chua-phan-chi-nhanh",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-hv-0934510194",
+    "employee_id": "hv-0934510194",
+    "expected_end_date": "2026-08-25",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test-manager",
+    "employee_id": "test-manager",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test-phf-nq",
+    "employee_id": "test-phf-nq",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test",
+    "employee_id": "test",
+    "expected_end_date": null,
+    "status": "missing_start",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-hv-84934510194",
+    "employee_id": "hv-84934510194",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-learner-84934510194",
+    "employee_id": "learner-84934510194",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-learner-test-001",
+    "employee_id": "learner-test-001",
+    "expected_end_date": "2026-09-02",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test-learner",
+    "employee_id": "test-learner",
+    "expected_end_date": "2026-09-06",
+    "status": "in_progress",
+    "conclusion": null,
+    "proposed_by": null,
+    "proposed_at": null,
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "extension_reason": null,
+    "notes": null,
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:32:13.576464+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test-admin",
+    "employee_id": "test-admin",
+    "expected_end_date": "2026-09-02",
+    "status": "passed",
+    "conclusion": "",
+    "proposed_by": "",
+    "proposed_at": null,
+    "confirmed_by": "Admin Test",
+    "confirmed_at": "2026-07-11T07:38:04.231+00:00",
+    "extension_reason": "",
+    "notes": "",
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:38:04.231+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  },
+  {
+    "id": "probation-test-phf",
+    "employee_id": "test-phf",
+    "expected_end_date": "2026-07-06",
+    "status": "passed",
+    "conclusion": "",
+    "proposed_by": "",
+    "proposed_at": null,
+    "confirmed_by": "Admin Test",
+    "confirmed_at": "2026-07-11T07:38:38.613+00:00",
+    "extension_reason": "",
+    "notes": "",
+    "created_at": "2026-07-11T07:32:13.576464+00:00",
+    "updated_at": "2026-07-11T07:38:42.826+00:00",
+    "metadata": {
+      "startSource": "employees.study_start_date",
+      "defaultDurationDays": 60
+    }
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "bmtt-1783649018009",
+    "employee_id": "demo-nv-001",
+    "commitment_type": "confidentiality",
+    "document_code": "PHF-BMTT",
+    "document_version": "PHF-BMTT-2026-06-06",
+    "document_title": "Cam kết bảo mật thông tin",
+    "content_snapshot": {
+      "id": "bmtt-1783649018009",
+      "cccd": "090000000000",
+      "phone": "0900000001",
+      "branch": "Phú Lợi",
+      "birthday": "2026-07-08",
+      "cccdDate": "2026-07-07",
+      "fullName": "Nhân viên Test",
+      "position": "Nhân viên bán hàng",
+      "signName": "Nhân viên Test",
+      "signedAt": "2026-07-10T02:03:38.009Z",
+      "cccdPlace": "cục cảnh sát",
+      "signPhone": "0900000001",
+      "confirmDate": "2026-07-10",
+      "checkedCount": 4,
+      "documentVersion": "PHF-BMTT-2026-06-06",
+      "requiredCheckCount": 4
+    },
+    "confirmed_name": "Nhân viên Test",
+    "confirmed_phone": "0900000001",
+    "confirmed_at": "2026-07-10T02:03:38.009+00:00",
+    "status": "active",
+    "created_at": "2026-07-10T02:03:39.109+00:00",
+    "updated_at": "2026-07-10T02:03:39.109+00:00",
+    "metadata": {
+      "legacyLogId": "log-1783649020696",
+      "migratedFrom": "activity_log"
+    }
+  }
+]

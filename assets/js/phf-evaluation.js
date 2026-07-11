@@ -827,7 +827,7 @@ function phfEnsureEvaluationOfficialUi(){
   .phf-eval-filter-actions{display:flex;gap:7px}.phf-eval-btn{min-height:40px;border-radius:11px;border:1px solid #cfe4dc;background:#fff;color:#07543e;padding:0 13px;font-weight:600;cursor:pointer;white-space:nowrap}.phf-eval-btn.primary{background:#07543e;color:#fff;border-color:#07543e}
   .phf-eval-list-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:17px 18px;border-bottom:1px solid #e8f1ed}.phf-eval-list-head h3{margin:0;color:#17382d;font-size:20px;font-weight:600}.phf-eval-list-head p{margin:4px 0 0;color:#687b73;font-size:13.5px}.phf-eval-result-count{display:inline-flex;align-items:center;min-height:29px;padding:0 10px;border-radius:999px;background:#f1f8f4;border:1px solid #d6e9e1;color:#07543e;font-size:12px;font-weight:600;white-space:nowrap}
   .phf-eval-table-wrap{overflow:auto}.phf-eval-official-table{width:100%;min-width:1080px;border-collapse:collapse}.phf-eval-official-table th{padding:11px 13px;background:#f8fbf9;border-bottom:1px solid #dfeee7;color:#50675d;text-align:left;font-size:12px;font-weight:600;white-space:nowrap}.phf-eval-official-table td{padding:12px 13px;border-bottom:1px solid #edf4f0;vertical-align:top;color:#263b33;font-size:13.5px}.phf-eval-official-table td b{display:block;font-weight:600;color:#17382d}.phf-eval-official-table td small{display:block;margin-top:3px;color:#6b7c75;line-height:1.35}
-  .phf-eval-chip{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;border:1px solid #d9e9e2;background:#f3f8f5;color:#4d645a;font-size:11.5px;font-weight:600;white-space:nowrap}.phf-eval-chip.done{background:#eef8f2;border-color:#cde8d7;color:#17603f}.phf-eval-chip.overdue{background:#fff0f0;border-color:#f0cdcd;color:#a33333}.phf-eval-chip.due{background:#fff7e7;border-color:#efdba9;color:#8a5a00}.phf-eval-chip.upcoming{background:#edf6ff;border-color:#c9e0f3;color:#245b84}.phf-eval-chip.watch{background:#fff4e9;border-color:#efd5b5;color:#94551b}
+  .phf-eval-chip,.phf-status-chip{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 11px;border-radius:999px;border:1px solid #d9e2de;background:#f4f6f5;color:#56665f;font-size:12px;font-weight:650;line-height:1;white-space:nowrap;vertical-align:middle}.phf-action-chip{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 11px;border-radius:999px;border:1px solid #cfe0d8;background:#f8fbf9;color:#075b45;font-size:12px;font-weight:700;line-height:1;white-space:nowrap;vertical-align:middle;cursor:pointer;box-shadow:none}.phf-action-chip:hover{background:#edf6f1;border-color:#b9d5c8}.phf-action-chip.primary{background:#075b45;border-color:#075b45;color:#fff}.phf-action-chip.primary:hover{background:#064c3a;border-color:#064c3a}.phf-action-chip.danger{background:#fff0f0;border-color:#efcaca;color:#a33333}.phf-eval-chip.done,.phf-status-chip.done{background:#eef8f2;border-color:#cde8d7;color:#17603f}.phf-eval-chip.overdue,.phf-eval-chip.risk,.phf-status-chip.overdue,.phf-status-chip.risk{background:#fff0f0;border-color:#efcaca;color:#a33333}.phf-eval-chip.due,.phf-eval-chip.watch,.phf-status-chip.due,.phf-status-chip.watch{background:#fff7e7;border-color:#efd59b;color:#885800}.phf-eval-chip.upcoming,.phf-status-chip.upcoming{background:#edf6ff;border-color:#c9e0f3;color:#245b84}.phf-eval-chip.neutral,.phf-status-chip.neutral{background:#f3f5f4;border-color:#d9e0dc;color:#66756e}
   .phf-eval-row-actions{display:flex;gap:6px;flex-wrap:wrap}.phf-eval-row-btn{min-height:32px;border-radius:9px;border:1px solid #d4e6de;background:#fff;color:#07543e;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer}.phf-eval-row-btn.primary{background:#07543e;color:#fff;border-color:#07543e}
   .phf-home-account-name{color:#b45f1b!important;-webkit-text-fill-color:#b45f1b!important;font-weight:800!important;text-decoration:none!important;white-space:normal!important}
 .phf-eval-profile-filter-grid{grid-template-columns:minmax(320px,1.5fr) minmax(220px,.8fr) auto!important}
@@ -937,7 +937,7 @@ function phfEvalDeleteDialog(message, title, confirmText){
       <div class="phf-eval-delete-icon">!</div>
       <div class="phf-eval-delete-copy"><h3>${esc(title||'Xác nhận xóa học viên')}</h3><p>${esc(message||'')}</p></div>
       <div class="phf-eval-delete-actions">
-        <button type="button" class="phf-eval-row-btn" data-cancel>Quay lại</button>
+        <button type="button" class="phf-action-chip" data-cancel>Quay lại</button>
         <button type="button" class="phf-eval-row-btn danger" data-confirm>${esc(confirmText||'Xóa học viên')}</button>
       </div>
     </div>`;
@@ -1103,6 +1103,8 @@ async function phfEnsureEvaluationDataReady(canEditWorkspace){
   return ready;
 }
 
+window.phfEnsureEvaluationDataReady = phfEnsureEvaluationDataReady;
+
 async function phfRenderEvaluationWorkspace(view){
   const canEditWorkspace = phfCanEditEvaluation();
   const renderToken = (window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1);
@@ -1257,10 +1259,10 @@ async function phfRenderEvaluationWorkspace(view){
       const l=item.learner||{};
       if(view==='history'){
         const r=item.record||{}, key=r.periodKey||r.period_key||'', st=item.status;
-        return `<tr><td>${idx+1}</td><td><b>${esc(l.fullName)}</b><small>${esc(l.branch||'Chưa phân chi nhánh')} · ${esc(l.position||'')}</small></td><td><b>${esc(l.phone||'—')}</b><small>${esc(phfEvalLearnerCode(l)||'Chưa có mã NV')}</small></td><td><b>${esc(phfEvalRecordType(r))}</b><small>${esc(phfEvalRecordPeriod(r))}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td>${esc(r.evaluator||'Chưa ghi nhận')}</td><td>${esc(phfEvalUpdatedText(r))}</td><td><div class="phf-eval-row-actions"><button class="phf-eval-row-btn primary" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(key)}','view','history')">Xem phiếu</button><button class="phf-eval-row-btn" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(key)}','edit','history')">Sửa</button></div></td></tr>`;
+        return `<tr><td>${idx+1}</td><td><b>${esc(l.fullName)}</b><small>${esc(l.branch||'Chưa phân chi nhánh')} · ${esc(l.position||'')}</small></td><td><b>${esc(l.phone||'—')}</b><small>${esc(phfEvalLearnerCode(l)||'Chưa có mã NV')}</small></td><td><b>${esc(phfEvalRecordType(r))}</b><small>${esc(phfEvalRecordPeriod(r))}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td>${esc(r.evaluator||'Chưa ghi nhận')}</td><td>${esc(phfEvalUpdatedText(r))}</td><td><div class="phf-eval-row-actions"><button class="phf-action-chip primary" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(key)}','view','history')">Xem phiếu</button><button class="phf-action-chip" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(key)}','edit','history')">Sửa</button></div></td></tr>`;
       }
       const p=item.period,st=item.status;
-      return `<tr><td>${idx+1}</td><td><b>${esc(l.fullName)}</b><small>${esc(l.branch||'Chưa phân chi nhánh')} · ${esc(l.position||'')}</small></td><td><b>${esc(l.phone||'—')}</b><small>${esc(phfEvalLearnerCode(l)||'Chưa có mã NV')}</small></td><td><b>${esc(phfEvalDisplayTitle(p))}</b><small>${phfFormatRangeFull(p.start,p.end)}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td><div class="phf-eval-row-actions"><button class="phf-eval-row-btn primary" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(p.key)}','edit','todo')">Thực hiện đánh giá</button><button class="phf-eval-row-btn" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(p.key)}','view','todo')">Xem hồ sơ</button></div></td></tr>`;
+      return `<tr><td>${idx+1}</td><td><b>${esc(l.fullName)}</b><small>${esc(l.branch||'Chưa phân chi nhánh')} · ${esc(l.position||'')}</small></td><td><b>${esc(l.phone||'—')}</b><small>${esc(phfEvalLearnerCode(l)||'Chưa có mã NV')}</small></td><td><b>${esc(phfEvalDisplayTitle(p))}</b><small>${phfFormatRangeFull(p.start,p.end)}</small></td><td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td><td><div class="phf-eval-row-actions"><button class="phf-action-chip primary" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(p.key)}','edit','todo')">Thực hiện đánh giá</button><button class="phf-action-chip" type="button" onclick="phfEvalOpenRecord('${esc(l.id)}','${esc(p.key)}','view','todo')">Xem hồ sơ</button></div></td></tr>`;
     }).join('');
 
     metrics=view==='history'
@@ -1295,11 +1297,11 @@ async function phfRenderEvaluationWorkspace(view){
           <td><span class="phf-eval-chip ${st.cls}">${esc(st.text)}</span></td>
           <td>${esc(r.evaluator||'Chưa ghi nhận')}</td>
           <td>${esc(phfEvalUpdatedText(r))}</td>
-          <td><button class="phf-eval-row-btn primary" type="button" onclick="phfEvalOpenRecord('${esc(selectedLearner.id)}','${esc(recordKey)}','view','profiles')">Xem phiếu</button></td>
+          <td><button class="phf-action-chip primary" type="button" onclick="phfEvalOpenRecord('${esc(selectedLearner.id)}','${esc(recordKey)}','view','profiles')">Xem phiếu</button></td>
         </tr>`;
       }).join('');
       inlineProfile=`<section class="phf-eval-list-card phf-eval-inline-profile">
-        <div class="phf-eval-list-head"><div><h3>${canEditWorkspace?'Hồ sơ đang xem: ':'Hồ sơ của '}${esc(selectedLearner.fullName)}</h3><p>${canEditWorkspace?'Thông tin học viên và các phiếu đánh giá được hiển thị ngay trong tab này.':'Thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div>${canEditWorkspace?'<button class="phf-eval-row-btn" type="button" onclick="phfEvalCloseProfileInline()">Đóng hồ sơ</button>':''}</div>
+        <div class="phf-eval-list-head"><div><h3>${canEditWorkspace?'Hồ sơ đang xem: ':'Hồ sơ của '}${esc(selectedLearner.fullName)}</h3><p>${canEditWorkspace?'Thông tin học viên và các phiếu đánh giá được hiển thị ngay trong tab này.':'Thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div>${canEditWorkspace?'<button class="phf-action-chip" type="button" onclick="phfEvalCloseProfileInline()">Đóng hồ sơ</button>':''}</div>
         <div class="phf-eval-inline-profile-info">
           <div><span>Họ tên</span><b>${esc(selectedLearner.fullName)}</b></div>
           <div><span>SĐT</span><b>${esc(selectedLearner.phone||'Chưa có')}</b></div>
@@ -1322,9 +1324,11 @@ async function phfRenderEvaluationWorkspace(view){
     <div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>${canEditWorkspace?'Tìm kiếm học viên, theo dõi tiến độ, kết quả kiểm tra và hồ sơ đánh giá.':'Xem thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div><div class="phf-eval-work-role phf-lib-role">${canEditWorkspace?esc(phfRoleLabel()):'Hồ sơ cá nhân'}<small>${canEditWorkspace?(learners.length+' học viên trong dữ liệu'):'Hồ sơ đào tạo của bạn'}</small></div></div>
     <div class="phf-eval-work-tabs">
       ${canEditWorkspace
-        ? `<button class="phf-eval-work-tab ${view==='todo'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('todo')">Việc cần xử lý</button>
-           <button class="phf-eval-work-tab ${view==='history'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('history')">Lịch sử đánh giá</button>
-           <button class="phf-eval-work-tab ${view==='profiles'?'active':''}" type="button" onclick="phfRenderEvaluationWorkspace('profiles')">Hồ sơ học viên</button>`
+        ? `<button class="phf-eval-work-tab ${view==='todo'?'active':''}" type="button" onclick="phfTrainingRecordsLeave();phfRenderEvaluationWorkspace('todo')">Việc cần xử lý</button>
+           <button class="phf-eval-work-tab ${view==='history'?'active':''}" type="button" onclick="phfTrainingRecordsLeave();phfRenderEvaluationWorkspace('history')">Lịch sử đánh giá</button>
+           <button class="phf-eval-work-tab ${view==='profiles'?'active':''}" type="button" onclick="phfTrainingRecordsLeave();phfRenderEvaluationWorkspace('profiles')">Hồ sơ học viên</button>
+           <button class="phf-eval-work-tab" type="button" onclick="phfTrainingRecordsOpen('employees')">Hồ sơ đào tạo &amp; đánh giá</button>
+           <button class="phf-eval-work-tab" type="button" onclick="phfTrainingRecordsOpen('bmtt')">Cam kết BMTT</button>`
         : `<button class="phf-eval-work-tab active" type="button">Hồ sơ của tôi</button>`}
     </div>
     <div class="phf-eval-work-metrics">${metrics}</div>
@@ -1468,6 +1472,9 @@ function phfGoMyProfile(){
   window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('profile', {hubTab:'profile'}); }catch(e){}
+  if(phfCanEditEvaluation() && typeof window.phfTrainingRecordsShouldResume==='function' && window.phfTrainingRecordsShouldResume()){
+    return window.phfTrainingRecordsResume();
+  }
   if(typeof window.phfRenderEvaluationWorkspace === 'function'){
     return window.phfRenderEvaluationWorkspace(phfCanEditEvaluation() ? 'todo' : 'profiles');
   }
@@ -1969,7 +1976,6 @@ async function renderEvaluationRecords(selectedKey, mode, options){
     <div class="phf-eval-detail-context">
       <div class="phf-eval-detail-nav"><button class="phf-eval-back-btn" type="button" onclick="phfEvalReturnToWorkspace('${esc(returnView)}')">← Quay lại ${returnView==='todo'?'việc cần xử lý':'lịch sử đánh giá'}</button><span class="phf-eval-detail-path">Học viên / ${returnView==='todo'?'Việc cần xử lý':'Lịch sử đánh giá'} / ${esc(profile.fullName)} / ${esc(detailType)}</span></div>
       <div class="phf-eval-detail-headline"><h2>Chi tiết đánh giá học viên</h2><p><b>${esc(profile.fullName)}</b> · ${esc(detailType)} · ${esc(detailPeriod)}</p></div>
-      <div class="phf-eval-detail-tabs"><button class="phf-eval-detail-tab" type="button" onclick="phfRenderEvaluationWorkspace('todo')">Việc cần xử lý</button><button class="phf-eval-detail-tab ${returnView==='history'?'active':''}" type="button" onclick="phfEvalReturnToWorkspace('history')">Lịch sử đánh giá</button><button class="phf-eval-detail-tab ${returnView==='todo'?'active':''}" type="button" onclick="renderEvaluationRecords('${esc(selected&&selected.key||'')}','view',{forceProfile:true,returnView:'${esc(returnView)}'})">Hồ sơ học viên</button></div>
     </div>
     <div class="eval-admin-page"><aside class="eval-admin-sidebar"><section class="eval-card eval-profile-card"><h3>Thông tin học viên</h3><div class="eval-profile-lines"><div class="eval-profile-line"><b>Họ tên</b><span>${esc(profile.fullName)}</span></div><div class="eval-profile-line"><b>SĐT</b><span>${esc(profile.phone || 'Chưa có')}</span></div><div class="eval-profile-line"><b>Vị trí</b><span>${esc(profile.position || 'Nhân viên bán hàng')}</span></div><div class="eval-profile-line"><b>Chi nhánh</b><span>${esc(profile.branch || 'Chưa phân chi nhánh')}</span></div><div class="eval-profile-line"><b>Ngày bắt đầu</b><span>${esc(profile.studyStartDate || 'Chưa nhập')}</span></div></div></section><section class="eval-card eval-period-card"><div class="eval-period-head"><h3>Kỳ đang xem</h3><button class="eval-small-plus eval-period-toggle" type="button" aria-expanded="false" onclick="phfToggleEvalPeriodList(this)">+</button></div>${selected?`<button class="eval-period-current eval-period-item" type="button" data-action="view" data-week-key="${esc(selected.key)}"><span><b>${esc(selected.label)}</b><small>${esc(phfEvalShortType(selected))} · ${phfFormatRange(selected.start,selected.end)}</small></span><em class="eval-status-chip ${phfEvalStatus(selected.start, selected.end, !!phfPeriodRecord(profile.id, selected)).cls}">${esc(phfEvalStatus(selected.start, selected.end, !!phfPeriodRecord(profile.id, selected)).text)}</em></button>`:''}<div id="evalPeriodListWrap" class="eval-period-list-wrap">${periods.length ? phfRenderEvalPeriodList(periods, profile.id, selected && selected.key) : '<div class="eval-empty clean">Chưa có ngày bắt đầu học để tính kỳ đánh giá.</div>'}</div></section></aside>
       <main class="eval-admin-main"><div class="eval-toolbar"><div><h2>Hồ sơ đánh giá</h2><p>${esc(roleText)}</p></div><div class="eval-table-actions">${canEdit?'<button class="eval-action" type="button" onclick="phfRenderEvaluationWorkspace(\'todo\')">Việc cần làm</button><button class="eval-action" type="button" onclick="phfRenderEvaluationWorkspace(\'history\')">Lịch sử phiếu</button>':''}${topCreate}</div></div>${learnerPicker || ''}<div class="eval-summary-strip"><div class="status-item"><b>Học viên đang xem</b><span>${esc(profile.fullName)}</span></div><div class="status-item"><b>Tiến trình đánh giá</b><span>${esc(statusText)}</span></div><div class="status-item"><b>Phiếu đã lưu</b><span>${esc(savedLabel)}</span></div><div class="status-item"><b>Quyền hiện tại</b><span>${esc(canEdit ? phfRoleLabel() : 'Chỉ xem')}</span></div></div>${phfRenderEvalTabs(selected, canEdit, activeTab)}<section class="eval-detail-panel" id="weeklyFormBox"></section><div class="actions"><button class="btn btn-soft" type="button" onclick="phfGoLearning()">← Quay lại bài đang học</button></div></main></div></section>`;
