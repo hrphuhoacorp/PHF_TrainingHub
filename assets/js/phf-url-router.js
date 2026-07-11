@@ -123,6 +123,14 @@
     try{ return await Promise.race([Promise.resolve(promise), timeout]); }catch(e){ return false; }
   }
 
+  async function ensureTrainingData(path){
+    var ok=await waitForTrainingData(9000);
+    var data=window.__phfLocalData||null;
+    if(ok&&data) return true;
+    modal('Chưa tải được dữ liệu','Hệ thống chưa nhận được dữ liệu cần thiết cho màn này. Vui lòng thử lại thay vì chờ vô hạn.','Thử lại',function(){navigate(path||location.pathname,true);});
+    return false;
+  }
+
   function bytesToToken(buffer){
     var bytes=new Uint8Array(buffer).slice(0,12), out='';
     bytes.forEach(function(b){out+=b.toString(16).padStart(2,'0');});
@@ -137,7 +145,7 @@
     for(var i=0;i<text.length;i++){h1=Math.imul(h1^text.charCodeAt(i),16777619);h2=Math.imul(h2^text.charCodeAt(i),3266489917);}
     return 'emp_'+(h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0');
   }
-  function employees(){return window.localData&&Array.isArray(window.localData.employees)?window.localData.employees:[];}
+  function employees(){var d=window.__phfLocalData||window.localData||{};return Array.isArray(d.employees)?d.employees:[];}
   async function employeeFromToken(token){
     var list=employees();
     for(var i=0;i<list.length;i++) if(await employeeToken(list[i].id)===token) return list[i];
@@ -184,17 +192,17 @@
 
       if(path==='/my-lessons'){
         if(!requireRoles(['learner','manager','admin']))return false;
-        await waitForTrainingData(7000);
+        if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfGoLearning&&window.phfGoLearning()); return true;
       }
       if(path==='/my-profile'||/^\/my-profile\/(tests|evaluations|probation|commitments)$/.test(path)){
         if(!requireRoles(['learner','manager','admin']))return false;
-        await waitForTrainingData(7000);
+        if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfGoMyProfile&&window.phfGoMyProfile()); return true;
       }
       if(path==='/overview'){
         if(!requireRoles(['manager','admin']))return false;
-        await waitForTrainingData(7000);
+        if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview()); return true;
       }
       if(path==='/training-content'){
@@ -203,7 +211,7 @@
       }
       if(path==='/employees'){
         if(!requireRoles(['manager','admin']))return false;
-        await waitForTrainingData(7000);
+        if(!await ensureTrainingData(path)) return false;
         if(window.phfTrainingRecordsOpen) await Promise.resolve(window.phfTrainingRecordsOpen('employees'));
         else await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
         return true;
@@ -211,7 +219,7 @@
       var emp=path.match(/^\/employees\/(emp_[a-f0-9]+)(?:\/(tests|evaluations|probation|commitments))?$/);
       if(emp){
         if(!requireRoles(['manager','admin']))return false;
-        await waitForTrainingData(7000);
+        if(!await ensureTrainingData(path)) return false;
         var employee=await employeeFromToken(emp[1]);
         if(!employee){modal('Không tìm thấy hồ sơ','Liên kết không còn phù hợp hoặc hồ sơ đã được cập nhật.','Mở danh sách nhân viên',function(){navigate('/employees',true);});setUrl('/employees',true);return false;}
         var tab=emp[2]||'overview';

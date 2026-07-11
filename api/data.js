@@ -72,6 +72,12 @@ module.exports = async function handler(req, res) {
       const session = await requireSession(req, ['learner','manager','admin']);
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
+      payload.actorRole = session.role;
+      payload.actorEmail = session.account?.email || session.email || '';
+      payload.actorAccountId = session.account?.id || session.sub || '';
+      if (payload.confidentialityCommitment) {
+        payload.employee = {...(payload.employee || {}), id: session.role === 'learner' ? session.employeeId : (payload.employee && payload.employee.id)};
+      }
       validatePayload(payload);
       const result = await saveData(payload);
       if (result && result.data && session.role === 'learner') {

@@ -7912,3 +7912,37 @@ body:not(.phf-logged-in) {
 /* Stage 3.16.1 - Account admin catalog cleanup */
 .phf-catalog-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.phf-acct-admin-v2 .phf-acct-account-table{min-width:1260px!important}.phf-acct-admin-v2 .phf-acct-safe-table th,.phf-acct-admin-v2 .phf-acct-safe-table td{white-space:normal}.phf-acct-admin-v2 .phf-cat-form{background:#f8fcfa;border:1px solid #e2f0e9;border-radius:16px;padding:14px}.phf-acct-admin-v2 .phf-acct-safe-field select{cursor:pointer}.phf-acct-admin-v2 .phf-acct-safe-note{font-size:13.5px}.phf-acct-admin-v2 .phf-acct-tabs{display:flex;gap:8px;flex-wrap:wrap;background:#f7fbf9;border:1px solid #e0eee7;border-radius:16px;padding:8px}.phf-acct-admin-v2 .phf-acct-tabs button{border:1px solid transparent;background:transparent;color:#526960;border-radius:12px;min-height:38px;padding:0 13px;font-weight:650;cursor:pointer}.phf-acct-admin-v2 .phf-acct-tabs button.active{background:#07543e;color:#fff;border-color:#07543e;box-shadow:0 8px 18px rgba(7,84,62,.12)}
 @media(max-width:1180px){.phf-catalog-grid{grid-template-columns:1fr}.phf-acct-admin-v2 .phf-acct-account-table{min-width:1080px!important}}
+
+/* PHF BMTT official signing flow */
+.phf-bmtt-signing-area{margin-top:22px;display:grid;gap:14px}
+.phf-bmtt-preparer-card,.phf-bmtt-signed-receipt{border:1px solid #cfe4d8;background:#fbfefc;border-radius:16px;padding:16px;box-shadow:0 8px 18px rgba(7,59,45,.04)}
+.phf-bmtt-preparer-grid,.phf-bmtt-receipt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.phf-bmtt-preparer-grid>div,.phf-bmtt-receipt-grid>div{display:grid;gap:5px;padding:12px;border:1px solid #e1ede7;border-radius:12px;background:#fff}
+.phf-bmtt-preparer-grid span,.phf-bmtt-receipt-grid span,.phf-bmtt-receipt-head span{font-size:12px;font-weight:700;color:#657b72}
+.phf-bmtt-preparer-grid b,.phf-bmtt-receipt-grid b{font-size:14px;color:#123b2f;overflow-wrap:anywhere}
+.phf-bmtt-final-check{display:flex!important;align-items:flex-start!important;gap:10px!important;padding:14px!important;border:1px solid #b8d8c9!important;border-radius:14px!important;background:#f7fcf9!important;font-weight:800!important;color:#153d31!important}
+.phf-bmtt-final-check input{margin-top:3px;accent-color:#0b6b48;transform:scale(1.15)}
+.phf-bmtt-confirm #phfBmtSignButton{display:block;margin-top:12px;min-width:180px}
+.phf-bmtt-confirm #phfBmtSignButton:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.phf-bmtt-signed-receipt{margin-top:22px}
+.phf-bmtt-signed-receipt.complete{border-color:#9dcdb7;background:#f4fbf7}
+.phf-bmtt-signed-receipt.legacy{border-color:#e6bd72;background:#fffaf0}
+.phf-bmtt-receipt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #dfece5}
+.phf-bmtt-receipt-head b{color:#086b49;font-size:16px}
+.phf-bmtt-signed-receipt.legacy .phf-bmtt-receipt-head b{color:#9a6700}
+.phf-bmtt-receipt-grid .wide{grid-column:1/-1}
+.phf-bmtt-electronic-note{margin:14px 0 0;padding:12px 14px;border-left:4px solid #0b6b48;background:#fff;border-radius:10px;color:#365e50;font-weight:700}
+@media(max-width:720px){.phf-bmtt-preparer-grid,.phf-bmtt-receipt-grid{grid-template-columns:1fr}.phf-bmtt-receipt-grid .wide{grid-column:auto}.phf-bmtt-receipt-head{align-items:flex-start;flex-direction:column}}
+
+/* PHF 27.6.9 - Biên bản BMTT đã ký */
+.phf-bmtt-paper-signed input:not([type="hidden"]){pointer-events:none;background:transparent!important;color:#18372d!important;opacity:1}
+.phf-bmtt-full-record{margin:24px 0 18px;padding:20px}
+.phf-bmtt-record-banner{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #d8e8df;padding-bottom:16px;margin-bottom:16px}
+.phf-bmtt-record-banner span{font-size:12px;letter-spacing:.08em;font-weight:800;color:#527166}
+.phf-bmtt-record-banner h3{margin:4px 0!important;font-size:20px!important;text-transform:none!important}
+.phf-bmtt-record-banner p{margin:0;color:#50675f}
+.phf-bmtt-signed-chip{white-space:nowrap;border:1px solid #84bea2;background:#eaf7ef;color:#17623f;border-radius:999px;padding:7px 11px;font-size:13px}
+.phf-bmtt-electronic-seal{margin-top:16px;border:1px dashed #8ebaa3;border-radius:12px;padding:14px;background:#fff}
+.phf-bmtt-electronic-seal>b{display:block;color:#17623f;margin-bottom:4px}
+.phf-bmtt-electronic-seal p{margin:0;color:#4f665d}
+@media(max-width:700px){.phf-bmtt-record-banner{display:block}.phf-bmtt-signed-chip{display:inline-block;margin-top:10px}}

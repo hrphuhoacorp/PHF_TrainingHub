@@ -27,6 +27,9 @@
   function testResults(){ return Array.isArray(data().testResults) ? data().testResults.slice() : []; }
   function evaluations(){ return Array.isArray(data().evaluationRecords) ? data().evaluationRecords.slice() : []; }
   function commitments(){ return Array.isArray(data().confidentialityCommitments) ? data().confidentialityCommitments.slice() : []; }
+  function isCompleteBMTT(row){
+    return !!(row && row.id && employeeIdOf(row) && norm(row.confirmedName || row.signName || row.fullName) && norm(row.confirmedByEmail) && norm(row.confirmedAt || row.signedAt) && norm(row.documentVersion) && norm(row.acknowledgementText) && Number(row.checkedCount)>=1 && Number(row.requiredCheckCount)>=1);
+  }
   function progress(){ return data().progress || {}; }
   function employeeById(id){ return employees().find(function(x){return String(x.id||'')===String(id||'')}) || null; }
   function employeeIdOf(row){ return String(row && (row.employeeId || row.employee_id) || ''); }
@@ -222,6 +225,7 @@
     document.head.appendChild(style);
   }
   function ensureShell(){
+    if(typeof window.phfEnsureEvaluationOfficialUi==='function') window.phfEnsureEvaluationOfficialUi();
     injectCss();
     if(typeof window.phfSetMainNavActive==='function')window.phfSetMainNavActive('profile');
     document.body.classList.add('phf-eval-mode','phf-module-page-mode');
@@ -238,7 +242,7 @@
     const emps=employees();
     const withTests=emps.filter(function(e){return employeeTests(e.id).length}).length;
     const withEval=emps.filter(function(e){return employeeEvaluations(e.id).length}).length;
-    const withBMTT=emps.filter(function(e){return employeeCommitments(e.id).length}).length;
+    const withBMTT=emps.filter(function(e){return employeeCommitments(e.id).some(isCompleteBMTT)}).length;
     return `<div class="phf-records-grid">
       <div class="phf-records-card"><span>Tổng nhân viên</span><b>${emps.length}</b></div>
       <div class="phf-records-card"><span>Đã có kết quả kiểm tra</span><b>${withTests}</b></div>
@@ -331,7 +335,7 @@
   function commitmentRows(emp){
     const rows=employeeCommitments(emp.id);
     return rows.map(function(r,idx){
-      return `<tr><td>${idx+1}</td><td><b>Cam kết bảo mật thông tin</b><small>${esc(r.documentVersion||'PHF-BMTT')}</small></td><td>${fmtDate(r.confirmDate||r.signedAt||r.savedAt)}</td><td><span class="phf-eval-chip done">Đã xác nhận</span></td><td><div class="phf-eval-row-actions"><button class="phf-action-chip" onclick="phfTrainingRecordsViewBMTT('${esc(emp.id)}',${idx})">Xem</button><button class="phf-action-chip primary" onclick="phfTrainingRecordsPrintBMTT('${esc(emp.id)}',${idx})">In</button></div></td></tr>`;
+      return `<tr><td>${idx+1}</td><td><b>Cam kết bảo mật thông tin</b><small>${esc(r.documentVersion||'PHF-BMTT')}</small></td><td>${fmtDate(r.confirmDate||r.signedAt||r.savedAt)}</td><td><span class="phf-eval-chip ${isCompleteBMTT(r)?'done':'watch'}">${isCompleteBMTT(r)?'Đã ký xác nhận':'Cần ký lại'}</span></td><td><div class="phf-eval-row-actions"><button class="phf-action-chip" onclick="phfTrainingRecordsViewBMTT('${esc(emp.id)}',${idx})">Xem</button><button class="phf-action-chip primary" onclick="phfTrainingRecordsPrintBMTT('${esc(emp.id)}',${idx})">In</button></div></td></tr>`;
     }).join('') || '<tr><td colspan="5"><div class="phf-records-empty">Nhân viên chưa có cam kết BMTT trên hệ thống.</div></td></tr>';
   }
   function detailBody(emp,tab){
@@ -342,7 +346,7 @@
       const testOk=tests.some(function(r){return scoreStatus(r).ok});
       const evalOk=evals.length>0;
       const finalOk=!!p.finalRecord;
-      const bmttOk=employeeCommitments(emp.id).length>0;
+      const bmttOk=employeeCommitments(emp.id).some(isCompleteBMTT);
       const startOk=!!norm(emp.studyStartDate);
       const editOpen=!!state.probationEditOpen;
       return `<section class="phf-eval-list-card phf-probation-shell">
@@ -408,7 +412,7 @@
     const branches=branchOptions().map(function(x){return `<option value="${esc(x)}" ${state.filters.branch===x?'selected':''}>${esc(x)}</option>`}).join('');
     const tableRows=rows.map(function(item,idx){
       const r=item.record, emp=item.emp;
-      return `<tr><td>${idx+1}</td><td><b>${esc(emp.fullName)}</b><small>${esc(emp.position||'')} · ${esc(emp.branch||'')}</small></td><td><b>${esc(emp.phone||'—')}</b><small>${esc(emp.id||'—')}</small></td><td>${fmtDate(r.confirmDate||r.signedAt||r.savedAt)}</td><td>${esc(r.documentVersion||'PHF-BMTT')}</td><td><span class="phf-eval-chip done">Đã xác nhận</span></td><td><div class="phf-eval-row-actions"><button class="phf-action-chip" onclick="phfTrainingRecordsViewBMTT('${esc(emp.id)}',${item.index})">Xem</button><button class="phf-action-chip primary" onclick="phfTrainingRecordsPrintBMTT('${esc(emp.id)}',${item.index})">In</button></div></td></tr>`;
+      return `<tr><td>${idx+1}</td><td><b>${esc(emp.fullName)}</b><small>${esc(emp.position||'')} · ${esc(emp.branch||'')}</small></td><td><b>${esc(emp.phone||'—')}</b><small>${esc(emp.id||'—')}</small></td><td>${fmtDate(r.confirmDate||r.signedAt||r.savedAt)}</td><td>${esc(r.documentVersion||'PHF-BMTT')}</td><td><span class="phf-eval-chip ${isCompleteBMTT(r)?'done':'watch'}">${isCompleteBMTT(r)?'Đã ký xác nhận':'Cần ký lại'}</span></td><td><div class="phf-eval-row-actions"><button class="phf-action-chip" onclick="phfTrainingRecordsViewBMTT('${esc(emp.id)}',${item.index})">Xem</button><button class="phf-action-chip primary" onclick="phfTrainingRecordsPrintBMTT('${esc(emp.id)}',${item.index})">In</button></div></td></tr>`;
     }).join('');
     return `${renderHeader('bmtt')}<div class="phf-records-grid"><div class="phf-records-card"><span>Tổng cam kết đã lưu</span><b>${commitments().length}</b></div><div class="phf-records-card"><span>Nhân viên đã cam kết</span><b>${new Set(commitments().map(employeeIdOf)).size}</b></div><div class="phf-records-card"><span>Nhân viên chưa có BMTT</span><b>${Math.max(0,employees().length-new Set(commitments().map(employeeIdOf)).size)}</b></div><div class="phf-records-card"><span>Biểu mẫu hiện có</span><b>${new Set(commitments().map(function(x){return x.documentVersion||'PHF-BMTT'})).size}</b></div></div>
       <section class="phf-eval-filter-card"><div class="phf-records-filter" style="grid-template-columns:minmax(260px,2fr) minmax(180px,1fr) auto"><div><label>Tìm cam kết</label><input id="phfRecordQ" value="${esc(state.filters.q||'')}" placeholder="Tên, SĐT, mã NV, phiên bản"></div><div><label>Chi nhánh</label><select id="phfRecordBranch"><option value="all">Tất cả chi nhánh</option>${branches}</select></div><div class="phf-records-actions"><button class="phf-eval-btn primary" onclick="phfTrainingRecordsApplyFilters('bmtt')">Lọc</button><button class="phf-eval-btn" onclick="phfTrainingRecordsResetFilters('bmtt')">Xóa lọc</button></div></div></section>
@@ -483,7 +487,7 @@
     const merged=mergeBMTTRecord(emp,record);
     const old=document.getElementById('phfTrainingBMTTModal');if(old)old.remove();
     const wrap=document.createElement('div');wrap.id='phfTrainingBMTTModal';wrap.className='phf-records-bmtt-modal';
-    wrap.innerHTML=`<div class="phf-records-bmtt-card"><div class="phf-records-detail-head"><div><h3>Cam kết bảo mật thông tin</h3><p>${esc(emp.fullName)} · ${esc(record.documentVersion||'PHF-BMTT')}</p></div><button class="phf-eval-row-btn" data-close>Đóng</button></div><div class="phf-records-bmtt-meta"><div><span>Họ tên người cam kết</span><b>${esc(merged.signName||merged.fullName)}</b></div><div><span>Số điện thoại xác nhận</span><b>${esc(merged.signPhone||merged.phone||'—')}</b></div><div><span>Ngày xác nhận</span><b>${fmtDate(merged.confirmDate||merged.signedAt)}</b></div><div><span>Phiên bản biểu mẫu</span><b>${esc(merged.documentVersion||'PHF-BMTT')}</b></div><div><span>Vị trí/Bộ phận</span><b>${esc(merged.position||'—')}</b></div><div><span>Chi nhánh</span><b>${esc(merged.branch||'—')}</b></div></div><div class="phf-records-note">Đây là hồ sơ xác nhận đã lưu trên PHF Training Hub. Khi in, hệ thống dựng lại đúng nội dung mẫu BMTT cùng thông tin xác nhận của nhân viên.</div><div class="phf-records-bmtt-actions" style="margin-top:16px"><button class="phf-eval-btn" data-close>Đóng</button><button class="phf-eval-btn primary" data-print>In bản cam kết</button></div></div>`;
+    wrap.innerHTML=`<div class="phf-records-bmtt-card"><div class="phf-records-detail-head"><div><h3>Cam kết bảo mật thông tin</h3><p>${esc(emp.fullName)} · ${esc(record.documentVersion||'PHF-BMTT')}</p></div><button class="phf-eval-row-btn" data-close>Đóng</button></div><div class="phf-records-bmtt-meta"><div><span>Họ tên người cam kết</span><b>${esc(merged.signName||merged.fullName)}</b></div><div><span>Số điện thoại xác nhận</span><b>${esc(merged.signPhone||merged.phone||'—')}</b></div><div><span>Ngày xác nhận</span><b>${fmtDate(merged.confirmDate||merged.signedAt)}</b></div><div><span>Thời điểm lưu hệ thống</span><b>${esc(merged.signedAt?new Date(merged.signedAt).toLocaleString('vi-VN'):'—')}</b></div><div><span>Tài khoản xác nhận</span><b>${esc(merged.confirmedByEmail||'—')}</b></div><div><span>Phiên bản biểu mẫu</span><b>${esc(merged.documentVersion||'PHF-BMTT')}</b></div><div><span>Vị trí/Bộ phận</span><b>${esc(merged.position||'—')}</b></div><div><span>Chi nhánh</span><b>${esc(merged.branch||'—')}</b></div></div><div class="phf-records-note">${isCompleteBMTT(record)?'Đây là bản ghi điện tử đã được tài khoản đăng nhập xác nhận và lưu trên PHF Training Hub.':'Đã ghi nhận thao tác trước đây nhưng chưa đủ thông tin biên bản — cần ký xác nhận lại.'}</div><div class="phf-records-bmtt-actions" style="margin-top:16px"><button class="phf-eval-btn" data-close>Đóng</button><button class="phf-eval-btn primary" data-print>In bản cam kết</button></div></div>`;
     wrap.addEventListener('click',function(e){if(e.target===wrap||e.target.closest('[data-close]'))wrap.remove();if(e.target.closest('[data-print]'))window.phfTrainingRecordsPrintBMTT(employeeId,index)});
     document.body.appendChild(wrap);
   };

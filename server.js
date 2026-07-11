@@ -13,7 +13,7 @@ const {
   validatePayload,
   publicError
 } = require('./lib/request-guard');
-const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload } = require('./lib/auth');
+const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, makeSession, publicAccount } = require('./lib/auth');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
@@ -142,13 +142,30 @@ const server = http.createServer(async (req, res) => {
       try { body=JSON.parse(raw||'{}'); } catch { throw new RequestError('Dữ liệu đăng nhập không hợp lệ.',400,'JSON_INVALID'); }
       let result=await login(body.email, body.password);
       if(!result.ok && Array.isArray(body.localAccounts) && await bootstrapFromLocal(req, body.localAccounts)) result=await login(body.email, body.password);
-      if(!result.ok) return sendJson(res, 401, {ok:false,error:result.message,code:result.code});
+      if(!result.ok) return sendJson(res, 401, {ok:false,error:'Email hoặc mật khẩu chưa đúng.',code:'LOGIN_INVALID'});
       res.setHeader('Set-Cookie', cookieHeader(result.token));
       return sendJson(res, 200, {ok:true,user:result.user});
     }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
       assertSameOrigin(req); res.setHeader('Set-Cookie', clearCookieHeader());
       return sendJson(res, 200, {ok:true});
+    }
+    if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session=await requireSession(req,['learner','manager','admin']);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu đổi mật khẩu không hợp lệ.',400,'JSON_INVALID')}
+      const updated=await changeOwnPassword(session,body.currentPassword,body.newPassword);
+      res.setHeader('Set-Cookie',cookieHeader(makeSession(updated)));
+      return sendJson(res,200,{ok:true,user:publicAccount(updated)});
+    }
+    if (pathname === '/api/auth/accounts/reset-password' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      await requireSession(req,['admin']);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu đặt lại mật khẩu không hợp lệ.',400,'JSON_INVALID')}
+      const result=await resetPasswordByAdmin(body.accountId);
+      return sendJson(res,200,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
     }
     if (pathname === '/api/auth/accounts/sync' && req.method === 'POST') {
       assertSameOrigin(req); const session=await requireSession(req,['admin']);
@@ -183,6 +200,17 @@ const server = http.createServer(async (req, res) => {
         const session = await requireSession(req, ['learner','manager','admin']);
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
+        payload.actorRole = session.role;
+        payload.actorEmail = session.account?.email || session.email || '';
+        payload.actorAccountId = session.account?.id || session.sub || '';
+        if (payload.confidentialityCommitment) {
+          payload.employee = {
+            ...(payload.employee || {}),
+            id: session.role === 'learner'
+              ? session.employeeId
+              : (payload.employee && payload.employee.id)
+          };
+        }
         validatePayload(payload);
         const result = await saveData(payload);
         if (result && result.data && session.role === 'learner') {
@@ -198,7 +226,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 405, { ok: false, error: 'Phương thức không được hỗ trợ.', code: 'METHOD_NOT_ALLOWED' });
     }
 
-    let filePath = safeStaticPath(req.url || '/');
+    let filePath = /^\/print\/commitments\/[^/]+$/.test(pathname)
+      ? path.join(ROOT, 'print-commitment.html')
+      : safeStaticPath(req.url || '/');
     if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       const acceptsHtml = String(req.headers.accept || '').includes('text/html');
       const isUiRoute = acceptsHtml && !pathname.startsWith('/api/') && !path.extname(pathname);
@@ -212,7 +242,7 @@ const server = http.createServer(async (req, res) => {
     const headers = baseHeaders({
       'Content-Type': getMime(filePath),
       'Content-Length': stat.size,
-      'Cache-Control': filePath.endsWith('index.html') ? 'no-store' : 'public, max-age=3600'
+      'Cache-Control': filePath.endsWith('index.html') ? 'no-store' : 'no-cache, must-revalidate'
     });
     res.writeHead(200, headers);
     if (req.method === 'HEAD') return res.end();

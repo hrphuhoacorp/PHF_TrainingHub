@@ -15,6 +15,7 @@
     107:{ key:'step4-final', label:'Bài kiểm tra cuối Bước 4' }
   };
   var SHORT_TESTS = {
+    22:'short-gd1-review',
     42:'short-day1-afternoon',
     47:'short-step2-part1',
     50:'short-step2-part2',
@@ -284,27 +285,24 @@
   function validateShortQuiz(idx){
     var key = shortKey(idx);
     if(!key) return true;
-    var root = document.getElementById('mainLesson');
-    if(!root) return true;
-    var radios = Array.from(root.querySelectorAll('input[type="radio"]'));
-    if(!radios.length) return true;
-    var names = Array.from(new Set(radios.map(function(r){ return r.name || r.getAttribute('name') || ''; }).filter(Boolean)));
-    var missing = names.filter(function(name){ return !root.querySelector('input[type="radio"][name="' + CSS.escape(name) + '"]:checked'); });
-    if(missing.length){
-      notice('warning','Chưa hoàn thành bài kiểm tra ngắn','Vui lòng trả lời đủ các câu hỏi ngắn trong bài. Phần này không cần đạt điểm, nhưng cần hoàn thành trước khi qua nội dung tiếp theo.');
-      return false;
-    }
-    markShortSubmitted(key);
-    return true;
+    if(isShortSubmitted(key)) return true;
+    notice('warning','Chưa hoàn thành bài kiểm tra ngắn','Vui lòng nhập họ tên, ngày thực hiện, trả lời đủ và sửa đúng toàn bộ câu chưa đúng trước khi chuyển sang bài tiếp theo.');
+    var btn=document.querySelector('#mainLesson .phf-grade-short');
+    if(btn) try{btn.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}
+    return false;
   }
-  function markShortSubmitted(key){
+  function markShortSubmitted(key,stat,meta){
+    stat=stat||{score:100,correct:null,total:null};meta=meta||{};
     var map = readJson('phfShortQuizDoneByEmployee', {});
     if(!map[profileKey()]) map[profileKey()] = {};
     map[profileKey()][key] = new Date().toISOString();
     writeJson('phfShortQuizDoneByEmployee', map);
-    rememberScopedQuizResult(key, {score:null, correct:null, total:null}, 'submitted', 'Đã hoàn thành bài kiểm tra ngắn.');
-    saveTestResult(key, {score:null, correct:null, total:null}, 'submitted', 'Đã hoàn thành bài kiểm tra ngắn.');
+    var text='Hoàn thành bài kiểm tra ngắn 100/100.'+(meta.fullName?' Người thực hiện: '+meta.fullName+'.':'')+(meta.date?' Ngày: '+meta.date+'.':'');
+    rememberScopedQuizResult(key, stat, 'passed', text);
+    saveTestResult(key, stat, 'passed', text);
+    var idx=getCurrentIndex(); if(shortKey(idx)===key) markAndSaveCompletion(idx,'short-quiz-pass');
   }
+  window.phfMarkShortQuizCompleted=markShortSubmitted;
   function canCompleteCurrent(){
     var idx = getCurrentIndex();
     if(typeof window.phfValidateInfoForm === 'function' && idx === 1){
@@ -312,6 +310,7 @@
     }
     if(typeof window.phfValidateMorningCommitment === 'function' && !window.phfValidateMorningCommitment()) return false;
     if(typeof window.phfValidateRequiredLessonChecks === 'function' && !window.phfValidateRequiredLessonChecks()) return false;
+    if(typeof window.phfValidateLessonSignatureConfirm === 'function' && !window.phfValidateLessonSignatureConfirm()) return false;
     if(typeof window.phfValidateConfidentialityCommitment === 'function' && !window.phfValidateConfidentialityCommitment(false)) return false;
 
     if(isMainTestIndex(idx)){
@@ -329,14 +328,19 @@
     if(!validateShortQuiz(idx)) return false;
     return true;
   }
+  var TEST_SUBMISSION_INFLIGHT={};
   function saveTestResult(key, stat, status, resultText){
     var profile = getProfile();
     if(!profile || !profile.id) return;
+    var lockKey=String(profile.id||'')+'|'+String(key||'');
+    if(TEST_SUBMISSION_INFLIGHT[lockKey])return TEST_SUBMISSION_INFLIGHT[lockKey];
+    var submissionId='test-'+String(profile.id||'unknown').replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
     var payload = {
       type:'test',
       employee:profile,
       skipProgress:true,
       testResult:{
+        submissionId:submissionId,
         page:key,
         employeeId:profile.id || '',
         employeePhone:cleanPhone(profile.phone || ''),
@@ -346,10 +350,12 @@
         resultText: resultText || ''
       }
     };
-    fetch('/api/data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+    TEST_SUBMISSION_INFLIGHT[lockKey]=fetch('/api/data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
       .then(function(res){ return res.json().catch(function(){ return {}; }); })
-      .then(function(json){ if(json && json.data) window.__phfLocalData = json.data; })
-      .catch(function(){});
+      .then(function(json){ if(json && json.data) window.__phfLocalData = json.data; return json; })
+      .catch(function(){return null})
+      .finally(function(){setTimeout(function(){delete TEST_SUBMISSION_INFLIGHT[lockKey]},1200)});
+    return TEST_SUBMISSION_INFLIGHT[lockKey];
   }
   function markAndSaveCompletion(idx, reason){
     markCompleted(idx);

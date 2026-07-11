@@ -4,6 +4,7 @@
     { "source": "/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/site.webmanifest", "destination": "/site.webmanifest" },
     { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/print/commitments/:id", "destination": "/print-commitment.html" },
     { "source": "/:path*", "destination": "/index.html" }
   ]
 }
