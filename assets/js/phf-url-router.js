@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '27.4.6';
+  var ROUTER_VERSION = '27.4.7-no-copy-link';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -283,17 +283,13 @@
     wrap('phfGo',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/lessons/'+lessonSlug(item,Number(idx));});
   }
 
-  function shareable(path){return !['/','/login'].includes(path);}
+  function shareable(path){
+    /* Tắt hoàn toàn chức năng Sao chép liên kết trên toàn hệ thống. */
+    return false;
+  }
   function updateCopyAction(){
-    var path=cleanPath(location.pathname), old=document.getElementById('phfCopyRouteLink');
-    if(!shareable(path)){if(old)old.remove();return;}
-    var host=document.getElementById('contextAction')||document.querySelector('.context-action');
-    if(!host)return;
-    var btn=old||document.createElement('button');
-    btn.id='phfCopyRouteLink'; btn.type='button'; btn.className='phf-route-copy-chip';
-    if(btn.textContent!=='Sao chép liên kết') btn.textContent='Sao chép liên kết';
-    if(btn.onclick!==copyCurrentLink) btn.onclick=copyCurrentLink;
-    if(!old) host.parentElement ? host.parentElement.appendChild(btn) : host.appendChild(btn);
+    var old=document.getElementById('phfCopyRouteLink');
+    if(old)old.remove();
   }
   async function copyCurrentLink(){
     var url=location.origin+cleanPath(location.pathname);
