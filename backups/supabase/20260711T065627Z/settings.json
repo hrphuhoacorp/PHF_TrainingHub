@@ -1,8 +1,0 @@
-[
-  {
-    "id": 1,
-    "pass_score": 80,
-    "app_name": "PHF Training Hub - Local Prototype Full Flow",
-    "note": "Bản local không dùng database. Dữ liệu demo được lưu vào data.json."
-  }
-]
