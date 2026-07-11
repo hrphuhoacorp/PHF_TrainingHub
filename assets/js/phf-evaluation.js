@@ -790,6 +790,31 @@ function phfEnsureEvaluationOfficialUi(){
   style.id='phf-eval-official-ui';
   style.textContent=`
   .phf-eval-workspace{display:grid;gap:16px;max-width:1440px;margin:0 auto;padding:0 0 34px;font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif;color:#17382d}
+.phf-eval-workspace{position:relative;min-height:520px}
+.phf-eval-workspace.phf-eval-is-busy{pointer-events:none}
+.phf-eval-workspace.phf-eval-is-busy:after{
+  content:"Đang cập nhật...";
+  position:absolute;
+  right:18px;
+  top:18px;
+  z-index:8;
+  padding:7px 11px;
+  border:1px solid #d9e8e1;
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 5px 18px rgba(16,64,48,.08);
+  color:#45685b;
+  font-size:12px;
+  font-weight:650
+}
+.phf-eval-content-enter{animation:phfEvalContentEnter .14s ease-out both}
+@keyframes phfEvalContentEnter{
+  from{opacity:.78}
+  to{opacity:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .phf-eval-content-enter{animation:none!important}
+}
   .phf-eval-work-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:23px 25px;border-radius:22px;background:linear-gradient(135deg,#07543e,#0a6a4c);color:#fff;box-shadow:0 14px 34px rgba(5,75,52,.14)}
   .phf-eval-work-head h2{margin:5px 0 8px;color:#fff!important;font-size:28px;font-weight:600;letter-spacing:-.02em}.phf-eval-work-head p{margin:0;color:rgba(255,255,255,.84);line-height:1.55;max-width:830px}
   .phf-eval-work-role{background:#fff;color:#07543e;border-radius:15px;padding:12px 14px;min-width:180px;text-align:right;font-weight:600}.phf-eval-work-role small{display:block;color:#667a71;font-weight:400;margin-top:4px}
@@ -898,6 +923,21 @@ function phfEvalResetProfileFilters(){
 
 
 async function phfEnsureEvaluationDataReady(canEditWorkspace){
+  function hasExpectedRows(){
+    const rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+    const current = phfCurrentEmployeeProfile();
+    const ownPhone = String(current && current.phone || '').replace(/\D/g,'');
+    return canEditWorkspace
+      ? rows.length > 0
+      : rows.some(function(row){
+          const idMatch = current && current.id && String(row.id||'') === String(current.id);
+          const phoneMatch = ownPhone && String(row.phone||'').replace(/\D/g,'') === ownPhone;
+          return idMatch || phoneMatch;
+        });
+  }
+
+  if(window.__phfEvalReadFresh && hasExpectedRows()) return true;
+
   let ok = false;
   try{
     ok = await phfRefreshTrainingData();
@@ -905,29 +945,18 @@ async function phfEnsureEvaluationDataReady(canEditWorkspace){
     ok = false;
   }
 
-  let rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
-  const current = phfCurrentEmployeeProfile();
-  const ownPhone = String(current && current.phone || '').replace(/\D/g,'');
-  const hasExpectedData = canEditWorkspace
-    ? rows.length > 0
-    : rows.some(function(row){
-        const idMatch = current && current.id && String(row.id||'') === String(current.id);
-        const phoneMatch = ownPhone && String(row.phone||'').replace(/\D/g,'') === ownPhone;
-        return idMatch || phoneMatch;
-      });
-
-  if(!ok || !hasExpectedData){
+  if(!ok || !hasExpectedRows()){
     await new Promise(function(resolve){ setTimeout(resolve, 220); });
     try{
       ok = await phfRefreshTrainingData({force:true});
     }catch(e){
       ok = false;
     }
-    rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
   }
 
-  window.__phfEvalReadFresh = !!ok;
-  return !!ok;
+  const ready = !!ok && hasExpectedRows();
+  window.__phfEvalReadFresh = ready;
+  return ready;
 }
 
 async function phfRenderEvaluationWorkspace(view){
@@ -939,17 +968,32 @@ async function phfRenderEvaluationWorkspace(view){
   document.body.classList.add('phf-eval-mode','phf-module-page-mode');
   document.body.classList.remove('phf-guide-standalone-mode','phf-guide-intro-active');
 
-  // Không để nội dung của tài khoản/phiên trước còn nằm trên màn hình trong lúc tải dữ liệu.
   const loadingHost = document.getElementById('mainLesson');
-  if(loadingHost){
-    loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Đang tải dữ liệu phù hợp với tài khoản hiện tại...</p></div></div><section class="phf-eval-list-card"><div class="phf-eval-empty">Đang tải dữ liệu, vui lòng chờ.</div></section></section>`;
+  const currentProfile = phfCurrentEmployeeProfile();
+  const renderScope = canEditWorkspace
+    ? 'staff'
+    : 'learner|' + String((currentProfile&&currentProfile.id)||'') + '|' + String((currentProfile&&currentProfile.phone)||'');
+  const existingWorkspace = loadingHost && loadingHost.querySelector('.phf-eval-workspace');
+  const canKeepCurrentUi = !!existingWorkspace && window.__phfEvalRenderedScope === renderScope;
+  const previousScrollY = window.scrollY || 0;
+
+  if(canKeepCurrentUi){
+    existingWorkspace.classList.add('phf-eval-is-busy');
+    existingWorkspace.setAttribute('aria-busy','true');
+  }else if(loadingHost){
+    loadingHost.innerHTML = `<section class="phf-eval-workspace phf-eval-is-busy" aria-busy="true"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Đang tải dữ liệu phù hợp với tài khoản hiện tại...</p></div></div><section class="phf-eval-list-card" style="min-height:360px"><div class="phf-eval-empty">Đang tải dữ liệu, vui lòng chờ.</div></section></section>`;
   }
 
   const loadOk = await phfEnsureEvaluationDataReady(canEditWorkspace);
   if(renderToken !== window.__phfEvalRenderToken) return;
   if(!loadOk){
-    if(loadingHost){
-      loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Chưa tải được dữ liệu phù hợp với tài khoản hiện tại.</p></div></div><section class="phf-eval-list-card"><div class="phf-eval-empty">Vui lòng kiểm tra kết nối rồi tải lại trang.</div></section></section>`;
+    const busyWorkspace=loadingHost&&loadingHost.querySelector('.phf-eval-workspace');
+    if(canKeepCurrentUi&&busyWorkspace){
+      busyWorkspace.classList.remove('phf-eval-is-busy');
+      busyWorkspace.removeAttribute('aria-busy');
+      if(typeof phfToast==='function') phfToast('Không thể cập nhật dữ liệu. Nội dung hiện tại được giữ nguyên.','error');
+    }else if(loadingHost){
+      loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Chưa tải được dữ liệu phù hợp với tài khoản hiện tại.</p></div></div><section class="phf-eval-list-card" style="min-height:360px"><div class="phf-eval-empty">Vui lòng kiểm tra kết nối rồi tải lại trang.</div></section></section>`;
     }
     return false;
   }
@@ -1130,7 +1174,7 @@ async function phfRenderEvaluationWorkspace(view){
     }
   }
 
-  document.getElementById('mainLesson').innerHTML=`<section class="phf-eval-workspace">
+  document.getElementById('mainLesson').innerHTML=`<section class="phf-eval-workspace phf-eval-content-enter">
     <div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>${canEditWorkspace?'Tìm kiếm học viên, theo dõi tiến độ, kết quả kiểm tra và hồ sơ đánh giá.':'Xem thông tin cá nhân và các phiếu đánh giá đã được lưu.'}</p></div><div class="phf-eval-work-role phf-lib-role">${canEditWorkspace?esc(phfRoleLabel()):'Hồ sơ cá nhân'}<small>${canEditWorkspace?(learners.length+' học viên trong dữ liệu'):'Hồ sơ đào tạo của bạn'}</small></div></div>
     <div class="phf-eval-work-tabs">
       ${canEditWorkspace
@@ -1144,6 +1188,7 @@ async function phfRenderEvaluationWorkspace(view){
     ${canEditWorkspace?`<section class="phf-eval-list-card"><div class="phf-eval-list-head"><div><h3>${title}</h3><p>${description}</p></div><span class="phf-eval-result-count">${filtered.length} kết quả</span></div><div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr>${head.map(function(x){return '<th>'+esc(x)+'</th>';}).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${head.length}"><div class="phf-eval-empty">Không có dữ liệu phù hợp bộ lọc.</div></td></tr>`}</tbody></table></div></section>`:''}
     ${inlineProfile}
   </section>`;
+  window.__phfEvalRenderedScope = renderScope;
 
   ['phfEvalFilterQ','phfEvalFilterStatus','phfEvalFilterType','phfEvalFilterFrom','phfEvalFilterTo'].forEach(function(id){
     const el=document.getElementById(id);
@@ -1158,15 +1203,14 @@ async function phfRenderEvaluationWorkspace(view){
       if(!panel) return;
       const rect=panel.getBoundingClientRect();
       const viewportHeight=window.innerHeight||document.documentElement.clientHeight||800;
-
-      // Nếu đầu hồ sơ đã nằm trong vùng nhìn thấy thì giữ nguyên vị trí.
       if(rect.top>=110 && rect.top<=viewportHeight-120) return;
-
-      // Đưa đầu hồ sơ vào khoảng nửa dưới màn hình để vẫn còn thấy
-      // phần cuối danh sách học viên phía trên, tránh cảm giác bị kéo xuống cuối trang.
       const contextSpace=Math.min(Math.max(viewportHeight*0.48,260),420);
       const target=Math.max(0,window.scrollY+rect.top-contextSpace);
-      window.scrollTo({top:target,behavior:'smooth'});
+      window.scrollTo({top:target,behavior:'auto'});
+    });
+  }else if(canKeepCurrentUi){
+    requestAnimationFrame(function(){
+      window.scrollTo({top:previousScrollY,behavior:'auto'});
     });
   }else{
     phfScrollToPageTop();
