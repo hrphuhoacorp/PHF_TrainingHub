@@ -133,15 +133,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/auth/session' && req.method === 'GET') {
-      const session = readSession(req);
+      const session = await readSession(req);
       return sendJson(res, 200, { ok:true, authenticated:!!session, user:session ? session.account : null });
     }
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
       const raw = await readBody(req); let body={};
       try { body=JSON.parse(raw||'{}'); } catch { throw new RequestError('Dữ liệu đăng nhập không hợp lệ.',400,'JSON_INVALID'); }
-      let result=login(body.email, body.password);
-      if(!result.ok && Array.isArray(body.localAccounts) && bootstrapFromLocal(req, body.localAccounts)) result=login(body.email, body.password);
+      let result=await login(body.email, body.password);
+      if(!result.ok && Array.isArray(body.localAccounts) && await bootstrapFromLocal(req, body.localAccounts)) result=await login(body.email, body.password);
       if(!result.ok) return sendJson(res, 401, {ok:false,error:result.message,code:result.code});
       res.setHeader('Set-Cookie', cookieHeader(result.token));
       return sendJson(res, 200, {ok:true,user:result.user});
@@ -151,18 +151,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {ok:true});
     }
     if (pathname === '/api/auth/accounts/sync' && req.method === 'POST') {
-      assertSameOrigin(req); const session=requireSession(req,['admin']);
+      assertSameOrigin(req); const session=await requireSession(req,['admin']);
       assertJsonContentType(req); assertContentLength(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu tài khoản không hợp lệ.',400,'JSON_INVALID')}
-      const accounts=syncAccounts(body.accounts||[]);
+      const accounts=await syncAccounts(body.accounts||[]);
       return sendJson(res,200,{ok:true,count:accounts.length});
     }
 
     if (pathname === '/api/data') {
       assertSameOrigin(req);
       if (req.method === 'GET') {
-        const session = requireSession(req, ['learner','manager','admin']);
+        const session = await requireSession(req, ['learner','manager','admin']);
         const data = await readData({
           role: session.role,
           employeeId: session.role === 'learner' ? session.employeeId : '',
@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
         let payload;
         try { payload = JSON.parse(body || '{}'); }
         catch { throw new RequestError('Dữ liệu JSON không hợp lệ.', 400, 'JSON_INVALID'); }
-        const session = requireSession(req, ['learner','manager','admin']);
+        const session = await requireSession(req, ['learner','manager','admin']);
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         validatePayload(payload);

@@ -1,6 +1,6 @@
 {
   "name": "phf-training-hub",
-  "version": "1.0.0-online",
+  "version": "1.0.1-vercel-auth",
   "description": "PHF Training Hub - hệ thống đào tạo nội bộ PHUHOA FRESH",
   "main": "server.js",
   "scripts": {

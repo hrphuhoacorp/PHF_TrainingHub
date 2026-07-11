@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
   try {
     assertSameOrigin(req);
     if (req.method === 'GET') {
-      const session = requireSession(req, ['learner','manager','admin']);
+      const session = await requireSession(req, ['learner','manager','admin']);
       const data = await readData({
         role: session.role,
         employeeId: session.role === 'learner' ? session.employeeId : '',
@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
       assertJsonContentType(req);
       assertContentLength(req);
       const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-      const session = requireSession(req, ['learner','manager','admin']);
+      const session = await requireSession(req, ['learner','manager','admin']);
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
       validatePayload(payload);

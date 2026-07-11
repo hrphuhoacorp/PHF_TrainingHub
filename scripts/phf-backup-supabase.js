@@ -15,7 +15,8 @@ const TABLES = [
   'evaluation_records',
   'commitment_records',
   'probation_records',
-  'system_notifications'
+  'system_notifications',
+  'user_accounts'
 ];
 
 const PAGE_SIZE = 1000;
