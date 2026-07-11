@@ -353,6 +353,49 @@ function phfRoleLabel(){
   if(role === 'manager') return 'Trưởng ca / CHT / Quản lý';
   return 'Học viên';
 }
+function phfTrainingSessionKey(){
+  let role = 'learner';
+  try{ role = phfUserRole(); }catch(e){}
+  let profile = {};
+  try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
+  let email = '';
+  try{
+    email = String(
+      localStorage.getItem('phfSimpleTestLoginEmail') ||
+      localStorage.getItem('phfLoginEmail') ||
+      profile.accountEmail || ''
+    ).toLowerCase().trim();
+  }catch(e){}
+  const dataScope = role === 'learner' ? 'learner' : 'staff';
+  return [
+    dataScope,
+    role,
+    email,
+    String(profile.id||''),
+    String(profile.phone||'').replace(/\D/g,'')
+  ].join('|');
+}
+
+function phfResetTrainingRuntime(reason){
+  window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
+  window.__phfTrainingDataActiveSessionKey = '';
+  window.__phfTrainingDataScopeKey = '';
+  window.__phfTrainingDataLoadedAt = 0;
+  window.__phfTrainingDataPromise = null;
+  window.__phfTrainingDataPromiseScopeKey = '';
+  window.__phfTrainingDataLatestRequestId = 0;
+  window.__phfLocalData = null;
+  window.__phfEvalReadFresh = false;
+  window.__phfEvalRenderedScope = '';
+  window.__phfEvalProfileSelectedId = '';
+  window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
+  window.__phfOverviewDataReady = false;
+  window.__phfOverviewDataPromise = null;
+  if(reason) console.info('[PHF data scope reset]', reason);
+  return true;
+}
+window.phfResetTrainingRuntime = phfResetTrainingRuntime;
+
 async function phfRefreshTrainingData(options){
   options = options || {};
   const force = !!options.force;
@@ -361,10 +404,26 @@ async function phfRefreshTrainingData(options){
   let profile = {};
   try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
 
-  const scopeKey = role === 'learner'
-    ? ['learner', String(profile.id||''), String(profile.phone||'')].join('|')
-    : 'staff';
+  const sessionKey = phfTrainingSessionKey();
+  const dataScope = role === 'learner' ? 'learner' : 'staff';
 
+  if(window.__phfTrainingDataActiveSessionKey !== sessionKey){
+    window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
+    window.__phfTrainingDataActiveSessionKey = sessionKey;
+    window.__phfTrainingDataScopeKey = '';
+    window.__phfTrainingDataLoadedAt = 0;
+    window.__phfTrainingDataPromise = null;
+    window.__phfTrainingDataPromiseScopeKey = '';
+    window.__phfTrainingDataLatestRequestId = 0;
+    window.__phfLocalData = null;
+    window.__phfEvalReadFresh = false;
+    window.__phfEvalRenderedScope = '';
+    window.__phfEvalProfileSelectedId = '';
+    window.__phfOverviewDataReady = false;
+    window.__phfOverviewDataPromise = null;
+  }
+
+  const scopeKey = sessionKey;
   const now = Date.now();
   if(!force && window.__phfTrainingDataLoadedAt && window.__phfTrainingDataScopeKey === scopeKey &&
      now - window.__phfTrainingDataLoadedAt < 15000 && window.__phfLocalData){
@@ -375,16 +434,27 @@ async function phfRefreshTrainingData(options){
   }
 
   const params = new URLSearchParams();
-  params.set('scope', role === 'learner' ? 'learner' : 'staff');
+  params.set('scope', dataScope);
   if(role === 'learner'){
     if(profile.id) params.set('employeeId', String(profile.id));
     if(profile.phone) params.set('phone', String(profile.phone).replace(/\D/g,''));
   }
 
+  const requestGeneration = window.__phfTrainingDataGeneration || 0;
+  const requestId = (window.__phfTrainingDataLatestRequestId || 0) + 1;
+  window.__phfTrainingDataLatestRequestId = requestId;
+
   const request = (async function(){
     try{
       const res = await fetch('/api/data?' + params.toString(), {cache:'no-store'});
       const json = await res.json().catch(function(){ return {}; });
+
+      if(requestGeneration !== window.__phfTrainingDataGeneration ||
+         sessionKey !== window.__phfTrainingDataActiveSessionKey ||
+         requestId !== window.__phfTrainingDataLatestRequestId){
+        return false;
+      }
+
       if(res.ok && json){
         window.__phfLocalData = json.data || json;
         window.__phfTrainingDataLoadedAt = Date.now();

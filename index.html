@@ -2429,7 +2429,7 @@ function render(){
 </script>
 
 <script src="assets/js/phf-evaluation.js?v=24_stable_ui_transition_1"></script>
-<script src="assets/js/phf-learner-app.js?v=24_f5_logic_stable_1"></script>
+<script src="assets/js/phf-learner-app.js?v=24_account_scope_reset_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=24_f5_logic_stable_1"></script>
 <script src="assets/js/phf-quiz-engine.js?v=29_1"></script>
 <!-- app.js cũ đã được tắt trong bản kiểm thử vai trò để tránh tự mở hộp nhập SĐT trước màn chọn vai trò. -->
@@ -3152,6 +3152,30 @@ function render(){
       phfMarkAccountSession(user);
     }catch(e){}
   }
+  function phfResetRuntimeForAccountChange(reason){
+    try{
+      if(typeof window.phfResetTrainingRuntime==='function'){
+        window.phfResetTrainingRuntime(reason||'account-change');
+        return;
+      }
+    }catch(e){}
+    try{
+      window.__phfTrainingDataGeneration=(window.__phfTrainingDataGeneration||0)+1;
+      window.__phfTrainingDataActiveSessionKey='';
+      window.__phfTrainingDataScopeKey='';
+      window.__phfTrainingDataLoadedAt=0;
+      window.__phfTrainingDataPromise=null;
+      window.__phfTrainingDataPromiseScopeKey='';
+      window.__phfTrainingDataLatestRequestId=0;
+      window.__phfLocalData=null;
+      window.__phfEvalReadFresh=false;
+      window.__phfEvalRenderedScope='';
+      window.__phfEvalProfileSelectedId='';
+      window.__phfEvalRenderToken=(window.__phfEvalRenderToken||0)+1;
+      window.__phfOverviewDataReady=false;
+      window.__phfOverviewDataPromise=null;
+    }catch(e){}
+  }
   function setLogin(email){
     var user = findAuthUser(email);
     if(!user) return false;
@@ -3159,6 +3183,7 @@ function render(){
     var nextEmail = String(user.email || email).toLowerCase().trim();
     var previousEmail = getEmail();
     if(previousEmail && previousEmail !== nextEmail) phfClearSessionUiState();
+    phfResetRuntimeForAccountChange('login:' + nextEmail);
     try{
       localStorage.setItem(AUTH_KEY, nextEmail);
       localStorage.setItem('phfLastMainNav', 'intro');
@@ -3171,6 +3196,7 @@ function render(){
     return true;
   }
   function logout(){
+    phfResetRuntimeForAccountChange('logout');
     try{
       localStorage.removeItem(AUTH_KEY);
       phfSyncLegacyRoleKeys(null);
