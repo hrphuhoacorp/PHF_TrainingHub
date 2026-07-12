@@ -501,6 +501,11 @@ async function phfRefreshTrainingData(options){
         window.__phfLocalData = json.data || json;
         window.__phfTrainingDataLoadedAt = Date.now();
         window.__phfTrainingDataScopeKey = scopeKey;
+        try{
+          window.dispatchEvent(new CustomEvent('phf-training-data-ready',{detail:{source:'phf-learner-app',scope:dataScope,loadedAt:window.__phfTrainingDataLoadedAt}}));
+        }catch(eventErr){
+          try{window.dispatchEvent(new Event('phf-training-data-ready'));}catch(ignoreEventErr){}
+        }
         return true;
       }
     }catch(err){

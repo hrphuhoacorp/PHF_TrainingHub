@@ -126,6 +126,8 @@
           department: user.department || oldProfile.department || '',
           position: user.position || oldProfile.position || '',
           trainingAudience: user.trainingAudience || oldProfile.trainingAudience || '',
+          hubAssignmentStatus: user.hubAssignmentStatus || oldProfile.hubAssignmentStatus || '',
+          defaultProgram: user.defaultProgram || oldProfile.defaultProgram || '',
           accountEmail: user.email || oldProfile.accountEmail || ''
         };
         localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
@@ -364,21 +366,16 @@
         if(restored) return true;
       }
 
-      var role = String(user.role || '').toLowerCase();
-      if(role === 'learner'){
-        if(typeof window.phfGoLearning === 'function'){
-          await Promise.resolve(window.phfGoLearning());
-          return true;
-        }
-      }else{
-        if(typeof window.phfRenderPostLoginHome === 'function'){
-          await Promise.resolve(window.phfRenderPostLoginHome());
-          return true;
-        }
-        if(typeof window.phfGoHome === 'function'){
-          await Promise.resolve(window.phfGoHome());
-          return true;
-        }
+      /* PHF 27.6.12.4.7.3: mọi tài khoản sau đăng nhập chủ động đều vào
+         Trang chủ sau đăng nhập. Deep link hợp lệ vẫn được phf-url-router
+         khôi phục ở phía trên; chỉ fallback mặc định mới đổi về Trang chủ. */
+      if(typeof window.phfRenderPostLoginHome === 'function'){
+        await Promise.resolve(window.phfRenderPostLoginHome());
+        return true;
+      }
+      if(typeof window.phfGoHome === 'function'){
+        await Promise.resolve(window.phfGoHome());
+        return true;
       }
     }catch(e){
       console.warn('[PHF Auth] restore/render:', reason || '', e && e.message || e);
@@ -708,8 +705,10 @@
         var rendered=await renderInitialRouteSafely(user);
         if(!rendered){
           var role=String(user.role||'').toLowerCase();
-          if(role==='admin'&&typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome();
-          else if(role==='learner'&&typeof window.phfGoLearning==='function') window.phfGoLearning();
+          /* PHF 27.6.12.4.7.5: khi F5/khôi phục route thất bại, mọi tài khoản
+             đều giữ fallback an toàn ở Trang chủ; không tự ép learner vào bài học. */
+          if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome();
+          else if(typeof window.phfGoHome==='function') window.phfGoHome();
         }
       }else{
         if(isProtectedPath()) showProtectedLogin('Phiên đăng nhập đã hết hạn hoặc thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.');

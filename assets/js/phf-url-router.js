@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '27.5.2-post-login-role-home';
+  var ROUTER_VERSION = '40.1-f5-boot-guard';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -85,7 +85,7 @@
     wrap.querySelector('[data-primary]').onclick=function(){close(); if(typeof primaryAction==='function')primaryAction();};
     document.body.appendChild(wrap);
   }
-  function safeHomeForRole(){return role()==='learner'?'/my-lessons':(role()==='admin'?'/admin':'/overview');}
+  function safeHomeForRole(){return role()==='learner'?'/overview':(role()==='admin'?'/admin':'/overview');}
   function deny(){
     var target=safeHomeForRole();
     modal('Không có quyền truy cập','Tài khoản của anh/chị không được cấp quyền xem nội dung này.','Về trang phù hợp',function(){navigate(target,true);});
@@ -201,6 +201,12 @@
         await Promise.resolve(window.phfGoMyProfile&&window.phfGoMyProfile()); return true;
       }
       if(path==='/overview'){
+        /* PHF 27.6.12.4.7.5.1: /overview là Trang chủ sau đăng nhập đối với
+           learner; Admin/Manager vẫn dùng màn Tổng quan đào tạo như cũ. */
+        if(role()==='learner'){
+          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+          return true;
+        }
         if(!requireRoles(['manager','admin']))return false;
         if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview()); return true;
@@ -278,7 +284,7 @@
     wrapped[ROUTE_MARK]=true; wrapped.__phfOriginal=fn; window[name]=wrapped;
   }
   function installWrappers(){
-    wrap('phfRenderPostLoginHome',function(){return role()==='learner'?'/my-lessons':'/overview';});
+    wrap('phfRenderPostLoginHome',function(){return '/overview';});
     wrap('phfGoLearning',function(){return '/my-lessons';});
     wrap('phfGoMyProfile',function(){return '/my-profile';});
     wrap('phfRenderTrainingOverview',function(){return '/overview';});
@@ -368,6 +374,13 @@
     }catch(e){}
   }
 
+  function releaseBootGuard(){
+    try{
+      if(window.__phfRouteBootGuardTimer){clearTimeout(window.__phfRouteBootGuardTimer);window.__phfRouteBootGuardTimer=null;}
+      document.documentElement.classList.remove('phf-route-boot-pending');
+    }catch(e){}
+  }
+
   async function boot(){
     migrateRouteStorage();
     /* Router được nạp sau các module chính nên chỉ cần bọc hàm một lần.
@@ -411,13 +424,18 @@
     if(window.__phfAuthHandledInitialRoute){
       window.__phfAuthHandledInitialRoute=false;
       updateCopyAction();
+      releaseBootGuard();
       return;
     }
     if(current==='/login'&&!authenticated()){
       try{var q=new URLSearchParams(location.search).get('returnTo');if(q){pendingPath=safeReturnTo(q);sessionStorage.setItem('phfRouteReturnTo',pendingPath);}}catch(e){}
     }
-    await render(current,true);
-    updateCopyAction();
+    try{
+      await render(current,true);
+      updateCopyAction();
+    }finally{
+      releaseBootGuard();
+    }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();

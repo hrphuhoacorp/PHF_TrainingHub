@@ -1812,7 +1812,8 @@ function phfRenderPostLoginHome(){
         <h2>Chào mừng <span class="phf-home-account-name" style="color:#b45f1b !important;-webkit-text-fill-color:#b45f1b !important;font-weight:800 !important;">${esc(learnerName)}</span> đến với hệ thống đào tạo nội bộ.</h2>
         <p>Đây là khu vực để bạn tiếp tục bài học đang học, xem lại hồ sơ cá nhân, làm bài kiểm tra và theo dõi các mốc đánh giá trong suốt quá trình đào tạo tại PHUHOA FRESH.</p>
         <div class="phf-home-actions">
-          <button class="phf-home-action primary" type="button" onclick="phfGoLearning()"><span>Bài học của tôi</span><small>Tiếp tục lộ trình đang học</small></button>
+          ${(!canEdit && (!window.phfHasActiveTrainingHubProgram || window.phfHasActiveTrainingHubProgram())) ? '<button class="phf-home-action primary" type="button" onclick="phfGoLearning()"><span>Bài học của tôi</span><small>Tiếp tục lộ trình đang học</small></button>' : ''}
+          ${(!canEdit && window.phfOpenClassroom) ? '<button class="phf-home-action primary" type="button" onclick="phfOpenClassroom()"><span>Lớp đào tạo của tôi</span><small>Xem lớp, lịch học, tài liệu và kết quả</small></button>' : ''}
           <button class="phf-home-action" type="button" onclick="phfGoMyProfile()"><span>Hồ sơ của tôi</span><small>Xem thông tin, tiến độ và đánh giá</small></button>
 ${quickAdmin}
         </div>
@@ -1828,6 +1829,7 @@ ${quickAdmin}
         </div>
       </div>
     </div>
+
 
     <div class="phf-home-info-grid">
       <article><b>Theo dõi đúng việc cần làm</b><span>Hệ thống hiển thị rõ bài học, nội dung cần xác nhận và các bước tiếp theo theo đúng lộ trình đào tạo.</span></article>

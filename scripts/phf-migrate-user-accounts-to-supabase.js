@@ -62,6 +62,7 @@ async function main() {
       position:String(account.position || ''),
       training_audience:String(account.trainingAudience || ''),
       default_program:String(account.defaultProgram || ''),
+      hub_assignment_status:String(account.hubAssignmentStatus || (String(account.trainingAudience || '') === 'Nhân sự mới' ? 'active' : 'not_activated')),
       must_change_password:!!account.mustChangePassword,
       password_algorithm:String(account.passwordAlgorithm || 'pbkdf2-sha256'),
       password_iterations:Number(account.passwordIterations || 120000),

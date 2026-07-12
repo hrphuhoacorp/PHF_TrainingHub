@@ -24,6 +24,7 @@ create table if not exists public.user_accounts (
   position text not null default '',
   training_audience text not null default '',
   default_program text not null default '',
+  hub_assignment_status text not null default 'not_activated',
   must_change_password boolean not null default false,
 
   password_algorithm text not null default 'pbkdf2-sha256',
@@ -45,6 +46,8 @@ create table if not exists public.user_accounts (
     check (role in ('learner', 'manager', 'admin')),
   constraint user_accounts_status_valid
     check (status in ('active', 'locked', 'inactive')),
+  constraint user_accounts_hub_assignment_status_valid
+    check (hub_assignment_status in ('not_activated','active','paused','completed','revoked')),
   constraint user_accounts_password_iterations_valid
     check (password_iterations >= 100000),
   constraint user_accounts_password_salt_not_blank
