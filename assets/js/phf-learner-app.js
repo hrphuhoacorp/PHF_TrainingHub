@@ -455,9 +455,12 @@ async function phfRefreshTrainingData(options){
   window.__phfTrainingDataLatestRequestId = requestId;
 
   const request = (async function(){
+    const perfStartedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
     try{
       let res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'include'});
-      let json = await res.json().catch(function(){ return {}; });
+      const rawText = await res.text().catch(function(){ return ''; });
+      let json = {};
+      try{ json = rawText ? JSON.parse(rawText) : {}; }catch(parseErr){ json = {}; }
 
       if(res.status===401){
         try{
@@ -465,7 +468,8 @@ async function phfRefreshTrainingData(options){
             const recovered = await window.phfHandleAuthExpired();
             if(recovered){
               res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'same-origin'});
-              json = await res.json().catch(function(){return{}});
+              const retryRawText = await res.text().catch(function(){ return ''; });
+              try{ json = retryRawText ? JSON.parse(retryRawText) : {}; }catch(parseErr){ json = {}; }
             }
           }
         }catch(e){}
@@ -479,13 +483,43 @@ async function phfRefreshTrainingData(options){
         return false;
       }
 
+      const perfEndedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
+      const perfInfo = {
+        endpoint: '/api/data',
+        scope: dataScope,
+        role: role,
+        status: res.status,
+        ok: res.ok,
+        durationMs: Math.round(perfEndedAt - perfStartedAt),
+        responseBytes: typeof rawText === 'string' ? rawText.length : 0,
+        measuredAt: new Date().toISOString()
+      };
+      window.__phfLastDataTiming = perfInfo;
+      console.info('[PHF performance] /api/data', perfInfo);
+
       if(res.ok && json){
         window.__phfLocalData = json.data || json;
         window.__phfTrainingDataLoadedAt = Date.now();
         window.__phfTrainingDataScopeKey = scopeKey;
         return true;
       }
-    }catch(err){ console.warn('PHF refresh data error', err); }
+    }catch(err){
+      const perfEndedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
+      const perfInfo = {
+        endpoint: '/api/data',
+        scope: dataScope,
+        role: role,
+        status: 0,
+        ok: false,
+        durationMs: Math.round(perfEndedAt - perfStartedAt),
+        responseBytes: 0,
+        measuredAt: new Date().toISOString(),
+        error: String(err && err.message || err || 'Unknown error')
+      };
+      window.__phfLastDataTiming = perfInfo;
+      console.info('[PHF performance] /api/data', perfInfo);
+      console.warn('PHF refresh data error', err);
+    }
     return false;
   })();
 
@@ -639,12 +673,9 @@ function phfPrefillBMTTForm(force){
 }
 function phfCollectBMTT(){
   const val = function(id){ const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
-  const user=(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||{};
-  return {
-    documentCode:'PHF-BMTT',
+  const record = {
+    id: 'bmtt-' + Date.now(),
     documentVersion: val('phfBmtVersion') || 'PHF-BMTT-2026-06-06',
-    documentTitle:'Cam kết bảo mật thông tin',
-    acknowledgementText:'Tôi đã đọc, hiểu và đồng ý thực hiện cam kết bảo mật thông tin.',
     fullName: val('phfBmtFullName'),
     birthday: val('phfBmtDob'),
     cccd: val('phfBmtCccd'),
@@ -658,14 +689,20 @@ function phfCollectBMTT(){
     confirmDate: val('phfBmtConfirmDate'),
     checkedCount: document.querySelectorAll('#phfBmtPaper .phf-bmtt-check:checked').length,
     requiredCheckCount: document.querySelectorAll('#phfBmtPaper .phf-bmtt-check').length,
-    page: window.phfCurrentLessonKey || ('lesson:' + (typeof current === 'number' ? current : '')),
-    clientAccountHint:user.email||''
+    signedAt: new Date().toISOString(),
+    confirmedByEmail: (window.phfGetAuthenticatedUser && window.phfGetAuthenticatedUser() && window.phfGetAuthenticatedUser().email) || '',
+    confirmedByAccountId: (window.phfGetAuthenticatedUser && window.phfGetAuthenticatedUser() && window.phfGetAuthenticatedUser().id) || '',
+    status: 'signed',
+    page: window.phfCurrentLessonKey || ('lesson:' + (typeof current === 'number' ? current : ''))
   };
+  return record;
 }
+
 function phfBMTTFingerprint(){
-  const version=String(document.getElementById('phfBmtVersion')?.value||'PHF-BMTT-2026-06-06');
-  const checked=!!document.querySelector('#phfBmtPaper .phf-bmtt-check:checked');
-  return version+'|'+(checked?'1':'0');
+  const ids=['phfBmtFullName','phfBmtDob','phfBmtCccd','phfBmtCccdDate','phfBmtCccdPlace','phfBmtPhone','phfBmtPosition','phfBmtBranch','phfBmtSignName','phfBmtSignPhone','phfBmtConfirmDate','phfBmtVersion'];
+  const values=ids.map(function(id){const el=document.getElementById(id);return el?String(el.value||'').trim():'';});
+  const checks=Array.from(document.querySelectorAll('#phfBmtPaper .phf-bmtt-check')).map(function(x){return x.checked?'1':'0';});
+  return values.concat(checks).join('|');
 }
 function phfCurrentEmployeeIdForBMTT(){
   try{
@@ -680,108 +717,30 @@ function phfExistingBMTT(){
   const rows=Array.isArray(data.confidentialityCommitments)?data.confidentialityCommitments:[];
   const employeeId=phfCurrentEmployeeIdForBMTT();
   const version=String(document.getElementById('phfBmtVersion')?.value||'PHF-BMTT-2026-06-06');
-  return rows.find(function(r){return String(r.employeeId||r.employee_id||'')===employeeId&&String(r.documentVersion||'')===version;})||null;
-}
-function phfIsCompleteBMTTRecord(r){
-  if(!r) return false;
-  const signer=String(r.confirmedName||r.signName||r.fullName||'').trim();
-  const account=String(r.confirmedByEmail||r.accountEmail||'').trim();
-  const at=String(r.confirmedAt||r.signedAt||'').trim();
-  const version=String(r.documentVersion||'').trim();
-  const employee=String(r.employeeId||r.employee_id||'').trim();
-  const ack=String(r.acknowledgementText||'').trim();
-  return !!(r.id&&employee&&signer&&account&&at&&version&&ack&&Number(r.checkedCount)>=1&&Number(r.requiredCheckCount)>=1);
-}
-function phfApplyBMTTRecordToDocument(record){
-  if(!record) return;
-  const set=function(id,value){const el=document.getElementById(id);if(el&&value!==undefined&&value!==null&&String(value)!=='')el.value=String(value);};
-  set('phfBmtFullName',record.confirmedName||record.signName||record.fullName);
-  set('phfBmtDob',record.birthday);
-  set('phfBmtCccd',record.cccd);
-  set('phfBmtCccdDate',record.cccdDate);
-  set('phfBmtCccdPlace',record.cccdPlace);
-  set('phfBmtPhone',record.phone||record.signPhone);
-  set('phfBmtPosition',record.position);
-  set('phfBmtBranch',record.branch);
-  set('phfBmtSignName',record.confirmedName||record.signName||record.fullName);
-  set('phfBmtSignPhone',record.signPhone||record.phone);
-  set('phfBmtVersion',record.documentVersion);
-  const signedAt=record.confirmedAt||record.signedAt;
-  if(signedAt){const d=new Date(signedAt);if(!isNaN(d.getTime()))set('phfBmtConfirmDate',d.toISOString().slice(0,10));}
-  const paper=document.getElementById('phfBmtPaper');
-  if(paper){
-    paper.classList.add('phf-bmtt-paper-signed');
-    paper.querySelectorAll('input:not([type="hidden"])').forEach(function(el){el.readOnly=true;el.setAttribute('aria-readonly','true');});
-  }
-  phfUpdateBMTTPrintFields();
-}
-function phfRenderBMTTReceipt(record){
-  const receipt=document.getElementById('phfBmtSignedReceipt');
-  const unsigned=document.getElementById('phfBmtUnsignedArea');
-  if(!receipt) return;
-  const esc=phfEscHtml;
-  if(!phfIsCompleteBMTTRecord(record)){
-    if(unsigned) unsigned.hidden=false;
-    receipt.hidden=false;
-    receipt.className='phf-bmtt-signed-receipt phf-bmtt-screen-only legacy';
-    receipt.innerHTML='<div class="phf-bmtt-receipt-head"><span>Trạng thái hồ sơ</span><b>Cần ký xác nhận lại</b></div><p>Đã ghi nhận thao tác trước đây nhưng chưa đủ thông tin biên bản — cần ký xác nhận lại.</p>';
-    return;
-  }
-  phfApplyBMTTRecordToDocument(record);
-  if(unsigned) unsigned.hidden=true;
-  receipt.hidden=false;
-  receipt.className='phf-bmtt-signed-receipt phf-bmtt-screen-only complete phf-bmtt-full-record';
-  const at=new Date(record.confirmedAt||record.signedAt);
-  const atText=isNaN(at.getTime())?'—':at.toLocaleString('vi-VN');
-  receipt.innerHTML='<div class="phf-bmtt-record-banner"><div><span>BIÊN BẢN ĐIỆN TỬ</span><h3>Cam kết bảo mật thông tin đã ký</h3><p>Bạn đã hoàn tất xác nhận phiên bản <b>'+esc(record.documentVersion)+'</b> vào <b>'+esc(atText)+'</b>.</p></div><b class="phf-bmtt-signed-chip">Đã ký xác nhận</b></div>'+ 
-    '<div class="phf-bmtt-receipt-grid">'+
-    '<div><span>Họ tên người ký</span><b>'+esc(record.confirmedName||record.signName||record.fullName)+'</b></div>'+ 
-    '<div><span>Mã nhân viên</span><b>'+esc(record.employeeId||record.employee_id)+'</b></div>'+ 
-    '<div><span>Tài khoản thực hiện</span><b>'+esc(record.confirmedByEmail||record.accountEmail)+'</b></div>'+ 
-    '<div><span>Ngày giờ ký từ máy chủ</span><b>'+esc(atText)+'</b></div>'+ 
-    '<div><span>Tên cam kết</span><b>'+esc(record.documentTitle||'Cam kết bảo mật thông tin')+'</b></div>'+ 
-    '<div><span>Phiên bản cam kết</span><b>'+esc(record.documentVersion)+'</b></div>'+ 
-    '<div class="wide"><span>Mã biên bản</span><b>'+esc(record.id)+'</b></div>'+ 
-    '<div class="wide"><span>Nội dung xác nhận điện tử</span><b>'+esc(record.acknowledgementText)+'</b></div></div>'+ 
-    '<div class="phf-bmtt-electronic-seal"><b>XÁC NHẬN ĐIỆN TỬ</b><p>Biên bản này được xác nhận bởi tài khoản đã đăng nhập trên PHF Training Hub. Người ký, thời gian máy chủ, nội dung và phiên bản cam kết được lưu cùng một bản ghi và không thể tự chỉnh sửa hoặc hủy ký.</p></div>';
+  return rows.find(function(r){return String(r.employeeId||r.employee_id||'')===employeeId&&String(r.documentVersion||'PHF-BMTT-2026-06-06')===version;})||null;
 }
 function phfMarkBMTTSigned(record){
   const paper=document.getElementById('phfBmtPaper');
   if(!paper) return;
-  const complete=phfIsCompleteBMTTRecord(record);
-  paper.dataset.phfSigned=complete?'1':'0';
-  paper.dataset.phfSignedFingerprint=complete?phfBMTTFingerprint():'';
+  paper.dataset.phfSigned='1';
+  paper.dataset.phfSignedFingerprint=phfBMTTFingerprint();
   if(record&&record.id) paper.dataset.phfCommitmentId=String(record.id);
   const btn=document.getElementById('phfBmtSignButton');
-  if(btn){btn.textContent=complete?'Đã ký xác nhận':'Ký xác nhận';btn.disabled=complete||!phfCanEnableBMTTSign();}
-  phfRenderBMTTReceipt(record);
+  if(btn){btn.textContent='Đã ký xác nhận';btn.disabled=true;}
 }
 function phfInvalidateBMTTSignature(){
-  phfUpdateBMTTSignState();
+  const paper=document.getElementById('phfBmtPaper');
+  if(!paper||paper.dataset.phfSigned!=='1') return;
+  if(paper.dataset.phfSignedFingerprint===phfBMTTFingerprint()) return;
+  paper.dataset.phfSigned='0';
+  const btn=document.getElementById('phfBmtSignButton');
+  if(btn){btn.textContent='Ký xác nhận';btn.disabled=false;}
+  phfSetStatus('phfBmtStatus','Thông tin cam kết đã thay đổi. Vui lòng ký xác nhận lại trước khi tiếp tục.','warn');
 }
 function phfHasSavedBMTTSignature(){
-  return phfIsCompleteBMTTRecord(phfExistingBMTT());
-}
-function phfCanEnableBMTTSign(){
-  const required=['phfBmtFullName','phfBmtDob','phfBmtCccd','phfBmtCccdDate','phfBmtCccdPlace','phfBmtPhone','phfBmtPosition','phfBmtBranch'];
-  const fieldsOk=required.every(function(id){return String(document.getElementById(id)?.value||'').trim();});
-  const check=document.querySelector('#phfBmtPaper .phf-bmtt-check');
-  return !!(fieldsOk&&check&&check.checked&&phfCurrentEmployeeIdForBMTT());
-}
-function phfUpdateBMTTSignState(){
-  const profile=phfCurrentProfileForForms();
-  const user=(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||{};
-  const id=phfCurrentEmployeeIdForBMTT();
-  const putText=function(elId,v){const el=document.getElementById(elId);if(el)el.textContent=v||'—';};
-  putText('phfBmtPreparedName',document.getElementById('phfBmtFullName')?.value||profile.fullName);
-  putText('phfBmtEmployeeCode',id);
-  putText('phfBmtAccount',user.email||'—');
-  putText('phfBmtPreparedDate','Hệ thống ghi nhận khi ký thành công');
-  const signName=document.getElementById('phfBmtSignName');if(signName)signName.value=document.getElementById('phfBmtFullName')?.value||profile.fullName||'';
-  const signPhone=document.getElementById('phfBmtSignPhone');if(signPhone)signPhone.value=document.getElementById('phfBmtPhone')?.value||profile.phone||'';
-  const date=document.getElementById('phfBmtConfirmDate');if(date)date.value=phfTodayISO();
-  const btn=document.getElementById('phfBmtSignButton');
-  if(btn&&!phfHasSavedBMTTSignature())btn.disabled=!phfCanEnableBMTTSign();
+  const paper=document.getElementById('phfBmtPaper');
+  if(!paper) return true;
+  return paper.dataset.phfSigned==='1'&&paper.dataset.phfSignedFingerprint===phfBMTTFingerprint();
 }
 function phfValidateConfidentialityCommitment(silent){
   if(!document.getElementById('phfBmtPaper')) return true;
@@ -861,46 +820,41 @@ function phfPrepareBMTTPrintOnly(){
   return clone;
 }
 async function phfSaveConfidentialityCommitment(){
-  if(phfHasSavedBMTTSignature()) return true;
   if(!phfValidateConfidentialityCommitment(false)) return false;
   const btn=document.getElementById('phfBmtSignButton');
   if(btn){btn.disabled=true;btn.textContent='Đang ký xác nhận...';}
   phfUpdateBMTTPrintFields();
   const record=phfCollectBMTT();
-  phfSetStatus('phfBmtStatus','Đang lưu biên bản xác nhận lên hệ thống...', 'info');
+  phfSetStatus('phfBmtStatus','Đang lưu chữ ký xác nhận lên hệ thống...', 'info');
   try{
     const employee=phfCurrentProfileForForms();
     employee.id=phfCurrentEmployeeIdForBMTT()||employee.id;
+    employee.fullName=record.fullName;
+    employee.birthday=record.birthday;
+    employee.phone=record.phone;
+    employee.branch=record.branch;
+    employee.position=record.position;
     const payload={type:'confidentiality-commitment',employee:employee,currentPage:record.page,skipProgress:true,confidentialityCommitment:record};
     const res=await fetch('/api/data',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const json=await res.json().catch(function(){return{}});
-    if(!res.ok||!json||!json.ok) throw new Error(json&&json.error?json.error:'Chưa thể lưu biên bản xác nhận.');
+    if(!res.ok||!json||!json.ok) throw new Error(json&&json.error?json.error:'Chưa thể lưu chữ ký xác nhận.');
     if(json.data) window.__phfLocalData=json.data;
-    let saved=json.commitmentRecord||phfExistingBMTT();
-    if(json.commitmentRecord){
-      const data=window.__phfLocalData||(window.__phfLocalData={});
-      const rows=Array.isArray(data.confidentialityCommitments)?data.confidentialityCommitments:[];
-      const idx=rows.findIndex(function(r){return String(r.id||'')===String(json.commitmentRecord.id||'');});
-      if(idx>=0) rows[idx]=json.commitmentRecord; else rows.push(json.commitmentRecord);
-      data.confidentialityCommitments=rows;
-    }
-    if(!phfIsCompleteBMTTRecord(saved)) throw new Error('Máy chủ chưa trả lại bản ghi BMTT hoàn chỉnh. Hệ thống chưa ghi nhận đã ký.');
+    const saved=phfExistingBMTT()||record;
+    try{localStorage.setItem('phfConfidentialityCommitment',JSON.stringify(saved));}catch(e){}
     phfMarkBMTTSigned(saved);
-    phfSetStatus('phfBmtStatus','Đã ký xác nhận và lưu biên bản BMTT trên hệ thống.', 'ok');
+    phfSetStatus('phfBmtStatus','Đã ký xác nhận và lưu vào hồ sơ BMTT trên hệ thống.', 'ok');
     return true;
   }catch(e){
     console.warn('PHF BMTT save error:',e);
-    const paper=document.getElementById('phfBmtPaper');if(paper)paper.dataset.phfSigned='0';
-    if(btn){btn.textContent='Ký xác nhận';btn.disabled=!phfCanEnableBMTTSign();}
-    phfSetStatus('phfBmtStatus',e&&e.message?e.message:'Chưa lưu được biên bản xác nhận. Vui lòng thử lại.','warn');
-    const rawMessage=e&&e.message?String(e.message):'';
-    const message=/failed to fetch|networkerror|load failed/i.test(rawMessage)
-      ? 'Không thể kết nối máy chủ để lưu xác nhận. Hệ thống chưa ghi nhận ký BMTT. Vui lòng kiểm tra máy chủ đang chạy và thử lại.'
-      : (rawMessage||'Chưa lưu được biên bản xác nhận. Vui lòng thử lại.');
-    phfNotice('error','Chưa ký xác nhận được',message);
+    const paper=document.getElementById('phfBmtPaper');
+    if(paper) paper.dataset.phfSigned='0';
+    if(btn){btn.disabled=false;btn.textContent='Ký xác nhận';}
+    phfSetStatus('phfBmtStatus',e&&e.message?e.message:'Chưa lưu được chữ ký xác nhận. Vui lòng thử lại.','warn');
+    phfNotice('error','Chưa ký xác nhận được','Dữ liệu chưa được ghi vào hồ sơ Admin/Quản lý. Vui lòng kiểm tra kết nối và thử lại.');
     return false;
   }
 }
+
 function phfEscHtml(v){
   return String(v == null ? '' : v)
     .replace(/&/g,'&amp;')
@@ -1055,38 +1009,24 @@ function phfBuildBMTTPrintHTML(record){
 </body>
 </html>`;
 }
-function phfBMTTPrintRoute(record){
-  const rawId = record && (record.id || record.recordId || record.record_id || record.confirmationCode || record.confirmation_code);
-  const safeId = String(rawId || ('bmtt-' + Date.now())).trim().replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'') || ('bmtt-' + Date.now());
-  return '/print/commitments/' + encodeURIComponent(safeId);
-}
 function phfOpenBMTTPrintDocument(record){
-  if(!phfIsCompleteBMTTRecord(record)){
-    phfNotice('warning','Chưa có biên bản hoàn chỉnh','Hệ thống chỉ mở trang in sau khi máy chủ đã lưu đầy đủ biên bản ký xác nhận.');
-    return false;
-  }
-  const printRoute=phfBMTTPrintRoute(record);
-  try{
-    sessionStorage.setItem('phfBmttPrintRecord:'+String(record.id),JSON.stringify(record));
-  }catch(e){
-    phfNotice('warning','Không chuẩn bị được trang in','Trình duyệt không cho phép chuẩn bị dữ liệu phiên in. Vui lòng thử lại.');
-    return false;
-  }
-  const win=window.open(printRoute,'_blank','noopener=false');
+  const html = phfBuildBMTTPrintHTML(record);
+  const win = window.open('', '_blank');
   if(!win){
-    phfNotice('warning','Trình duyệt đang chặn cửa sổ in','Vui lòng cho phép mở cửa sổ mới để in biên bản.');
+    phfNotice('warning','Trình duyệt đang chặn cửa sổ in','Vui lòng cho phép mở cửa sổ mới để in bản cam kết.');
     return false;
   }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  try{ win.focus(); setTimeout(function(){ win.print(); }, 450); }catch(e){}
   return true;
 }
 async function phfPrintConfidentialityCommitment(){
-  let record=phfExistingBMTT();
-  if(!phfIsCompleteBMTTRecord(record)){
-    if(!phfValidateConfidentialityCommitment(false)) return;
-    const saved=await phfSaveConfidentialityCommitment();
-    if(!saved) return;
-    record=phfExistingBMTT();
-  }
+  if(!phfValidateConfidentialityCommitment(false)) return;
+  phfUpdateBMTTPrintFields();
+  await phfSaveConfidentialityCommitment();
+  const record = phfCollectBMTT();
   phfOpenBMTTPrintDocument(record);
 }
 function phfValidateMorningCommitment(){
@@ -1152,7 +1092,7 @@ function phfInitContentForms(){
   const paper = document.getElementById('phfBmtPaper');
   if(paper && !paper.dataset.phfBound){
     paper.dataset.phfBound='1';
-    const onChange=function(){phfUpdateBMTTPrintFields();phfUpdateBMTTSignState();};
+    const onChange=function(){phfUpdateBMTTPrintFields();phfInvalidateBMTTSignature();};
     paper.addEventListener('input',onChange);
     paper.addEventListener('change',onChange);
   }
@@ -1160,9 +1100,7 @@ function phfInitContentForms(){
     const existing=phfExistingBMTT();
     if(existing){
       phfMarkBMTTSigned(existing);
-      phfSetStatus('phfBmtStatus',phfIsCompleteBMTTRecord(existing)?'Cam kết này đã được ký xác nhận và lưu trong hồ sơ.':'Đã ghi nhận thao tác trước đây nhưng chưa đủ thông tin biên bản — cần ký xác nhận lại.',phfIsCompleteBMTTRecord(existing)?'ok':'warn');
-    }else{
-      phfUpdateBMTTSignState();
+      phfSetStatus('phfBmtStatus','Cam kết này đã được ký xác nhận và lưu trong hồ sơ.','ok');
     }
   }
 }

@@ -405,15 +405,22 @@ function phfFinalGroupSummary(statusItems){
 }
 function phfRenderFinalPaper(profile, period, existing){
   const items = existing && (existing.statusItems || existing.status_items || {}) || {};
-  const summaries = phfFinalGroupSummary(items);
-  const flagged = [];
-  phfFinalEvaluationGroups().forEach(function(g){ g.items.forEach(function(it){ const v=phfFinalRatingValue(items[it[0]]); const n=phfFinalNoteValue(items[it[0]]); if(phfFinalNeedsNote(v) || n){ flagged.push({title:it[2], value:v, note:n || 'Chưa ghi chú.'}); } }); });
-  return `<div class="final-paper"><div class="final-paper-title">Bản đánh giá nhân sự thử việc</div>
-    <table class="final-paper-info"><tr><th>Họ tên</th><td>${esc(profile.fullName || '')}</td><th>SĐT/Mã NS</th><td>${esc(profile.phone || profile.employeeCode || 'Chưa có')}</td></tr><tr><th>Vị trí</th><td>${esc(profile.position || 'Nhân viên bán hàng')}</td><th>Chi nhánh</th><td>${esc(profile.branch || 'Chưa phân chi nhánh')}</td></tr><tr><th>Thử việc</th><td>${phfFormatRangeFull(period.start, period.end)}</td><th>Người đánh giá</th><td>${esc(existing.evaluator || 'Đã lưu')}</td></tr></table>
-    <div class="final-paper-section">1. Kết quả đánh giá theo nhóm tiêu chí</div><table class="final-paper-table"><thead><tr><th>Nhóm tiêu chí</th><th>Kết quả chung</th><th>Ghi nhận chính</th></tr></thead><tbody>${summaries.map(function(r){return `<tr><td>${esc(r.group)}</td><td class="final-paper-center">${esc(r.result)}</td><td>${esc(r.note)}</td></tr>`;}).join('')}</tbody></table>
-    <div class="final-paper-section">2. Các nội dung cần theo dõi / bắt buộc ghi nhận</div><table class="final-paper-table"><thead><tr><th>Tiêu chí</th><th>Mức</th><th>Nội dung ghi nhận</th></tr></thead><tbody>${flagged.length?flagged.map(function(r){return `<tr><td>${esc(r.title)}</td><td class="final-paper-center">${esc(r.value)}</td><td>${esc(r.note)}</td></tr>`;}).join(''):'<tr><td colspan="3" class="final-paper-center">Không có nội dung cần theo dõi đặc biệt.</td></tr>'}</tbody></table>
-    <div class="final-paper-section">3. Kết luận</div><div class="final-paper-summary"><div><b>Nhận xét:</b> ${esc(existing.notes || 'Chưa có nhận xét.')}<br><br><b>Góp ý:</b> ${esc(existing.nextFocus || existing.next_focus || 'Chưa có góp ý.')}</div><div><b>Kết luận:</b><br>${esc(existing.conclusion || 'Chưa kết luận')}<br><br><b>Theo dõi/đề xuất:</b><br>${esc((items.__finalRequiredReason && items.__finalRequiredReason.note) || 'Không có ghi nhận thêm.')}</div></div>
-    <div class="final-signs"><div class="final-sign"><b>Người đánh giá</b>${esc(existing.evaluator || '')}</div><div class="final-sign"><b>Quản lý / CHT</b>Ký xác nhận</div><div class="final-sign"><b>HCNS</b>Lưu hồ sơ</div></div>
+  const detailRows = [];
+  phfFinalEvaluationGroups().forEach(function(group){
+    group.items.forEach(function(it, idx){
+      const value = phfFinalRatingValue(items[it[0]]);
+      const note = phfFinalNoteValue(items[it[0]]);
+      detailRows.push(`<tr class="${idx===0?'final-paper-group-start':''}"><td class="final-paper-center final-paper-no">${esc(it[1])}</td><td>${idx===0?`<b>${esc(group.title)}</b><small>${esc(group.sub || '')}</small>`:''}</td><td><b>${esc(it[2])}</b><small>${esc(it[3] || '')}</small></td><td class="final-paper-center"><b>${esc(value)}</b></td><td>${esc(note || '')}</td></tr>`);
+    });
+  });
+  const requiredReason = (items.__finalRequiredReason && items.__finalRequiredReason.note) || '';
+  return `<div class="final-paper final-paper-v2"><div class="final-paper-title">Phiếu đánh giá kết thúc thời gian thử việc</div>
+    <div class="final-paper-meta">Mã biểu mẫu: DGTV-01 · Phiên bản 01</div>
+    <div class="final-paper-section">1. Thông tin nhân viên</div>
+    <table class="final-paper-info"><tr><th>Họ và tên</th><td>${esc(profile.fullName || '')}</td><th>Mã nhân viên</th><td>${esc(profile.employeeCode || profile.phone || 'Chưa có')}</td></tr><tr><th>Vị trí</th><td>${esc(profile.position || 'Nhân viên bán hàng')}</td><th>Chi nhánh/Bộ phận</th><td>${esc(profile.branch || 'Chưa phân chi nhánh')}</td></tr><tr><th>Thời gian thử việc</th><td>${phfFormatRangeFull(period.start, period.end)}</td><th>Người đánh giá</th><td>${esc(existing.evaluator || 'Đã lưu')}</td></tr></table>
+    <div class="final-paper-section">2. Nội dung đánh giá chi tiết</div><table class="final-paper-table final-paper-detail"><colgroup><col style="width:7%"><col style="width:18%"><col style="width:34%"><col style="width:14%"><col style="width:27%"></colgroup><thead><tr><th>STT</th><th>Nhóm tiêu chí</th><th>Nội dung đánh giá</th><th>Mức đánh giá</th><th>Ghi chú / bằng chứng</th></tr></thead><tbody>${detailRows.join('')}</tbody></table>
+    <div class="final-paper-section">3. Nhận xét và kết luận</div><div class="final-paper-notes"><div><b>Nhận xét tổng quan</b><p>${esc(existing.notes || 'Chưa có nhận xét.')}</p></div><div><b>Góp ý / định hướng sau thử việc</b><p>${esc(existing.nextFocus || existing.next_focus || 'Chưa có góp ý.')}</p></div><div><b>Nội dung cần theo dõi / đề xuất</b><p>${esc(requiredReason || 'Không có ghi nhận thêm.')}</p></div><div class="final-paper-conclusion"><b>Kết luận thử việc</b><p>${esc(existing.conclusion || 'Chưa kết luận')}</p></div></div>
+    <div class="final-signs"><div class="final-sign"><b>Nhân viên</b>Xác nhận nội dung</div><div class="final-sign"><b>Người đánh giá</b>${esc(existing.evaluator || '')}</div><div class="final-sign"><b>Quản lý / HCNS</b>Phê duyệt và lưu hồ sơ</div></div>
   </div>`;
 }
 function phfRenderFinalEvaluationView(period){
@@ -531,6 +538,18 @@ function phfBuildEvaluationPrintHTML(title, documentHTML){
   .final-signs{display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:12mm!important;margin-top:14px!important;text-align:center!important;break-inside:avoid-page;page-break-inside:avoid;}
   .final-sign{min-height:30mm!important;border-top:1px solid #111!important;padding-top:6px!important;font-size:10pt!important;}
   .final-sign b{display:block!important;text-transform:uppercase!important;margin-bottom:18mm!important;}
+  .final-paper-meta{text-align:center!important;font-size:9pt!important;color:#555!important;margin:-4px 0 10px!important;}
+  .final-paper-detail td{height:auto!important;}
+  .final-paper-detail small{display:block!important;color:#555!important;font-size:8.5pt!important;line-height:1.3!important;margin-top:2px!important;}
+  .final-paper-group-start td{border-top-width:1.5px!important;}
+  .final-paper-no{white-space:nowrap!important;}
+  .final-paper-notes{display:grid!important;grid-template-columns:1fr 1fr!important;border:1px solid #111!important;font-size:10.5pt!important;}
+  .final-paper-notes>div{min-height:24mm!important;padding:7px!important;border-right:1px solid #111!important;border-bottom:1px solid #111!important;}
+  .final-paper-notes>div:nth-child(2n){border-right:0!important;}
+  .final-paper-notes>div:nth-last-child(-n+2){border-bottom:0!important;}
+  .final-paper-notes b{display:block!important;text-transform:uppercase!important;font-size:9.5pt!important;margin-bottom:5px!important;}
+  .final-paper-notes p{margin:0!important;white-space:pre-wrap!important;}
+  .final-paper-conclusion p{font-weight:800!important;}
   @media print{.phf-eval-print-doc{max-width:none;width:100%;}.no-print{display:none!important;}}
 </style>
 </head>
@@ -549,16 +568,31 @@ function phfPrintEvaluationCurrentDocument(){
   const titleEl = doc.querySelector('.eval-document-title h2,.final-paper-title');
   const title = titleEl ? titleEl.textContent.trim() : 'Phiếu đánh giá PHF';
   const html = phfBuildEvaluationPrintHTML(title, doc.outerHTML);
-  const win = window.open('', '_blank');
+  const printRoute = '/print/evaluations/current';
+  const win = window.open(printRoute, '_blank', 'noopener=false');
   if(!win){
     if(window.phfToast) phfToast('warning','Trình duyệt đang chặn cửa sổ in','Vui lòng cho phép mở cửa sổ mới để in phiếu đánh giá.', 4200, 'evaluation-print');
     else console.warn('Trình duyệt đang chặn cửa sổ in.');
     return false;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  try{ win.focus(); setTimeout(function(){ win.print(); }, 450); }catch(e){}
+  let sent = false;
+  const sendPrint = function(){
+    if(sent) return;
+    try{
+      win.postMessage({type:'PHF_EVALUATION_PRINT', html:html, title:title}, window.location.origin);
+      sent = true;
+    }catch(e){}
+  };
+  const onReady = function(event){
+    if(event.origin !== window.location.origin || event.source !== win) return;
+    if(event.data && event.data.type === 'PHF_EVALUATION_PRINT_READY'){
+      window.removeEventListener('message', onReady);
+      sendPrint();
+    }
+  };
+  window.addEventListener('message', onReady);
+  setTimeout(sendPrint, 900);
+  setTimeout(function(){ window.removeEventListener('message', onReady); }, 5000);
   return true;
 }
 

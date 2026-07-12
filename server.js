@@ -228,7 +228,11 @@ const server = http.createServer(async (req, res) => {
 
     let filePath = /^\/print\/commitments\/[^/]+$/.test(pathname)
       ? path.join(ROOT, 'print-commitment.html')
-      : safeStaticPath(req.url || '/');
+      : /^\/print\/evaluations\/[^/]+$/.test(pathname)
+        ? path.join(ROOT, 'print-evaluation.html')
+        : /^\/forms\/[^/]+\/print$/.test(pathname)
+          ? path.join(ROOT, 'print-form.html')
+          : safeStaticPath(req.url || '/');
     if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       const acceptsHtml = String(req.headers.accept || '').includes('text/html');
       const isUiRoute = acceptsHtml && !pathname.startsWith('/api/') && !path.extname(pathname);
