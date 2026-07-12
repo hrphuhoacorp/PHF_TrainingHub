@@ -13,7 +13,7 @@ const {
   validatePayload,
   publicError
 } = require('./lib/request-guard');
-const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, makeSession, publicAccount } = require('./lib/auth');
+const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, listAccountsForAdmin, makeSession, publicAccount } = require('./lib/auth');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
@@ -67,6 +67,37 @@ function getMime(filePath) {
     '.webmanifest': 'application/manifest+json',
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   }[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+}
+
+function staticCacheControl(filePath, rawUrl, pathname) {
+  const ext = path.extname(filePath).toLowerCase();
+  const urlText = String(rawUrl || '');
+  const isPrintPage = filePath.endsWith('print-commitment.html') ||
+    filePath.endsWith('print-evaluation.html') ||
+    filePath.endsWith('print-form.html') ||
+    /^\/print\//.test(String(pathname || '')) ||
+    /^\/forms\/[^/]+\/print$/.test(String(pathname || ''));
+
+  // HTML shell và trang in luôn lấy bản mới; API đã dùng baseHeaders no-store.
+  if (filePath.endsWith('index.html') || isPrintPage || ext === '.html') return 'no-store';
+
+  // File JS/CSS có mã phiên bản (?v=...) được phép cache. Khi phát hành bản mới,
+  // index.html đổi v= nên trình duyệt tự tải URL mới, không cần xóa cache.
+  if ((ext === '.js' || ext === '.css') && /(?:[?&])v=[^&]+/i.test(urlText)) {
+    return 'public, max-age=3600, must-revalidate';
+  }
+
+  // File tĩnh không có version vẫn phải kiểm tra lại để tránh giữ nhầm code cũ.
+  if (ext === '.js' || ext === '.css' || ext === '.webmanifest' || ext === '.json') {
+    return 'no-cache, must-revalidate';
+  }
+
+  // Ảnh, font, video và tài liệu lớn ít thay đổi: cache dài hơn để giảm tải lại.
+  if (['.png','.jpg','.jpeg','.gif','.webp','.svg','.ico','.mp4','.webm','.woff','.woff2','.ttf','.otf','.xlsx'].includes(ext)) {
+    return 'public, max-age=604800, stale-while-revalidate=86400';
+  }
+
+  return 'no-cache, must-revalidate';
 }
 
 function safeStaticPath(rawUrl) {
@@ -159,6 +190,29 @@ const server = http.createServer(async (req, res) => {
       res.setHeader('Set-Cookie',cookieHeader(makeSession(updated)));
       return sendJson(res,200,{ok:true,user:publicAccount(updated)});
     }
+    if ((pathname === '/api/auth/accounts' || pathname === '/api/auth/accounts/list') && req.method === 'GET') {
+      await requireSession(req,['admin']);
+      const accounts = await listAccountsForAdmin();
+      return sendJson(res,200,{ok:true,accounts});
+    }
+    if (pathname === '/api/auth/accounts/create' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      await requireSession(req,['admin']);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu tạo tài khoản không hợp lệ.',400,'JSON_INVALID')}
+      const result=await createAccountByAdmin(body.account||body);
+      return sendJson(res,201,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
+    }
+    if (pathname === '/api/auth/accounts/update' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session=await requireSession(req,['admin']);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu cập nhật tài khoản không hợp lệ.',400,'JSON_INVALID')}
+      const user=await updateAccountByAdmin(body.accountId, body.account||body);
+      const reauthRequired=String(session.sub||'')===String(user.id||'') && (session.email!==user.email || session.role!==user.role || user.status!=='active');
+      if(reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
+      return sendJson(res,200,{ok:true,user,reauthRequired});
+    }
     if (pathname === '/api/auth/accounts/reset-password' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
       await requireSession(req,['admin']);
@@ -246,7 +300,7 @@ const server = http.createServer(async (req, res) => {
     const headers = baseHeaders({
       'Content-Type': getMime(filePath),
       'Content-Length': stat.size,
-      'Cache-Control': filePath.endsWith('index.html') ? 'no-store' : 'no-cache, must-revalidate'
+      'Cache-Control': staticCacheControl(filePath, req.url, pathname)
     });
     res.writeHead(200, headers);
     if (req.method === 'HEAD') return res.end();

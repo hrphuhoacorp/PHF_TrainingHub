@@ -1,6 +1,33 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<base href="/">
+<script id="phf-stale-service-worker-cleanup">
+(function(){
+  if (!("serviceWorker" in navigator)) return;
+  var reloadKey = "phf-sw-cleanup-27-6-12-3-4";
+  var controlled = !!navigator.serviceWorker.controller;
+  Promise.all([
+    navigator.serviceWorker.getRegistrations().then(function(registrations){
+      return Promise.all(registrations.map(function(registration){
+        return registration.unregister().catch(function(){ return false; });
+      }));
+    }).catch(function(){ return []; }),
+    ("caches" in window ? caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(key){
+        return caches.delete(key).catch(function(){ return false; });
+      }));
+    }).catch(function(){ return []; }) : Promise.resolve([]))
+  ]).finally(function(){
+    if (controlled && sessionStorage.getItem(reloadKey) !== "1") {
+      sessionStorage.setItem(reloadKey, "1");
+      location.reload();
+      return;
+    }
+    if (!controlled) sessionStorage.removeItem(reloadKey);
+  });
+})();
+</script>
 <!-- PHF Bản 16B: ổn định khóa luồng học viên, resume và kết quả thi -->
 
 <meta charset="UTF-8" />
@@ -27,9 +54,24 @@ html.phf-auth-boot body::before{
 </style>
 <script id="phf-stage3161g-boot-cloak-js">
 document.documentElement.classList.add('phf-auth-boot');
+/* Chốt an toàn: không để F5 mắc kẹt vô hạn ở màn Đang tải dữ liệu.
+   Auth chính vẫn tự gỡ lớp này khi hoàn tất; watchdog chỉ can thiệp khi có lỗi khởi tạo. */
+window.__phfBootGuardTimer=setTimeout(function(){
+  try{
+    if(document.documentElement.classList.contains('phf-auth-boot')){
+      document.documentElement.classList.remove('phf-auth-boot');
+      console.warn('[PHF] Auth boot timeout: đã mở lại giao diện để người dùng có thể thử lại.');
+      setTimeout(function(){
+        if(typeof window.phfLoadingFail==='function'){
+          window.phfLoadingFail('Phiên đăng nhập hoặc dữ liệu tài khoản phản hồi quá lâu. Vui lòng thử tải lại trang.',function(){location.reload();});
+        }
+      },60);
+    }
+  }catch(e){}
+},12000);
 </script>
-<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=27_6_11_forms_print">
-<link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=30_5">
+<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=27_6_12_3_4_deeplink_assets">
+<link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=27_6_12_3_4_deeplink_assets">
 
 
 
@@ -2433,7 +2475,7 @@ function render(){
 </script>
 
 <script src="assets/js/phf-evaluation.js?v=27_6_12_1_forms_sync"></script>
-<script src="assets/js/phf-learner-app.js?v=27_6_9_bmtt_full_record"></script>
+<script src="assets/js/phf-learner-app.js?v=27_6_12_2_3_bmtt_print_route"></script>
 <script src="assets/js/phf-training-records.js?v=27_6_7_bmtt_cache_local"></script>
 <script src="assets/js/phf-notifications.js?v=27_1_ui_system_polish_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=24_f5_logic_stable_1"></script>
@@ -3446,8 +3488,8 @@ function render(){
 
 <script src="assets/js/phf-learning-gate.js?v=27_6_3_stage_review_gate"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
-<script src="assets/js/phf-account-admin-safe.js?v=27_6_0_password_server"></script>
-<script src="assets/js/phf-server-auth.js?v=27_6_0_account_sync_safe"></script>
+<script src="assets/js/phf-account-admin-safe.js?v=27_6_12_3_5_1_account_update_keep_base"></script>
+<script src="assets/js/phf-server-auth.js?v=27_6_12_3_4_deeplink_assets"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){
@@ -4136,6 +4178,6 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-url-router.js?v=27_6_4_deeplink_fix"></script>
+<script src="assets/js/phf-url-router.js?v=27_6_12_3_4_deeplink_assets"></script>
 </body>
 </html>

@@ -406,6 +406,13 @@
     await waitUntilReady();
     installWrappers();
     var current=cleanPath(location.pathname);
+    /* Auth đã dựng trực tiếp route đầu tiên (đặc biệt /admin/accounts) thì
+       router không render chồng thêm một lần sau F5. */
+    if(window.__phfAuthHandledInitialRoute){
+      window.__phfAuthHandledInitialRoute=false;
+      updateCopyAction();
+      return;
+    }
     if(current==='/login'&&!authenticated()){
       try{var q=new URLSearchParams(location.search).get('returnTo');if(q){pendingPath=safeReturnTo(q);sessionStorage.setItem('phfRouteReturnTo',pendingPath);}}catch(e){}
     }

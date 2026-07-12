@@ -124,6 +124,38 @@
     return json;
   }
 
+  function ensurePasswordChangeStyle(){
+    if(document.getElementById('phf-required-password-style')) return;
+    var st=document.createElement('style');st.id='phf-required-password-style';st.textContent='.phf-required-pw{position:fixed;inset:0;z-index:100000;background:rgba(9,31,23,.58);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px}.phf-required-pw-card{width:min(500px,100%);background:#fff;border:1px solid #dcebe4;border-radius:20px;box-shadow:0 28px 80px rgba(0,35,24,.28);overflow:hidden;font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif}.phf-required-pw-head{padding:22px 24px 14px}.phf-required-pw-head span{display:inline-flex;padding:5px 9px;border-radius:999px;background:#fff5df;color:#865b00;font-size:12px;font-weight:700}.phf-required-pw-head h2{margin:12px 0 7px;color:#17382d;font-size:22px}.phf-required-pw-head p{margin:0;color:#60756c;line-height:1.55}.phf-required-pw-body{padding:4px 24px 20px;display:grid;gap:13px}.phf-required-pw-field label{display:block;margin-bottom:6px;color:#445c52;font-size:13px;font-weight:650}.phf-required-pw-field input{width:100%;min-height:44px;border:1px solid #d6e9e1;border-radius:12px;padding:0 12px;font-size:15px;outline:none}.phf-required-pw-field input:focus{border-color:#75ad98;box-shadow:0 0 0 3px rgba(7,84,62,.08)}.phf-required-pw-rule{color:#667a71;font-size:12.5px;line-height:1.5}.phf-required-pw-error{min-height:20px;color:#9a3412;font-size:13px}.phf-required-pw-actions{display:flex;justify-content:flex-end;gap:9px;padding:15px 24px 22px;border-top:1px solid #edf3f0;background:#fbfdfc}.phf-required-pw-actions button{min-height:42px;border-radius:11px;padding:0 16px;border:1px solid #d6e9e1;background:#fff;color:#315448;font-weight:650;cursor:pointer}.phf-required-pw-actions .primary{background:#07543e;border-color:#07543e;color:#fff}.phf-required-pw-actions button:disabled{opacity:.6;cursor:wait}';document.head.appendChild(st);
+  }
+
+  function requireFirstPasswordChange(user,currentPassword){
+    return new Promise(function(resolve,reject){
+      ensurePasswordChangeStyle();
+      var old=document.getElementById('phfRequiredPasswordChange');if(old)old.remove();
+      var root=document.createElement('div');root.id='phfRequiredPasswordChange';root.className='phf-required-pw';
+      root.innerHTML='<section class="phf-required-pw-card" role="dialog" aria-modal="true"><div class="phf-required-pw-head"><span>Bắt buộc trước khi tiếp tục</span><h2>Thiết lập mật khẩu mới</h2><p>Tài khoản <b>'+esc(user&&user.email||'')+'</b> đang dùng mật khẩu tạm. Vui lòng đổi mật khẩu để bảo vệ tài khoản.</p></div><div class="phf-required-pw-body"><div class="phf-required-pw-field"><label>Mật khẩu tạm hiện tại</label><input id="phfRequiredCurrent" type="password" autocomplete="current-password"></div><div class="phf-required-pw-field"><label>Mật khẩu mới</label><input id="phfRequiredNew" type="password" autocomplete="new-password"></div><div class="phf-required-pw-field"><label>Nhập lại mật khẩu mới</label><input id="phfRequiredConfirm" type="password" autocomplete="new-password"></div><div class="phf-required-pw-rule">Mật khẩu cần ít nhất 8 ký tự, có chữ và số; phải khác mật khẩu tạm.</div><div class="phf-required-pw-error" id="phfRequiredError"></div></div><div class="phf-required-pw-actions"><button type="button" id="phfRequiredLogout">Đăng xuất</button><button type="button" class="primary" id="phfRequiredSave">Đổi mật khẩu và tiếp tục</button></div></section>';
+      document.body.appendChild(root);document.body.style.overflow='hidden';
+      var current=root.querySelector('#phfRequiredCurrent'),nw=root.querySelector('#phfRequiredNew'),confirm=root.querySelector('#phfRequiredConfirm'),error=root.querySelector('#phfRequiredError'),save=root.querySelector('#phfRequiredSave');
+      if(currentPassword) current.value=currentPassword;
+      function finish(){document.body.style.overflow='';root.remove()}
+      save.onclick=async function(){
+        error.textContent='';var cur=String(current.value||''),next=String(nw.value||''),cf=String(confirm.value||'');
+        if(!cur){error.textContent='Vui lòng nhập mật khẩu tạm hiện tại.';return}
+        if(next.length<8||!/[A-Za-zÀ-ỹ]/.test(next)||!/\d/.test(next)){error.textContent='Mật khẩu mới cần ít nhất 8 ký tự, có chữ và số.';return}
+        if(next!==cf){error.textContent='Mật khẩu nhập lại chưa khớp.';return}
+        if(next===cur){error.textContent='Mật khẩu mới phải khác mật khẩu tạm.';return}
+        save.disabled=true;save.textContent='Đang cập nhật...';
+        try{
+          var result=await request('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:cur,newPassword:next})});
+          var updated=result&&result.user?result.user:Object.assign({},user,{mustChangePassword:false});finish();resolve(updated);
+        }catch(e){error.textContent=e&&e.message?e.message:'Chưa thể đổi mật khẩu.';save.disabled=false;save.textContent='Đổi mật khẩu và tiếp tục'}
+      };
+      root.querySelector('#phfRequiredLogout').onclick=function(){finish();reject(new Error('PASSWORD_CHANGE_CANCELLED'));};
+      setTimeout(function(){(currentPassword?nw:current).focus()},30);
+    });
+  }
+
   async function readServerSession(){
     var json = await request('/api/auth/session?_=' + Date.now());
     return json && json.authenticated ? json.user : null;
@@ -312,6 +344,15 @@
 
         await establishSession(verified, 'server-login');
         removeLogin();
+        if(verified.mustChangePassword){
+          try{
+            verified=await requireFirstPasswordChange(verified,String(pass.value||''));
+            await establishSession(verified,'first-password-changed');
+          }catch(changeError){
+            await logout();
+            return;
+          }
+        }
         await renderAuthenticatedDefault(verified, 'server-login');
         try{document.documentElement.classList.remove('phf-auth-boot')}catch(e){}
       }catch(e){
@@ -402,32 +443,108 @@
   window.phfServerAuthSyncAccounts = syncAccounts;
   window.phfHandleAuthExpired = handleExpiredSession;
 
+
+  function isProtectedPath(){
+    var path=String(location.pathname||'/').replace(/\/+$/,'')||'/';
+    return /^\/(admin|overview|training-content|employees|my-lessons|my-profile|programs|lessons|notifications)(\/|$)/.test(path);
+  }
+
+  function showProtectedLogin(message){
+    forceAnonymousPublicState('protected-auth-required');
+    try{ history.replaceState({},'', '/login'); }catch(e){}
+    showLogin();
+    if(message){
+      setTimeout(function(){
+        var err=document.getElementById('phfTestLoginError');
+        if(err)err.textContent=message;
+      },30);
+    }
+  }
+
+
+  function clearBootCloak(){
+    try{
+      document.documentElement.classList.remove('phf-f5-restoring');
+      document.documentElement.classList.remove('phf-auth-boot');
+      if(window.__phfBootGuardTimer){clearTimeout(window.__phfBootGuardTimer);window.__phfBootGuardTimer=null;}
+      if(typeof window.phfLoadingHideNow==='function') window.phfLoadingHideNow();
+    }catch(e){}
+  }
+
+  function withTimeout(promise, ms, label){
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise(function(_, reject){
+        setTimeout(function(){
+          var err=new Error(label||'TIMEOUT');err.code='TIMEOUT';reject(err);
+        }, Math.max(1000, Number(ms)||8000));
+      })
+    ]);
+  }
+
+  async function renderInitialRouteSafely(user){
+    var path=String(location.pathname||'/').replace(/\/+$/,'')||'/';
+    var role=String(user&&user.role||'').toLowerCase();
+    /* Route Admin tài khoản không phụ thuộc dữ liệu đào tạo. Dựng trực tiếp
+       để F5 không bị mắc kẹt bởi router hoặc Promise khôi phục cũ. */
+    if(role==='admin'&&path==='/admin/accounts'&&typeof window.phfRenderAccountAdminSafe==='function'){
+      window.__phfAuthHandledInitialRoute=true;
+      window.phfRenderAccountAdminSafe();
+      return true;
+    }
+    if(role==='admin'&&path==='/admin'&&typeof window.phfRenderAdminManagement==='function'){
+      window.__phfAuthHandledInitialRoute=true;
+      window.phfRenderAdminManagement();
+      return true;
+    }
+    try{
+      return await withTimeout(renderAuthenticatedDefault(user,'server-session-restored'),7000,'ROUTE_RESTORE_TIMEOUT');
+    }catch(e){
+      console.warn('[PHF Auth] route restore timeout/fail:',e&&e.message||e);
+      return false;
+    }
+  }
+
   async function bootAuth(){
-    /* Chụp phiên bản trước khi gọi mạng. Nếu trong lúc chờ người dùng đã
-       đăng nhập/logout, kết quả boot cũ phải bị bỏ qua. */
     var bootEpoch = authEpoch;
     try{
-      var user = await readServerSession();
+      var user = await withTimeout(readServerSession(),8000,'SESSION_TIMEOUT');
       if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(user,'server-session-restored');
       if(bootEpoch !== authEpoch || authTransitioning) return;
+
+      /* Phiên đã rõ thì phải mở giao diện ngay. Không giữ toàn trang chờ route. */
+      clearBootCloak();
+
       if(user){
-        await renderAuthenticatedDefault(user,'server-session-restored');
+        if(user.mustChangePassword){
+          try{
+            user=await requireFirstPasswordChange(user,'');
+            await establishSession(user,'first-password-changed-restored');
+            clearBootCloak();
+          }catch(changeError){
+            await logout();
+            return;
+          }
+        }
+        var rendered=await renderInitialRouteSafely(user);
+        if(!rendered){
+          var role=String(user.role||'').toLowerCase();
+          if(role==='admin'&&typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome();
+          else if(role==='learner'&&typeof window.phfGoLearning==='function') window.phfGoLearning();
+        }
       }else{
-        /* Trang gốc là trang giới thiệu công khai. Không tự bật đăng nhập;
-           chỉ route bảo vệ hoặc thao tác người dùng mới được mở form login. */
-        showPublicIntro('anonymous-boot');
+        if(isProtectedPath()) showProtectedLogin('Phiên đăng nhập đã hết hạn hoặc thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.');
+        else showPublicIntro('anonymous-boot');
       }
     }catch(e){
       if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(null,'server-session-error');
-      /* Lỗi kiểm tra phiên không được biến trang công khai thành màn login. */
-      showPublicIntro('session-error');
+      clearBootCloak();
+      if(isProtectedPath()) showProtectedLogin(e&&e.code==='TIMEOUT'?'Máy chủ xác minh phiên phản hồi quá lâu. Vui lòng đăng nhập lại.':'Chưa thể xác minh phiên đăng nhập. Vui lòng thử đăng nhập lại.');
+      else showPublicIntro('session-error');
     }finally{
-      try{
-        document.documentElement.classList.remove('phf-f5-restoring');
-        document.documentElement.classList.remove('phf-auth-boot');
-      }catch(e){}
+      clearBootCloak();
     }
   }
 

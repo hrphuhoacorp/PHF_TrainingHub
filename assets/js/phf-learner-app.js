@@ -1010,23 +1010,33 @@ function phfBuildBMTTPrintHTML(record){
 </html>`;
 }
 function phfOpenBMTTPrintDocument(record){
-  const html = phfBuildBMTTPrintHTML(record);
-  const win = window.open('', '_blank');
+  const saved = (typeof phfExistingBMTT === 'function') ? phfExistingBMTT() : null;
+  const payload = Object.assign({}, record || {}, saved || {});
+  const recordId = String(payload.id || ('bmtt-' + Date.now())).trim();
+  payload.id = recordId;
+
+  try{
+    sessionStorage.setItem('phfBmttPrintRecord:' + recordId, JSON.stringify(payload));
+  }catch(error){
+    phfNotice('error','Chưa mở được bản in','Trình duyệt không thể chuẩn bị dữ liệu in trong phiên hiện tại. Vui lòng thử lại.');
+    return false;
+  }
+
+  const url = '/print/commitments/' + encodeURIComponent(recordId);
+  const win = window.open(url, '_blank');
   if(!win){
     phfNotice('warning','Trình duyệt đang chặn cửa sổ in','Vui lòng cho phép mở cửa sổ mới để in bản cam kết.');
     return false;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  try{ win.focus(); setTimeout(function(){ win.print(); }, 450); }catch(e){}
+  try{ win.focus(); }catch(error){}
   return true;
 }
 async function phfPrintConfidentialityCommitment(){
   if(!phfValidateConfidentialityCommitment(false)) return;
   phfUpdateBMTTPrintFields();
-  await phfSaveConfidentialityCommitment();
-  const record = phfCollectBMTT();
+  const savedOk = await phfSaveConfidentialityCommitment();
+  if(!savedOk) return;
+  const record = (typeof phfExistingBMTT === 'function' && phfExistingBMTT()) || phfCollectBMTT();
   phfOpenBMTTPrintDocument(record);
 }
 function phfValidateMorningCommitment(){

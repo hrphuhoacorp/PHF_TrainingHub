@@ -1,0 +1,59 @@
+PHF TRAINING HUB — BẢN 27.6.12.3.5
+FIX CẬP NHẬT TÀI KHOẢN + DANH SÁCH TỪ MÁY CHỦ
+
+CHECKPOINT NỀN
+- Dùng đúng folder hiện tại đã test F5 route sâu OK ở 27.6.12.3.4.
+- Không dùng gói xóa tài khoản 27.6.12.3 trước đó.
+
+NGUYÊN NHÂN ĐÃ XÁC ĐỊNH
+- Route Local /api/auth/accounts/update có gọi updateAccountByAdmin nhưng server.js chưa import hàm này.
+- Vì vậy bấm “Lưu thay đổi” luôn rơi vào lỗi 500 chung, dù giao diện đang ở chế độ sửa.
+- Popup lỗi cũng dùng nhầm tiêu đề “Tạo tài khoản chưa thành công”.
+- Danh sách giao diện trước đây chủ yếu lấy từ localStorage, chưa xác nhận lại bằng nguồn tài khoản máy chủ.
+
+FILE CẦN COPY ĐÈ / BỔ SUNG
+1. index.html
+2. server.js
+3. assets/js/phf-account-admin-safe.js
+4. lib/auth.js
+5. api/auth/accounts/list.js  (file mới)
+
+CÁCH CÀI
+1. Sao lưu folder web đang chạy.
+2. Copy đúng 5 file trên, giữ nguyên cấu trúc thư mục.
+3. Dừng server cũ: Ctrl + C
+4. Chạy lại: npm start
+5. Mở lại /admin/accounts và F5 một lần.
+
+NỘI DUNG ĐÃ SỬA
+- Local server import đúng updateAccountByAdmin.
+- Đổi tên tài khoản đi theo nhánh “Cập nhật”, không tạo tài khoản mới.
+- Popup lỗi phân biệt đúng Tạo mới / Cập nhật.
+- Danh sách tài khoản được tải lại từ máy chủ để dùng account_id thật.
+- Sau khi lưu, giao diện đọc lại đúng dữ liệu máy chủ trước khi xác nhận.
+- Backend chỉ cập nhật các trường quản trị cho phép; không ghi đè hash mật khẩu, metadata hoặc employee_id khi chỉ đổi tên.
+- Không đổi Supabase schema.
+
+CHECKLIST TEST
+[ ] Chọn ThắngLV → Sửa.
+[ ] Chỉ đổi Họ tên thành “Hr Phuhoa Fresh”.
+[ ] Nút hiển thị “Lưu thay đổi”.
+[ ] Trong lúc lưu hiển thị “Đang lưu...”.
+[ ] Thành công hiện “Cập nhật thành công”.
+[ ] Danh sách đổi tên ngay.
+[ ] F5 /admin/accounts vẫn thấy tên mới.
+[ ] Đăng xuất/đăng nhập lại vẫn thấy tên mới.
+[ ] Email, SĐT, quyền, mật khẩu và employee_id không đổi khi chỉ sửa tên.
+[ ] Nếu cập nhật lỗi, popup ghi “Cập nhật tài khoản chưa thành công” và nêu lý do cụ thể.
+[ ] Tạo tài khoản mới vẫn hiện mật khẩu tạm như trước.
+[ ] Cấp lại mật khẩu vẫn hoạt động.
+[ ] In BMTT vẫn không about:blank.
+
+ROLLBACK
+- Copy lại 4 file cũ: index.html, server.js, assets/js/phf-account-admin-safe.js, lib/auth.js.
+- Có thể xóa file api/auth/accounts/list.js nếu rollback toàn bộ bản này.
+- Khởi động lại npm start.
+
+LƯU Ý
+- Bản này không xóa tài khoản, không làm Google Login, không thay đổi BMTT, bài test, đánh giá hoặc tiến độ học.
+- Đã kiểm tra cú pháp và khởi động Local; chưa thay đổi dữ liệu Supabase thật trong lúc đóng gói.
