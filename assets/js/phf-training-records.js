@@ -434,7 +434,7 @@
   }
   async function render(view,employeeId,tab){
     if(!canView()){
-      if(typeof window.phfToast==='function')window.phfToast('Chức năng này dành cho Quản lý và Admin.','error');
+      if(typeof window.phfToast==='function')window.phfToast('error','Không đủ quyền','Chức năng này dành cho Quản lý và Admin.',4200,'training-records-role');
       return false;
     }
     ensureShell();
@@ -498,6 +498,7 @@
   };
 
   window.phfTrainingRecordsSaveProbation=async function(employeeId,confirm){
+    if(window.__phfProbationSaveBusy)return;
     const emp=employeeById(employeeId);
     if(!emp)return;
     const payload={
@@ -513,16 +514,34 @@
         confirm:!!confirm
       }
     };
+    const actionKey='probation-save';
+    const buttons=Array.from(document.querySelectorAll('[onclick*="phfTrainingRecordsSaveProbation"]'));
+    const buttonStates=buttons.map(function(btn){return {btn:btn,html:btn.innerHTML,disabled:btn.disabled}});
+    window.__phfProbationSaveBusy=true;
+    buttons.forEach(function(btn){btn.disabled=true;btn.setAttribute('aria-busy','true')});
+    const activeButton=buttons.find(function(btn){return String(btn.getAttribute('onclick')||'').indexOf(','+(confirm?'true':'false')+')')>=0}) || buttons[0];
+    if(activeButton)activeButton.textContent=confirm?'Đang xác nhận...':'Đang lưu...';
+    if(typeof window.phfToast==='function')window.phfToast('info',confirm?'Đang xác nhận kết luận':'Đang lưu thông tin thử việc','Hệ thống đang ghi nhận dữ liệu. Vui lòng không thực hiện lại thao tác.',0,actionKey);
     try{
       const response=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)});
       const result=await response.json().catch(function(){return{}});
       if(!response.ok||!result.ok)throw new Error(result.error||'Chưa thể lưu thử việc.');
       if(typeof window.phfRefreshTrainingData==='function')await window.phfRefreshTrainingData({force:true});
-      if(typeof window.phfToast==='function')window.phfToast(confirm?'Đã xác nhận kết luận thử việc.':'Đã lưu thông tin thử việc.','success');
+      if(typeof window.phfToastClear==='function')window.phfToastClear(actionKey);
+      if(typeof window.phfToast==='function')window.phfToast('success',confirm?'Đã xác nhận kết luận thử việc':'Đã lưu thông tin thử việc',confirm?'Kết luận thử việc đã được máy chủ ghi nhận.':'Thông tin thử việc đã được máy chủ ghi nhận.',3000,actionKey);
       await window.phfTrainingRecordsOpenEmployee(employeeId,'probation');
       try{window.dispatchEvent(new CustomEvent('phf-notifications-refresh'))}catch(e){}
     }catch(e){
-      if(typeof window.phfToast==='function')window.phfToast(e.message||'Chưa thể lưu thử việc.','error');
+      if(typeof window.phfToastClear==='function')window.phfToastClear(actionKey);
+      if(typeof window.phfToast==='function')window.phfToast('error','Chưa thể lưu thử việc',e.message||'Máy chủ chưa ghi nhận dữ liệu. Nội dung hiện tại được giữ nguyên để anh kiểm tra và thử lại.',5600,actionKey);
+    }finally{
+      window.__phfProbationSaveBusy=false;
+      buttonStates.forEach(function(item){
+        if(!item.btn||!item.btn.isConnected)return;
+        item.btn.innerHTML=item.html;
+        item.btn.disabled=item.disabled;
+        item.btn.removeAttribute('aria-busy');
+      });
     }
   };
 
@@ -531,6 +550,6 @@
     if(!emp||!record)return;
     const merged=mergeBMTTRecord(emp,record);
     if(typeof window.phfOpenBMTTPrintDocument==='function')return window.phfOpenBMTTPrintDocument(merged);
-    if(typeof window.phfToast==='function')window.phfToast('Chức năng in BMTT chưa sẵn sàng.','error');
+    if(typeof window.phfToast==='function')window.phfToast('error','Chưa thể in BMTT','Chức năng in BMTT chưa sẵn sàng. Vui lòng tải lại trang rồi thử lại.',4200,'bmtt-print');
   };
 })();
