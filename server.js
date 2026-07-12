@@ -177,7 +177,7 @@ const server = http.createServer(async (req, res) => {
       res.setHeader('Set-Cookie', cookieHeader(result.token));
       return sendJson(res, 200, {ok:true,user:result.user});
     }
-    if (pathname === '/api/auth/google/config' && req.method === 'GET') {
+    if ((pathname === '/api/auth/google/config' || pathname === '/api/auth/google/login') && req.method === 'GET') {
       return sendJson(res, 200, {ok:true, ...googleClientConfig()});
     }
     if (pathname === '/api/auth/google/login' && req.method === 'POST') {

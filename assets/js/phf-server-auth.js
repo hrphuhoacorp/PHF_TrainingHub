@@ -404,7 +404,7 @@
     async function initializeGoogleLogin(){
       if(!googleButton || !googleStatus) return;
       try{
-        var config=await request('/api/auth/google/config?_='+Date.now());
+        var config=await request('/api/auth/google/login?config=1&_='+Date.now());
         if(!config||!config.enabled||!config.clientId){
           googleStatus.textContent='Đăng nhập Google chưa được cấu hình.';
           return;
