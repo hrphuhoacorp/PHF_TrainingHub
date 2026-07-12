@@ -310,6 +310,8 @@
           '<div class="phf-test-login-field"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
           '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
           '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;color:#8a9b94;font-size:12px;margin:1px 0"><span style="height:1px;background:#e3ece8;flex:1"></span><span>Hoặc</span><span style="height:1px;background:#e3ece8;flex:1"></span></div>' +
+          '<div id="phfGoogleLoginWrap" style="display:grid;gap:7px;justify-items:stretch"><div id="phfGoogleButton" style="min-height:44px;display:flex;align-items:center;justify-content:center"></div><div id="phfGoogleLoginStatus" style="min-height:18px;color:#687c73;font-size:12.5px;text-align:center">Đang chuẩn bị đăng nhập Google...</div></div>' +
           '<p class="phf-login-note">Quên mật khẩu hoặc chưa có tài khoản? Liên hệ Admin để được hỗ trợ.</p>' +
         '</section>' +
       '</section>';
@@ -319,6 +321,25 @@
     var pass = root.querySelector('#phfTestPass');
     var error = root.querySelector('#phfTestLoginError');
     var submitButton = root.querySelector('#phfTestSubmit');
+    var googleButton = root.querySelector('#phfGoogleButton');
+    var googleStatus = root.querySelector('#phfGoogleLoginStatus');
+
+    async function completeLogin(verified, source, currentPassword){
+      await establishSession(verified, source);
+      removeLogin();
+      if(verified.mustChangePassword && String(verified.authProvider || 'password') !== 'google'){
+        try{
+          verified=await requireFirstPasswordChange(verified,String(currentPassword||''));
+          await establishSession(verified,'first-password-changed');
+        }catch(changeError){
+          await logout();
+          return false;
+        }
+      }
+      await renderAuthenticatedDefault(verified, source);
+      try{document.documentElement.classList.remove('phf-auth-boot')}catch(e){}
+      return true;
+    }
 
     async function submit(){
       if(authTransitioning) return;
@@ -342,25 +363,85 @@
         var verified = loginResult && loginResult.user ? loginResult.user : null;
         if(!verified) throw new Error('Chưa thể xác nhận tài khoản đăng nhập. Vui lòng thử lại.');
 
-        await establishSession(verified, 'server-login');
-        removeLogin();
-        if(verified.mustChangePassword){
-          try{
-            verified=await requireFirstPasswordChange(verified,String(pass.value||''));
-            await establishSession(verified,'first-password-changed');
-          }catch(changeError){
-            await logout();
-            return;
-          }
-        }
-        await renderAuthenticatedDefault(verified, 'server-login');
-        try{document.documentElement.classList.remove('phf-auth-boot')}catch(e){}
+        await completeLogin(verified,'server-login',String(pass.value||''));
       }catch(e){
         error.textContent = e && e.message ? e.message : 'Đăng nhập chưa thành công.';
         submitButton.disabled = false;
         submitButton.textContent = 'Đăng nhập';
       }finally{
         endAuthTransition();
+      }
+    }
+
+
+    async function handleGoogleCredential(response){
+      if(authTransitioning) return;
+      var credential=response&&response.credential?String(response.credential):'';
+      if(!credential){
+        error.textContent='Google chưa trả về thông tin xác minh. Vui lòng thử lại.';
+        return;
+      }
+      error.textContent='';
+      if(googleStatus) googleStatus.textContent='Đang xác minh Gmail với PHF...';
+      beginAuthTransition();
+      try{
+        var loginResult=await request('/api/auth/google/login',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({credential:credential})
+        });
+        var verified=loginResult&&loginResult.user?loginResult.user:null;
+        if(!verified) throw new Error('Chưa thể xác nhận tài khoản PHF từ Gmail này.');
+        await completeLogin(verified,'google-login','');
+      }catch(e){
+        error.textContent=e&&e.message?e.message:'Đăng nhập Google chưa thành công.';
+        if(googleStatus) googleStatus.textContent='Google chỉ dùng để xác minh Gmail đã được Admin cấp trong PHF.';
+      }finally{
+        endAuthTransition();
+      }
+    }
+
+    async function initializeGoogleLogin(){
+      if(!googleButton || !googleStatus) return;
+      try{
+        var config=await request('/api/auth/google/config?_='+Date.now());
+        if(!config||!config.enabled||!config.clientId){
+          googleStatus.textContent='Đăng nhập Google chưa được cấu hình.';
+          return;
+        }
+        var attempts=0;
+        (function waitForGoogle(){
+          if(!document.body.contains(root)) return;
+          if(window.google&&window.google.accounts&&window.google.accounts.id){
+            try{
+              google.accounts.id.initialize({
+                client_id:String(config.clientId),
+                callback:handleGoogleCredential,
+                auto_select:false,
+                cancel_on_tap_outside:true
+              });
+              googleButton.innerHTML='';
+              google.accounts.id.renderButton(googleButton,{
+                type:'standard',
+                theme:'outline',
+                size:'large',
+                text:'continue_with',
+                shape:'rectangular',
+                logo_alignment:'left',
+                width:320
+              });
+              googleStatus.textContent='Dùng Gmail đã được Admin cấp trong PHF Training Hub.';
+            }catch(e){
+              googleStatus.textContent='Chưa thể khởi tạo nút Google. Vui lòng tải lại trang.';
+            }
+            return;
+          }
+          attempts+=1;
+          if(attempts<40) setTimeout(waitForGoogle,150);
+          else googleStatus.textContent='Không tải được dịch vụ đăng nhập Google. Vui lòng kiểm tra kết nối.';
+        })();
+      }catch(e){
+        googleStatus.textContent=e&&e.message?e.message:'Chưa thể tải cấu hình Google Login.';
       }
     }
 
@@ -375,6 +456,7 @@
     [email,pass].forEach(function(input){
       input.addEventListener('keydown',function(e){ if(e.key === 'Enter') submit(); });
     });
+    initializeGoogleLogin();
     setTimeout(function(){ email.focus(); },30);
   }
 
@@ -517,7 +599,7 @@
       clearBootCloak();
 
       if(user){
-        if(user.mustChangePassword){
+        if(user.mustChangePassword && String(user.authProvider || 'password') !== 'google'){
           try{
             user=await requireFirstPasswordChange(user,'');
             await establishSession(user,'first-password-changed-restored');

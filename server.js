@@ -13,7 +13,7 @@ const {
   validatePayload,
   publicError
 } = require('./lib/request-guard');
-const { login, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, listAccountsForAdmin, makeSession, publicAccount } = require('./lib/auth');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, makeSession, publicAccount } = require('./lib/auth');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
@@ -177,6 +177,17 @@ const server = http.createServer(async (req, res) => {
       res.setHeader('Set-Cookie', cookieHeader(result.token));
       return sendJson(res, 200, {ok:true,user:result.user});
     }
+    if (pathname === '/api/auth/google/config' && req.method === 'GET') {
+      return sendJson(res, 200, {ok:true, ...googleClientConfig()});
+    }
+    if (pathname === '/api/auth/google/login' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const raw = await readBody(req); let body={};
+      try { body=JSON.parse(raw||'{}'); } catch { throw new RequestError('Dữ liệu Google Login không hợp lệ.',400,'JSON_INVALID'); }
+      const result = await loginWithGoogle(body.credential);
+      res.setHeader('Set-Cookie', cookieHeader(result.token));
+      return sendJson(res, 200, {ok:true,user:result.user});
+    }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
       assertSameOrigin(req); res.setHeader('Set-Cookie', clearCookieHeader());
       return sendJson(res, 200, {ok:true});
@@ -212,6 +223,15 @@ const server = http.createServer(async (req, res) => {
       const reauthRequired=String(session.sub||'')===String(user.id||'') && (session.email!==user.email || session.role!==user.role || user.status!=='active');
       if(reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
       return sendJson(res,200,{ok:true,user,reauthRequired});
+    }
+    if (pathname === '/api/auth/accounts/delete' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session = await requireSession(req,['admin']);
+      const raw = await readBody(req); let body = {};
+      try { body = JSON.parse(raw || '{}'); }
+      catch { throw new RequestError('Dữ liệu xóa tài khoản không hợp lệ.',400,'JSON_INVALID'); }
+      const user = await deleteAccountByAdmin(body.accountId, session);
+      return sendJson(res,200,{ok:true,user});
     }
     if (pathname === '/api/auth/accounts/reset-password' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
