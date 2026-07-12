@@ -182,7 +182,7 @@
 
 
 (function(){
-  var state = {stage:'all', query:'', type:'all', sort:'index'};
+  var state = {program:'all', stage:'all', query:'', type:'all', sort:'index'};
   function esc(v){
     return String(v == null ? '' : v)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -249,6 +249,25 @@
     if(stage === 'all') return 'Tất cả giai đoạn';
     return names[Number(stage)] || ('Giai đoạn ' + (Number(stage)+1));
   }
+  function programId(item){
+    return String((item && (item.programId || item.program_id || item.program)) || 'new_sales').trim() || 'new_sales';
+  }
+  function programLabel(id){
+    var labels = {new_sales:'Nhân viên bán hàng',new_gift:'Nhân viên gói quà',new_warehouse:'Nhân viên kho',new_online:'Nhân viên Online',new_store_lead:'Trưởng ca / Quản lý cửa hàng'};
+    return labels[String(id || '')] || String(id || 'Chương trình đào tạo').replace(/_/g,' ');
+  }
+  function programOptions(list){
+    var seen = {};
+    (list || []).forEach(function(item){ seen[programId(item)] = true; });
+    var ids = Object.keys(seen).sort(function(a,b){ return programLabel(a).localeCompare(programLabel(b),'vi'); });
+    var out = '<option value="all" '+(state.program==='all'?'selected':'')+'>Tất cả chương trình đào tạo</option>';
+    out += ids.map(function(id){ return '<option value="'+esc(id)+'" '+(state.program===id?'selected':'')+'>'+esc(programLabel(id))+'</option>'; }).join('');
+    return out;
+  }
+  function programScoped(list){
+    if(state.program === 'all') return (list || []).slice();
+    return (list || []).filter(function(item){ return programId(item) === state.program; });
+  }
   function lessonType(item){
     var title = String((item.title||'')+' '+(item.nav||'')+' '+(item.badge||'')).toLowerCase();
     var body = String((item.body||'')+' '+(item.originalFull||'')).toLowerCase();
@@ -265,9 +284,10 @@
   function filtered(list){
     var q = String(state.query || '').trim().toLowerCase();
     var rows = list.filter(function(x){
+      var okProgram = state.program === 'all' || programId(x) === state.program;
       var okStage = state.stage === 'all' || Number(x.stage||0) === Number(state.stage);
       var okType = state.type === 'all' || lessonType(x) === state.type;
-      if(!okStage || !okType) return false;
+      if(!okProgram || !okStage || !okType) return false;
       if(!q) return true;
       var hay = strip([x.title,x.nav,x.sub,x.lead,x.sample,(Array.isArray(x.today)?x.today.join(' '):x.today),(Array.isArray(x.remember)?x.remember.join(' '):x.remember),x.body,x.originalFull].join(' ')).toLowerCase();
       return hay.indexOf(q) >= 0;
@@ -317,7 +337,7 @@
       var stage = Number(item.stage||0);
       var desc = item.lead || item.sub || (Array.isArray(item.remember) ? item.remember.join(' · ') : '') || item.sample || item.body;
       return '<article class="phf-b23-card" onclick="phfRenderTrainingLibraryLesson('+Number(item.__idx)+')">'
-        + '<div class="phf-b23-chiprow">'+chip(stageName(stage),'')+chip(typ, typ==='Kiểm tra'?'warn':(typ==='Đánh giá'?'pink':'muted'))+chip('Bài '+(Number(item.__idx)+1),'blue')+'</div>'
+        + '<div class="phf-b23-chiprow">'+chip(programLabel(programId(item)),'blue')+chip(stageName(stage),'')+chip(typ, typ==='Kiểm tra'?'warn':(typ==='Đánh giá'?'pink':'muted'))+chip('Bài '+(Number(item.__idx)+1),'blue')+'</div>'
         + '<h4>'+esc(item.title || item.nav || 'Bài học')+'</h4>'
         + '<p>'+esc(shortText(desc,150))+'</p>'
         + '</article>';
@@ -328,15 +348,18 @@
     window.phfRenderTrainingLibrary(state.stage);
   };
   window.phfB23ApplyTrainingFilters = function(){
+    var p = document.getElementById('phfB23Program');
     var q = document.getElementById('phfB23Search');
     var t = document.getElementById('phfB23Type');
     var s = document.getElementById('phfB23Sort');
+    state.program = p ? p.value : 'all';
     state.query = q ? q.value : '';
     state.type = t ? t.value : 'all';
     state.sort = s ? s.value : 'index';
     window.phfRenderTrainingLibrary(state.stage);
   };
   window.phfB23ClearTrainingFilters = function(){
+    state.program = 'all';
     state.query = '';
     state.type = 'all';
     state.sort = 'index';
@@ -354,17 +377,20 @@
     var main = document.getElementById('mainLesson');
     if(!main) return;
     var all = lessons();
+    var programRows = programScoped(all);
+    var availableStages = Object.keys(grouped(programRows)).map(Number);
+    if(state.stage !== 'all' && availableStages.indexOf(Number(state.stage)) < 0) state.stage = 'all';
     var rows = filtered(all);
-    var g = grouped(all);
+    var g = grouped(programRows);
     var stageCount = Object.keys(g).length;
-    var checkCount = all.filter(function(x){return lessonType(x)==='Kiểm tra';}).length;
-    var practiceCount = all.filter(function(x){return lessonType(x)==='Thực hành';}).length;
+    var checkCount = programRows.filter(function(x){return lessonType(x)==='Kiểm tra';}).length;
+    var practiceCount = programRows.filter(function(x){return lessonType(x)==='Thực hành';}).length;
     main.innerHTML = '<section class="phf-training-library b23">'
-      + '<div class="phf-lib-hero"><div><span class="phf-lib-kicker">PHF Training Hub · Thư viện đào tạo</span><h2>Nội dung đào tạo</h2><p>Tra cứu nội dung chương trình Nhân viên bán hàng theo giai đoạn, bài học và loại nội dung. Khu này giúp Trưởng ca/Admin xem trước bài học để hướng dẫn học viên thống nhất hơn.</p></div><div class="phf-lib-role">'+esc(roleLabel())+'<small>Quyền xem nội dung</small></div></div>'
-      + '<div class="phf-b23-stats"><div class="phf-b23-stat"><b>'+all.length+'</b><span>Tổng bài/màn học</span></div><div class="phf-b23-stat"><b>'+stageCount+'</b><span>Giai đoạn đào tạo</span></div><div class="phf-b23-stat"><b>'+checkCount+'</b><span>Nội dung kiểm tra</span></div><div class="phf-b23-stat"><b>'+rows.length+'</b><span>Đang hiển thị theo bộ lọc</span></div></div>'
-      + '<div class="phf-b23-toolbar"><input id="phfB23Search" value="'+esc(state.query)+'" placeholder="Tìm bài học, kỹ năng, quy trình..." onkeydown="if(event.key===\'Enter\') phfB23ApplyTrainingFilters()"><select id="phfB23Type">'+typeOptions(all)+'</select><select id="phfB23Sort"><option value="index" '+(state.sort==='index'?'selected':'')+'>Sắp xếp theo lộ trình</option><option value="title" '+(state.sort==='title'?'selected':'')+'>Sắp xếp theo tên bài</option></select><button type="button" onclick="phfB23ApplyTrainingFilters()">Lọc</button><button type="button" onclick="phfB23ClearTrainingFilters()">Xóa lọc</button></div>'
-      + '<div class="phf-b23-layout"><aside class="phf-b23-side">'+stageButtons(all,rows.length)+'</aside>'
-      + '<main class="phf-b23-main"><section class="phf-b23-panel"><div class="phf-b23-panel-head"><div><h3>'+esc(stageName(state.stage))+'</h3><p>Danh sách bài học phù hợp bộ lọc. Bấm vào từng bài để xem mục tiêu, điểm cần nhớ và nội dung chi tiết.</p></div>'+chip(rows.length+' bài','blue')+'</div><div class="phf-b23-lessons">'+cards(rows)+'</div></section></main></div>'
+      + '<div class="phf-lib-hero"><div><span class="phf-lib-kicker">PHF Training Hub · Thư viện đào tạo</span><h2>Nội dung đào tạo</h2><p>Tra cứu nội dung theo chương trình đào tạo, giai đoạn, bài học và loại nội dung. Khu này giúp Trưởng ca/Admin xem trước bài học để hướng dẫn học viên thống nhất hơn.</p></div><div class="phf-lib-role">'+esc(roleLabel())+'<small>Quyền xem nội dung</small></div></div>'
+      + '<div class="phf-b23-stats"><div class="phf-b23-stat"><b>'+programRows.length+'</b><span>Tổng bài/màn học</span></div><div class="phf-b23-stat"><b>'+stageCount+'</b><span>Giai đoạn đào tạo</span></div><div class="phf-b23-stat"><b>'+checkCount+'</b><span>Nội dung kiểm tra</span></div><div class="phf-b23-stat"><b>'+rows.length+'</b><span>Đang hiển thị theo bộ lọc</span></div></div>'
+      + '<div class="phf-b23-toolbar"><select id="phfB23Program" aria-label="Chương trình đào tạo" title="Chương trình đào tạo" onchange="phfB23ApplyTrainingFilters()">'+programOptions(all)+'</select><input id="phfB23Search" value="'+esc(state.query)+'" placeholder="Tìm bài học, kỹ năng, quy trình..." onkeydown="if(event.key===\'Enter\') phfB23ApplyTrainingFilters()"><select id="phfB23Type">'+typeOptions(programRows)+'</select><select id="phfB23Sort"><option value="index" '+(state.sort==='index'?'selected':'')+'>Sắp xếp theo lộ trình</option><option value="title" '+(state.sort==='title'?'selected':'')+'>Sắp xếp theo tên bài</option></select><button type="button" onclick="phfB23ApplyTrainingFilters()">Lọc</button><button type="button" onclick="phfB23ClearTrainingFilters()">Xóa lọc</button></div>'
+      + '<div class="phf-b23-layout"><aside class="phf-b23-side">'+stageButtons(programRows,rows.length)+'</aside>'
+      + '<main class="phf-b23-main"><section class="phf-b23-panel"><div class="phf-b23-panel-head"><div><h3>'+esc((state.program==='all'?'Tất cả chương trình':programLabel(state.program))+' · '+stageName(state.stage))+'</h3><p>Danh sách bài học phù hợp bộ lọc. Bấm vào từng bài để xem mục tiêu, điểm cần nhớ và nội dung chi tiết.</p></div>'+chip(rows.length+' bài','blue')+'</div><div class="phf-b23-lessons">'+cards(rows)+'</div></section></main></div>'
       + '</section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };
@@ -380,18 +406,20 @@
     if(!main) return;
     var stage = Number(item.stage||0);
     var typ = lessonType(item);
-    var prev = all[Number(idx)-1];
-    var next = all[Number(idx)+1];
+    var sameProgram = all.filter(function(x){ return programId(x) === programId(item); });
+    var currentAt = sameProgram.findIndex(function(x){ return Number(x.__idx) === Number(idx); });
+    var prev = currentAt > 0 ? sameProgram[currentAt-1] : null;
+    var next = currentAt >= 0 && currentAt < sameProgram.length-1 ? sameProgram[currentAt+1] : null;
     main.innerHTML = '<section class="phf-training-library b23">'
       + '<div class="phf-b23-detail">'
-      + '<div class="phf-b23-chiprow">'+chip(stageName(stage),'')+chip(typ,typ==='Kiểm tra'?'warn':(typ==='Đánh giá'?'pink':'muted'))+chip('Bài '+(Number(idx)+1)+'/'+all.length,'blue')+'</div>'
+      + '<div class="phf-b23-chiprow">'+chip(programLabel(programId(item)),'blue')+chip(stageName(stage),'')+chip(typ,typ==='Kiểm tra'?'warn':(typ==='Đánh giá'?'pink':'muted'))+chip('Bài '+(Number(idx)+1)+'/'+all.length,'blue')+'</div>'
       + '<h2>'+esc(item.title || item.nav || 'Bài học')+'</h2>'
       + '<p class="phf-b23-detail-lead">'+esc(item.lead || item.sub || 'Nội dung bài học trong lộ trình đào tạo.')+'</p>'
       + '<div class="phf-b23-grid"><div class="phf-b23-box"><b>Hôm nay cần hoàn thành</b>'+listItems(item.today,'Xem và nắm nội dung chính của bài học.')+'</div><div class="phf-b23-box"><b>Điểm cần nhớ</b>'+listItems(item.remember,'Nắm các điểm chính để áp dụng khi làm việc.')+'</div><div class="phf-b23-box"><b>Câu nói mẫu / tình huống</b>'+listItems(item.sample,'Trưởng ca có thể dùng để hướng dẫn học viên.')+'</div></div>'
       + '<div class="phf-b23-body">'+renderBody(item)+'</div>'
       + '<div class="phf-b23-actions"><button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibrary('+stage+')">Quay lại giai đoạn</button>'
-      + (prev?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+(Number(idx)-1)+')">Bài trước</button>':'')
-      + (next?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+(Number(idx)+1)+')">Bài sau</button>':'')
+      + (prev?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+Number(prev.__idx)+')">Bài trước</button>':'')
+      + (next?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+Number(next.__idx)+')">Bài sau</button>':'')
       + '<button class="phf-b23-action primary" type="button" onclick="phfGoLearning()">Mở giao diện học viên</button></div>'
       + '</div></section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}

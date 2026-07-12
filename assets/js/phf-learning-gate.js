@@ -132,6 +132,7 @@
   function isMainTestIndex(idx){ return Object.prototype.hasOwnProperty.call(MAIN_TESTS, Number(idx)); }
   function mainKey(idx){ return MAIN_TESTS[Number(idx)] && MAIN_TESTS[Number(idx)].key; }
   function shortKey(idx){ return SHORT_TESTS[Number(idx)] || null; }
+  function isShortQuizKey(key){ return Object.keys(SHORT_TESTS).some(function(idx){ return SHORT_TESTS[idx] === key; }); }
   function getScopedQuizResults(){
     var arr = [];
     var scoped = readJson('phfQuizResultsByEmployee', {});
@@ -145,7 +146,11 @@
     var shortMap = readJson('phfShortQuizDoneByEmployee', {});
     [pk, p.id, phoneKey].filter(Boolean).forEach(function(k){
       var done = shortMap[k] || {};
-      Object.keys(done || {}).forEach(function(x){ arr.push({page:x, key:x, status:'submitted', score:null, savedAt:done[x], _scope:k, _trustedLocal:true}); });
+      Object.keys(done || {}).forEach(function(x){
+        // Map này chỉ được ghi sau khi bài kiểm tra ngắn đạt đủ 100/100.
+        // Gắn dấu xác thực riêng để không nhầm với bản ghi cũ chỉ có trạng thái "đã nộp".
+        arr.push({page:x, key:x, status:'passed', score:100, passScore:100, savedAt:done[x], _scope:k, _trustedLocal:true, _verifiedShortCompletion:true});
+      });
     });
     var d = data();
     if(Array.isArray(d.testResults)) arr = arr.concat(d.testResults.map(function(r){ return Object.assign({}, r, {_server:true}); }));
@@ -160,8 +165,8 @@
       employeeId:p.id || '',
       employeePhone:cleanPhone(p.phone || ''),
       score:(stat && Number.isFinite(Number(stat.score))) ? Number(stat.score) : null,
-      passScore:PASS_SCORE,
-      status:status || ((stat && Number(stat.score) >= PASS_SCORE) ? 'passed' : 'failed'),
+      passScore:isShortQuizKey(key) ? 100 : PASS_SCORE,
+      status:status || ((stat && Number(stat.score) >= (isShortQuizKey(key) ? 100 : PASS_SCORE)) ? 'passed' : 'failed'),
       resultText:resultText || '',
       savedAt:new Date().toISOString()
     };
@@ -173,11 +178,11 @@
     });
     writeJson('phfQuizResultsByEmployee', scoped);
   }
-  function latestResult(key){
+  function matchingResults(key){
     var p = getProfile();
     var pid = String(p.id || '');
     var phone = cleanPhone(p.phone || '');
-    var results = getScopedQuizResults().filter(function(r){
+    return getScopedQuizResults().filter(function(r){
       var page = String(r.page || r.key || '');
       if(page !== key) return false;
       var rid = String(r.employeeId || r.employee_id || '');
@@ -189,6 +194,9 @@
       }
       return false;
     });
+  }
+  function latestResult(key){
+    var results = matchingResults(key);
     results.sort(function(a,b){ return new Date(b.savedAt || b.saved_at || 0) - new Date(a.savedAt || a.saved_at || 0); });
     return results[0] || null;
   }
@@ -201,8 +209,15 @@
     return status === 'passed' || status === 'pass' || (Number.isFinite(score) && score >= passScore);
   }
   function isShortSubmitted(key){
-    var r = latestResult(key);
-    return Boolean(r && /submitted|done|passed|pass|completed/i.test(String(r.status || 'submitted')));
+    // Chỉ cần có ít nhất một lần hoàn thành hợp lệ 100/100 của đúng học viên.
+    // Không để một lần nộp lỗi/chưa đạt về sau phủ mất kết quả đạt trước đó.
+    return matchingResults(key).some(function(r){
+      if(r._verifiedShortCompletion === true) return true;
+      var score = Number(r.score);
+      var status = String(r.status || '').toLowerCase();
+      var validStatus = /^(passed|pass|completed|done)$/.test(status);
+      return validStatus && Number.isFinite(score) && score >= 100;
+    });
   }
   function computeMaxAllowed(){
     var lessons = getLessons();
@@ -286,7 +301,7 @@
     var key = shortKey(idx);
     if(!key) return true;
     if(isShortSubmitted(key)) return true;
-    notice('warning','Chưa hoàn thành bài kiểm tra ngắn','Vui lòng nhập họ tên, ngày thực hiện, trả lời đủ và sửa đúng toàn bộ câu chưa đúng trước khi chuyển sang bài tiếp theo.');
+    notice('warning','Chưa hoàn thành bài kiểm tra ngắn','Vui lòng trả lời đủ và sửa đúng toàn bộ câu chưa đúng trước khi chuyển sang bài tiếp theo. Thông tin người làm bài được hệ thống tự nhận diện từ hồ sơ.');
     var btn=document.querySelector('#mainLesson .phf-grade-short');
     if(btn) try{btn.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}
     return false;
@@ -345,8 +360,8 @@
         employeeId:profile.id || '',
         employeePhone:cleanPhone(profile.phone || ''),
         score:(stat && Number.isFinite(Number(stat.score))) ? Number(stat.score) : null,
-        passScore:PASS_SCORE,
-        status:status || ((stat && Number(stat.score) >= PASS_SCORE) ? 'passed' : 'failed'),
+        passScore:isShortQuizKey(key) ? 100 : PASS_SCORE,
+        status:status || ((stat && Number(stat.score) >= (isShortQuizKey(key) ? 100 : PASS_SCORE)) ? 'passed' : 'failed'),
         resultText: resultText || ''
       }
     };

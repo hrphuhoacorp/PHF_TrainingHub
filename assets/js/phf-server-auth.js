@@ -55,7 +55,14 @@
     return trainingDataPromise;
   };
   window.phfIsAuthReady = function(){ return authPhase !== 'checking'; };
-  window.phfGetAuthenticatedUser = function(){ return sessionUser; };
+  window.phfGetAuthenticatedUser = function(){
+    if(sessionUser){
+      sessionUser = phfNormalizeSessionUser(sessionUser);
+      phfWriteSessionMirror(sessionUser);
+      phfSyncVisibleSessionName(sessionUser);
+    }
+    return sessionUser;
+  };
   window.phfGetSessionRole = function(){ return sessionUser ? String(sessionUser.role || '') : ''; };
   window.phfHasAuthenticatedSession = function(){ return !!sessionUser; };
   window.phfUserRole = function(){ return sessionUser ? String(sessionUser.role || 'learner') : 'learner'; };
@@ -74,8 +81,29 @@
   window.phfIsAuthTransitioning = function(){ return authTransitioning; };
   window.phfWaitForAuthTransition = function(){ return authTransitioning ? authTransitionPromise : Promise.resolve(sessionUser || null); };
 
-  function applySessionMirror(user){
-    sessionUser = user || null;
+  function phfIsStandaloneHrAdmin(user){
+    if(!user) return false;
+    var email = String(user.email || '').trim().toLowerCase();
+    var role = String(user.role || '').trim().toLowerCase();
+    var employeeId = String(user.employeeId || user.employee_id || '').trim();
+    return email === 'hr.phuhoacorp@gmail.com' && role === 'admin' && !employeeId;
+  }
+
+  function phfResolveSessionDisplayName(user){
+    if(!user) return '';
+    if(phfIsStandaloneHrAdmin(user)) return 'HR PHUHOA FRESH';
+    var currentName = String(user.name || '').trim();
+    var email = String(user.email || '').trim().toLowerCase();
+    return currentName || email || 'PHF';
+  }
+
+  function phfNormalizeSessionUser(user){
+    if(!user) return null;
+    var resolvedName = phfResolveSessionDisplayName(user);
+    return Object.assign({}, user, {name: resolvedName});
+  }
+
+  function phfWriteSessionMirror(user){
     try{
       var roleKeys = ['phfInternalRole','phfInternalTestRole','phfTestRole','phfRole','phfUserRole'];
       if(user){
@@ -88,15 +116,17 @@
         roleKeys.forEach(function(k){ localStorage.setItem(k, role); });
 
         var phone = String(user.phone || '').replace(/\D/g,'');
+        var oldProfile = {};
+        try{ oldProfile = JSON.parse(localStorage.getItem('phfEmployeeProfile') || '{}') || {}; }catch(e){}
         var profile = {
-          id: user.employeeId || (phone ? ('test-phone-' + phone) : ('acct-' + String(user.email || '').replace(/[^a-z0-9]+/gi,'-'))),
+          id: user.employeeId || oldProfile.id || (phone ? ('test-phone-' + phone) : ('acct-' + String(user.email || '').replace(/[^a-z0-9]+/gi,'-'))),
           fullName: user.name || '',
-          phone: user.phone || '',
-          branch: user.branch || '',
-          department: user.department || '',
-          position: user.position || '',
-          trainingAudience: user.trainingAudience || '',
-          accountEmail: user.email || ''
+          phone: user.phone || oldProfile.phone || '',
+          branch: user.branch || oldProfile.branch || '',
+          department: user.department || oldProfile.department || '',
+          position: user.position || oldProfile.position || '',
+          trainingAudience: user.trainingAudience || oldProfile.trainingAudience || '',
+          accountEmail: user.email || oldProfile.accountEmail || ''
         };
         localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
         localStorage.setItem('phfEmployeeId', profile.id);
@@ -108,8 +138,74 @@
         window.currentProfile = null;
       }
     }catch(e){}
+  }
+
+  function phfSyncVisibleSessionName(user){
+    if(!phfIsStandaloneHrAdmin(user)) return;
+    var name = 'HR PHUHOA FRESH';
+    var greeting = document.getElementById('phfUserGreetingName');
+    if(greeting && greeting.textContent !== name) greeting.textContent = name;
+
+    document.querySelectorAll('.phf-login-entry strong, .phf-home-account-name').forEach(function(node){
+      if(node.textContent !== name) node.textContent = name;
+    });
+
+    var login = document.querySelector('.phf-login-entry');
+    if(login && login.getAttribute('title') !== name) login.setAttribute('title', name);
+  }
+
+  function applySessionMirror(user){
+    sessionUser = phfNormalizeSessionUser(user);
+    phfWriteSessionMirror(sessionUser);
+    phfSyncVisibleSessionName(sessionUser);
     dispatchAuthChanged();
   }
+
+  var phfDisplaySyncQueued = false;
+  function refreshSystemAdminDisplayMirror(){
+    if(!sessionUser || !phfIsStandaloneHrAdmin(sessionUser)) return;
+    sessionUser = phfNormalizeSessionUser(sessionUser);
+    phfWriteSessionMirror(sessionUser);
+    phfSyncVisibleSessionName(sessionUser);
+  }
+
+  function queueSystemAdminDisplayMirror(){
+    if(phfDisplaySyncQueued) return;
+    phfDisplaySyncQueued = true;
+    var run = function(){
+      phfDisplaySyncQueued = false;
+      refreshSystemAdminDisplayMirror();
+    };
+    if(typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 0);
+  }
+
+  window.phfRefreshAuthenticatedDisplay = refreshSystemAdminDisplayMirror;
+  window.addEventListener('pageshow', queueSystemAdminDisplayMirror);
+  window.addEventListener('focus', queueSystemAdminDisplayMirror);
+  window.addEventListener('phf-auth-changed', queueSystemAdminDisplayMirror);
+  window.addEventListener('storage', function(ev){
+    if(!ev || ['phfLoginName','phfEmployeeProfile','phfLoginEmail'].indexOf(ev.key) >= 0){
+      queueSystemAdminDisplayMirror();
+    }
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible') queueSystemAdminDisplayMirror();
+  });
+  document.addEventListener('DOMContentLoaded', function(){
+    queueSystemAdminDisplayMirror();
+    if(!window.MutationObserver) return;
+    var observer = new MutationObserver(function(mutations){
+      if(!sessionUser || !phfIsStandaloneHrAdmin(sessionUser)) return;
+      for(var i=0;i<mutations.length;i++){
+        if(mutations[i].type === 'childList'){
+          queueSystemAdminDisplayMirror();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, {childList:true, subtree:true});
+  });
 
   async function request(url, opts){
     var options = Object.assign({credentials:'same-origin',cache:'no-store'}, opts || {});
