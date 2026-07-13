@@ -75,8 +75,17 @@ module.exports = async function handler(req, res) {
       payload.actorRole = session.role;
       payload.actorEmail = session.account?.email || session.email || '';
       payload.actorAccountId = session.account?.id || session.sub || '';
-      if (payload.confidentialityCommitment) {
-        payload.employee = {...(payload.employee || {}), id: session.role === 'learner' ? session.employeeId : (payload.employee && payload.employee.id)};
+      if (session.role === 'learner') {
+        const officialEmployeeId = String(session.employeeId || session.account?.employeeId || '').trim();
+        if (!officialEmployeeId) {
+          const error = new Error('Tài khoản học viên chưa liên kết với hồ sơ nhân viên. Vui lòng liên hệ Admin kiểm tra mã nhân viên hoặc số điện thoại.');
+          error.statusCode = 409;
+          error.code = 'EMPLOYEE_ACCOUNT_NOT_LINKED';
+          throw error;
+        }
+        payload.employee = {...(payload.employee || {}), id: officialEmployeeId};
+      } else if (payload.confidentialityCommitment) {
+        payload.employee = {...(payload.employee || {}), id: payload.employee && payload.employee.id};
       }
       validatePayload(payload);
       const result = await saveData(payload);

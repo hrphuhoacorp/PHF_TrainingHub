@@ -39,6 +39,8 @@
     if(appReadyResolve) appReadyResolve(user || null);
   }
 
+  window.phfGetCurrentUser = function(){ return sessionUser || null; };
+
   window.phfWhenAuthReady = function(){
     if(authPhase !== 'checking') return Promise.resolve(sessionUser || null);
     return initialAuthReady;
@@ -108,36 +110,55 @@
       var roleKeys = ['phfInternalRole','phfInternalTestRole','phfTestRole','phfRole','phfUserRole'];
       if(user){
         var role = String(user.role || 'learner');
-        localStorage.setItem('phfSimpleTestLoginEmail', String(user.email || '').toLowerCase());
-        localStorage.setItem('phfActiveLoginEmail', String(user.email || '').toLowerCase());
+        var nextEmail = String(user.email || '').trim().toLowerCase();
+        var previousEmail = String(localStorage.getItem('phfActiveLoginEmail') || localStorage.getItem('phfSimpleTestLoginEmail') || '').trim().toLowerCase();
+        var switchedAccount = !!(previousEmail && nextEmail && previousEmail !== nextEmail);
+
+        var oldProfile = {};
+        try{ oldProfile = JSON.parse(localStorage.getItem('phfEmployeeProfile') || '{}') || {}; }catch(e){}
+        var oldProfileEmail = String(oldProfile.accountEmail || '').trim().toLowerCase();
+        var sameAccountProfile = !switchedAccount && (!oldProfileEmail || !nextEmail || oldProfileEmail === nextEmail);
+        if(!sameAccountProfile) oldProfile = {};
+
+        if(switchedAccount){
+          ['phfRefreshResumeState','phfCurrentPage','phfCurrentLessonIndex','phfLastLessonIndex','phfCurrentLessonKey','phfLastViewedPage','phfStudyStartDate','phfQuizResults']
+            .forEach(function(k){ localStorage.removeItem(k); });
+          try{ window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(_e){}
+          try{ if(typeof window.phfResetLearningRuntimeForAccountSwitch === 'function') window.phfResetLearningRuntimeForAccountSwitch(); }catch(_e){}
+        }
+
+        localStorage.setItem('phfSimpleTestLoginEmail', nextEmail);
+        localStorage.setItem('phfActiveLoginEmail', nextEmail);
         localStorage.setItem('phfLoginEmail', user.email || '');
         localStorage.setItem('phfLoginName', user.name || '');
         localStorage.setItem('phfLoginPhone', user.phone || '');
         roleKeys.forEach(function(k){ localStorage.setItem(k, role); });
 
-        var phone = String(user.phone || '').replace(/\D/g,'');
-        var oldProfile = {};
-        try{ oldProfile = JSON.parse(localStorage.getItem('phfEmployeeProfile') || '{}') || {}; }catch(e){}
+        var officialEmployeeId = String(user.employeeId || user.employee_id || '').trim();
+        var safeOldId = sameAccountProfile && officialEmployeeId && String(oldProfile.id || '') === officialEmployeeId ? oldProfile.id : '';
         var profile = {
-          id: user.employeeId || oldProfile.id || (phone ? ('test-phone-' + phone) : ('acct-' + String(user.email || '').replace(/[^a-z0-9]+/gi,'-'))),
-          fullName: user.name || '',
-          phone: user.phone || oldProfile.phone || '',
-          branch: user.branch || oldProfile.branch || '',
-          department: user.department || oldProfile.department || '',
-          position: user.position || oldProfile.position || '',
-          trainingAudience: user.trainingAudience || oldProfile.trainingAudience || '',
-          hubAssignmentStatus: user.hubAssignmentStatus || oldProfile.hubAssignmentStatus || '',
-          defaultProgram: user.defaultProgram || oldProfile.defaultProgram || '',
-          accountEmail: user.email || oldProfile.accountEmail || ''
+          id: officialEmployeeId || safeOldId || '',
+          fullName: user.name || (sameAccountProfile ? oldProfile.fullName : '') || '',
+          phone: user.phone || (sameAccountProfile ? oldProfile.phone : '') || '',
+          branch: user.branch || (sameAccountProfile ? oldProfile.branch : '') || '',
+          department: user.department || (sameAccountProfile ? oldProfile.department : '') || '',
+          position: user.position || (sameAccountProfile ? oldProfile.position : '') || '',
+          trainingAudience: user.trainingAudience || (sameAccountProfile ? oldProfile.trainingAudience : '') || '',
+          hubAssignmentStatus: user.hubAssignmentStatus || (sameAccountProfile ? oldProfile.hubAssignmentStatus : '') || '',
+          defaultProgram: user.defaultProgram || (sameAccountProfile ? oldProfile.defaultProgram : '') || '',
+          accountEmail: user.email || ''
         };
         localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
         localStorage.setItem('phfEmployeeId', profile.id);
+        if(user.studyStartDate || user.study_start_date) localStorage.setItem('phfStudyStartDate', user.studyStartDate || user.study_start_date);
+        else if(switchedAccount) localStorage.removeItem('phfStudyStartDate');
         window.currentProfile = profile;
       }else{
-        ['phfSimpleTestLoginEmail','phfActiveLoginEmail','phfLoginEmail','phfLoginName','phfLoginPhone']
+        ['phfSimpleTestLoginEmail','phfActiveLoginEmail','phfLoginEmail','phfLoginName','phfLoginPhone','phfEmployeeProfile','phfEmployeeId','phfStudyStartDate']
           .concat(roleKeys)
           .forEach(function(k){ localStorage.removeItem(k); });
         window.currentProfile = null;
+        try{ window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(_e){}
       }
     }catch(e){}
   }
@@ -247,7 +268,7 @@
         try{
           var result=await request('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:cur,newPassword:next})});
           var updated=result&&result.user?result.user:Object.assign({},user,{mustChangePassword:false});finish();resolve(updated);
-        }catch(e){error.textContent=e&&e.message?e.message:'Chưa thể đổi mật khẩu.';save.disabled=false;save.textContent='Đổi mật khẩu và tiếp tục'}
+        }catch(e){error.textContent=authFriendlyMessage(e,'Chưa thể đổi mật khẩu.');save.disabled=false;save.textContent='Đổi mật khẩu và tiếp tục'}
       };
       root.querySelector('#phfRequiredLogout').onclick=function(){finish();reject(new Error('PASSWORD_CHANGE_CANCELLED'));};
       setTimeout(function(){(currentPassword?nw:current).focus()},30);
@@ -384,6 +405,44 @@
   }
   window.phfRenderAuthenticatedDefault = renderAuthenticatedDefault;
 
+  function authFriendlyMessage(error, fallback){
+    var code=String(error&&error.code||'');
+    var map={
+      PASSWORD_WEAK:'Mật khẩu cần ít nhất 8 ký tự, có chữ và số.',
+      CURRENT_PASSWORD_INVALID:'Mật khẩu hiện tại chưa đúng.',
+      PASSWORD_CURRENT_INVALID:'Mật khẩu hiện tại chưa đúng.',
+      PASSWORD_UNCHANGED:'Mật khẩu mới phải khác mật khẩu hiện tại.',
+      LOGIN_INVALID:'Email hoặc mật khẩu chưa đúng.',
+      GOOGLE_CREDENTIAL_MISSING:'Google chưa trả về thông tin xác minh. Vui lòng thử lại.',
+      GOOGLE_TOKEN_INVALID:'Phiên xác minh Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+      GOOGLE_VERIFY_TIMEOUT:'Google phản hồi quá lâu. Vui lòng thử lại.',
+      GOOGLE_VERIFY_UNAVAILABLE:'Chưa thể kết nối Google để xác minh tài khoản.',
+      ACCOUNT_NOT_FOUND:'Gmail này chưa được Admin cấp tài khoản PHF.',
+      ACCOUNT_LOCKED:'Tài khoản đang tạm khóa. Vui lòng liên hệ Admin.',
+      ACCOUNT_INACTIVE:'Tài khoản đã ngừng sử dụng. Vui lòng liên hệ Admin.',
+      EMPLOYEE_LINK_REQUIRED:'Tài khoản nhân viên chưa liên kết hồ sơ. Vui lòng liên hệ Admin.'
+    };
+    return map[code]||(error&&error.message)||fallback||'Thao tác chưa thành công. Vui lòng thử lại.';
+  }
+
+  function showGoogleAuthNotice(title,message,mode){
+    var old=document.getElementById('phfGoogleAuthNotice');if(old)old.remove();
+    var root=document.createElement('div');root.id='phfGoogleAuthNotice';root.className='phf-google-auth-notice';
+    root.innerHTML='<section class="phf-google-auth-notice-card '+(mode||'loading')+'" role="dialog" aria-modal="true" aria-live="polite"><div class="phf-google-auth-notice-icon"><span class="phf-google-auth-g">G</span></div><div class="phf-google-auth-notice-copy"><h3></h3><p></p></div><button type="button" class="phf-google-auth-notice-close" aria-label="Đóng" hidden>×</button></section>';
+    document.body.appendChild(root);
+    function update(nextTitle,nextMessage,nextMode,closable){
+      var card=root.querySelector('.phf-google-auth-notice-card');
+      card.className='phf-google-auth-notice-card '+(nextMode||'loading');
+      root.querySelector('h3').textContent=nextTitle||'';
+      root.querySelector('p').textContent=nextMessage||'';
+      var close=root.querySelector('.phf-google-auth-notice-close');close.hidden=!closable;
+    }
+    function close(){if(root&&root.parentNode)root.remove()}
+    root.querySelector('.phf-google-auth-notice-close').onclick=close;
+    update(title,message,mode,false);
+    return{update:update,close:close,root:root};
+  }
+
   function showLogin(){
     if(loginOpening || document.getElementById('phfTestLoginOverlay')) return;
     loginOpening = true;
@@ -403,8 +462,8 @@
           '<div class="phf-test-login-field"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
           '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
           '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
-          '<div style="display:flex;align-items:center;gap:10px;color:#8a9b94;font-size:12px;margin:1px 0"><span style="height:1px;background:#e3ece8;flex:1"></span><span>Hoặc</span><span style="height:1px;background:#e3ece8;flex:1"></span></div>' +
-          '<div id="phfGoogleLoginWrap" style="display:grid;gap:7px;justify-items:stretch"><div id="phfGoogleButton" style="min-height:44px;display:flex;align-items:center;justify-content:center"></div><div id="phfGoogleLoginStatus" style="min-height:18px;color:#687c73;font-size:12.5px;text-align:center">Đang chuẩn bị đăng nhập Google...</div></div>' +
+          '<div class="phf-login-divider"><span>Hoặc tiếp tục bằng</span></div>' +
+          '<div id="phfGoogleLoginWrap" class="phf-google-login-wrap"><div class="phf-google-login-heading"><b>Đăng nhập nhanh bằng Google</b><span>Dùng Gmail đã được Admin cấp quyền trong PHF.</span></div><div id="phfGoogleButton" class="phf-google-login-button" aria-label="Tiếp tục bằng Google"></div><div id="phfGoogleLoginStatus" class="phf-google-login-status" aria-live="polite">Đang chuẩn bị dịch vụ Google...</div></div>' +
           '<p class="phf-login-note">Quên mật khẩu hoặc chưa có tài khoản? Liên hệ Admin để được hỗ trợ.</p>' +
         '</section>' +
       '</section>';
@@ -416,6 +475,9 @@
     var submitButton = root.querySelector('#phfTestSubmit');
     var googleButton = root.querySelector('#phfGoogleButton');
     var googleStatus = root.querySelector('#phfGoogleLoginStatus');
+    var googleLoginInflight = false;
+    var googleAuthNotice = null;
+    var googleOpenTimer = null;
 
     async function completeLogin(verified, source, currentPassword){
       await establishSession(verified, source);
@@ -468,14 +530,21 @@
 
 
     async function handleGoogleCredential(response){
-      if(authTransitioning) return;
+      if(authTransitioning||googleLoginInflight) return;
       var credential=response&&response.credential?String(response.credential):'';
+      if(googleOpenTimer){clearTimeout(googleOpenTimer);googleOpenTimer=null}
       if(!credential){
-        error.textContent='Google chưa trả về thông tin xác minh. Vui lòng thử lại.';
+        var missing='Google chưa trả về thông tin xác minh. Vui lòng thử lại.';
+        error.textContent=missing;
+        if(googleAuthNotice)googleAuthNotice.update('Chưa nhận được xác minh Google',missing,'error',true);
         return;
       }
+      googleLoginInflight=true;
       error.textContent='';
-      if(googleStatus) googleStatus.textContent='Đang xác minh Gmail với PHF...';
+      googleButton.classList.add('is-processing');
+      if(googleStatus) googleStatus.textContent='Đang xác minh Gmail với hệ thống PHF...';
+      if(!googleAuthNotice)googleAuthNotice=showGoogleAuthNotice('Đang xác minh tài khoản PHF','Google đã xác nhận Gmail. Hệ thống đang kiểm tra quyền truy cập.','loading');
+      else googleAuthNotice.update('Đang xác minh tài khoản PHF','Google đã xác nhận Gmail. Hệ thống đang kiểm tra quyền truy cập.','loading',false);
       beginAuthTransition();
       try{
         var loginResult=await request('/api/auth/google/login',{
@@ -485,11 +554,18 @@
         });
         var verified=loginResult&&loginResult.user?loginResult.user:null;
         if(!verified) throw new Error('Chưa thể xác nhận tài khoản PHF từ Gmail này.');
+        googleAuthNotice.update('Đăng nhập thành công','Xin chào, '+String(verified.name||verified.email||'')+'.','success',false);
+        await new Promise(function(resolve){setTimeout(resolve,420)});
+        googleAuthNotice.close();googleAuthNotice=null;
         await completeLogin(verified,'google-login','');
       }catch(e){
-        error.textContent=e&&e.message?e.message:'Đăng nhập Google chưa thành công.';
-        if(googleStatus) googleStatus.textContent='Google chỉ dùng để xác minh Gmail đã được Admin cấp trong PHF.';
+        var friendly=authFriendlyMessage(e,'Đăng nhập Google chưa thành công.');
+        error.textContent=friendly;
+        if(googleStatus) googleStatus.textContent='Dùng Gmail đã được Admin cấp quyền trong PHF Training Hub.';
+        if(googleAuthNotice)googleAuthNotice.update('Đăng nhập Google chưa thành công',friendly,'error',true);
       }finally{
+        googleLoginInflight=false;
+        googleButton.classList.remove('is-processing');
         endAuthTransition();
       }
     }
@@ -514,6 +590,7 @@
                 cancel_on_tap_outside:true
               });
               googleButton.innerHTML='';
+              var googleWidth=Math.max(260,Math.min(400,Math.round(googleButton.getBoundingClientRect().width||360)));
               google.accounts.id.renderButton(googleButton,{
                 type:'standard',
                 theme:'outline',
@@ -521,9 +598,24 @@
                 text:'continue_with',
                 shape:'rectangular',
                 logo_alignment:'left',
-                width:320
+                width:googleWidth
               });
-              googleStatus.textContent='Dùng Gmail đã được Admin cấp trong PHF Training Hub.';
+              googleButton.classList.add('is-ready');
+              googleStatus.textContent='Sẵn sàng · Chọn Gmail đã được Admin cấp trong PHF.';
+              if(!googleButton.__phfGooglePointerBound){
+                googleButton.__phfGooglePointerBound=true;
+                googleButton.addEventListener('pointerdown',function(){
+                  if(googleLoginInflight||authTransitioning)return;
+                  if(googleAuthNotice)googleAuthNotice.close();
+                  googleAuthNotice=showGoogleAuthNotice('Đang mở đăng nhập Google','Vui lòng chọn Gmail đã được cấp quyền trong PHF Training Hub.','loading');
+                  if(googleOpenTimer)clearTimeout(googleOpenTimer);
+                  googleOpenTimer=setTimeout(function(){
+                    if(!googleLoginInflight&&googleAuthNotice){
+                      googleAuthNotice.update('Chưa nhận được xác nhận Google','Nếu cửa sổ Google đã đóng, anh/chị có thể đóng thông báo này và thử lại.','warning',true);
+                    }
+                  },8000);
+                },true);
+              }
             }catch(e){
               googleStatus.textContent='Chưa thể khởi tạo nút Google. Vui lòng tải lại trang.';
             }

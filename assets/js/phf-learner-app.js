@@ -215,7 +215,7 @@ function phfGetSavedProfile(){ try { return JSON.parse(localStorage.getItem('phf
 function phfGetStudyStartValue(){
   const el = document.getElementById('studyStartDate');
   const profile = phfGetSavedProfile();
-  return (el && el.value) || localStorage.getItem('phfStudyStartDate') || profile.studyStartDate || '';
+  return (el && el.value) || profile.studyStartDate || localStorage.getItem('phfStudyStartDate') || '';
 }
 function phfBuildTimeline(){
   const start = phfParseDateInput(phfGetStudyStartValue());
@@ -248,7 +248,7 @@ function phfPrefillInfoForm(){
     const el = document.getElementById(id);
     if(!el || el.dataset.phfPrefilled === '1') return;
     const key = id === 'dob' ? 'birthday' : id;
-    const value = id === 'studyStartDate' ? (localStorage.getItem('phfStudyStartDate') || profile.studyStartDate || '') : (profile[key] || '');
+    const value = id === 'studyStartDate' ? (profile.studyStartDate || localStorage.getItem('phfStudyStartDate') || '') : (profile[key] || '');
     if(value) el.value = value;
     el.dataset.phfPrefilled = '1';
   });
@@ -288,7 +288,7 @@ function phfSaveInfoFormToProfile(){
   profile.studyStartDate = phfInfoFormValue('studyStartDate');
   profile.birthday = phfInfoFormValue('dob') || profile.birthday || '';
   profile.programId = profile.programId || 'new_sales';
-  profile.id = profile.id || ('learner-' + (cleanPhone || Date.now()));
+  profile.id = profile.id || '';
   try{
     localStorage.setItem('phfEmployeeId', profile.id);
     localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
@@ -296,6 +296,86 @@ function phfSaveInfoFormToProfile(){
   }catch(e){}
   return profile;
 }
+function phfCurrentOfficialEmployeeId(){
+  try{
+    const user=(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||(window.phfGetCurrentUser&&window.phfGetCurrentUser())||{};
+    return String(user.employeeId||user.employee_id||(window.currentProfile&&window.currentProfile.id)||'').trim();
+  }catch(e){ return ''; }
+}
+function phfInfoConfirmedStorageKey(){
+  const id=phfCurrentOfficialEmployeeId();
+  return id ? ('phfInfoConfirmed:'+id) : '';
+}
+function phfServerConfirmedInfoRecord(){
+  const id=phfCurrentOfficialEmployeeId();
+  if(!id) return null;
+  try{
+    const data=window.__phfLocalData||{};
+    const rec=data.progress && data.progress[id];
+    const completed=rec && (rec.completedPages||rec.completed_pages)||[];
+    if(!Array.isArray(completed) || completed.indexOf('lesson:1')<0) return null;
+    return rec || null;
+  }catch(e){ return null; }
+}
+function phfHasServerConfirmedInfo(){ return !!phfServerConfirmedInfoRecord(); }
+window.phfHasServerConfirmedInfo=phfHasServerConfirmedInfo;
+function phfConfirmedInfoProfile(){
+  const id=phfCurrentOfficialEmployeeId();
+  const data=window.__phfLocalData||{};
+  const employees=Array.isArray(data.employees)?data.employees:[];
+  const row=employees.find(function(x){ return String(x&&x.id||'')===String(id||''); })||{};
+  return Object.assign({}, phfGetSavedProfile(), row, {id:id||row.id||''});
+}
+function phfRenderConfirmedInfoCard(){
+  const rec=phfServerConfirmedInfoRecord();
+  const p=phfConfirmedInfoProfile();
+  const savedAt=rec && (rec.lastUpdatedAt||rec.last_updated_at||rec.savedAt||rec.saved_at);
+  const item=function(label,value){return '<div class="phf-confirmed-info-item"><span>'+esc(label)+'</span><b>'+esc(value||'-')+'</b></div>';};
+  return '<section class="phf-confirmed-info-card" aria-live="polite">'
+    +'<div class="phf-confirmed-info-head"><div><span class="phf-confirmed-info-status">✓ Đã ghi nhận</span><h3>Thông tin học viên đã được ghi nhận</h3><p>Dữ liệu đã được máy chủ lưu thành công và dùng cho lộ trình đào tạo của bạn.</p></div></div>'
+    +'<details class="phf-confirmed-info-details"><summary>Xem thông tin đã xác nhận</summary><div class="phf-confirmed-info-grid">'
+    +item('Họ và tên',p.fullName||p.full_name)
+    +item('Ngày sinh',phfFormatDateTimeVN(p.birthday||p.dob))
+    +item('Ngày bắt đầu học',phfFormatDateTimeVN(p.studyStartDate||p.study_start_date))
+    +item('Số điện thoại',p.phone)
+    +item('Vị trí',p.position)
+    +item('Bộ phận',p.department)
+    +item('Chi nhánh',p.branch)
+    +item('Thời gian xác nhận',phfFormatDateTimeVN(savedAt))
+    +'</div></details><div class="phf-confirmed-info-note">Thông tin đã khóa đối với học viên. Nếu cần điều chỉnh, vui lòng liên hệ Quản lý hoặc Admin.</div>'
+    +'</section>';
+}
+async function phfConfirmInfoAndContinue(){
+  if(!phfValidateInfoForm()) return false;
+  const employeeId=phfCurrentOfficialEmployeeId();
+  if(!employeeId){
+    phfNotice('error','Tài khoản chưa liên kết hồ sơ','Không xác định được mã học viên. Vui lòng liên hệ Admin kiểm tra liên kết tài khoản với hồ sơ nhân viên.');
+    return false;
+  }
+  const profile=phfSaveInfoFormToProfile();
+  profile.id=employeeId;
+  const btn=document.querySelector('#mainLesson [data-phf-action="confirm-info"],#mainLesson .phf-info-confirm-btn');
+  if(btn){btn.disabled=true;btn.textContent='Đang xác nhận...';}
+  try{
+    const res=await fetch('/api/data',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      type:'profile-confirmed',employee:profile,currentPage:'lesson:2',completedPages:['lesson:0','lesson:1']
+    })});
+    const json=await res.json().catch(function(){return {};});
+    if(!res.ok||!json||!json.ok) throw new Error(json&&json.error?json.error:'Chưa thể lưu thông tin học viên.');
+    if(json.data) window.__phfLocalData=json.data;
+    const key=phfInfoConfirmedStorageKey();
+    if(key) localStorage.setItem(key,'1');
+    (typeof window.phfGo==='function'?window.phfGo:go)(2);
+    return true;
+  }catch(e){
+    phfNotice('error','Chưa xác nhận được thông tin',e&&e.message?e.message:'Dữ liệu chưa được ghi nhận. Vui lòng kiểm tra kết nối và thử lại.');
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Xác nhận thông tin và vào Bước 1';}
+  }
+}
+window.phfConfirmInfoAndContinue=phfConfirmInfoAndContinue;
+
 function phfValidateInfoForm(){
   phfClearInfoErrors();
   const checks = [
@@ -320,7 +400,10 @@ function phfValidateInfoForm(){
       body.insertAdjacentHTML('afterbegin','<div id="phfInfoFormErrorBox" class="phf-form-error-box">Vui lòng điền đầy đủ các trường bắt buộc trước khi vào Bước 1.</div>');
     }
     const first = document.querySelector('#mainLesson .phf-field-error input, #mainLesson .phf-field-error select');
-    if(first) try{ first.focus(); }catch(e){}
+    if(first){
+      try{ first.focus({preventScroll:true}); }catch(e){ try{ first.focus(); }catch(_){} }
+      phfScrollElementIntoLessonFocus(first,'smooth');
+    }
     return false;
   }
   phfSaveInfoFormToProfile();
@@ -331,7 +414,6 @@ document.addEventListener('change', function(e){
   if(e.target && ['fullName','dob','phone','position','department','branch','studyStartDate'].includes(e.target.id)){
     phfClearInfoErrors();
     phfSaveInfoFormToProfile();
-    if(e.target.id === 'studyStartDate') render();
   }
 });
 
@@ -582,36 +664,101 @@ function phfFindLessonIndex(pattern){
 }
 /* PHF Bản 27: phần đánh giá / hồ sơ đánh giá / báo cáo đào tạo được tách sang assets/js/phf-evaluation.js */
 
-/* PHF PATCH 2026-07-05: Khi chuyển bài/chuyển khu, đưa người học đến ĐẦU NỘI DUNG CHÍNH.
-   Không kéo về đỉnh toàn trang nữa, vì trên máy tính/điện thoại sẽ làm người dùng phải nhìn lại logo, thanh giai đoạn và thanh trạng thái.
-   Mốc ưu tiên là #mainLesson: nơi bắt đầu bài/khu đang xem. */
-function phfScrollToPageTop(){
-  const anchor = document.querySelector('#mainLesson') || document.querySelector('.layout') || document.querySelector('.app');
-  const resetInnerScroll = function(){
-    [
-      document.querySelector('.todo-panel'),
-      document.querySelector('.right-panel'),
-      document.querySelector('.eval-admin-main'),
-      document.querySelector('.focus-body')
-    ].filter(Boolean).forEach(function(el){
-      try{ if(el.scrollTop) el.scrollTop = 0; }catch(e){}
-    });
+/* PHF 1.0.7: cuộn có chủ đích trong khu học.
+   - Chỉ cuộn khi thực sự chuyển bài, F5/resume hoặc lưu thành công.
+   - Render lại do nhập/chọn form không được làm thay đổi vị trí người dùng.
+   - Validation cuộn đúng trường lỗi, không đưa về đầu toàn trang. */
+let phfLastRenderedLessonIndex = null;
+const PHF_LESSON_SCROLL_STORAGE_KEY = 'phfLessonScrollPositionsV109';
+let phfScrollSaveTimer = 0;
+function phfScrollScopeKey(){
+  try{
+    const profile = phfGetSavedProfile() || {};
+    return String(profile.id || profile.employeeId || profile.phone || 'anonymous').trim() || 'anonymous';
+  }catch(e){ return 'anonymous'; }
+}
+function phfReadScrollPositions(){
+  try{ return JSON.parse(sessionStorage.getItem(PHF_LESSON_SCROLL_STORAGE_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function phfSaveCurrentLessonScrollNow(){
+  if(!document.body.classList.contains('phf-learning-mode')) return;
+  const idx = Number(window.phfCurrentLessonIndex);
+  if(!Number.isFinite(idx) || idx < 0) return;
+  const map = phfReadScrollPositions();
+  const scope = phfScrollScopeKey();
+  if(!map[scope]) map[scope] = {};
+  map[scope]['lesson:' + idx] = {
+    y: Math.max(0, Math.round(window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0)),
+    savedAt: Date.now()
   };
+  try{ sessionStorage.setItem(PHF_LESSON_SCROLL_STORAGE_KEY, JSON.stringify(map)); }catch(e){}
+}
+function phfQueueSaveCurrentLessonScroll(){
+  clearTimeout(phfScrollSaveTimer);
+  phfScrollSaveTimer = setTimeout(phfSaveCurrentLessonScrollNow, 140);
+}
+function phfSavedScrollForLesson(idx){
+  const map = phfReadScrollPositions();
+  const row = map[phfScrollScopeKey()] && map[phfScrollScopeKey()]['lesson:' + Number(idx)];
+  const y = row && Number(row.y);
+  return Number.isFinite(y) && y >= 0 ? y : null;
+}
+function phfIsPageReload(){
+  try{
+    const nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    if(nav) return nav.type === 'reload';
+    return performance.navigation && performance.navigation.type === 1;
+  }catch(e){ return false; }
+}
+window.addEventListener('scroll', phfQueueSaveCurrentLessonScroll, {passive:true});
+window.addEventListener('beforeunload', phfSaveCurrentLessonScrollNow);
+window.phfSaveCurrentLessonScrollNow = phfSaveCurrentLessonScrollNow;
+function phfRequestLessonScroll(reason, selector){
+  window.__phfLessonScrollRequest = {
+    reason: String(reason || 'navigation'),
+    selector: selector || '#mainLesson',
+    requestedAt: Date.now()
+  };
+}
+window.phfRequestLessonScroll = phfRequestLessonScroll;
+function phfScrollElementIntoLessonFocus(el, behavior){
+  if(!el) return;
   const run = function(){
-    resetInnerScroll();
-    if(!anchor) return;
     try{
-      const rect = anchor.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
       const currentY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      const top = Math.max(0, currentY + rect.top - 10);
-      window.scrollTo({top:top,left:0,behavior:'auto'});
+      const top = Math.max(0, currentY + rect.top - 16);
+      window.scrollTo({top:top,left:0,behavior:behavior || 'auto'});
     }catch(e){
-      try{ anchor.scrollIntoView({block:'start', inline:'nearest', behavior:'auto'}); }catch(_){}
+      try{ el.scrollIntoView({block:'center',inline:'nearest',behavior:behavior || 'auto'}); }catch(_){}
     }
   };
-  run();
-  requestAnimationFrame(run);
-  setTimeout(run, 80);
+  requestAnimationFrame(function(){ requestAnimationFrame(run); });
+}
+window.phfScrollElementIntoLessonFocus = phfScrollElementIntoLessonFocus;
+function phfApplyLessonScrollAfterRender(){
+  const changedLesson = phfLastRenderedLessonIndex === null || phfLastRenderedLessonIndex !== current;
+  phfLastRenderedLessonIndex = current;
+  const request = window.__phfLessonScrollRequest || null;
+  if(!request && !changedLesson) return;
+  try{ delete window.__phfLessonScrollRequest; }catch(e){ window.__phfLessonScrollRequest = null; }
+
+  const reason = String(request && request.reason || '');
+  const isReloadRestore = phfIsPageReload() && (changedLesson || /resume|refresh/i.test(reason));
+  if(isReloadRestore){
+    const savedY = phfSavedScrollForLesson(current);
+    if(savedY !== null){
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.scrollTo({top:savedY,left:0,behavior:'auto'}); }); });
+      return;
+    }
+  }
+
+  const selector = request && request.selector ? request.selector : '#mainLesson';
+  const anchor = document.querySelector(selector) || document.querySelector('#mainLesson') || document.querySelector('.layout') || document.querySelector('.app');
+  [document.querySelector('.todo-panel'),document.querySelector('.right-panel'),document.querySelector('.eval-admin-main')]
+    .filter(Boolean).forEach(function(el){ try{ if(el.scrollTop) el.scrollTop = 0; }catch(e){} });
+  phfScrollElementIntoLessonFocus(anchor,'auto');
 }
 
 
@@ -857,8 +1004,9 @@ function phfUpdateBMTTSignButtonState(){
     btn.textContent='Đã ký xác nhận';
     return;
   }
-  const ready=phfValidateConfidentialityCommitment(true);
-  btn.disabled=!ready;
+  // Không khóa nút im lặng theo trạng thái form. Người học luôn có thể bấm để
+  // nhận thông báo chính xác trường nào còn thiếu; hàm lưu vẫn validate đầy đủ.
+  if(btn.dataset.phfSaving!=='1') btn.disabled=false;
   btn.textContent='Ký xác nhận';
 }
 window.phfUpdateBMTTSignButtonState=phfUpdateBMTTSignButtonState;
@@ -942,7 +1090,7 @@ function phfPrepareBMTTPrintOnly(){
 async function phfSaveConfidentialityCommitment(){
   if(!phfValidateConfidentialityCommitment(false)) return false;
   const btn=document.getElementById('phfBmtSignButton');
-  if(btn){btn.disabled=true;btn.textContent='Đang ký xác nhận...';}
+  if(btn){btn.dataset.phfSaving='1';btn.disabled=true;btn.textContent='Đang ký xác nhận...';}
   phfUpdateBMTTPrintFields();
   const record=phfCollectBMTT();
   phfSetStatus('phfBmtStatus','Đang lưu chữ ký xác nhận lên hệ thống...', 'info');
@@ -964,13 +1112,14 @@ async function phfSaveConfidentialityCommitment(){
     window.__phfVerifiedBMTTRecord=saved;
     try{localStorage.setItem('phfConfidentialityCommitment',JSON.stringify(saved));}catch(e){}
     phfMarkBMTTSigned(saved);
+    if(btn) delete btn.dataset.phfSaving;
     phfSetStatus('phfBmtStatus','Đã ký xác nhận và lưu vào hồ sơ BMTT trên hệ thống.', 'ok');
     return true;
   }catch(e){
     console.warn('PHF BMTT save error:',e);
     const paper=document.getElementById('phfBmtPaper');
     if(paper) paper.dataset.phfSigned='0';
-    if(btn){btn.disabled=false;btn.textContent='Ký xác nhận';}
+    if(btn){delete btn.dataset.phfSaving;btn.disabled=false;btn.textContent='Ký xác nhận';}
     phfSetStatus('phfBmtStatus',e&&e.message?e.message:'Chưa lưu được chữ ký xác nhận. Vui lòng thử lại.','warn');
     phfNotice('error','Chưa ký xác nhận được','Dữ liệu chưa được ghi vào hồ sơ Admin/Quản lý. Vui lòng kiểm tra kết nối và thử lại.');
     return false;
@@ -1131,35 +1280,75 @@ function phfBuildBMTTPrintHTML(record){
 </body>
 </html>`;
 }
+function phfNormalizeBMTTPrintRecord(record){
+  const raw=(record&&typeof record==='object')?record:{};
+  const snapshot=(raw.contentSnapshot&&typeof raw.contentSnapshot==='object'&&raw.contentSnapshot)
+    ||(raw.content_snapshot&&typeof raw.content_snapshot==='object'&&raw.content_snapshot)
+    ||{};
+  const detail=(raw.detail&&typeof raw.detail==='object'&&raw.detail)||{};
+  const profile=(typeof phfCurrentProfileForForms==='function'&&phfCurrentProfileForForms())||{};
+  const merged=Object.assign({},profile,snapshot,detail,raw);
+  const pick=function(){
+    for(let i=0;i<arguments.length;i+=1){
+      const value=arguments[i];
+      if(value!==undefined&&value!==null&&String(value).trim()!=='') return value;
+    }
+    return '';
+  };
+  const normalized=Object.assign({},merged,{
+    id:pick(merged.id,merged.commitmentId,merged.commitment_id),
+    employeeId:pick(merged.employeeId,merged.employee_id,profile.id),
+    fullName:pick(merged.fullName,merged.full_name,merged.confirmedName,merged.confirmed_name,merged.signName,merged.sign_name,profile.fullName,profile.full_name),
+    confirmedName:pick(merged.confirmedName,merged.confirmed_name,merged.signName,merged.sign_name,merged.fullName,merged.full_name,profile.fullName,profile.full_name),
+    signName:pick(merged.signName,merged.sign_name,merged.confirmedName,merged.confirmed_name,merged.fullName,merged.full_name,profile.fullName,profile.full_name),
+    birthday:pick(merged.birthday,merged.dateOfBirth,merged.date_of_birth,merged.dob,profile.birthday,profile.dateOfBirth,profile.date_of_birth,profile.dob),
+    cccd:pick(merged.cccd,merged.identityNumber,merged.identity_number,profile.cccd,profile.identityNumber,profile.identity_number),
+    cccdDate:pick(merged.cccdDate,merged.cccd_date,merged.identityIssueDate,merged.identity_issue_date,profile.cccdDate,profile.cccd_date),
+    cccdPlace:pick(merged.cccdPlace,merged.cccd_place,merged.identityIssuePlace,merged.identity_issue_place,profile.cccdPlace,profile.cccd_place),
+    phone:pick(merged.phone,merged.confirmedPhone,merged.confirmed_phone,merged.signPhone,merged.sign_phone,profile.phone,profile.phoneNumber),
+    signPhone:pick(merged.signPhone,merged.sign_phone,merged.confirmedPhone,merged.confirmed_phone,merged.phone,profile.phone,profile.phoneNumber),
+    position:pick(merged.position,merged.jobTitle,merged.job_title,profile.position,profile.jobTitle),
+    branch:pick(merged.branch,merged.branchName,merged.branch_name,profile.branch,profile.branchName),
+    confirmDate:pick(merged.confirmDate,merged.confirm_date,merged.confirmedAt,merged.confirmed_at,merged.signedAt,merged.signed_at),
+    confirmedAt:pick(merged.confirmedAt,merged.confirmed_at,merged.signedAt,merged.signed_at,merged.savedAt,merged.saved_at),
+    signedAt:pick(merged.signedAt,merged.signed_at,merged.confirmedAt,merged.confirmed_at,merged.savedAt,merged.saved_at),
+    confirmedByEmail:pick(merged.confirmedByEmail,merged.confirmed_by_email,merged.accountEmail),
+    documentVersion:pick(merged.documentVersion,merged.document_version,'PHF-BMTT-2026-06-06'),
+    acknowledgementText:pick(merged.acknowledgementText,merged.acknowledgement_text,'Tôi đã đọc, hiểu và đồng ý với toàn bộ nội dung cam kết bảo mật thông tin.'),
+    checkedCount:Number(pick(merged.checkedCount,merged.checked_count,merged.requiredCheckCount,merged.required_check_count,1)),
+    requiredCheckCount:Number(pick(merged.requiredCheckCount,merged.required_check_count,merged.checkedCount,merged.checked_count,1)),
+    status:pick(merged.status,'signed')
+  });
+  return normalized;
+}
 function phfOpenBMTTPrintDocument(record){
-  const saved = (typeof phfExistingBMTT === 'function') ? phfExistingBMTT() : null;
-  const payload = Object.assign({}, record || {}, saved || {});
-  const recordId = String(payload.id || ('bmtt-' + Date.now())).trim();
-  payload.id = recordId;
+  const payload=phfNormalizeBMTTPrintRecord(record);
+  const recordId=String(payload.id||('bmtt-'+Date.now())).trim();
+  payload.id=recordId;
 
   try{
-    sessionStorage.setItem('phfBmttPrintRecord:' + recordId, JSON.stringify(payload));
+    sessionStorage.setItem('phfBmttPrintRecord:'+recordId,JSON.stringify(payload));
   }catch(error){
     phfNotice('error','Chưa mở được bản in','Trình duyệt không thể chuẩn bị dữ liệu in trong phiên hiện tại. Vui lòng thử lại.');
     return false;
   }
 
-  const url = '/print/commitments/' + encodeURIComponent(recordId);
-  const win = window.open(url, '_blank');
+  const url='/print/commitments/'+encodeURIComponent(recordId);
+  const win=window.open(url,'_blank');
   if(!win){
     phfNotice('warning','Trình duyệt đang chặn cửa sổ in','Vui lòng cho phép mở cửa sổ mới để in bản cam kết.');
     return false;
   }
-  try{ win.focus(); }catch(error){}
+  try{win.focus();}catch(error){}
   return true;
 }
 async function phfPrintConfidentialityCommitment(){
-  if(!phfValidateConfidentialityCommitment(false)) return;
-  phfUpdateBMTTPrintFields();
-  const savedOk = await phfSaveConfidentialityCommitment();
-  if(!savedOk) return;
-  const record = (typeof phfExistingBMTT === 'function' && phfExistingBMTT()) || phfCollectBMTT();
-  phfOpenBMTTPrintDocument(record);
+  const record=(typeof phfExistingBMTT==='function')?phfExistingBMTT():null;
+  if(!phfIsCompleteBMTTRecord(record)){
+    phfNotice('warning','Chưa có bản cam kết đã ký','Vui lòng ký xác nhận và chờ hệ thống lưu thành công trước khi in.');
+    return false;
+  }
+  return phfOpenBMTTPrintDocument(record);
 }
 function phfValidateMorningCommitment(){
   const box = document.querySelector('#mainLesson .commit-final');
@@ -1326,17 +1515,23 @@ function render(){
     // originalFull chỉ còn là dữ liệu nội dung, không được đổi khung học hoặc dựng lại màn toàn trang.
     document.body.classList.remove('phf-original-full-mode');
     const isInfoPage = current === 1;
+    const infoConfirmed = isInfoPage && phfHasServerConfirmedInfo();
     const nextAttr = isInfoPage
-      ? `onclick="if(typeof phfValidateInfoForm === 'function' && !phfValidateInfoForm()) return; go(current+1);"`
+      ? (infoConfirmed ? `onclick="phfTryNextFromLesson()"` : `onclick="phfConfirmInfoAndContinue()"`)
       : `onclick="phfTryNextFromLesson()"`;
+    const lessonActions = isInfoPage && !infoConfirmed
+      ? `<div class="actions phf-info-page-actions"><button class="btn btn-soft" onclick="go(current-1)">← Quay lại phần mở đầu</button><span class="phf-info-action-hint">Điền đủ thông tin và dùng nút “Xác nhận thông tin và vào Bước 1” phía trên.</span></div>`
+      : `<div class="actions"><button class="btn btn-soft" onclick="go(current-1)" ${current===0?'disabled':''}>← Quay lại</button><button class="btn btn-primary" ${current===LESSONS.length-1?'disabled':nextAttr}>Tôi đã hiểu, tiếp tục →</button></div>`;
     const originalBlock = isInfoPage
-      ? `<div class="original phf-original-inline phf-inline-info-form"><div class="original-content original-goc-screen phf-original-contained">${l.body||''}</div></div>`
+      ? (infoConfirmed
+          ? phfRenderConfirmedInfoCard()
+          : `<div class="original phf-original-inline phf-inline-info-form"><div class="original-content original-goc-screen phf-original-contained">${l.body||''}</div></div>`)
       : `<div class="original"><details><summary>Xem nội dung học chi tiết</summary><div class="original-content phf-original-contained">${l.body||''}</div></details></div>`;
-    document.getElementById('mainLesson').innerHTML=`<section class="focus-head"><div class="chip">${esc(l.badge)}</div><h2>${esc(l.title)}</h2><p>${esc(l.lead)}</p></section>${phfGetLessonVisual(l)}<section class="focus-body"><div class="today-box"><h3>Hôm nay cần hoàn thành</h3><ul class="check-list">${l.today.map(x=>`<li><span class="tick">✓</span><span>${esc(x)}</span></li>`).join('')}</ul></div><div class="remember"><h3>3 điều cần nhớ</h3><div class="remember-grid">${l.remember.map((x,i)=>`<div class="memory-card"><span>Cần nhớ ${i+1}</span><b>${esc(x)}</b></div>`).join('')}</div></div><div class="sample-box"><h3>Lưu ý</h3><div class="sample-text">${esc(l.sample)}</div></div>${originalBlock}<div class="actions"><button class="btn btn-soft" onclick="go(current-1)" ${current===0?'disabled':''}>← Quay lại</button><button class="btn btn-primary" ${current===LESSONS.length-1?'disabled':nextAttr}>Tôi đã hiểu, tiếp tục →</button></div></section>`;
-    phfPrefillInfoForm();
+    document.getElementById('mainLesson').innerHTML=`<section class="focus-head"><div class="chip">${esc(l.badge)}</div><h2>${esc(l.title)}</h2><p>${esc(l.lead)}</p></section>${phfGetLessonVisual(l)}<section class="focus-body"><div class="today-box"><h3>Hôm nay cần hoàn thành</h3><ul class="check-list">${l.today.map(x=>`<li><span class="tick">✓</span><span>${esc(x)}</span></li>`).join('')}</ul></div><div class="remember"><h3>3 điều cần nhớ</h3><div class="remember-grid">${l.remember.map((x,i)=>`<div class="memory-card"><span>Cần nhớ ${i+1}</span><b>${esc(x)}</b></div>`).join('')}</div></div><div class="sample-box"><h3>Lưu ý</h3><div class="sample-text">${esc(l.sample)}</div></div>${originalBlock}${lessonActions}</section>`;
+    if(!infoConfirmed) phfPrefillInfoForm();
     const timeline = phfBuildTimeline();
     const infoBody = document.querySelector('#mainLesson .form-body');
-    if(infoBody && timeline && !infoBody.querySelector('.timeline-note')){
+    if(!infoConfirmed && infoBody && timeline && !infoBody.querySelector('.timeline-note')){
       const note = document.createElement('div');
       note.className = 'timeline-note';
       note.innerHTML = `<b>Mốc đào tạo dự kiến:</b> GĐ1 ${phfFormatRange(timeline.ranges[0].start,timeline.ranges[0].end)} · GĐ2 ${phfFormatRange(timeline.ranges[1].start,timeline.ranges[1].end)} · GĐ3 ${phfFormatRange(timeline.ranges[2].start,timeline.ranges[2].end)} · GĐ4 ${phfFormatRange(timeline.ranges[3].start,timeline.ranges[3].end)} · GĐ5 ${phfFormatRange(timeline.ranges[4].start,timeline.ranges[4].end)}`;
@@ -1346,9 +1541,15 @@ function render(){
     document.querySelectorAll('#mainLesson [data-go]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const target=btn.getAttribute('data-go');
-        const map={welcomePage:0, infoPage:1, ruleTimePage:2};
-        if(target === 'ruleTimePage' && typeof phfValidateInfoForm === 'function' && !phfValidateInfoForm()) return;
-        if(target in map) go(map[target]);
+        const map={welcomePage:0, infoPage:1};
+        if(target in map) (typeof window.phfGo === 'function' ? window.phfGo(map[target]) : go(map[target]));
+      });
+    });
+    document.querySelectorAll('#mainLesson [data-phf-action="confirm-info"]').forEach(btn=>{
+      btn.addEventListener('click',function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        phfConfirmInfoAndContinue();
       });
     });
   } else {
@@ -1361,6 +1562,7 @@ function render(){
   }
   enhanceTrainingUI();
   phfInitContentForms();
+  try{ if(typeof window.phfApplyAcknowledgementState === 'function') window.phfApplyAcknowledgementState(); }catch(err){ console.warn('PHF acknowledgement render error', err); }
   document.body.classList.remove('phf-original-full-mode');
   document.getElementById('progressNum').textContent=stageDonePct+'%';
   document.getElementById('progressText').textContent=`${idxInStage+1}/${byStage.length} mục trong ${STAGES[l.stage][0]}`;
@@ -1392,10 +1594,23 @@ function render(){
     if(evalBtn) evalBtn.textContent = canEditProfile ? 'Xem hồ sơ đánh giá' : 'Xem hồ sơ của tôi';
     if(evalHistoryBtn) evalHistoryBtn.textContent = 'Lịch sử hồ sơ →';
   }catch(err){ console.warn('PHF learning profile card update error', err); }
-  phfScrollToPageTop();
+  // PHF 1.0.2: quiz phải được chuẩn bị sau lần render cuối của bài học.
+  // Không dựa riêng vào click/menu vì F5, resume và các lời gọi go() nội bộ có thể bỏ qua listener đó.
+  try{
+    if(typeof window.phfBindLessonQuizScoring === 'function'){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          try{ window.phfBindLessonQuizScoring(); }catch(err){ console.warn('PHF quiz post-render prepare error', err); }
+        });
+      });
+    }
+  }catch(err){ console.warn('PHF quiz prepare schedule error', err); }
+  phfApplyLessonScrollAfterRender();
 }
 function go(i){
   if(i<0||i>=LESSONS.length) return;
+  try{ phfSaveCurrentLessonScrollNow(); }catch(e){}
+  phfRequestLessonScroll('navigation','#mainLesson');
   current=i;
   window.phfCurrentLessonIndex=current;
   window.phfCurrentLessonKey='lesson:'+current;
@@ -1426,14 +1641,14 @@ window.phfGoByCurrentPage = function(page){
   const lessonMatch = p.match(/^lesson[:\-](\d+)$/);
   if(lessonMatch){
     const idx = Number(lessonMatch[1]);
-    if(!Number.isNaN(idx) && idx >= 0 && idx < LESSONS.length){ go(idx); return true; }
+    if(!Number.isNaN(idx) && idx >= 0 && idx < LESSONS.length){ (typeof window.phfGo === 'function' ? window.phfGo(idx) : go(idx)); return true; }
   }
   const fixed = {welcomepage:0, infopage:1, ruletimepage:2};
-  if(Object.prototype.hasOwnProperty.call(fixed, p)){ go(fixed[p]); return true; }
+  if(Object.prototype.hasOwnProperty.call(fixed, p)){ (typeof window.phfGo === 'function' ? window.phfGo(fixed[p]) : go(fixed[p])); return true; }
   const idx = LESSONS.findIndex(function(x){
     return String((x.title||'') + ' ' + (x.nav||'') + ' ' + (x.sub||'') + ' ' + (x.badge||'')).toLowerCase().includes(p) || p.includes(String(x.title||'').toLowerCase());
   });
-  if(idx >= 0){ go(idx); return true; }
+  if(idx >= 0){ (typeof window.phfGo === 'function' ? window.phfGo(idx) : go(idx)); return true; }
   return false;
 };
 
@@ -1461,6 +1676,11 @@ function phfSetLearnerProfileFromRow(row){
   const profile = phfEmployeeFromRow(row || {});
   if(!profile.id) profile.id = 'learner-' + phfPhoneClean(profile.phone || Date.now());
   try{
+    const previousEmployeeId=String(localStorage.getItem('phfEmployeeId')||'');
+    if(previousEmployeeId && previousEmployeeId!==String(profile.id||'')){
+      ['phfRefreshResumeState','phfCurrentPage','phfCurrentLessonIndex','phfLastLessonIndex','phfCurrentLessonKey'].forEach(function(k){localStorage.removeItem(k);});
+      try{window.phfCurrentLessonIndex=0;window.phfCurrentLessonKey='lesson:0';}catch(_e){}
+    }
     localStorage.setItem('phfEmployeeId', profile.id);
     localStorage.setItem('phfEmployeeProfile', JSON.stringify(profile));
     if(profile.studyStartDate) localStorage.setItem('phfStudyStartDate', profile.studyStartDate);
@@ -1475,9 +1695,12 @@ function phfFindLearnerByPhone(phone){
 function phfClearLearnerSessionPosition(){
   // Dọn trạng thái màn hình cũ trong trình duyệt để học viên mới không bị nhảy vào bài của người trước.
   try{
-    ['phfRefreshResumeState','phfCurrentPage','phfCurrentLessonIndex','phfLastLessonIndex','phfCurrentLessonKey'].forEach(function(k){ localStorage.removeItem(k); });
+    ['phfRefreshResumeState','phfCurrentPage','phfCurrentLessonIndex','phfLastLessonIndex','phfCurrentLessonKey'].forEach(function(k){
+      localStorage.removeItem(k);
+      try{ if(typeof window.phfLearningStorageKey==='function') localStorage.removeItem(window.phfLearningStorageKey(k)); }catch(_e){}
+    });
   }catch(e){}
-  try{ window.phfCurrentLessonIndex = 1; window.phfCurrentLessonKey = 'lesson:1'; }catch(e){}
+  try{ window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(e){}
 }
 function phfOpenLearnerAfterPhone(profile){
   const overlay = document.getElementById('phfPhoneEntryOverlay');
@@ -1487,10 +1710,10 @@ function phfOpenLearnerAfterPhone(profile){
   if(isNewLearner){
     phfClearLearnerSessionPosition();
     try{ localStorage.removeItem('phfNewLearnerStart'); }catch(e){}
-    try{ if(typeof current !== 'undefined') current = 1; }catch(e){}
+    try{ if(typeof current !== 'undefined') current = 0; }catch(e){}
   }
   if(typeof phfRenderPostLoginHome === 'function') return phfRenderPostLoginHome();
-  try{ if(typeof current !== 'undefined') current = 1; }catch(e){}
+  try{ if(typeof current !== 'undefined') current = 0; }catch(e){}
   render();
 }
 function phfCreateTemporaryLearnerFromPhone(phone){
@@ -1510,7 +1733,7 @@ function phfCreateTemporaryLearnerFromPhone(phone){
   const savedProfile = phfSetLearnerProfileFromRow(profile);
   savedProfile.__phfIsNewLearner = true;
   try{ localStorage.setItem('phfNewLearnerStart','1'); }catch(e){}
-  try{ if(typeof current !== 'undefined') current = 1; }catch(e){}
+  try{ if(typeof current !== 'undefined') current = 0; }catch(e){}
   phfOpenLearnerAfterPhone(savedProfile);
 }
 function phfShowLearnerPhoneEntry(){

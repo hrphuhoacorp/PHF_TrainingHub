@@ -1,0 +1,99 @@
+PHF TRAINING HUB
+BƯỚC 2 - ĐĂNG NHẬP VERCEL BẰNG TÀI KHOẢN SUPABASE
+
+MỤC TIÊU
+- Tạo các API Vercel:
+  /api/health
+  /api/auth/login
+  /api/auth/logout
+  /api/auth/session
+  /api/auth/accounts/sync
+- Chuyển tài khoản từ private/accounts.json trên máy local sang user_accounts.
+- Giữ nguyên quyền Admin / Quản lý / Học viên.
+- Localhost và Vercel dùng cùng bảng tài khoản Supabase.
+
+THỨ TỰ THỰC HIỆN
+
+PHẦN A - CHUYỂN TÀI KHOẢN TRƯỚC
+1. Copy vào dự án:
+   scripts/phf-migrate-user-accounts-to-supabase.js
+   scripts/phf-check-vercel-auth-accounts.js
+   Chuyen_TaiKhoan_Sang_Supabase.cmd
+   KiemTra_TaiKhoan_Vercel.cmd
+
+2. Đảm bảo private/accounts.json vẫn còn trên MÁY LOCAL.
+   Không đưa private/ lên GitHub.
+
+3. Nhấp đúp:
+   Chuyen_TaiKhoan_Sang_Supabase.cmd
+
+4. Kết quả phải báo:
+   CHUYỂN TÀI KHOẢN SANG SUPABASE THÀNH CÔNG
+
+5. Nhấp đúp:
+   KiemTra_TaiKhoan_Vercel.cmd
+
+PHẦN B - COPY CODE API
+Copy đè/thêm đúng cấu trúc:
+- lib/auth.js
+- lib/api-response.js
+- api/health.js
+- api/auth/login.js
+- api/auth/logout.js
+- api/auth/session.js
+- api/auth/accounts/sync.js
+- api/data.js
+- server.js
+- package.json
+- scripts/phf-backup-supabase.js
+
+PHẦN C - TEST LOCAL
+1. Dừng npm start.
+2. Chạy lại npm start.
+3. Đăng nhập bằng một tài khoản vừa chuyển.
+4. Test Admin và Học viên.
+5. F5, đăng xuất và đăng nhập lại.
+
+PHẦN D - VERCEL ENVIRONMENT VARIABLES
+Trong Vercel -> Project -> Settings -> Environment Variables, phải có:
+- SUPABASE_URL
+- SUPABASE_SECRET_KEY
+- PHF_SESSION_SECRET
+
+PHF_SESSION_SECRET:
+- Tạo chuỗi ngẫu nhiên dài ít nhất 64 ký tự.
+- Dùng cùng một giá trị cho Production.
+- Không lưu trong GitHub.
+
+Sau khi thêm/sửa biến, Redeploy Production.
+
+PHẦN E - GIT PUSH
+Không git add:
+- .env
+- private/
+- backups/
+- node_modules/
+
+Các file API mới phải xuất hiện trên GitHub.
+Vercel sẽ tự deploy từ main.
+
+PHẦN F - KIỂM TRA ONLINE
+1. Mở:
+   https://training.phuhoafresh.info.vn/api/health
+
+Kết quả đúng:
+{
+  "ok": true,
+  "storage": "supabase",
+  "accounts": "ready"
+}
+
+2. Mở web và đăng nhập bằng tài khoản đã chuyển.
+
+AN TOÀN
+- Cookie đăng nhập là HttpOnly, Secure trên production, SameSite=Lax.
+- Mỗi lần đọc session đều kiểm tra lại trạng thái/vai trò trong Supabase.
+- Khóa tài khoản có hiệu lực ngay ở request tiếp theo.
+- Mật khẩu vẫn là PBKDF2-SHA256, không lưu dạng rõ trong Supabase.
+- Bảng user_accounts không được phép đọc bằng anon/authenticated key.
+- Chưa xóa file local cho đến khi online test OK.

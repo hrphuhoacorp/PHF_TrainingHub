@@ -1605,67 +1605,88 @@ function phfGoDirectTrainingTest(){
   setTimeout(function(){ phfSetMainNavActive('directTrainingTest'); }, 0);
   return out;
 }
+function phfIsDirectTestAdmin(){
+  try{ return String(typeof window.phfUserRole==='function' ? window.phfUserRole() : localStorage.getItem('phfInternalTestRole') || '').toLowerCase()==='admin'; }catch(e){ return false; }
+}
 function phfOpenTrainingQuizForTest(idx){
-  if(!phfCanEditEvaluation()){
-    phfNotice('warning','Không có quyền mở nhanh','Chức năng mở nhanh bài kiểm tra chỉ dành cho Trưởng ca/Quản lý/Admin.');
+  if(!phfIsDirectTestAdmin()){
+    phfNotice('warning','Chỉ dành cho Admin','Chế độ mô phỏng học viên chỉ dành cho tài khoản Admin.');
     return;
   }
   idx = Number(idx);
   if(!Array.isArray(LESSONS) || !LESSONS[idx]){
-    phfNotice('warning','Chưa tìm thấy bài kiểm tra','Không tìm thấy bài kiểm tra cần mở trong dữ liệu hiện tại.');
+    phfNotice('warning','Chưa tìm thấy nội dung','Không tìm thấy bài học hoặc bài kiểm tra cần mô phỏng trong dữ liệu hiện tại.');
     return;
   }
-  current = idx;
-  phfGoLearning();
+  if(typeof window.phfStartAdminLearningSimulation!=='function'){
+    phfNotice('error','Chưa sẵn sàng','Learning gate mô phỏng chưa được tải. Vui lòng F5 và thử lại.');
+    return;
+  }
+  window.phfStartAdminLearningSimulation(idx);
   setTimeout(function(){
-    phfNotice('success','Đã mở bài kiểm tra','A có thể chọn đáp án rồi bấm Chấm điểm bài kiểm tra.');
+    phfNotice('success','Đã mở mô phỏng học viên','Hệ thống đang dùng đúng giao diện, quiz và learning gate của học viên. Dữ liệu không ghi Supabase.');
   }, 120);
+}
+function phfStartFullLearnerSimulation(){
+  if(!phfIsDirectTestAdmin()){
+    phfNotice('warning','Chỉ dành cho Admin','Chế độ mô phỏng học viên chỉ dành cho tài khoản Admin.');
+    return;
+  }
+  if(typeof window.phfStartAdminLearningSimulation!=='function'){
+    phfNotice('error','Chưa sẵn sàng','Learning gate mô phỏng chưa được tải. Vui lòng F5 và thử lại.');
+    return;
+  }
+  window.phfStartAdminLearningSimulation(0);
+}
+function phfLessonSearchText(lesson){
+  lesson=lesson||{};
+  return [lesson.title,lesson.nav,lesson.sub,lesson.badge,lesson.content,lesson.html,lesson.body,lesson.text].filter(Boolean).join(' ');
+}
+function phfCollectSimulationQuizItems(){
+  if(!Array.isArray(LESSONS)) return [];
+  var items=[];
+  LESSONS.forEach(function(lesson,idx){
+    var raw=phfLessonSearchText(lesson);
+    var low=String(raw||'').toLowerCase();
+    var isQuiz=/step2-question|b3-mini|b4-final-question|shortquizbtn|short-quiz|phf-short|data-correct=|data-answer=|chấm điểm bài kiểm tra|bài kiểm tra/.test(low);
+    if(!isQuiz) return;
+    var kind=/shortquizbtn|short-quiz|phf-short|ôn thi|kiểm tra ngắn|kiểm tra nhanh/.test(low)?'Bài kiểm tra ngắn':'Bài kiểm tra chính';
+    items.push({idx:idx,title:String(lesson.title||lesson.nav||('Bài '+(idx+1))),desc:String(lesson.sub||lesson.badge||kind),kind:kind});
+  });
+  return items;
 }
 function phfRenderDirectTrainingTestPage(){
   document.body.classList.add('phf-eval-mode','phf-module-page-mode');
   document.body.classList.remove('phf-guide-standalone-mode','phf-guide-intro-active');
   document.getElementById('miniStatus').textContent='Kiểm tra';
-  document.getElementById('contextTitle').textContent='Công cụ kiểm tra bài thi';
-  document.getElementById('contextSub').textContent='Khu vực dành cho Trưởng ca/Quản lý/Admin kiểm tra bài thi và cách chấm điểm.';
-  document.getElementById('contextAction').textContent= phfCanEditEvaluation() ? phfRoleLabel() : 'Học viên';
-  if(!phfCanEditEvaluation()){
+  document.getElementById('contextTitle').textContent='Mô phỏng chương trình đào tạo';
+  document.getElementById('contextSub').textContent='Admin kiểm tra đúng trải nghiệm học viên mà không ghi dữ liệu thật.';
+  document.getElementById('contextAction').textContent= phfRoleLabel();
+  if(!phfIsDirectTestAdmin()){
     document.getElementById('mainLesson').innerHTML = `
     <section class="phf-direct-test-page phf-admin-test-builder">
-      <div class="hub-panel">
-        <div class="hub-panel-head"><h3>Bài kiểm tra</h3><span>Theo lộ trình học</span></div>
-        <div class="phf-building-box">
-          <h2>Bài kiểm tra sẽ mở theo lộ trình học của bạn</h2>
-          <p>Học viên cần học đúng thứ tự. Khi tới bài kiểm tra trong chương trình, hệ thống sẽ hiển thị phần làm bài và chấm điểm.</p>
-          <button class="eval-action primary" type="button" onclick="phfGoLearning()">Quay lại bài học của tôi</button>
-        </div>
-      </div>
+      <div class="hub-panel"><div class="phf-building-box"><h2>Chức năng chỉ dành cho Admin</h2><p>Trưởng ca và Quản lý vẫn xem kết quả theo quyền, nhưng không được mở chế độ mô phỏng toàn bộ luồng học viên.</p></div></div>
     </section>`;
     phfScrollToPageTop();
     return;
   }
-  const tests = [
-    {idx:62, title:'Bài kiểm tra cuối Bước 2', desc:'CSKH & Kỹ năng bán hàng · 20 câu · đạt 80% mới qua.'},
-    {idx:71, title:'Kiểm tra nhanh Bước 3', desc:'Quy trình bán hàng PHF · đạt 80% mới qua.'},
-    {idx:107, title:'Bài kiểm tra cuối Bước 4', desc:'Kiến thức sản phẩm & giỏ quà · đạt 80% mới qua.'}
-  ];
-  const cards = tests.map(function(t){
-    const lesson = Array.isArray(LESSONS) ? LESSONS[t.idx] : null;
-    const ok = !!lesson;
-    return `<article class="hub-row phf-quick-test-row"><div><b>${esc(t.title)}</b><small>${esc(t.desc)}${ok ? ' · ' + esc(lesson.badge || '') : ' · Chưa tìm thấy dữ liệu'}</small></div><button class="eval-action primary" type="button" ${ok ? `onclick="phfOpenTrainingQuizForTest(${t.idx})"` : 'disabled'}>Mở để test</button></article>`;
+  var tests=phfCollectSimulationQuizItems();
+  var cards=tests.map(function(t){
+    return `<article class="hub-row phf-quick-test-row"><div><b>${esc(t.title)}</b><small>${esc(t.kind)} · ${esc(t.desc||'Mô phỏng đúng luồng học viên')}</small></div><button class="eval-action primary" type="button" onclick="phfOpenTrainingQuizForTest(${t.idx})">Mô phỏng từ bài này</button></article>`;
   }).join('');
   document.getElementById('mainLesson').innerHTML = `
   <section class="phf-direct-test-page phf-admin-test-builder">
     <div class="hub-panel">
-      <div class="hub-panel-head">
-        <div><h3>Công cụ kiểm tra bài thi</h3><span>Dành cho Trưởng ca/Quản lý/Admin</span></div>
-        <span>${esc(phfRoleLabel())}</span>
-      </div>
+      <div class="hub-panel-head"><div><h3>Mô phỏng chương trình như học viên</h3><span>Chỉ dành cho Admin · không ghi Supabase</span></div><span>${esc(phfRoleLabel())}</span></div>
       <div class="phf-building-box">
-        <h2>Chọn bài kiểm tra cần kiểm tra</h2>
-        <p>Khu vực này giúp người phụ trách mở trực tiếp các bài kiểm tra chính để rà giao diện, đáp án và cách chấm điểm. Học viên vẫn học theo đúng lộ trình đã mở.</p>
+        <h2>Kiểm tra đúng giao diện, quiz và learning gate của học viên</h2>
+        <p>Chế độ này dùng cùng nội dung bài học, cách chấm, điều kiện mở bài và nút tiếp tục như học viên. Toàn bộ tiến độ và kết quả chỉ tồn tại trong phiên trình duyệt hiện tại.</p>
+        <div class="action-row"><button class="eval-action primary" type="button" onclick="phfStartFullLearnerSimulation()">Bắt đầu mô phỏng từ Bài 1</button></div>
       </div>
-      <div class="hub-list">${cards}</div>
-      <div class="record-note">Yêu cầu đạt: học viên cần đạt tối thiểu 80/100 điểm để hoàn thành bài kiểm tra.</div>
+      <div class="record-note"><b>Hai cách kiểm tra:</b> bắt đầu từ Bài 1 để rà toàn bộ lộ trình; hoặc mở trực tiếp một bài bên dưới, hệ thống sẽ tạo tiến độ giả cho các bài trước đó để mô phỏng đúng gate.</div>
+      <div class="hub-panel-head" style="margin-top:18px"><div><h3>Danh sách bài có kiểm tra</h3><span>Tự nhận diện từ dữ liệu chương trình hiện tại</span></div><span>${tests.length} bài</span></div>
+      <div class="hub-list">${cards || '<div class="hub-empty">Chưa nhận diện được bài kiểm tra trong chương trình hiện tại.</div>'}</div>
+      <div class="record-note">Thoát mô phỏng sẽ xóa toàn bộ dữ liệu tạm. Hồ sơ nhân viên, test_results và progress thật không bị thay đổi.</div>
     </div>
   </section>`;
   phfScrollToPageTop();
@@ -1677,6 +1698,7 @@ try{
   window.phfGoDirectTrainingTest = phfGoDirectTrainingTest;
   window.phfOpenTrainingQuizForTest = phfOpenTrainingQuizForTest;
   window.phfRenderDirectTrainingTestPage = phfRenderDirectTrainingTestPage;
+  window.phfStartFullLearnerSimulation = phfStartFullLearnerSimulation;
   var oldQuickBtn = document.getElementById('phfQuickTestShortcut');
   if(oldQuickBtn) oldQuickBtn.remove();
 }catch(e){}

@@ -1,0 +1,80 @@
+PHF TRAINING HUB – BẢN 1.0.2
+FIX QUIZ TRÊN ĐÚNG FILE ĐANG CHẠY
+
+1. NỀN THỰC HIỆN
+- Thực hiện trực tiếp trên hệ thống web đã chốt hiện tại(46).7z.
+- Xác nhận app.js cũ đang bị tắt và KHÔNG được sửa.
+- File quiz đang chạy thật:
+  assets/js/phf-quiz-engine.js
+
+2. NGUYÊN NHÂN
+- Bài 22 chưa có mã đáp án cố định ngay trong dữ liệu gốc.
+- Engine phải tự gán A/B/C sau khi render.
+- Nếu engine chạy lệch thời điểm hoặc chạy lại, vị trí đáp án đúng có thể quay về lựa chọn đầu.
+- Một số bài ngắn khác cũng phụ thuộc hoàn toàn vào runtime shuffle.
+- currentIndex ưu tiên nhầm window.current trước phfCurrentLessonIndex.
+- Engine chưa có cơ chế theo dõi trực tiếp mỗi lần mainLesson được thay nội dung.
+
+3. CÁCH SỬA
+- Chuẩn hóa trực tiếp dữ liệu đang dùng thật:
+  assets/data/phf-lessons-new-sales.js
+- Bài 22:
+  + mỗi câu có data-question-id ổn định;
+  + mỗi đáp án có value và data-phf-answer-id ổn định;
+  + vị trí đáp án đúng nền được cân bằng 7/6/6.
+- Các bài ngắn 42, 47, 50, 54, 58:
+  + dữ liệu nền được cân bằng vị trí đáp án đúng;
+  + engine vẫn tiếp tục trộn theo lượt.
+- phf-quiz-engine.js:
+  + ưu tiên phfCurrentLessonIndex;
+  + không ghi đè mã đáp án đã có;
+  + chạy sau mỗi lần mainLesson được render;
+  + chỉ quan sát đúng vùng mainLesson, không quan sát toàn DOM.
+- F5 trong cùng lượt vẫn giữ nguyên thứ tự theo sessionStorage.
+- Lượt mới hoặc tab mới có thể nhận thứ tự khác.
+
+4. PHÂN BỐ NỀN ĐÃ KIỂM TRA
+- Bài 22: 19 câu → 7 / 6 / 6
+- Bài 42: 8 câu → 3 / 3 / 2
+- Bài 47: 5 câu → 2 / 1 / 1 / 1
+- Bài 50: 5 câu → 2 / 1 / 1 / 1
+- Bài 54: 5 câu → 2 / 1 / 1 / 1
+- Bài 58: 5 câu → 2 / 1 / 1 / 1
+
+5. FILE COPY ĐÈ
+- index.html
+- assets/data/phf-lessons-new-sales.js
+- assets/js/phf-learner-app.js
+- assets/js/phf-quiz-engine.js
+
+6. CÁCH COPY
+- Tắt server.
+- Sao lưu 4 file hiện tại.
+- Copy đè đúng 4 file theo cấu trúc thư mục.
+- Mở lại server.
+- Ctrl + F5 một lần.
+- Đăng xuất và đăng nhập lại.
+- Nên mở tab mới để kiểm tra một lượt quiz mới.
+
+7. TEST
+- Mở bài 22:
+  + đáp án đúng phải phân bố ở cả 3 vị trí;
+  + không còn khoảng 80% ở lựa chọn 1.
+- F5 cùng tab:
+  + giữ nguyên thứ tự hiện tại là đúng.
+- Mở tab mới/ẩn danh:
+  + có thể nhận thứ tự khác.
+- Kiểm tra bài 42, 47, 50, 54, 58.
+- Chấm điểm phải giữ đúng.
+- Bài ngắn vẫn yêu cầu 100/100.
+
+8. ROLLBACK
+Khôi phục 4 file đã sao lưu.
+
+9. KHÔNG THAY ĐỔI
+- Không sửa app.js.
+- Không đổi learning gate.
+- Không đổi employee_id.
+- Không đổi BMTT.
+- Không đổi Classroom.
+- Không đổi nội dung câu hỏi hoặc đáp án đúng.

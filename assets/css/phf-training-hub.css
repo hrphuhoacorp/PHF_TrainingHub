@@ -7949,3 +7949,36 @@ body:not(.phf-logged-in) {
 
 /* PHF 27.6.11 - Thư viện mẫu đánh giá */
 .phf-forms-library{max-width:1180px;margin:0 auto;padding:4px 0 28px}.phf-forms-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0 14px;padding:13px 16px;border:1px solid #dfe8e2;border-radius:12px;background:#fff}.phf-forms-toolbar>div{display:flex;flex-direction:column;gap:3px}.phf-forms-toolbar span{font-size:13px;color:#637068}.phf-forms-toolbar button,.phf-form-actions button{border:1px solid #cfdcd4;background:#fff;color:#244c39;border-radius:9px;padding:9px 13px;font:inherit;font-weight:700;cursor:pointer}.phf-forms-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.phf-form-card{display:flex;flex-direction:column;min-height:310px;padding:18px;border:1px solid #dce6df;border-radius:14px;background:#fff;box-shadow:0 6px 18px rgba(25,67,45,.05)}.phf-form-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.phf-form-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:#edf5f0;font-size:21px}.phf-form-status{padding:5px 9px;border-radius:999px;background:#eaf6ef;color:#21633f;font-size:12px;font-weight:800}.phf-form-card h3{margin:16px 0 8px;font-size:18px;color:#183d2b}.phf-form-card p{margin:0;color:#667169;line-height:1.55}.phf-form-card dl{margin:18px 0 16px;border-top:1px solid #edf1ee}.phf-form-card dl div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #edf1ee}.phf-form-card dt{color:#6b756f}.phf-form-card dd{margin:0;font-weight:800;color:#263c31}.phf-form-actions{display:flex;gap:9px;margin-top:auto}.phf-form-actions button{flex:1}.phf-form-actions button.primary{background:#245f40;border-color:#245f40;color:#fff}@media(max-width:980px){.phf-forms-grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.phf-forms-grid{grid-template-columns:1fr}.phf-forms-toolbar{align-items:flex-start;flex-direction:column}.phf-forms-toolbar button{width:100%}.phf-form-card{min-height:0}}
+
+
+/* PHF 1.0.11 - Google Login & auth feedback */
+.phf-login-divider{display:flex;align-items:center;gap:12px;margin:4px 0;color:#788b83;font-size:12px;font-weight:600;text-transform:none;letter-spacing:.01em}
+.phf-login-divider::before,.phf-login-divider::after{content:"";height:1px;background:#dfeae5;flex:1}
+.phf-google-login-wrap{display:grid;gap:10px;padding:14px;border:1px solid #ddebe5;border-radius:15px;background:linear-gradient(180deg,#fbfdfc 0%,#f7fbf9 100%)}
+.phf-google-login-heading{display:grid;gap:3px;text-align:left}
+.phf-google-login-heading b{color:#24483d;font-size:13.5px;font-weight:700}
+.phf-google-login-heading span{color:#71847c;font-size:12px;line-height:1.45}
+.phf-google-login-button{min-height:44px;width:100%;display:flex;align-items:center;justify-content:center;border-radius:10px;overflow:hidden;background:#fff;transition:opacity .18s ease,transform .18s ease}
+.phf-google-login-button>div{width:100%!important;max-width:none!important}
+.phf-google-login-button iframe{max-width:100%!important}
+.phf-google-login-button:not(.is-ready){border:1px solid #d9e5df;background:linear-gradient(90deg,#f8fbf9,#fff,#f8fbf9);background-size:200% 100%;animation:phfGooglePrepare 1.2s linear infinite}
+.phf-google-login-button.is-processing{opacity:.58;pointer-events:none}
+.phf-google-login-status{min-height:18px;color:#61766d;font-size:12.5px;line-height:1.4;text-align:center}
+@keyframes phfGooglePrepare{to{background-position:-200% 0}}
+.phf-google-auth-notice{position:fixed;inset:0;z-index:100300;background:rgba(9,31,23,.34);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif}
+.phf-google-auth-notice-card{width:min(460px,100%);display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:13px;align-items:start;background:#fff;border:1px solid #dce9e3;border-radius:18px;padding:18px 18px 17px;box-shadow:0 26px 72px rgba(0,38,27,.22)}
+.phf-google-auth-notice-icon{width:46px;height:46px;border-radius:14px;background:#f4f7f6;border:1px solid #e1e9e5;display:flex;align-items:center;justify-content:center}
+.phf-google-auth-g{font-size:22px;font-weight:800;color:#4285f4;font-family:Arial,sans-serif}
+.phf-google-auth-notice-copy h3{margin:1px 0 5px;color:#17382d;font-size:18px;font-weight:700}
+.phf-google-auth-notice-copy p{margin:0;color:#60756c;font-size:13.5px;line-height:1.55}
+.phf-google-auth-notice-close{width:34px;height:34px;border:0;border-radius:10px;background:#f0f5f2;color:#315448;font-size:22px;line-height:1;cursor:pointer}
+.phf-google-auth-notice-card.loading .phf-google-auth-notice-icon{position:relative}
+.phf-google-auth-notice-card.loading .phf-google-auth-notice-icon::after{content:"";position:absolute;inset:-4px;border:2px solid rgba(66,133,244,.17);border-top-color:#4285f4;border-radius:50%;animation:phfGoogleSpin .9s linear infinite}
+.phf-google-auth-notice-card.success .phf-google-auth-notice-icon{background:#eef9f3;border-color:#cfe9dc}
+.phf-google-auth-notice-card.success .phf-google-auth-g{color:#0a684d}
+.phf-google-auth-notice-card.error .phf-google-auth-notice-icon{background:#fff2ee;border-color:#f1d4ca}
+.phf-google-auth-notice-card.error .phf-google-auth-g{color:#a63c20}
+.phf-google-auth-notice-card.warning .phf-google-auth-notice-icon{background:#fff8e9;border-color:#f0dfb9}
+.phf-google-auth-notice-card.warning .phf-google-auth-g{color:#916100}
+@keyframes phfGoogleSpin{to{transform:rotate(360deg)}}
+@media(max-width:620px){.phf-google-login-wrap{padding:12px}.phf-google-auth-notice-card{grid-template-columns:44px minmax(0,1fr) auto;padding:16px}.phf-google-auth-notice-icon{width:42px;height:42px}}

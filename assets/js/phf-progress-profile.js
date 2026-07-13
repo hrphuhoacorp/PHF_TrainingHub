@@ -152,14 +152,8 @@
       window.phfCurrentLessonIndex = idx;
       window.phfCurrentLessonKey = 'lesson:' + idx;
     }catch(e){}
+    try{ if(typeof window.phfRequestLessonScroll === 'function') window.phfRequestLessonScroll('phone-resume','#mainLesson'); }catch(e){}
     if(typeof render === 'function') render();
-    setTimeout(function(){
-      try{
-        const main = document.getElementById('mainLesson') || document.querySelector('.main') || document.body;
-        const top = Math.max(0, main.getBoundingClientRect().top + window.pageYOffset - 12);
-        window.scrollTo({top:top,left:0,behavior:'auto'});
-      }catch(e){}
-    }, 60);
   };
 
 })();
@@ -238,18 +232,12 @@
       current = idx;
       window.phfCurrentLessonIndex = idx;
       window.phfCurrentLessonKey = 'lesson:' + idx;
+      try{ if(typeof window.phfRequestLessonScroll === 'function') window.phfRequestLessonScroll('refresh-resume','#mainLesson'); }catch(_e){}
       if(typeof render === 'function') render();
       document.body.classList.remove('phf-original-full-mode');
     }catch(e){
       try{ if(typeof window.phfGo === 'function') window.phfGo(idx); }catch(_){}
     }
-    setTimeout(function(){
-      try{
-        const main = document.getElementById('mainLesson') || document.querySelector('.main') || document.body;
-        const top = Math.max(0, main.getBoundingClientRect().top + window.pageYOffset - 12);
-        window.scrollTo({top:top,left:0,behavior:'auto'});
-      }catch(e){}
-    }, 80);
   }
   async function restore(){
     const st = read();
@@ -385,11 +373,11 @@
       const isNewLearner = !!(profile && profile.__phfIsNewLearner) || localStorage.getItem('phfNewLearnerStart') === '1';
       if(isNewLearner){
         try{ localStorage.removeItem(KEY); }catch(e){}
-        try{ current = 1; window.phfCurrentLessonIndex = 1; window.phfCurrentLessonKey = 'lesson:1'; }catch(e){}
+        try{ current = 0; window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(e){}
       }
       const out = oldOpenLearner.apply(this, arguments);
       setTimeout(function(){
-        const idx = isNewLearner ? 1 : lessonIndex();
+        const idx = isNewLearner ? 0 : lessonIndex();
         save('learning', {role:'learner', lessonIndex:idx, currentPage:'lesson:' + idx, phone:cleanPhone(profile && profile.phone), employeeId:profile && profile.id || ''});
       }, 120);
       return out;

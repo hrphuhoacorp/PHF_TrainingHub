@@ -3,12 +3,45 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '40.1-f5-boot-guard';
+  var ROUTER_VERSION = '1.0.8-history-gate';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
   var observer = null;
   var restoreInFlight = null;
+  var nativePushState = history.pushState.bind(history);
+  var nativeReplaceState = history.replaceState.bind(history);
+  var historyGuardInstalled = false;
+
+  /* Hệ thống cũ còn một lớp history nội bộ chỉ thay state nhưng giữ nguyên URL.
+     Khi router URL mới cùng hoạt động, mỗi lần đổi màn có thể sinh hai history
+     entry: một entry cùng URL của router cũ và một entry route thật. Kết quả là
+     bấm Back/Forward một lần nhìn như không chạy. Chặn riêng entry cũ cùng URL,
+     không can thiệp các history entry có URL thật hoặc entry của trình duyệt. */
+  function installLegacyHistoryGuard(){
+    if(historyGuardInstalled) return;
+    historyGuardInstalled=true;
+    history.pushState=function(state,title,url){
+      var target='';
+      try{target=url==null?'':new URL(String(url),location.href).href;}catch(e){target='';}
+      var sameUrl=!target||target===location.href;
+      if(state&&state.phf===true&&!state.phfUrl&&sameUrl){
+        return nativeReplaceState(Object.assign({},history.state||{},state),'',location.href);
+      }
+      return nativePushState(state,title,url);
+    };
+    history.replaceState=function(state,title,url){
+      return nativeReplaceState(state,title,url);
+    };
+  }
+
+  function normalizeCurrentHistoryEntry(){
+    try{
+      var path=cleanPath(location.pathname);
+      var state=Object.assign({},history.state||{},{phfUrl:true,path:path});
+      nativeReplaceState(state,'',path+(location.search||'')+(location.hash||''));
+    }catch(e){}
+  }
 
 
   function migrateRouteStorage(){
@@ -61,7 +94,7 @@
     path=cleanPath(path);
     if(location.pathname===path && !location.search) return;
     var state=Object.assign({},history.state||{},{phfUrl:true,path:path});
-    try{ history[replace?'replaceState':'pushState'](state,'',path); }catch(e){}
+    try{ (replace?nativeReplaceState:nativePushState)(state,'',path); }catch(e){}
     updateCopyAction();
   }
   function showToast(type,title,message){
@@ -85,7 +118,7 @@
     wrap.querySelector('[data-primary]').onclick=function(){close(); if(typeof primaryAction==='function')primaryAction();};
     document.body.appendChild(wrap);
   }
-  function safeHomeForRole(){return role()==='learner'?'/overview':(role()==='admin'?'/admin':'/overview');}
+  function safeHomeForRole(){return role()==='learner'?'/overview':'/home';}
   function deny(){
     var target=safeHomeForRole();
     modal('Không có quyền truy cập','Tài khoản của anh/chị không được cấp quyền xem nội dung này.','Về trang phù hợp',function(){navigate(target,true);});
@@ -164,6 +197,36 @@
     for(var i=0;i<list.length;i++) if(lessonSlug(list[i],i)===slug) return i;
     return -1;
   }
+  function maxAllowedLessonIndex(){
+    var list=window.PHF_LESSONS||[];
+    if(!list.length) return 0;
+    var max=0;
+    try{
+      if(window.phfB16LearningGate && typeof window.phfB16LearningGate.computeMaxAllowed==='function'){
+        max=Number(window.phfB16LearningGate.computeMaxAllowed());
+      }else if(Number.isFinite(Number(window.phfCurrentLessonIndex))){
+        max=Number(window.phfCurrentLessonIndex);
+      }
+    }catch(e){max=0;}
+    if(!Number.isFinite(max)) max=0;
+    return Math.max(0,Math.min(Math.floor(max),list.length-1));
+  }
+  function lessonPathByIndex(idx){
+    var list=window.PHF_LESSONS||[];
+    idx=Math.max(0,Math.min(Number(idx)||0,Math.max(0,list.length-1)));
+    return '/lessons/'+lessonSlug(list[idx]||{},idx);
+  }
+  async function openNearestAllowedLesson(message){
+    var idx=maxAllowedLessonIndex();
+    var safePath=lessonPathByIndex(idx);
+    setUrl(safePath,true);
+    if(typeof window.phfGo==='function') await Promise.resolve(window.phfGo(idx));
+    else if(typeof window.phfGoLearning==='function') await Promise.resolve(window.phfGoLearning());
+    if(message!==false){
+      modal('Phần này chưa mở','Vui lòng hoàn thành nội dung hiện tại theo đúng thứ tự. Hệ thống đã đưa bạn về bài gần nhất được phép học.','Đã hiểu');
+    }
+    return false;
+  }
 
   async function render(path,fromPop){
     path=cleanPath(path); applyingRoute=true;
@@ -193,6 +256,12 @@
       if(path==='/my-lessons'){
         if(!requireRoles(['learner','manager','admin']))return false;
         if(!await ensureTrainingData(path)) return false;
+        if(role()==='learner' && typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
+          modal('Chưa được phân công lộ trình học','Tài khoản của bạn hiện chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/overview',true);});
+          setUrl('/overview',true);
+          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+          return false;
+        }
         await Promise.resolve(window.phfGoLearning&&window.phfGoLearning()); return true;
       }
       if(path==='/my-profile'||/^\/my-profile\/(tests|evaluations|probation|commitments)$/.test(path)){
@@ -200,9 +269,15 @@
         if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfGoMyProfile&&window.phfGoMyProfile()); return true;
       }
+      if(path==='/home'){
+        if(!requireRoles(['manager','admin']))return false;
+        await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+        return true;
+      }
       if(path==='/overview'){
-        /* PHF 27.6.12.4.7.5.1: /overview là Trang chủ sau đăng nhập đối với
-           learner; Admin/Manager vẫn dùng màn Tổng quan đào tạo như cũ. */
+        /* /overview giữ nguyên Trang chủ cho learner và Tổng quan đào tạo
+           cho Admin/Manager. Trang chủ Admin/Manager dùng route riêng /home
+           để F5 không bị chuyển nhầm sang Tổng quan. */
         if(role()==='learner'){
           await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
           return true;
@@ -214,6 +289,18 @@
       if(path==='/training-content'){
         if(!requireRoles(['manager','admin']))return false;
         await Promise.resolve(window.phfRenderTrainingLibrary&&window.phfRenderTrainingLibrary()); return true;
+      }
+      if(path==='/guide'){
+        if(!requireRoles(['learner','manager','admin']))return false;
+        if(typeof window.phfGoGuide==='function') await Promise.resolve(window.phfGoGuide());
+        else if(typeof window.phfRenderGuidePage==='function') await Promise.resolve(window.phfRenderGuidePage());
+        return true;
+      }
+      if(path==='/direct-training-test'){
+        if(!requireRoles(['manager','admin']))return false;
+        if(typeof window.phfGoDirectTrainingTest==='function') await Promise.resolve(window.phfGoDirectTrainingTest());
+        else if(typeof window.phfRenderDirectTrainingTestPage==='function') await Promise.resolve(window.phfRenderDirectTrainingTestPage());
+        return true;
       }
       if(path==='/employees'){
         if(!requireRoles(['manager','admin']))return false;
@@ -238,8 +325,23 @@
       var lesson=path.match(/^\/lessons\/([a-z0-9-]+)$/);
       if(lesson){
         if(!requireRoles(['learner','manager','admin']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        if(role()==='learner' && typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
+          setUrl('/overview',true);
+          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+          modal('Chưa được phân công lộ trình học','Bạn chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/overview',true);});
+          return false;
+        }
         var idx=lessonIndex(lesson[1]);
-        if(idx<0){modal('Không tìm thấy bài học','Bài học không tồn tại hoặc chưa được cấp trong chương trình hiện tại.','Về bài học của tôi',function(){navigate('/my-lessons',true);});setUrl('/my-lessons',true);return false;}
+        if(idx<0){
+          modal('Không tìm thấy bài học','Bài học không tồn tại hoặc không thuộc chương trình hiện tại.','Về bài học của tôi',function(){navigate('/my-lessons',true);});
+          setUrl('/my-lessons',true);
+          await Promise.resolve(window.phfGoLearning&&window.phfGoLearning());
+          return false;
+        }
+        if(role()==='learner' && typeof window.phfCanOpenLessonIndex==='function' && !window.phfCanOpenLessonIndex(idx)){
+          return openNearestAllowedLesson(true);
+        }
         if(typeof window.phfGo==='function') await Promise.resolve(window.phfGo(idx));
         else await Promise.resolve(window.phfGoLearning&&window.phfGoLearning());
         return true;
@@ -256,6 +358,20 @@
         await Promise.resolve((role()==='learner'?window.phfGoMyProfile:window.phfRenderTrainingOverview)&& (role()==='learner'?window.phfGoMyProfile():window.phfRenderTrainingOverview()));
         setTimeout(function(){var b=document.querySelector('[data-phf-notification-toggle],.phf-notification-button');if(b)b.click();},120);
         return true;
+      }
+      if(/^\/classroom(?:\/|$)/.test(path)){
+        if(!requireRoles(['learner','manager','admin']))return false;
+        /* URL Classroom có ưu tiên tuyệt đối. Nhân viên luôn về Lớp đào tạo
+           của tôi; Admin/Manager luôn về Trang chủ Classroom. Không đọc màn
+           Hub gần nhất nên không thể bị ghi đè sang Hồ sơ hoặc Trang chủ Hub. */
+        var classroomHome = role()==='learner' ? '/classroom/my-classes' : '/classroom';
+        if(path!==classroomHome) setUrl(classroomHome,true);
+        if(typeof window.phfRenderClassroom==='function'){
+          await Promise.resolve(window.phfRenderClassroom());
+          return true;
+        }
+        setUrl(safeHomeForRole(),true);
+        return render(safeHomeForRole(),true);
       }
       if(path==='/admin'||path==='/admin/accounts'){
         if(!requireRoles(['admin']))return false;
@@ -284,11 +400,15 @@
     wrapped[ROUTE_MARK]=true; wrapped.__phfOriginal=fn; window[name]=wrapped;
   }
   function installWrappers(){
-    wrap('phfRenderPostLoginHome',function(){return '/overview';});
+    wrap('phfRenderPostLoginHome',function(){return role()==='learner'?'/overview':'/home';});
     wrap('phfGoLearning',function(){return '/my-lessons';});
     wrap('phfGoMyProfile',function(){return '/my-profile';});
     wrap('phfRenderTrainingOverview',function(){return '/overview';});
     wrap('phfRenderTrainingLibrary',function(){return '/training-content';});
+    wrap('phfGoGuide',function(){return '/guide';});
+    wrap('phfRenderGuidePage',function(){return '/guide';});
+    wrap('phfGoDirectTrainingTest',function(){return '/direct-training-test';});
+    wrap('phfRenderDirectTrainingTestPage',function(){return '/direct-training-test';});
     wrap('phfRenderAdminManagement',function(){return '/admin';});
     wrap('phfRenderAccountAdminSafe',function(){return '/admin/accounts';});
     wrap('phfTrainingRecordsOpen',function(view){return view==='employees'?'/employees':'';});
@@ -362,7 +482,19 @@
       setUrl('/',true);
     }
   });
-  window.addEventListener('popstate',function(){render(location.pathname,true);});
+  var popstateRun=0;
+  window.addEventListener('popstate',function(){
+    var run=++popstateRun;
+    var path=cleanPath(location.pathname);
+    Promise.resolve(render(path,true)).then(function(){
+      if(run===popstateRun) normalizeCurrentHistoryEntry();
+    }).catch(function(){
+      if(run!==popstateRun) return;
+      var fallback=safeHomeForRole();
+      setUrl(fallback,true);
+      render(fallback,true);
+    });
+  });
 
   async function waitUntilReady(){
     /* Quan trọng: phải chờ auth trước. phf-server-auth tạo lại Promise appReady
@@ -382,6 +514,8 @@
   }
 
   async function boot(){
+    installLegacyHistoryGuard();
+    normalizeCurrentHistoryEntry();
     migrateRouteStorage();
     /* Router được nạp sau các module chính nên chỉ cần bọc hàm một lần.
        Không chạy MutationObserver toàn trang khi mỗi màn render, tránh công
