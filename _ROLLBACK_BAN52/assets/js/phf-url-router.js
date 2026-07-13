@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '1.0.17-safe-router-shell';
+  var ROUTER_VERSION = '1.0.15.1-classroom-shell-lifecycle-router';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -12,7 +12,6 @@
   var nativePushState = history.pushState.bind(history);
   var nativeReplaceState = history.replaceState.bind(history);
   var historyGuardInstalled = false;
-  var routeRenderSequence = 0;
 
   /* Hệ thống cũ còn một lớp history nội bộ chỉ thay state nhưng giữ nguyên URL.
      Khi router URL mới cùng hoạt động, mỗi lần đổi màn có thể sinh hai history
@@ -231,10 +230,32 @@
 
   async function render(path,fromPop){
     path=cleanPath(path); applyingRoute=true;
-    var runId=++routeRenderSequence;
-    function stale(){return runId!==routeRenderSequence || cleanPath(location.pathname)!==path;}
     try{
-      if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:true});
+      var classroomRoute=/^\/classroom(?:\/|$)/.test(path);
+      if(typeof window.phfClassroomSyncMode==='function'){
+        try{window.phfClassroomSyncMode(path);}catch(e){}
+      }else if(!classroomRoute && typeof window.phfClassroomLeaveMode==='function'){
+        try{window.phfClassroomLeaveMode();}catch(e){}
+      }
+      /* Route Hub phải dọn Classroom trước mọi await/render phía dưới. */
+      if(!classroomRoute){
+        var classroomRoot=document.getElementById('phfClassroomRoot');
+        if(classroomRoot){
+          classroomRoot.hidden=true;
+          classroomRoot.style.display='none';
+          classroomRoot.setAttribute('aria-hidden','true');
+          if(classroomRoot.childNodes.length) classroomRoot.replaceChildren();
+        }
+        var hubApp=document.querySelector('body > .app');
+        if(hubApp){
+          hubApp.hidden=false;
+          hubApp.style.display='';
+          hubApp.setAttribute('aria-hidden','false');
+          if('inert' in hubApp) hubApp.inert=false;
+        }
+        document.documentElement.classList.remove('phf-classroom-route');
+        if(document.body) document.body.classList.remove('phf-classroom-mode');
+      }
       if(path==='/'){
         setUrl('/',!!fromPop);
         /* / luôn là trang giới thiệu công khai, kể cả khi trình duyệt đang có
@@ -254,7 +275,6 @@
         var transitioning=false;
         try{transitioning=!!(window.phfIsAuthTransitioning&&window.phfIsAuthTransitioning());}catch(e){}
         if(transitioning) await waitForAuthTransition();
-        if(stale()) return false;
         if(!authenticated()) return loginFor(path);
       }
 
@@ -373,11 +393,7 @@
         var classroomHome = role()==='learner' ? '/classroom/my-classes' : '/classroom';
         if(classroomAllowed.indexOf(path)<0){path=classroomHome;setUrl(path,true);}
         if(typeof window.phfRenderClassroom==='function'){
-          if(stale()) return false;
           await Promise.resolve(window.phfRenderClassroom(path));
-          if(stale()) return false;
-          if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
-          try{window.scrollTo({top:0,left:0,behavior:'auto'});}catch(e){}
           return true;
         }
         setUrl(safeHomeForRole(),true);
@@ -392,10 +408,10 @@
       setUrl(safeHomeForRole(),true); return render(safeHomeForRole(),true);
     }finally{
       var finalPath=cleanPath(location.pathname);
-      if(runId===routeRenderSequence && window.PHFAppShell){
-        try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/classroom(?:\/|$)/.test(finalPath)});}catch(e){}
-      }
-      setTimeout(function(){if(runId===routeRenderSequence){applyingRoute=false;updateCopyAction();}},80);
+      try{
+        if(typeof window.phfClassroomSyncMode==='function') window.phfClassroomSyncMode(finalPath);
+      }catch(e){}
+      setTimeout(function(){applyingRoute=false;updateCopyAction();},80);
     }
   }
 

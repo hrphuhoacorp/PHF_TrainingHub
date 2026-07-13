@@ -1,0 +1,63 @@
+PHF CLASSROOM 1.0.17 – AN TOÀN ROUTER / SHELL
+
+MỤC TIÊU
+- Sửa đúng vòng đời Hub/Classroom khi F5, Back/Forward và phục hồi đăng nhập.
+- Không sửa giao diện trang trí.
+- Không đổi API, Supabase, schema, quiz, BMTT, tiến độ hoặc dữ liệu thật.
+
+FILE COPY ĐÈ (5 FILE)
+1. index.html
+2. assets/js/phf-server-auth.js
+3. assets/js/phf-url-router.js
+4. assets/js/classroom/phf-classroom-app.js
+5. assets/css/phf-classroom.css
+
+CÁCH COPY
+1. Tắt local đang chạy.
+2. Sao lưu 5 file hiện tại hoặc dùng folder _ROLLBACK_BAN52 trong gói này.
+3. Copy đè 5 file theo đúng cấu trúc.
+4. Chạy lại npm start.
+5. Mở trình duyệt và nhấn Ctrl + F5 một lần để bỏ cache cũ.
+
+ĐIỂM ĐÃ SỬA
+- PHFAppShell là nơi duy nhất bật/tắt hai root dựa theo URL.
+- Classroom app chỉ render nội dung, không tự bật/tắt Hub.
+- Router có sequence token để route cũ không được commit lại sau route mới.
+- Auth bàn giao deep-link Classroom cho router, không tự dựng Hub song song.
+- Các shell helper/wrapper Hub thoát ngay nếu URL đang là /classroom.
+- Đồng bộ html/body/hidden/display/aria-hidden/inert.
+- Cập nhật cache version CSS/JS lên 1.0.17.
+- Cập nhật document.title khi vào Classroom và khôi phục khi về Hub.
+
+CHECKLIST TEST BẮT BUỘC
+A. Admin/Manager
+1. Đăng nhập và mở PHF Classroom từ biểu tượng.
+2. Chỉ thấy Classroom, không thấy bảng/Tổng quan Hub phía trên.
+3. F5 tại /classroom.
+4. F5 tại /classroom/classes.
+5. Back/Forward giữa Classroom và /overview.
+6. Quay về Hub, F5 /overview.
+7. Mở Classroom lần thứ hai.
+8. Đăng xuất khi đang ở Classroom rồi đăng nhập lại.
+
+B. Learner
+1. Mở Classroom và phải vào /classroom/my-classes.
+2. F5 vẫn giữ đúng Classroom, không dính giao diện học viên Hub.
+3. Quay Hub và kiểm tra Bài học của tôi/Hồ sơ của tôi bình thường.
+
+C. Console tại /classroom
+- document.documentElement.classList.contains('phf-classroom-route') === true
+- document.body.classList.contains('phf-classroom-mode') === true
+- document.querySelector('body > .app').hidden === true
+- getComputedStyle(document.querySelector('body > .app')).display === 'none'
+- document.getElementById('phfClassroomRoot').hidden === false
+- document.querySelectorAll('#phfClassroomRoot').length === 1
+
+ROLLBACK
+- Copy đè lại 5 file tương ứng trong folder _ROLLBACK_BAN52.
+- Tắt/chạy lại npm start và Ctrl + F5.
+
+LƯU Ý
+- Không dùng lại bản 1.0.16.
+- Bản này đã kiểm tra cú pháp 3 file JS và kiểm tra server trả đúng asset version.
+- Chưa thể thay thế việc anh test phiên đăng nhập thật trên trình duyệt/local.

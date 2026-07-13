@@ -1,7 +1,7 @@
 /* PHF Classroom 1.0 - workspace giao diện nền tảng, chưa nối dữ liệu lớp */
 (function(){
   'use strict';
-  var VERSION='1.0.17-classroom-render-only';
+  var VERSION='1.0.15.1-classroom-shell-lifecycle';
   var ROUTES={
     manager:[
       {group:'Điều hành',items:[['/classroom','Tổng quan'],['/classroom/proposals','Đề xuất đào tạo'],['/classroom/classes','Lớp đào tạo'],['/classroom/calendar','Lịch đào tạo']]},
@@ -21,11 +21,42 @@
   function isClassroomPath(path){
     return /^\/classroom(?:\/|$)/.test(cleanPath(path||location.pathname));
   }
+  function hubApp(){return document.querySelector('body > .app');}
   function classroomRoot(){return document.getElementById('phfClassroomRoot');}
+  function applyShellState(active, options){
+    options=options||{};
+    var app=hubApp(), root=classroomRoot();
+    document.documentElement.classList.toggle('phf-classroom-route',!!active);
+    if(document.body){
+      document.body.classList.toggle('phf-classroom-mode',!!active);
+      if(active) document.body.classList.remove('phf-mobile-open','phf-intro-active');
+    }
+    if(app){
+      app.hidden=!!active;
+      app.style.display=active?'none':'';
+      app.setAttribute('aria-hidden',active?'true':'false');
+      if('inert' in app) app.inert=!!active;
+    }
+    if(root){
+      root.hidden=!active;
+      root.style.display=active?'block':'none';
+      root.setAttribute('aria-hidden',active?'false':'true');
+      if(!active && options.clear!==false) root.replaceChildren();
+    }
+    return !!active;
+  }
+  function syncMode(path){
+    return applyShellState(isClassroomPath(path),{clear:!isClassroomPath(path)});
+  }
+  function enterMode(){return applyShellState(true,{clear:false});}
+  function leaveMode(){return applyShellState(false,{clear:true});}
   function goHub(){
+    leaveMode();
     var target=isManage()?'/overview':'/my-lessons';
     if(typeof window.phfNavigate==='function') return window.phfNavigate(target);
-    location.href=target;
+    setUrl(target,false);
+    if(isManage()&&window.phfRenderTrainingOverview)return window.phfRenderTrainingOverview();
+    if(window.phfGoLearning)return window.phfGoLearning();
   }
   function routeGroups(){
     var groups=(isManage()?ROUTES.manager:ROUTES.learner).slice();
@@ -100,12 +131,13 @@
     path=normalizeRoute(path||location.pathname);
     if(!isClassroomPath(path)) return false;
     if(cleanPath(location.pathname)!==path)setUrl(path,true);
+    applyShellState(true,{clear:false});
     var meta=pageMeta(path);
-    document.title=meta[0]+' · PHF Classroom';
     root.innerHTML=shell(pageContent(path),meta[0],meta[1],path);
     bindShell(root);
     /* Một route Hub có thể đã thắng trong cùng tick; không để render Classroom cũ hiện lại. */
     if(!isClassroomPath(location.pathname)){
+      leaveMode();
       return false;
     }
     try{root.scrollTop=0;window.scrollTo({top:0,left:0,behavior:'auto'});}catch(e){}
@@ -202,6 +234,8 @@
   window.phfRenderClassroom=render;
   window.phfClassroomNavigate=navigate;
   window.phfClassroomGoHub=goHub;
+  window.phfClassroomLeaveMode=leaveMode;
+  window.phfClassroomSyncMode=syncMode;
   window.phfHasActiveTrainingHubProgram=hasActiveHubProgram;
   window.phfSyncTrainingEntryVisibility=syncLearningVisibility;
   window.phfEnsureClassroomHeaderIcon=ensureHeaderIcon;
@@ -211,6 +245,7 @@
   }
   window.addEventListener('phf-auth-changed',function(){
     if(!user()&&isClassroomPath(location.pathname)){
+      leaveMode();
       if(typeof window.phfNavigate==='function')window.phfNavigate('/login',true);
       return;
     }

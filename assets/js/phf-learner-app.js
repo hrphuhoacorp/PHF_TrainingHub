@@ -357,7 +357,7 @@ async function phfConfirmInfoAndContinue(){
   const btn=document.querySelector('#mainLesson [data-phf-action="confirm-info"],#mainLesson .phf-info-confirm-btn');
   if(btn){btn.disabled=true;btn.textContent='Đang xác nhận...';}
   try{
-    const res=await fetch('/api/data',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    const res=await fetch('/api/data',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       type:'profile-confirmed',employee:profile,currentPage:'lesson:2',completedPages:['lesson:0','lesson:1']
     })});
     const json=await res.json().catch(function(){return {};});
@@ -549,7 +549,7 @@ async function phfRefreshTrainingData(options){
           if(typeof window.phfHandleAuthExpired==='function'){
             const recovered = await window.phfHandleAuthExpired();
             if(recovered){
-              res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'same-origin'});
+              res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'include'});
               const retryRawText = await res.text().catch(function(){ return ''; });
               try{ json = retryRawText ? JSON.parse(retryRawText) : {}; }catch(parseErr){ json = {}; }
             }
@@ -1103,7 +1103,7 @@ async function phfSaveConfidentialityCommitment(){
     employee.branch=record.branch;
     employee.position=record.position;
     const payload={type:'confidentiality-commitment',employee:employee,currentPage:record.page,skipProgress:true,confidentialityCommitment:record};
-    const res=await fetch('/api/data',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const res=await fetch('/api/data',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const json=await res.json().catch(function(){return{}});
     if(!res.ok||!json||!json.ok) throw new Error(json&&json.error?json.error:'Chưa thể lưu chữ ký xác nhận.');
     if(json.data) window.__phfLocalData=json.data;

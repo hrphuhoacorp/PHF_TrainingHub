@@ -318,11 +318,51 @@
       <button class="${active==='commitments'?'active':''}" onclick="phfTrainingRecordsOpenEmployee('${esc(emp.id)}','commitments')">Cam kết &amp; xác nhận</button>
     </div>`;
   }
+  const QUIZ_DISPLAY_NAMES = Object.freeze({
+    'short-gd1-review':'Ôn tập cuối Giai đoạn 1 – Hội nhập',
+    'short-day1-afternoon':'Kiểm tra ngắn cuối ngày – Hội nhập',
+    'short-step2-part1':'Kiểm tra ngắn Giai đoạn 2 – Phần 1',
+    'short-step2-part2':'Kiểm tra ngắn Giai đoạn 2 – Phần 2',
+    'short-step2-part3':'Kiểm tra ngắn Giai đoạn 2 – Phần 3',
+    'short-step2-part4':'Kiểm tra ngắn Giai đoạn 2 – Phần 4',
+    'short-gift-quick':'Kiểm tra nhanh – Sản phẩm và giỏ quà',
+    'step2-final':'Kiểm tra cuối Giai đoạn 2',
+    'step3-final':'Kiểm tra cuối Giai đoạn 3',
+    'step4-final':'Kiểm tra cuối Giai đoạn 4 – Thực hành tại cửa hàng'
+  });
+  function quizDisplayMeta(row){
+    const code=norm(row && (row.page || row.key || row.quizKey || row.quiz_key)) || 'Bài kiểm tra';
+    let label=QUIZ_DISPLAY_NAMES[code] || '';
+    if(!label){
+      const lessonMatch=code.match(/^lesson:(\d+)$/i);
+      if(lessonMatch){
+        const lessons=Array.isArray(window.PHF_LESSONS)?window.PHF_LESSONS:(Array.isArray(window.PHF_LESSONS_NEW_SALES)?window.PHF_LESSONS_NEW_SALES:[]);
+        const lesson=lessons[Number(lessonMatch[1])];
+        if(lesson && norm(lesson.title)) label='Kiểm tra – '+norm(lesson.title);
+      }
+    }
+    if(!label){
+      label=code
+        .replace(/^short-/i,'Kiểm tra ngắn – ')
+        .replace(/^step(\d+)-final$/i,'Kiểm tra cuối Giai đoạn $1')
+        .replace(/[-_]+/g,' ')
+        .replace(/\bgd(\d+)\b/gi,'Giai đoạn $1')
+        .replace(/\bpart\s*(\d+)\b/gi,'Phần $1')
+        .replace(/\breview\b/gi,'Ôn tập')
+        .replace(/\bfinal\b/gi,'Cuối giai đoạn')
+        .replace(/\s+/g,' ')
+        .trim();
+      if(label) label=label.charAt(0).toUpperCase()+label.slice(1);
+    }
+    return {code:code,label:label||'Bài kiểm tra'};
+  }
   function testRows(emp){
     const rows=employeeTests(emp.id);
     return rows.map(function(r,idx){
       const st=scoreStatus(r);
-      return `<tr><td>${idx+1}</td><td><b>${esc(r.page||'Bài kiểm tra')}</b></td><td>${Number.isFinite(Number(r.score))?esc(r.score):'—'}</td><td>${esc(r.passScore||r.pass_score||80)}</td><td><span class="phf-eval-chip ${st.cls}">${st.text}</span></td><td>${fmtDateTime(dateValue(r))}</td></tr>`;
+      const quiz=quizDisplayMeta(r);
+      const codeLine=quiz.code && quiz.code!==quiz.label ? `<small>Mã: ${esc(quiz.code)}</small>` : '';
+      return `<tr><td>${idx+1}</td><td><b>${esc(quiz.label)}</b>${codeLine}</td><td>${Number.isFinite(Number(r.score))?esc(r.score):'—'}</td><td>${esc(r.passScore||r.pass_score||80)}</td><td><span class="phf-eval-chip ${st.cls}">${st.text}</span></td><td>${fmtDateTime(dateValue(r))}</td></tr>`;
     }).join('') || '<tr><td colspan="6"><div class="phf-records-empty">Chưa có kết quả kiểm tra.</div></td></tr>';
   }
   function evaluationRows(emp){

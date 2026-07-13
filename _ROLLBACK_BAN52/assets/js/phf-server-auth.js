@@ -10,7 +10,6 @@
   var appReady = new Promise(function(resolve){ appReadyResolve = resolve; });
   var appReadySettled = false;
   var trainingDataPromise = null;
-  var expiredSessionCheckPromise = null;
   var loginOpening = false;
   var authTransitioning = false;
   var authTransitionResolve = null;
@@ -232,7 +231,7 @@
   });
 
   async function request(url, opts){
-    var options = Object.assign({credentials:'include',cache:'no-store'}, opts || {});
+    var options = Object.assign({credentials:'same-origin',cache:'no-store'}, opts || {});
     var response = await fetch(url, options);
     var json = await response.json().catch(function(){ return {}; });
     if(!response.ok){
@@ -382,22 +381,12 @@
 
     await new Promise(function(resolve){ setTimeout(resolve, 0); });
 
-    /* 1.0.17: khi URL router đã sẵn sàng, auth chỉ bàn giao việc phục hồi route.
-       Không tự render Hub song song với route /classroom. */
     try{
       if(typeof window.phfRestoreLastRouteAfterAuth === 'function'){
-        var routerRestored = await window.phfRestoreLastRouteAfterAuth(user);
-        if(routerRestored) return true;
+        var restored = await window.phfRestoreLastRouteAfterAuth(user);
+        if(restored) return true;
       }
-      if(/^\/classroom(?:\/|$)/.test(location.pathname) && typeof window.phfNavigate === 'function'){
-        await Promise.resolve(window.phfNavigate(location.pathname,true));
-        return true;
-      }
-    }catch(routerError){
-      console.warn('[PHF Auth] router handoff:', reason || '', routerError && routerError.message || routerError);
-    }
 
-    try{
       /* PHF 27.6.12.4.7.3: mọi tài khoản sau đăng nhập chủ động đều vào
          Trang chủ sau đăng nhập. Deep link hợp lệ vẫn được phf-url-router
          khôi phục ở phía trên; chỉ fallback mặc định mới đổi về Trang chủ. */
@@ -699,37 +688,18 @@
   }
 
   async function handleExpiredSession(){
-    /* Chỉ cho một luồng kiểm tra phiên chạy tại một thời điểm. Nhiều màn có
-       thể đồng thời nhận 401 khi F5; không để các kết quả cạnh tranh ghi đè
-       currentUser hoặc mở màn đăng nhập nhiều lần. */
-    if(expiredSessionCheckPromise) return expiredSessionCheckPromise;
-
-    expiredSessionCheckPromise = (async function(){
-      try{
-        var user = await readServerSession();
-        if(user){
-          await establishSession(user,'session-recovered');
-          return true;
-        }
-
-        /* Endpoint session đã phản hồi thành công và xác nhận không còn phiên.
-           Đây mới là trường hợp được phép xóa mirror và chuyển về đăng nhập. */
-        applySessionMirror(null);
-        authPhase = 'anonymous';
-        resetAppReady();
-        settleAppReady(null);
-        showProtectedLogin('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        return false;
-      }catch(e){
-        /* Lỗi mạng, timeout hoặc lỗi máy chủ không đồng nghĩa hết phiên.
-           Giữ nguyên user hiện tại để router/UI không tự đăng xuất sai. */
-        console.warn('[PHF Auth] session recheck unavailable:', e && e.message || e);
-        return !!sessionUser;
-      }
-    })();
-
-    try{ return await expiredSessionCheckPromise; }
-    finally{ expiredSessionCheckPromise = null; }
+    var user = null;
+    try{ user = await readServerSession(); }catch(e){}
+    if(user){
+      await establishSession(user,'session-recovered');
+      return true;
+    }
+    applySessionMirror(null);
+    authPhase = 'anonymous';
+    resetAppReady();
+    settleAppReady(null);
+    showLogin();
+    return false;
   }
 
   window.phfShowServerLogin = showLogin;
@@ -743,7 +713,7 @@
 
   function isProtectedPath(){
     var path=String(location.pathname||'/').replace(/\/+$/,'')||'/';
-    return /^\/(admin|home|overview|guide|training-content|employees|my-lessons|my-profile|programs|lessons|notifications|classroom)(\/|$)/.test(path);
+    return /^\/(admin|overview|training-content|employees|my-lessons|my-profile|programs|lessons|notifications)(\/|$)/.test(path);
   }
 
   function showProtectedLogin(message){

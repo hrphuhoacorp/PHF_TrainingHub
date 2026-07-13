@@ -7982,3 +7982,6 @@ body:not(.phf-logged-in) {
 .phf-google-auth-notice-card.warning .phf-google-auth-g{color:#916100}
 @keyframes phfGoogleSpin{to{transform:rotate(360deg)}}
 @media(max-width:620px){.phf-google-login-wrap{padding:12px}.phf-google-auth-notice-card{grid-template-columns:44px minmax(0,1fr) auto;padding:16px}.phf-google-auth-notice-icon{width:42px;height:42px}}
+
+/* PHF 1.0.12 - bulk account actions */
+.phf-acct-select-cell{width:42px;min-width:42px;text-align:center!important}.phf-acct-select-cell input{width:17px;height:17px;accent-color:#07543e;cursor:pointer}.phf-acct-select-cell input:disabled{cursor:not-allowed;opacity:.45}.phf-acct-bulkbar{display:none;align-items:center;justify-content:space-between;gap:14px;margin:12px 0 14px;padding:12px 14px;border:1px solid #d9e9e2;border-radius:14px;background:#f7fbf9}.phf-acct-bulkbar.active{display:flex}.phf-acct-bulkbar b{display:block;color:#17382d;font-size:14px}.phf-acct-bulkbar small{display:block;margin-top:4px;color:#667a71;line-height:1.4}.phf-acct-bulk-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.phf-acct-safe-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}@media(max-width:760px){.phf-acct-bulkbar{align-items:stretch;flex-direction:column}.phf-acct-bulk-actions{justify-content:stretch}.phf-acct-bulk-actions .phf-acct-safe-btn{flex:1}}
