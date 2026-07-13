@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '1.0.17-safe-router-shell';
+  var ROUTER_VERSION = '59.4';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -13,6 +13,12 @@
   var nativeReplaceState = history.replaceState.bind(history);
   var historyGuardInstalled = false;
   var routeRenderSequence = 0;
+  var routerStarted = false;
+  var currentRenderSource = 'system';
+  var lastCommittedPath = '';
+  var reconcileTimer = null;
+  var pageShowInstalled = false;
+  var routeGuardOwnerRunId = 0;
 
   /* Hệ thống cũ còn một lớp history nội bộ chỉ thay state nhưng giữ nguyên URL.
      Khi router URL mới cùng hoạt động, mỗi lần đổi màn có thể sinh hai history
@@ -42,6 +48,37 @@
       var state=Object.assign({},history.state||{},{phfUrl:true,path:path});
       nativeReplaceState(state,'',path+(location.search||'')+(location.hash||''));
     }catch(e){}
+  }
+
+  /* Sau Back/Forward hoặc khi một renderer cũ hoàn tất muộn, URL hiện tại là
+     nguồn sự thật. Chỉ lên lịch một lượt đối soát để tránh hai màn cùng tranh
+     quyền và không tạo thêm history entry. */
+  function reconcileCurrentRoute(source,delay){
+    if(reconcileTimer) clearTimeout(reconcileTimer);
+    reconcileTimer=setTimeout(function(){
+      reconcileTimer=null;
+      var current=cleanPath(location.pathname);
+      if(applyingRoute) return reconcileCurrentRoute(source||'reconcile-busy',60);
+      if(lastCommittedPath===current){
+        syncRouteUi(current);
+        normalizeCurrentHistoryEntry();
+        return;
+      }
+      Promise.resolve(render(current,true,{source:source||'reconcile'})).catch(function(err){
+        console.error('[PHF ROUTER] reconcile failed',err);
+      });
+    },Math.max(0,Number(delay)||0));
+  }
+
+  function installPageShowGuard(){
+    if(pageShowInstalled) return;
+    pageShowInstalled=true;
+    window.addEventListener('pageshow',function(event){
+      /* Trình duyệt có thể phục hồi DOM cũ từ back-forward cache mà không chạy
+         lại bootstrap. Đối soát URL với screen owner để shell/menu không lệch. */
+      if(event&&event.persisted) reconcileCurrentRoute('pageshow-bfcache',0);
+      else normalizeCurrentHistoryEntry();
+    });
   }
 
 
@@ -119,11 +156,103 @@
     wrap.querySelector('[data-primary]').onclick=function(){close(); if(typeof primaryAction==='function')primaryAction();};
     document.body.appendChild(wrap);
   }
-  function safeHomeForRole(){return role()==='learner'?'/overview':'/home';}
+  function safeHomeForRole(){
+    var currentRole=role();
+    if(currentRole==='admin') return '/admin';
+    if(currentRole==='manager') return '/ql';
+    return '/hv';
+  }
+  window.phfGetRoleHomePath=safeHomeForRole;
+  /* Route Registry là nguồn duy nhất mô tả namespace, role và screen owner.
+     Không dùng chung /ql cho Admin; mỗi route gốc có một nghĩa cố định. */
+  var ROUTE_REGISTRY=Object.freeze({
+    '/':Object.freeze({area:'public',screen:'home',roles:[]}),
+    '/login':Object.freeze({area:'public',screen:'login',roles:[]}),
+
+    '/hv':Object.freeze({area:'learner',screen:'home',roles:['learner']}),
+    '/hv/bai-hoc':Object.freeze({area:'learner',screen:'learning',roles:['learner']}),
+    '/hv/ho-so':Object.freeze({area:'learner',screen:'profile',roles:['learner']}),
+    '/hv/classroom':Object.freeze({area:'learner',screen:'classroom-home',roles:['learner']}),
+
+    '/ql':Object.freeze({area:'manager',screen:'home',roles:['manager']}),
+    '/ql/quan-ly':Object.freeze({area:'manager',screen:'workspace',roles:['manager']}),
+    '/ql/hoc-vien':Object.freeze({area:'manager',screen:'learners',roles:['manager']}),
+    '/ql/noi-dung':Object.freeze({area:'manager',screen:'content',roles:['manager']}),
+    '/ql/bao-cao':Object.freeze({area:'manager',screen:'reports',roles:['manager']}),
+    '/ql/de-xuat-dao-tao':Object.freeze({area:'manager',screen:'training-proposals',roles:['manager']}),
+    '/ql/classroom':Object.freeze({area:'manager',screen:'classroom-home',roles:['manager']}),
+    '/ql/classroom/de-xuat':Object.freeze({area:'manager',screen:'classroom-proposals',roles:['manager']}),
+
+    '/admin':Object.freeze({area:'admin',screen:'home',roles:['admin']}),
+    '/admin/quan-tri':Object.freeze({area:'admin',screen:'workspace',roles:['admin']}),
+    '/admin/quan-tri/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
+    '/admin/quan-tri/danh-muc':Object.freeze({area:'admin',screen:'catalogs',roles:['admin']}),
+    '/admin/quan-tri/kiem-tra':Object.freeze({area:'admin',screen:'tests',roles:['admin']}),
+    '/admin/quan-tri/cau-hinh':Object.freeze({area:'admin',screen:'settings',roles:['admin']}),
+    '/admin/hoc-vien':Object.freeze({area:'admin',screen:'learners',roles:['admin']}),
+    '/admin/noi-dung':Object.freeze({area:'admin',screen:'content',roles:['admin']}),
+    '/admin/bao-cao':Object.freeze({area:'admin',screen:'reports',roles:['admin']}),
+    '/admin/classroom':Object.freeze({area:'admin',screen:'classroom-home',roles:['admin']}),
+    '/admin/classroom/de-xuat':Object.freeze({area:'admin',screen:'classroom-proposals',roles:['admin']}),
+    '/admin/classroom/cau-hinh':Object.freeze({area:'admin',screen:'classroom-settings',roles:['admin']})
+  });
+  window.PHF_ROUTE_REGISTRY=ROUTE_REGISTRY;
+  window.PHF_ROUTE_MAP=Object.freeze({
+    public:['/','/login'],
+    learner:['/hv','/hv/bai-hoc','/hv/ho-so','/hv/classroom'],
+    management:['/ql','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/classroom','/ql/classroom/de-xuat'],
+    admin:['/admin','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/de-xuat','/admin/classroom/cau-hinh'],
+    classroom:['/hv/classroom','/ql/classroom','/admin/classroom']
+  });
+
+  function canonicalLegacyPath(path){
+    path=cleanPath(path);
+    if(path==='/home') return safeHomeForRole();
+    if(path==='/hv/dao-tao') return '/hv';
+    if(path==='/hv/dao-tao/bai-hoc'||/^\/hv\/dao-tao\/bai-hoc\//.test(path)) return path.replace(/^\/hv\/dao-tao\/bai-hoc/,'/hv/bai-hoc');
+    if(path==='/hv/dao-tao/ho-so'||/^\/hv\/dao-tao\/ho-so\//.test(path)) return path.replace(/^\/hv\/dao-tao\/ho-so/,'/hv/ho-so');
+    if(path==='/hv/dao-tao/ket-qua'||path==='/hv/ket-qua') return '/hv/bai-hoc';
+    if(path==='/ql/quan-ly/hoc-vien'||/^\/ql\/quan-ly\/hoc-vien\//.test(path)) return path.replace(/^\/ql\/quan-ly\/hoc-vien/,'/ql/hoc-vien');
+    if(path==='/ql/quan-ly/noi-dung') return '/ql/noi-dung';
+    if(path==='/ql/quan-ly/bao-cao') return '/ql/bao-cao';
+    if(path==='/ql/quan-ly/de-xuat-dao-tao') return '/ql/de-xuat-dao-tao';
+    if(path==='/admin/tai-khoan') return '/admin/quan-tri/tai-khoan';
+    if(path==='/admin/danh-muc') return '/admin/quan-tri/danh-muc';
+    if(path==='/admin/kiem-tra') return '/admin/quan-tri/kiem-tra';
+    if(path==='/my-lessons') return '/hv/bai-hoc';
+    if(path==='/my-profile'||/^\/my-profile\//.test(path)) return '/hv/ho-so';
+    if(path==='/overview') return role()==='admin'?'/admin':(role()==='manager'?'/ql':'/hv');
+    if(/^\/lessons\//.test(path)) return path.replace(/^\/lessons/,'/hv/bai-hoc');
+    if(/^\/programs\//.test(path)) return path.replace(/^\/programs/,'/hv/chuong-trinh');
+    if(path==='/employees'||/^\/employees\//.test(path)) return path.replace(/^\/employees/,role()==='admin'?'/admin/hoc-vien':'/ql/hoc-vien');
+    if(path==='/training-content') return role()==='admin'?'/admin/noi-dung':'/ql/noi-dung';
+    if(path==='/admin/accounts') return '/admin/quan-tri/tai-khoan';
+    if(/^\/classroom(?:\/|$)/.test(path)){
+      var base=role()==='admin'?'/admin/classroom':(role()==='manager'?'/ql/classroom':'/hv/classroom');
+      if(path==='/classroom'||path==='/classroom/my-classes') return base;
+      return base;
+    }
+    return path;
+  }
   function deny(){
     var target=safeHomeForRole();
-    modal('Không có quyền truy cập','Tài khoản của anh/chị không được cấp quyền xem nội dung này.','Về trang phù hợp',function(){navigate(target,true);});
+    var currentRole=role();
+    var attempted=cleanPath(location.pathname);
+    /* Namespace là khu làm việc độc lập. Admin không dùng /ql hoặc /hv; các lời gọi
+       legacy cố kéo Admin sang khu khác phải được thu hồi im lặng về /admin, không
+       bật popup sai khi chính màn Admin đã render đúng. Tương tự cho các role khác
+       trong lúc boot/restore/legacy. */
+    var crossNamespace =
+      (currentRole==='admin' && (/^\/ql(?:\/|$)/.test(attempted)||/^\/hv(?:\/|$)/.test(attempted))) ||
+      (currentRole==='manager' && (/^\/admin(?:\/|$)/.test(attempted)||/^\/hv(?:\/|$)/.test(attempted))) ||
+      (currentRole==='learner' && (/^\/admin(?:\/|$)/.test(attempted)||/^\/ql(?:\/|$)/.test(attempted)));
+    var silent=crossNamespace||currentRenderSource==='auth'||currentRenderSource==='restore'||currentRenderSource==='boot'||currentRenderSource==='legacy'||currentRenderSource==='guard-fallback';
     setUrl(target,true);
+    if(silent){
+      setTimeout(function(){render(target,true,{source:'guard-fallback'});},0);
+      return;
+    }
+    modal('Không có quyền truy cập','Tài khoản của anh/chị không được cấp quyền xem nội dung này.','Về trang phù hợp',function(){navigate(target,true,{source:'guard-action'});});
   }
   function requireRoles(roles){
     if(!authenticated()) return false;
@@ -157,10 +286,16 @@
     try{ return await Promise.race([Promise.resolve(promise), timeout]); }catch(e){ return false; }
   }
 
+  function getTrainingData(){
+    return window.__phfLocalData||window.localData||null;
+  }
   async function ensureTrainingData(path){
+    /* Một số module legacy công bố dữ liệu qua window.localData trước khi đồng bộ
+       sang __phfLocalData. Cả hai đều là cùng payload /api/data; chấp nhận nguồn
+       đã sẵn sàng để route Báo cáo không đứng loading vô hạn. */
+    if(getTrainingData()) return true;
     var ok=await waitForTrainingData(9000);
-    var data=window.__phfLocalData||null;
-    if(ok&&data) return true;
+    if((ok||getTrainingData())&&getTrainingData()) return true;
     modal('Chưa tải được dữ liệu','Hệ thống chưa nhận được dữ liệu cần thiết cho màn này. Vui lòng thử lại thay vì chờ vô hạn.','Thử lại',function(){navigate(path||location.pathname,true);});
     return false;
   }
@@ -215,7 +350,7 @@
   function lessonPathByIndex(idx){
     var list=window.PHF_LESSONS||[];
     idx=Math.max(0,Math.min(Number(idx)||0,Math.max(0,list.length-1)));
-    return '/lessons/'+lessonSlug(list[idx]||{},idx);
+    return '/hv/bai-hoc/'+lessonSlug(list[idx]||{},idx);
   }
   async function openNearestAllowedLesson(message){
     var idx=maxAllowedLessonIndex();
@@ -229,17 +364,160 @@
     return false;
   }
 
-  async function render(path,fromPop){
-    path=cleanPath(path); applyingRoute=true;
+  function navKeyForPath(path){
+    path=cleanPath(path);
+    if(path==='/admin') return 'intro';
+    if(path==='/admin/quan-tri'||/^\/admin\/quan-tri\//.test(path)) return 'admin';
+    if(/^\/admin\/hoc-vien(?:\/|$)/.test(path)) return 'profile';
+    if(path==='/admin/noi-dung') return 'trainingLibrary';
+    if(path==='/admin/bao-cao') return 'reports';
+    if(path==='/ql') return 'intro';
+    if(path==='/ql/quan-ly') return 'workspace';
+    if(path==='/ql/noi-dung') return 'trainingLibrary';
+    if(/^\/ql\/hoc-vien(?:\/|$)/.test(path)) return 'profile';
+    if(path==='/ql/bao-cao') return 'reports';
+    if(path==='/hv') return 'intro';
+    if(path==='/hv/bai-hoc'||/^\/hv\/bai-hoc\//.test(path)) return 'learning';
+    if(path==='/hv/ho-so'||/^\/hv\/ho-so\//.test(path)) return 'profile';
+    if(/^\/(?:admin|ql|hv)\/classroom(?:\/|$)/.test(path)) return 'classroom';
+    return '';
+  }
+  function syncRouteUi(path){
+    path=cleanPath(path);
+    var key=navKeyForPath(path);
+    if(key&&typeof window.phfSetMainNavActive==='function'){
+      try{window.phfSetMainNavActive(key);}catch(e){}
+    }
+    /* URL là nguồn duy nhất của menu active. Không cho các lớp menu legacy giữ
+       active cũ sau khi Admin/Manager/Learner đã đổi namespace. */
+    try{
+      document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){
+        var own=String(btn.getAttribute('data-phf-main-nav')||'');
+        btn.classList.toggle('active',!!key&&own===key);
+        if(own===key) btn.setAttribute('aria-current','page');
+        else btn.removeAttribute('aria-current');
+      });
+      var area=(ROUTE_REGISTRY[path]&&ROUTE_REGISTRY[path].area)||(/^\/admin/.test(path)?'admin':(/^\/ql/.test(path)?'manager':(/^\/hv/.test(path)?'learner':'public')));
+      document.body.setAttribute('data-phf-route-area',area);
+      document.body.classList.toggle('phf-role-admin',area==='admin');
+    }catch(e){}
+  }
+
+  function classroomSkeletonMeta(path){
+    path=cleanPath(path);
+    var area=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+    var isDetail=/\/lop\//.test(path);
+    var isProposal=/\/de-xuat$/.test(path);
+    var isSettings=/\/cau-hinh$/.test(path);
+    if(area==='admin') return {
+      area:area,
+      title:isDetail?'Chi tiết lớp đào tạo':(isProposal?'Đề xuất đào tạo':(isSettings?'Cấu hình Classroom':'PHF Classroom · Quản trị')),
+      subtitle:'Khung Classroom dành riêng cho Admin. Nghiệp vụ lớp học sẽ được xây sau trên route và quyền độc lập.',
+      badge:'Admin · toàn quyền',
+      back:'/admin',
+      items:['Quản lý toàn bộ lớp','Phân công học viên và người phụ trách','Duyệt đề xuất, bài kiểm tra và cấu hình']
+    };
+    if(area==='manager') return {
+      area:area,
+      title:isDetail?'Lớp được phân công':(isProposal?'Đề xuất đào tạo':'PHF Classroom · Quản lý'),
+      subtitle:'Khung Classroom dành riêng cho Quản lý. Chỉ các lớp và nhân sự thuộc phạm vi được giao mới hiển thị.',
+      badge:'Quản lý · theo phạm vi',
+      back:'/ql',
+      items:['Lớp được giao phụ trách','Theo dõi tiến độ trong phạm vi','Gửi đề xuất đào tạo hoặc kiểm tra']
+    };
+    return {
+      area:area,
+      title:isDetail?'Chi tiết lớp của tôi':'Lớp đào tạo của tôi',
+      subtitle:'Khung Classroom dành riêng cho Học viên/Nhân viên. Chỉ lớp được phân công mới hiển thị.',
+      badge:'Cá nhân · lớp được giao',
+      back:'/hv',
+      items:['Lớp đang tham gia','Lịch học và tài liệu','Bài kiểm tra, kết quả thuộc từng lớp']
+    };
+  }
+  function renderClassroomSkeleton(path){
+    path=cleanPath(path);
+    var root=document.getElementById('phfClassroomRoot');
+    if(!root) throw new Error('phfClassroomRoot is not available');
+    var meta=classroomSkeletonMeta(path);
+    var esc=function(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+    var roleHome=meta.back;
+    var html='';
+    try{
+      /* Mount-first: chuẩn bị đầy đủ HTML trước khi ẩn Hub. Nếu bước này lỗi,
+         giao diện Hub vẫn còn nguyên và người dùng không bị màn trắng. */
+      html='<section class="phfc-shell" data-classroom-area="'+esc(meta.area)+'">'
+        +'<header class="phfc-header"><button class="phfc-hub-back" type="button" onclick="phfNavigate(\''+esc(roleHome)+'\')"><span aria-hidden="true">←</span><span><strong>PHF Training Hub</strong><small>Quay lại Trang chủ</small></span></button><div class="phfc-header-brand"><div><strong>PHF Classroom</strong><span>Quản lý đào tạo nội bộ</span></div></div><div class="phfc-header-user"><span>'+esc(meta.badge)+'</span><small>Route riêng · shell riêng</small></div></header>'
+        +'<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand"><div><strong>PHF Classroom</strong><span>Đào tạo nội bộ</span></div></div><section class="phfc-nav-group"><div class="phfc-nav-label">Khu vực</div><nav class="phfc-nav"><button class="active" type="button">'+esc(meta.title)+'</button></nav></section><div class="phfc-side-bottom">Một phần của hệ sinh thái PHUHOA FRESH</div></aside>'
+        +'<main class="phfc-main"><div class="phfc-topline"><div class="phfc-title"><small>PHF Classroom</small><h2>'+esc(meta.title)+'</h2><p>'+esc(meta.subtitle)+'</p></div></div>'
+        +'<section class="phfc-card phfc-panel"><div class="phfc-panel-head"><div><h3>Khung Classroom đã sẵn sàng</h3><span>Không còn dùng stage bar, danh sách việc cần làm hoặc tiến độ của Training Hub.</span></div></div><div class="phfc-empty">Route, role, shell và F5 đã được tách riêng. Dữ liệu lớp thật sẽ được kết nối ở giai đoạn xây Classroom.</div></section>'
+        +'<section class="phfc-kpis">'+meta.items.map(function(item){return '<article class="phfc-card phfc-kpi"><div class="phfc-kpi-icon">▦</div><strong>—</strong><p>'+esc(item)+'</p></article>';}).join('')+'</section>'
+        +'</main></div></section>';
+
+      var staging=document.createElement('div');
+      staging.innerHTML=html;
+      if(!staging.querySelector('.phfc-shell')) throw new Error('Classroom shell markup is invalid');
+
+      try{ if(typeof window.phfHideIntroAndStopAuto==='function') window.phfHideIntroAndStopAuto(); }catch(e){}
+      root.innerHTML=html;
+      if(!root.querySelector('.phfc-shell')) throw new Error('Classroom shell mount failed');
+
+      /* Chỉ sau khi mount thành công mới chuyển shell. */
+      if(window.PHFAppShell) window.PHFAppShell.activateClassroom(path);
+      document.title=meta.title+' · PHF Classroom';
+      try{root.scrollTop=0;window.scrollTo({top:0,left:0,behavior:'auto'});}catch(e){}
+      return true;
+    }catch(err){
+      try{
+        root.replaceChildren();
+        if(window.PHFAppShell) window.PHFAppShell.activateHub({clear:false,restoreTitle:true});
+      }catch(e){}
+      try{
+        if(typeof window.phfShowNoticeModal==='function'){
+          window.phfShowNoticeModal({title:'Chưa mở được PHF Classroom',message:'Giao diện Classroom gặp lỗi khi khởi tạo. Hệ thống đã giữ nguyên khu vực trước đó để tránh màn trắng.',primaryText:'Về Trang chủ',onPrimary:function(){window.phfNavigate(roleHome,true);}});
+        }
+      }catch(e){}
+      console.error('[PHF CLASSROOM] shell mount failed',err);
+      throw err;
+    }
+  }
+  window.phfRenderClassroomSkeleton=renderClassroomSkeleton;
+
+  async function render(path,fromPop,meta){
+    meta=meta||{};
+    currentRenderSource=String(meta.source||currentRenderSource||'system');
+    path=canonicalLegacyPath(path);
+    if(cleanPath(location.pathname)!==path) setUrl(path,true);
+    applyingRoute=true;
     var runId=++routeRenderSequence;
+    /* 60.8: Hai route từng lộ màn Training Hub/Học viên trong lúc renderer đích
+       đang chờ dữ liệu. Dùng chính boot guard đã có của hệ thống để giữ một màn
+       chuyển tiếp duy nhất cho tới khi đúng route mount xong. Không tạo overlay,
+       toast hoặc renderer mới và không can thiệp nghiệp vụ bên dưới. */
+    var holdRouteGuard=(path==='/admin/bao-cao'||path==='/ql/quan-ly');
+    if(holdRouteGuard){
+      routeGuardOwnerRunId=runId;
+      try{
+        document.documentElement.classList.add('phf-route-boot-pending');
+        if(window.__phfRouteBootGuardTimer){clearTimeout(window.__phfRouteBootGuardTimer);window.__phfRouteBootGuardTimer=null;}
+      }catch(e){}
+    }else if(routeGuardOwnerRunId){
+      /* Người dùng đổi route trong lúc màn đích cũ còn tải: route mới thu hồi
+         guard của lượt cũ để không có trạng thái che màn bị bỏ quên. */
+      routeGuardOwnerRunId=0;
+      try{document.documentElement.classList.remove('phf-route-boot-pending');}catch(e){}
+    }
     function stale(){return runId!==routeRenderSequence || cleanPath(location.pathname)!==path;}
     try{
       if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:true});
       if(path==='/'){
+        /* Khi F5 tại Trang chủ, cookie/session có thể đã được xác minh thành công
+           nhưng URL vẫn còn ở /. Không được ép giao diện anonymous vì thao tác đó
+           chỉ đổi UI, tạo cảm giác bị đăng xuất dù /api/auth/session vẫn trả 200.
+           Với phiên hợp lệ, chuyển về route Trang chủ đúng vai trò; chỉ người chưa
+           đăng nhập mới thấy trang giới thiệu công khai. */
+        if(authenticated()) return navigate(safeHomeForRole(),true);
         setUrl('/',!!fromPop);
-        /* / luôn là trang giới thiệu công khai, kể cả khi trình duyệt đang có
-           phiên. Người dùng chỉ vào module sau khi bấm chức năng tương ứng. */
-        if(typeof window.phfForceAnonymousPublicState==='function') window.phfForceAnonymousPublicState('url-home');
+        if(typeof window.phfForceAnonymousPublicState==='function') window.phfForceAnonymousPublicState('url-home-anonymous');
         return true;
       }
       if(path==='/login'){
@@ -258,42 +536,115 @@
         if(!authenticated()) return loginFor(path);
       }
 
-      if(path==='/my-lessons'){
-        if(!requireRoles(['learner','manager','admin']))return false;
+      if(path==='/hv/bai-hoc'){
+        if(!requireRoles(['learner']))return false;
         if(!await ensureTrainingData(path)) return false;
-        if(role()==='learner' && typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
-          modal('Chưa được phân công lộ trình học','Tài khoản của bạn hiện chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/overview',true);});
-          setUrl('/overview',true);
+        if(typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
+          modal('Chưa được phân công lộ trình học','Tài khoản của bạn hiện chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv',true);});
+          setUrl('/hv',true);
           await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
           return false;
         }
         await Promise.resolve(window.phfGoLearning&&window.phfGoLearning()); return true;
       }
-      if(path==='/my-profile'||/^\/my-profile\/(tests|evaluations|probation|commitments)$/.test(path)){
-        if(!requireRoles(['learner','manager','admin']))return false;
+      if(path==='/hv/ho-so'){
+        if(!requireRoles(['learner']))return false;
         if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfGoMyProfile&&window.phfGoMyProfile()); return true;
       }
-      if(path==='/home'){
-        if(!requireRoles(['manager','admin']))return false;
+      if(path==='/hv'){
+        if(!requireRoles(['learner']))return false;
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/overview'){
-        /* /overview giữ nguyên Trang chủ cho learner và Tổng quan đào tạo
-           cho Admin/Manager. Trang chủ Admin/Manager dùng route riêng /home
-           để F5 không bị chuyển nhầm sang Tổng quan. */
-        if(role()==='learner'){
-          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
-          return true;
+      if(path==='/admin/hoc-vien'){
+        if(!requireRoles(['admin']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        if(window.phfTrainingRecordsOpen) await Promise.resolve(window.phfTrainingRecordsOpen('employees'));
+        else await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
+        return true;
+      }
+      if(path==='/admin/noi-dung'){
+        if(!requireRoles(['admin']))return false;
+        await Promise.resolve(window.phfRenderTrainingLibrary&&window.phfRenderTrainingLibrary());
+        return true;
+      }
+      if(path==='/admin/bao-cao'){
+        if(!requireRoles(['admin']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        /* Chuẩn hóa alias dữ liệu trước khi gọi renderer legacy. Một số hàm báo cáo
+           cũ chỉ đọc __phfLocalData, trong khi auth/data bootstrap có thể công bố
+           payload trước ở localData. */
+        var reportData=getTrainingData();
+        if(reportData){
+          window.__phfLocalData=reportData;
+          window.localData=reportData;
         }
-        if(!requireRoles(['manager','admin']))return false;
+        try{
+          if(typeof window.phfRenderTrainingReports==='function'){
+            await Promise.resolve(window.phfRenderTrainingReports());
+          }else{
+            throw new Error('PHF_REPORT_RENDERER_MISSING');
+          }
+        }catch(reportError){
+          console.error('[PHF ROUTER] admin report render failed',reportError);
+          var reportHost=document.getElementById('mainLesson');
+          if(reportHost){
+            reportHost.innerHTML='<section class="eval-admin-shell"><div class="eval-admin-page"><main class="eval-admin-main"><section class="hub-panel hub-placeholder"><h2>Chưa mở được Báo cáo đào tạo</h2><p>Hệ thống đã tải dữ liệu nhưng màn báo cáo gặp lỗi khi dựng giao diện.</p><div class="record-note" style="margin-top:14px">Mã chẩn đoán: '+String(reportError&&reportError.message||'REPORT_RENDER_ERROR').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];})+'</div></section></main></div></section>';
+          }
+          modal('Chưa mở được Báo cáo','Màn Báo cáo gặp lỗi khi dựng giao diện. Hệ thống đã giữ nguyên phiên đăng nhập và route /admin/bao-cao.','Thử lại',function(){navigate('/admin/bao-cao',true);});
+          return false;
+        }
+        return true;
+      }
+      var adminEmp=path.match(/^\/admin\/hoc-vien\/(emp_[a-f0-9]+)(?:\/(tests|evaluations|probation|commitments))?$/);
+      if(adminEmp){
+        if(!requireRoles(['admin']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        var adminEmployee=await employeeFromToken(adminEmp[1]);
+        if(!adminEmployee){modal('Không tìm thấy hồ sơ','Liên kết không còn phù hợp hoặc hồ sơ đã được cập nhật.','Mở danh sách nhân viên',function(){navigate('/admin/hoc-vien',true);});setUrl('/admin/hoc-vien',true);return false;}
+        var adminTab=adminEmp[2]||'overview';
+        if(typeof window.phfTrainingRecordsOpenEmployee==='function'){
+          var adminMapped={tests:'tests',evaluations:'evaluations',probation:'probation',commitments:'commitments',overview:'overview'}[adminTab]||'overview';
+          await Promise.resolve(window.phfTrainingRecordsOpenEmployee(adminEmployee.id,adminMapped));
+        }
+        return true;
+      }
+      if(path==='/ql'){
+        if(!requireRoles(['manager']))return false;
+        await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+        return true;
+      }
+      if(path==='/ql/quan-ly'){
+        if(!requireRoles(['manager']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
+        return true;
+      }
+      if(path==='/ql/de-xuat-dao-tao'){
+        if(!requireRoles(['manager']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
+        modal('Đề xuất đào tạo','Khu đề xuất lớp học và kỳ kiểm tra sẽ được triển khai cùng PHF Classroom.','Đã hiểu');
+        return true;
+      }
+      if(path==='/ql/legacy-overview'){
+        /* /overview chỉ là Tổng quan quản lý. Learner/Nhân viên không dùng
+           route này làm Trang chủ; nếu không đủ quyền sẽ được đưa về /home. */
+        if(!requireRoles(['manager']))return false;
         if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview()); return true;
       }
-      if(path==='/training-content'){
-        if(!requireRoles(['manager','admin']))return false;
+      if(path==='/ql/noi-dung'){
+        if(!requireRoles(['manager']))return false;
         await Promise.resolve(window.phfRenderTrainingLibrary&&window.phfRenderTrainingLibrary()); return true;
+      }
+      if(path==='/ql/bao-cao'){
+        if(!requireRoles(['manager']))return false;
+        if(!await ensureTrainingData(path)) return false;
+        if(typeof window.phfRenderTrainingReports==='function') await Promise.resolve(window.phfRenderTrainingReports());
+        else await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
+        return true;
       }
       if(path==='/guide'){
         if(!requireRoles(['learner','manager','admin']))return false;
@@ -302,24 +653,24 @@
         return true;
       }
       if(path==='/direct-training-test'){
-        if(!requireRoles(['manager','admin']))return false;
+        if(!requireRoles(['manager']))return false;
         if(typeof window.phfGoDirectTrainingTest==='function') await Promise.resolve(window.phfGoDirectTrainingTest());
         else if(typeof window.phfRenderDirectTrainingTestPage==='function') await Promise.resolve(window.phfRenderDirectTrainingTestPage());
         return true;
       }
-      if(path==='/employees'){
-        if(!requireRoles(['manager','admin']))return false;
+      if(path==='/ql/hoc-vien'){
+        if(!requireRoles(['manager']))return false;
         if(!await ensureTrainingData(path)) return false;
         if(window.phfTrainingRecordsOpen) await Promise.resolve(window.phfTrainingRecordsOpen('employees'));
         else await Promise.resolve(window.phfRenderTrainingOverview&&window.phfRenderTrainingOverview());
         return true;
       }
-      var emp=path.match(/^\/employees\/(emp_[a-f0-9]+)(?:\/(tests|evaluations|probation|commitments))?$/);
+      var emp=path.match(/^\/ql\/hoc-vien\/(emp_[a-f0-9]+)(?:\/(tests|evaluations|probation|commitments))?$/);
       if(emp){
-        if(!requireRoles(['manager','admin']))return false;
+        if(!requireRoles(['manager']))return false;
         if(!await ensureTrainingData(path)) return false;
         var employee=await employeeFromToken(emp[1]);
-        if(!employee){modal('Không tìm thấy hồ sơ','Liên kết không còn phù hợp hoặc hồ sơ đã được cập nhật.','Mở danh sách nhân viên',function(){navigate('/employees',true);});setUrl('/employees',true);return false;}
+        if(!employee){modal('Không tìm thấy hồ sơ','Liên kết không còn phù hợp hoặc hồ sơ đã được cập nhật.','Mở danh sách nhân viên',function(){navigate('/ql/hoc-vien',true);});setUrl('/ql/hoc-vien',true);return false;}
         var tab=emp[2]||'overview';
         if(typeof window.phfTrainingRecordsOpenEmployee==='function'){
           var mapped={tests:'tests',evaluations:'evaluations',probation:'probation',commitments:'commitments',overview:'overview'}[tab]||'overview';
@@ -327,20 +678,20 @@
         }
         return true;
       }
-      var lesson=path.match(/^\/lessons\/([a-z0-9-]+)$/);
+      var lesson=path.match(/^\/hv\/bai-hoc\/([a-z0-9-]+)$/);
       if(lesson){
-        if(!requireRoles(['learner','manager','admin']))return false;
+        if(!requireRoles(['learner']))return false;
         if(!await ensureTrainingData(path)) return false;
-        if(role()==='learner' && typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
-          setUrl('/overview',true);
+        if(typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
+          setUrl('/hv',true);
           await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
-          modal('Chưa được phân công lộ trình học','Bạn chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/overview',true);});
+          modal('Chưa được phân công lộ trình học','Bạn chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv',true);});
           return false;
         }
         var idx=lessonIndex(lesson[1]);
         if(idx<0){
-          modal('Không tìm thấy bài học','Bài học không tồn tại hoặc không thuộc chương trình hiện tại.','Về bài học của tôi',function(){navigate('/my-lessons',true);});
-          setUrl('/my-lessons',true);
+          modal('Không tìm thấy bài học','Bài học không tồn tại hoặc không thuộc chương trình hiện tại.','Về bài học của tôi',function(){navigate('/hv/bai-hoc',true);});
+          setUrl('/hv/bai-hoc',true);
           await Promise.resolve(window.phfGoLearning&&window.phfGoLearning());
           return false;
         }
@@ -351,17 +702,32 @@
         else await Promise.resolve(window.phfGoLearning&&window.phfGoLearning());
         return true;
       }
-      var program=path.match(/^\/programs\/([a-z0-9_-]+)$/);
+      var program=path.match(/^\/hv\/chuong-trinh\/([a-z0-9_-]+)$/);
       if(program){
-        if(!requireRoles(['learner','manager','admin']))return false;
+        if(!requireRoles(['learner']))return false;
         var allowed=['new_sales','new_gift','new_warehouse','new_online','new_store_lead'];
-        if(allowed.indexOf(program[1])<0){setUrl('/my-lessons',true);return render('/my-lessons',true);}
+        if(allowed.indexOf(program[1])<0){setUrl('/hv/bai-hoc',true);return render('/hv/bai-hoc',true);}
         await Promise.resolve(window.phfGoLearning&&window.phfGoLearning()); return true;
       }
       if(path==='/notifications'){
         if(!requireRoles(['learner','manager','admin']))return false;
         await Promise.resolve((role()==='learner'?window.phfGoMyProfile:window.phfRenderTrainingOverview)&& (role()==='learner'?window.phfGoMyProfile():window.phfRenderTrainingOverview()));
         setTimeout(function(){var b=document.querySelector('[data-phf-notification-toggle],.phf-notification-button');if(b)b.click();},120);
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/classroom(?:\/|$)/.test(path)){
+        var classroomRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([classroomRole])) return false;
+        var allowed=false;
+        if(classroomRole==='admin') allowed=path==='/admin/classroom'||path==='/admin/classroom/de-xuat'||path==='/admin/classroom/cau-hinh'||/^\/admin\/classroom\/lop\/[^/]+$/.test(path);
+        else if(classroomRole==='manager') allowed=path==='/ql/classroom'||path==='/ql/classroom/de-xuat'||/^\/ql\/classroom\/lop\/[^/]+$/.test(path);
+        else allowed=path==='/hv/classroom'||/^\/hv\/classroom\/lop\/[^/]+$/.test(path);
+        if(!allowed){
+          var classroomHome=classroomRole==='admin'?'/admin/classroom':(classroomRole==='manager'?'/ql/classroom':'/hv/classroom');
+          setUrl(classroomHome,true);
+          path=classroomHome;
+        }
+        await Promise.resolve(renderClassroomSkeleton(path));
         return true;
       }
       if(/^\/classroom(?:\/|$)/.test(path)){
@@ -383,9 +749,17 @@
         setUrl(safeHomeForRole(),true);
         return render(safeHomeForRole(),true);
       }
-      if(path==='/admin'||path==='/admin/accounts'){
+      if(path==='/admin'){
         if(!requireRoles(['admin']))return false;
-        if(path==='/admin/accounts'&&typeof window.phfRenderAccountAdminSafe==='function') await Promise.resolve(window.phfRenderAccountAdminSafe());
+        await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+        return true;
+      }
+      if(path==='/admin/quan-tri'||path==='/admin/quan-tri/tai-khoan'||path==='/admin/quan-tri/danh-muc'||path==='/admin/quan-tri/kiem-tra'||path==='/admin/quan-tri/cau-hinh'){
+        if(!requireRoles(['admin']))return false;
+        if(path==='/admin/quan-tri/tai-khoan'&&typeof window.phfRenderAccountAdminSafe==='function') await Promise.resolve(window.phfRenderAccountAdminSafe());
+        else if(path==='/admin/quan-tri/danh-muc'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Danh mục chung'));
+        else if(path==='/admin/quan-tri/kiem-tra'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Kiểm tra'));
+        else if(path==='/admin/quan-tri/cau-hinh'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Cấu hình'));
         else await Promise.resolve(window.phfRenderAdminManagement&&window.phfRenderAdminManagement());
         return true;
       }
@@ -393,44 +767,114 @@
     }finally{
       var finalPath=cleanPath(location.pathname);
       if(runId===routeRenderSequence && window.PHFAppShell){
-        try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/classroom(?:\/|$)/.test(finalPath)});}catch(e){}
+        try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(finalPath)});}catch(e){}
       }
-      setTimeout(function(){if(runId===routeRenderSequence){applyingRoute=false;updateCopyAction();}},80);
+      if(runId===routeRenderSequence){
+        lastCommittedPath=finalPath;
+        syncRouteUi(finalPath);
+        normalizeCurrentHistoryEntry();
+        setTimeout(function(){if(runId===routeRenderSequence)syncRouteUi(cleanPath(location.pathname));},160);
+      }else{
+        /* Một lượt cũ đã kết thúc sau khi URL chuyển sang màn khác. Renderer
+           legacy có thể đã chạm DOM; render lại route hiện tại để thu hồi màn. */
+        reconcileCurrentRoute('stale-render-completed',0);
+      }
+      setTimeout(function(){
+        if(runId===routeRenderSequence){
+          applyingRoute=false;
+          updateCopyAction();
+          if(holdRouteGuard){
+            /* Gỡ guard sau hai nhịp vẽ để không xuất hiện một frame màn legacy
+               giữa trạng thái tải và màn đích. */
+            requestAnimationFrame(function(){requestAnimationFrame(function(){
+              if(runId===routeRenderSequence&&routeGuardOwnerRunId===runId){
+                routeGuardOwnerRunId=0;
+                try{document.documentElement.classList.remove('phf-route-boot-pending');}catch(e){}
+              }
+            });});
+          }
+        }
+      },80);
     }
   }
 
-  async function navigate(path,replace){
-    path=cleanPath(path); setUrl(path,!!replace); return render(path,false);
+  async function navigate(path,replace,meta){
+    path=cleanPath(path);
+    setUrl(path,!!replace);
+    try{
+      return await render(path,false,meta||{source:'user'});
+    }catch(err){
+      console.error('[PHF ROUTER] navigation failed',path,err);
+      /* Không đổi sang route khác khi renderer lỗi. Giữ URL để có thể chẩn
+         đoán, nhưng thu hồi shell/menu theo đúng route thay vì để màn trước. */
+      reconcileCurrentRoute('navigation-error',80);
+      throw err;
+    }
   }
   window.phfNavigate=navigate;
 
-  function wrap(name,pathFactory){
-    var fn=window[name]; if(typeof fn!=='function'||fn[ROUTE_MARK])return;
+  function commandWrap(name,pathFactory){
+    var fn=window[name];
+    if(typeof fn!=='function'||fn[ROUTE_MARK]) return;
     function wrapped(){
-      var args=[].slice.call(arguments), result=fn.apply(this,args);
-      if(!applyingRoute){Promise.resolve(pathFactory.apply(this,args)).then(function(path){if(path)setUrl(path,false);});}
-      return result;
+      var self=this,args=[].slice.call(arguments);
+      /* Renderer chỉ được gọi trực tiếp khi Router đang sở hữu lượt render.
+         Mọi click/legacy call bên ngoài phải đi qua navigate trước, nhờ vậy
+         URL, namespace, role guard, shell và renderer luôn cùng một trạng thái. */
+      if(applyingRoute){
+        /* Trong lúc Router đang dựng một route, callback legacy có thể hoàn tất
+           muộn và gọi renderer của màn khác. Chỉ cho gọi trực tiếp khi route
+           đích của lệnh vẫn khớp URL hiện tại. Riêng phfRenderTrainingOverview
+           của Admin là alias điều hướng sang Báo cáo, không phải renderer Báo
+           cáo, nên tuyệt đối không được chạy trực tiếp tại /admin/bao-cao. */
+        return Promise.resolve(pathFactory.apply(self,args)).then(function(path){
+          var current=cleanPath(location.pathname);
+          var target=path?cleanPath(path):'';
+          if(name==='phfRenderTrainingOverview'&&current==='/admin/bao-cao') return false;
+          if(target&&target!==current) return false;
+          return fn.apply(self,args);
+        });
+      }
+      return Promise.resolve(pathFactory.apply(self,args)).then(function(path){
+        if(!path) return fn.apply(self,args);
+        return navigate(path,false,{source:'legacy'});
+      });
     }
-    wrapped[ROUTE_MARK]=true; wrapped.__phfOriginal=fn; window[name]=wrapped;
+    wrapped[ROUTE_MARK]=true;
+    wrapped.__phfOriginal=fn;
+    window[name]=wrapped;
   }
   function installWrappers(){
-    wrap('phfRenderPostLoginHome',function(){return role()==='learner'?'/overview':'/home';});
-    wrap('phfGoLearning',function(){return '/my-lessons';});
-    wrap('phfGoMyProfile',function(){return '/my-profile';});
-    wrap('phfRenderTrainingOverview',function(){return '/overview';});
-    wrap('phfRenderTrainingLibrary',function(){return '/training-content';});
-    wrap('phfGoGuide',function(){return '/guide';});
-    wrap('phfRenderGuidePage',function(){return '/guide';});
-    wrap('phfGoDirectTrainingTest',function(){return '/direct-training-test';});
-    wrap('phfRenderDirectTrainingTestPage',function(){return '/direct-training-test';});
-    wrap('phfRenderAdminManagement',function(){return '/admin';});
-    wrap('phfRenderAccountAdminSafe',function(){return '/admin/accounts';});
-    wrap('phfTrainingRecordsOpen',function(view){return view==='employees'?'/employees':'';});
-    wrap('phfTrainingRecordsOpenEmployee',async function(id,tab){var token=await employeeToken(id),map={tests:'tests',evaluations:'evaluations',probation:'probation',commitments:'commitments',overview:''},suffix=map[tab||'overview'];return '/employees/'+token+(suffix?'/'+suffix:'');});
-    wrap('phfHubSetLearnerAndOpen',async function(id,tab){if(tab!=='evaluation')return '';return '/employees/'+await employeeToken(id)+'/evaluations';});
-    wrap('phfRenderTrainingLibraryLesson',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/lessons/'+lessonSlug(item,Number(idx));});
-    wrap('phfGo',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/lessons/'+lessonSlug(item,Number(idx));});
+    commandWrap('phfRenderPostLoginHome',function(){return safeHomeForRole();});
+    commandWrap('phfGoHome',function(){return safeHomeForRole();});
+    commandWrap('phfGoLearning',function(){return '/hv/bai-hoc';});
+    commandWrap('phfGoMyProfile',function(){return role()==='learner'?'/hv/ho-so':(role()==='manager'?'/ql/hoc-vien':'/admin/hoc-vien');});
+    commandWrap('phfRenderTrainingOverview',function(){return role()==='admin'?'/admin/bao-cao':'/ql/quan-ly';});
+    commandWrap('phfRenderTrainingLibrary',function(){return role()==='admin'?'/admin/noi-dung':'/ql/noi-dung';});
+    commandWrap('phfGoGuide',function(){return '/guide';});
+    commandWrap('phfRenderGuidePage',function(){return '/guide';});
+    commandWrap('phfGoDirectTrainingTest',function(){return role()==='admin'?'/admin/quan-tri/kiem-tra':'/direct-training-test';});
+    commandWrap('phfRenderDirectTrainingTestPage',function(){return role()==='admin'?'/admin/quan-tri/kiem-tra':'/direct-training-test';});
+    commandWrap('phfRenderAdminManagement',function(){return '/admin/quan-tri';});
+    commandWrap('phfRenderAccountAdminSafe',function(){return '/admin/quan-tri/tai-khoan';});
+    commandWrap('phfTrainingRecordsOpen',function(view){return view==='employees'?(role()==='admin'?'/admin/hoc-vien':'/ql/hoc-vien'):'';});
+    commandWrap('phfTrainingRecordsOpenEmployee',async function(id,tab){
+      if(role()==='admin'){
+        var adminToken=await employeeToken(id),adminMap={tests:'tests',evaluations:'evaluations',probation:'probation',commitments:'commitments',overview:''},adminSuffix=adminMap[tab||'overview'];
+        return '/admin/hoc-vien/'+adminToken+(adminSuffix?'/'+adminSuffix:'');
+      }
+      var token=await employeeToken(id),map={tests:'tests',evaluations:'evaluations',probation:'probation',commitments:'commitments',overview:''},suffix=map[tab||'overview'];
+      return '/ql/hoc-vien/'+token+(suffix?'/'+suffix:'');
+    });
+    commandWrap('phfHubSetLearnerAndOpen',async function(id,tab){
+      if(tab!=='evaluation') return '';
+      if(role()==='admin') return '/admin/hoc-vien/'+await employeeToken(id)+'/evaluations';
+      return '/ql/hoc-vien/'+await employeeToken(id)+'/evaluations';
+    });
+    commandWrap('phfRenderTrainingLibraryLesson',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/hv/bai-hoc/'+lessonSlug(item,Number(idx));});
+    commandWrap('phfGo',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/hv/bai-hoc/'+lessonSlug(item,Number(idx));});
   }
+
 
   function shareable(path){
     /* Tắt hoàn toàn chức năng Sao chép liên kết trên toàn hệ thống. */
@@ -478,14 +922,14 @@
     var stored=''; try{stored=sessionStorage.getItem('phfRouteReturnTo')||'';}catch(e){}
     var target=stored||pendingPath;
     if(target&&target!=='/login'){
-      var result=await navigate(target,true);
+      var result=await navigate(target,true,{source:'restore'});
       try{sessionStorage.removeItem('phfRouteReturnTo');}catch(e){}
       pendingPath='';
       return result;
     }
     pendingPath='';
-    if(location.pathname==='/login') return navigate(safeHomeForRole(),true);
-    return render(location.pathname,true);
+    if(location.pathname==='/login') return navigate(safeHomeForRole(),true,{source:'restore'});
+    return render(location.pathname,true,{source:'restore'});
   }
   window.addEventListener('phf-auth-changed',function(e){
     /* Đăng nhập thành công đã được phf-server-auth gọi qua
@@ -500,13 +944,21 @@
   window.addEventListener('popstate',function(){
     var run=++popstateRun;
     var path=cleanPath(location.pathname);
-    Promise.resolve(render(path,true)).then(function(){
-      if(run===popstateRun) normalizeCurrentHistoryEntry();
-    }).catch(function(){
+    /* Tăng sequence ngay khi người dùng Back/Forward để mọi renderer đang chờ
+       dữ liệu biết rằng lượt của nó đã cũ, kể cả trước khi render mới bắt đầu. */
+    routeRenderSequence++;
+    applyingRoute=false;
+    Promise.resolve(render(path,true,{source:'popstate'})).then(function(){
+      if(run===popstateRun){
+        lastCommittedPath=cleanPath(location.pathname);
+        normalizeCurrentHistoryEntry();
+      }
+    }).catch(function(err){
       if(run!==popstateRun) return;
+      console.error('[PHF ROUTER] popstate render failed',err);
       var fallback=safeHomeForRole();
       setUrl(fallback,true);
-      render(fallback,true);
+      render(fallback,true,{source:'popstate-fallback'});
     });
   });
 
@@ -528,8 +980,13 @@
   }
 
   async function boot(){
+    if(routerStarted) return true;
+    routerStarted=true;
+    currentRenderSource='boot';
     installLegacyHistoryGuard();
+    installPageShowGuard();
     normalizeCurrentHistoryEntry();
+    lastCommittedPath='';
     migrateRouteStorage();
     /* Router được nạp sau các module chính nên chỉ cần bọc hàm một lần.
        Không chạy MutationObserver toàn trang khi mỗi màn render, tránh công
@@ -552,7 +1009,7 @@
            nhập tại đây mà không có returnTo, không được coi / là màn cần
            khôi phục; phải để luồng đăng nhập mở trang mặc định theo vai trò. */
         if(target&&target!=='/login'&&target!=='/'){
-          await navigate(target,true);
+          await navigate(target,true,{source:'restore'});
           try{sessionStorage.removeItem('phfRouteReturnTo');}catch(e){}
           pendingPath='';
           return true;
@@ -566,24 +1023,25 @@
     };
     await waitUntilReady();
     installWrappers();
-    var current=cleanPath(location.pathname);
-    /* Auth đã dựng trực tiếp route đầu tiên (đặc biệt /admin/accounts) thì
-       router không render chồng thêm một lần sau F5. */
-    if(window.__phfAuthHandledInitialRoute){
-      window.__phfAuthHandledInitialRoute=false;
-      updateCopyAction();
-      releaseBootGuard();
-      return;
+
+    /* 1.0.20 - Một chủ sở hữu cho lần dựng đầu tiên sau F5.
+       phf-server-auth là nơi duy nhất thực hiện:
+       session -> role -> restore deep link -> đóng intro -> render màn.
+       Router chỉ đăng ký hàm phục hồi ở phía trên và xử lý các điều hướng
+       phát sinh sau khi ứng dụng đã sẵn sàng (click, Back/Forward). Không gọi
+       render(current) lần thứ hai tại đây vì lần render chồng có thể bật lại
+       intro, đổi route hoặc đưa sai vai trò sang màn khác. */
+    if(cleanPath(location.pathname)==='/login'&&!authenticated()){
+      try{
+        var q=new URLSearchParams(location.search).get('returnTo');
+        if(q){pendingPath=safeReturnTo(q);sessionStorage.setItem('phfRouteReturnTo',pendingPath);}
+      }catch(e){}
     }
-    if(current==='/login'&&!authenticated()){
-      try{var q=new URLSearchParams(location.search).get('returnTo');if(q){pendingPath=safeReturnTo(q);sessionStorage.setItem('phfRouteReturnTo',pendingPath);}}catch(e){}
-    }
-    try{
-      await render(current,true);
-      updateCopyAction();
-    }finally{
-      releaseBootGuard();
-    }
+    window.__phfAuthHandledInitialRoute=false;
+    updateCopyAction();
+    /* Không gỡ boot guard tại đây. Auth sẽ gỡ sau khi route đầu tiên đã render
+       xong; gỡ sớm chính là nguyên nhân lộ màn mặc định trước màn đích. */
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  window.phfStartUrlRouter=boot;
+  window.phfUrlRouterReady=true;
 })();

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- PHF VERSION 59.6 - Manager Actions and Progress Layout -->
 <html lang="vi">
 <head>
 <base href="/">
@@ -1066,6 +1067,13 @@ window.__phfBootGuardTimer=setTimeout(function(){
   }
 </style>
 
+<style id="phf-61-0-atomic-main-nav-css">
+  /* 61.0: Menu quyền chỉ xuất hiện sau khi toàn bộ nút đã được đồng bộ. */
+  .phf-main-nav.phf-nav-preparing{
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+</style>
 
 <style id="phf-ban14b-clean-overview-test-css">
   /* PHF Bản 14B: Tổng quan chỉ theo dõi/báo cáo; Kiểm tra cấu hình nằm trong Quản trị */
@@ -2249,6 +2257,544 @@ window.__phfBootGuardTimer=setTimeout(function(){
 <style id="phf-info-page-actions-style">
 .phf-info-page-actions{align-items:center;gap:14px;flex-wrap:wrap}.phf-info-action-hint{font-size:14px;line-height:1.5;color:#49645a;max-width:560px}.phf-inline-info-form .phf-info-confirm-btn,[data-go="ruleTimePage"]{font:inherit}
 </style>
+
+<style id="phf-design-system-59-5">
+  :root{
+    --phf-page-max:1280px;
+    --phf-space-1:6px;
+    --phf-space-2:10px;
+    --phf-space-3:14px;
+    --phf-space-4:18px;
+    --phf-space-5:24px;
+    --phf-radius-sm:8px;
+    --phf-radius-md:12px;
+    --phf-radius-lg:18px;
+    --phf-border:#d8e7df;
+    --phf-surface:#ffffff;
+    --phf-surface-soft:#f7faf8;
+    --phf-text:#123d31;
+    --phf-muted:#657a72;
+    --phf-green:#07543e;
+    --phf-danger:#b42318;
+  }
+
+  /* Khung cấp trang dùng chung */
+  body.phf-main-shell-mode .eval-admin-page,
+  body.phf-main-shell-mode .phf-acct-safe-shell,
+  body.phf-main-shell-mode .phf-module-page,
+  body.phf-main-shell-mode .phf-classroom-shell{
+    width:min(var(--phf-page-max),calc(100% - 40px));
+    max-width:var(--phf-page-max);
+    margin-inline:auto;
+    box-sizing:border-box;
+  }
+  .eval-admin-main,
+  .hub-report-page,
+  .hub-overview-page,
+  .phf-acct-safe-page,
+  .phf-acct-safe-panel{
+    min-width:0;
+    max-width:100%;
+  }
+  .hub-dashboard-hero,
+  .phf-lib-hero{
+    border-radius:var(--phf-radius-lg)!important;
+    padding:24px 26px!important;
+    gap:20px!important;
+  }
+  .hub-panel,
+  .hub-kpi,
+  .hub-report-metric,
+  .hub-report-main-card,
+  .phf-acct-safe-panel{
+    border-radius:var(--phf-radius-md)!important;
+  }
+  .hub-panel-head,
+  .hub-report-table-note{
+    padding:16px 18px!important;
+  }
+  .hub-chart-box,
+  .hub-panel>.hub-bar-list{
+    padding:16px 18px 18px!important;
+  }
+
+  /* Progress row: label - thanh - số, không dính chữ */
+  .hub-bar-list{
+    display:grid!important;
+    gap:12px!important;
+    min-width:0!important;
+    overflow:visible!important;
+  }
+  .hub-bar-row{
+    display:grid!important;
+    grid-template-columns:minmax(118px,170px) minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:14px!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  .hub-bar-label{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:8px!important;
+    min-width:0!important;
+  }
+  .hub-bar-label>span{
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    color:#40574f!important;
+    font-size:13px!important;
+    font-weight:700!important;
+    text-align:left!important;
+  }
+  .hub-bar-label>b{
+    min-width:26px!important;
+    color:var(--phf-green)!important;
+    font-size:13px!important;
+    font-weight:800!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+  }
+  .hub-bar-track{
+    width:100%!important;
+    min-width:0!important;
+    height:10px!important;
+    border-radius:999px!important;
+    background:#edf2ef!important;
+    overflow:hidden!important;
+  }
+  .hub-bar-track>span{
+    display:block!important;
+    height:100%!important;
+    min-width:4px!important;
+    border-radius:999px!important;
+    background:var(--phf-green)!important;
+  }
+  .phf-report-compact-note{
+    margin:0 18px 16px!important;
+    color:var(--phf-muted)!important;
+    line-height:1.45!important;
+  }
+
+  /* Chip system dùng chung */
+  .phf-chip,
+  .hub-status-pill,
+  .hub-report-status,
+  .phf-acct-safe-chip,
+  .phf-bulk-chip,
+  .phf-badge,
+  .badge{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:28px!important;
+    padding:4px 10px!important;
+    border-radius:999px!important;
+    border-width:1px!important;
+    font-size:12px!important;
+    line-height:1.2!important;
+    font-weight:750!important;
+    white-space:nowrap!important;
+    box-sizing:border-box!important;
+  }
+  .hub-status-pill.done,
+  .hub-report-status.ok,
+  .phf-chip.done,
+  .phf-chip.complete,
+  .phf-chip.completed{
+    color:#176334!important;background:#edf8ef!important;border-color:#b8dec2!important;
+  }
+  .hub-status-pill.due,
+  .hub-report-status.warn,
+  .phf-chip.warn{
+    color:#8a5a00!important;background:#fff7e6!important;border-color:#efc678!important;
+  }
+  .hub-status-pill.overdue,
+  .hub-report-status.bad,
+  .phf-chip.danger{
+    color:#a32020!important;background:#fff1f1!important;border-color:#f1b2b2!important;
+  }
+  .hub-report-status.info,
+  .phf-chip.blue{
+    color:#175cd3!important;background:#eef6ff!important;border-color:#b8d6ff!important;
+  }
+  .hub-status-pill.missing,
+  .phf-chip.muted{
+    color:#60756c!important;background:#f7faf8!important;border-color:#ddeae4!important;
+  }
+
+  /* Form Admin: label rõ, dấu bắt buộc màu đỏ */
+  .phf-acct-safe-form .phf-acct-safe-field>label,
+  .phf-cat-form .phf-acct-safe-field>label,
+  .phf-bulk-page .phf-acct-safe-field>label{
+    display:block!important;
+    margin-bottom:7px!important;
+    color:#24483d!important;
+    font-size:13px!important;
+    line-height:1.35!important;
+    font-weight:750!important;
+  }
+  .phf-acct-safe-field>label span[aria-hidden="true"]{
+    color:#d92d20!important;
+    font-weight:900!important;
+  }
+  .phf-acct-safe-field small{
+    display:block!important;
+    margin-top:6px!important;
+    color:#667a72!important;
+    line-height:1.45!important;
+    font-weight:500!important;
+  }
+  .phf-acct-safe-form{
+    gap:16px!important;
+  }
+  .phf-acct-safe-two{
+    gap:14px!important;
+  }
+  .phf-acct-safe-field input,
+  .phf-acct-safe-field select,
+  .phf-acct-safe-field textarea{
+    min-height:42px!important;
+    border-radius:10px!important;
+  }
+
+  /* Bảng và vùng cuộn an toàn */
+  .eval-table-wrap,
+  .phf-acct-safe-tablebox{
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overscroll-behavior-inline:contain;
+  }
+  .hub-action-table,
+  .hub-report-table,
+  .phf-acct-safe-table{
+    border-collapse:separate!important;
+    border-spacing:0!important;
+  }
+  .hub-action-table th,
+  .hub-action-table td,
+  .phf-acct-safe-table th,
+  .phf-acct-safe-table td{
+    padding:13px 14px!important;
+    line-height:1.4!important;
+  }
+
+  @media(max-width:1100px){
+    body.phf-main-shell-mode .eval-admin-page,
+    body.phf-main-shell-mode .phf-acct-safe-shell,
+    body.phf-main-shell-mode .phf-module-page,
+    body.phf-main-shell-mode .phf-classroom-shell{
+      width:min(100% - 28px,var(--phf-page-max));
+    }
+    .hub-report-top{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  }
+  @media(max-width:760px){
+    body.phf-main-shell-mode .eval-admin-page,
+    body.phf-main-shell-mode .phf-acct-safe-shell,
+    body.phf-main-shell-mode .phf-module-page,
+    body.phf-main-shell-mode .phf-classroom-shell{
+      width:calc(100% - 20px);
+    }
+    .hub-dashboard-hero,.phf-lib-hero{padding:20px!important}
+    .hub-report-top,.hub-report-grid{grid-template-columns:1fr!important}
+    .hub-bar-row{grid-template-columns:1fr!important;gap:7px!important}
+    .hub-bar-label{grid-template-columns:minmax(0,1fr) auto!important}
+    .phf-acct-safe-two{grid-template-columns:1fr!important}
+  }
+</style>
+
+
+<style id="phf-ui-fix-59-6">
+  /* 59.6: action button chuẩn cho bảng Học viên khu Quản lý/Admin */
+  .hub-action-table td:last-child button,
+  .hub-action-table td:last-child a,
+  .eval-table-wrap table td:last-child button,
+  .eval-table-wrap table td:last-child a{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:32px!important;
+    padding:5px 12px!important;
+    border:1px solid #cfe2d9!important;
+    border-radius:9px!important;
+    background:#fff!important;
+    color:#07543e!important;
+    font-size:13px!important;
+    line-height:1.2!important;
+    font-weight:650!important;
+    text-decoration:none!important;
+    white-space:nowrap!important;
+    cursor:pointer!important;
+    box-shadow:none!important;
+  }
+  .hub-action-table td:last-child button:hover,
+  .hub-action-table td:last-child a:hover,
+  .eval-table-wrap table td:last-child button:hover,
+  .eval-table-wrap table td:last-child a:hover{
+    background:#eef7f2!important;
+    border-color:#9fc9b8!important;
+  }
+  .hub-action-table td:last-child button:focus-visible,
+  .hub-action-table td:last-child a:focus-visible,
+  .eval-table-wrap table td:last-child button:focus-visible,
+  .eval-table-wrap table td:last-child a:focus-visible{
+    outline:3px solid rgba(7,84,62,.16)!important;
+    outline-offset:2px!important;
+  }
+
+  /* 59.6: progress row không cắt nhãn, số có cột riêng, thanh luôn đủ rộng */
+  .hub-report-grid{
+    align-items:stretch!important;
+  }
+  .hub-chart-box,
+  .hub-panel>.hub-bar-list{
+    min-width:0!important;
+    overflow:visible!important;
+  }
+  .hub-bar-row{
+    grid-template-columns:minmax(180px,220px) minmax(160px,1fr)!important;
+    gap:16px!important;
+    align-items:center!important;
+  }
+  .hub-bar-label{
+    grid-template-columns:minmax(0,1fr) minmax(30px,auto)!important;
+    gap:10px!important;
+    align-items:center!important;
+  }
+  .hub-bar-label>span{
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:normal!important;
+    word-break:normal!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.3!important;
+    min-height:18px!important;
+  }
+  .hub-bar-label>b{
+    min-width:30px!important;
+    text-align:right!important;
+  }
+  .hub-bar-track{
+    min-width:160px!important;
+  }
+
+  @media(max-width:1180px){
+    .hub-report-grid{grid-template-columns:1fr!important}
+    .hub-bar-row{grid-template-columns:minmax(190px,240px) minmax(180px,1fr)!important}
+  }
+  @media(max-width:700px){
+    .hub-bar-row{grid-template-columns:1fr!important;gap:8px!important}
+    .hub-bar-label{grid-template-columns:minmax(0,1fr) auto!important}
+    .hub-bar-track{min-width:0!important;width:100%!important}
+  }
+</style>
+
+
+<style id="phf-standard-module-hero-css">
+  /* PHF UI: chỉ đồng bộ hero cấp module; không tác động dữ liệu, route hay nghiệp vụ. */
+  body .phf-standard-module-hero{
+    display:flex!important;
+    justify-content:space-between!important;
+    align-items:flex-start!important;
+    gap:18px!important;
+    position:relative!important;
+    overflow:hidden!important;
+    isolation:isolate!important;
+    background:linear-gradient(135deg,#07543e 0%,#0a6a4c 58%,#0f7b5b 100%)!important;
+    color:#fff!important;
+    border:0!important;
+    border-radius:22px!important;
+    padding:24px 26px!important;
+    box-shadow:0 16px 38px rgba(5,75,52,.16)!important;
+  }
+  body .phf-standard-module-hero::after{
+    content:""!important;
+    position:absolute!important;
+    z-index:0!important;
+    right:-70px!important;
+    top:-80px!important;
+    width:240px!important;
+    height:240px!important;
+    border-radius:999px!important;
+    background:rgba(255,255,255,.10)!important;
+    pointer-events:none!important;
+  }
+  body .phf-standard-module-hero > *{position:relative!important;z-index:1!important}
+  body .phf-standard-module-hero h2{
+    margin:6px 0 8px!important;
+    color:#fff!important;
+    font-size:28px!important;
+    line-height:1.15!important;
+    font-weight:600!important;
+    letter-spacing:-.02em!important;
+    text-shadow:none!important;
+  }
+  body .phf-standard-module-hero p{
+    max-width:980px!important;
+    margin:0!important;
+    color:rgba(255,255,255,.90)!important;
+    font-size:16px!important;
+    line-height:1.6!important;
+    font-weight:400!important;
+  }
+  body .phf-standard-module-kicker{
+    display:inline-flex!important;
+    align-items:center!important;
+    width:auto!important;
+    padding:6px 10px!important;
+    border:0!important;
+    border-radius:999px!important;
+    background:rgba(255,255,255,.13)!important;
+    color:#fff!important;
+    font-size:12px!important;
+    font-weight:560!important;
+    line-height:1.2!important;
+    letter-spacing:.02em!important;
+  }
+  body .phf-standard-module-role{
+    flex:0 0 auto!important;
+    min-width:190px!important;
+    padding:12px 14px!important;
+    border:0!important;
+    border-radius:16px!important;
+    background:rgba(255,255,255,.96)!important;
+    color:#07543e!important;
+    text-align:center!important;
+    font-weight:600!important;
+    box-shadow:none!important;
+  }
+  body .phf-standard-module-role small{
+    display:block!important;
+    margin-top:4px!important;
+    color:#64766e!important;
+    font-weight:400!important;
+  }
+  @media(max-width:900px){
+    body .phf-standard-module-hero{flex-direction:column!important;padding:22px!important}
+    body .phf-standard-module-role{min-width:0!important;text-align:left!important}
+  }
+  @media(max-width:640px){
+    body .phf-standard-module-hero h2{font-size:24px!important}
+    body .phf-standard-module-hero p{font-size:15px!important}
+  }
+</style>
+
+
+<style id="phf-report-ui-60-3">
+  /* 60.3: chỉ tinh chỉnh UI trong trang Báo cáo; không thay đổi dữ liệu hay sự kiện. */
+  .hub-report-page .phf-report-summary-list{
+    display:grid;
+    gap:14px;
+    padding:18px 22px 16px;
+  }
+  .hub-report-page .phf-report-summary-row{
+    display:grid;
+    grid-template-columns:minmax(140px,180px) 42px minmax(180px,1fr);
+    align-items:center;
+    gap:14px;
+    min-width:0;
+  }
+  .hub-report-page .phf-report-summary-label{
+    color:#334f45;
+    font-size:14px;
+    line-height:1.35;
+    font-weight:650;
+    white-space:nowrap;
+  }
+  .hub-report-page .phf-report-summary-count{
+    color:#07543e;
+    font-size:14px;
+    line-height:1;
+    text-align:right;
+    font-weight:750;
+    white-space:nowrap;
+  }
+  .hub-report-page .phf-report-summary-track{
+    width:100%;
+    min-width:0;
+    height:10px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#eaf1ed;
+  }
+  .hub-report-page .phf-report-summary-fill{
+    display:block;
+    height:100%;
+    min-width:0!important;
+    border-radius:999px;
+    background:#087055;
+    transition:width .2s ease;
+  }
+  .hub-report-page .hub-report-grid>.hub-panel{
+    display:flex;
+    flex-direction:column;
+    min-height:310px;
+  }
+  .hub-report-page .phf-report-compact-note{
+    margin-top:auto!important;
+    padding-top:4px;
+  }
+  .hub-report-page .hub-report-action-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:nowrap;
+  }
+  .hub-report-page .phf-report-action-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:34px;
+    padding:6px 12px;
+    border:1px solid #bfd9ce;
+    border-radius:9px;
+    background:#fff;
+    color:#07543e;
+    font:inherit;
+    font-size:13px;
+    line-height:1.2;
+    font-weight:650;
+    white-space:nowrap;
+    cursor:pointer;
+    box-shadow:none;
+  }
+  .hub-report-page .phf-report-action-btn:hover{
+    background:#eef7f2;
+    border-color:#8fbea9;
+  }
+  .hub-report-page .phf-report-action-btn.is-primary{
+    border-color:#07543e;
+    background:#07543e;
+    color:#fff;
+  }
+  .hub-report-page .phf-report-action-btn.is-primary:hover{
+    background:#064633;
+    border-color:#064633;
+  }
+  .hub-report-page .phf-report-action-btn:focus-visible{
+    outline:3px solid rgba(7,84,62,.16);
+    outline-offset:2px;
+  }
+  @media(max-width:1180px){
+    .hub-report-page .phf-report-summary-row{
+      grid-template-columns:minmax(160px,210px) 42px minmax(160px,1fr);
+    }
+  }
+  @media(max-width:760px){
+    .hub-report-page .phf-report-summary-list{padding:16px 18px}
+    .hub-report-page .phf-report-summary-row{
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px 12px;
+    }
+    .hub-report-page .phf-report-summary-label{white-space:normal}
+    .hub-report-page .phf-report-summary-track{grid-column:1 / -1}
+    .hub-report-page .hub-report-grid>.hub-panel{min-height:0}
+  }
+</style>
 </head>
 <body class="phf-intro-active">
 
@@ -2347,9 +2893,6 @@ window.__phfBootGuardTimer=setTimeout(function(){
     </section>
   </main>
 </section>
-    </div>
-  </main>
-</section>
 
 <script>
 (function phfFeatureIntroScenes(){
@@ -2382,14 +2925,15 @@ window.__phfBootGuardTimer=setTimeout(function(){
   <header class="topbar phf-site-header">
     <button type="button" class="brand phf-logo-home" onclick="phfGoIntroWelcome()" title="Về trang giới thiệu PHF"><div class="logo"><img src="assets/logo/phf-logo.png" alt="Phuhoa Fresh" onerror="this.style.display='none';this.closest('.logo,.phf-intro-brand,.phf-phone-entry-head,.phf-role-dialog-brand,.phf-print-logo')?.classList.add('phf-logo-fallback')"></div><div><h1>PHF Training Hub</h1><p>Cổng đào tạo nội bộ PHUHOA FRESH</p></div></button>
     <button class="phf-mobile-menu-toggle phf-app-menu-toggle" type="button" aria-expanded="false" aria-label="Mở menu điều hướng">☰ Menu</button>
-    <nav class="phf-main-nav" aria-label="Điều hướng chính">
-      <button type="button" data-phf-main-nav="intro" onclick="phfRenderPostLoginHome()">Trang chủ</button>
-      <button type="button" class="active" data-phf-main-nav="learning" onclick="phfGoLearning()">Bài học</button>
-      <button type="button" data-phf-main-nav="profile" onclick="phfGoMyProfile()">Hồ sơ</button>
-      <button type="button" data-phf-main-nav="trainingLibrary" onclick="phfRenderTrainingLibrary()">Nội dung đào tạo</button>
-      <button type="button" data-phf-main-nav="reports" onclick="phfRenderTrainingOverview()">Tổng quan</button>
-      <button type="button" data-phf-main-nav="admin" onclick="phfRenderAdminManagement()">Quản trị</button>
-      <button type="button" data-phf-main-nav="guide" onclick="phfGoGuide()">Hướng dẫn</button>
+    <nav class="phf-main-nav phf-nav-preparing" aria-label="Điều hướng chính">
+      <button type="button" data-phf-main-nav="intro" onclick="phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv')">Trang chủ</button>
+      <button type="button" data-phf-main-nav="workspace" style="display:none">Khu chức năng</button>
+      <button type="button" class="active" data-phf-main-nav="learning" onclick="phfNavigate('/hv/bai-hoc')">Bài học</button>
+      <button type="button" data-phf-main-nav="profile" onclick="phfNavigate('/hv/ho-so')">Hồ sơ</button>
+      <button type="button" data-phf-main-nav="trainingLibrary" onclick="phfNavigate('/ql/noi-dung')">Nội dung đào tạo</button>
+      <button type="button" data-phf-main-nav="reports" onclick="phfNavigate('/ql/bao-cao')">Báo cáo</button>
+      <button type="button" data-phf-main-nav="admin" onclick="phfNavigate('/admin/quan-tri')">Quản trị</button>
+      <button type="button" data-phf-main-nav="guide" onclick="phfNavigate('/guide')">Hướng dẫn</button>
       </nav>
     <button type="button" class="phf-login-entry" onclick="phfGoLogin()"><span>Đăng nhập</span><small id="miniStatus">Tài khoản</small></button>
   </header>
@@ -2408,7 +2952,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
 
 <!-- PHF Classroom dùng shell riêng, ngang cấp với Training Hub app. -->
 <script>
-/* PHF Classroom 1.0.17: shell controller duy nhất, URL là nguồn trạng thái. */
+/* PHF Classroom 59.2: mount-first shell controller, URL là nguồn trạng thái. */
 (function(){
   'use strict';
   var HUB_TITLE = document.title || 'PHF Training Hub';
@@ -2417,7 +2961,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
     if(p.length>1) p=p.replace(/\/$/,'');
     return p||'/';
   }
-  function isClassroom(path){ return /^\/classroom(?:\/|$)/.test(cleanPath(path)); }
+  function isClassroom(path){ return /^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(cleanPath(path)); }
   function sync(path, options){
     options=options||{};
     var active=isClassroom(path||location.pathname);
@@ -2446,7 +2990,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
     return active;
   }
   window.PHFAppShell={
-    version:'1.0.17',
+    version:'59.2',
     cleanPath:cleanPath,
     isClassroomRoute:isClassroom,
     syncFromRoute:sync,
@@ -2473,9 +3017,10 @@ function goToTrainingEntry(){
 }
 function phfGoIntroWelcome(){
   let hasRole = false;
-  try{ hasRole = (typeof window.phfHasAuthenticatedSession === 'function') ? !!window.phfHasAuthenticatedSession() : !!localStorage.getItem('phfSimpleTestLoginEmail'); }catch(e){}
-  if(window.__phfTrainingEntryReady || hasRole){
-    if(typeof window.phfRenderPostLoginHome === 'function') return window.phfRenderPostLoginHome();
+  try{ hasRole = (typeof window.phfHasAuthenticatedSession === 'function') ? !!window.phfHasAuthenticatedSession() : false; }catch(e){}
+  if(hasRole){
+    if(typeof window.phfNavigate === 'function') return window.phfNavigate('/home', true);
+    return false;
   }
   const intro = document.getElementById('introSection');
   if(intro){ intro.hidden = false; }
@@ -2589,9 +3134,9 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-evaluation.js?v=1_0_5_admin_learner_simulation"></script>
+<script src="assets/js/phf-evaluation.js?v=60.7_route_owner"></script>
 <script src="assets/js/phf-learner-app.js?v=1.0.18_f5_session_guard"></script>
-<script src="assets/js/phf-training-records.js?v=1_0_13_quiz_display_names"></script>
+<script src="assets/js/phf-training-records.js?v=60.5_probation_ui_spacing"></script>
 <script src="assets/js/phf-notifications.js?v=27_1_ui_system_polish_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=1.0.5.3.2_new_learner_zero"></script>
 <script src="assets/js/phf-quiz-engine.js?v=1.0.6_completed_state"></script>
@@ -2731,52 +3276,10 @@ function render(){
     return 'Đang tải dữ liệu học tập...';
   }
 
-  function wrap(name, activeKey){
-    var old = window[name];
-    if(typeof old !== 'function' || old.__phfStage311Wrapped) return;
-    var fn = function(){
-      if(window.PHFAppShell && window.PHFAppShell.isClassroomRoute(location.pathname)) return false;
-      var smoothLoad = phfShouldSmoothLoad(activeKey);
-      if(smoothLoad) phfShowViewLoading(phfLoadingMessageFor(activeKey));
-      phfEnsureSharedShell(activeKey);
-      var r = old.apply(this, arguments);
-      phfAfterSharedRender(activeKey);
-      if(smoothLoad) phfHideViewLoading(280);
-      return r;
-    };
-    fn.__phfStage311Wrapped = true;
-    window[name] = fn;
-  }
-
-  // Tất cả trang/module chính đi qua cùng shell/header chung.
-  wrap('phfGoHome','home');
-  wrap('phfGoLearning','learning');
-  wrap('phfGoMyProfile','profile');
-  wrap('phfGoGuide','guide');
-  wrap('phfGoDirectTrainingTest','directTrainingTest');
-  wrap('phfRenderTrainingOverview','reports');
-  wrap('phfRenderTrainingReports','reports');
-  wrap('renderEvaluationRecords','profile');
-
-  // Trang Giới thiệu là ngoại lệ có intro riêng; khi rời intro các trang khác dùng shell chung.
-  var oldIntro = window.phfGoIntroWelcome;
-  if(typeof oldIntro === 'function' && !oldIntro.__phfStage311IntroWrapped){
-    var introFn = function(){
-      try{ document.body.classList.remove('phf-main-shell-mode','phf-module-page-mode','phf-eval-mode'); }catch(e){}
-      var r = oldIntro.apply(this, arguments);
-      setTimeout(function(){
-        try{ if(typeof window.phfSetMainNavActive === 'function') window.phfSetMainNavActive('intro'); }catch(e){}
-        phfApplyFontBaseline();
-      },0);
-      return r;
-    };
-    introFn.__phfStage311IntroWrapped = true;
-    window.phfGoIntroWelcome = introFn;
-  }
+  /* Giai đoạn 1: không bọc renderer. Router quyết định route; renderer chỉ dựng màn. */
 
   document.addEventListener('DOMContentLoaded', function(){
     phfApplyFontBaseline();
-    if(!document.body.classList.contains('phf-intro-active')) phfEnsureSharedShell('home');
   });
   setTimeout(phfApplyFontBaseline, 0);
 })();
@@ -2879,15 +3382,6 @@ function render(){
   }
   function install(){
     patchToastFont();
-    wrapFunction('phfGoIntroWelcome','intro');
-    wrapFunction('phfGoHome','home');
-    wrapFunction('phfGoLearning','learning');
-    wrapFunction('phfGoMyProfile','profile');
-    wrapFunction('phfGoGuide','guide');
-    wrapFunction('phfGoDirectTrainingTest','directTrainingTest');
-    wrapFunction('phfRenderTrainingOverview','reports');
-    wrapFunction('phfRenderTrainingReports','reports');
-    wrapFunction('renderEvaluationRecords','profile');
     applyFont(document);
   }
   document.addEventListener('click', function(e){
@@ -2908,82 +3402,7 @@ function render(){
 
 
 <!-- PHF STAGE 3.13.8: Tách module ngoài học khỏi learning shell trước giai đoạn dùng thử -->
-<script>
-(function(){
-  function setModuleShell(activeKey){
-    try{
-      if(window.PHFAppShell && window.PHFAppShell.isClassroomRoute(location.pathname)) return false;
-      document.body.classList.remove('phf-learning-mode','phf-original-full-mode','phf-guide-intro-active','phf-landing-active');
-      document.body.classList.add('phf-main-shell-mode','phf-module-page-mode','phf-eval-mode');
-      if(activeKey === 'guide') document.body.classList.add('phf-guide-standalone-mode');
-      else document.body.classList.remove('phf-guide-standalone-mode');
-      var intro = document.getElementById('introSection');
-      if(intro) intro.hidden = true;
-      var app = document.querySelector('.app');
-      if(app) app.hidden = false;
-      if(typeof window.phfCloseMobileMenus === 'function') window.phfCloseMobileMenus();
-      window.__phfTrainingEntryReady = true;
-    }catch(e){}
-  }
-  function setLearningShell(){
-    try{
-      if(window.PHFAppShell && window.PHFAppShell.isClassroomRoute(location.pathname)) return false;
-      document.body.classList.remove('phf-module-page-mode','phf-eval-mode','phf-guide-standalone-mode','phf-original-full-mode');
-      document.body.classList.add('phf-main-shell-mode','phf-learning-mode');
-      var intro = document.getElementById('introSection');
-      if(intro) intro.hidden = true;
-      var app = document.querySelector('.app');
-      if(app) app.hidden = false;
-      if(typeof window.phfCloseMobileMenus === 'function') window.phfCloseMobileMenus();
-      window.__phfTrainingEntryReady = true;
-    }catch(e){}
-  }
-  function clearMainActiveForOverview(){
-    try{ document.querySelectorAll('[data-phf-main-nav]').forEach(function(btn){ btn.classList.remove('active'); }); }catch(e){}
-  }
-  if(typeof window.phfSetMainNavActive === 'function' && !window.phfSetMainNavActive.__phfStage3138){
-    var oldActive = window.phfSetMainNavActive;
-    window.phfSetMainNavActive = function(key){
-      var normalizedKey = key === 'overview' ? 'reports' : key;
-      return oldActive.call(this, normalizedKey);
-    };
-    window.phfSetMainNavActive.__phfStage3138 = true;
-  }
-  function wrap(name, mode){
-    var fn = window[name];
-    if(typeof fn !== 'function' || fn.__phfStage3138) return;
-    var w = function(){
-      if(mode === 'learning') setLearningShell(); else setModuleShell(mode);
-      var out = fn.apply(this, arguments);
-      setTimeout(function(){
-        if(mode === 'learning') setLearningShell(); else setModuleShell(mode);
-        if(mode === 'home') clearMainActiveForOverview();
-      },0);
-      return out;
-    };
-    w.__phfStage3138 = true;
-    window[name] = w;
-  }
-  wrap('phfRenderTrainingOverview','reports');
-  wrap('phfGoHome','home');
-  wrap('phfRenderTrainingReports','reports');
-  wrap('phfGoMyProfile','profile');
-  wrap('renderEvaluationRecords','profile');
-  wrap('phfGoGuide','guide');
-  wrap('phfRenderGuidePage','guide');
-  wrap('phfGoDirectTrainingTest','directTrainingTest');
-  wrap('phfRenderDirectTrainingTestPage','directTrainingTest');
-  wrap('phfGoLearning','learning');
-  try{
-    var oldEnsure = window.phfEnsureSharedShell;
-    window.phfEnsureSharedShell = function(activeKey){
-      if(activeKey === 'learning') return setLearningShell();
-      if(activeKey === 'intro' && typeof oldEnsure === 'function') return oldEnsure.apply(this, arguments);
-      return setModuleShell(activeKey || 'home');
-    };
-  }catch(e){}
-})();
-</script>
+<!-- PHF 1.0.22: removed duplicate Stage3138 shell wrapper -->
 
 
 <!-- PHF STAGE 3.14.3: hard fix refresh/F5 learning shell after image/logo patches -->
@@ -3172,6 +3591,33 @@ function render(){
     if(handler) btn.onclick = handler;
   }
 
+  var lastAppliedRole = '';
+  var revealFrame = 0;
+
+  function setRoleClass(role){
+    var body = document.body;
+    if(!body) return;
+    body.classList.remove('phf-role-admin','phf-role-manager','phf-role-learner');
+    if(role === 'admin') body.classList.add('phf-role-admin');
+    else if(role === 'manager') body.classList.add('phf-role-manager');
+    else body.classList.add('phf-role-learner');
+  }
+
+  function revealMenu(nav, role){
+    if(!nav) return;
+    if(revealFrame) cancelAnimationFrame(revealFrame);
+    revealFrame = requestAnimationFrame(function(){
+      revealFrame = requestAnimationFrame(function(){
+        nav.classList.remove('phf-nav-preparing');
+        nav.style.removeProperty('visibility');
+        nav.style.removeProperty('pointer-events');
+        nav.setAttribute('data-phf-menu-ready', role || 'ready');
+        lastAppliedRole = role || '';
+        revealFrame = 0;
+      });
+    });
+  }
+
   function applyMenu(){
     var user = currentUser();
     var nav = document.querySelector('.phf-main-nav');
@@ -3205,43 +3651,88 @@ function render(){
 
     if(!nav) return;
     if(!user){
+      if(revealFrame){ cancelAnimationFrame(revealFrame); revealFrame = 0; }
+      nav.classList.add('phf-nav-preparing');
       nav.style.setProperty('display','none','important');
+      nav.removeAttribute('data-phf-menu-ready');
+      lastAppliedRole = '';
       return;
     }
 
-    nav.style.removeProperty('display');
     var role = String(user.role || 'learner').toLowerCase();
+    if(role !== 'admin' && role !== 'manager') role = 'learner';
+
+    /* Chỉ che khi vai trò đổi hoặc menu chưa từng hoàn tất. Các lần gọi lặp lại
+       cùng vai trò không làm menu chớp/tắt lại. */
+    var needsAtomicReveal = lastAppliedRole !== role || nav.getAttribute('data-phf-menu-ready') !== role;
+    if(needsAtomicReveal) nav.classList.add('phf-nav-preparing');
+
+    /* Đồng bộ class quyền trước khi bỏ ẩn để các selector Admin/Manager không
+       lần lượt bật từng nút ở những nhịp render khác nhau. */
+    setRoleClass(role);
+    nav.style.removeProperty('display');
+
     var intro = nav.querySelector('[data-phf-main-nav="intro"]');
+    var workspace = nav.querySelector('[data-phf-main-nav="workspace"]');
     var learning = nav.querySelector('[data-phf-main-nav="learning"]');
     var profile = nav.querySelector('[data-phf-main-nav="profile"]');
+    var trainingLibrary = nav.querySelector('[data-phf-main-nav="trainingLibrary"]');
     var reports = nav.querySelector('[data-phf-main-nav="reports"]');
+    var admin = nav.querySelector('[data-phf-main-nav="admin"]');
     var guide = nav.querySelector('[data-phf-main-nav="guide"]');
     var test = nav.querySelector('[data-phf-main-nav="directTrainingTest"]');
 
     setButton(intro, true, 'Trang chủ', function(){
-      if(typeof window.phfRenderPostLoginHome === 'function') window.phfRenderPostLoginHome();
+      if(typeof window.phfNavigate === 'function') window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv');
     });
 
     if(role === 'learner'){
+      setButton(workspace, false, 'Khu chức năng');
       setButton(learning, true, 'Bài học của tôi', function(){
-        if(typeof window.phfGoLearning === 'function') window.phfGoLearning();
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/hv/bai-hoc');
       });
       setButton(profile, true, 'Hồ sơ của tôi', function(){
-        if(typeof window.phfGoMyProfile === 'function') window.phfGoMyProfile();
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/hv/ho-so');
       });
-      setButton(reports, false, 'Tổng quan');
-    }else{
+      setButton(trainingLibrary, false, 'Nội dung đào tạo');
+      setButton(reports, false, 'Báo cáo');
+      setButton(admin, false, 'Quản trị');
+    }else if(role === 'admin'){
+      setButton(workspace, false, 'Khu chức năng');
       setButton(learning, false, 'Bài học');
       setButton(profile, true, 'Học viên', function(){
-        if(typeof window.phfGoMyProfile === 'function') window.phfGoMyProfile();
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/admin/hoc-vien');
       });
-      setButton(reports, true, 'Tổng quan', function(){
-        if(typeof window.phfRenderTrainingOverview === 'function') window.phfRenderTrainingOverview();
+      setButton(trainingLibrary, true, 'Nội dung đào tạo', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/admin/noi-dung');
       });
+      setButton(reports, true, 'Báo cáo', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/admin/bao-cao');
+      });
+      setButton(admin, true, 'Quản trị', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/admin/quan-tri');
+      });
+    }else{
+      setButton(workspace, true, 'Quản lý', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/ql/quan-ly');
+      });
+      setButton(learning, false, 'Bài học');
+      setButton(profile, true, 'Học viên', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/ql/hoc-vien');
+      });
+      setButton(trainingLibrary, true, 'Nội dung đào tạo', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/ql/noi-dung');
+      });
+      setButton(reports, true, 'Báo cáo', function(){
+        if(typeof window.phfNavigate === 'function') window.phfNavigate('/ql/bao-cao');
+      });
+      setButton(admin, false, 'Quản trị');
     }
 
     setButton(guide, false, 'Hướng dẫn');
     setButton(test, false, 'Kiểm tra');
+
+    if(needsAtomicReveal) revealMenu(nav, role);
   }
 
   window.phfApplySimpleRoleMenu = applyMenu;
@@ -3349,7 +3840,7 @@ function render(){
     var act=document.getElementById('contextAction'); if(act) act.textContent=(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý');
     var main=document.getElementById('mainLesson'); if(!main) return;
     window.__phfBan7AllRows=rows; phfBan7State.activeTab='kanban';
-    main.innerHTML = '<section class="eval-admin-shell"><div class="eval-admin-page"><main class="eval-admin-main phf-ban7-dashboard" style="grid-column:1 / -1"><div class="phf-ban7-hero"><div><span class="phf-ban7-kicker">PHF TRAINING HUB</span><h2>Tổng quan đào tạo</h2><p>Theo dõi tình hình đào tạo chung, các việc cần xử lý và những cảnh báo quan trọng.</p></div><div class="phf-ban7-role">'+safeEsc(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý')+'<small>'+safeEsc(total)+' học viên đang được theo dõi</small></div></div><div class="phf-ban7-metrics"><div class="phf-ban7-metric"><b>'+total+'</b><span>Đang đào tạo</span><p>Tổng số học viên trong dữ liệu hiện tại.</p></div><div class="phf-ban7-metric"><b>'+today+'</b><span>Cần xử lý hôm nay</span><p>Đến ngày thực hiện đánh giá.</p></div><div class="phf-ban7-metric"><b>'+overdue+'</b><span>Quá hạn</span><p>Đã qua thời hạn nhưng chưa hoàn tất.</p></div><div class="phf-ban7-metric"><b>'+soon+'</b><span>Sắp đến hạn</span><p>Còn tối đa 3 ngày để xử lý.</p></div><div class="phf-ban7-metric"><b>'+(testAgg.scored ? testAgg.avg+'%' : '—')+'</b><span>Điểm kiểm tra trung bình</span><p>'+safeEsc(testAgg.fail||0)+' chưa đạt · '+safeEsc(testAgg.none||0)+' chưa làm.</p></div></div>'+renderKanban(rows)+renderTools(rows)+'</main></div></section>';
+    main.innerHTML = '<section class="eval-admin-shell"><div class="eval-admin-page"><main class="eval-admin-main phf-ban7-dashboard" style="grid-column:1 / -1"><div class="phf-ban7-hero phf-standard-module-hero"><div><span class="phf-ban7-kicker phf-standard-module-kicker">PHF Training Hub · Quản lý</span><h2>Tổng quan đào tạo</h2><p>Theo dõi tình hình đào tạo chung, các việc cần xử lý và những cảnh báo quan trọng.</p></div><div class="phf-ban7-role phf-standard-module-role">'+safeEsc(typeof phfRoleLabel==='function'?phfRoleLabel():'Quản lý')+'<small>'+safeEsc(total)+' học viên đang được theo dõi</small></div></div><div class="phf-ban7-metrics"><div class="phf-ban7-metric"><b>'+total+'</b><span>Đang đào tạo</span><p>Tổng số học viên trong dữ liệu hiện tại.</p></div><div class="phf-ban7-metric"><b>'+today+'</b><span>Cần xử lý hôm nay</span><p>Đến ngày thực hiện đánh giá.</p></div><div class="phf-ban7-metric"><b>'+overdue+'</b><span>Quá hạn</span><p>Đã qua thời hạn nhưng chưa hoàn tất.</p></div><div class="phf-ban7-metric"><b>'+soon+'</b><span>Sắp đến hạn</span><p>Còn tối đa 3 ngày để xử lý.</p></div><div class="phf-ban7-metric"><b>'+(testAgg.scored ? testAgg.avg+'%' : '—')+'</b><span>Điểm kiểm tra trung bình</span><p>'+safeEsc(testAgg.fail||0)+' chưa đạt · '+safeEsc(testAgg.none||0)+' chưa làm.</p></div></div>'+renderKanban(rows)+renderTools(rows)+'</main></div></section>';
     if(typeof phfScrollToPageTop==='function') phfScrollToPageTop();
     };
     var loadingToken = (typeof window.phfLoadingShow==='function') ? window.phfLoadingShow('overview') : null;
@@ -3431,7 +3922,7 @@ function render(){
   }
   function getRole(){
     try{
-      return (typeof window.phfGetSessionRole === 'function' ? window.phfGetSessionRole() : '') || localStorage.getItem('phfInternalTestRole') || '';
+      return (typeof window.phfGetSessionRole === 'function' ? window.phfGetSessionRole() : '') || '';
     }catch(e){ return ''; }
   }
   function isAdmin(){
@@ -3464,10 +3955,11 @@ function render(){
     if(action) action.textContent = 'Chỉ dành cho Admin';
   }
 
+
   window.phfRenderAdminManagement = function phfRenderAdminManagement(){
     if(!isAdmin()){
-      alert('Khu vực Quản trị chỉ dành cho Admin.');
-      if(typeof window.phfRenderTrainingOverview === 'function') return window.phfRenderTrainingOverview();
+      if(typeof window.phfNavigate === 'function') return window.phfNavigate('/admin', true);
+      return;
       return;
     }
     setShell();
@@ -3487,7 +3979,7 @@ function render(){
     ];
 
     var html = '<section class="phf-admin-manage">'
-      + '<div class="phf-admin-hero"><div><span class="phf-admin-kicker">PHF Training Hub · Quản trị</span><h2>Quản trị đào tạo</h2><p>Khu vực dành cho Admin để quản lý tài khoản, chương trình, lộ trình, bài kiểm tra, mẫu đánh giá và danh mục dùng chung. Tổng quan vẫn giữ vai trò theo dõi vận hành đào tạo hằng ngày.</p></div><div class="phf-admin-role">'+esc(roleLabel())+'<small>Quyền quản trị đào tạo</small></div></div>'
+      + '<div class="phf-admin-hero phf-standard-module-hero"><div><span class="phf-admin-kicker phf-standard-module-kicker">PHF Training Hub · Quản trị</span><h2>Quản trị đào tạo</h2><p>Khu vực dành cho Admin để quản lý tài khoản, chương trình, lộ trình, bài kiểm tra, mẫu đánh giá và danh mục dùng chung. Tổng quan vẫn giữ vai trò theo dõi vận hành đào tạo hằng ngày.</p></div><div class="phf-admin-role phf-standard-module-role">'+esc(roleLabel())+'<small>Quyền quản trị đào tạo</small></div></div>'
       + '<div class="phf-admin-grid">';
     cards.forEach(function(c){
       html += '<article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">'+c[0]+'</div><span class="phf-admin-status">'+esc(c[3])+'</span></div><h3>'+esc(c[1])+'</h3><p>'+esc(c[2])+'</p><button class="'+(c[4]||'')+'" type="button" onclick="'+c[5]+'">'+esc(c[6]||'Mở module')+'</button></article>';
@@ -3499,14 +3991,36 @@ function render(){
 
   window.phfRenderAdminPlaceholder = function phfRenderAdminPlaceholder(title){
     if(!isAdmin()){
-      alert('Khu vực Quản trị chỉ dành cho Admin.');
+      if(typeof window.phfNavigate === 'function') return window.phfNavigate('/admin', true);
       return;
     }
     setShell();
     setActive();
     var main = document.getElementById('mainLesson');
     if(!main) return;
-    main.innerHTML = '<section class="phf-admin-manage"><div class="phf-admin-hero"><div><span class="phf-admin-kicker">PHF Training Hub · Quản trị</span><h2>'+esc(title)+'</h2><p>Khu vực này sẽ được mở khi cần sử dụng trong vận hành đào tạo chính thức.</p></div><div class="phf-admin-role">Admin<small>Đang chuẩn bị</small></div></div><div class="phf-admin-note"><b>Thông tin:</b> Từng khu vực quản trị sẽ được hoàn thiện theo nhu cầu vận hành để đảm bảo dễ sử dụng và ổn định.</div><div class="phf-admin-grid"><article class="phf-admin-card"><div class="phf-admin-card-top"><div class="phf-admin-icon">←</div><span class="phf-admin-status">Quay lại</span></div><h3>Về Quản trị</h3><p>Quay lại danh sách khu vực quản trị.</p><button class="primary" type="button" onclick="phfRenderAdminManagement()">Quay lại Quản trị</button></article></div></section>';
+    main.innerHTML = `
+      <section class="phf-admin-manage">
+        <div class="phf-admin-hero">
+          <div>
+            <span class="phf-admin-kicker">PHF Training Hub · Quản trị</span>
+            <h2>${esc(title)}</h2>
+            <p>Khu vực này sẽ được mở khi cần sử dụng trong vận hành đào tạo chính thức.</p>
+          </div>
+          <div class="phf-admin-role">Admin<small>Đang chuẩn bị</small></div>
+        </div>
+        <div class="phf-admin-note"><b>Thông tin:</b> Từng khu vực quản trị sẽ được hoàn thiện theo nhu cầu vận hành để đảm bảo dễ sử dụng và ổn định.</div>
+        <div class="phf-admin-grid">
+          <article class="phf-admin-card">
+            <div class="phf-admin-card-top">
+              <div class="phf-admin-icon">←</div>
+              <span class="phf-admin-status">Quay lại</span>
+            </div>
+            <h3>Về Quản trị</h3>
+            <p>Quay lại danh sách khu vực quản trị.</p>
+            <button class="primary" type="button" onclick="phfNavigate('/admin/quan-tri')">Quay lại Quản trị</button>
+          </article>
+        </div>
+      </section>`;
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };
 
@@ -3543,7 +4057,7 @@ function render(){
 (function phfBan14AFixAdminMenu(){
   function readRole(){
     try{
-      return String((typeof window.phfGetSessionRole === 'function' ? window.phfGetSessionRole() : '') || localStorage.getItem('phfInternalTestRole') || '').toLowerCase();
+      return String((typeof window.phfGetSessionRole === 'function' ? window.phfGetSessionRole() : '') || '').toLowerCase();
     }catch(e){ return ''; }
   }
 
@@ -3580,8 +4094,8 @@ function render(){
     window.phfRenderAdminManagement = function(){
       apply();
       if(!isAdmin()){
-        alert('Khu vực Quản trị chỉ dành cho Admin.');
-        if(typeof window.phfRenderPostLoginHome === 'function') return window.phfRenderPostLoginHome();
+        if(typeof window.phfNavigate === 'function') return window.phfNavigate('/admin', true);
+        return;
         return;
       }
       return oldRenderAdmin.apply(this, arguments);
@@ -3625,9 +4139,10 @@ function render(){
 
 <script src="assets/js/phf-learning-gate.js?v=1.0.5.3.2_info_action"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
-<script src="assets/js/phf-account-admin-safe.js?v=1.0.12_bulk_accounts"></script>
+<script src="assets/js/phf-account-admin-safe.js?v=60.6_account_list_ui"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="assets/js/phf-server-auth.js?v=1.0.18_f5_session_guard"></script>
+<script src="assets/js/phf-url-router.js?v=60.8_route_first_guard"></script>
+<script src="assets/js/phf-server-auth.js?v=60.8_route_first_guard"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){
@@ -3693,7 +4208,24 @@ function render(){
     try{ if(typeof phfEnsureSharedShell==='function') phfEnsureSharedShell('admin'); }catch(e){}
     var main=document.getElementById('mainLesson');
     if(!main) return;
-    main.innerHTML='<section class="phf-acct-safe"><div class="phf-acct-safe-hero"><div><span class="phf-acct-safe-kicker">PHF Training Hub · Admin</span><h2>'+title+'</h2><p>Chức năng đang được chuẩn bị để đưa vào sử dụng. Vui lòng sử dụng các khu vực đã mở trong giai đoạn hiện tại.</p></div><div class="phf-acct-safe-note-top">Đang chuẩn bị<small>PHF Training Hub</small></div></div><div class="phf-acct-safe-panel"><h3>Thông tin</h3><p>Khi chức năng sẵn sàng, Admin sẽ có thể thao tác trực tiếp tại khu vực này.</p><div class="phf-acct-safe-actions"><button class="phf-acct-safe-btn primary" type="button" onclick="phfRenderAdminManagement()">Về Quản trị</button></div></div></section>';
+    main.innerHTML = `
+      <section class="phf-acct-safe">
+        <div class="phf-acct-safe-hero">
+          <div>
+            <span class="phf-acct-safe-kicker">PHF Training Hub · Admin</span>
+            <h2>${title}</h2>
+            <p>Chức năng đang được chuẩn bị để đưa vào sử dụng. Vui lòng sử dụng các khu vực đã mở trong giai đoạn hiện tại.</p>
+          </div>
+          <div class="phf-acct-safe-note-top">Đang chuẩn bị<small>PHF Training Hub</small></div>
+        </div>
+        <div class="phf-acct-safe-panel">
+          <h3>Thông tin</h3>
+          <p>Khi chức năng sẵn sàng, Admin sẽ có thể thao tác trực tiếp tại khu vực này.</p>
+          <div class="phf-acct-safe-actions">
+            <button class="phf-acct-safe-btn primary" type="button" onclick="phfNavigate('/admin/quan-tri')">Về Quản trị</button>
+          </div>
+        </div>
+      </section>`;
   }
   window.phfRenderAdminPlaceholder = renderOfficialPlaceholder;
 
@@ -3826,38 +4358,7 @@ function render(){
     if(key) setLast(key);
   }, true);
 
-  function wrap(name, key){
-    var fn = window[name];
-    if(typeof fn !== 'function' || fn.__phf3161cNav) return;
-    var wrapped = function(){
-      setLast(key);
-      return fn.apply(this, arguments);
-    };
-    wrapped.__phf3161cNav = true;
-    window[name] = wrapped;
-  }
-
-  function install(){
-    wrap('phfGoLearning','learning');
-    wrap('phfRenderPostLoginHome','intro');
-    wrap('phfGoHome','intro');
-    wrap('phfGoMyProfile','profile');
-    wrap('phfRenderTrainingOverview','reports');
-    wrap('phfRenderTrainingReports','reports');
-    wrap('phfRenderTrainingLibrary','trainingLibrary');
-    wrap('phfGoGuide','guide');
-    wrap('phfGoDirectTrainingTest','admin');
-    wrap('phfRenderAdminManagement','admin');
-    wrap('phfRenderAccountAdminSafe','admin');
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    install();
-    setTimeout(install, 150);
-    setTimeout(install, 600);
-  });
-  setTimeout(install, 0);
-  setTimeout(install, 400);
+  /* Không bọc renderer; chỉ lưu trạng thái UI từ click/pagehide. */
 })();
 </script>
 
@@ -3923,17 +4424,9 @@ function render(){
   function fail(message,retry){if(!ensure())return;clearTimeout(showTimer);active=++seq;retryFn=retry||null;setCopy('generic',{title:'Chưa thể tải dữ liệu',text:message||'Vui lòng thử lại.'});root.classList.add('is-visible','is-error');root.setAttribute('aria-hidden','false');shownAt=Date.now();}
   function settle(token){requestAnimationFrame(function(){requestAnimationFrame(function(){hide(token);});});}
   window.phfLoadingShow=show;window.phfLoadingHide=hide;window.phfLoadingHideNow=hideNow;window.phfLoadingFail=fail;window.phfLoadingSettle=settle;
-  function wrap(name,kind){var fn=window[name];if(typeof fn!=='function'||fn.__phfLoadingWrapped)return;var wrapped=function(){var token=show(kind);var out;try{out=fn.apply(this,arguments);}catch(err){hideNow();throw err;}if(out&&typeof out.then==='function'){return Promise.resolve(out).then(function(v){settle(token);return v;},function(err){hideNow();throw err;});}settle(token);return out;};wrapped.__phfLoadingWrapped=true;wrapped.__phfLoadingOriginal=fn;window[name]=wrapped;}
-  function install(){
-    wrap('phfRenderPostLoginHome','home');
-    wrap('phfGoMyProfile','profile');
-    wrap('renderEvaluationRecords','evaluation');
-    wrap('phfRenderTrainingLibrary','library');
-    wrap('phfRenderAdminManagement','admin');
-    wrap('phfRenderAccountAdminSafe','admin');
-    wrap('phfRenderTrainingReports','overview');
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){boot();install();setTimeout(install,400);});else{boot();install();setTimeout(install,400);}
+  /* Loading là dịch vụ UI thuần, không thay thế renderer toàn cục. */
+  function install(){ boot(); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
 </script>
 
@@ -3967,35 +4460,7 @@ function render(){
   window.phfSetMainNavActive = function(key){ apply(key); };
   window.phfSetMainNavActive.__phfSingleController = true;
 
-  function wrap(name, route){
-    var fn = window[name];
-    if(typeof fn !== 'function' || fn.__phfSingleNavWrapped) return;
-    var wrapped = function(){
-      desiredRoute = normalize(route);
-      apply(desiredRoute);
-      var out = fn.apply(this, arguments);
-      apply(desiredRoute);
-      return out;
-    };
-    wrapped.__phfSingleNavWrapped = true;
-    wrapped.__phfSingleNavOriginal = fn;
-    window[name] = wrapped;
-  }
-
-  function install(){
-    wrap('phfRenderPostLoginHome','intro');
-    wrap('phfGoHome','intro');
-    wrap('phfGoLearning','learning');
-    wrap('phfGoMyProfile','profile');
-    wrap('renderEvaluationRecords','profile');
-    wrap('phfRenderTrainingOverview','reports');
-    wrap('phfRenderTrainingReports','reports');
-    wrap('phfRenderTrainingLibrary','trainingLibrary');
-    wrap('phfGoGuide','guide');
-    wrap('phfGoDirectTrainingTest','directTrainingTest');
-    wrap('phfRenderAdminManagement','admin');
-    wrap('phfRenderAccountAdminSafe','admin');
-  }
+  /* Menu active chỉ phản ánh màn hiện tại, không bọc hoặc gọi renderer. */
 
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest ? e.target.closest('[data-phf-main-nav]') : null;
@@ -4003,19 +4468,7 @@ function render(){
     apply(btn.getAttribute('data-phf-main-nav'));
   }, true);
 
-  var observer = new MutationObserver(function(mutations){
-    if(repairing || !desiredRoute) return;
-    var changed = mutations.some(function(m){ return m.type === 'attributes' && m.attributeName === 'class'; });
-    if(!changed) return;
-    var active = document.querySelector('[data-phf-main-nav].active');
-    var activeKey = active ? normalize(active.getAttribute('data-phf-main-nav')) : '';
-    if(activeKey !== desiredRoute) apply(desiredRoute);
-  });
-
   function boot(){
-    install();
-    var nav = document.querySelector('.phf-main-nav');
-    if(nav) observer.observe(nav, {subtree:true, attributes:true, attributeFilter:['class']});
     var active = document.querySelector('[data-phf-main-nav].active');
     if(active) desiredRoute = normalize(active.getAttribute('data-phf-main-nav'));
   }
@@ -4025,7 +4478,8 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/classroom/phf-classroom-app.js?v=1.0.17-safe-router-shell"></script>
-<script src="assets/js/phf-url-router.js?v=1.0.17-safe-router-shell"></script>
+<script src="assets/js/classroom/phf-classroom-app.js?v=59.2"></script>
+<script src="assets/js/phf-app-bootstrap.js?v=1.0.0_single_owner"></script>
+
 </body>
 </html>

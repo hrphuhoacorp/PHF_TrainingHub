@@ -3,6 +3,27 @@
    File này chỉ giữ các hàm xử lý giao diện và lưu phiếu đánh giá, không đổi Supabase/schema/server.
 */
 
+
+// PHF 57.8: UI helper dùng chung cho các màn Báo cáo/Đánh giá.
+// Định nghĩa tại phạm vi global để các renderer legacy gọi trực tiếp không bị ReferenceError.
+var phfScrollToPageTop = (typeof window !== 'undefined' && typeof window.phfScrollToPageTop === 'function')
+  ? window.phfScrollToPageTop
+  : function phfScrollToPageTopFallback(){
+      try{
+        if(typeof window !== 'undefined' && typeof window.scrollTo === 'function'){
+          window.scrollTo({top:0,left:0,behavior:'auto'});
+          return;
+        }
+      }catch(e){}
+      try{
+        if(typeof document !== 'undefined'){
+          if(document.documentElement) document.documentElement.scrollTop = 0;
+          if(document.body) document.body.scrollTop = 0;
+        }
+      }catch(e){}
+    };
+if(typeof window !== 'undefined') window.phfScrollToPageTop = phfScrollToPageTop;
+
 function phfEvalCard(title, desc, btn, pattern){
   const idx = phfFindLessonIndex(pattern);
   return `<div class="eval-card"><h3>${esc(title)}</h3><p>${esc(desc)}</p>${idx>=0?`<button type="button" class="btn btn-soft eval-go" data-index="${idx}">${esc(btn)}</button>`:''}</div>`;
@@ -42,7 +63,8 @@ function phfEmployeeFromRow(e){
   };
 }
 function phfAllEvaluationLearners(){
-  const rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+  const sourceData = window.__phfLocalData || window.localData || {};
+  const rows = Array.isArray(sourceData.employees) ? sourceData.employees : [];
   const mapped = rows.map(phfEmployeeFromRow).filter(function(e){
     if(!e.id) return false;
     if(e.id === 'admin-test-phf') return false;
@@ -166,6 +188,116 @@ function phfBuildEvaluationPeriods(profile){
 }
 function phfPeriodRecord(employeeId, period){
   return phfExistingEvalRecord(employeeId, period && period.key, period && period.formType || 'weekly');
+}
+
+// PHF 57.7: Bộ tổng hợp dùng chung cho Tổng quan/Báo cáo.
+// Các hàm này từng được renderer gọi trực tiếp nhưng không còn định nghĩa trong bundle,
+// khiến /admin/bao-cao dừng với ReferenceError.
+function phfHubPeriodSummary(profile){
+  profile = profile || {};
+  const periods = phfBuildEvaluationPeriods(profile);
+  const records = phfEvaluationRecordsFor(profile.id || '');
+  const today = phfTodayOnly();
+  let saved = 0, missing = 0, overdue = 0, due = 0;
+  periods.forEach(function(period){
+    const rec = phfPeriodRecord(profile.id, period);
+    if(rec){ saved++; return; }
+    missing++;
+    if(today.getTime() > period.end.getTime()) overdue++;
+    else if(today.getTime() >= period.start.getTime() && today.getTime() <= period.end.getTime()) due++;
+  });
+  const finalPeriod = periods.find(function(p){ return p.formType === 'final'; }) || null;
+  const finalRec = finalPeriod ? phfPeriodRecord(profile.id, finalPeriod) : null;
+  return {periods:periods, records:records, saved:saved, missing:missing, overdue:overdue, due:due, finalPeriod:finalPeriod, finalRec:finalRec};
+}
+function phfHubDateText(value){
+  if(!value) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if(Number.isNaN(d.getTime())) return String(value || '');
+  return d.toLocaleDateString('vi-VN');
+}
+function phfHubLearnerStage(profile){
+  const timeline = phfBuildTimelineForProfile(profile || {});
+  if(!timeline) return {key:'missing', label:'Chưa nhập ngày', pct:0, currentRange:''};
+  const today = phfTodayOnly();
+  const start = timeline.start.getTime();
+  const end = timeline.end.getTime();
+  const now = today.getTime();
+  if(now > end) return {key:'done', label:'Hết mốc', pct:100, currentRange:phfHubDateText(timeline.start)+' – '+phfHubDateText(timeline.end)};
+  let idx = 0;
+  timeline.ranges.forEach(function(r,i){ if(now >= r.start.getTime()) idx = i; });
+  const range = timeline.ranges[idx] || timeline.ranges[0];
+  const totalDays = Math.max(1, Math.round((end-start)/86400000)+1);
+  const elapsed = Math.max(0, Math.min(totalDays, Math.round((now-start)/86400000)+1));
+  return {key:'g'+(idx+1), label:'GĐ'+(idx+1), pct:Math.max(0,Math.min(100,Math.round(elapsed/totalDays*100))), currentRange:phfHubDateText(range.start)+' – '+phfHubDateText(range.end)};
+}
+function phfHubTestInfoFor(profile){
+  const data = window.__phfLocalData || window.localData || {};
+  const all = Array.isArray(data.testResults) ? data.testResults : [];
+  const id = String(profile && profile.id || '');
+  const rows = all.filter(function(r){ return String(r.employeeId || r.employee_id || '') === id; }).sort(function(a,b){
+    const av = String(a.updatedAt || a.updated_at || a.savedAt || a.saved_at || '');
+    const bv = String(b.updatedAt || b.updated_at || b.savedAt || b.saved_at || '');
+    return bv.localeCompare(av);
+  });
+  if(!rows.length) return {cls:'missing', label:'Chưa làm', status:'Chưa làm', score:null, stage:''};
+  const row = rows[0] || {};
+  const score = Number(row.score);
+  const passScore = Number(row.passScore || row.pass_score || 80);
+  const raw = String(row.status || row.resultText || row.result_text || '').toLowerCase();
+  const passed = raw.includes('passed') || raw.includes('pass') || raw.includes('đạt') || (Number.isFinite(score) && score >= passScore);
+  return {cls:passed?'pass':'fail', label:Number.isFinite(score)?(Math.round(score)+'%'):(passed?'Đạt':'Chưa đạt'), status:passed?'Đạt':'Chưa đạt', score:Number.isFinite(score)?score:null, stage:String(row.stage || row.phase || row.period || '')};
+}
+function phfHubLearningProgress(){
+  const total = Array.isArray(window.LESSONS) ? window.LESSONS.length : (typeof LESSONS !== 'undefined' && Array.isArray(LESSONS) ? LESSONS.length : 0);
+  let done = 0, currentIndex = 0;
+  try{
+    const scoped = JSON.parse(localStorage.getItem('phfProgress') || localStorage.getItem('phfLearningProgress') || '{}');
+    const completed = scoped.completedPages || scoped.completed || [];
+    done = Array.isArray(completed) ? completed.length : Number(scoped.done || 0);
+    currentIndex = Number(scoped.currentIndex || scoped.lessonIndex || localStorage.getItem('phfCurrentLessonIndex') || 0);
+  }catch(e){}
+  const list = (typeof LESSONS !== 'undefined' && Array.isArray(LESSONS)) ? LESSONS : (Array.isArray(window.LESSONS) ? window.LESSONS : []);
+  const lesson = list[currentIndex] || list[0] || null;
+  return {total:total, done:Math.max(0,Math.min(total||done,done)), pct:total?Math.max(0,Math.min(100,Math.round(done/total*100))):0, lesson:lesson};
+}
+function phfHubBarRows(items, maxValue){
+  items = Array.isArray(items) ? items : [];
+  maxValue = Math.max(1, Number(maxValue) || 1);
+  return items.map(function(item){
+    const value = Number(item && item.value || 0);
+    const pct = Math.max(0, Math.min(100, Math.round(value / maxValue * 100)));
+    return `<div class="hub-bar-row"><div class="hub-bar-label"><span>${esc(item && item.label || '')}</span><b>${esc(value)}</b></div><div class="hub-bar-track"><span class="${esc(item && item.cls || '')}" style="width:${pct}%"></span></div></div>`;
+  }).join('') || '<div class="hub-empty">Chưa có dữ liệu.</div>';
+}
+function phfReportMiniRows(items, maxValue){
+  items = Array.isArray(items) ? items : [];
+  maxValue = Math.max(1, Number(maxValue) || 1);
+  const rows = items.map(function(item){
+    const value = Math.max(0, Number(item && item.value || 0));
+    const pct = Math.max(0, Math.min(100, Math.round(value / maxValue * 100)));
+    return `<div class="phf-report-summary-row"><span class="phf-report-summary-label">${esc(item && item.label || '')}</span><b class="phf-report-summary-count">${esc(value)}</b><div class="phf-report-summary-track" role="progressbar" aria-valuemin="0" aria-valuemax="${esc(maxValue)}" aria-valuenow="${esc(value)}"><span class="phf-report-summary-fill ${esc(item && item.cls || '')}" style="width:${pct}%"></span></div></div>`;
+  }).join('');
+  return `<div class="phf-report-summary-list">${rows || '<div class="hub-empty">Chưa có dữ liệu.</div>'}</div>`;
+}
+function phfHubTestAggregate(rows){
+  rows = Array.isArray(rows) ? rows : [];
+  let pass = 0, fail = 0, none = 0, scored = 0, scoreTotal = 0;
+  const stageMap = {};
+  rows.forEach(function(item){
+    const test = item && item.test ? item.test : phfHubTestInfoFor(item && (item.learner || item) || {});
+    if(test.cls === 'pass') pass++; else if(test.cls === 'fail') fail++; else none++;
+    if(Number.isFinite(Number(test.score))){
+      scored++; scoreTotal += Number(test.score);
+      const key = test.stage || 'Khác';
+      if(!stageMap[key]) stageMap[key] = {sum:0,count:0};
+      stageMap[key].sum += Number(test.score); stageMap[key].count++;
+    }
+  });
+  const ordered = ['GĐ1','GĐ2','GĐ3','GĐ4','GĐ5'];
+  const stageItems = ordered.map(function(k){ const x=stageMap[k]; return {label:k,value:x?Math.round(x.sum/x.count):0,cls:''}; });
+  Object.keys(stageMap).filter(function(k){ return ordered.indexOf(k)<0; }).forEach(function(k){ const x=stageMap[k]; stageItems.push({label:k,value:Math.round(x.sum/x.count),cls:''}); });
+  return {pass:pass, fail:fail, none:none, scored:scored, avg:scored?Math.round(scoreTotal/scored):0, stageItems:stageItems};
 }
 function phfPickDefaultWeek(periods, employeeId){
   const today = phfTodayOnly();
@@ -1136,7 +1268,8 @@ function phfEvalResetProfileFilters(){
 
 async function phfEnsureEvaluationDataReady(canEditWorkspace){
   function hasExpectedRows(){
-    const rows = (window.__phfLocalData && window.__phfLocalData.employees) || [];
+    const sourceData = window.__phfLocalData || window.localData || {};
+  const rows = Array.isArray(sourceData.employees) ? sourceData.employees : [];
     const current = phfCurrentEmployeeProfile();
     const ownPhone = String(current && current.phone || '').replace(/\D/g,'');
     return canEditWorkspace
@@ -1494,7 +1627,8 @@ function phfRenderHubTopbar(active, profile, canEdit){
 }
 function phfOpenHubTab(tab){
   const canEdit = phfCanEditEvaluation();
-  if(tab === 'home' || tab === 'overview') return phfRenderTrainingOverview();
+  if(tab === 'home') return phfRenderPostLoginHome();
+  if(tab === 'overview') return canEdit ? phfRenderTrainingOverview() : phfRenderPostLoginHome();
   if(tab === 'learning') return phfGoLearning();
   if(tab === 'profile' || tab === 'evaluation') return phfGoMyProfile();
   if(tab === 'reports') return phfRenderTrainingReports();
@@ -1527,8 +1661,8 @@ function phfHideIntroAndStopAuto(){
 function phfGoHome(){
   window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
   phfHideIntroAndStopAuto();
-  try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('overview', {hubTab:'home'}); }catch(e){}
-  return phfRenderTrainingOverview();
+  try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('home', {hubTab:'intro'}); }catch(e){}
+  return phfRenderPostLoginHome();
 }
 function phfGoLearning(){
   window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1;
@@ -1783,6 +1917,11 @@ function phfRenderManagerTrainingOverview(){
   phfScrollToPageTop();
 }
 function phfRenderLearnerTrainingOverview(){
+  /* UI cá nhân chỉ thuộc namespace Học viên. Callback dữ liệu legacy có thể
+     gọi hàm này muộn trong lúc Admin/Quản lý đang chuyển route; khi đó không
+     được phép ghi đè màn đích. */
+  const currentRoute = String((window.location && window.location.pathname) || '/');
+  if(!/^\/hv(?:\/|$)/.test(currentRoute)) return false;
   const canEdit = false;
   const profile = phfEvaluationTargetProfile();
   const timeline = phfBuildTimelineForProfile(profile);
@@ -1809,6 +1948,7 @@ function phfRenderLearnerTrainingOverview(){
 }
 
 function phfRenderPostLoginHome(){
+  try{ if(typeof phfHideIntroAndStopAuto === 'function') phfHideIntroAndStopAuto(); }catch(e){}
   phfSetMainNavActive('intro');
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('home', {hubTab:'intro', source:'post-login-home'}); }catch(e){}
   document.body.classList.add('phf-eval-mode','phf-module-page-mode','phf-post-login-home-mode');
@@ -1865,6 +2005,14 @@ ${quickAdmin}
 window.phfRenderPostLoginHome = phfRenderPostLoginHome;
 
 function phfRenderTrainingOverview(){
+  const currentRoute = String((window.location && window.location.pathname) || '/');
+  /* /ql/quan-ly luôn thuộc renderer Quản lý, không phụ thuộc trạng thái quyền
+     tạm thời trong lúc session/dữ liệu đang khôi phục. Nhờ vậy không còn nhảy
+     sang màn Học viên rồi mới quay lại màn Quản lý. */
+  if(currentRoute === '/ql/quan-ly') return phfRenderManagerTrainingOverview();
+  /* Báo cáo có renderer riêng. Không cho overview legacy chen vào vùng mount
+     khi route Báo cáo đang tải hoặc vừa hoàn tất. */
+  if(currentRoute === '/admin/bao-cao' || currentRoute === '/ql/bao-cao') return false;
   phfSetMainNavActive('reports');
   try{ if(typeof window.phfRefreshResumeSave === 'function') window.phfRefreshResumeSave('overview', {hubTab:'home'}); }catch(e){}
   document.body.classList.remove('phf-guide-standalone-mode');
@@ -1966,20 +2114,28 @@ function phfRenderTrainingReports(filters){
   const statusOptions = [opt('all','Tất cả trạng thái',fStatus),opt('attention','Cần xử lý',fStatus),opt('test_fail','Bài kiểm tra chưa đạt',fStatus),opt('missing_eval','Thiếu hồ sơ đánh giá',fStatus),opt('no_start','Thiếu ngày bắt đầu',fStatus)].join('');
   const progressRows = rows.map(function(r){
     const scoreCls = r.test.cls === 'pass' ? 'score-pass' : (r.test.cls === 'fail' ? 'score-fail' : 'score-none');
-    return `<tr><td><b>${esc(r.learner.fullName)}</b><small>${esc(r.learner.phone || '')}</small></td><td>${esc(r.learner.branch || 'Chưa phân chi nhánh')}<small>${esc(r.learner.position || '')}</small></td><td>${esc(r.learner.programId || 'new_sales')}</td><td>${esc(r.learner.studyStartDate || 'Chưa nhập')}</td><td>${esc(r.stage.label)}<small>${esc(r.stage.currentRange || '')}</small></td><td>${esc(r.stage.pct || 0)}%</td><td><span class="${scoreCls}">${esc(r.test.label)}</span></td><td><span class="hub-report-status ${r.learningStatus==='ok'?'ok':(r.learningStatus==='bad'?'bad':(r.learningStatus==='warn'?'warn':'info'))}">${esc(r.learningText)}</span></td><td><span class="thin-btn" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','view')">Xem</span></td></tr>`;
+    return `<tr><td><b>${esc(r.learner.fullName)}</b><small>${esc(r.learner.phone || '')}</small></td><td>${esc(r.learner.branch || 'Chưa phân chi nhánh')}<small>${esc(r.learner.position || '')}</small></td><td>${esc(r.learner.programId || 'new_sales')}</td><td>${esc(r.learner.studyStartDate || 'Chưa nhập')}</td><td>${esc(r.stage.label)}<small>${esc(r.stage.currentRange || '')}</small></td><td>${esc(r.stage.pct || 0)}%</td><td><span class="${scoreCls}">${esc(r.test.label)}</span></td><td><span class="hub-report-status ${r.learningStatus==='ok'?'ok':(r.learningStatus==='bad'?'bad':(r.learningStatus==='warn'?'warn':'info'))}">${esc(r.learningText)}</span></td><td><button class="phf-report-action-btn" type="button" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','view')">Xem chi tiết</button></td></tr>`;
   }).join('');
   const evalRows = rows.map(function(r){
     const finalText = r.summary.finalRec ? 'Đã có' : 'Chưa có';
     const watchCount = (r.summary.records || []).reduce(function(sum,rec){
       try{ const data = typeof rec.data === 'string' ? JSON.parse(rec.data) : (rec.data || rec.payload || {}); const values = Object.values(data.criteria || data.ratings || {}); return sum + values.filter(function(v){ return /theo dõi|chưa đạt/i.test(String(v && (v.rating || v.status || v)))}).length; }catch(e){ return sum; }
     },0);
-    return `<tr><td><b>${esc(r.learner.fullName)}</b><small>${esc(r.learner.branch || 'Chưa phân chi nhánh')} · ${esc(r.learner.position || '')}</small></td><td>${r.summary.saved}/${r.summary.saved + r.summary.missing}</td><td><span class="hub-report-status ${r.summary.finalRec?'ok':'warn'}">${esc(finalText)}</span></td><td>${watchCount || '-'}</td><td><span class="hub-report-status ${r.recordStatus==='ok'?'ok':(r.recordStatus==='bad'?'bad':'warn')}">${esc(r.recordText)}</span></td><td>${esc(r.summary.records[0] ? phfEvalUpdatedText(r.summary.records[0]) : '-')}</td><td><div class="hub-report-action-row"><span class="thin-btn" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','history')">Lịch sử</span><span class="thin-btn" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','edit')">Xử lý</span></div></td></tr>`;
+    return `<tr><td><b>${esc(r.learner.fullName)}</b><small>${esc(r.learner.branch || 'Chưa phân chi nhánh')} · ${esc(r.learner.position || '')}</small></td><td>${r.summary.saved}/${r.summary.saved + r.summary.missing}</td><td><span class="hub-report-status ${r.summary.finalRec?'ok':'warn'}">${esc(finalText)}</span></td><td>${watchCount || '-'}</td><td><span class="hub-report-status ${r.recordStatus==='ok'?'ok':(r.recordStatus==='bad'?'bad':'warn')}">${esc(r.recordText)}</span></td><td>${esc(r.summary.records[0] ? phfEvalUpdatedText(r.summary.records[0]) : '-')}</td><td><div class="hub-report-action-row"><button class="phf-report-action-btn" type="button" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','history')">Lịch sử</button><button class="phf-report-action-btn is-primary" type="button" onclick="phfHubSetLearnerAndOpen('${esc(r.learner.id)}','evaluation','${esc(r.actionPeriod)}','edit')">Xử lý</button></div></td></tr>`;
   }).join('');
-  document.getElementById('miniStatus').textContent='Báo cáo';
-  document.getElementById('contextTitle').textContent='Bạn đang ở: Báo cáo đào tạo';
-  document.getElementById('contextSub').textContent='Tổng hợp tiến độ học, điểm bài kiểm tra và tình trạng hồ sơ đánh giá';
-  document.getElementById('contextAction').textContent=phfRoleLabel();
-  document.getElementById('mainLesson').innerHTML = `<section class="eval-admin-shell">${phfRenderHubTopbar('reports', profile, canEdit)}<div class="eval-admin-page"><main class="eval-admin-main hub-report-page"><div class="hub-dashboard-hero"><div><h2>Báo cáo đào tạo</h2><p>Bảng điều hành cứng cáp để lọc, đối chiếu tiến độ học, điểm bài kiểm tra và hồ sơ đánh giá.</p></div><div class="hub-dashboard-note">${esc(phfRoleLabel())}<small>${total} học viên theo bộ lọc</small></div></div><section class="hub-report-filters"><div class="hub-report-filter"><label>Chương trình</label><select id="phfReportProgram">${programOptions}</select></div><div class="hub-report-filter"><label>Chi nhánh</label><select id="phfReportBranch">${branchOptions}</select></div><div class="hub-report-filter"><label>Trạng thái</label><select id="phfReportStatus">${statusOptions}</select></div><button class="eval-action primary" type="button" onclick="phfApplyReportFilters()">Lọc báo cáo</button><button class="eval-action" type="button" onclick="phfRenderTrainingReports({program:'all',branch:'all',status:'all'})">Xóa lọc</button></section><div class="hub-report-top"><section class="hub-report-main-card"><h3>Hồ sơ đánh giá</h3><p>Theo dõi đủ/thiếu phiếu, phiếu quá hạn và học viên cần xử lý.</p><b>${missingEvalLearners} học viên thiếu hồ sơ</b><div class="action-row"><button class="eval-action primary" type="button" onclick="renderEvaluationRecords()">Mở Đánh giá →</button></div></section><div class="hub-report-metric"><b>${total}</b><span>Học viên</span><p>Trong phạm vi bộ lọc hiện tại.</p></div><div class="hub-report-metric"><b>${testAgg.scored ? testAgg.avg + '%' : '-'}</b><span>Điểm bài kiểm tra TB</span><p>${testAgg.fail} chưa đạt · ${testAgg.none} chưa làm.</p></div><div class="hub-report-metric"><b>${needAttention}</b><span>Cần xử lý</span><p>${overdueLearners} quá hạn · ${noStart} thiếu ngày bắt đầu.</p></div></div><div class="hub-report-grid"><section class="hub-panel"><div class="hub-panel-head"><h3>Tiến độ theo giai đoạn</h3><span>tóm tắt gọn</span></div>${phfReportMiniRows(stageItems, Math.max(1,total))}<div class="phf-report-compact-note">Xem chi tiết từng học viên ở bảng bên dưới.</div></section><section class="hub-panel"><div class="hub-panel-head"><h3>Tình trạng bài kiểm tra</h3><span>tóm tắt gọn</span></div>${phfReportMiniRows(testStatusItems, Math.max.apply(null,testStatusItems.map(function(x){return x.value}).concat([1])))}<div class="phf-report-compact-note">Ưu tiên xử lý học viên chưa làm hoặc chưa đạt.</div></section></div><section class="hub-panel"><div class="hub-report-table-note"><div><h3>Tiến độ học viên</h3><small>Phục vụ rà tiến độ học, điểm bài kiểm tra và trạng thái cần nhắc.</small></div></div><div class="eval-table-wrap"><table class="hub-action-table hub-report-table"><thead><tr><th>Học viên</th><th>Chi nhánh/Vị trí</th><th>Chương trình</th><th>Ngày bắt đầu</th><th>Giai đoạn</th><th>Tiến độ</th><th>Điểm bài kiểm tra</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${progressRows || '<tr><td colspan="9">Không có học viên phù hợp bộ lọc.</td></tr>'}</tbody></table></div></section><section class="hub-panel"><div class="hub-report-table-note"><div><h3>Hồ sơ đánh giá</h3><small>Rà tình trạng phiếu tuần, tháng, kết thúc và tiêu chí cần theo dõi.</small></div></div><div class="eval-table-wrap"><table class="hub-action-table hub-report-table"><thead><tr><th>Học viên</th><th>Phiếu đã lưu</th><th>Phiếu kết thúc</th><th>Cần theo dõi</th><th>Trạng thái hồ sơ</th><th>Cập nhật gần nhất</th><th>Thao tác</th></tr></thead><tbody>${evalRows || '<tr><td colspan="7">Không có dữ liệu hồ sơ phù hợp bộ lọc.</td></tr>'}</tbody></table></div></section><div class="record-note">Báo cáo nền: ưu tiên xem/lọc nhanh và xử lý hồ sơ. Xuất bảng tính / bản in có thể làm sau khi bảng dữ liệu đã chốt.</div></main></div></section>`;
+  const miniStatusEl = document.getElementById('miniStatus');
+  const contextTitleEl = document.getElementById('contextTitle');
+  const contextSubEl = document.getElementById('contextSub');
+  const contextActionEl = document.getElementById('contextAction');
+  const mainLessonEl = document.getElementById('mainLesson');
+  if(miniStatusEl) miniStatusEl.textContent='Báo cáo';
+  if(contextTitleEl) contextTitleEl.textContent='Bạn đang ở: Báo cáo đào tạo';
+  if(contextSubEl) contextSubEl.textContent='Tổng hợp tiến độ học, điểm bài kiểm tra và tình trạng hồ sơ đánh giá';
+  if(contextActionEl) contextActionEl.textContent=phfRoleLabel();
+  if(!mainLessonEl){
+    throw new Error('PHF_REPORT_HOST_MISSING');
+  }
+  mainLessonEl.innerHTML = `<section class="eval-admin-shell">${phfRenderHubTopbar('reports', profile, canEdit)}<div class="eval-admin-page"><main class="eval-admin-main hub-report-page"><div class="hub-dashboard-hero phf-standard-module-hero"><div><span class="phf-lib-kicker phf-standard-module-kicker">PHF Training Hub · Báo cáo</span><h2>Báo cáo đào tạo</h2><p>Theo dõi và đối chiếu tiến độ đào tạo, kết quả kiểm tra và hồ sơ đánh giá của học viên.</p></div><div class="hub-dashboard-note phf-standard-module-role">${esc(phfRoleLabel())}<small>${total} học viên theo bộ lọc</small></div></div><section class="hub-report-filters"><div class="hub-report-filter"><label>Chương trình</label><select id="phfReportProgram">${programOptions}</select></div><div class="hub-report-filter"><label>Chi nhánh</label><select id="phfReportBranch">${branchOptions}</select></div><div class="hub-report-filter"><label>Trạng thái</label><select id="phfReportStatus">${statusOptions}</select></div><button class="eval-action primary" type="button" onclick="phfApplyReportFilters()">Lọc báo cáo</button><button class="eval-action" type="button" onclick="phfRenderTrainingReports({program:'all',branch:'all',status:'all'})">Xóa lọc</button></section><div class="hub-report-top"><section class="hub-report-main-card"><h3>Hồ sơ đánh giá</h3><p>Theo dõi đủ/thiếu phiếu, phiếu quá hạn và học viên cần xử lý.</p><b>${missingEvalLearners} học viên thiếu hồ sơ</b><div class="action-row"><button class="eval-action primary" type="button" onclick="renderEvaluationRecords()">Mở Đánh giá →</button></div></section><div class="hub-report-metric"><b>${total}</b><span>Học viên</span><p>Trong phạm vi bộ lọc hiện tại.</p></div><div class="hub-report-metric"><b>${testAgg.scored ? testAgg.avg + '%' : '-'}</b><span>Điểm bài kiểm tra TB</span><p>${testAgg.fail} chưa đạt · ${testAgg.none} chưa làm.</p></div><div class="hub-report-metric"><b>${needAttention}</b><span>Cần xử lý</span><p>${overdueLearners} quá hạn · ${noStart} thiếu ngày bắt đầu.</p></div></div><div class="hub-report-grid"><section class="hub-panel"><div class="hub-panel-head"><h3>Tiến độ theo giai đoạn</h3><span>tóm tắt gọn</span></div>${phfReportMiniRows(stageItems, Math.max(1,total))}<div class="phf-report-compact-note">Xem chi tiết từng học viên ở bảng bên dưới.</div></section><section class="hub-panel"><div class="hub-panel-head"><h3>Tình trạng bài kiểm tra</h3><span>tóm tắt gọn</span></div>${phfReportMiniRows(testStatusItems, Math.max.apply(null,testStatusItems.map(function(x){return x.value}).concat([1])))}<div class="phf-report-compact-note">Ưu tiên xử lý học viên chưa làm hoặc chưa đạt.</div></section></div><section class="hub-panel"><div class="hub-report-table-note"><div><h3>Tiến độ học viên</h3><small>Phục vụ rà tiến độ học, điểm bài kiểm tra và trạng thái cần nhắc.</small></div></div><div class="eval-table-wrap"><table class="hub-action-table hub-report-table"><thead><tr><th>Học viên</th><th>Chi nhánh/Vị trí</th><th>Chương trình</th><th>Ngày bắt đầu</th><th>Giai đoạn</th><th>Tiến độ</th><th>Điểm bài kiểm tra</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${progressRows || '<tr><td colspan="9">Không có học viên phù hợp bộ lọc.</td></tr>'}</tbody></table></div></section><section class="hub-panel"><div class="hub-report-table-note"><div><h3>Hồ sơ đánh giá</h3><small>Rà tình trạng phiếu tuần, tháng, kết thúc và tiêu chí cần theo dõi.</small></div></div><div class="eval-table-wrap"><table class="hub-action-table hub-report-table"><thead><tr><th>Học viên</th><th>Phiếu đã lưu</th><th>Phiếu kết thúc</th><th>Cần theo dõi</th><th>Trạng thái hồ sơ</th><th>Cập nhật gần nhất</th><th>Thao tác</th></tr></thead><tbody>${evalRows || '<tr><td colspan="7">Không có dữ liệu hồ sơ phù hợp bộ lọc.</td></tr>'}</tbody></table></div></section><div class="record-note">Báo cáo nền: ưu tiên xem/lọc nhanh và xử lý hồ sơ. Xuất bảng tính / bản in có thể làm sau khi bảng dữ liệu đã chốt.</div></main></div></section>`;
   ['phfReportProgram','phfReportBranch','phfReportStatus'].forEach(function(id){ const el = document.getElementById(id); if(el) el.addEventListener('change', phfApplyReportFilters); });
   phfScrollToPageTop();
 }

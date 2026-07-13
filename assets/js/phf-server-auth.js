@@ -18,6 +18,7 @@
   /* Mỗi thay đổi xác thực tăng một phiên bản. Kết quả kiểm tra phiên cũ
      không được phép ghi đè phiên đăng nhập vừa hoàn tất. */
   var authEpoch = 0;
+  var authBootStarted = false;
 
   function esc(v){
     return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){
@@ -390,7 +391,7 @@
         if(routerRestored) return true;
       }
       if(/^\/classroom(?:\/|$)/.test(location.pathname) && typeof window.phfNavigate === 'function'){
-        await Promise.resolve(window.phfNavigate(location.pathname,true));
+        await Promise.resolve(window.phfNavigate(location.pathname,true,{source:'auth'}));
         return true;
       }
     }catch(routerError){
@@ -401,14 +402,13 @@
       /* PHF 27.6.12.4.7.3: mọi tài khoản sau đăng nhập chủ động đều vào
          Trang chủ sau đăng nhập. Deep link hợp lệ vẫn được phf-url-router
          khôi phục ở phía trên; chỉ fallback mặc định mới đổi về Trang chủ. */
-      if(typeof window.phfRenderPostLoginHome === 'function'){
-        await Promise.resolve(window.phfRenderPostLoginHome());
+      /* Route mặc định sau xác thực phải đi qua Router để URL, menu và
+         nội dung luôn đồng nhất. Không gọi renderer trực tiếp tại Auth. */
+      if(typeof window.phfNavigate === 'function'){
+        await Promise.resolve(window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv', true,{source:'auth'}));
         return true;
       }
-      if(typeof window.phfGoHome === 'function'){
-        await Promise.resolve(window.phfGoHome());
-        return true;
-      }
+      /* Router chưa sẵn sàng thì không tự dựng màn tại Auth. */
     }catch(e){
       console.warn('[PHF Auth] restore/render:', reason || '', e && e.message || e);
     }
@@ -743,7 +743,7 @@
 
   function isProtectedPath(){
     var path=String(location.pathname||'/').replace(/\/+$/,'')||'/';
-    return /^\/(admin|home|overview|guide|training-content|employees|my-lessons|my-profile|programs|lessons|notifications|classroom)(\/|$)/.test(path);
+    return /^\/(admin|ql|hv|home|overview|guide|training-content|employees|my-lessons|my-profile|programs|lessons|notifications|classroom)(\/|$)/.test(path);
   }
 
   function showProtectedLogin(message){
@@ -780,20 +780,8 @@
   }
 
   async function renderInitialRouteSafely(user){
-    var path=String(location.pathname||'/').replace(/\/+$/,'')||'/';
-    var role=String(user&&user.role||'').toLowerCase();
-    /* Route Admin tài khoản không phụ thuộc dữ liệu đào tạo. Dựng trực tiếp
-       để F5 không bị mắc kẹt bởi router hoặc Promise khôi phục cũ. */
-    if(role==='admin'&&path==='/admin/accounts'&&typeof window.phfRenderAccountAdminSafe==='function'){
-      window.__phfAuthHandledInitialRoute=true;
-      window.phfRenderAccountAdminSafe();
-      return true;
-    }
-    if(role==='admin'&&path==='/admin'&&typeof window.phfRenderAdminManagement==='function'){
-      window.__phfAuthHandledInitialRoute=true;
-      window.phfRenderAdminManagement();
-      return true;
-    }
+    /* Giai đoạn 1: Auth chỉ xác minh session và bàn giao cho Router.
+       Không dựng riêng màn Admin/Learner tại đây. */
     try{
       return await withTimeout(renderAuthenticatedDefault(user,'server-session-restored'),7000,'ROUTE_RESTORE_TIMEOUT');
     }catch(e){
@@ -803,6 +791,8 @@
   }
 
   async function bootAuth(){
+    if(authBootStarted) return true;
+    authBootStarted=true;
     var bootEpoch = authEpoch;
     try{
       var user = await withTimeout(readServerSession(),8000,'SESSION_TIMEOUT');
@@ -810,15 +800,18 @@
       await establishSession(user,'server-session-restored');
       if(bootEpoch !== authEpoch || authTransitioning) return;
 
-      /* Phiên đã rõ thì phải mở giao diện ngay. Không giữ toàn trang chờ route. */
-      clearBootCloak();
+      /* 60.8: Với phiên hợp lệ, giữ boot cloak cho tới khi Router đã dựng đúng
+         route đầu tiên. Trước đây cloak bị gỡ tại đây nên màn mặc định/Học viên
+         có thể lóe lên trước Báo cáo hoặc Khu Quản lý. */
 
       if(user){
         if(user.mustChangePassword && String(user.authProvider || 'password') !== 'google'){
+          /* Modal đổi mật khẩu là một luồng tương tác bắt buộc nên phải mở cloak
+             trước khi hiển thị modal; sau đó Router vẫn chịu trách nhiệm route. */
+          clearBootCloak();
           try{
             user=await requireFirstPasswordChange(user,'');
             await establishSession(user,'first-password-changed-restored');
-            clearBootCloak();
           }catch(changeError){
             await logout();
             return;
@@ -826,11 +819,9 @@
         }
         var rendered=await renderInitialRouteSafely(user);
         if(!rendered){
-          var role=String(user.role||'').toLowerCase();
-          /* PHF 27.6.12.4.7.5: khi F5/khôi phục route thất bại, mọi tài khoản
-             đều giữ fallback an toàn ở Trang chủ; không tự ép learner vào bài học. */
-          if(typeof window.phfRenderPostLoginHome==='function') window.phfRenderPostLoginHome();
-          else if(typeof window.phfGoHome==='function') window.phfGoHome();
+          /* Fallback vẫn phải đi qua Router để URL, menu, shell và nội dung
+             không thể bị các renderer tự ghi đè lẫn nhau. */
+          if(typeof window.phfNavigate==='function') await Promise.resolve(window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv',true,{source:'auth'}));
         }
       }else{
         if(isProtectedPath()) showProtectedLogin('Phiên đăng nhập đã hết hạn hoặc thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.');
@@ -847,9 +838,6 @@
     }
   }
 
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded',bootAuth);
-  }else{
-    bootAuth();
-  }
+  window.phfStartServerAuth=bootAuth;
+  window.phfServerAuthReady=true;
 })();

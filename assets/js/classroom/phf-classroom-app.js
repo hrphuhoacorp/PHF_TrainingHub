@@ -1,7 +1,7 @@
 /* PHF Classroom 1.0 - workspace giao diện nền tảng, chưa nối dữ liệu lớp */
 (function(){
   'use strict';
-  var VERSION='1.0.17-classroom-render-only';
+  var VERSION='59.2';
   var ROUTES={
     manager:[
       {group:'Điều hành',items:[['/classroom','Tổng quan'],['/classroom/proposals','Đề xuất đào tạo'],['/classroom/classes','Lớp đào tạo'],['/classroom/calendar','Lịch đào tạo']]},
@@ -19,7 +19,7 @@
   function cleanPath(v){var p=String(v||location.pathname||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');if(p.length>1)p=p.replace(/\/$/,'');return p||'/';}
   function setUrl(path,replace){try{history[replace?'replaceState':'pushState']({phfClassroom:true,path:path},'',path);}catch(e){}}
   function isClassroomPath(path){
-    return /^\/classroom(?:\/|$)/.test(cleanPath(path||location.pathname));
+    return /^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(cleanPath(path||location.pathname));
   }
   function classroomRoot(){return document.getElementById('phfClassroomRoot');}
   function goHub(){
@@ -197,7 +197,7 @@
     icon.style.display=user()?'inline-flex':'none';
     syncLearningVisibility();
   }
-  function open(){return navigate(isManage()?'/classroom':'/classroom/my-classes');}
+  function open(){var r=role();return window.phfNavigate?window.phfNavigate(r==='admin'?'/admin/classroom':(r==='manager'?'/ql/classroom':'/hv/classroom')):navigate(r==='learner'?'/classroom/my-classes':'/classroom');}
   window.phfOpenClassroom=open;
   window.phfRenderClassroom=render;
   window.phfClassroomNavigate=navigate;
