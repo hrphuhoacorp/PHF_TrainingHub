@@ -723,21 +723,59 @@
   window.phfGo = guardedGo;
 
   var oldNext = window.phfTryNextFromLesson;
+  var phfNextLessonTransitionBusy = false;
+  function phfNextLessonButton(){
+    var active=document.activeElement;
+    if(active&&active.matches&&active.matches('.actions .btn-primary[onclick*="phfTryNextFromLesson"]')) return active;
+    var root=document.getElementById('mainLesson');
+    return root?root.querySelector('.actions .btn-primary[onclick*="phfTryNextFromLesson"]'):null;
+  }
+  function phfAfterLessonMounted(){
+    return new Promise(function(resolve){
+      requestAnimationFrame(function(){requestAnimationFrame(resolve);});
+    });
+  }
   window.phfTryNextFromLesson = async function phfTryNextFromLessonB16(){
     var idx = getCurrentIndex();
     if(!isLearner()){
       if(typeof oldNext === 'function') return oldNext.apply(this, arguments);
       return guardedGo(idx + 1);
     }
+    if(phfNextLessonTransitionBusy) return;
     if(!canCompleteCurrent()) return;
-    var defs=currentAckDefinitions();
-    if(defs.length){
-      var saved=await window.phfSaveCurrentAcknowledgements();
-      if(!saved) return;
-    }else{
-      markCompleted(idx);
+
+    var btn=phfNextLessonButton();
+    var loadingToken=null;
+    phfNextLessonTransitionBusy=true;
+    try{
+      if(typeof window.phfSetButtonLoading==='function') window.phfSetButtonLoading(btn,true,'Đang xử lý…');
+      if(typeof window.phfLoadingShow==='function'){
+        loadingToken=window.phfLoadingShow('save',{
+          title:'Đang lưu xác nhận và mở bài tiếp theo',
+          text:'Vui lòng chờ trong khi hệ thống ghi nhận tiến độ của bạn.'
+        });
+      }
+
+      var defs=currentAckDefinitions();
+      if(defs.length){
+        var saved=await window.phfSaveCurrentAcknowledgements();
+        if(!saved) return;
+      }else{
+        markCompleted(idx);
+      }
+
+      guardedGo(idx + 1);
+      await phfAfterLessonMounted();
+    }catch(err){
+      notice('error','Chưa thể mở bài tiếp theo',err&&err.message?err.message:'Vui lòng thử lại.');
+    }finally{
+      if(loadingToken){
+        if(typeof window.phfLoadingSettle==='function') window.phfLoadingSettle(loadingToken);
+        else if(typeof window.phfLoadingHide==='function') window.phfLoadingHide(loadingToken);
+      }
+      if(btn&&btn.isConnected&&typeof window.phfSetButtonLoading==='function') window.phfSetButtonLoading(btn,false);
+      phfNextLessonTransitionBusy=false;
     }
-    guardedGo(idx + 1);
   };
 
   function renderAdminSimulationBanner(){
