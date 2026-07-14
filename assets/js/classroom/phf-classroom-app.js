@@ -1,14 +1,36 @@
 /* PHF Classroom 1.0 - workspace giao diện nền tảng, chưa nối dữ liệu lớp */
 (function(){
   'use strict';
-  var VERSION='59.2';
+  var VERSION='62.6.2';
   var ROUTES={
+    admin:[
+      {group:'Điều hành',items:[
+        ['/admin/classroom','Tổng quan',true],
+        ['/admin/classroom/lop','Lớp đào tạo',false],
+        ['/admin/classroom/lich','Lịch đào tạo',false]
+      ]},
+      {group:'Quản lý lớp học',items:[
+        ['/admin/classroom/hoc-vien','Học viên',false],
+        ['/admin/classroom/nguoi-phu-trach','Người phụ trách',false],
+        ['/admin/classroom/diem-danh','Điểm danh',false]
+      ]},
+      {group:'Kiểm tra và kết quả',items:[
+        ['/admin/classroom/bai-kiem-tra','Bài kiểm tra',false],
+        ['/admin/classroom/ket-qua','Kết quả đào tạo',false]
+      ]},
+      {group:'Phê duyệt và theo dõi',items:[
+        ['/admin/classroom/de-xuat','Đề xuất đào tạo',true],
+        ['/admin/classroom/bao-cao','Báo cáo',false]
+      ]},
+      {group:'Hệ thống',items:[
+        ['/admin/classroom/cau-hinh','Cấu hình Classroom',true]
+      ]}
+    ],
     manager:[
-      {group:'Điều hành',items:[['/classroom','Tổng quan'],['/classroom/proposals','Đề xuất đào tạo'],['/classroom/classes','Lớp đào tạo'],['/classroom/calendar','Lịch đào tạo']]},
-      {group:'Vận hành lớp',items:[['/classroom/attendance','Điểm danh'],['/classroom/materials','Tài liệu đã giảng'],['/classroom/assessments','Bài kiểm tra'],['/classroom/results','Kết quả đào tạo']]}
+      {group:'Điều hành',items:[['/ql/classroom','Tổng quan'],['/ql/classroom/de-xuat','Đề xuất đào tạo']]}
     ],
     learner:[
-      {group:'Cá nhân',items:[['/classroom/my-classes','Lớp đào tạo của tôi'],['/classroom/calendar','Lịch đào tạo'],['/classroom/results','Kết quả của tôi']]}
+      {group:'Cá nhân',items:[['/hv/classroom','Lớp đào tạo của tôi']]}
     ]
   };
   function role(){try{return String((window.phfGetSessionRole&&window.phfGetSessionRole())||((window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser()||{}).role)||'learner').toLowerCase();}catch(e){return 'learner';}}
@@ -18,26 +40,24 @@
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function cleanPath(v){var p=String(v||location.pathname||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');if(p.length>1)p=p.replace(/\/$/,'');return p||'/';}
   function setUrl(path,replace){try{history[replace?'replaceState':'pushState']({phfClassroom:true,path:path},'',path);}catch(e){}}
-  function isClassroomPath(path){
-    return /^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(cleanPath(path||location.pathname));
-  }
+  function isClassroomPath(path){return /^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(cleanPath(path||location.pathname));}
   function classroomRoot(){return document.getElementById('phfClassroomRoot');}
+  function homePath(){return role()==='admin'?'/admin/classroom':(role()==='manager'?'/ql/classroom':'/hv/classroom');}
   function goHub(){
-    var target=isManage()?'/overview':'/my-lessons';
+    var target=role()==='admin'?'/admin':(role()==='manager'?'/ql':'/hv');
     if(typeof window.phfNavigate==='function') return window.phfNavigate(target);
     location.href=target;
   }
-  function routeGroups(){
-    var groups=(isManage()?ROUTES.manager:ROUTES.learner).slice();
-    if(role()==='admin') groups.push({group:'Quản trị',items:[['/classroom/reports','Báo cáo'],['/classroom/settings','Cài đặt Classroom']]});
-    return groups;
-  }
-  function allowedPaths(){var out=[];routeGroups().forEach(function(g){g.items.forEach(function(i){out.push(i[0]);});});return out;}
+  function routeGroups(){return (ROUTES[role()]||ROUTES.learner).slice();}
+  function allowedPaths(){var out=[];routeGroups().forEach(function(g){g.items.forEach(function(i){if(i[2]!==false)out.push(i[0]);});});return out;}
   function normalizeRoute(path){
     path=cleanPath(path);
-    var allowed=allowedPaths();
-    if(allowed.indexOf(path)>=0)return path;
-    return isManage()?'/classroom':'/classroom/my-classes';
+    if(path==='/classroom'||path==='/classroom/my-classes') return homePath();
+    if(path==='/classroom/proposals') return role()==='admin'?'/admin/classroom/de-xuat':(role()==='manager'?'/ql/classroom/de-xuat':homePath());
+    if(path==='/classroom/settings') return role()==='admin'?'/admin/classroom/cau-hinh':homePath();
+    if(allowedPaths().indexOf(path)>=0)return path;
+    if(/^\/(?:admin|ql|hv)\/classroom\/lop\/[^/]+$/.test(path)) return path;
+    return homePath();
   }
   function navigate(path,replace){
     path=normalizeRoute(path);
@@ -48,47 +68,68 @@
   function navHtml(active){
     return routeGroups().map(function(group){
       return '<section class="phfc-nav-group"><div class="phfc-nav-label">'+esc(group.group)+'</div><nav class="phfc-nav">'+group.items.map(function(item){
-        return '<button class="'+(item[0]===active?'active':'')+'" type="button" data-phfc-route="'+esc(item[0])+'" aria-current="'+(item[0]===active?'page':'false')+'">'+esc(item[1])+'</button>';
+        var enabled=item[2]!==false;
+        var attrs=enabled?' data-phfc-route="'+esc(item[0])+'"':' aria-disabled="true"';
+        var cls=(item[0]===active?'active ':'')+(enabled?'':'is-preview');
+        return '<button class="'+cls.trim()+'" type="button"'+attrs+' aria-current="'+(item[0]===active?'page':'false')+'">'+esc(item[1])+'</button>';
       }).join('')+'</nav></section>';
     }).join('');
   }
   function shell(content,title,desc,active){
     var label=role()==='admin'?'Admin':(role()==='manager'?'Quản lý':'Nhân viên');
+    var showPageHeading=active!=='/admin/classroom';
+    var heading=showPageHeading?'<div class="phfc-topline"><div class="phfc-title"><small>PHF CLASSROOM</small><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div></div>':'';
     return '<section class="phfc-shell">'+
-      '<header class="phfc-header"><button class="phfc-hub-back" type="button" data-phfc-back><span aria-hidden="true">←</span><span><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button><div class="phfc-header-brand">'+iconImg()+'<div><strong>PHF Classroom</strong><span>Quản lý đào tạo nội bộ</span></div></div><div class="phfc-header-user"><span>'+esc(name())+'</span><small>'+esc(label)+'</small></div></header>'+
-      '<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong><span>Đào tạo nội bộ</span></div></div>'+navHtml(active)+'<div class="phfc-side-bottom">Một phần của hệ sinh thái PHUHOA FRESH</div></aside><main class="phfc-main"><div class="phfc-topline"><div class="phfc-title"><small>PHF Classroom</small><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div></div>'+content+'</main></div></section>';
+      '<header class="phfc-header"><button class="phfc-hub-back" type="button" data-phfc-back><span class="phfc-hub-back-icon" aria-hidden="true">←</span><span class="phfc-hub-back-copy"><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button><div class="phfc-header-brand"><div class="phfc-header-brand-main">'+iconImg()+'<strong>PHF Classroom</strong></div></div><div class="phfc-header-user"><span><span class="phfc-greeting-prefix">Xin chào, </span><strong class="phfc-greeting-name">'+esc(name())+'</strong></span><small>'+esc(label)+'</small></div></header>'+ 
+      '<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
   }
   function emptyState(title,copy){return '<section class="phfc-card phfc-panel phfc-empty-panel"><div class="phfc-empty-icon">▦</div><h3>'+esc(title)+'</h3><p>'+esc(copy)+'</p></section>';}
-  function zeroKpis(){
-    return '<section class="phfc-kpis">'+[
-      ['▤','0','Lớp đào tạo trong tháng'],['◎','0','Nhân viên được đào tạo'],['✓','—','Tỷ lệ tham gia'],['↗','—','Tỷ lệ đạt yêu cầu']
-    ].map(function(x){return '<article class="phfc-card phfc-kpi"><div class="phfc-kpi-icon">'+x[0]+'</div><strong>'+x[1]+'</strong><p>'+x[2]+'</p></article>';}).join('')+'</section>';
+  function adminKpis(){
+    var items=[
+      ['Lớp đang diễn ra','0','Đang trong thời gian học'],
+      ['Lớp sắp bắt đầu','0','Trong 30 ngày tới'],
+      ['Đề xuất chờ duyệt','0','Chưa được xử lý'],
+      ['Công việc cần xử lý','0','Cần Admin theo dõi']
+    ];
+    return '<section class="phfc-admin-kpis">'+items.map(function(x,i){return '<article class="phfc-card phfc-admin-kpi"><span class="phfc-admin-kpi-icon" aria-hidden="true">'+(['▦','◫','✓','!'][i])+'</span><div><h4>'+esc(x[0])+'</h4><strong>'+esc(x[1])+'</strong><p>'+esc(x[2])+'</p></div></article>';}).join('')+'</section>';
   }
   function brandHero(){
-    return '<section class="phfc-brand-hero" aria-label="PHF Classroom"><img src="assets/images/classroom/phf-classroom-entry-approved.png" alt="PHF Classroom - Quản lý đào tạo nội bộ"><div class="phfc-brand-hero-overlay"><span>PHF Classroom</span><strong>Quản lý đào tạo nội bộ</strong><small>Lớp đào tạo · Tài liệu · Điểm danh · Bài kiểm tra</small></div></section>';
+    return '<section class="phfc-admin-identity" aria-label="PHF Classroom"><div class="phfc-admin-identity-copy"><span>PHF CLASSROOM</span><h3>Quản lý đào tạo nội bộ</h3><p>Tổ chức lớp học, lịch đào tạo, học viên và kết quả trong một khu vực thống nhất.</p></div><div class="phfc-admin-identity-brand">'+iconImg()+'<strong>PHF Classroom</strong><small>Quản lý đào tạo nội bộ</small></div><i class="phfc-identity-leaf phfc-identity-leaf-one" aria-hidden="true"></i><i class="phfc-identity-leaf phfc-identity-leaf-two" aria-hidden="true"></i></section>';
   }
-  function overview(){
-    return brandHero()+'<section class="phfc-hero phfc-hero-light"><div><span class="phfc-eyebrow">Tổng quan đào tạo</span><h3>Điều phối đào tạo nội bộ rõ ràng và xuyên suốt</h3><p>Các lớp học, lịch đào tạo, điểm danh và kết quả sẽ được tổng hợp tại một nơi.</p></div><div class="phfc-hero-stats"><div class="phfc-hero-stat"><b>0</b><span>Chờ duyệt</span></div><div class="phfc-hero-stat"><b>0</b><span>Đang diễn ra</span></div><div class="phfc-hero-stat"><b>0</b><span>Chờ hoàn tất</span></div></div></section>'+zeroKpis()+'<section class="phfc-grid"><article class="phfc-card phfc-panel"><div class="phfc-panel-head"><div><h3>Việc cần xử lý</h3><span>Cập nhật theo hoạt động của lớp</span></div></div><div class="phfc-empty">Hiện chưa có việc đào tạo cần xử lý.</div></article><article class="phfc-card phfc-panel"><div class="phfc-panel-head"><div><h3>Lịch đào tạo gần nhất</h3><span>7 ngày tới</span></div></div><div class="phfc-empty">Chưa có lịch đào tạo sắp tới.</div></article></section>';
+  function adminQuickActions(){
+    var actions=[
+      {icon:'＋',title:'Tạo lớp',copy:'Tạo lớp đào tạo mới.'},
+      {icon:'◇',title:'Quản lý lớp',copy:'Xem và quản lý các lớp đào tạo.'},
+      {icon:'✓',title:'Duyệt đề xuất',copy:'Xem và duyệt đề xuất đào tạo.',route:'/admin/classroom/de-xuat',accent:true},
+      {icon:'▤',title:'Quản lý bài kiểm tra',copy:'Theo dõi bài kiểm tra và kết quả.'}
+    ];
+    return '<section class="phfc-admin-section"><div class="phfc-section-heading"><h3>Thao tác nhanh</h3></div><div class="phfc-admin-actions">'+actions.map(function(a){var attrs=a.route?' data-phfc-route="'+esc(a.route)+'"':'';return '<button class="phfc-admin-action '+(a.accent?'is-accent':'')+'" type="button"'+attrs+'><span class="phfc-admin-action-icon" aria-hidden="true">'+a.icon+'</span><span class="phfc-admin-action-copy"><strong>'+esc(a.title)+'</strong><small>'+esc(a.copy)+'</small></span><span class="phfc-admin-action-arrow" aria-hidden="true">›</span></button>';}).join('')+'</div></section>';
+  }
+  function adminOverview(){
+    return brandHero()+adminKpis()+adminQuickActions()+
+      '<section class="phfc-admin-bottom-grid"><article class="phfc-card phfc-panel phfc-admin-empty-card"><div class="phfc-panel-head"><h3>Lớp đào tạo</h3><button type="button">Xem tất cả</button></div><div class="phfc-admin-empty-symbol" aria-hidden="true">▦</div><strong>Chưa có lớp đào tạo nào</strong><p>Các lớp được tạo sẽ hiển thị tại đây để Admin theo dõi.</p></article><article class="phfc-card phfc-panel phfc-admin-empty-card"><div class="phfc-panel-head"><h3>Lịch đào tạo</h3><button type="button">Xem lịch đầy đủ</button></div><div class="phfc-admin-empty-symbol" aria-hidden="true">□</div><strong>Chưa có lịch đào tạo</strong><p>Các buổi đào tạo sắp tới sẽ hiển thị tại đây.</p></article><article class="phfc-card phfc-panel phfc-admin-empty-card"><div class="phfc-panel-head"><h3>Công việc cần xử lý</h3><button type="button">Xem tất cả</button></div><div class="phfc-admin-empty-symbol" aria-hidden="true">✓</div><strong>Hiện không có công việc cần xử lý</strong><p>Các nội dung cần Admin theo dõi sẽ xuất hiện tại đây.</p></article></section>';
+  }
+  function managerOverview(){
+    return brandHero()+'<section class="phfc-hero phfc-hero-light"><div><span class="phfc-eyebrow">PHF Classroom · Quản lý</span><h3>Theo dõi và đề xuất đào tạo cho bộ phận</h3><p>Các lớp liên quan, lịch học và đề xuất đào tạo sẽ được tổng hợp tại đây.</p></div><div class="phfc-hero-stats"><div class="phfc-hero-stat"><b>—</b><span>Lớp đang theo dõi</span></div><div class="phfc-hero-stat"><b>—</b><span>Đề xuất đã gửi</span></div><div class="phfc-hero-stat"><b>—</b><span>Lịch sắp tới</span></div></div></section>'+emptyState('Chưa có dữ liệu Classroom','Dữ liệu lớp và đề xuất đào tạo sẽ xuất hiện sau khi hoàn thiện nghiệp vụ.');
+  }
+  function learnerOverview(){
+    return brandHero()+'<section class="phfc-hero phfc-hero-light"><div><span class="phfc-eyebrow">Lớp đào tạo của tôi</span><h3>Chào '+esc(name())+'</h3><p>Các lớp được phân công, lịch học, bài kiểm tra và kết quả cá nhân sẽ hiển thị tại đây.</p></div><div class="phfc-hero-stats"><div class="phfc-hero-stat"><b>—</b><span>Lớp sắp tới</span></div><div class="phfc-hero-stat"><b>—</b><span>Chưa hoàn thành</span></div><div class="phfc-hero-stat"><b>—</b><span>Đã hoàn thành</span></div></div></section>'+emptyState('Chưa có lớp đào tạo','Khi được phân công, lớp đào tạo của bạn sẽ xuất hiện tại đây.');
   }
   function pageMeta(path){
     var map={
-      '/classroom':['Tổng quan Classroom','Theo dõi toàn cảnh hoạt động đào tạo nội bộ.'],
-      '/classroom/proposals':['Đề xuất đào tạo','Tiếp nhận và theo dõi nhu cầu đào tạo từ các bộ phận.'],
-      '/classroom/classes':['Lớp đào tạo','Xem toàn bộ lớp học và trạng thái triển khai.'],
-      '/classroom/my-classes':['Lớp đào tạo của tôi','Theo dõi các lớp được phân công, lịch học và nội dung liên quan.'],
-      '/classroom/calendar':['Lịch đào tạo','Theo dõi các buổi học sắp diễn ra.'],
-      '/classroom/attendance':['Điểm danh','Theo dõi tình trạng tham gia từng buổi đào tạo.'],
-      '/classroom/materials':['Tài liệu đã giảng','Quản lý tài liệu được sử dụng trong các lớp đào tạo.'],
-      '/classroom/assessments':['Bài kiểm tra','Theo dõi bài kiểm tra và người được phân công chấm.'],
-      '/classroom/results':['Kết quả đào tạo','Xem kết quả học tập và tình trạng hoàn thành.'],
-      '/classroom/reports':['Báo cáo Classroom','Tổng hợp dữ liệu đào tạo phục vụ quản trị.'],
-      '/classroom/settings':['Cài đặt Classroom','Thiết lập danh mục và quy tắc vận hành Classroom.']
+      '/admin/classroom':['Tổng quan Classroom','Quản lý hoạt động đào tạo nội bộ trong một không gian thống nhất.'],
+      '/admin/classroom/de-xuat':['Đề xuất đào tạo','Tiếp nhận và theo dõi nhu cầu đào tạo từ các bộ phận.'],
+      '/admin/classroom/cau-hinh':['Cấu hình Classroom','Thiết lập danh mục và quy tắc vận hành Classroom.'],
+      '/ql/classroom':['Tổng quan Classroom','Theo dõi các lớp liên quan và nhu cầu đào tạo của bộ phận.'],
+      '/ql/classroom/de-xuat':['Đề xuất đào tạo','Gửi và theo dõi đề xuất đào tạo của bộ phận.'],
+      '/hv/classroom':['Lớp đào tạo của tôi','Theo dõi các lớp được phân công, lịch học và nội dung liên quan.']
     };
-    return map[path]||map[isManage()?'/classroom':'/classroom/my-classes'];
+    return map[path]||map[homePath()];
   }
   function pageContent(path){
-    if(path==='/classroom')return overview();
-    if(path==='/classroom/my-classes')return '<section class="phfc-hero phfc-hero-light"><div><span class="phfc-eyebrow">Dành cho bạn</span><h3>Chào '+esc(name())+'</h3><p>Các lớp được phân công, lịch học, bài kiểm tra và kết quả cá nhân sẽ hiển thị tại đây.</p></div><div class="phfc-hero-stats"><div class="phfc-hero-stat"><b>0</b><span>Lớp sắp tới</span></div><div class="phfc-hero-stat"><b>0</b><span>Chưa hoàn thành</span></div><div class="phfc-hero-stat"><b>0</b><span>Đã hoàn thành</span></div></div></section>'+emptyState('Chưa có lớp đào tạo','Khi được phân công, lớp đào tạo của bạn sẽ xuất hiện tại đây.');
+    if(path==='/admin/classroom')return adminOverview();
+    if(path==='/ql/classroom')return managerOverview();
+    if(path==='/hv/classroom')return learnerOverview();
     var m=pageMeta(path);return emptyState('Chưa có dữ liệu',m[1]);
   }
   function bindShell(main){

@@ -727,7 +727,14 @@
           setUrl(classroomHome,true);
           path=classroomHome;
         }
-        await Promise.resolve(renderClassroomSkeleton(path));
+        /* 62.5.1: Classroom app owns the final UI. The router skeleton is only a
+           fallback when the Classroom bundle has not loaded, otherwise it would
+           overwrite the new Admin/Manager/Learner dashboard with the old temporary shell. */
+        if(typeof window.phfRenderClassroom==='function'){
+          await Promise.resolve(window.phfRenderClassroom(path));
+        }else{
+          await Promise.resolve(renderClassroomSkeleton(path));
+        }
         return true;
       }
       if(/^\/classroom(?:\/|$)/.test(path)){
