@@ -945,3 +945,217 @@ body.phf-classroom-mode,
     font-weight:inherit!important;
   }
 }
+
+/* PHF Classroom 62.8.19 — Quản trị thông báo Admin */
+.phfc-notify-admin{display:grid;gap:16px}
+.phfc-notify-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.phfc-notify-summary article{padding:16px 18px;display:grid;gap:4px;border:1px solid #d6e6d9}
+.phfc-notify-summary span{font-size:12px;font-weight:700;color:#365949}
+.phfc-notify-summary strong{font-size:26px;line-height:1.1;color:#07533b}
+.phfc-notify-summary small{font-size:11px;color:#6a7d72}
+.phfc-notify-toolbar,.phfc-notify-list{padding:18px 20px}
+.phfc-notify-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.phfc-notify-toolbar h3,.phfc-notify-list h3,.phfc-notify-form h3{margin:0;color:#064c37}
+.phfc-notify-toolbar p,.phfc-notify-list p,.phfc-notify-form p{margin:5px 0 0;color:#66786e;font-size:12px}
+.phfc-notify-form{padding:20px;border:1px solid #b9d9bf;box-shadow:0 12px 30px rgba(16,82,48,.09)}
+.phfc-notify-form-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding-bottom:15px;border-bottom:1px solid #e0ebe2}
+.phfc-notify-form-head small{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:#2f8758;margin-bottom:5px}
+.phfc-icon-button{width:34px;height:34px;border:1px solid #c8d9cc;border-radius:9px;background:#fff;color:#416454;font-size:20px;line-height:1;cursor:pointer}
+.phfc-icon-button:hover{background:#edf7ee;color:#07533b}
+.phfc-notify-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.phfc-notify-grid .phfc-field-wide{grid-column:1/-1}
+.phfc-notify-grid textarea{resize:vertical;min-height:112px}
+.phfc-notify-recipient-box{margin-top:16px;padding:16px;border:1px solid #cfdfd2;border-radius:14px;background:#f8fbf7}
+.phfc-notify-recipient-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.phfc-notify-recipient-head small{display:block;font-size:10px;font-weight:800;letter-spacing:.07em;color:#55816a;margin-bottom:4px}
+.phfc-notify-recipient-head strong{display:block;font-size:14px;color:#164f39}
+.phfc-notify-recipient-box>p{margin:8px 0 0!important;color:#687b70!important}
+.phfc-notify-person-picker{margin-top:14px;border-top:1px solid #dce8de;padding-top:14px}
+.phfc-notify-person-picker>label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#486556}
+.phfc-notify-person-picker input[type="search"]{height:38px;border:1px solid #c7d8ca;border-radius:9px;padding:0 11px;font:inherit;background:#fff}
+.phfc-notify-person-list{margin-top:10px;max-height:240px;overflow:auto;border:1px solid #d8e4da;border-radius:10px;background:#fff}
+.phfc-notify-person{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid #edf2ee;cursor:pointer}
+.phfc-notify-person:last-child{border-bottom:0}
+.phfc-notify-person:hover{background:#f3f9f3}
+.phfc-notify-person input{margin-top:3px}
+.phfc-notify-person span{display:grid;gap:2px}
+.phfc-notify-person strong{font-size:12px;color:#1b4936}
+.phfc-notify-person small{font-size:10.5px;color:#708076}
+.phfc-notify-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid #e1ebe3}
+.phfc-notify-safe-note{margin-right:auto;display:grid;gap:2px;max-width:520px}
+.phfc-notify-safe-note strong{font-size:11px;color:#8a5d13}
+.phfc-notify-safe-note span{font-size:10.5px;color:#7d7462}
+.phfc-notify-list-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.phfc-notify-filters{display:flex;gap:8px;flex-wrap:wrap}
+.phfc-notify-filters select{height:36px;border:1px solid #ceddd1;border-radius:9px;background:#fff;padding:0 10px;font:inherit;font-size:11px;color:#365949}
+.phfc-notify-empty{min-height:230px;display:grid;place-items:center;align-content:center;text-align:center;padding:26px;color:#6a7d72}
+.phfc-notify-empty>span{font-size:30px;margin-bottom:8px;filter:grayscale(.2)}
+.phfc-notify-empty strong{color:#315b47;font-size:14px}
+.phfc-notify-empty p{max-width:460px}
+.phfc-notify-modal[hidden]{display:none!important}
+.phfc-notify-modal{position:fixed;inset:0;z-index:10080;display:grid;place-items:center;padding:24px}
+.phfc-notify-modal-backdrop{position:absolute;inset:0;background:rgba(8,31,21,.42);backdrop-filter:blur(2px)}
+.phfc-notify-modal-card{position:relative;width:min(900px,94vw);max-height:86vh;overflow:hidden;padding:0;display:flex;flex-direction:column;box-shadow:0 22px 60px rgba(4,38,22,.25)}
+.phfc-notify-modal-head{padding:18px 20px;border-bottom:1px solid #dbe7dd;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.phfc-notify-modal-head h3{margin:0;color:#064c37}
+.phfc-notify-modal-head p{margin:4px 0 0;font-size:11px;color:#687b70}
+.phfc-notify-modal-stats{padding:12px 20px;background:#f1f8f1;display:flex;align-items:baseline;gap:7px;border-bottom:1px solid #dce8de}
+.phfc-notify-modal-stats strong{font-size:22px;color:#08703f}
+.phfc-notify-modal-stats span{font-size:11px;color:#587064}
+.phfc-notify-table-wrap{overflow:auto}
+.phfc-notify-table-wrap table{width:100%;border-collapse:collapse;min-width:720px}
+.phfc-notify-table-wrap th,.phfc-notify-table-wrap td{padding:11px 14px;border-bottom:1px solid #e7eee8;text-align:left;vertical-align:top;font-size:11px}
+.phfc-notify-table-wrap th{position:sticky;top:0;background:#f8fbf8;color:#456555;font-weight:750;z-index:1}
+.phfc-notify-table-wrap td strong{display:block;color:#214b38;font-size:11.5px}
+.phfc-notify-table-wrap td small{display:block;margin-top:3px;color:#75847c;font-size:10px}
+.phfc-notify-status{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:9.5px;font-weight:750;white-space:nowrap}
+.phfc-notify-status.is-ready{background:#e4f3e4;color:#17623b}
+.phfc-notify-table-empty{padding:30px;text-align:center;color:#718078}
+
+@media(max-width:980px){
+  .phfc-notify-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfc-notify-toolbar,.phfc-notify-list-head,.phfc-notify-recipient-head{align-items:stretch;flex-direction:column}
+  .phfc-notify-toolbar .phfc-primary-button,.phfc-notify-recipient-head .phfc-secondary-button{width:100%}
+}
+@media(max-width:700px){
+  .phfc-notify-summary{grid-template-columns:1fr}
+  .phfc-notify-grid{grid-template-columns:1fr}
+  .phfc-notify-grid .phfc-field-wide{grid-column:auto}
+  .phfc-notify-actions{align-items:stretch;flex-direction:column}
+  .phfc-notify-safe-note{margin-right:0}
+  .phfc-notify-actions button{width:100%}
+  .phfc-notify-filters{width:100%}
+  .phfc-notify-filters select{flex:1;min-width:0}
+  .phfc-notify-modal{padding:10px}
+}
+
+
+/* PHF Classroom 62.8.21 — Đồng bộ chip gọn và cảm giác nhấn thật toàn module */
+.phfc-shell button,
+.phfc-shell [role="button"],
+.phfc-shell .phfc-type-option,
+.phfc-shell .phfc-scope-choice label,
+.phfc-shell .phfc-notify-person{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+
+.phfc-shell button:not(:disabled):not([aria-disabled="true"]),
+.phfc-shell [role="button"]:not([aria-disabled="true"]),
+.phfc-shell .phfc-type-option,
+.phfc-shell .phfc-scope-choice label,
+.phfc-shell .phfc-notify-person{
+  transition-property:transform,background-color,border-color,box-shadow,color,filter;
+  transition-duration:.14s;
+  transition-timing-function:ease;
+  transform-origin:center;
+}
+
+/* Khoảnh khắc đang đè chuột/ngón tay: nút lún xuống rõ, bóng chuyển vào trong. */
+.phfc-shell button:not(:disabled):not([aria-disabled="true"]):active,
+.phfc-shell [role="button"]:not([aria-disabled="true"]):active,
+.phfc-shell .phfc-type-option:active,
+.phfc-shell .phfc-scope-choice label:active,
+.phfc-shell .phfc-notify-person:active{
+  transform:translateY(2px) scale(.985)!important;
+  filter:brightness(.955);
+  box-shadow:inset 0 2px 5px rgba(7,68,45,.18),0 1px 2px rgba(7,68,45,.08)!important;
+  transition-duration:.035s!important;
+}
+
+/* Trạng thái bàn phím rõ nhưng không làm giao diện nặng. */
+.phfc-shell button:not(:disabled):not([aria-disabled="true"]):focus-visible,
+.phfc-shell [role="button"]:not([aria-disabled="true"]):focus-visible,
+.phfc-shell .phfc-type-option:focus-within,
+.phfc-shell .phfc-scope-choice label:focus-within{
+  outline:2px solid rgba(31,133,79,.32);
+  outline-offset:2px;
+}
+
+/* Chip trạng thái theo tinh thần Hub: thấp, chữ gọn, không mang cảm giác nút lớn. */
+.phfc-shell .phfc-import-badge,
+.phfc-shell .phfc-notify-status,
+.phfc-shell .phfc-review-tags span,
+.phfc-shell .phfc-entry-kicker{
+  min-height:22px;
+  box-sizing:border-box;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:10.5px;
+  line-height:1.15;
+  font-weight:650;
+  letter-spacing:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+
+/* Disabled phải đứng yên để không tạo cảm giác có thể thao tác. */
+.phfc-shell button:disabled:active,
+.phfc-shell button[aria-disabled="true"]:active,
+.phfc-shell [role="button"][aria-disabled="true"]:active{
+  transform:none!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+
+@media (prefers-reduced-motion:reduce){
+  .phfc-shell button,
+  .phfc-shell [role="button"],
+  .phfc-shell .phfc-type-option,
+  .phfc-shell .phfc-scope-choice label,
+  .phfc-shell .phfc-notify-person{
+    transition-duration:0s!important;
+  }
+}
+
+/* PHF Classroom 62.8.22 — Căn ngang và tăng cảm giác nhấn cho cụm Hủy / Tiếp tục */
+.phfc-create-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+.phfc-create-actions .phfc-primary-button,
+.phfc-create-actions .phfc-secondary-button{
+  box-sizing:border-box;
+  min-height:44px;
+  height:44px;
+  margin:0!important;
+  padding:0 18px;
+  border-radius:11px;
+  line-height:1;
+  vertical-align:middle;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.phfc-create-actions .phfc-secondary-button{
+  min-width:84px;
+}
+
+.phfc-create-actions .phfc-primary-button{
+  min-width:106px;
+}
+
+.phfc-create-actions .phfc-primary-button:not(:disabled):not([aria-disabled="true"]):active,
+.phfc-create-actions .phfc-secondary-button:not(:disabled):not([aria-disabled="true"]):active{
+  transform:translateY(3px) scale(.97)!important;
+  filter:brightness(.92)!important;
+  box-shadow:inset 0 3px 7px rgba(5,62,40,.24),0 1px 1px rgba(5,62,40,.06)!important;
+  transition-duration:.025s!important;
+}
+
+@media(max-width:640px){
+  .phfc-create-actions{
+    width:100%;
+  }
+  .phfc-create-actions .phfc-primary-button,
+  .phfc-create-actions .phfc-secondary-button{
+    flex:1 1 0;
+    min-width:0;
+  }
+}

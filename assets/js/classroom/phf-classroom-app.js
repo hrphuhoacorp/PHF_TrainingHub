@@ -126,6 +126,99 @@
       '<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
   }
   function emptyState(title,copy){return '<section class="phfc-card phfc-panel phfc-empty-panel"><div class="phfc-empty-icon">▦</div><h3>'+esc(title)+'</h3><p>'+esc(copy)+'</p></section>';}
+  function phfcNotice(type,title,message){
+    try{
+      if(typeof window.phfNotice==='function'){
+        if(window.phfNotice.length>=3) return window.phfNotice(type,title,message);
+        return window.phfNotice({type:type,title:title,message:message});
+      }
+    }catch(e){}
+    try{window.alert(title+'\n\n'+message);}catch(e){}
+  }
+  function phfcEmployeeValue(row,keys){
+    row=row||{};
+    for(var i=0;i<keys.length;i++){
+      var value=row[keys[i]];
+      if(value!==undefined&&value!==null&&String(value).trim()!=='') return String(value).trim();
+    }
+    return '';
+  }
+  function phfcNotificationRecipients(){
+    var list=phfcEmployeeData().slice(), out=[], seen={};
+    function add(row,isCurrent){
+      row=row||{};
+      var email=phfcEmployeeValue(row,['email','workEmail','work_email','personalEmail','personal_email']);
+      var code=phfcEmployeeValue(row,['employeeCode','employee_code','code']);
+      var id=phfcEmployeeValue(row,['id','employee_id','employeeId'])||email||code;
+      if(!id||seen[id])return;
+      var rawStatus=phfcEmployeeValue(row,['accountStatus','account_status','status','employmentStatus','employment_status']).toLowerCase();
+      var locked=row.locked===true||row.is_locked===true||row.disabled===true||row.is_active===false||['locked','disabled','inactive','terminated','nghi viec','nghỉ việc','da nghi','đã nghỉ','khoa','khóa'].indexOf(rawStatus)>=0;
+      if(locked&&!isCurrent)return;
+      seen[id]=true;
+      out.push({
+        id:id,
+        name:phfcEmployeeValue(row,['name','fullName','full_name','display_name'])||(isCurrent?name():'Chưa cập nhật họ tên'),
+        code:code||'—',
+        email:email||'—',
+        branch:phfcEmployeeValue(row,['branch','branchName','branch_name','location','store'])||'Chưa phân chi nhánh',
+        department:phfcEmployeeValue(row,['department','departmentName','department_name','team'])||'Chưa phân phòng ban',
+        role:phfcEmployeeValue(row,['role','roleName','role_name','position','positionName','position_name'])||(isCurrent?(role()==='admin'?'Admin':(role()==='manager'?'Quản lý':'Nhân viên')):'Nhân viên')
+      });
+    }
+    list.forEach(function(row){add(row,false);});
+    var u=user()||{};
+    add({id:u.employee_id||u.employeeId||u.id||u.email,name:name(),email:u.email,role:role()==='admin'?'Admin':(role()==='manager'?'Quản lý':'Nhân viên')},true);
+    return out;
+  }
+  function phfcUniqueValues(list,key){
+    var seen={},out=[];
+    list.forEach(function(row){var v=String(row[key]||'').trim();if(v&&!seen[v]){seen[v]=true;out.push(v);}});
+    return out.sort(function(a,b){return a.localeCompare(b,'vi');});
+  }
+  function phfcNotificationWorkspace(){
+    var recipients=phfcNotificationRecipients();
+    var branches=phfcUniqueValues(recipients,'branch');
+    var departments=phfcUniqueValues(recipients,'department');
+    var roles=phfcUniqueValues(recipients,'role');
+    function options(values,placeholder){return '<option value="">'+esc(placeholder)+'</option>'+values.map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('');}
+    var recipientRows=recipients.map(function(r){return '<label class="phfc-notify-person" data-phfc-notify-person data-search="'+esc((r.name+' '+r.code+' '+r.email+' '+r.department+' '+r.branch).toLowerCase())+'"><input type="checkbox" value="'+esc(r.id)+'" data-phfc-notify-person-check><span><strong>'+esc(r.name)+'</strong><small>'+esc(r.code)+' · '+esc(r.department)+' · '+esc(r.branch)+'</small></span></label>';}).join('');
+    return '<section class="phfc-notify-admin" data-phfc-notify-workspace>'+ 
+      '<section class="phfc-notify-summary">'+
+        '<article class="phfc-card"><span>Tổng thông báo</span><strong>0</strong><small>Chưa có dữ liệu gửi thật</small></article>'+ 
+        '<article class="phfc-card"><span>Đang hiển thị</span><strong>0</strong><small>Trong PHF Classroom</small></article>'+ 
+        '<article class="phfc-card"><span>Đã lên lịch</span><strong>0</strong><small>Chờ đến thời điểm gửi</small></article>'+ 
+        '<article class="phfc-card"><span>Tỷ lệ đã xem</span><strong>—</strong><small>Sẽ tính theo từng người nhận</small></article>'+ 
+      '</section>'+ 
+      '<section class="phfc-card phfc-notify-toolbar"><div><h3>Quản trị thông báo</h3><p>Thông báo chỉ hiển thị sau khi người dùng đăng nhập vào hệ thống.</p></div><button class="phfc-primary-button" type="button" data-phfc-notify-create>+ Tạo thông báo</button></section>'+ 
+      '<section class="phfc-card phfc-notify-form" data-phfc-notify-form hidden>'+ 
+        '<div class="phfc-notify-form-head"><div><small>THÔNG BÁO MỚI</small><h3>Soạn thông báo Classroom</h3><p>Danh sách người nhận sẽ được chốt tại thời điểm gửi để bảo toàn lịch sử.</p></div><button type="button" class="phfc-icon-button" data-phfc-notify-close aria-label="Đóng">×</button></div>'+ 
+        '<div class="phfc-notify-grid">'+ 
+          '<label class="phfc-field phfc-field-wide"><span>Tiêu đề thông báo *</span><input type="text" maxlength="160" placeholder="Ví dụ: Lịch đào tạo kỹ năng bán hàng tháng 7" data-phfc-notify-title></label>'+ 
+          '<label class="phfc-field phfc-field-wide"><span>Nội dung *</span><textarea rows="5" placeholder="Nhập nội dung ngắn gọn, rõ việc cần người nhận thực hiện" data-phfc-notify-content></textarea></label>'+ 
+          '<label class="phfc-field"><span>Mức độ</span><select data-phfc-notify-level><option value="normal">Thông thường</option><option value="important">Quan trọng</option><option value="urgent">Khẩn</option></select></label>'+ 
+          '<label class="phfc-field"><span>Phạm vi gửi</span><select data-phfc-notify-scope><option value="all">Toàn hệ thống (Public)</option><option value="class">Theo lớp đào tạo</option><option value="branch">Theo chi nhánh</option><option value="department">Theo phòng ban</option><option value="role">Theo vai trò</option><option value="selected">Chọn nhân sự</option></select></label>'+ 
+          '<label class="phfc-field" data-phfc-notify-filter="class" hidden><span>Lớp đào tạo</span><select disabled><option>Chưa có dữ liệu lớp</option></select></label>'+ 
+          '<label class="phfc-field" data-phfc-notify-filter="branch" hidden><span>Chi nhánh</span><select data-phfc-notify-branch>'+options(branches,'Chọn chi nhánh')+'</select></label>'+ 
+          '<label class="phfc-field" data-phfc-notify-filter="department" hidden><span>Phòng ban</span><select data-phfc-notify-department>'+options(departments,'Chọn phòng ban')+'</select></label>'+ 
+          '<label class="phfc-field" data-phfc-notify-filter="role" hidden><span>Vai trò</span><select data-phfc-notify-role>'+options(roles,'Chọn vai trò')+'</select></label>'+ 
+          '<label class="phfc-field"><span>Bắt đầu hiển thị</span><input type="datetime-local" data-phfc-notify-start></label>'+ 
+          '<label class="phfc-field"><span>Kết thúc hiển thị</span><input type="datetime-local" data-phfc-notify-end></label>'+ 
+          '<label class="phfc-field phfc-field-wide"><span>Đường dẫn khi bấm (không bắt buộc)</span><input type="text" placeholder="Ví dụ: /hv/classroom/lich" data-phfc-notify-link></label>'+ 
+        '</div>'+ 
+        '<section class="phfc-notify-recipient-box">'+ 
+          '<div class="phfc-notify-recipient-head"><div><small>NGƯỜI NHẬN DỰ KIẾN</small><strong data-phfc-notify-recipient-summary>Toàn hệ thống · '+recipients.length+' tài khoản đang hoạt động</strong></div><button type="button" class="phfc-secondary-button" data-phfc-notify-preview>Xem danh sách</button></div>'+ 
+          '<p data-phfc-notify-recipient-note>Chỉ tài khoản đang hoạt động và đã đăng nhập hợp lệ mới nhìn thấy thông báo. Người chưa đăng nhập không nhận dữ liệu.</p>'+ 
+          '<div class="phfc-notify-person-picker" data-phfc-notify-person-picker hidden><label><span>Tìm nhân sự</span><input type="search" placeholder="Tên, mã nhân viên, email..." data-phfc-notify-search></label><div class="phfc-notify-person-list">'+(recipientRows||'<p class="phfc-muted">Chưa tải được danh sách tài khoản.</p>')+'</div></div>'+ 
+        '</section>'+ 
+        '<div class="phfc-notify-actions"><div class="phfc-notify-safe-note"><strong>Chưa ghi dữ liệu thật</strong><span>Giao diện đã sẵn sàng; thao tác gửi chỉ mở sau khi chốt schema và API Classroom.</span></div><button class="phfc-secondary-button" type="button" data-phfc-notify-draft>Lưu bản nháp</button><button class="phfc-primary-button" type="button" data-phfc-notify-send>Gửi thông báo</button></div>'+ 
+      '</section>'+ 
+      '<section class="phfc-card phfc-notify-list">'+ 
+        '<div class="phfc-notify-list-head"><div><h3>Danh sách thông báo</h3><p>Theo dõi phạm vi gửi, người nhận và trạng thái đã xem.</p></div><div class="phfc-notify-filters"><select aria-label="Lọc trạng thái"><option>Tất cả trạng thái</option><option>Bản nháp</option><option>Đã lên lịch</option><option>Đang hiển thị</option><option>Đã kết thúc</option><option>Đã thu hồi</option></select><select aria-label="Lọc mức độ"><option>Tất cả mức độ</option><option>Thông thường</option><option>Quan trọng</option><option>Khẩn</option></select></div></div>'+ 
+        '<div class="phfc-notify-empty"><span aria-hidden="true">🔔</span><strong>Chưa có thông báo Classroom</strong><p>Thông báo đã lưu hoặc đã gửi sẽ xuất hiện tại đây. Không có dữ liệu mẫu được tạo.</p></div>'+ 
+      '</section>'+ 
+      '<div class="phfc-notify-modal" data-phfc-notify-modal hidden><div class="phfc-notify-modal-backdrop" data-phfc-notify-modal-close></div><section class="phfc-card phfc-notify-modal-card" role="dialog" aria-modal="true" aria-label="Danh sách người nhận"><div class="phfc-notify-modal-head"><div><h3>Danh sách người nhận dự kiến</h3><p data-phfc-notify-modal-subtitle>Toàn hệ thống</p></div><button type="button" class="phfc-icon-button" data-phfc-notify-modal-close aria-label="Đóng">×</button></div><div class="phfc-notify-modal-stats"><strong data-phfc-notify-modal-count>'+recipients.length+'</strong><span>tài khoản dự kiến nhận</span></div><div class="phfc-notify-table-wrap"><table><thead><tr><th>Người nhận</th><th>Mã NV</th><th>Vai trò</th><th>Đơn vị</th><th>Trạng thái</th></tr></thead><tbody data-phfc-notify-modal-body></tbody></table></div></section></div>'+ 
+    '</section>';
+  }
   function adminKpis(){
     var items=[
       ['Lớp đang diễn ra','0','Đang trong thời gian học'],
@@ -381,6 +474,7 @@
     if(path==='/admin/classroom')return adminOverview();
     if(path==='/admin/classroom/lop')return classListWorkspace(true);
     if(path==='/admin/classroom/lop/tao-moi')return createClassWorkspace();
+    if(path==='/admin/classroom/thong-bao')return phfcNotificationWorkspace();
     if(path==='/ql/classroom')return managerOverview();
     if(path==='/ql/classroom/lop')return classListWorkspace(false);
     if(path==='/hv/classroom')return learnerOverview();
@@ -743,12 +837,73 @@
     var first=menu.querySelector('button');if(first)first.focus();
   }
 
+  function bindNotificationWorkspace(main){
+    var wrap=main.querySelector('[data-phfc-notify-workspace]');if(!wrap)return;
+    var recipients=phfcNotificationRecipients();
+    var form=wrap.querySelector('[data-phfc-notify-form]');
+    var scope=wrap.querySelector('[data-phfc-notify-scope]');
+    var picker=wrap.querySelector('[data-phfc-notify-person-picker]');
+    var summary=wrap.querySelector('[data-phfc-notify-recipient-summary]');
+    var note=wrap.querySelector('[data-phfc-notify-recipient-note]');
+    var modal=wrap.querySelector('[data-phfc-notify-modal]');
+    var modalBody=wrap.querySelector('[data-phfc-notify-modal-body]');
+    var modalCount=wrap.querySelector('[data-phfc-notify-modal-count]');
+    var modalSubtitle=wrap.querySelector('[data-phfc-notify-modal-subtitle]');
+    function selectedIds(){return Array.from(wrap.querySelectorAll('[data-phfc-notify-person-check]:checked')).map(function(x){return x.value;});}
+    function activeRecipients(){
+      var value=scope?scope.value:'all';
+      if(value==='selected'){var ids=selectedIds();return recipients.filter(function(r){return ids.indexOf(r.id)>=0;});}
+      if(value==='branch'){var v=(wrap.querySelector('[data-phfc-notify-branch]')||{}).value||'';return v?recipients.filter(function(r){return r.branch===v;}):[];}
+      if(value==='department'){var d=(wrap.querySelector('[data-phfc-notify-department]')||{}).value||'';return d?recipients.filter(function(r){return r.department===d;}):[];}
+      if(value==='role'){var ro=(wrap.querySelector('[data-phfc-notify-role]')||{}).value||'';return ro?recipients.filter(function(r){return r.role===ro;}):[];}
+      if(value==='class')return [];
+      return recipients.slice();
+    }
+    function scopeLabel(){
+      var value=scope?scope.value:'all';
+      if(value==='all')return 'Toàn hệ thống (Public)';
+      if(value==='class')return 'Theo lớp đào tạo';
+      if(value==='branch')return 'Theo chi nhánh';
+      if(value==='department')return 'Theo phòng ban';
+      if(value==='role')return 'Theo vai trò';
+      return 'Nhân sự được chọn';
+    }
+    function updateRecipients(){
+      var value=scope?scope.value:'all';
+      wrap.querySelectorAll('[data-phfc-notify-filter]').forEach(function(el){el.hidden=el.getAttribute('data-phfc-notify-filter')!==value;});
+      if(picker)picker.hidden=value!=='selected';
+      var rows=activeRecipients();
+      if(summary)summary.textContent=scopeLabel()+' · '+rows.length+' người';
+      if(note){
+        note.textContent=value==='all'?'Danh sách sẽ chốt từ các tài khoản đang hoạt động tại thời điểm gửi. Người chưa đăng nhập không nhận dữ liệu.':(value==='class'?'Chưa có dữ liệu lớp thật; người nhận theo lớp sẽ khả dụng sau khi kết nối Classroom.':'Chỉ những tài khoản khớp phạm vi đã chọn mới được chốt vào danh sách người nhận.');
+      }
+    }
+    function renderModal(){
+      var rows=activeRecipients();
+      if(modalCount)modalCount.textContent=String(rows.length);
+      if(modalSubtitle)modalSubtitle.textContent=scopeLabel();
+      if(modalBody)modalBody.innerHTML=rows.length?rows.map(function(r){return '<tr><td><strong>'+esc(r.name)+'</strong><small>'+esc(r.email)+'</small></td><td>'+esc(r.code)+'</td><td>'+esc(r.role)+'</td><td>'+esc(r.department)+'<small>'+esc(r.branch)+'</small></td><td><span class="phfc-notify-status is-ready">Dự kiến nhận</span></td></tr>';}).join(''):'<tr><td colspan="5"><div class="phfc-notify-table-empty">Chưa có người nhận phù hợp với phạm vi đã chọn.</div></td></tr>';
+    }
+    var create=wrap.querySelector('[data-phfc-notify-create]');if(create)create.addEventListener('click',function(){if(form){form.hidden=false;form.scrollIntoView({block:'start',behavior:'smooth'});}});
+    var close=wrap.querySelector('[data-phfc-notify-close]');if(close)close.addEventListener('click',function(){if(form)form.hidden=true;});
+    if(scope)scope.addEventListener('change',updateRecipients);
+    ['[data-phfc-notify-branch]','[data-phfc-notify-department]','[data-phfc-notify-role]'].forEach(function(sel){var el=wrap.querySelector(sel);if(el)el.addEventListener('change',updateRecipients);});
+    wrap.querySelectorAll('[data-phfc-notify-person-check]').forEach(function(el){el.addEventListener('change',updateRecipients);});
+    var search=wrap.querySelector('[data-phfc-notify-search]');if(search)search.addEventListener('input',function(){var q=String(search.value||'').trim().toLowerCase();wrap.querySelectorAll('[data-phfc-notify-person]').forEach(function(row){row.hidden=!!q&&String(row.getAttribute('data-search')||'').indexOf(q)<0;});});
+    var preview=wrap.querySelector('[data-phfc-notify-preview]');if(preview)preview.addEventListener('click',function(){renderModal();if(modal)modal.hidden=false;});
+    wrap.querySelectorAll('[data-phfc-notify-modal-close]').forEach(function(el){el.addEventListener('click',function(){if(modal)modal.hidden=true;});});
+    function notConnected(){phfcNotice('warning','Chưa kết nối dữ liệu thông báo','Giao diện quản trị và danh sách người nhận đã hoàn thiện. Cần chốt schema/API Classroom trước khi lưu hoặc gửi thật để không phát sinh dữ liệu sai.');}
+    var draft=wrap.querySelector('[data-phfc-notify-draft]');if(draft)draft.addEventListener('click',notConnected);
+    var send=wrap.querySelector('[data-phfc-notify-send]');if(send)send.addEventListener('click',notConnected);
+    updateRecipients();
+  }
   function bindShell(main){
     var back=main.querySelector('[data-phfc-back]');if(back)back.addEventListener('click',goHub);
     var notification=main.querySelector('[data-phfc-notifications]');if(notification)notification.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();var opened=notification.getAttribute('aria-expanded')==='true';if(opened)closeNotificationPanel();else showNotificationPanel(notification);});
     var account=main.querySelector('[data-phfc-account]');if(account)account.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();var opened=account.getAttribute('aria-expanded')==='true';if(opened)closeAccountMenu();else showAccountMenu(account);});
     main.querySelectorAll('[data-phfc-route]').forEach(function(btn){btn.addEventListener('click',function(){navigate(btn.getAttribute('data-phfc-route'));});});
     bindCreateClass(main);
+    bindNotificationWorkspace(main);
     main.querySelectorAll('[data-phfc-nav-toggle]').forEach(function(toggle){
       toggle.addEventListener('click',function(){
         var group=toggle.closest('.phfc-nav-group');

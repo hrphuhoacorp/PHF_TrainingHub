@@ -216,6 +216,7 @@
     '/admin/classroom/ket-qua':Object.freeze({area:'admin',screen:'classroom-results',roles:['admin']}),
     '/admin/classroom/de-xuat':Object.freeze({area:'admin',screen:'classroom-proposals',roles:['admin']}),
     '/admin/classroom/bao-cao':Object.freeze({area:'admin',screen:'classroom-reports',roles:['admin']}),
+    '/admin/classroom/thong-bao':Object.freeze({area:'admin',screen:'classroom-notifications',roles:['admin']}),
     '/admin/classroom/cau-hinh':Object.freeze({area:'admin',screen:'classroom-settings',roles:['admin']})
   });
   window.PHF_ROUTE_REGISTRY=ROUTE_REGISTRY;
@@ -223,7 +224,7 @@
     public:['/','/login'],
     learner:['/hv','/hv/bai-hoc','/hv/ho-so','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua'],
     management:['/ql','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao'],
-    admin:['/admin','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/cau-hinh'],
+    admin:['/admin','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom']
   });
 
@@ -741,7 +742,7 @@
         var classroomRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
         if(!requireRoles([classroomRole])) return false;
         var allowed=false;
-        if(classroomRole==='admin') allowed=['/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/cau-hinh'].indexOf(path)>=0||/^\/admin\/classroom\/lop\/[^/]+$/.test(path);
+        if(classroomRole==='admin') allowed=['/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'].indexOf(path)>=0||/^\/admin\/classroom\/lop\/[^/]+$/.test(path);
         else if(classroomRole==='manager') allowed=['/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao'].indexOf(path)>=0||/^\/ql\/classroom\/lop\/[^/]+$/.test(path);
         else allowed=['/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua'].indexOf(path)>=0||/^\/hv\/classroom\/lop\/[^/]+$/.test(path);
         if(!allowed){
