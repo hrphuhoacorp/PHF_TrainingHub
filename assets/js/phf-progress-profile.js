@@ -625,6 +625,18 @@
     wrapped.__phf19b = true;
     window[name] = wrapped;
   }
+  function shouldRunLearnerMaintenance(){
+    try{
+      var path = String(location.pathname || '/').toLowerCase();
+      if(path === '/hv' || path.indexOf('/hv/') === 0) return true;
+      /* Giữ tương thích luồng learner cũ khi overlay nhận diện hoặc màn bài học
+         thực sự đang mở; Admin/TCQL không cần quét hồ sơ mỗi 2,5 giây. */
+      if(document.getElementById('phfPhoneEntryOverlay')) return true;
+      if(document.body && (document.body.classList.contains('phf-learning-mode') ||
+         document.body.classList.contains('phf-learner-mode'))) return true;
+    }catch(e){}
+    return false;
+  }
   function patchAll(){
     patchFunction('phfOpenLearnerAfterPhone');
     patchFunction('phfSetLearnerProfileFromRow');
@@ -645,10 +657,25 @@
 
   window.phfSyncCurrentPhoneToAccount = function(){ return syncFromCurrent('manual'); };
 
-  document.addEventListener('DOMContentLoaded', function(){ patchAll(); setTimeout(function(){syncFromCurrent('dom')}, 500); });
-  window.addEventListener('storage', function(){ setTimeout(function(){syncFromCurrent('storage')}, 80); });
-  setTimeout(function(){ patchAll(); syncFromCurrent('boot'); }, 200);
-  setTimeout(function(){ patchAll(); syncFromCurrent('boot2'); }, 1200);
-  setInterval(function(){ patchAll(); syncFromCurrent('interval'); }, 2500);
+  document.addEventListener('DOMContentLoaded', function(){
+    patchAll();
+    if(shouldRunLearnerMaintenance()) setTimeout(function(){syncFromCurrent('dom')}, 500);
+  });
+  window.addEventListener('storage', function(){
+    if(shouldRunLearnerMaintenance()) setTimeout(function(){syncFromCurrent('storage')}, 80);
+  });
+  setTimeout(function(){
+    patchAll();
+    if(shouldRunLearnerMaintenance()) syncFromCurrent('boot');
+  }, 200);
+  setTimeout(function(){
+    patchAll();
+    if(shouldRunLearnerMaintenance()) syncFromCurrent('boot2');
+  }, 1200);
+  setInterval(function(){
+    if(!shouldRunLearnerMaintenance()) return;
+    patchAll();
+    syncFromCurrent('interval');
+  }, 2500);
 })();
 

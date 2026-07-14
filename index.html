@@ -5,27 +5,40 @@
 <base href="/">
 <script id="phf-stale-service-worker-cleanup">
 (function(){
+  /* 61.6: chỉ dọn Service Worker/cache legacy một lần theo phiên bản phát hành.
+     Không xóa Cache Storage ở mọi F5 và không reload nếu không thật sự vừa gỡ
+     một Service Worker đang kiểm soát trang. */
   if (!("serviceWorker" in navigator)) return;
-  var reloadKey = "phf-sw-cleanup-27-6-12-3-4";
+  var releaseKey = "phf-sw-cleanup-release-61.6";
+  try{ if(localStorage.getItem(releaseKey)==="done") return; }catch(e){}
   var controlled = !!navigator.serviceWorker.controller;
-  Promise.all([
-    navigator.serviceWorker.getRegistrations().then(function(registrations){
-      return Promise.all(registrations.map(function(registration){
-        return registration.unregister().catch(function(){ return false; });
-      }));
-    }).catch(function(){ return []; }),
-    ("caches" in window ? caches.keys().then(function(keys){
-      return Promise.all(keys.map(function(key){
-        return caches.delete(key).catch(function(){ return false; });
-      }));
-    }).catch(function(){ return []; }) : Promise.resolve([]))
-  ]).finally(function(){
-    if (controlled && sessionStorage.getItem(reloadKey) !== "1") {
-      sessionStorage.setItem(reloadKey, "1");
-      location.reload();
-      return;
+  navigator.serviceWorker.getRegistrations().then(function(registrations){
+    registrations = Array.isArray(registrations) ? registrations : [];
+    if(!registrations.length){
+      try{localStorage.setItem(releaseKey,"done");}catch(e){}
+      return {removed:false,controlled:controlled};
     }
-    if (!controlled) sessionStorage.removeItem(reloadKey);
+    return Promise.all(registrations.map(function(registration){
+      return registration.unregister().catch(function(){ return false; });
+    })).then(function(results){
+      var removed = results.some(function(v){return v===true;});
+      if(!removed) return {removed:false,controlled:controlled};
+      if(!("caches" in window)) return {removed:true,controlled:controlled};
+      return caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(key){
+          return caches.delete(key).catch(function(){ return false; });
+        }));
+      }).catch(function(){ return []; }).then(function(){
+        return {removed:true,controlled:controlled};
+      });
+    });
+  }).then(function(result){
+    try{localStorage.setItem(releaseKey,"done");}catch(e){}
+    if(result && result.removed && result.controlled){
+      try{location.reload();}catch(e){}
+    }
+  }).catch(function(){
+    /* Dọn legacy không được cản trở ứng dụng. Cho phép thử lại ở lần mở sau. */
   });
 })();
 </script>
@@ -2230,7 +2243,17 @@ window.__phfBootGuardTimer=setTimeout(function(){
   html.phf-route-boot-pending body .app{visibility:hidden!important}
   html.phf-route-boot-pending body::before{content:"";position:fixed;inset:0;z-index:2147483000;background:#f4f8f5}
   html.phf-route-boot-pending body::after{content:"Đang tải không gian làm việc…";position:fixed;z-index:2147483001;left:50%;top:50%;transform:translate(-50%,-50%);min-width:250px;padding:18px 22px;border:1px solid #d9e8df;border-radius:16px;background:#fff;color:#315448;box-shadow:0 16px 42px rgba(7,65,48,.12);font:700 14px/1.45 Arial,"Helvetica Neue",Helvetica,sans-serif;text-align:center}
-  @media(prefers-reduced-motion:no-preference){html.phf-route-boot-pending body::after{animation:phfBootPulse 1.15s ease-in-out infinite alternate}@keyframes phfBootPulse{from{opacity:.72}to{opacity:1}}}
+  /* Học viên: sau khi session hợp lệ, hiện ngay header/menu; chỉ vùng bài học
+     dùng skeleton riêng trong lúc /api/data tải nền. */
+  html.phf-route-boot-pending.phf-route-shell-early body{overflow:auto!important}
+  html.phf-route-boot-pending.phf-route-shell-early body .app{visibility:visible!important}
+  html.phf-route-boot-pending.phf-route-shell-early body::before,
+  html.phf-route-boot-pending.phf-route-shell-early body::after{display:none!important}
+  html.phf-route-boot-pending.phf-route-shell-early .phase-strip,
+  html.phf-route-boot-pending.phf-route-shell-early .context-bar,
+  html.phf-route-boot-pending.phf-route-shell-early .layout{display:none!important}
+  html.phf-route-boot-pending.phf-route-shell-early .app::after{content:"Đang tải bài học và tiến trình…";display:flex;align-items:center;justify-content:center;min-height:320px;margin:16px 0 0;border:1px solid #d9e8df;border-radius:18px;background:linear-gradient(110deg,#f7faf8 25%,#edf5f1 38%,#f7faf8 52%);background-size:220% 100%;color:#527067;font:700 14px/1.45 Arial,"Helvetica Neue",Helvetica,sans-serif}
+  @media(prefers-reduced-motion:no-preference){html.phf-route-boot-pending body::after{animation:phfBootPulse 1.15s ease-in-out infinite alternate}html.phf-route-boot-pending.phf-route-shell-early .app::after{animation:phfSkeletonMove 1.25s linear infinite}@keyframes phfBootPulse{from{opacity:.72}to{opacity:1}}@keyframes phfSkeletonMove{to{background-position:-220% 0}}}
 </style>
 <script id="phf-route-boot-guard-js">
 (function(){
@@ -2238,7 +2261,8 @@ window.__phfBootGuardTimer=setTimeout(function(){
     var p=String(location.pathname||'/').replace(/\/+$/,'')||'/';
     if(p!=='/'&&p!=='/login'&&p!=='/print'&&!/^\/print\//.test(p)){
       document.documentElement.classList.add('phf-route-boot-pending');
-      window.__phfRouteBootGuardTimer=setTimeout(function(){document.documentElement.classList.remove('phf-route-boot-pending');},8000);
+      if(p==='/hv/bai-hoc'||p==='/hv') document.documentElement.classList.add('phf-route-shell-early');
+      window.__phfRouteBootGuardTimer=setTimeout(function(){document.documentElement.classList.remove('phf-route-boot-pending','phf-route-shell-early');},10000);
     }
   }catch(e){}
 })();
@@ -3135,10 +3159,10 @@ function render(){
 </script>
 
 <script src="assets/js/phf-evaluation.js?v=60.7_route_owner"></script>
-<script src="assets/js/phf-learner-app.js?v=1.0.18_f5_session_guard"></script>
+<script src="assets/js/phf-learner-app.js?v=62.1_stable_data_owner"></script>
 <script src="assets/js/phf-training-records.js?v=60.5_probation_ui_spacing"></script>
 <script src="assets/js/phf-notifications.js?v=27_1_ui_system_polish_1"></script>
-<script src="assets/js/phf-progress-profile.js?v=1.0.5.3.2_new_learner_zero"></script>
+<script src="assets/js/phf-progress-profile.js?v=61.3_perf_guard"></script>
 <script src="assets/js/phf-quiz-engine.js?v=1.0.6_completed_state"></script>
 <!-- app.js cũ đã được tắt trong bản kiểm thử vai trò để tránh tự mở hộp nhập SĐT trước màn chọn vai trò. -->
 <script>
@@ -4137,12 +4161,12 @@ function render(){
   
 
 
-<script src="assets/js/phf-learning-gate.js?v=1.0.5.3.2_info_action"></script>
+<script src="assets/js/phf-learning-gate.js?v=61.7_boot_reuse"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
 <script src="assets/js/phf-account-admin-safe.js?v=60.6_account_list_ui"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="assets/js/phf-url-router.js?v=60.8_route_first_guard"></script>
-<script src="assets/js/phf-server-auth.js?v=60.8_route_first_guard"></script>
+<script src="assets/js/phf-url-router.js?v=62.2_release_boot_guard"></script>
+<script src="assets/js/phf-server-auth.js?v=62.1_shared_data_promise"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){

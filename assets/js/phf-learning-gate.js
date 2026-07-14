@@ -1176,7 +1176,9 @@
         if(!window.phfB16LearningGate.ensureLearningAccess(true)) return Promise.resolve(false);
       }
       var loadingToken = (typeof window.phfLoadingShow === 'function') ? window.phfLoadingShow('learning') : null;
-      return refreshData(true).then(function(ok){
+      /* 61.7: Khi mở/F5 bài học, Router đã sở hữu lượt tải dữ liệu boot.
+         Learning Gate chỉ dùng lại Promise/state hiện có; không ép fetch mới. */
+      return refreshData(false).then(function(ok){
         if(!ok) throw new Error('Không tải được dữ liệu học tập');
         var profile = linkedProfile(rawSavedProfile());
         var idx = resolveResumeIndex(profile);
@@ -1200,7 +1202,7 @@
   // Sau đăng nhập/mở Bài học mới refresh dữ liệu. Không refresh theo mọi click để tránh nặng web.
   window.addEventListener('storage', function(){ linkedProfile(rawSavedProfile()); });
   document.addEventListener('submit', function(){ setTimeout(function(){ refreshData(true).then(function(){ linkedProfile(rawSavedProfile()); }); }, 120); }, true);
-  setTimeout(function(){ refreshData(true).then(function(){ linkedProfile(rawSavedProfile()); }); }, 350);
+  setTimeout(function(){ refreshData(false).then(function(){ linkedProfile(rawSavedProfile()); }); }, 350);
 
   window.phfB16AResumeBridge = {
     version:'16B.1',

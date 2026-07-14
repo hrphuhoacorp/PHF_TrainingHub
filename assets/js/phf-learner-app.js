@@ -458,6 +458,23 @@ function phfTrainingSessionKey(){
   ].join('|');
 }
 
+
+function phfStableTrainingIdentity(){
+  var user = null;
+  try{ user = typeof window.phfGetAuthenticatedUser === 'function' ? window.phfGetAuthenticatedUser() : null; }catch(e){}
+  var role = String((user&&user.role)||phfUserRole()||'learner').toLowerCase();
+  var profile = {};
+  try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
+  var employeeId = String((user&&(user.employeeId||user.employee_id))||profile.id||'').trim();
+  var phone = String((user&&user.phone)||profile.phone||'').replace(/\D/g,'');
+  var scope = role === 'learner' ? 'learner' : 'staff';
+  /* 62.1: Trong boot, phone/profile có thể được bổ sung sau request đầu tiên.
+     Server vẫn xác định learner bằng session cookie, nên khóa request phải ưu
+     tiên employeeId ổn định; chỉ dùng phone khi tài khoản chưa có employeeId. */
+  var subjectKey = employeeId ? ('id:'+employeeId) : (phone ? ('phone:'+phone) : 'session');
+  return {role:role,scope:scope,employeeId:employeeId,phone:phone,subjectKey:subjectKey,key:[scope,role,subjectKey].join('|')};
+}
+
 function phfResetTrainingRuntime(reason){
   window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
   window.__phfTrainingDataActiveSessionKey = '';
@@ -466,6 +483,7 @@ function phfResetTrainingRuntime(reason){
   window.__phfTrainingDataPromise = null;
   window.__phfTrainingDataPromiseScopeKey = '';
   window.__phfTrainingDataLatestRequestId = 0;
+  window.__phfTrainingRequestRegistry = Object.create(null);
   window.__phfLocalData = null;
   window.__phfEvalReadFresh = false;
   window.__phfEvalRenderedScope = '';
@@ -491,13 +509,11 @@ async function phfRefreshTrainingData(options){
     return false;
   }
 
-  let role = 'learner';
-  try{ role = phfUserRole(); }catch(e){}
-  let profile = {};
-  try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
-
-  const sessionKey = phfTrainingSessionKey();
-  const dataScope = role === 'learner' ? 'learner' : 'staff';
+  const stableIdentity = phfStableTrainingIdentity();
+  const role = stableIdentity.role;
+  const dataScope = stableIdentity.scope;
+  const sessionKey = stableIdentity.key;
+  let profile = {id:stableIdentity.employeeId,phone:stableIdentity.phone};
 
   if(window.__phfTrainingDataActiveSessionKey !== sessionKey){
     window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
@@ -515,21 +531,36 @@ async function phfRefreshTrainingData(options){
     window.__phfOverviewDataPromise = null;
   }
 
-  const scopeKey = sessionKey;
+  const scopeKey = [dataScope, stableIdentity.subjectKey || 'session'].join('|');
   const now = Date.now();
-  if(!force && window.__phfTrainingDataLoadedAt && window.__phfTrainingDataScopeKey === scopeKey &&
-     now - window.__phfTrainingDataLoadedAt < 15000 && window.__phfLocalData){
+  const bootReuse = window.__phfTrainingBootReuseUntil && now < window.__phfTrainingBootReuseUntil &&
+    window.__phfTrainingDataScopeKey === scopeKey && window.__phfLocalData;
+  if(bootReuse || (!force && window.__phfTrainingDataLoadedAt && window.__phfTrainingDataScopeKey === scopeKey &&
+     now - window.__phfTrainingDataLoadedAt < 15000 && window.__phfLocalData)){
     return true;
   }
   if(window.__phfTrainingDataPromise && window.__phfTrainingDataPromiseScopeKey === scopeKey){
     return window.__phfTrainingDataPromise;
   }
 
+  /* 61.7: Một registry theo đúng URL request trong giai đoạn boot.
+     Các lớp Router / Learning Gate / Resume có thể gọi nối tiếp nhau rất sát.
+     Giữ Promise đã hoàn tất trong một cửa sổ ngắn để tất cả cùng dùng một
+     kết quả, thay vì phát sinh request thứ hai sau khi Promise chính vừa được xóa. */
+  window.__phfTrainingRequestRegistry = window.__phfTrainingRequestRegistry || Object.create(null);
+
   const params = new URLSearchParams();
   params.set('scope', dataScope);
   if(role === 'learner'){
     if(profile.id) params.set('employeeId', String(profile.id));
-    if(profile.phone) params.set('phone', String(profile.phone).replace(/\D/g,''));
+    else if(profile.phone) params.set('phone', String(profile.phone).replace(/\D/g,''));
+  }
+
+  const requestUrl = '/api/data?' + params.toString();
+  const registryNow = Date.now();
+  const existingRequest = window.__phfTrainingRequestRegistry[requestUrl];
+  if(existingRequest && existingRequest.promise && registryNow < Number(existingRequest.expiresAt || 0)){
+    return existingRequest.promise;
   }
 
   const requestGeneration = window.__phfTrainingDataGeneration || 0;
@@ -539,7 +570,7 @@ async function phfRefreshTrainingData(options){
   const request = (async function(){
     const perfStartedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
     try{
-      let res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'include'});
+      let res = await fetch(requestUrl, {cache:'no-store',credentials:'include'});
       const rawText = await res.text().catch(function(){ return ''; });
       let json = {};
       try{ json = rawText ? JSON.parse(rawText) : {}; }catch(parseErr){ json = {}; }
@@ -549,7 +580,7 @@ async function phfRefreshTrainingData(options){
           if(typeof window.phfHandleAuthExpired==='function'){
             const recovered = await window.phfHandleAuthExpired();
             if(recovered){
-              res = await fetch('/api/data?' + params.toString(), {cache:'no-store',credentials:'include'});
+              res = await fetch(requestUrl, {cache:'no-store',credentials:'include'});
               const retryRawText = await res.text().catch(function(){ return ''; });
               try{ json = retryRawText ? JSON.parse(retryRawText) : {}; }catch(parseErr){ json = {}; }
             }
@@ -583,6 +614,7 @@ async function phfRefreshTrainingData(options){
         window.__phfLocalData = json.data || json;
         window.__phfTrainingDataLoadedAt = Date.now();
         window.__phfTrainingDataScopeKey = scopeKey;
+        if(options.boot === true) window.__phfTrainingBootReuseUntil = Date.now() + 3000;
         try{
           window.dispatchEvent(new CustomEvent('phf-training-data-ready',{detail:{source:'phf-learner-app',scope:dataScope,loadedAt:window.__phfTrainingDataLoadedAt}}));
         }catch(eventErr){
@@ -612,12 +644,25 @@ async function phfRefreshTrainingData(options){
 
   window.__phfTrainingDataPromise = request;
   window.__phfTrainingDataPromiseScopeKey = scopeKey;
+  window.__phfTrainingRequestRegistry[requestUrl] = {
+    promise: request,
+    expiresAt: Date.now() + 6000,
+    scopeKey: scopeKey
+  };
   try{ return await request; }
   finally{
     if(window.__phfTrainingDataPromise === request){
       window.__phfTrainingDataPromise = null;
       window.__phfTrainingDataPromiseScopeKey = '';
     }
+    /* Không xóa registry ngay khi fetch xong. Callback boot chạy sau vài trăm
+       mili giây vẫn phải nhận lại chính kết quả này. Registry tự hết hạn. */
+    setTimeout(function(){
+      var entry = window.__phfTrainingRequestRegistry && window.__phfTrainingRequestRegistry[requestUrl];
+      if(entry && entry.promise === request && Date.now() >= Number(entry.expiresAt || 0)){
+        delete window.__phfTrainingRequestRegistry[requestUrl];
+      }
+    }, 6200);
   }
 }
 function phfTodayOnly(){ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }

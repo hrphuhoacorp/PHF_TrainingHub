@@ -504,7 +504,7 @@
       /* Người dùng đổi route trong lúc màn đích cũ còn tải: route mới thu hồi
          guard của lượt cũ để không có trạng thái che màn bị bỏ quên. */
       routeGuardOwnerRunId=0;
-      try{document.documentElement.classList.remove('phf-route-boot-pending');}catch(e){}
+      try{document.documentElement.classList.remove('phf-route-boot-pending','phf-route-shell-early');}catch(e){}
     }
     function stale(){return runId!==routeRenderSequence || cleanPath(location.pathname)!==path;}
     try{
@@ -783,16 +783,18 @@
         if(runId===routeRenderSequence){
           applyingRoute=false;
           updateCopyAction();
-          if(holdRouteGuard){
-            /* Gỡ guard sau hai nhịp vẽ để không xuất hiện một frame màn legacy
-               giữa trạng thái tải và màn đích. */
-            requestAnimationFrame(function(){requestAnimationFrame(function(){
-              if(runId===routeRenderSequence&&routeGuardOwnerRunId===runId){
-                routeGuardOwnerRunId=0;
-                try{document.documentElement.classList.remove('phf-route-boot-pending');}catch(e){}
-              }
-            });});
-          }
+          /* 62.2: Boot guard được gắn cho mọi deep link trước khi Router chạy.
+             Trước đây guard chỉ được gỡ chủ động ở /admin/bao-cao và
+             /ql/quan-ly; các route còn lại phải chờ watchdog 10 giây dù màn
+             đích đã render xong. Gỡ guard sau hai nhịp vẽ của mọi lượt render
+             thành công để loading kết thúc đúng lúc, không thay đổi renderer
+             hay nghiệp vụ của route. */
+          requestAnimationFrame(function(){requestAnimationFrame(function(){
+            if(runId!==routeRenderSequence) return;
+            if(holdRouteGuard&&routeGuardOwnerRunId!==runId) return;
+            if(holdRouteGuard) routeGuardOwnerRunId=0;
+            releaseBootGuard();
+          });});
         }
       },80);
     }
@@ -975,7 +977,7 @@
   function releaseBootGuard(){
     try{
       if(window.__phfRouteBootGuardTimer){clearTimeout(window.__phfRouteBootGuardTimer);window.__phfRouteBootGuardTimer=null;}
-      document.documentElement.classList.remove('phf-route-boot-pending');
+      document.documentElement.classList.remove('phf-route-boot-pending','phf-route-shell-early');
     }catch(e){}
   }
 

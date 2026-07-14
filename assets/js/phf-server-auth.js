@@ -19,6 +19,11 @@
      không được phép ghi đè phiên đăng nhập vừa hoàn tất. */
   var authEpoch = 0;
   var authBootStarted = false;
+  /* 61.3: Gộp các lượt kiểm tra session phát sinh gần nhau khi F5.
+     Chỉ tối ưu request; không thay đổi nguồn xác thực hoặc cách thiết lập phiên. */
+  var serverSessionRequestPromise = null;
+  var serverSessionCacheAt = 0;
+  var serverSessionCacheUser = null;
 
   function esc(v){
     return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){
@@ -72,6 +77,8 @@
   window.phfUserRole = function(){ return sessionUser ? String(sessionUser.role || 'learner') : 'learner'; };
 
   function beginAuthTransition(){
+    serverSessionCacheAt = 0;
+    serverSessionCacheUser = null;
     authEpoch += 1;
     authTransitioning = true;
     authTransitionPromise = new Promise(function(resolve){ authTransitionResolve = resolve; });
@@ -278,17 +285,39 @@
   }
 
   async function readServerSession(){
-    var json = await request('/api/auth/session?_=' + Date.now());
-    return json && json.authenticated ? json.user : null;
+    var now = Date.now();
+    /* Trong lúc boot, server-auth, router và luồng phục hồi 401 có thể hỏi phiên
+       gần như đồng thời. Dùng chung đúng một Promise để tránh gọi API lặp. */
+    if(serverSessionRequestPromise) return serverSessionRequestPromise;
+    /* Cache rất ngắn chỉ dùng trong cùng nhịp khởi động. Không dùng cache dài để
+       tránh giữ sai trạng thái sau đăng nhập/đăng xuất. */
+    if(serverSessionCacheAt && now - serverSessionCacheAt < 1500){
+      return serverSessionCacheUser || null;
+    }
+    serverSessionRequestPromise = (async function(){
+      var json = await request('/api/auth/session?_=' + Date.now());
+      var user = json && json.authenticated ? json.user : null;
+      serverSessionCacheUser = user || null;
+      serverSessionCacheAt = Date.now();
+      return user || null;
+    })();
+    try{
+      return await serverSessionRequestPromise;
+    }finally{
+      serverSessionRequestPromise = null;
+    }
   }
 
   async function preloadProtectedData(reason){
     try{
-      if(typeof window.phfResetTrainingRuntime === 'function'){
-        window.phfResetTrainingRuntime(reason || 'auth-preload');
+      /* 62.1: Route chỉ chờ owner dữ liệu hiện có. Không reset runtime ở đây,
+         vì reset giữa lúc learner app đang fetch sẽ xóa Promise/registry và
+         làm phát sinh request /api/data thứ hai trong cùng một lần F5. */
+      if(window.__phfTrainingDataPromise){
+        return await window.__phfTrainingDataPromise;
       }
       if(typeof window.phfRefreshTrainingData === 'function'){
-        return await window.phfRefreshTrainingData({force:true});
+        return await window.phfRefreshTrainingData({force:false,boot:true,reason:reason || 'route-data-needed'});
       }
       return true;
     }catch(e){
@@ -799,6 +828,16 @@
       if(bootEpoch !== authEpoch || authTransitioning) return;
       await establishSession(user,'server-session-restored');
       if(bootEpoch !== authEpoch || authTransitioning) return;
+
+      /* 61.6: Với route Học viên, session đã xác nhận thì mở ngay header/menu.
+         Route guard vẫn giữ skeleton riêng cho nội dung tới khi dữ liệu hoàn tất. */
+      try{
+        var bootPath=String(location.pathname||'/').replace(/\/+$/,'')||'/';
+        if(user && (bootPath==='/hv'||bootPath==='/hv/bai-hoc')){
+          document.documentElement.classList.remove('phf-auth-boot');
+          if(window.__phfBootGuardTimer){clearTimeout(window.__phfBootGuardTimer);window.__phfBootGuardTimer=null;}
+        }
+      }catch(_earlyShellError){}
 
       /* 60.8: Với phiên hợp lệ, giữ boot cloak cho tới khi Router đã dựng đúng
          route đầu tiên. Trước đây cloak bị gỡ tại đây nên màn mặc định/Học viên

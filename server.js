@@ -17,6 +17,11 @@ const { login, loginWithGoogle, googleClientConfig, readSession, requireSession,
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
+const INDEX_HTML_PATH = path.join(ROOT, 'index.html');
+/* F5 always requests the no-store HTML shell. Keep it in memory so a OneDrive
+   cold read cannot delay every navigation. A release already requires a server
+   restart, which refreshes this buffer together with the running code. */
+const INDEX_HTML_BUFFER = fs.readFileSync(INDEX_HTML_PATH);
 
 function baseHeaders(extra = {}) {
   return {
@@ -307,23 +312,28 @@ const server = http.createServer(async (req, res) => {
         : /^\/forms\/[^/]+\/print$/.test(pathname)
           ? path.join(ROOT, 'print-form.html')
           : safeStaticPath(req.url || '/');
-    if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    let isIndexShell = Boolean(filePath && path.resolve(filePath) === INDEX_HTML_PATH);
+    if (!filePath || (!isIndexShell && (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()))) {
       const acceptsHtml = String(req.headers.accept || '').includes('text/html');
       const isUiRoute = acceptsHtml && !pathname.startsWith('/api/') && !path.extname(pathname);
-      if (isUiRoute) filePath = path.join(ROOT, 'index.html');
+      if (isUiRoute) {
+        filePath = INDEX_HTML_PATH;
+        isIndexShell = true;
+      }
       else {
         res.writeHead(404, baseHeaders({ 'Content-Type': 'text/plain; charset=utf-8' }));
         return res.end('404 - Không tìm thấy');
       }
     }
-    const stat = fs.statSync(filePath);
+    const contentLength = isIndexShell ? INDEX_HTML_BUFFER.length : fs.statSync(filePath).size;
     const headers = baseHeaders({
       'Content-Type': getMime(filePath),
-      'Content-Length': stat.size,
+      'Content-Length': contentLength,
       'Cache-Control': staticCacheControl(filePath, req.url, pathname)
     });
     res.writeHead(200, headers);
     if (req.method === 'HEAD') return res.end();
+    if (isIndexShell) return res.end(INDEX_HTML_BUFFER);
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('[PHF API]', err?.code || err?.name || 'ERROR', err?.message || err);
