@@ -132,3 +132,816 @@ html:not(.phf-classroom-route) body:not(.phf-classroom-mode)>#phfClassroomRoot{d
 .phfc-header-user>span{color:#36584a;font-weight:500}
 .phfc-header-user .phfc-greeting-prefix{display:inline;color:#36584a;font-weight:500}
 .phfc-header-user .phfc-greeting-name{display:inline;color:#0e5a43;font-weight:800}
+
+/* 62.6.4 - menu con medium nhẹ, giữ phân cấp rõ với tiêu đề nhóm */
+@media(min-width:981px){
+  .phfc-nav button{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-weight:500;
+  }
+  .phfc-nav button.active{
+    font-weight:600;
+  }
+}
+
+
+/* 62.6.6 - menu nhóm thu gọn/mở rộng, menu con lùi nhẹ và có dấu chấm đen */
+@media(min-width:981px){
+  .phfc-nav-group{gap:2px}
+  .phfc-nav-label{
+    width:100%;
+    min-height:26px;
+    margin:1px 0 0;
+    padding:0 7px 0 8px;
+    border:0;
+    border-radius:7px;
+    background:transparent;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    color:#0e5a43;
+    text-align:left;
+    cursor:pointer;
+  }
+  .phfc-nav-label:hover,.phfc-nav-label:focus-visible{background:#f1f7f3;outline:none}
+  .phfc-nav-toggle-mark{
+    width:18px;
+    height:18px;
+    min-width:18px;
+    border-radius:5px;
+    display:grid;
+    place-items:center;
+    color:#0e5a43;
+    font-size:14px;
+    line-height:1;
+    font-weight:700;
+  }
+  .phfc-nav[hidden]{display:none!important}
+  .phfc-nav{gap:1px;padding:1px 0 2px}
+  .phfc-nav button{
+    min-height:27px;
+    padding:0 8px 0 21px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .phfc-nav-dot{
+    width:4px;
+    height:4px;
+    min-width:4px;
+    border-radius:50%;
+    background:#26332d;
+    opacity:.88;
+  }
+  .phfc-nav button.active .phfc-nav-dot{background:#0e5a43}
+}
+
+/* 62.6.7 - bỏ giới hạn che menu, đồng bộ lại font và tỷ lệ tiêu đề nhóm */
+@media(min-width:981px){
+  .phfc-sidebar{
+    height:auto;
+    min-height:calc(100vh - 72px);
+    overflow:visible;
+  }
+  .phfc-nav-label,
+  .phfc-nav-label > span:first-child{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+  }
+  .phfc-nav-label{
+    min-height:24px;
+    padding:0 7px 0 8px;
+    font-size:10px;
+    line-height:1.15;
+    font-weight:800;
+    color:#0e5a43;
+  }
+  .phfc-nav-toggle-mark{
+    width:17px;
+    height:17px;
+    min-width:17px;
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-size:13px;
+    font-weight:800;
+  }
+  .phfc-nav button,
+  .phfc-nav button > span{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+  }
+}
+
+/* 62.6.8 - khóa tỷ lệ tiêu đề nhóm: đậm nhẹ, khoa học và đồng bộ font Hub */
+@media(min-width:981px){
+  .phfc-nav-label,
+  .phfc-nav-label > span:first-child{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-size:14px;
+    line-height:1.2;
+    font-weight:600;
+    letter-spacing:0;
+    color:#0e5a43;
+  }
+  .phfc-nav-label{
+    min-height:28px;
+    padding:0 7px 0 8px;
+    margin:2px 0 1px;
+  }
+  .phfc-nav-toggle-mark{
+    width:18px;
+    height:18px;
+    min-width:18px;
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-size:14px;
+    line-height:1;
+    font-weight:600;
+  }
+  .phfc-nav button{
+    font-size:12.5px;
+    line-height:1.25;
+    font-weight:500;
+  }
+  .phfc-nav button.active{font-weight:600}
+}
+
+
+/* 62.7.2 - bảo đảm menu Học viên hiển thị đầy đủ 5 chức năng đã phân quyền */
+@media(min-width:981px){
+  .phfc-role-learner .phfc-sidebar{overflow:visible}
+  .phfc-role-learner .phfc-nav-group.is-open>.phfc-nav{display:grid!important}
+  .phfc-role-learner .phfc-nav-group.is-open>.phfc-nav>button{display:flex!important;visibility:visible!important;opacity:1!important}
+}
+
+
+/* 62.7.4 - giao diện nền Danh sách lớp đào tạo, chưa nối dữ liệu hoặc schema */
+.phfc-class-list-workspace{display:grid;gap:16px}
+.phfc-class-list-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.phfc-class-list-toolbar h3{margin:0;color:#123f2d;font-size:20px;line-height:1.25;font-weight:700}
+.phfc-class-list-toolbar p{margin:6px 0 0;color:#6b7d73;font-size:12.5px;line-height:1.5}
+.phfc-primary-button,.phfc-secondary-button{border:1px solid #15734f;border-radius:11px;min-height:40px;padding:0 15px;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#0e6848;color:#fff;font-weight:700;font-size:12px;box-shadow:0 5px 13px rgba(14,104,72,.14)}
+.phfc-primary-button[aria-disabled="true"],.phfc-secondary-button[aria-disabled="true"]{cursor:default}
+.phfc-primary-button span{font-size:17px;line-height:1}
+.phfc-class-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.phfc-class-summary article{min-height:82px;padding:15px 17px;border:1px solid #dfe9e2;border-radius:14px;background:#fff;box-shadow:0 4px 14px rgba(20,61,45,.03)}
+.phfc-class-summary span{display:block;color:#6d7c74;font-size:11px;font-weight:500}
+.phfc-class-summary strong{display:block;margin-top:7px;color:#0e5a43;font-size:25px;line-height:1;font-weight:700}
+.phfc-class-list-panel{overflow:hidden}
+.phfc-class-filter-row{display:grid;grid-template-columns:minmax(250px,1.5fr) repeat(3,minmax(145px,.7fr));gap:10px;padding:15px;border-bottom:1px solid #e4ece6;background:#fbfdfb}
+.phfc-class-filter-row input,.phfc-class-filter-row select{width:100%;min-height:38px;border:1px solid #d8e4dc;border-radius:10px;background:#fff;color:#435b50;padding:0 11px;font-size:11.5px;outline:none}
+.phfc-class-filter-row input:disabled,.phfc-class-filter-row select:disabled{opacity:1;color:#617269;-webkit-text-fill-color:#617269;cursor:default}
+.phfc-class-search{position:relative;display:block}.phfc-class-search span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#5f7569;font-size:18px}.phfc-class-search input{padding-left:35px}
+.phfc-class-table-head{display:grid;grid-template-columns:minmax(210px,1.45fr) .75fr 1fr 1fr .55fr .8fr;gap:12px;padding:11px 16px;background:#f7faf7;border-bottom:1px solid #e4ece6;color:#5d7066;font-size:10.5px;font-weight:700}
+.phfc-class-empty-state{min-height:290px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 22px;text-align:center}
+.phfc-class-empty-visual{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:#edf6ef;color:#176445;font-size:27px}
+.phfc-class-empty-state h4{margin:14px 0 0;color:#244b39;font-size:17px;font-weight:700}
+.phfc-class-empty-state p{max-width:530px;margin:7px auto 0;color:#718078;font-size:12px;line-height:1.55}
+.phfc-secondary-button{margin-top:16px;min-height:36px;background:#fff;color:#0e6848;box-shadow:none}
+@media(max-width:1100px){.phfc-class-filter-row{grid-template-columns:1fr 1fr}.phfc-class-search{grid-column:1/-1}.phfc-class-table-head{grid-template-columns:minmax(200px,1.5fr) .8fr 1fr .7fr}.phfc-class-table-head span:nth-child(4),.phfc-class-table-head span:nth-child(5){display:none}}
+@media(max-width:760px){.phfc-class-list-toolbar{display:grid}.phfc-primary-button{justify-self:start}.phfc-class-summary{grid-template-columns:1fr 1fr}.phfc-class-filter-row{grid-template-columns:1fr}.phfc-class-search{grid-column:auto}.phfc-class-table-head{display:none}.phfc-class-empty-state{min-height:240px}}
+
+/* 62.7.5 - Công cụ nền tạo lớp một buổi / nhiều buổi */
+.phfc-create-class{display:grid;gap:22px;padding:4px 0 28px;font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif}.phfc-create-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:2px 2px 0}.phfc-create-title-block{display:grid;gap:7px}.phfc-create-title-block h2{margin:2px 0 0;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:0;color:#0b5636}.phfc-create-title-block p{margin:0;color:#66766d;font-size:14px;line-height:1.5;font-weight:400}.phfc-back-link{justify-self:start;display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;padding:2px 0;color:#217240;font:600 13px/1.3 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:pointer}.phfc-back-link:hover{color:#0b5636}.phfc-draft-state{display:inline-flex;align-items:center;gap:7px;color:#6b756f;font-size:12px;line-height:1.3;font-weight:500;white-space:nowrap}.phfc-draft-dot{width:7px;height:7px;border-radius:50%;background:#e0aa18;box-shadow:0 0 0 4px #fff6d6}.phfc-create-steps{list-style:none;margin:0;padding:15px 18px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;background:#fff;border:1px solid #dfe9e2;border-radius:16px;box-shadow:0 5px 18px rgba(24,77,43,.035)}.phfc-create-steps li{position:relative;display:flex;align-items:center;gap:10px;color:#87918b;font-size:13px;line-height:1.3;font-weight:500;min-width:0;padding-right:16px}.phfc-create-steps li:not(:last-child)::after{content:"";position:absolute;left:40px;right:7px;top:15px;height:1px;background:#e4ebe6;z-index:0}.phfc-create-steps b{position:relative;z-index:1;flex:0 0 30px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#f0f4f1;color:#6e7b73;font-size:12px;font-weight:700;border:1px solid #e3eae5}.phfc-create-steps span{position:relative;z-index:1;background:#fff;padding-right:7px;white-space:nowrap}.phfc-create-steps li.is-active{color:#0d5b38;font-weight:600}.phfc-create-steps li.is-active b{background:#166a3e;color:#fff;border-color:#166a3e;box-shadow:0 0 0 4px #e4f3e8}.phfc-create-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(330px,.7fr);gap:22px;align-items:stretch}.phfc-form-card{padding:24px 25px}.phfc-form-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:22px}.phfc-form-card-head>div{display:flex;align-items:center;gap:11px}.phfc-form-card-head h4{margin:0;font-size:18px;line-height:1.3;font-weight:600;color:#154e31}.phfc-form-card-head small{font-size:12px;line-height:1.4;color:#7a8780;text-align:right}.phfc-form-index{width:34px;height:34px;border-radius:10px;background:#e7f4ea;color:#226a3e;display:grid;place-items:center;font-size:12px;font-weight:700}.phfc-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:19px 16px}.phfc-field{display:grid;gap:9px}.phfc-field-wide{grid-column:1/-1}.phfc-field>span{font-size:13px;line-height:1.35;font-weight:500;color:#304b3a}.phfc-field input,.phfc-field select,.phfc-field textarea{width:100%;box-sizing:border-box;border:1px solid #d5e0d9;border-radius:11px;background:#fff;padding:12px 13px;font:400 14px/1.45 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;color:#263a2e;outline:none;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.phfc-field textarea{resize:vertical;min-height:96px}.phfc-field input::placeholder,.phfc-field textarea::placeholder{color:#939c96}.phfc-field input:focus,.phfc-field select:focus,.phfc-field textarea:focus{border-color:#5f9f72;box-shadow:0 0 0 4px rgba(76,150,95,.1)}.phfc-class-type-options{display:grid;gap:14px}.phfc-type-option{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) 26px;column-gap:13px;align-items:center;padding:17px 16px;border:1px solid #d9e4dc;border-radius:14px;cursor:pointer;background:#fff;transition:border-color .17s ease,background .17s ease,box-shadow .17s ease,transform .17s ease}.phfc-type-option:hover{border-color:#a8c9b1;background:#fbfefc}.phfc-type-option input{position:absolute;opacity:0;pointer-events:none}.phfc-type-copy{display:grid;gap:5px;min-width:0}.phfc-type-option strong{font-size:15px;line-height:1.3;font-weight:600;color:#284b36}.phfc-type-option small{font-size:12px;line-height:1.5;color:#718078}.phfc-type-icon{width:44px;height:44px;border-radius:12px;background:#eef4ef;color:#376e49;display:grid;place-items:center;font-size:15px;font-weight:700}.phfc-type-check{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#dcefe1;color:#17653a;font-size:13px;font-weight:700;opacity:0;transform:scale(.75);transition:opacity .17s ease,transform .17s ease}.phfc-type-option.is-selected{border-color:#3e925b;background:#eff9f2;box-shadow:0 0 0 3px rgba(55,143,82,.1),0 8px 20px rgba(35,101,57,.07)}.phfc-type-option.is-selected .phfc-type-icon{background:#cfe9d6;color:#135f35}.phfc-type-option.is-selected .phfc-type-check{opacity:1;transform:scale(1)}.phfc-type-option.is-selected strong{color:#0e5b35}.phfc-schedule-card{padding-bottom:24px}.phfc-attendance-note{padding:13px 14px;border-radius:10px;background:#f2f8f3;color:#4b6253;font-size:13px;line-height:1.45;display:flex;gap:7px}.phfc-attendance-note strong{color:#23623a}.phfc-multi-schedule{display:grid;gap:17px}.phfc-course-window{display:grid;grid-template-columns:1fr 1fr;gap:17px}.phfc-window-note{grid-column:1/-1;padding:13px 14px;border-radius:10px;background:#fff9e4;color:#6c5d22;font-size:13px;line-height:1.45}.phfc-session-list{display:grid;gap:10px}.phfc-session-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;padding:14px;border:1px solid #dce6df;border-radius:11px}.phfc-session-number{font-size:12px;font-weight:700;color:#21613a;background:#e5f4e8;padding:7px 10px;border-radius:8px}.phfc-session-row div{display:grid;gap:4px}.phfc-session-row strong{font-size:14px;line-height:1.35;color:#334d3d}.phfc-session-row small{font-size:12px;line-height:1.45;color:#758078}.phfc-session-row button,.phfc-add-session{border:1px solid #d2dfd6;background:#fff;color:#577061;border-radius:9px;padding:8px 11px;font:600 12px/1.3 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif}.phfc-add-session{justify-self:start}.phfc-create-preview{position:sticky;bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 16px;border:1px solid #dce8df;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 9px 24px rgba(28,76,45,.09);backdrop-filter:blur(8px)}.phfc-create-preview>div:first-child{display:grid;gap:4px}.phfc-create-preview strong{font-size:14px;line-height:1.35;color:#234b32}.phfc-create-preview span{font-size:12px;line-height:1.4;color:#6b786f}.phfc-create-actions{display:flex;gap:9px}.phfc-primary-button[aria-disabled="true"],.phfc-secondary-button[aria-disabled="true"],button[aria-disabled="true"]{cursor:not-allowed;opacity:.65}
+@media(max-width:980px){.phfc-create-grid{grid-template-columns:1fr}.phfc-create-steps{grid-template-columns:repeat(3,1fr)}.phfc-create-steps li:nth-child(n+4){display:none}}
+@media(max-width:640px){.phfc-create-head{align-items:flex-start;flex-direction:column}.phfc-create-steps{grid-template-columns:1fr}.phfc-create-steps li:not(.is-active){display:none}.phfc-form-grid,.phfc-course-window{grid-template-columns:1fr}.phfc-field-wide,.phfc-window-note{grid-column:auto}.phfc-create-preview{position:static;align-items:stretch;flex-direction:column}.phfc-create-actions{justify-content:flex-end}.phfc-session-row{grid-template-columns:auto 1fr}.phfc-session-row button{grid-column:2;justify-self:start}}
+
+/* 62.7.7 - Create class step 2: schedule and sessions */
+.phfc-create-stage[hidden]{display:none!important}.phfc-create-steps li.is-complete{color:#2f6f46}.phfc-create-steps li.is-complete b{background:#e4f3e8;color:#17663a;border-color:#bcdac5}.phfc-create-steps li.is-complete b::after{content:"✓";font-size:12px}.phfc-create-steps li.is-complete b{font-size:0}.phfc-field-error{font-size:12px!important;line-height:1.35!important;color:#b23a2f!important;margin-top:-3px}.phfc-field input.is-invalid{border-color:#c95a4d;box-shadow:0 0 0 4px rgba(201,90,77,.09)}
+.phfc-session-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:4px}.phfc-session-toolbar>div{display:grid;gap:4px}.phfc-session-toolbar strong{font-size:15px;line-height:1.35;color:#184f31}.phfc-session-toolbar span{font-size:12px;line-height:1.45;color:#758078}.phfc-add-session{cursor:pointer;border-color:#9fc8aa;color:#17643a;background:#f7fcf8}.phfc-add-session:hover{background:#eaf6ed;border-color:#65a478}
+.phfc-session-list:empty::before{content:"Chưa có buổi học. Bấm ‘Thêm buổi học’ để thiết lập lịch.";display:block;padding:18px;border:1px dashed #cbd9cf;border-radius:12px;background:#fbfdfb;color:#6f7d74;font-size:13px;line-height:1.45;text-align:center}.phfc-session-editor{display:grid;gap:17px;padding:18px;border:1px solid #d9e5dc;border-radius:14px;background:#fff;box-shadow:0 5px 16px rgba(28,76,45,.035)}.phfc-session-editor-head{display:flex;align-items:center;gap:11px;padding-bottom:13px;border-bottom:1px solid #edf2ee}.phfc-session-editor-head>strong{font-size:15px;line-height:1.35;font-weight:600;color:#1d5334;min-width:0;flex:1}.phfc-session-actions{display:flex;align-items:center;gap:6px}.phfc-session-actions button{border:1px solid #d6e1d9;background:#fff;color:#526a5b;border-radius:8px;padding:7px 9px;font:600 12px/1 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:pointer}.phfc-session-actions button:hover{background:#f2f8f3;border-color:#abcab4;color:#175f37}.phfc-session-actions [data-phfc-remove-session]{color:#a0463d}.phfc-session-fields{gap:16px}.phfc-create-stage[data-phfc-create-stage="2"] .phfc-schedule-card{padding:26px}.phfc-create-stage[data-phfc-create-stage="2"] .phfc-form-card-head{margin-bottom:24px}
+@media(max-width:700px){.phfc-session-toolbar{align-items:flex-start;flex-direction:column}.phfc-session-editor-head{align-items:flex-start;flex-wrap:wrap}.phfc-session-actions{width:100%;justify-content:flex-end}.phfc-create-stage[data-phfc-create-stage="2"] .phfc-schedule-card{padding:20px}}
+
+
+/* PHF Classroom 62.7.9 — Bước 3 Người tham gia */
+.phfc-participant-layout{display:grid;grid-template-columns:minmax(320px,.78fr) minmax(0,1.22fr);gap:22px;align-items:start}
+.phfc-participant-card{display:grid;gap:0;min-width:0}
+.phfc-participant-note{display:flex;align-items:flex-start;gap:7px;padding:13px 14px;margin-bottom:18px;border-radius:11px;background:#fff8df;color:#67591f;font-size:13px;line-height:1.5}
+.phfc-participant-note strong{color:#5d501b;white-space:nowrap}
+.phfc-participant-note-green{background:#eff8f1;color:#456050}
+.phfc-participant-note-green strong{color:#1b6239}
+.phfc-role-stack{display:grid;gap:11px}
+.phfc-role-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;padding:15px 16px;border:1px solid #dce6df;border-radius:12px;background:#fff}
+.phfc-role-row>div{display:grid;gap:4px}
+.phfc-role-row strong{font-size:14px;line-height:1.35;font-weight:600;color:#254b34}
+.phfc-role-row span{font-size:12px;line-height:1.45;color:#748078}
+.phfc-role-row button{min-width:94px;border:1px solid #d3dfd6;border-radius:9px;background:#f8fbf9;color:#758078;padding:9px 12px;font:600 12px/1.2 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:not-allowed}
+.phfc-participant-filters{display:grid;grid-template-columns:minmax(210px,1.4fr) repeat(3,minmax(130px,.75fr));gap:10px;margin-bottom:16px}
+.phfc-participant-search{display:flex;align-items:center;gap:8px;border:1px solid #d7e2da;border-radius:10px;background:#fafcfb;padding:0 11px;color:#6f7d74}
+.phfc-participant-search input{width:100%;min-width:0;border:0;background:transparent;padding:11px 0;font:400 13px/1.4 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;outline:none}
+.phfc-participant-filters select{min-width:0;border:1px solid #d7e2da;border-radius:10px;background:#fafcfb;padding:10px 11px;color:#758078;font:400 13px/1.4 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif}
+.phfc-participant-filters :disabled{opacity:.72;cursor:not-allowed}
+.phfc-participant-empty{min-height:222px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;border:1px dashed #cbd9cf;border-radius:13px;background:#fbfdfb}
+.phfc-participant-empty-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;margin-bottom:12px;background:#eaf4ed;color:#286a40;font-size:21px;font-weight:700}
+.phfc-participant-empty strong{font-size:15px;line-height:1.35;font-weight:600;color:#294b36}
+.phfc-participant-empty p{max-width:480px;margin:7px 0 0;font-size:13px;line-height:1.55;color:#758078}
+@media(max-width:1050px){.phfc-participant-layout{grid-template-columns:1fr}.phfc-participant-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.phfc-participant-search{grid-column:1/-1}}
+@media(max-width:640px){.phfc-participant-filters{grid-template-columns:1fr}.phfc-participant-search{grid-column:auto}.phfc-role-row{grid-template-columns:1fr}.phfc-role-row button{justify-self:start}}
+
+
+/* PHF Classroom 62.8 — Upload và kiểm tra danh sách học viên */
+.phfc-learner-methods{display:flex;gap:7px;padding:4px;margin-bottom:16px;border:1px solid #dce6df;border-radius:11px;background:#f5f8f6}.phfc-learner-methods button{flex:1;border:0;border-radius:8px;background:transparent;color:#617068;padding:9px 12px;font:500 13px/1.3 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:pointer}.phfc-learner-methods button.is-active{background:#fff;color:#145d37;font-weight:600;box-shadow:0 2px 8px rgba(26,82,45,.08)}
+.phfc-upload-panel{display:grid;gap:14px}.phfc-upload-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.phfc-upload-head>div{display:grid;gap:4px}.phfc-upload-head strong{font-size:15px;line-height:1.35;color:#234b32}.phfc-upload-head span{font-size:12px;line-height:1.5;color:#738078}.phfc-template-link{flex:0 0 auto;border:1px solid #a9cdb2;border-radius:9px;background:#f6fbf7;color:#17623a;padding:8px 11px;text-decoration:none;font:600 12px/1.3 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif}.phfc-template-link:hover{background:#eaf6ed}
+.phfc-upload-drop{min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;border:1px dashed #9fc4aa;border-radius:13px;background:#fbfefc;padding:18px;cursor:pointer}.phfc-upload-drop:hover{background:#f2f9f4;border-color:#5e9e70}.phfc-upload-drop input{position:absolute;width:1px;height:1px;opacity:0}.phfc-upload-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#e4f3e8;color:#16633a;font-size:20px;font-weight:700}.phfc-upload-drop strong{font-size:14px;line-height:1.35;color:#285139}.phfc-upload-drop small{max-width:470px;font-size:12px;line-height:1.5;color:#758078}.phfc-upload-rules{display:flex;align-items:flex-start;gap:6px;padding:11px 12px;border-radius:10px;background:#fff8df;color:#6c5d24;font-size:12px;line-height:1.5}.phfc-upload-rules strong{white-space:nowrap;color:#5b4d1c}
+.phfc-import-result{display:grid;gap:12px}.phfc-import-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.phfc-import-summary>div{display:grid;gap:3px;padding:10px 11px;border:1px solid #dfe8e1;border-radius:10px;background:#fff}.phfc-import-summary b{font-size:18px;line-height:1.2;color:#334d3d}.phfc-import-summary span{font-size:11px;line-height:1.3;color:#758078}.phfc-import-summary .is-valid b{color:#1b6b3c}.phfc-import-summary .is-warning b{color:#8a6a12}.phfc-import-summary .is-error b{color:#a23f36}
+.phfc-import-table-wrap{max-height:310px;overflow:auto;border:1px solid #dfe7e1;border-radius:11px}.phfc-import-table{width:100%;border-collapse:collapse;min-width:720px}.phfc-import-table th{position:sticky;top:0;z-index:1;background:#f5f8f6;color:#52665a;text-align:left;padding:10px 11px;font-size:11px;line-height:1.3;font-weight:600}.phfc-import-table td{padding:10px 11px;border-top:1px solid #edf1ee;vertical-align:top;color:#415348;font-size:12px;line-height:1.4}.phfc-import-table td strong,.phfc-import-table td small{display:block}.phfc-import-table td small{margin-top:3px;color:#7a8780}.phfc-import-table tr.is-error{background:#fffafa}.phfc-import-table tr.is-warning{background:#fffdf4}.phfc-import-badge{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:10px;line-height:1.2;font-weight:700}.phfc-import-badge.is-valid{background:#e6f4e9;color:#1d693c}.phfc-import-badge.is-warning{background:#fff2c8;color:#80600d}.phfc-import-badge.is-error{background:#fde8e6;color:#9a3d35}.phfc-import-fatal{padding:15px;border-radius:9px;background:#fdeceb;color:#923f38;text-align:center;font-size:12px;line-height:1.5}.phfc-import-actions{display:flex;justify-content:flex-end;gap:8px}
+.phfc-selected-learners{display:grid;gap:9px;padding-top:2px}.phfc-selected-head{display:flex;align-items:center;justify-content:space-between}.phfc-selected-head strong{font-size:14px;color:#274e35}.phfc-selected-head span{font-size:12px;color:#708078}.phfc-selected-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #dce6df;border-radius:10px;background:#fff}.phfc-selected-row>div{display:grid;gap:3px}.phfc-selected-row strong{font-size:13px;line-height:1.35;color:#294b36}.phfc-selected-row span{font-size:11px;line-height:1.4;color:#748078}.phfc-selected-row button{border:0;background:transparent;color:#a0473d;font:600 11px/1.2 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:pointer}
+@media(max-width:640px){.phfc-upload-head{flex-direction:column}.phfc-import-summary{grid-template-columns:repeat(2,1fr)}.phfc-upload-rules{display:grid}.phfc-import-actions{justify-content:stretch}.phfc-import-actions button{flex:1}}
+
+/* PHF Classroom 62.8.1 - Bước 4 Nội dung & đánh giá */
+.phfc-content-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:22px;align-items:start}
+.phfc-content-card,.phfc-assessment-card{min-width:0}
+.phfc-content-note,.phfc-assessment-note{display:flex;gap:8px;align-items:flex-start;padding:13px 15px;border:1px solid #cfe7d7;background:#f4fbf6;border-radius:12px;color:#254735;font-size:14px;line-height:1.45;margin-bottom:18px}
+.phfc-content-note strong,.phfc-assessment-note strong{color:#0f5b36;white-space:nowrap}
+.phfc-scope-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.phfc-scope-choice label{position:relative;display:flex;gap:10px;align-items:flex-start;padding:15px 42px 15px 15px;border:1px solid #d8e4dc;border-radius:12px;background:#fff;cursor:pointer;transition:.18s ease}
+.phfc-scope-choice label:hover{border-color:#9ac9aa;background:#fbfefc}
+.phfc-scope-choice label.is-selected{border-color:#198754;background:#eff9f2;box-shadow:0 0 0 2px rgba(25,135,84,.08)}
+.phfc-scope-choice input{margin-top:3px;accent-color:#198754}
+.phfc-scope-choice span{display:flex;flex-direction:column;gap:4px}
+.phfc-scope-choice strong{font-size:14px;color:#183e2b}
+.phfc-scope-choice small{font-size:12.5px;line-height:1.4;color:#68786e}
+.phfc-scope-choice b{position:absolute;right:14px;top:14px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#198754;color:#fff;opacity:0;transform:scale(.8);transition:.18s ease}
+.phfc-scope-choice label.is-selected b{opacity:1;transform:scale(1)}
+.phfc-content-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.phfc-content-tools button{display:grid;grid-template-columns:38px 1fr;grid-template-rows:auto auto;column-gap:11px;text-align:left;padding:14px;border:1px solid #dde7e0;border-radius:12px;background:#fff;color:#254735;cursor:pointer;transition:.18s ease;font-family:inherit}
+.phfc-content-tools button:hover,.phfc-content-tools button.is-selected{border-color:#5ea978;background:#f4fbf6;box-shadow:0 6px 18px rgba(17,91,54,.08)}
+.phfc-content-tools button>span{grid-row:1/3;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#eaf6ee;color:#116438;font-size:18px;font-weight:700}
+.phfc-content-tools button strong{font-size:14px;line-height:1.25;color:#183e2b}
+.phfc-content-tools button small{font-size:12.5px;line-height:1.35;color:#718078;margin-top:3px}
+.phfc-content-selection{margin-top:16px;min-height:126px;border:1px dashed #cbd9d0;border-radius:13px;background:#fbfdfb;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;color:#6b796f}
+.phfc-content-selection>div{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#edf4ef;color:#547062;font-weight:700;margin-bottom:8px}
+.phfc-content-selection strong{font-size:14px;color:#345143}
+.phfc-content-selection p{font-size:13px;line-height:1.45;margin:5px 0 0;max-width:440px}
+.phfc-content-selection.has-choice{border-style:solid;border-color:#b8d8c3;background:#f5fbf7}
+.phfc-content-selection.has-choice>div{background:#198754;color:#fff}
+.phfc-assessment-options{border:0;padding:0;margin:0 0 18px}
+.phfc-assessment-options legend{font-size:14px;font-weight:600;color:#183e2b;margin-bottom:10px}
+.phfc-assessment-options label{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px solid #edf1ee;cursor:pointer}
+.phfc-assessment-options label:last-child{border-bottom:0}
+.phfc-assessment-options input{margin-top:3px;width:17px;height:17px;accent-color:#198754}
+.phfc-assessment-options span{display:flex;flex-direction:column;gap:3px}
+.phfc-assessment-options strong{font-size:14px;color:#294638}
+.phfc-assessment-options small{font-size:12.5px;line-height:1.4;color:#748078}
+.phfc-completion-rule{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 15px;border:1px solid #e2e8e4;border-radius:12px;background:#fafcfb;margin-bottom:15px}
+.phfc-completion-rule>div{display:flex;flex-direction:column;gap:3px}
+.phfc-completion-rule strong{font-size:14px;color:#244434}
+.phfc-completion-rule span{font-size:12.5px;line-height:1.4;color:#748078}
+.phfc-completion-rule button{border:1px solid #cfd9d2;background:#fff;color:#66756c;border-radius:9px;padding:8px 11px;font-family:inherit;font-weight:600;font-size:12.5px;white-space:nowrap;cursor:not-allowed}
+@media(max-width:1050px){.phfc-content-layout{grid-template-columns:1fr}.phfc-content-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.phfc-scope-choice,.phfc-content-tools{grid-template-columns:1fr}.phfc-completion-rule{align-items:flex-start;flex-direction:column}.phfc-completion-rule button{width:100%}}
+
+
+/* PHF Classroom 62.8.2 - Bước 5 Kiểm tra lại */
+.phfc-review-shell{display:grid;gap:18px}
+.phfc-review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.phfc-review-head>div{display:flex;align-items:flex-start;gap:12px}.phfc-review-head h4{margin:0;color:#173f2a;font-size:20px;line-height:1.25;font-weight:600}.phfc-review-head p{margin:5px 0 0;color:#6f7e75;font-size:13.5px;line-height:1.45}.phfc-review-status{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #ecd88c;border-radius:999px;background:#fff9df;color:#765e13;padding:7px 11px;font-size:12px;font-weight:600}
+.phfc-review-alerts:empty{display:none}.phfc-review-warning,.phfc-review-ready{padding:14px 16px;border-radius:12px;display:grid;gap:7px;font-size:13px;line-height:1.45}.phfc-review-warning{border:1px solid #ead59a;background:#fff9e8;color:#65551d}.phfc-review-warning strong{color:#6d5611}.phfc-review-warning ul{margin:0;padding-left:18px}.phfc-review-ready{grid-template-columns:auto 1fr;align-items:center;border:1px solid #bfdec8;background:#f2faf4;color:#54705f}.phfc-review-ready strong{color:#17633a}
+.phfc-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.phfc-review-card{padding:18px;min-width:0}.phfc-review-card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:12px;margin-bottom:13px;border-bottom:1px solid #e8eeea}.phfc-review-card-head h5{margin:0;color:#204b32;font-size:15px;line-height:1.3;font-weight:600}.phfc-review-card-head button{border:0;background:transparent;color:#17663b;font:600 12px/1.3 Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;cursor:pointer;padding:4px 0}.phfc-review-card dl{display:grid;gap:0;margin:0}.phfc-review-card dl>div{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:9px 0;border-bottom:1px dashed #e7ece8}.phfc-review-card dl>div:last-child{border-bottom:0}.phfc-review-card dt{color:#738078;font-size:12.5px;line-height:1.4}.phfc-review-card dd{margin:0;color:#314b3b;font-size:13px;line-height:1.45;font-weight:500;word-break:break-word}
+.phfc-review-summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:10px 0}.phfc-review-summary-row strong{color:#244a33;font-size:13.5px}.phfc-review-summary-row span{color:#6e7c73;font-size:12.5px;text-align:right}.phfc-review-card p{margin:6px 0 0;color:#69796f;font-size:12.5px;line-height:1.5}.phfc-review-window{display:grid;gap:7px;padding:11px 12px;border-radius:10px;background:#f6faf7;color:#64746a;font-size:12.5px}.phfc-review-window strong{color:#294b36}.phfc-review-session-list{display:grid;gap:8px;margin-top:12px}.phfc-review-session{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:10px;border:1px solid #e0e8e2;border-radius:10px}.phfc-review-session>b{width:28px;height:28px;border-radius:8px;background:#e9f5ed;color:#17623a;display:grid;place-items:center;font-size:12px}.phfc-review-session>div{display:grid;gap:3px}.phfc-review-session strong{color:#294b36;font-size:13px}.phfc-review-session span{color:#748078;font-size:11.5px;line-height:1.4}.phfc-review-count{display:flex;align-items:end;gap:8px;margin-bottom:10px}.phfc-review-count strong{font-size:28px;line-height:1;color:#17663b}.phfc-review-count span{font-size:12.5px;color:#718078}.phfc-review-card ul{margin:0;padding-left:18px;color:#627268;font-size:12.5px;line-height:1.7}.phfc-review-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.phfc-review-tags span{display:inline-flex;border-radius:999px;background:#eef6f0;color:#315d3e;padding:6px 9px;font-size:11.5px;font-weight:500}.phfc-review-footnote{display:flex;gap:7px;padding:13px 15px;border-radius:11px;background:#f5f7f6;color:#64736a;font-size:12.5px;line-height:1.5}.phfc-review-footnote strong{color:#334d3d;white-space:nowrap}
+@media(max-width:900px){.phfc-review-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.phfc-review-head{flex-direction:column}.phfc-review-status{align-self:flex-start}.phfc-review-card dl>div{grid-template-columns:1fr;gap:3px}.phfc-review-summary-row{flex-direction:column}.phfc-review-summary-row span{text-align:left}.phfc-review-footnote{display:grid}}
+
+
+/* 62.8.4 - menu tài khoản Classroom gọn, đồng bộ và đăng xuất về trang công khai Hub */
+.phfc-header-user{
+  appearance:none;
+  -webkit-appearance:none;
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+  color:inherit;
+  cursor:pointer;
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.phfc-header-user:hover,.phfc-header-user:focus-visible,.phfc-header-user[aria-expanded="true"]{
+  border-color:#a8d2b6;
+  background:#fbfefb;
+  box-shadow:0 6px 16px rgba(20,82,57,.08);
+  outline:none;
+}
+.phfc-header-user-bottom{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%;margin-top:4px}
+.phfc-header-user-bottom small{margin:0!important}
+.phfc-account-chevron{position:relative;width:16px;height:16px;flex:0 0 16px}
+.phfc-account-chevron::before{content:"";position:absolute;left:4px;top:4px;width:6px;height:6px;border-right:1.7px solid #456b5b;border-bottom:1.7px solid #456b5b;transform:rotate(45deg);transition:transform .16s ease,top .16s ease}
+.phfc-header-user[aria-expanded="true"] .phfc-account-chevron::before{top:7px;transform:rotate(225deg)}
+.phfc-account-menu{
+  position:fixed;
+  z-index:100080;
+  padding:6px;
+  border:1px solid #dce8e0;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 16px 36px rgba(17,58,43,.15);
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+}
+.phfc-account-menu button{
+  width:100%;
+  min-height:50px;
+  padding:8px 9px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr);
+  align-items:center;
+  gap:9px;
+  color:#183f31;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+}
+.phfc-account-menu button:hover,.phfc-account-menu button:focus-visible{background:#f1f8f3;outline:none}
+.phfc-account-menu button.is-danger{color:#96392f}
+.phfc-account-menu button.is-danger:hover,.phfc-account-menu button.is-danger:focus-visible{background:#fff4f2}
+.phfc-account-menu-icon{width:30px;height:30px;border-radius:8px;background:#edf6f0;color:#12613f;display:grid;place-items:center}
+.phfc-account-menu-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.phfc-account-menu .is-danger .phfc-account-menu-icon{background:#fff0ed;color:#96392f}
+.phfc-account-menu strong{display:block;font-size:13px;line-height:1.25;font-weight:600}
+.phfc-account-menu small{display:block;margin-top:2px;color:#718078;font-size:10.5px;line-height:1.3;font-weight:500}
+.phfc-account-menu-separator{height:1px;margin:3px 7px;background:#e8efea}
+@media(max-width:700px){.phfc-account-menu{max-width:calc(100vw - 24px)}}
+
+
+/* 62.8.5 - nền thông báo Classroom, chưa nối dữ liệu */
+.phfc-header-actions{justify-self:end;display:flex;align-items:center;gap:9px;min-width:0}
+.phfc-notification-button{
+  appearance:none;-webkit-appearance:none;width:42px;height:42px;min-width:42px;border:1px solid #dce9df;border-radius:12px;background:#fff;color:#1b5b3d;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(20,61,45,.05);transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease
+}
+.phfc-notification-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.phfc-notification-button:hover,.phfc-notification-button:focus-visible,.phfc-notification-button[aria-expanded="true"]{border-color:#a8d2b6;background:#f7fcf8;box-shadow:0 7px 18px rgba(20,82,57,.09);outline:none}
+.phfc-notification-button:active{transform:translateY(1px)}
+.phfc-notification-panel{position:fixed;z-index:100085;border:1px solid #dce8e0;border-radius:14px;background:#fff;box-shadow:0 18px 42px rgba(17,58,43,.16);font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;overflow:hidden}
+.phfc-notification-head{min-height:58px;padding:12px 13px 11px 16px;border-bottom:1px solid #e7eee9;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fbfdfb}
+.phfc-notification-head>div{display:grid;gap:2px}.phfc-notification-head strong{color:#173f2d;font-size:15px;line-height:1.2;font-weight:650}.phfc-notification-head small{color:#78867e;font-size:10.5px;line-height:1.2;font-weight:500}
+.phfc-notification-head button{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:#65766c;display:grid;place-items:center;cursor:pointer}
+.phfc-notification-head button:hover,.phfc-notification-head button:focus-visible{background:#eef6f0;color:#165c3b;outline:none}.phfc-notification-head svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.phfc-notification-empty{min-height:230px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.phfc-notification-empty-icon{width:54px;height:54px;border-radius:17px;background:#edf7f0;color:#17633e;display:grid;place-items:center;margin-bottom:14px}
+.phfc-notification-empty-icon svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.phfc-notification-empty strong{color:#244837;font-size:14px;line-height:1.3;font-weight:650}.phfc-notification-empty p{max-width:260px;margin:7px 0 0;color:#75837a;font-size:12.5px;line-height:1.5;font-weight:400}
+@media(max-width:980px){.phfc-header-actions{gap:7px}.phfc-notification-button{width:40px;height:40px;min-width:40px}.phfc-header-user{min-width:0}}
+@media(max-width:700px){.phfc-header{grid-template-columns:auto 1fr auto}.phfc-header-actions{display:flex}.phfc-header-user{display:none}.phfc-notification-button{width:38px;height:38px;min-width:38px;border-radius:11px}.phfc-notification-panel{max-width:calc(100vw - 24px)}}
+
+/* PHF Classroom 62.8.8 - header wordmark đúng tỷ lệ, tên module đặt dưới */
+.phfc-header-brand-main{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  min-width:0;
+  line-height:1;
+}
+.phfc-header-brand-main .phfc-header-company-logo{
+  display:block;
+  width:auto!important;
+  height:25px!important;
+  max-width:164px;
+  object-fit:contain;
+  object-position:center;
+  flex:0 0 auto;
+}
+.phfc-header-brand-main .phfc-header-company-logo+strong{
+  padding:0;
+  border:0;
+  color:#123e2c;
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+  font-size:14px;
+  font-weight:650;
+  line-height:1.12;
+  letter-spacing:.005em;
+  white-space:nowrap;
+  text-align:center;
+}
+@media(max-width:980px){
+  .phfc-header-brand-main{gap:1px}
+  .phfc-header-brand-main .phfc-header-company-logo{height:22px!important;max-width:142px}
+  .phfc-header-brand-main .phfc-header-company-logo+strong{font-size:12.5px}
+}
+@media(max-width:700px){
+  .phfc-header-brand-main .phfc-header-company-logo{height:20px!important;max-width:126px}
+  .phfc-header-brand-main .phfc-header-company-logo+strong{font-size:11.5px}
+}
+@media(max-width:480px){
+  .phfc-header-brand-main .phfc-header-company-logo{height:18px!important;max-width:112px}
+  .phfc-header-brand-main .phfc-header-company-logo+strong{font-size:10.5px}
+}
+
+/* PHF Classroom 62.8.12 - tinh gọn sidebar và thẻ quay lại Hub, không đổi bố cục/nghiệp vụ */
+@media(min-width:981px){
+  /* Đầu sidebar chỉ giữ chữ PHF Classroom, bỏ icon táo bị lặp */
+  .phfc-sidebar-brand{
+    min-height:42px;
+    padding:4px 8px 12px;
+    gap:0;
+    align-items:center;
+  }
+  .phfc-sidebar-brand img{display:none!important}
+  .phfc-sidebar-brand strong{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.2;
+    font-weight:650;
+    color:#0e5a43;
+  }
+  .phfc-sidebar-brand span{display:none!important}
+
+  /* Thẻ quay lại Hub nằm ngang, gọn và không vượt bề ngang menu 220px */
+  .phfc-hub-back{
+    box-sizing:border-box;
+    width:min(220px,100%);
+    max-width:220px;
+    min-width:0;
+    min-height:46px;
+    padding:5px 10px 5px 7px;
+    gap:8px;
+    overflow:hidden;
+  }
+  .phfc-hub-back-icon{
+    width:32px!important;
+    height:32px!important;
+    min-width:32px;
+    font-size:18px!important;
+  }
+  .phfc-hub-back-copy{
+    min-width:0;
+    overflow:hidden;
+  }
+  .phfc-hub-back-copy strong{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-size:12.5px;
+    line-height:1.15;
+    font-weight:650;
+    white-space:nowrap;
+  }
+  .phfc-hub-back-copy small{
+    margin-top:2px;
+    font-size:9px;
+    line-height:1.15;
+    white-space:nowrap;
+  }
+
+  /* Menu cha giữ đúng font hệ thống và tăng đậm để phân cấp rõ */
+  .phfc-nav-label,
+  .phfc-nav-label > span:first-child{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-weight:700;
+  }
+  .phfc-nav-toggle-mark{font-weight:700}
+}
+
+@media(max-width:980px){
+  .phfc-hub-back{max-width:220px}
+}
+
+/* PHF Classroom 62.8.13 — áp tông màu giao diện đã duyệt; giữ nguyên bố cục và nghiệp vụ */
+:root{
+  --phfc-bg:#f5f8f3;
+  --phfc-soft:#eef6ec;
+  --phfc-line:#d9e7dc;
+}
+
+/* Nền tổng thể sáng xanh, không thay đổi kích thước hoặc luồng bố cục */
+html.phf-classroom-route body,
+body.phf-classroom-mode,
+.phf-classroom-root,
+.phfc-shell{
+  background:
+    radial-gradient(circle at 88% 2%,rgba(160,205,74,.10),transparent 24%),
+    linear-gradient(180deg,#f8fbf6 0%,#f4f7f3 100%)!important;
+}
+
+/* Header theo tông xanh nhạt đã duyệt, họa tiết mềm bằng CSS, không dùng ảnh demo */
+.phfc-header{
+  position:sticky;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 87% 18%,rgba(176,218,83,.17) 0%,rgba(176,218,83,0) 38%),
+    linear-gradient(110deg,#fbfef9 0%,#f4faef 57%,#eef8e6 100%);
+  border-bottom-color:#d6e6d8;
+  box-shadow:0 7px 22px rgba(30,85,55,.07);
+}
+.phfc-header::before,
+.phfc-header::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  pointer-events:none;
+}
+.phfc-header::before{
+  right:-55px;
+  bottom:-72px;
+  width:430px;
+  height:142px;
+  border-radius:50%;
+  border-top:2px solid rgba(255,255,255,.72);
+  transform:rotate(-5deg);
+  box-shadow:0 -10px 0 -8px rgba(105,187,55,.11),0 -22px 0 -20px rgba(239,188,37,.16);
+}
+.phfc-header::after{
+  right:36px;
+  bottom:-24px;
+  width:210px;
+  height:76px;
+  background:
+    radial-gradient(ellipse at 78% 48%,rgba(93,177,48,.12) 0 13%,transparent 14%),
+    radial-gradient(ellipse at 92% 28%,rgba(93,177,48,.09) 0 9%,transparent 10%);
+  transform:rotate(-8deg);
+}
+.phfc-header>*{position:relative;z-index:1}
+
+/* Thẻ Hub ngang gọn, không vượt chiều rộng sidebar */
+@media(min-width:981px){
+  .phfc-hub-back{
+    width:min(220px,100%);
+    max-width:220px;
+    min-width:0;
+    min-height:44px;
+    padding:5px 10px 5px 7px;
+    border-color:#acd7b7;
+    background:rgba(250,255,250,.82);
+    box-shadow:0 5px 15px rgba(25,97,58,.08),inset 0 1px 0 rgba(255,255,255,.9);
+    backdrop-filter:blur(4px);
+  }
+  .phfc-hub-back-icon,
+  .phfc-hub-back>span[aria-hidden="true"]{
+    width:31px!important;
+    height:31px!important;
+    min-width:31px;
+  }
+  .phfc-hub-back-copy strong,
+  .phfc-hub-back strong{font-size:12px;line-height:1.12;font-weight:700}
+  .phfc-hub-back-copy small,
+  .phfc-hub-back small{font-size:8.5px;line-height:1.12}
+}
+
+/* Sidebar xanh rất nhạt, có chiều sâu nhẹ; đầu menu chỉ còn chữ PHF Classroom */
+.phfc-sidebar{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.96) 0%,rgba(246,251,244,.98) 58%,rgba(235,247,229,.98) 100%);
+  border-right-color:#d7e5da;
+}
+.phfc-sidebar::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  left:-48px;
+  right:-34px;
+  bottom:-58px;
+  height:190px;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse at 28% 72%,rgba(50,143,55,.20) 0 14%,transparent 15%),
+    radial-gradient(ellipse at 56% 78%,rgba(104,181,58,.17) 0 12%,transparent 13%),
+    radial-gradient(ellipse at 74% 67%,rgba(241,183,22,.13) 0 8%,transparent 9%),
+    linear-gradient(165deg,transparent 0 40%,rgba(107,182,68,.13) 41% 58%,rgba(36,128,61,.14) 59% 74%,transparent 75%);
+  filter:saturate(.9);
+}
+.phfc-sidebar-brand{
+  background:transparent;
+  border-bottom-color:#dfeadf;
+}
+.phfc-sidebar-brand strong{
+  color:#075b40;
+  font-weight:700;
+}
+
+/* Menu cha đậm rõ; menu con giữ medium nhẹ như đã chốt */
+@media(min-width:981px){
+  .phfc-nav-label,
+  .phfc-nav-label>span:first-child,
+  .phfc-nav-toggle-mark{
+    font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+    font-weight:700;
+    color:#075b40;
+  }
+  .phfc-nav button{font-weight:500}
+  .phfc-nav button.active{font-weight:600}
+}
+
+/* Màu active và hover thống nhất với ảnh duyệt */
+.phfc-nav-label:hover,.phfc-nav-label:focus-visible{background:rgba(229,243,226,.72)}
+.phfc-nav button:hover{background:#f0f7ef;color:#154f38}
+.phfc-nav button.active{
+  background:#e5f2e5;
+  border-color:#d0e5d3;
+  color:#0b6041;
+}
+.phfc-nav button.active::before{background:#58be31}
+
+/* Nội dung và card sáng, bóng mềm hơn theo mẫu nhưng không đổi kích thước */
+.phfc-main{
+  background:
+    radial-gradient(circle at 96% 0%,rgba(174,213,76,.06),transparent 26%),
+    transparent;
+}
+.phfc-card,
+.phfc-admin-kpi,
+.phfc-admin-action,
+.phfc-admin-empty-card,
+.phfc-panel{
+  border-color:#dce7de;
+  box-shadow:0 8px 22px rgba(29,77,49,.055);
+}
+.phfc-admin-identity{
+  border-color:#d7e7d9;
+  background:
+    radial-gradient(circle at 92% 20%,rgba(172,214,70,.09),transparent 24%),
+    linear-gradient(135deg,#fffdf9 0%,#fbfdf8 55%,#edf7df 100%);
+  box-shadow:0 10px 26px rgba(28,81,50,.06);
+}
+
+/* Chuông và thẻ chào hòa cùng tông header */
+.phfc-notification-button,
+.phfc-header-user{
+  border-color:#d3e5d7;
+  background:rgba(255,255,255,.86);
+  box-shadow:0 5px 14px rgba(25,78,48,.06);
+  backdrop-filter:blur(4px);
+}
+
+/* PHF Classroom 62.8.14 — tinh nhận diện header, bỏ hero nhận diện lặp, tăng độ rõ sidebar/menu */
+.phfc-header{
+  min-height:94px;
+  background:
+    radial-gradient(ellipse at 86% 12%,rgba(153,205,61,.29) 0%,rgba(153,205,61,0) 42%),
+    linear-gradient(110deg,#f8fdf5 0%,#edf8e7 55%,#dff1d2 100%);
+  border-bottom-color:#bed8c2;
+  box-shadow:0 8px 24px rgba(23,82,48,.11);
+}
+.phfc-header::before{
+  right:-42px;
+  bottom:-66px;
+  width:470px;
+  height:154px;
+  border-top:2px solid rgba(255,255,255,.9);
+  box-shadow:0 -11px 0 -8px rgba(74,158,50,.20),0 -23px 0 -19px rgba(226,177,26,.22);
+}
+.phfc-header::after{
+  right:20px;
+  bottom:-15px;
+  width:250px;
+  height:94px;
+  background:
+    radial-gradient(ellipse at 68% 52%,rgba(55,139,48,.20) 0 13%,transparent 14%),
+    radial-gradient(ellipse at 86% 31%,rgba(55,139,48,.16) 0 10%,transparent 11%),
+    radial-gradient(ellipse at 96% 69%,rgba(238,182,24,.13) 0 8%,transparent 9%);
+}
+.phfc-header-brand-main{gap:2px}
+.phfc-header-brand-main .phfc-header-company-logo{height:31px!important;max-width:190px}
+.phfc-header-brand-main .phfc-header-company-logo+strong{font-size:15px;font-weight:750;color:#0b4f38}
+.phfc-header-brand-main small{
+  display:block;
+  margin-top:1px;
+  color:#4d6b5b;
+  font-size:10.5px;
+  line-height:1.15;
+  font-weight:600;
+  white-space:nowrap;
+}
+@media(min-width:981px){
+  .phfc-hub-back{
+    width:220px;
+    max-width:220px;
+    min-height:48px;
+    padding:5px 9px 5px 7px;
+    border-color:#8fc5a0;
+    background:rgba(255,255,255,.82);
+  }
+  .phfc-hub-back-copy strong{font-size:12px;font-weight:750}
+  .phfc-hub-back-copy small{font-size:8.5px}
+  .phfc-nav-label,
+  .phfc-nav-label>span:first-child,
+  .phfc-nav-toggle-mark{
+    font-weight:800!important;
+    color:#064f39!important;
+  }
+}
+.phfc-sidebar{
+  background:linear-gradient(180deg,#f7fcf4 0%,#edf7e9 58%,#dff0d9 100%);
+  border-right-color:#bfd8c4;
+}
+.phfc-sidebar-brand{border-bottom-color:#cfe1d1}
+.phfc-nav-label{color:#245d46}
+.phfc-nav-label:hover,.phfc-nav-label:focus-visible{background:rgba(206,233,199,.82)}
+.phfc-nav button{color:#355f4d}
+.phfc-nav button:hover{background:#dff0dd;color:#0f5439}
+.phfc-nav button.active{background:#cfe8d1;border-color:#afd2b6;color:#075c3d}
+.phfc-nav button.active::before{background:#42a82b}
+.phfc-main>.phfc-admin-kpis:first-child,
+.phfc-main>.phfc-hero:first-child{margin-top:0}
+@media(max-width:980px){
+  .phfc-header{min-height:82px}
+  .phfc-header-brand-main .phfc-header-company-logo{height:25px!important;max-width:154px}
+  .phfc-header-brand-main small{font-size:9px}
+}
+@media(max-width:700px){
+  .phfc-header{min-height:70px}
+  .phfc-header-brand-main small{display:none}
+}
+
+
+/* PHF Classroom 62.8.15 — chốt header gọn, bỏ hero lặp, menu rõ và cân khối Hub */
+/* Fallback an toàn: không cho khối nhận diện cũ xuất hiện kể cả khi trình duyệt giữ HTML cũ. */
+.phfc-role-admin .phfc-main > .phfc-admin-identity:first-child{
+  display:none!important;
+}
+
+.phfc-header{
+  min-height:92px;
+  background:
+    radial-gradient(ellipse at 86% 8%,rgba(132,194,48,.34) 0%,rgba(132,194,48,0) 43%),
+    linear-gradient(110deg,#f7fcf3 0%,#eaf6e3 54%,#d8edc9 100%);
+  border-bottom-color:#abcdb2;
+  box-shadow:0 8px 24px rgba(19,76,43,.13);
+}
+.phfc-header-brand-main .phfc-header-company-logo{height:32px!important;max-width:196px}
+.phfc-header-brand-main .phfc-header-company-logo+strong{
+  color:#07523a;
+  font-size:15.5px;
+  font-weight:800;
+}
+.phfc-header-brand-main small{
+  display:block;
+  margin-top:2px;
+  color:#456756;
+  font-size:10.5px;
+  line-height:1.15;
+  font-weight:650;
+  white-space:nowrap;
+}
+
+@media(min-width:981px){
+  /* Sidebar 220px, trừ padding 11px mỗi bên: khối Hub 198px bằng vùng menu thực tế. */
+  .phfc-hub-back{
+    width:198px;
+    max-width:198px;
+    min-width:198px;
+    min-height:48px;
+    padding:5px 8px 5px 6px;
+    border-color:#78b98c;
+    background:rgba(255,255,255,.88);
+    box-shadow:0 5px 15px rgba(17,84,47,.10);
+  }
+  .phfc-hub-back-copy strong{font-size:12px;font-weight:800}
+  .phfc-hub-back-copy small{font-size:8.2px}
+
+  .phfc-nav-label{
+    min-height:32px;
+    margin:2px 5px 1px;
+    padding:0 3px;
+    font-size:12.5px!important;
+    line-height:1.2;
+  }
+  .phfc-nav-label,
+  .phfc-nav-label>span:first-child,
+  .phfc-nav-toggle-mark{
+    color:#044d36!important;
+    font-weight:850!important;
+  }
+  .phfc-nav button{font-weight:500!important}
+  .phfc-nav button.active{font-weight:650!important}
+}
+
+.phfc-sidebar{
+  background:linear-gradient(180deg,#f3faf0 0%,#e8f4e3 58%,#d8ebd1 100%);
+  border-right-color:#abcdb2;
+}
+.phfc-sidebar-brand{border-bottom-color:#bdd8c2}
+.phfc-sidebar-brand strong{color:#034f38;font-weight:800}
+.phfc-nav-label:hover,.phfc-nav-label:focus-visible{background:rgba(190,224,181,.88)}
+.phfc-nav button:hover{background:#d6ead3;color:#084d35}
+.phfc-nav button.active{background:#c6e2c8;border-color:#9fc7a7;color:#04583a}
+.phfc-nav button.active::before{background:#36a126}
+
+@media(max-width:980px){
+  .phfc-header{min-height:82px}
+  .phfc-header-brand-main .phfc-header-company-logo{height:25px!important;max-width:154px}
+  .phfc-header-brand-main small{font-size:9px}
+}
+@media(max-width:700px){
+  .phfc-header{min-height:70px}
+  .phfc-header-brand-main small{display:none}
+}
+
+/* PHF Classroom 62.8.16 — đồng bộ kiểu chữ menu cha với menu con; chỉ giữ khác biệt bằng độ đậm */
+@media(min-width:981px){
+  .phfc-nav-label,
+  .phfc-nav-label>span:first-child,
+  .phfc-nav-toggle-mark{
+    font-family:inherit!important;
+    font-style:normal!important;
+    letter-spacing:0!important;
+  }
+  .phfc-nav-label{
+    font-size:12.5px!important;
+    line-height:1.2!important;
+    font-weight:700!important;
+  }
+  .phfc-nav-label>span:first-child,
+  .phfc-nav-toggle-mark{
+    font-size:inherit!important;
+    line-height:inherit!important;
+    font-weight:inherit!important;
+  }
+}
