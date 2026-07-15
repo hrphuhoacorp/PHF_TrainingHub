@@ -7985,3 +7985,66 @@ body:not(.phf-logged-in) {
 
 /* PHF 1.0.12 - bulk account actions */
 .phf-acct-select-cell{width:42px;min-width:42px;text-align:center!important}.phf-acct-select-cell input{width:17px;height:17px;accent-color:#07543e;cursor:pointer}.phf-acct-select-cell input:disabled{cursor:not-allowed;opacity:.45}.phf-acct-bulkbar{display:none;align-items:center;justify-content:space-between;gap:14px;margin:12px 0 14px;padding:12px 14px;border:1px solid #d9e9e2;border-radius:14px;background:#f7fbf9}.phf-acct-bulkbar.active{display:flex}.phf-acct-bulkbar b{display:block;color:#17382d;font-size:14px}.phf-acct-bulkbar small{display:block;margin-top:4px;color:#667a71;line-height:1.4}.phf-acct-bulk-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.phf-acct-safe-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}@media(max-width:760px){.phf-acct-bulkbar{align-items:stretch;flex-direction:column}.phf-acct-bulk-actions{justify-content:stretch}.phf-acct-bulk-actions .phf-acct-safe-btn{flex:1}}
+
+/* 62.8.24 - PHF Training Hub mobile shell: single drawer + account card */
+@media (max-width:760px){
+  body.phf-main-shell-mode:not(.phf-intro-active) > .app{padding:0!important;background:#f5f8f6!important;}
+  body.phf-main-shell-mode > .app > .topbar.phf-site-header{
+    position:sticky!important;top:0!important;z-index:1300!important;margin:0!important;
+    min-height:64px!important;padding:8px 10px!important;border-radius:0!important;
+    display:grid!important;grid-template-columns:44px minmax(0,1fr) auto auto auto!important;
+    gap:7px!important;align-items:center!important;background:#fff!important;
+    border-bottom:1px solid #dce9e2!important;box-shadow:0 4px 16px rgba(9,49,37,.07)!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-mobile-menu-toggle{
+    grid-column:1!important;grid-row:1!important;width:42px!important;height:42px!important;min-height:42px!important;
+    padding:0!important;border-radius:12px!important;font-size:0!important;z-index:2!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-mobile-menu-toggle:before{content:'☰';font-size:22px;line-height:1;}
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-mobile-menu-toggle:before{content:'×';font-size:29px;font-weight:500;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand{
+    grid-column:2!important;grid-row:1!important;width:auto!important;min-width:0!important;max-width:100%!important;
+    padding:0!important;gap:7px!important;overflow:hidden!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .brand .logo{width:82px!important;height:34px!important;flex:0 0 82px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand h1{font-size:14px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .brand p{display:none!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header #phfClassroomHeaderIcon,
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-classroom-header-icon{grid-row:1!important;width:40px!important;height:40px!important;margin:0!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-notification-wrap{grid-row:1!important;margin:0!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-notification-btn{width:40px!important;height:40px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry{
+    display:flex!important;grid-row:1!important;margin:0!important;width:42px!important;height:42px!important;min-width:42px!important;
+    padding:0!important;border:1px solid #d5e6dd!important;border-radius:12px!important;background:#fff!important;
+    align-items:center!important;justify-content:center!important;overflow:hidden!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry > span{font-size:0!important;display:block!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry > span:before{content:'👤';font-size:20px!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-login-entry small{display:none!important;}
+
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav{
+    display:block!important;position:fixed!important;left:0!important;top:0!important;bottom:0!important;
+    width:min(84vw,330px)!important;max-width:330px!important;padding:82px 14px 22px!important;margin:0!important;
+    background:#f5fbf7!important;border-right:1px solid #cfe3d8!important;box-shadow:16px 0 38px rgba(7,55,40,.18)!important;
+    overflow-y:auto!important;overflow-x:hidden!important;transform:translateX(-105%)!important;
+    transition:transform .24s ease!important;z-index:1290!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header.phf-mobile-open .phf-main-nav{transform:translateX(0)!important;}
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav:before{
+    content:'PHF Training Hub';display:block;margin:0 4px 14px;padding:0 0 12px;border-bottom:1px solid #cfe3d8;
+    color:#064d39;font-size:18px;font-weight:800;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav button[data-phf-main-nav]{
+    display:flex!important;width:100%!important;min-height:44px!important;height:auto!important;margin:3px 0!important;
+    padding:10px 13px!important;border:1px solid transparent!important;border-radius:12px!important;
+    justify-content:flex-start!important;text-align:left!important;background:transparent!important;font-size:14px!important;font-weight:600!important;
+  }
+  body.phf-main-shell-mode .topbar.phf-site-header .phf-main-nav button[data-phf-main-nav].active{
+    background:#dff1e6!important;border-color:#a9d0bb!important;color:#064f3b!important;box-shadow:inset 3px 0 0 #38a95b!important;
+  }
+  .phf-hub-mobile-backdrop{position:fixed;inset:0;background:rgba(8,34,26,.38);z-index:1280;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  .phf-hub-mobile-backdrop.is-open{opacity:1;pointer-events:auto;}
+  body.phf-hub-mobile-menu-open{overflow:hidden!important;}
+  .phf-account-menu{z-index:1500!important;}
+  .phf-user-greeting-row{display:none!important;}
+}
