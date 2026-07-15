@@ -4,6 +4,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { readData, saveData } = require('./lib/db');
+const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('./lib/classroom-db');
+const { listClassroomUsers } = require('./lib/classroom-users');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -255,10 +257,28 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res,200,{ok:true,count:accounts.length});
     }
 
+
     if (pathname === '/api/data') {
       assertSameOrigin(req);
+      const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const classroomMode = requestUrl.searchParams.get('classroom') === '1';
+      const classroomUsersMode = requestUrl.searchParams.get('classroomUsers') === '1';
+      const classroomAttendanceMode = requestUrl.searchParams.get('classroomAttendance') === '1';
       if (req.method === 'GET') {
         const session = await requireSession(req, ['learner','manager','admin']);
+        if (classroomUsersMode) {
+          return sendJson(res, 200, { ok:true, users:await listClassroomUsers(session) });
+        }
+        if (classroomAttendanceMode) {
+          const sessionId=String(requestUrl.searchParams.get('sessionId')||'').trim();
+          if(!sessionId) throw new RequestError('Thiếu mã buổi học.',400,'CLASSROOM_SESSION_REQUIRED');
+          return sendJson(res,200,{ok:true,...await listAttendance(session,sessionId)});
+        }
+        if (classroomMode) {
+          const classId = String(requestUrl.searchParams.get('id') || '').trim();
+          if (classId) return sendJson(res, 200, { ok:true, classroomClass:await getClass(session, classId) });
+          return sendJson(res, 200, { ok:true, classes:await listClasses(session) });
+        }
         const data = await readData({
           role: session.role,
           employeeId: session.role === 'learner' ? session.employeeId : '',
@@ -304,6 +324,19 @@ const server = http.createServer(async (req, res) => {
         try { payload = JSON.parse(body || '{}'); }
         catch { throw new RequestError('Dữ liệu JSON không hợp lệ.', 400, 'JSON_INVALID'); }
         const session = await requireSession(req, ['learner','manager','admin']);
+        if (classroomUsersMode) {
+          return sendJson(res, 200, { ok:true, users:await listClassroomUsers(session) });
+        }
+        if (classroomAttendanceMode) {
+          const saved=await saveAttendance(session,payload);
+          return sendJson(res,200,{ok:true,...saved});
+        }
+        if (classroomMode) {
+          const action=String(payload.action||'saveDraft');
+          if (!['saveDraft','publish'].includes(action)) throw new RequestError('Thao tác Classroom không hợp lệ.',400,'CLASSROOM_ACTION_INVALID');
+          const saved=await saveClass(session, payload.classroomClass||payload, { publish:action==='publish' });
+          return sendJson(res, action==='publish'?200:201, {ok:true, classroomClass:saved});
+        }
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

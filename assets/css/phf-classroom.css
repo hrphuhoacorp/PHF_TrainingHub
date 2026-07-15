@@ -1580,3 +1580,511 @@ body.phf-classroom-mode,
     transition:none!important;
   }
 }
+
+/* PHF Classroom 1.0 - dữ liệu lớp thật và quy chuẩn form */
+.phf-classroom-root,
+.phf-classroom-root button,
+.phf-classroom-root input,
+.phf-classroom-root select,
+.phf-classroom-root textarea{
+  font-family:Arial,Helvetica,system-ui,sans-serif!important;
+}
+.phfc-field>span,
+.phfc-field>legend{
+  font-weight:700!important;
+  color:#163a4b;
+}
+.phfc-required{
+  color:#c41230!important;
+  font-size:1.08em;
+  font-weight:900!important;
+  line-height:1;
+}
+.phfc-class-loading,
+.phfc-class-error{
+  padding:34px 24px;
+  text-align:center;
+  color:#526871;
+}
+.phfc-class-error strong{display:block;color:#a5192e;font-size:17px;margin-bottom:6px}
+.phfc-class-error button{margin-top:12px;border:1px solid #1c6378;background:#fff;color:#124f61;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer}
+.phfc-class-row{
+  width:100%;display:grid;grid-template-columns:1.65fr .85fr 1.2fr 1fr .55fr .8fr;gap:14px;align-items:center;
+  border:0;border-top:1px solid #e6eef1;background:#fff;padding:16px 18px;text-align:left;cursor:pointer;color:#173b4a;
+}
+.phfc-class-row:hover{background:#f7fbfc}
+.phfc-class-row>span{min-width:0}
+.phfc-class-row strong{display:block;font-size:14px}
+.phfc-class-row small{display:block;margin-top:4px;color:#71858d;font-size:12px;line-height:1.35}
+.phfc-status-chip{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;white-space:nowrap;background:#eef3f5;color:#526871}
+.phfc-status-chip.is-draft{background:#fff3cd;color:#7a5800}
+.phfc-status-chip.is-published{background:#dff3eb;color:#176548}
+.phfc-status-chip.is-in_progress{background:#dceffc;color:#155d86}
+.phfc-status-chip.is-completed{background:#e6f4e8;color:#276735}
+.phfc-status-chip.is-cancelled{background:#f7e3e7;color:#9a263d}
+.phfc-system-person-list{display:grid;gap:8px;max-height:360px;overflow:auto;margin-top:12px}
+.phfc-system-person{display:flex;gap:10px;align-items:flex-start;border:1px solid #dbe7eb;border-radius:10px;padding:11px 12px;background:#fff;cursor:pointer}
+.phfc-system-person:hover{border-color:#76aebd;background:#f7fbfc}
+.phfc-system-person input{margin-top:3px}
+.phfc-system-person span{display:block}
+.phfc-system-person strong{display:block;color:#173b4a}
+.phfc-system-person small{display:block;color:#70838b;margin-top:3px}
+.phfc-role-row select{min-width:250px;max-width:340px;border:1px solid #cbdbe0;border-radius:8px;padding:9px 10px;background:#fff;color:#183c4b;font-weight:600}
+.phfc-class-detail{display:grid;gap:18px}
+.phfc-detail-head{position:relative;border:1px solid #dbe7eb;background:#fff;border-radius:14px;padding:22px;display:grid;gap:12px}
+.phfc-detail-head h3{margin:3px 0 5px;color:#123f52;font-size:25px}
+.phfc-detail-head p{margin:0;color:#657981}
+.phfc-detail-head>.phfc-status-chip{position:absolute;right:22px;top:22px}
+.phfc-detail-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.phfc-detail-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.phfc-detail-kpis article{border:1px solid #dbe7eb;background:#fff;border-radius:12px;padding:15px}
+.phfc-detail-kpis span{display:block;color:#73868e;font-size:12px;font-weight:700}
+.phfc-detail-kpis strong{display:block;margin-top:5px;color:#173b4a;font-size:16px}
+.phfc-detail-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.phfc-detail-panel{padding:18px}
+.phfc-detail-panel h4{margin:0 0 14px;color:#16475a}
+.phfc-detail-session{display:flex;gap:12px;border-top:1px solid #e7eef1;padding:12px 0}
+.phfc-detail-session>b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#e8f4f6;color:#176277}
+.phfc-detail-session strong,.phfc-detail-session span,.phfc-detail-session small{display:block}
+.phfc-detail-session span{color:#526a74;margin-top:3px}
+.phfc-detail-session small{color:#87979d;margin-top:3px}
+.phfc-detail-learners{list-style:none;padding:0;margin:0}
+.phfc-detail-learners li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e7eef1;padding:11px 0}
+.phfc-detail-learners li span{color:#6f828a;font-size:12px}
+.phfc-learner-class-list{overflow:hidden}
+@media(max-width:900px){
+  .phfc-class-table-head{display:none!important}
+  .phfc-class-row{grid-template-columns:1fr 1fr;gap:10px;padding:15px}
+  .phfc-class-row>span:first-child{grid-column:1/-1}
+  .phfc-detail-kpis{grid-template-columns:1fr 1fr}
+  .phfc-detail-grid{grid-template-columns:1fr}
+  .phfc-role-row{align-items:stretch!important;flex-direction:column}
+  .phfc-role-row select{max-width:none;width:100%;min-width:0}
+}
+
+/* PHF Classroom 1.1 - Bộ chọn user dùng chung Training Hub */
+.phfc-user-choice{min-width:280px;max-width:460px;width:100%}
+.phfc-user-picker-button{width:100%;min-height:48px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;font-family:Arial,Helvetica,system-ui,sans-serif;cursor:pointer}
+.phfc-user-picker-button:hover{border-color:#2563eb;background:#f8fbff}
+.phfc-user-picker-button span{font-weight:700;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.phfc-user-picker-button b{font-size:13px;color:#2563eb;white-space:nowrap}
+.phfc-user-picker-entry{display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid #dbe4ee;border-radius:12px;padding:16px;background:#f8fafc}
+.phfc-user-picker-entry>div{display:flex;flex-direction:column;gap:5px}
+.phfc-user-picker-entry strong{font-size:15px;color:#15385f}
+.phfc-user-picker-entry span,.phfc-user-source-note{font-size:13px;color:#64748b;line-height:1.5}
+.phfc-user-source-note{margin-top:10px}
+.phfc-user-loading,.phfc-user-load-error{border:1px dashed #cbd5e1;border-radius:12px;padding:22px;text-align:center;color:#64748b;background:#f8fafc}
+.phfc-user-load-error{display:flex;flex-direction:column;align-items:center;gap:8px;border-color:#fecaca;background:#fff7f7;color:#991b1b}
+.phfc-user-load-error button{border:1px solid #dc2626;border-radius:8px;background:#fff;padding:8px 14px;font-weight:700;color:#b91c1c;cursor:pointer}
+.phfc-user-picker-overlay{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,Helvetica,system-ui,sans-serif}
+.phfc-user-picker-modal{width:min(760px,100%);max-height:min(760px,92vh);background:#fff;border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.28);display:flex;flex-direction:column;overflow:hidden}
+.phfc-user-picker-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #e2e8f0}
+.phfc-user-picker-head h3{margin:0;color:#15385f;font-size:20px;font-weight:800}
+.phfc-user-picker-head p{margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.45}
+.phfc-user-picker-head button{border:0;background:#f1f5f9;border-radius:50%;width:34px;height:34px;font-size:24px;line-height:1;color:#475569;cursor:pointer}
+.phfc-user-picker-filter{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:15px 22px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.phfc-user-picker-filter label{flex:1;display:flex;flex-direction:column;gap:6px}
+.phfc-user-picker-filter strong{font-size:13px;color:#334155}
+.phfc-user-picker-filter input{height:42px;border:1px solid #cbd5e1;border-radius:9px;padding:0 12px;font:14px Arial,Helvetica,system-ui,sans-serif}
+.phfc-user-picker-filter>span{font-size:13px;color:#64748b;white-space:nowrap;padding-bottom:11px}
+.phfc-user-picker-list{overflow:auto;padding:10px 14px;min-height:260px}
+.phfc-user-picker-row{display:grid;grid-template-columns:auto 40px 1fr;align-items:center;gap:11px;padding:11px 12px;border:1px solid transparent;border-radius:11px;cursor:pointer}
+.phfc-user-picker-row:hover{background:#f8fafc}.phfc-user-picker-row.is-selected{background:#eff6ff;border-color:#93c5fd}
+.phfc-user-picker-row input{width:18px;height:18px;accent-color:#2563eb}
+.phfc-user-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-weight:800}
+.phfc-user-picker-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
+.phfc-user-picker-copy strong{font-size:14px;color:#172b4d}.phfc-user-picker-copy small{font-size:12px;color:#64748b}.phfc-user-picker-copy em{font-size:12px;color:#2563eb;font-style:normal}
+.phfc-user-picker-empty{display:flex;flex-direction:column;align-items:center;gap:5px;padding:48px 20px;color:#64748b;text-align:center}
+.phfc-user-picker-foot{display:flex;justify-content:flex-end;gap:10px;padding:15px 22px;border-top:1px solid #e2e8f0;background:#fff}
+@media(max-width:720px){.phfc-user-picker-entry{align-items:stretch;flex-direction:column}.phfc-user-picker-entry button{width:100%}.phfc-user-choice{min-width:0}.phfc-user-picker-filter{align-items:stretch;flex-direction:column}.phfc-user-picker-filter>span{padding:0}.phfc-user-picker-modal{max-height:96vh}.phfc-user-picker-row{grid-template-columns:auto 34px 1fr}.phfc-user-avatar{width:34px;height:34px}}
+
+/* PHF Classroom 1.3 - Người dùng Classroom */
+.phfc-users-workspace,.phfc-users-workspace *{font-family:Arial,Helvetica,system-ui,sans-serif}
+.phfc-users-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.phfc-users-kpis article{border:1px solid #dce8df;border-radius:15px;background:#fff;padding:18px;box-shadow:0 8px 22px rgba(35,83,54,.06);display:flex;flex-direction:column;gap:5px}
+.phfc-users-kpis span{font-size:13px;color:#62736a}.phfc-users-kpis strong{font-size:28px;line-height:1;color:#075c3f;font-weight:800}.phfc-users-kpis small{font-size:12px;color:#87948d}
+.phfc-users-panel{overflow:hidden;padding:0!important}
+.phfc-users-toolbar{display:grid;grid-template-columns:minmax(280px,1.5fr) minmax(210px,.8fr) minmax(210px,.8fr);gap:12px;padding:16px;border-bottom:1px solid #e4ece7;background:#fbfdfb}
+.phfc-users-toolbar label{display:flex;flex-direction:column;gap:7px}.phfc-users-toolbar strong{font-size:13px;font-weight:800;color:#173f31}.phfc-users-toolbar input,.phfc-users-toolbar select{height:43px;border:1px solid #cddbd2;border-radius:10px;background:#fff;padding:0 12px;font-size:14px;color:#20352d;outline:none}.phfc-users-toolbar input:focus,.phfc-users-toolbar select:focus{border-color:#0d7a54;box-shadow:0 0 0 3px rgba(13,122,84,.1)}
+.phfc-users-source-note{display:flex;gap:6px;padding:11px 16px;background:#f2f8f4;border-bottom:1px solid #e0ebe4;font-size:12px;color:#60736a}.phfc-users-source-note strong{color:#174c38}
+.phfc-users-table-head,.phfc-users-row{display:grid;grid-template-columns:minmax(260px,1.55fr) minmax(190px,.9fr) minmax(110px,.55fr) minmax(170px,.8fr) minmax(130px,.6fr) 105px;gap:12px;align-items:center}
+.phfc-users-table-head{padding:12px 16px;background:#f8fbf9;border-bottom:1px solid #e5ede8;font-size:12px;font-weight:800;color:#617168}
+.phfc-users-row{width:100%;border:0;border-bottom:1px solid #edf2ef;background:#fff;padding:14px 16px;text-align:left;color:#20342c;cursor:pointer}.phfc-users-row:hover{background:#f7fbf8}.phfc-users-row:last-child{border-bottom:0}
+.phfc-users-row>span{min-width:0}.phfc-users-row>span>strong{display:block;font-size:16px;color:#0b5c41}.phfc-users-row>span>small{display:block;margin-top:3px;font-size:12px;color:#7b8982;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfc-users-person{display:flex;align-items:center;gap:11px}.phfc-users-person>span{min-width:0}.phfc-users-person strong{display:block;font-size:14px;color:#173d30}.phfc-users-person small,.phfc-users-person em{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.phfc-users-person small{font-size:12px;color:#66776e;margin-top:2px}.phfc-users-person em{font-size:12px;color:#0b7652;font-style:normal;margin-top:2px}
+.phfc-users-avatar{flex:0 0 auto;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dff2e7;color:#08724d;font-size:16px;font-weight:800}.phfc-users-avatar.is-large{width:54px;height:54px;font-size:21px}
+.phfc-scope-chip,.phfc-account-status{display:inline-flex;align-items:center;min-height:28px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;line-height:1.2}.phfc-scope-chip.is-new_sales{background:#e6f4ec;color:#08724d}.phfc-scope-chip.is-phf_class{background:#eef2ff;color:#3c4ca8}.phfc-account-status.is-active{background:#e8f6ed;color:#0b714d}
+.phfc-users-open{font-size:12px;font-weight:800;color:#08724d;white-space:nowrap}.phfc-users-empty{padding:48px 20px;text-align:center;display:flex;flex-direction:column;gap:5px;color:#75837c}.phfc-users-empty strong{color:#31483e}
+.phfc-user-detail-overlay{position:fixed;inset:0;z-index:100000;background:rgba(12,35,26,.48);padding:20px;display:flex;align-items:center;justify-content:center}.phfc-user-detail-overlay[hidden]{display:none}.phfc-user-detail-modal{width:min(900px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.phfc-user-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px;border-bottom:1px solid #e4ece7}.phfc-user-detail-head h3{margin:2px 0 3px;font-size:22px;color:#0c573e}.phfc-user-detail-head p,.phfc-user-detail-head small{margin:0;color:#718078}.phfc-user-detail-head>button{width:36px;height:36px;border:0;border-radius:50%;background:#eef4f0;color:#52645b;font-size:25px;cursor:pointer}
+.phfc-user-detail-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px 22px;background:#f8fbf9}.phfc-user-detail-meta article{border:1px solid #e1ebe5;border-radius:11px;background:#fff;padding:12px}.phfc-user-detail-meta span{display:block;font-size:11px;color:#7a8881}.phfc-user-detail-meta strong{display:block;margin-top:4px;font-size:13px;color:#243b31;overflow-wrap:anywhere}
+.phfc-user-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 22px}.phfc-user-detail-grid section{border:1px solid #e0e9e3;border-radius:13px;padding:16px}.phfc-user-detail-grid h4{margin:0 0 12px;color:#0b5c41;font-size:16px}.phfc-user-detail-grid ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.phfc-user-detail-grid li{display:flex;justify-content:space-between;gap:12px;padding:10px;border-radius:9px;background:#f7faf8}.phfc-user-detail-grid li span{min-width:0}.phfc-user-detail-grid li strong{display:block;color:#263f34;font-size:13px}.phfc-user-detail-grid li small{display:block;color:#77867e;font-size:11px;margin-top:3px}.phfc-user-detail-grid li b{font-size:11px;color:#0b714d;white-space:nowrap}.phfc-user-detail-grid p{color:#76857e;font-size:13px}
+.phfc-user-detail-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;border-top:1px solid #e3ebe6;background:#fbfdfc}.phfc-user-detail-foot small{color:#76857e;line-height:1.5}.phfc-modal-lock{overflow:hidden}
+@media(max-width:1100px){.phfc-users-kpis{grid-template-columns:repeat(2,1fr)}.phfc-users-table-head{display:none}.phfc-users-row{grid-template-columns:1fr 1fr 90px}.phfc-users-row>span:nth-child(4),.phfc-users-row>span:nth-child(5),.phfc-users-row>span:nth-child(6){display:none}.phfc-user-detail-meta{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.phfc-users-kpis{grid-template-columns:1fr}.phfc-users-toolbar{grid-template-columns:1fr}.phfc-users-row{grid-template-columns:1fr}.phfc-users-row>span:nth-child(n+2){display:none}.phfc-user-detail-overlay{padding:8px}.phfc-user-detail-meta,.phfc-user-detail-grid{grid-template-columns:1fr}.phfc-user-detail-foot{align-items:stretch;flex-direction:column}.phfc-user-detail-foot button{width:100%}}
+
+/* PHF Classroom 1.4 — Lịch đào tạo, chip gọn và bộ chọn ngày/giờ rõ hành động */
+.phfc-shell,.phfc-shell *{font-family:Arial,Helvetica,system-ui,sans-serif}
+.phfc-status-chip,.phfc-scope-chip,.phfc-account-status,.phfc-schedule-state,.phfc-user-role-chip{
+  min-height:22px!important;padding:2px 8px!important;border-radius:999px!important;font-size:11px!important;font-weight:700!important;line-height:1.25!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;white-space:nowrap!important
+}
+.phfc-schedule-workspace{display:grid;gap:18px}
+.phfc-section-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
+.phfc-section-title-row h3{margin:3px 0 6px;font-size:30px;line-height:1.15;color:#064f39;font-weight:800}
+.phfc-section-title-row p{margin:0;color:#66796f;font-size:14px}
+.phfc-schedule-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.phfc-schedule-kpis article{border:1px solid #dbe8de;background:#fff;border-radius:15px;padding:16px 18px;display:grid;gap:7px;box-shadow:0 8px 22px rgba(24,86,53,.05)}
+.phfc-schedule-kpis span{font-size:12px;color:#6b7d73}.phfc-schedule-kpis strong{font-size:26px;color:#066044}
+.phfc-schedule-panel{padding:16px;display:grid;gap:14px}
+.phfc-schedule-filters{display:grid;grid-template-columns:minmax(240px,1.5fr) repeat(3,minmax(145px,.7fr));gap:10px;align-items:end}
+.phfc-schedule-filters label{display:grid;gap:6px}.phfc-schedule-filters strong{font-size:12px;color:#214d37;font-weight:700}
+.phfc-schedule-filters input,.phfc-schedule-filters select{min-height:40px;border:1px solid #cfddd3;border-radius:10px;background:#fff;padding:8px 11px;font-size:13px;color:#173f2d}
+.phfc-schedule-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto auto;gap:16px;align-items:center;border-top:1px solid #e4ece6;padding:15px 4px}
+.phfc-schedule-row:first-child{border-top:0}.phfc-schedule-date{width:62px;min-height:62px;border-radius:14px;background:#edf7ef;display:grid;place-content:center;text-align:center;color:#0a6847}
+.phfc-schedule-date b{font-size:22px;line-height:1}.phfc-schedule-date span{font-size:10px;margin-top:4px}
+.phfc-schedule-main{display:grid;gap:3px;min-width:0}.phfc-schedule-main small{font-size:10px;color:#7c8a82;text-transform:uppercase;letter-spacing:.04em}.phfc-schedule-main strong{font-size:14px;color:#134b34}.phfc-schedule-main span,.phfc-schedule-main em{font-size:12px;color:#65766d;font-style:normal}
+.phfc-schedule-state.is-upcoming{background:#e7f4ff;color:#145e92}.phfc-schedule-state.is-ongoing{background:#e5f7eb;color:#08734d}.phfc-schedule-state.is-completed{background:#eef1f2;color:#53636a}.phfc-schedule-state.is-cancelled{background:#fde9ed;color:#a32745}.phfc-schedule-state.is-scheduled{background:#fff4d8;color:#7f5b00}
+.phfc-schedule-actions{display:flex;gap:7px;justify-content:flex-end}.phfc-schedule-actions button{border:1px solid #c9ddd0;background:#fff;color:#086146;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.phfc-schedule-empty{min-height:180px;display:grid;place-content:center;text-align:center;gap:5px;color:#6d7e74}.phfc-schedule-empty strong{color:#174f38}
+.phfc-datetime-overlay,.phfc-session-modal-overlay{position:fixed;inset:0;z-index:100050;background:rgba(11,40,27,.42);display:grid;place-items:center;padding:18px}
+.phfc-datetime-modal,.phfc-session-modal{width:min(560px,100%);background:#fff;border-radius:18px;box-shadow:0 26px 70px rgba(0,0,0,.22);overflow:hidden}
+.phfc-datetime-modal{width:min(410px,100%)}
+.phfc-datetime-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px;border-bottom:1px solid #e4ece6}.phfc-datetime-head h3{margin:0 0 4px;font-size:18px;color:#07563d}.phfc-datetime-head p{margin:0;color:#728179;font-size:12px}.phfc-datetime-head button{border:0;background:#eef5f0;color:#0d5a41;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer}
+.phfc-datetime-body{padding:20px;display:grid;gap:14px}.phfc-datetime-body label{display:grid;gap:7px}.phfc-datetime-body strong{font-size:13px;color:#214d37}.phfc-datetime-body input{min-height:44px;border:1px solid #c9dbce;border-radius:10px;padding:8px 11px;font-size:15px}
+.phfc-datetime-actions{display:flex;justify-content:flex-end;gap:9px;padding:15px 20px;border-top:1px solid #e4ece6;background:#f8fbf9}
+.phfc-session-form{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px}.phfc-session-form .phfc-field-wide{grid-column:1/-1}.phfc-class-chooser{padding-bottom:4px}.phfc-class-chooser>.phfc-field{padding:20px;display:grid;gap:7px}
+.phfc-enhanced-time-input{cursor:pointer;background-image:linear-gradient(transparent,transparent)}
+@media(max-width:900px){.phfc-schedule-kpis{grid-template-columns:repeat(2,1fr)}.phfc-schedule-filters{grid-template-columns:1fr 1fr}.phfc-schedule-row{grid-template-columns:62px 1fr}.phfc-schedule-state,.phfc-schedule-actions{grid-column:2}.phfc-schedule-actions{justify-content:flex-start}}
+@media(max-width:620px){.phfc-section-title-row{align-items:stretch;flex-direction:column}.phfc-schedule-kpis,.phfc-schedule-filters,.phfc-session-form{grid-template-columns:1fr}.phfc-session-form .phfc-field-wide{grid-column:auto}.phfc-schedule-row{grid-template-columns:54px 1fr;gap:10px}.phfc-schedule-date{width:52px;min-height:56px}.phfc-datetime-actions,.phfc-user-picker-foot{position:sticky;bottom:0}.phfc-schedule-actions{flex-wrap:wrap}}
+
+/* PHF Classroom 1.5 - Lịch trực quan, picker 24 giờ và hành động cân đối */
+.phfc-schedule-commandbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.phfc-calendar-nav,.phfc-schedule-command-actions{display:flex;align-items:center;gap:9px}.phfc-calendar-nav>strong{min-width:210px;text-align:center;color:#07563d;font-size:17px}.phfc-icon-button{width:40px;height:40px;border:1px solid #c9ddd0;border-radius:11px;background:#fff;color:#086146;font:700 23px/1 Arial,Helvetica,system-ui,sans-serif;cursor:pointer}.phfc-today-button{min-width:92px}.phfc-view-switch{display:inline-flex;padding:3px;border:1px solid #cee0d3;border-radius:12px;background:#f3f8f4}.phfc-view-switch button{min-width:84px;height:34px;border:0;border-radius:9px;background:transparent;color:#587064;font:700 12px/1 Arial,Helvetica,system-ui,sans-serif;cursor:pointer}.phfc-view-switch button.is-active{background:#0b6749;color:#fff;box-shadow:0 4px 10px rgba(11,103,73,.18)}
+.phfc-calendar-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid #dce8df;border-bottom:0;border-radius:14px 14px 0 0;overflow:hidden;background:#f3f8f4}.phfc-calendar-weekdays span{padding:10px 6px;text-align:center;font-size:12px;font-weight:700;color:#385b48;border-left:1px solid #dce8df}.phfc-calendar-weekdays span:first-child{border-left:0}.phfc-calendar-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid #dce8df;border-radius:0 0 14px 14px;overflow:hidden}.phfc-calendar-day{min-height:126px;padding:8px;border-left:1px solid #e2ebe5;border-top:1px solid #e2ebe5;background:#fff;min-width:0}.phfc-calendar-day:nth-child(7n+1){border-left:0}.phfc-calendar-day:nth-child(-n+7){border-top:0}.phfc-calendar-day.is-outside{background:#f8faf8}.phfc-calendar-day.is-outside>header b{color:#a7b1ab}.phfc-calendar-day.is-today{background:#f1faF3;box-shadow:inset 0 0 0 2px #87c69a}.phfc-calendar-day>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.phfc-calendar-day>header b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#204d36;font-size:13px}.phfc-calendar-day.is-today>header b{background:#0b6749;color:#fff}.phfc-calendar-day>header small{font-size:9px;color:#0b6749;font-weight:700}.phfc-calendar-events{display:grid;gap:5px}.phfc-calendar-event,.phfc-calendar-more{width:100%;border:0;border-radius:7px;text-align:left;display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px;padding:6px 7px;cursor:pointer;font-family:Arial,Helvetica,system-ui,sans-serif;min-width:0}.phfc-calendar-event time{font-size:10px;font-weight:700}.phfc-calendar-event span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.phfc-calendar-event.is-upcoming{background:#e7f4ff;color:#145e92}.phfc-calendar-event.is-ongoing{background:#e5f7eb;color:#08734d}.phfc-calendar-event.is-completed{background:#eef1f2;color:#53636a}.phfc-calendar-event.is-cancelled{background:#fde9ed;color:#a32745}.phfc-calendar-more{display:block;background:#f5f8f6;color:#356149;font-size:10px;font-weight:700}
+.phfc-calendar-week-grid{display:grid;grid-template-columns:repeat(7,minmax(145px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}.phfc-calendar-week-day{min-height:330px;border:1px solid #dce8df;border-radius:13px;background:#fff;overflow:hidden}.phfc-calendar-week-day.is-today{border-color:#70b786;box-shadow:0 0 0 2px rgba(112,183,134,.15)}.phfc-calendar-week-day>header{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;background:#f3f8f4;border-bottom:1px solid #e1eae4}.phfc-calendar-week-day>header span{font-size:11px;color:#688077;text-transform:capitalize}.phfc-calendar-week-day>header b{font-size:13px;color:#07563d}.phfc-calendar-week-day>div{padding:9px;display:grid;gap:8px}.phfc-calendar-week-day>div>p{margin:16px 0;text-align:center;color:#9aa69f;font-size:11px}.phfc-week-event{display:grid;gap:4px;padding:9px;border:0;border-radius:9px;text-align:left;cursor:pointer;font-family:Arial,Helvetica,system-ui,sans-serif}.phfc-week-event time{font-size:10px;font-weight:700}.phfc-week-event strong{font-size:11px;line-height:1.35}.phfc-week-event small{font-size:10px;opacity:.78}.phfc-week-event.is-upcoming{background:#e7f4ff;color:#145e92}.phfc-week-event.is-ongoing{background:#e5f7eb;color:#08734d}.phfc-week-event.is-completed{background:#eef1f2;color:#53636a}.phfc-week-event.is-cancelled{background:#fde9ed;color:#a32745}
+.phfc-session-detail-overlay[hidden]{display:none}.phfc-session-detail-overlay{position:fixed;inset:0;z-index:100060;background:rgba(11,40,27,.42);display:grid;place-items:center;padding:18px}.phfc-session-detail-modal{width:min(620px,100%);background:#fff;border-radius:18px;box-shadow:0 26px 70px rgba(0,0,0,.22);overflow:hidden}.phfc-session-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:20px 22px;border-bottom:1px solid #e4ece6}.phfc-session-detail-head small{font-size:10px;color:#718078;text-transform:uppercase}.phfc-session-detail-head h3{margin:5px 0 3px;font-size:22px;color:#07563d}.phfc-session-detail-head p{margin:0;color:#66776d;font-size:13px}.phfc-session-detail-head button{border:0;background:#eef5f0;color:#0d5a41;width:34px;height:34px;border-radius:50%;font-size:21px;cursor:pointer}.phfc-session-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px 22px}.phfc-session-detail-grid article{padding:13px 14px;border:1px solid #dfe9e2;border-radius:12px;display:grid;gap:4px}.phfc-session-detail-grid span{font-size:10px;color:#75837b;text-transform:uppercase;font-weight:700}.phfc-session-detail-grid strong{font-size:13px;color:#204d36}.phfc-session-detail-grid small{font-size:11px;color:#6d7d74}.phfc-session-detail-status{padding:0 22px 16px}.phfc-session-detail-actions{display:flex;justify-content:flex-end;gap:10px;padding:15px 22px;border-top:1px solid #e4ece6;background:#f8fbf9}
+.phfc-time-control{display:grid;gap:10px}.phfc-time-control>strong,.phfc-date-control>strong{font-size:13px;color:#214d37}.phfc-time-columns{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}.phfc-time-columns label{display:grid;gap:6px}.phfc-time-columns label span{font-size:11px;color:#718078}.phfc-time-columns>b{font-size:26px;color:#0b6749;padding-bottom:10px}.phfc-time-columns select,.phfc-date-control input{width:100%;height:50px;border:1px solid #c9dbce;border-radius:12px;background:#fff;padding:8px 12px;font:700 17px/1 Arial,Helvetica,system-ui,sans-serif;color:#123f2c;outline:none}.phfc-time-columns select:focus,.phfc-date-control input:focus{border-color:#5f9f72;box-shadow:0 0 0 4px rgba(76,150,95,.1)}.phfc-time-control small{font-size:11px;color:#718078}.phfc-enhanced-time-input{cursor:pointer;background-image:linear-gradient(135deg,transparent 50%,#0c6748 50%),linear-gradient(45deg,#0c6748 50%,transparent 50%);background-position:calc(100% - 15px) 52%,calc(100% - 11px) 52%;background-size:4px 4px;background-repeat:no-repeat;padding-right:30px!important}
+.phfc-user-picker-foot>button,.phfc-datetime-actions>button,.phfc-session-detail-actions>button,.phfc-create-actions>button{min-width:118px;height:44px;padding:0 18px!important;border-radius:12px!important;display:inline-flex;align-items:center;justify-content:center}.phfc-class-chooser .phfc-user-picker-foot>button{flex:1;max-width:160px}.phfc-datetime-actions>button{flex:1;max-width:150px}.phfc-session-detail-actions>button{flex:1;max-width:160px}
+@media(max-width:900px){.phfc-schedule-commandbar{align-items:stretch}.phfc-schedule-command-actions{justify-content:space-between;width:100%}.phfc-calendar-month-grid,.phfc-calendar-weekdays{min-width:760px}.phfc-schedule-panel{overflow-x:auto}.phfc-calendar-nav>strong{min-width:170px}.phfc-session-detail-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.phfc-calendar-nav{width:100%;justify-content:center;flex-wrap:wrap}.phfc-calendar-nav>strong{order:-1;width:100%;min-width:0}.phfc-schedule-command-actions{align-items:stretch;flex-direction:column}.phfc-view-switch{display:grid;grid-template-columns:repeat(3,1fr)}.phfc-view-switch button{min-width:0}.phfc-schedule-command-actions>.phfc-primary-button{width:100%}.phfc-session-detail-grid{grid-template-columns:1fr}.phfc-session-detail-actions,.phfc-user-picker-foot,.phfc-datetime-actions{display:grid;grid-template-columns:1fr 1fr}.phfc-session-detail-actions>button,.phfc-user-picker-foot>button,.phfc-datetime-actions>button{max-width:none;width:100%;min-width:0}.phfc-calendar-month-grid,.phfc-calendar-weekdays{min-width:700px}.phfc-calendar-day{min-height:116px}}
+
+
+/* PHF Classroom 1.6 - UI polish: modal, date/time picker, action alignment */
+.phfc-datetime-overlay,.phfc-session-modal-overlay,.phfc-user-picker-overlay,.phfc-session-detail-overlay{
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+}
+.phfc-datetime-modal{
+  width:min(500px,100%);
+  border:1px solid rgba(15,91,58,.10);
+  border-radius:22px;
+  box-shadow:0 28px 76px rgba(7,52,34,.24);
+}
+.phfc-datetime-head{
+  align-items:center;
+  min-height:76px;
+  padding:20px 24px;
+}
+.phfc-datetime-head>div{min-width:0;display:grid;gap:5px}
+.phfc-datetime-head h3{margin:0;font-size:22px;line-height:1.2;font-weight:700}
+.phfc-datetime-head p{margin:0;font-size:13px;line-height:1.45}
+.phfc-datetime-head button,.phfc-user-picker-head>button,.phfc-session-detail-head>button{
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border-radius:12px;
+  font:700 22px/1 Arial,Helvetica,system-ui,sans-serif;
+}
+.phfc-datetime-body{padding:24px;gap:22px}
+.phfc-date-control,.phfc-time-control{display:grid;gap:11px}
+.phfc-date-control>strong,.phfc-time-control>strong{font-size:14px;line-height:1.35;font-weight:700;color:#154d32}
+.phfc-date-columns{display:grid;grid-template-columns:minmax(90px,.78fr) minmax(130px,1.15fr) minmax(110px,.92fr);gap:12px;align-items:end}
+.phfc-date-columns label,.phfc-time-columns label{display:grid;gap:7px;min-width:0}
+.phfc-date-columns span,.phfc-time-columns span{font-size:12px;line-height:1.3;color:#68786f}
+.phfc-date-columns select,.phfc-time-columns select{
+  width:100%;
+  height:58px;
+  border:1px solid #c6dbcd;
+  border-radius:14px;
+  background:#fff;
+  padding:0 16px;
+  color:#153f2c;
+  font:700 18px/1 Arial,Helvetica,system-ui,sans-serif;
+  outline:none;
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.phfc-date-columns select:focus,.phfc-time-columns select:focus{border-color:#3b9360;box-shadow:0 0 0 4px rgba(48,143,85,.11);background:#fbfefc}
+.phfc-time-columns{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:8px;align-items:end}
+.phfc-time-columns>b{height:58px;display:grid;place-items:center;padding-top:20px;color:#0c6848;font-size:24px;line-height:1}
+.phfc-date-control small,.phfc-time-control small{font-size:12px;line-height:1.4;color:#74827a}
+.phfc-datetime-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  padding:18px 24px;
+}
+.phfc-datetime-actions>button,.phfc-user-picker-foot>button,.phfc-session-detail-actions>button,.phfc-create-actions>button{
+  width:100%;
+  min-width:0;
+  max-width:none;
+  height:50px;
+  padding:0 20px!important;
+  border-radius:14px!important;
+  font-weight:700!important;
+}
+.phfc-create-actions{display:grid;grid-template-columns:repeat(2,minmax(132px,1fr));gap:12px;min-width:288px}
+.phfc-user-picker-foot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.phfc-user-picker-foot>button{max-width:none}
+.phfc-schedule-commandbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:20px;row-gap:14px}
+.phfc-calendar-nav{display:grid;grid-template-columns:48px 112px 48px minmax(190px,1fr);align-items:center;gap:10px;min-width:0}
+.phfc-calendar-nav .phfc-icon-button{width:48px;height:48px;border-radius:13px;font-size:22px}
+.phfc-calendar-nav .phfc-today-button{width:112px;height:48px;padding:0 14px}
+.phfc-calendar-nav>strong{min-width:0;text-align:center;font-size:19px;line-height:1.2;padding:0 12px}
+.phfc-schedule-command-actions{justify-self:end}
+.phfc-session-modal,.phfc-user-picker-modal,.phfc-session-detail-modal{border-radius:22px;border:1px solid rgba(15,91,58,.10);box-shadow:0 28px 76px rgba(7,52,34,.24)}
+.phfc-session-modal .phfc-user-picker-head,.phfc-user-picker-head{align-items:center}
+
+@media(max-width:900px){
+  .phfc-schedule-commandbar{grid-template-columns:1fr}
+  .phfc-schedule-command-actions{justify-self:stretch}
+  .phfc-calendar-nav{grid-template-columns:44px 104px 44px minmax(160px,1fr)}
+}
+@media(max-width:620px){
+  .phfc-datetime-overlay,.phfc-session-modal-overlay,.phfc-user-picker-overlay{padding:10px;align-items:end}
+  .phfc-datetime-modal,.phfc-session-modal,.phfc-user-picker-modal{border-radius:20px 20px 0 0;max-height:94vh}
+  .phfc-datetime-head{padding:18px 18px;min-height:70px}
+  .phfc-datetime-body{padding:20px 18px}
+  .phfc-date-columns{grid-template-columns:.75fr 1.15fr .9fr;gap:8px}
+  .phfc-date-columns select,.phfc-time-columns select{height:54px;padding:0 11px;font-size:16px}
+  .phfc-time-columns>b{height:54px;padding-top:19px}
+  .phfc-datetime-actions{padding:14px 18px 18px;position:sticky;bottom:0;background:#fff}
+  .phfc-create-actions{min-width:0;width:100%;grid-template-columns:1fr 1fr}
+  .phfc-calendar-nav{width:100%;grid-template-columns:44px 1fr 44px;gap:8px}
+  .phfc-calendar-nav .phfc-today-button{width:100%;height:44px}
+  .phfc-calendar-nav .phfc-icon-button{width:44px;height:44px}
+  .phfc-calendar-nav>strong{grid-column:1/-1;grid-row:1;text-align:center;margin-bottom:4px}
+  .phfc-calendar-nav>[data-phfc-calendar-prev]{grid-column:1;grid-row:2}
+  .phfc-calendar-nav>[data-phfc-calendar-today]{grid-column:2;grid-row:2}
+  .phfc-calendar-nav>[data-phfc-calendar-next]{grid-column:3;grid-row:2}
+}
+
+
+/* PHF Classroom 1.7 - can chinh thanh lich va picker theo cau truc 3 vung */
+.phfc-schedule-commandbar{
+  display:grid!important;
+  grid-template-columns:auto minmax(220px,1fr) auto!important;
+  align-items:center!important;
+  gap:20px!important;
+  width:100%;
+}
+.phfc-calendar-nav{
+  display:grid!important;
+  grid-template-columns:48px 112px 48px!important;
+  align-items:center!important;
+  gap:10px!important;
+  width:max-content!important;
+  min-width:0!important;
+  justify-self:start!important;
+}
+.phfc-calendar-period-title{
+  display:block;
+  justify-self:center;
+  align-self:center;
+  min-width:0;
+  margin:0;
+  padding:0 12px;
+  text-align:center;
+  color:#07563d;
+  font:800 19px/1.25 Arial,Helvetica,system-ui,sans-serif;
+  white-space:nowrap;
+}
+.phfc-schedule-command-actions{
+  justify-self:end!important;
+  align-items:center!important;
+}
+.phfc-calendar-nav .phfc-icon-button,
+.phfc-calendar-nav .phfc-today-button{
+  box-sizing:border-box;
+  margin:0!important;
+  align-self:center;
+}
+
+.phfc-date-columns{
+  display:grid!important;
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr) minmax(0,1fr)!important;
+  gap:12px!important;
+  align-items:start!important;
+}
+.phfc-time-columns{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr)!important;
+  gap:10px!important;
+  align-items:start!important;
+}
+.phfc-date-columns label,
+.phfc-time-columns label{
+  display:grid!important;
+  grid-template-rows:18px 58px!important;
+  gap:7px!important;
+  align-items:stretch!important;
+  min-width:0!important;
+}
+.phfc-date-columns label>span,
+.phfc-time-columns label>span{
+  display:flex;
+  align-items:center;
+  min-height:18px;
+  margin:0;
+}
+.phfc-date-columns select,
+.phfc-time-columns select{
+  box-sizing:border-box;
+  height:58px!important;
+  min-height:58px!important;
+  margin:0!important;
+  line-height:1.2!important;
+}
+.phfc-time-separator{
+  display:grid!important;
+  place-items:center!important;
+  align-self:end!important;
+  width:30px!important;
+  height:58px!important;
+  padding:0!important;
+  margin:0!important;
+  color:#0c6848!important;
+  font:800 25px/1 Arial,Helvetica,system-ui,sans-serif!important;
+}
+.phfc-datetime-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  align-items:stretch!important;
+}
+.phfc-datetime-actions>button{
+  height:50px!important;
+  min-height:50px!important;
+  width:100%!important;
+  margin:0!important;
+}
+
+@media(max-width:900px){
+  .phfc-schedule-commandbar{
+    grid-template-columns:auto 1fr!important;
+    gap:14px 16px!important;
+  }
+  .phfc-calendar-period-title{
+    justify-self:end;
+  }
+  .phfc-schedule-command-actions{
+    grid-column:1/-1;
+    justify-self:stretch!important;
+  }
+}
+@media(max-width:620px){
+  .phfc-schedule-commandbar{
+    grid-template-columns:1fr!important;
+    gap:12px!important;
+  }
+  .phfc-calendar-period-title{
+    grid-row:1;
+    justify-self:center;
+    width:100%;
+  }
+  .phfc-calendar-nav{
+    grid-row:2;
+    grid-template-columns:44px minmax(120px,1fr) 44px!important;
+    width:100%!important;
+    justify-self:stretch!important;
+  }
+  .phfc-schedule-command-actions{
+    grid-row:3;
+  }
+  .phfc-date-columns{
+    grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr) minmax(0,1fr)!important;
+    gap:8px!important;
+  }
+  .phfc-date-columns label,
+  .phfc-time-columns label{
+    grid-template-rows:18px 54px!important;
+  }
+  .phfc-date-columns select,
+  .phfc-time-columns select,
+  .phfc-time-separator{
+    height:54px!important;
+    min-height:54px!important;
+  }
+}
+
+/* PHF Classroom 1.8 - Điểm danh theo buổi */
+.phfc-attendance-workspace{display:grid;gap:18px;font-family:Arial,Helvetica,system-ui,sans-serif}
+.phfc-attendance-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.phfc-attendance-kpis article{min-height:110px;padding:20px;border:1px solid #dce9e1;border-radius:18px;background:#fff;box-shadow:0 10px 28px rgba(15,77,55,.05);display:flex;flex-direction:column;justify-content:center;gap:8px}
+.phfc-attendance-kpis span{font-size:13px;color:#60756b}
+.phfc-attendance-kpis strong{font-size:31px;line-height:1;color:#006241}
+.phfc-attendance-panel{padding:18px}
+.phfc-attendance-toolbar{display:grid;grid-template-columns:minmax(280px,1.7fr) minmax(220px,1fr) auto;gap:14px;align-items:end}
+.phfc-attendance-toolbar .phfc-primary-button{height:48px;min-width:150px}
+.phfc-attendance-session-summary{margin:16px 0;padding:14px 16px;border:1px solid #d7e9df;border-radius:14px;background:#f4fbf7;display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center}
+.phfc-attendance-session-summary strong{font-size:16px;color:#004d35}
+.phfc-attendance-session-summary span{font-size:13px;color:#587066}
+.phfc-attendance-session-summary em{grid-row:1/3;grid-column:2;font-style:normal;font-size:12px;font-weight:700;color:#006241;background:#e4f4eb;border-radius:999px;padding:6px 10px}
+.phfc-attendance-table{overflow:hidden;border:1px solid #e0ebe5;border-radius:16px}
+.phfc-attendance-head,.phfc-attendance-row{display:grid;grid-template-columns:minmax(240px,1.4fr) minmax(150px,.7fr) minmax(210px,1fr);gap:14px;align-items:center}
+.phfc-attendance-head{padding:12px 16px;background:#f3f8f5;font-size:12px;font-weight:700;color:#486258}
+.phfc-attendance-row{padding:14px 16px;border-top:1px solid #e7efeb;background:#fff}
+.phfc-attendance-person{display:flex;flex-direction:column;gap:3px;min-width:0}
+.phfc-attendance-person strong{color:#004d35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfc-attendance-person span,.phfc-attendance-person small{font-size:12px;color:#687c73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfc-attendance-row select,.phfc-attendance-row input{width:100%;min-height:42px;border:1px solid #cfe0d6;border-radius:12px;background:#fff;padding:0 12px;font:inherit;color:#173c2f}
+.phfc-attendance-row select:disabled,.phfc-attendance-row input:disabled{background:#f5f7f6;color:#6e7d76}
+.phfc-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:960px){.phfc-attendance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.phfc-attendance-toolbar{grid-template-columns:1fr 1fr}.phfc-attendance-toolbar .phfc-primary-button{grid-column:1/-1}.phfc-attendance-head{display:none}.phfc-attendance-row{grid-template-columns:1fr 1fr}.phfc-attendance-person{grid-column:1/-1}}
+@media(max-width:620px){.phfc-attendance-kpis{grid-template-columns:1fr 1fr;gap:10px}.phfc-attendance-kpis article{min-height:92px;padding:15px}.phfc-attendance-kpis strong{font-size:26px}.phfc-attendance-toolbar{grid-template-columns:1fr}.phfc-attendance-row{grid-template-columns:1fr}.phfc-attendance-session-summary{grid-template-columns:1fr}.phfc-attendance-session-summary em{grid-row:auto;grid-column:auto;justify-self:start}}
+
+
+/* PHF Classroom 1.9 — Sổ điểm danh chính thức */
+.phfc-attendance-mode-tabs{display:flex;gap:6px;padding:5px;background:#f1f7f3;border:1px solid #dce9e1;border-radius:12px;width:max-content;margin-bottom:16px}
+.phfc-attendance-mode-tabs button{min-height:36px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:#496358;font:700 13px/1 Arial,Helvetica,system-ui,sans-serif;cursor:pointer}
+.phfc-attendance-mode-tabs button.active{background:#fff;color:#006241;box-shadow:0 3px 10px rgba(24,83,53,.08)}
+.phfc-attendance-toolbar{grid-template-columns:minmax(220px,1.2fr) minmax(240px,1.35fr) minmax(220px,1fr)}
+.phfc-attendance-bulk{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px 0;padding:10px 12px;border:1px solid #dce8e1;border-radius:12px;background:#f8fbf9}
+.phfc-attendance-bulk>div{display:flex;gap:7px;flex-wrap:wrap}
+.phfc-attendance-bulk button{min-height:34px;padding:0 11px;border:1px solid #cfe1d6;border-radius:9px;background:#fff;color:#174f39;font:700 12px/1 Arial,Helvetica,system-ui,sans-serif;cursor:pointer}
+.phfc-attendance-bulk button:hover{border-color:#86bd9b;background:#f1f8f3}
+.phfc-att-select-all,.phfc-attendance-select{display:inline-flex;align-items:center;gap:8px;color:#34594a;font-size:13px;font-weight:700;cursor:pointer}
+.phfc-att-select-all input,.phfc-attendance-select input{position:absolute;opacity:0;pointer-events:none}
+.phfc-att-select-all span:before,.phfc-attendance-select span:before{content:"";display:block;width:17px;height:17px;border:1.5px solid #9ab8a6;border-radius:5px;background:#fff;box-sizing:border-box}
+.phfc-att-select-all input:checked+span:before,.phfc-attendance-select input:checked+span:before{background:#087653;border-color:#087653;box-shadow:inset 0 0 0 4px #fff}
+.phfc-attendance-actions{display:flex;justify-content:flex-end;margin-top:16px}
+.phfc-attendance-actions .phfc-primary-button{min-width:160px}
+.phfc-attendance-head,.phfc-attendance-row{grid-template-columns:30px 42px 86px minmax(190px,1.35fr) 82px 82px 82px 82px minmax(180px,1fr);gap:8px}
+.phfc-attendance-head{padding:11px 12px;font-size:11px;text-transform:none;text-align:center}
+.phfc-attendance-head span:nth-child(4),.phfc-attendance-head span:nth-child(9){text-align:left}
+.phfc-attendance-row{padding:10px 12px;min-height:70px}
+.phfc-attendance-index,.phfc-attendance-code{font-size:12px;color:#50675d;text-align:center}
+.phfc-attendance-code{font-weight:700;color:#184f39}
+.phfc-attendance-person strong{font-size:14px;color:#004d35}
+.phfc-attendance-person small{font-size:11px;color:#718179}
+.phfc-attendance-choice{display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:40px}
+.phfc-attendance-choice input{position:absolute;opacity:0;pointer-events:none}
+.phfc-attendance-choice span{width:18px;height:18px;border:1.5px solid #a9bcb1;border-radius:50%;background:#fff;box-sizing:border-box;transition:.15s}
+.phfc-attendance-choice input:checked+span{border-color:#087653;box-shadow:inset 0 0 0 4px #fff;background:#087653}
+.phfc-attendance-choice b{display:none}
+.phfc-attendance-choice input:disabled+span{background:#eef2ef;border-color:#cbd7d0}
+.phfc-attendance-note input{min-height:38px!important;border-radius:9px!important;padding:0 10px!important;font-size:12px!important}
+.phfc-attendance-course-scroll{overflow:auto;border-radius:15px}
+.phfc-attendance-course-table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0;font-family:Arial,Helvetica,system-ui,sans-serif}
+.phfc-attendance-course-table th,.phfc-attendance-course-table td{padding:11px 12px;border-right:1px solid #e5eee8;border-bottom:1px solid #e5eee8;background:#fff;text-align:center;vertical-align:middle;font-size:12px}
+.phfc-attendance-course-table th{position:sticky;top:0;background:#f2f7f4;color:#35584a;font-weight:700;z-index:2}
+.phfc-attendance-course-table th:first-child,.phfc-attendance-course-table td:first-child{border-left:1px solid #e5eee8}
+.phfc-attendance-course-table th span,.phfc-attendance-course-table td strong{display:block;color:#114c37}
+.phfc-attendance-course-table th small,.phfc-attendance-course-table td small{display:block;margin-top:3px;color:#75837c;font-size:10px;font-weight:500}
+.phfc-att-summary-state{display:inline-flex;align-items:center;justify-content:center;min-height:25px;padding:0 8px;border:1px solid #d5e3da;border-radius:999px;background:#f8fbf9;color:#496459;font-size:10px;font-weight:700;white-space:nowrap}
+.phfc-att-summary-state.is-present,.phfc-att-summary-state.is-late{border-color:#bcdac8;color:#086043;background:#f2f8f4}
+.phfc-att-summary-state.is-absent{border-color:#e5c7c7;color:#914141;background:#fff8f8}
+.phfc-att-summary-state.is-excused{border-color:#dfd7bc;color:#745e1d;background:#fffdf5}
+.phfc-att-summary-state.is-unmarked{color:#7a8780;background:#f6f7f6}
+@media(max-width:1180px){.phfc-attendance-head,.phfc-attendance-row{grid-template-columns:28px 36px 76px minmax(170px,1.2fr) 70px 70px 70px 70px minmax(150px,.9fr)}}
+@media(max-width:960px){.phfc-attendance-toolbar{grid-template-columns:1fr 1fr}.phfc-attendance-toolbar .phfc-field:last-child{grid-column:1/-1}.phfc-attendance-head{display:none}.phfc-attendance-row{grid-template-columns:28px 50px 1fr repeat(4,54px);gap:7px}.phfc-attendance-index{display:none}.phfc-attendance-code{grid-column:2}.phfc-attendance-person{grid-column:3/-1}.phfc-attendance-note{grid-column:2/-1}.phfc-attendance-choice b{display:none}}
+@media(max-width:620px){.phfc-attendance-mode-tabs{width:100%;display:grid;grid-template-columns:1fr 1fr}.phfc-attendance-toolbar{grid-template-columns:1fr}.phfc-attendance-toolbar .phfc-field:last-child{grid-column:auto}.phfc-attendance-bulk{align-items:flex-start;flex-direction:column}.phfc-attendance-row{grid-template-columns:28px 1fr 1fr;gap:9px;padding:12px}.phfc-attendance-select{grid-column:1}.phfc-attendance-code{grid-column:2}.phfc-attendance-person{grid-column:2/4}.phfc-attendance-choice{border:1px solid #d7e5dd;border-radius:9px;padding:8px;justify-content:flex-start;gap:7px}.phfc-attendance-choice b{display:inline;font-size:11px;color:#31584a}.phfc-attendance-note{grid-column:1/-1}.phfc-attendance-actions .phfc-primary-button{width:100%}}

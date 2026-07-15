@@ -1,6 +1,8 @@
 'use strict';
 
 const { readData, saveData } = require('../lib/db');
+const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('../lib/classroom-db');
+const { listClassroomUsers } = require('../lib/classroom-users');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -57,6 +59,18 @@ module.exports = async function handler(req, res) {
     assertSameOrigin(req);
     if (req.method === 'GET') {
       const session = await requireSession(req, ['learner','manager','admin']);
+      const classroomMode = String(req.query?.classroom || '') === '1';
+      const classroomAttendanceMode = String(req.query?.classroomAttendance || '') === '1';
+      if (classroomAttendanceMode) {
+        const sessionId=String(req.query?.sessionId||'').trim();
+        if(!sessionId)return res.status(400).json({ok:false,code:'CLASSROOM_SESSION_REQUIRED',message:'Thiếu mã buổi học.'});
+        return res.status(200).json({ok:true,...await listAttendance(session,sessionId)});
+      }
+      if (classroomMode) {
+        const classId=String(req.query?.id||'').trim();
+        if(classId)return res.status(200).json({ok:true,classroomClass:await getClass(session,classId)});
+        return res.status(200).json({ok:true,classes:await listClasses(session)});
+      }
       const data = await readData({
         role: session.role,
         employeeId: session.role === 'learner' ? session.employeeId : '',
@@ -97,6 +111,18 @@ module.exports = async function handler(req, res) {
       assertContentLength(req);
       const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const session = await requireSession(req, ['learner','manager','admin']);
+      const classroomMode = String(req.query?.classroom || '') === '1';
+      const classroomAttendanceMode = String(req.query?.classroomAttendance || '') === '1';
+      if(classroomAttendanceMode){
+        const saved=await saveAttendance(session,payload);
+        return res.status(200).json({ok:true,...saved});
+      }
+      if(classroomMode){
+        const action=String(payload.action||'saveDraft');
+        if(!['saveDraft','publish'].includes(action)){const e=new Error('Thao tác Classroom không hợp lệ.');e.statusCode=400;e.code='CLASSROOM_ACTION_INVALID';throw e;}
+        const saved=await saveClass(session,payload.classroomClass||payload,{publish:action==='publish'});
+        return res.status(action==='publish'?200:201).json({ok:true,classroomClass:saved});
+      }
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
       payload.actorRole = session.role;
