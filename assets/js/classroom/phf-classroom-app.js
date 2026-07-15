@@ -122,8 +122,8 @@
     var showPageHeading=['/admin/classroom','/ql/classroom','/hv/classroom','/admin/classroom/lop/tao-moi'].indexOf(active)===-1;
     var heading=showPageHeading?'<div class="phfc-topline"><div class="phfc-title"><small>PHF CLASSROOM</small><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div></div>':'';
     return '<section class="phfc-shell phfc-role-'+esc(role())+'">'+
-      '<header class="phfc-header"><button class="phfc-hub-back" type="button" data-phfc-back><span class="phfc-hub-back-icon" aria-hidden="true">←</span><span class="phfc-hub-back-copy"><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button><div class="phfc-header-brand"><div class="phfc-header-brand-main"><img class="phfc-header-company-logo" src="assets/images/classroom/phuhoafresh-wordmark.png" alt="Phuhoafresh"><strong>PHF Classroom</strong><small>Quản lý đào tạo nội bộ</small></div></div><div class="phfc-header-actions"><button class="phfc-notification-button" type="button" data-phfc-notifications aria-haspopup="dialog" aria-expanded="false" aria-label="Thông báo Classroom"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button><button class="phfc-header-user" type="button" data-phfc-account aria-haspopup="menu" aria-expanded="false"><span><span class="phfc-greeting-prefix">Xin chào, </span><strong class="phfc-greeting-name">'+esc(name())+'</strong></span><span class="phfc-header-user-bottom"><small>'+esc(label)+'</small><span class="phfc-account-chevron" aria-hidden="true"></span></span></button></div></header>'+ 
-      '<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
+      '<header class="phfc-header"><button class="phfc-mobile-menu-button" type="button" data-phfc-mobile-menu aria-controls="phfcMobileSidebar" aria-expanded="false" aria-label="Mở menu Classroom"><span></span><span></span><span></span></button><button class="phfc-hub-back" type="button" data-phfc-back><span class="phfc-hub-back-icon" aria-hidden="true">←</span><span class="phfc-hub-back-copy"><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button><div class="phfc-header-brand"><div class="phfc-header-brand-main"><img class="phfc-header-company-logo" src="assets/images/classroom/phuhoafresh-wordmark.png" alt="Phuhoafresh"><strong>PHF Classroom</strong><small>Quản lý đào tạo nội bộ</small></div></div><div class="phfc-header-actions"><button class="phfc-notification-button" type="button" data-phfc-notifications aria-haspopup="dialog" aria-expanded="false" aria-label="Thông báo Classroom"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button><button class="phfc-header-user" type="button" data-phfc-account aria-haspopup="menu" aria-expanded="false"><span><span class="phfc-greeting-prefix">Xin chào, </span><strong class="phfc-greeting-name">'+esc(name())+'</strong></span><span class="phfc-header-user-bottom"><small>'+esc(label)+'</small><span class="phfc-account-chevron" aria-hidden="true"></span></span></button></div></header>'+ 
+      '<div class="phfc-layout"><button class="phfc-mobile-backdrop" type="button" data-phfc-mobile-close aria-label="Đóng menu Classroom"></button><aside class="phfc-sidebar" id="phfcMobileSidebar" aria-label="Menu PHF Classroom"><div class="phfc-sidebar-mobile-head"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div><button class="phfc-mobile-close-button" type="button" data-phfc-mobile-close aria-label="Đóng menu">×</button></div><button class="phfc-sidebar-hub-back" type="button" data-phfc-back><span aria-hidden="true">←</span><span><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
   }
   function emptyState(title,copy){return '<section class="phfc-card phfc-panel phfc-empty-panel"><div class="phfc-empty-icon">▦</div><h3>'+esc(title)+'</h3><p>'+esc(copy)+'</p></section>';}
   function phfcNotice(type,title,message){
@@ -898,10 +898,20 @@
     updateRecipients();
   }
   function bindShell(main){
-    var back=main.querySelector('[data-phfc-back]');if(back)back.addEventListener('click',goHub);
+    main.querySelectorAll('[data-phfc-back]').forEach(function(back){back.addEventListener('click',goHub);});
+    var shell=main.querySelector('.phfc-shell');
+    var mobileMenu=main.querySelector('[data-phfc-mobile-menu]');
+    function setMobileMenu(open){
+      if(!shell)return;
+      shell.classList.toggle('is-mobile-menu-open',!!open);
+      if(mobileMenu)mobileMenu.setAttribute('aria-expanded',open?'true':'false');
+      document.documentElement.classList.toggle('phfc-mobile-menu-lock',!!open);
+    }
+    if(mobileMenu)mobileMenu.addEventListener('click',function(){setMobileMenu(mobileMenu.getAttribute('aria-expanded')!=='true');});
+    main.querySelectorAll('[data-phfc-mobile-close]').forEach(function(btn){btn.addEventListener('click',function(){setMobileMenu(false);});});
     var notification=main.querySelector('[data-phfc-notifications]');if(notification)notification.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();var opened=notification.getAttribute('aria-expanded')==='true';if(opened)closeNotificationPanel();else showNotificationPanel(notification);});
     var account=main.querySelector('[data-phfc-account]');if(account)account.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();var opened=account.getAttribute('aria-expanded')==='true';if(opened)closeAccountMenu();else showAccountMenu(account);});
-    main.querySelectorAll('[data-phfc-route]').forEach(function(btn){btn.addEventListener('click',function(){navigate(btn.getAttribute('data-phfc-route'));});});
+    main.querySelectorAll('[data-phfc-route]').forEach(function(btn){btn.addEventListener('click',function(){setMobileMenu(false);navigate(btn.getAttribute('data-phfc-route'));});});
     bindCreateClass(main);
     bindNotificationWorkspace(main);
     main.querySelectorAll('[data-phfc-nav-toggle]').forEach(function(toggle){
