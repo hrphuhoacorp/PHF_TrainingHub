@@ -2819,6 +2819,16 @@ window.__phfBootGuardTimer=setTimeout(function(){
     .hub-report-page .hub-report-grid>.hub-panel{min-height:0}
   }
 </style>
+
+<style id="phf-hide-duplicate-greeting">
+  #phfUserGreetingRow,.phf-user-greeting-row{display:none!important}
+</style>
+
+<style id="phf-62-19-target-scroll-style">
+.phf-target-arrived{animation:phfTargetArrived 1.35s ease both;scroll-margin-top:104px}
+@keyframes phfTargetArrived{0%{box-shadow:0 0 0 0 rgba(7,84,62,.22)}35%{box-shadow:0 0 0 5px rgba(7,84,62,.11)}100%{box-shadow:0 0 0 0 rgba(7,84,62,0)}}
+@media(prefers-reduced-motion:reduce){.phf-target-arrived{animation:none}}
+</style>
 </head>
 <body class="phf-intro-active">
 
@@ -2961,7 +2971,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
       </nav>
     <button type="button" class="phf-login-entry" onclick="phfGoLogin()"><span>Đăng nhập</span><small id="miniStatus">Tài khoản</small></button>
   </header>
-  <div class="phf-user-greeting-row" id="phfUserGreetingRow" style="display:none"><span>Xin chào, </span><strong id="phfUserGreetingName"></strong></div>
+  <div class="phf-user-greeting-row" id="phfUserGreetingRow" style="display:none!important" hidden aria-hidden="true"><span>Xin chào, </span><strong id="phfUserGreetingName"></strong></div>
   <div class="phase-strip" id="phaseStrip"></div>
   <div class="context-bar">
     <div class="context-main"><div class="pin">📍</div><div><b id="contextTitle">Bạn đang ở...</b><span id="contextSub">Nội dung đào tạo được trình bày theo từng giai đoạn học.</span></div></div>
@@ -3158,9 +3168,9 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-evaluation.js?v=60.7_route_owner"></script>
-<script src="assets/js/phf-learner-app.js?v=62.1_stable_data_owner"></script>
-<script src="assets/js/phf-training-records.js?v=60.5_probation_ui_spacing"></script>
+<script src="assets/js/phf-evaluation.js?v=62.28_single_hub_source"></script>
+<script src="assets/js/phf-learner-app.js?v=62.31_stable_session_data_owner"></script>
+<script src="assets/js/phf-training-records.js?v=62.32_training_scope_source"></script>
 <script src="assets/js/phf-notifications.js?v=27_1_ui_system_polish_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=61.3_perf_guard"></script>
 <script src="assets/js/phf-quiz-engine.js?v=1.0.6_completed_state"></script>
@@ -4175,7 +4185,7 @@ function render(){
 </script>
 
 
-<script src="assets/js/phf-training-library.js?v=27_6_12_4_6_3_program_filter"></script>
+<script src="assets/js/phf-training-library.js?v=62.34"></script>
 <script src="assets/js/phf-forms-library.js?v=27_6_11_forms_library"></script>
 
   
@@ -4183,10 +4193,10 @@ function render(){
 
 <script src="assets/js/phf-learning-gate.js?v=62.3_next_lesson_popup"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
-<script src="assets/js/phf-account-admin-safe.js?v=62.8.18_account_table_safe_scroll_keep_classroom"></script>
+<script src="assets/js/phf-account-admin-safe.js?v=62.27_training_scope_required"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="assets/js/phf-url-router.js?v=62.8.20_admin_classroom_notification_route"></script>
-<script src="assets/js/phf-server-auth.js?v=62.1_shared_data_promise"></script>
+<script src="assets/js/phf-url-router.js?v=62.35"></script>
+<script src="assets/js/phf-server-auth.js?v=62.31_stable_session_data_owner"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){

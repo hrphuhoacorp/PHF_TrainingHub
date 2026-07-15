@@ -1,0 +1,32 @@
+PHF TRAINING HUB – BẢN 62.28
+DỨT ĐIỂM HỌC VIÊN/BÁO CÁO LÚC 19 NGƯỜI, LÚC 0 NGƯỜI
+
+COPY ĐÈ
+1. index.html
+2. assets/js/phf-evaluation.js
+3. api/data.js
+4. lib/auth.js
+
+NỘI DUNG
+- Học viên và Báo cáo Hub chỉ dùng một nguồn duy nhất: user_accounts.default_program = new_sales.
+- Bỏ hoàn toàn fallback từ employees/program_id.
+- Chỉ render khi employees + hubAccounts tải thành công và hubAccountsReady === true.
+- API /api/data lấy danh sách tài khoản bằng truy vấn chỉ đọc nhẹ, không chạy vòng sửa/liên kết tài khoản lúc tải trang.
+- Theo dữ liệu hiện tại, kết quả phải cố định 1 học viên: hr123.
+- Hồ sơ test không có tài khoản, tài khoản Chỉ Classroom và Admin hệ thống không xuất hiện.
+
+ANH THAO TÁC
+1. Copy đè 4 file.
+2. Dừng server và chạy lại npm start.
+3. F5 /admin/hoc-vien ít nhất 5 lần.
+4. F5 Báo cáo ít nhất 5 lần.
+5. Kết quả phải cố định 1 học viên hr123.
+6. Nếu lỗi tải, màn hình báo lỗi và có nút Thử lại; không được hiện 19 người hoặc biến lỗi thành 0 hợp lệ.
+
+KHÔNG ĐỔI
+- Không đổi schema Supabase.
+- Không ảnh hưởng studyStartDate, GĐ1–GĐ5, progress, quiz, BMTT, Classroom.
+- Không xóa dữ liệu test.
+
+ROLLBACK
+Copy lại 4 file từ bản 62.27/source 73.

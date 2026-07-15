@@ -6,6 +6,57 @@
  * Không chứa thay đổi Supabase/schema/server.
  */
 
+/* 62.30 - F5 Data Owner Trace (không chứa dữ liệu nhạy cảm). */
+(function(){
+  if(window.phfTraceData) return;
+  window.__phfDataTraceLog = Array.isArray(window.__phfDataTraceLog) ? window.__phfDataTraceLog : [];
+  function summarize(value){
+    var d=value&&typeof value==='object'?value:{};
+    return {
+      present:!!value,
+      employeesCount:Array.isArray(d.employees)?d.employees.length:null,
+      hubAccountsCount:Array.isArray(d.hubAccounts)?d.hubAccounts.length:null,
+      hubAccountsReady:d.hubAccountsReady===true,
+      hubAccountsReadyRaw:Object.prototype.hasOwnProperty.call(d,'hubAccountsReady')?d.hubAccountsReady:'missing',
+      hubAccountsError:String(d.hubAccountsError||''),
+      evaluationRecordsCount:Array.isArray(d.evaluationRecords)?d.evaluationRecords.length:null,
+      keys:Object.keys(d).sort().slice(0,40)
+    };
+  }
+  window.phfSummarizeTrainingData=summarize;
+  window.phfTraceData=function(event,detail){
+    var entry=Object.assign({
+      seq:(window.__phfDataTraceSeq=(window.__phfDataTraceSeq||0)+1),
+      at:new Date().toISOString(),
+      event:String(event||'unknown'),
+      path:location.pathname+location.search
+    },detail||{});
+    window.__phfDataTraceLog.push(entry);
+    if(window.__phfDataTraceLog.length>300) window.__phfDataTraceLog.splice(0,window.__phfDataTraceLog.length-300);
+    console.info('[PHF DATA TRACE]',entry);
+    return entry;
+  };
+  window.phfSetLocalData=function(value,writer,detail){
+    window.__phfLocalData=value;
+    window.__phfLocalDataLastWriter=String(writer||'unknown');
+    window.phfTraceData('state:set',Object.assign({writer:window.__phfLocalDataLastWriter,state:summarize(value)},detail||{}));
+    return value;
+  };
+  window.phfClearLocalData=function(writer,detail){
+    window.__phfLocalData=null;
+    window.__phfLocalDataLastWriter=String(writer||'unknown');
+    window.phfTraceData('state:clear',Object.assign({writer:window.__phfLocalDataLastWriter,state:summarize(null)},detail||{}));
+    return null;
+  };
+  window.phfCopyDataTrace=function(){
+    var text=JSON.stringify(window.__phfDataTraceLog||[],null,2);
+    try{navigator.clipboard.writeText(text);}catch(e){}
+    console.info('[PHF DATA TRACE COPY]',text);
+    return text;
+  };
+  window.phfTraceData('trace:installed',{version:'62.30'});
+})();
+
 const STAGES = [["GĐ1", "Hội nhập"], ["GĐ2", "CSKH & Kỹ năng"], ["GĐ3", "Quy trình"], ["GĐ4", "Thực hành"], ["GĐ5", "Đánh giá"]];
 window.PHF_STAGES = STAGES;
 const LESSONS = Array.isArray(window.PHF_LESSONS_NEW_SALES)
@@ -467,12 +518,37 @@ function phfStableTrainingIdentity(){
   try{ profile = (typeof phfCurrentEmployeeProfile === 'function' ? phfCurrentEmployeeProfile() : {}) || {}; }catch(e){}
   var employeeId = String((user&&(user.employeeId||user.employee_id))||profile.id||'').trim();
   var phone = String((user&&user.phone)||profile.phone||'').replace(/\D/g,'');
+  var email = String((user&&user.email)||profile.accountEmail||'').trim().toLowerCase();
+  var accountId = String((user&&(user.accountId||user.account_id||user.userId||user.user_id||user.sub))||'').trim();
   var scope = role === 'learner' ? 'learner' : 'staff';
-  /* 62.1: Trong boot, phone/profile có thể được bổ sung sau request đầu tiên.
-     Server vẫn xác định learner bằng session cookie, nên khóa request phải ưu
-     tiên employeeId ổn định; chỉ dùng phone khi tài khoản chưa có employeeId. */
-  var subjectKey = employeeId ? ('id:'+employeeId) : (phone ? ('phone:'+phone) : 'session');
-  return {role:role,scope:scope,employeeId:employeeId,phone:phone,subjectKey:subjectKey,key:[scope,role,subjectKey].join('|')};
+  /* 62.31: Khóa phiên phải dựa trên định danh tài khoản ổn định ngay từ session.
+     Không dùng phone/employeeId luân phiên vì profile được bổ sung theo từng nhịp
+     boot và từng làm cùng một Admin bị hiểu nhầm là đổi phiên. */
+  var subjectKey = email ? ('email:'+email) : (accountId ? ('account:'+accountId) : (employeeId ? ('id:'+employeeId) : (phone ? ('phone:'+phone) : 'session')));
+  return {role:role,scope:scope,employeeId:employeeId,phone:phone,email:email,accountId:accountId,subjectKey:subjectKey,key:[scope,role,subjectKey].join('|')};
+}
+
+function phfRoleMatchesRouteNamespace(role){
+  var path = String((window.location&&window.location.pathname)||'').toLowerCase();
+  if(path.indexOf('/admin')===0) return role === 'admin';
+  if(path.indexOf('/ql')===0) return role === 'manager' || role === 'admin';
+  if(path.indexOf('/hv')===0) return role === 'learner' || role === 'manager' || role === 'admin';
+  return true;
+}
+
+async function phfWaitForStableRouteIdentity(){
+  var identity = phfStableTrainingIdentity();
+  if(phfRoleMatchesRouteNamespace(identity.role)) return identity;
+  var started = Date.now();
+  while(Date.now()-started < 1800){
+    try{
+      if(typeof window.phfWaitForAuthTransition === 'function') await window.phfWaitForAuthTransition();
+    }catch(e){}
+    await new Promise(function(resolve){ setTimeout(resolve,60); });
+    identity = phfStableTrainingIdentity();
+    if(phfRoleMatchesRouteNamespace(identity.role)) return identity;
+  }
+  return identity;
 }
 
 function phfResetTrainingRuntime(reason){
@@ -484,7 +560,7 @@ function phfResetTrainingRuntime(reason){
   window.__phfTrainingDataPromiseScopeKey = '';
   window.__phfTrainingDataLatestRequestId = 0;
   window.__phfTrainingRequestRegistry = Object.create(null);
-  window.__phfLocalData = null;
+  window.phfClearLocalData('phfResetTrainingRuntime',{reason:String(reason||'')});
   window.__phfEvalReadFresh = false;
   window.__phfEvalRenderedScope = '';
   window.__phfEvalProfileSelectedId = '';
@@ -509,13 +585,15 @@ async function phfRefreshTrainingData(options){
     return false;
   }
 
-  const stableIdentity = phfStableTrainingIdentity();
+  const stableIdentity = await phfWaitForStableRouteIdentity();
   const role = stableIdentity.role;
   const dataScope = stableIdentity.scope;
   const sessionKey = stableIdentity.key;
+  window.phfTraceData('refresh:enter',{force:force,boot:options.boot===true,reason:String(options.reason||''),identity:stableIdentity,activeSessionKey:String(window.__phfTrainingDataActiveSessionKey||''),loadedScopeKey:String(window.__phfTrainingDataScopeKey||''),lastWriter:String(window.__phfLocalDataLastWriter||''),state:window.phfSummarizeTrainingData(window.__phfLocalData)});
   let profile = {id:stableIdentity.employeeId,phone:stableIdentity.phone};
 
   if(window.__phfTrainingDataActiveSessionKey !== sessionKey){
+    const oldSessionKey = String(window.__phfTrainingDataActiveSessionKey||'');
     window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
     window.__phfTrainingDataActiveSessionKey = sessionKey;
     window.__phfTrainingDataScopeKey = '';
@@ -523,7 +601,8 @@ async function phfRefreshTrainingData(options){
     window.__phfTrainingDataPromise = null;
     window.__phfTrainingDataPromiseScopeKey = '';
     window.__phfTrainingDataLatestRequestId = 0;
-    window.__phfLocalData = null;
+    window.__phfTrainingRequestRegistry = Object.create(null);
+    window.phfClearLocalData('phfRefreshTrainingData:session-change',{oldSessionKey:oldSessionKey,newSessionKey:sessionKey,generation:window.__phfTrainingDataGeneration});
     window.__phfEvalReadFresh = false;
     window.__phfEvalRenderedScope = '';
     window.__phfEvalProfileSelectedId = '';
@@ -537,9 +616,11 @@ async function phfRefreshTrainingData(options){
     window.__phfTrainingDataScopeKey === scopeKey && window.__phfLocalData;
   if(bootReuse || (!force && window.__phfTrainingDataLoadedAt && window.__phfTrainingDataScopeKey === scopeKey &&
      now - window.__phfTrainingDataLoadedAt < 15000 && window.__phfLocalData)){
+    window.phfTraceData('refresh:reuse-cache',{scopeKey:scopeKey,bootReuse:!!bootReuse,state:window.phfSummarizeTrainingData(window.__phfLocalData),lastWriter:String(window.__phfLocalDataLastWriter||'')});
     return true;
   }
   if(window.__phfTrainingDataPromise && window.__phfTrainingDataPromiseScopeKey === scopeKey){
+    window.phfTraceData('refresh:reuse-active-promise',{scopeKey:scopeKey});
     return window.__phfTrainingDataPromise;
   }
 
@@ -560,12 +641,20 @@ async function phfRefreshTrainingData(options){
   const registryNow = Date.now();
   const existingRequest = window.__phfTrainingRequestRegistry[requestUrl];
   if(existingRequest && existingRequest.promise && registryNow < Number(existingRequest.expiresAt || 0)){
-    return existingRequest.promise;
+    const registryStateValid = !!(window.__phfLocalData && window.__phfTrainingDataScopeKey === scopeKey);
+    const registryInFlight = existingRequest.settled !== true;
+    if(registryInFlight || registryStateValid){
+      window.phfTraceData('refresh:reuse-registry',{requestUrl:requestUrl,scopeKey:scopeKey,expiresAt:Number(existingRequest.expiresAt||0),inFlight:registryInFlight,stateValid:registryStateValid});
+      return existingRequest.promise;
+    }
+    delete window.__phfTrainingRequestRegistry[requestUrl];
+    window.phfTraceData('refresh:drop-stale-registry',{requestUrl:requestUrl,scopeKey:scopeKey,reason:'state-missing-or-scope-mismatch'});
   }
 
   const requestGeneration = window.__phfTrainingDataGeneration || 0;
   const requestId = (window.__phfTrainingDataLatestRequestId || 0) + 1;
   window.__phfTrainingDataLatestRequestId = requestId;
+  window.phfTraceData('request:start',{requestId:requestId,requestGeneration:requestGeneration,requestUrl:requestUrl,scopeKey:scopeKey,sessionKey:sessionKey});
 
   const request = (async function(){
     const perfStartedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
@@ -593,6 +682,7 @@ async function phfRefreshTrainingData(options){
       if(requestGeneration !== window.__phfTrainingDataGeneration ||
          sessionKey !== window.__phfTrainingDataActiveSessionKey ||
          requestId !== window.__phfTrainingDataLatestRequestId){
+        window.phfTraceData('request:discarded-stale',{requestId:requestId,requestGeneration:requestGeneration,currentGeneration:window.__phfTrainingDataGeneration,sessionKey:sessionKey,currentSessionKey:String(window.__phfTrainingDataActiveSessionKey||''),latestRequestId:window.__phfTrainingDataLatestRequestId,httpStatus:res.status,payload:window.phfSummarizeTrainingData(json.data||json)});
         return false;
       }
 
@@ -611,7 +701,8 @@ async function phfRefreshTrainingData(options){
       console.info('[PHF performance] /api/data', perfInfo);
 
       if(res.ok && json){
-        window.__phfLocalData = json.data || json;
+        window.phfTraceData('request:response',{requestId:requestId,httpStatus:res.status,httpOk:res.ok,payload:window.phfSummarizeTrainingData(json.data||json)});
+        window.phfSetLocalData(json.data || json,'phfRefreshTrainingData:GET',{requestId:requestId,scopeKey:scopeKey,sessionKey:sessionKey});
         window.__phfTrainingDataLoadedAt = Date.now();
         window.__phfTrainingDataScopeKey = scopeKey;
         if(options.boot === true) window.__phfTrainingBootReuseUntil = Date.now() + 3000;
@@ -622,6 +713,7 @@ async function phfRefreshTrainingData(options){
         }
         return true;
       }
+      window.phfTraceData('request:http-failed',{requestId:requestId,httpStatus:res.status,httpOk:res.ok,payload:window.phfSummarizeTrainingData(json.data||json)});
     }catch(err){
       const perfEndedAt = (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
       const perfInfo = {
@@ -637,6 +729,7 @@ async function phfRefreshTrainingData(options){
       };
       window.__phfLastDataTiming = perfInfo;
       console.info('[PHF performance] /api/data', perfInfo);
+      window.phfTraceData('request:exception',{requestId:requestId,error:String(err&&err.message||err||'Unknown error')});
       console.warn('PHF refresh data error', err);
     }
     return false;
@@ -647,10 +740,13 @@ async function phfRefreshTrainingData(options){
   window.__phfTrainingRequestRegistry[requestUrl] = {
     promise: request,
     expiresAt: Date.now() + 6000,
-    scopeKey: scopeKey
+    scopeKey: scopeKey,
+    settled: false
   };
   try{ return await request; }
   finally{
+    var registryEntry = window.__phfTrainingRequestRegistry && window.__phfTrainingRequestRegistry[requestUrl];
+    if(registryEntry && registryEntry.promise === request) registryEntry.settled = true;
     if(window.__phfTrainingDataPromise === request){
       window.__phfTrainingDataPromise = null;
       window.__phfTrainingDataPromiseScopeKey = '';
@@ -769,17 +865,30 @@ function phfRequestLessonScroll(reason, selector){
 window.phfRequestLessonScroll = phfRequestLessonScroll;
 function phfScrollElementIntoLessonFocus(el, behavior){
   if(!el) return;
+  let cancelled = false;
   const run = function(){
+    if(cancelled || !document.documentElement.contains(el)) return;
     try{
       const rect = el.getBoundingClientRect();
       const currentY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      const top = Math.max(0, currentY + rect.top - 16);
-      window.scrollTo({top:top,left:0,behavior:behavior || 'auto'});
+      const top = Math.max(0, currentY + rect.top - 12);
+      if(Math.abs(currentY - top) > 2){
+        window.scrollTo({top:top,left:0,behavior:behavior || 'auto'});
+      }
     }catch(e){
-      try{ el.scrollIntoView({block:'center',inline:'nearest',behavior:behavior || 'auto'}); }catch(_){}
+      try{ el.scrollIntoView({block:'start',inline:'nearest',behavior:behavior || 'auto'}); }catch(_){}
     }
   };
+  /* PHF 62.22: router/shell có thể cuộn lên đầu ngay sau render. Chạy lại ngắn hạn
+     để tiêu đề bài là điểm bắt đầu thật sự, nhưng không lưu/khôi phục vị trí đọc cũ. */
   requestAnimationFrame(function(){ requestAnimationFrame(run); });
+  const t1 = setTimeout(run, 90);
+  const t2 = setTimeout(run, 260);
+  const t3 = setTimeout(function(){ run(); cancelled = true; }, 620);
+  window.__phfCancelLessonFocusScroll = function(){
+    cancelled = true;
+    clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+  };
 }
 window.phfScrollElementIntoLessonFocus = phfScrollElementIntoLessonFocus;
 function phfApplyLessonScrollAfterRender(){
@@ -789,18 +898,13 @@ function phfApplyLessonScrollAfterRender(){
   if(!request && !changedLesson) return;
   try{ delete window.__phfLessonScrollRequest; }catch(e){ window.__phfLessonScrollRequest = null; }
 
-  const reason = String(request && request.reason || '');
-  const isReloadRestore = phfIsPageReload() && (changedLesson || /resume|refresh/i.test(reason));
-  if(isReloadRestore){
-    const savedY = phfSavedScrollForLesson(current);
-    if(savedY !== null){
-      requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.scrollTo({top:savedY,left:0,behavior:'auto'}); }); });
-      return;
-    }
-  }
+  /* PHF 62.22: Khi F5/resume/chuyển bài, đưa tiêu đề bài hiện tại lên đầu vùng nhìn.
+     Không khôi phục tọa độ đọc cũ; thanh giai đoạn và khối ngữ cảnh nằm phía trên vùng nhìn. */
+  const requestedSelector = request && request.selector ? request.selector : '';
+  const lessonHead = document.querySelector('#mainLesson .focus-head');
+  const requestedAnchor = requestedSelector ? document.querySelector(requestedSelector) : null;
+  const anchor = lessonHead || requestedAnchor || document.querySelector('#mainLesson') || document.querySelector('.layout') || document.querySelector('.app');
 
-  const selector = request && request.selector ? request.selector : '#mainLesson';
-  const anchor = document.querySelector(selector) || document.querySelector('#mainLesson') || document.querySelector('.layout') || document.querySelector('.app');
   [document.querySelector('.todo-panel'),document.querySelector('.right-panel'),document.querySelector('.eval-admin-main')]
     .filter(Boolean).forEach(function(el){ try{ if(el.scrollTop) el.scrollTop = 0; }catch(e){} });
   phfScrollElementIntoLessonFocus(anchor,'auto');

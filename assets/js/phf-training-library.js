@@ -151,7 +151,7 @@
       + '<div class="phf-lib-info"><b>Kiểm tra / đánh giá</b><span>Tùy cấu hình chương trình. Phần tạo/cấu hình nằm trong Quản trị.</span></div>'
       + '</div><div class="phf-lib-info"><b>3 điểm cần nhớ</b><div class="phf-lib-meta">'+remember+'</div></div>'
       + '<p>'+esc(item.sample || 'Trưởng ca/Admin có thể dùng khu này để xem trước nội dung học và hướng dẫn học viên khi cần.')+'</p>'
-      + '<div class="phf-lib-actions"><button class="phf-lib-action" type="button" onclick="phfRenderTrainingLibrary('+(Number(item.stage)||0)+')">Quay lại danh sách</button><button class="phf-lib-action primary" type="button" onclick="phfGoLearning()">Mở giao diện học viên</button></div>'
+      + '<div class="phf-lib-actions"><button class="phf-lib-action" type="button" onclick="phfRenderTrainingLibrary('+(Number(item.stage)||0)+')">Quay lại danh sách</button></div>'
       + '</div></section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };
@@ -420,7 +420,7 @@
       + '<div class="phf-b23-actions"><button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibrary('+stage+')">Quay lại giai đoạn</button>'
       + (prev?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+Number(prev.__idx)+')">Bài trước</button>':'')
       + (next?'<button class="phf-b23-action" type="button" onclick="phfRenderTrainingLibraryLesson('+Number(next.__idx)+')">Bài sau</button>':'')
-      + '<button class="phf-b23-action primary" type="button" onclick="phfGoLearning()">Mở giao diện học viên</button></div>'
+      + '</div>'
       + '</div></section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
   };

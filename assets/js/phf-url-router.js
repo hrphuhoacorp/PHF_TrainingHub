@@ -319,6 +319,17 @@
     if(getTrainingData()) return true;
     var ok=await waitForTrainingData(9000);
     if((ok||getTrainingData())&&getTrainingData()) return true;
+    // PHF 62.24: một lượt phục hồi có giới hạn trước khi báo lỗi. Tránh popup
+    // chặn màn khi promise cũ vừa hết hạn nhưng /api/data có thể tải lại thành công.
+    try{
+      if(typeof window.phfRefreshTrainingData==='function'){
+        await Promise.race([
+          Promise.resolve(window.phfRefreshTrainingData({force:true})),
+          new Promise(function(resolve){setTimeout(function(){resolve(false);},3500);})
+        ]);
+      }
+    }catch(e){}
+    if(getTrainingData()) return true;
     modal('Chưa tải được dữ liệu','Hệ thống chưa nhận được dữ liệu cần thiết cho màn này. Vui lòng thử lại thay vì chờ vô hạn.','Thử lại',function(){navigate(path||location.pathname,true);});
     return false;
   }
@@ -788,7 +799,7 @@
         if(!requireRoles(['admin']))return false;
         if(path==='/admin/quan-tri/tai-khoan'&&typeof window.phfRenderAccountAdminSafe==='function') await Promise.resolve(window.phfRenderAccountAdminSafe());
         else if(path==='/admin/quan-tri/danh-muc'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Danh mục chung'));
-        else if(path==='/admin/quan-tri/kiem-tra'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Kiểm tra'));
+        else if(path==='/admin/quan-tri/kiem-tra'&&typeof window.phfRenderDirectTrainingTestPage==='function') await Promise.resolve(window.phfRenderDirectTrainingTestPage());
         else if(path==='/admin/quan-tri/cau-hinh'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Cấu hình'));
         else await Promise.resolve(window.phfRenderAdminManagement&&window.phfRenderAdminManagement());
         return true;
@@ -879,7 +890,12 @@
   function installWrappers(){
     commandWrap('phfRenderPostLoginHome',function(){return safeHomeForRole();});
     commandWrap('phfGoHome',function(){return safeHomeForRole();});
-    commandWrap('phfGoLearning',function(){return '/hv/bai-hoc';});
+    commandWrap('phfGoLearning',function(){
+      try{
+        if(role()==='admin' && sessionStorage.getItem('phfAdminLearningSimulation')==='active') return '';
+      }catch(e){}
+      return '/hv/bai-hoc';
+    });
     commandWrap('phfGoMyProfile',function(){return role()==='learner'?'/hv/ho-so':(role()==='manager'?'/ql/hoc-vien':'/admin/hoc-vien');});
     commandWrap('phfRenderTrainingOverview',function(){return role()==='admin'?'/admin/bao-cao':'/ql/quan-ly';});
     commandWrap('phfRenderTrainingLibrary',function(){return role()==='admin'?'/admin/noi-dung':'/ql/noi-dung';});
@@ -903,7 +919,14 @@
       if(role()==='admin') return '/admin/hoc-vien/'+await employeeToken(id)+'/evaluations';
       return '/ql/hoc-vien/'+await employeeToken(id)+'/evaluations';
     });
-    commandWrap('phfRenderTrainingLibraryLesson',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/hv/bai-hoc/'+lessonSlug(item,Number(idx));});
+    commandWrap('phfRenderTrainingLibraryLesson',function(){
+      var current=cleanPath(location.pathname);
+      var target=role()==='admin'?'/admin/noi-dung':'/ql/noi-dung';
+      /* Đang ở đúng thư viện nội dung thì mở chi tiết ngay trong renderer
+         read-only cũ. Không navigate lại route cha vì route cha sẽ dựng lại
+         danh sách và cuộn lên đầu; cũng tuyệt đối không chuyển sang /hv. */
+      return current===target?'':target;
+    });
     commandWrap('phfGo',function(idx){var item=(window.PHF_LESSONS||[])[Number(idx)]||{};return '/hv/bai-hoc/'+lessonSlug(item,Number(idx));});
   }
 

@@ -1,0 +1,36 @@
+PHF TRAINING HUB - BAN 62.30 - TRACE F5 DATA OWNER
+
+MUC TIEU
+- Bat chinh xac lan F5 loi: request nao, payload nao, state writer nao, readiness nao.
+- Chua sua bo loc 19 -> 1.
+- Khong doi schema hoac du lieu Supabase.
+
+FILE COPY DE
+1. assets/js/phf-learner-app.js
+2. assets/js/phf-server-auth.js
+3. assets/js/phf-training-records.js
+4. index.html
+
+CACH TEST
+1. Copy de 4 file tren vao source dang test.
+2. Tat npm start cu, chay lai npm start.
+3. Mo Chrome DevTools > Console.
+4. F5 /admin/hoc-vien lien tuc den khi gap man bao loi hoac ket qua khong on dinh.
+5. Tai Console go:
+   phfCopyDataTrace()
+6. Lenh se copy JSON trace vao clipboard va dong thoi in ra Console.
+7. Gui lai noi dung trace tu lan F5 bi loi.
+
+CAC DONG LOG QUAN TRONG
+- request:response: payload API thuc te.
+- request:discarded-stale: response bi bo vi generation/session/request thay doi.
+- state:set / state:clear: ai ghi/xoa __phfLocalData.
+- records:render:readiness: ly do tab danh gia ready hay loi.
+- auth:data-ready:resolved: Promise auth/data tra true hay false.
+
+AN TOAN
+- Trace chi ghi count, readiness, ten key, route, request id.
+- Khong ghi password, salt, token, cookie, secret hay noi dung ho so chi tiet.
+
+ROLLBACK
+- Copy lai 4 file tu source truoc Ban 62.30.

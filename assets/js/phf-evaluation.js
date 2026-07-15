@@ -59,31 +59,93 @@ function phfEmployeeFromRow(e){
     department: e.department || 'Bán hàng',
     position: e.position || 'Nhân viên bán hàng',
     studyStartDate: e.studyStartDate || e.study_start_date || '',
-    programId: e.programId || e.program_id || 'new_sales'
+    programId: e.programId || e.program_id || ''
   };
 }
-function phfAllEvaluationLearners(){
-  const sourceData = window.__phfLocalData || window.localData || {};
-  const rows = Array.isArray(sourceData.employees) ? sourceData.employees : [];
-  const mapped = rows.map(phfEmployeeFromRow).filter(function(e){
-    if(!e.id) return false;
-    if(e.id === 'admin-test-phf') return false;
-    if(/admin test/i.test(e.fullName + ' ' + e.position)) return false;
-    return true;
+// PHF 62.25: Training Hub chỉ quản lý hành trình nhân sự mới.
+// Classroom chịu trách nhiệm hồ sơ đào tạo xuyên suốt của mọi nhân sự.
+function phfEvalNormalizeText(v){ return String(v==null?'':v).trim().toLowerCase(); }
+function phfEvalPhoneDigits(v){ return String(v||'').replace(/\D/g,''); }
+function phfEvalNormalizeAudience(v){
+  const raw=phfEvalNormalizeText(v);
+  if(raw==='nhân viên mới'||raw==='nhan vien moi'||raw==='nhân sự mới'||raw==='nhan su moi') return 'new_employee';
+  return raw;
+}
+function phfEvalNormalizeProgram(v){
+  const raw=phfEvalNormalizeText(v).replace(/[\s-]+/g,'_');
+  if(raw==='new_sales'||raw.indexOf('bán_hàng_mới')>=0||raw.indexOf('ban_hang_moi')>=0) return 'new_sales';
+  if(raw==='phf_class'||raw.indexOf('class')>=0) return 'phf_class';
+  return raw||'none';
+}
+function phfEvalAccountList(){
+  const data=window.__phfLocalData||window.localData||{};
+  return Array.isArray(data.hubAccounts)?data.hubAccounts:[];
+}
+function phfEvalHubStatus(a){
+  const raw=phfEvalNormalizeText(a&&(a.hubAssignmentStatus||a.hub_assignment_status));
+  const map={not_active:'not_activated',inactive:'not_activated',not_activated:'not_activated',active:'active',in_progress:'active',studying:'active',paused:'paused',completed:'completed',revoked:'revoked'};
+  return map[raw]||'not_activated';
+}
+function phfEvalIsNewEmployeeHubAccount(a){
+  if(!a||String(a.accountType||'employee')==='system_admin') return false;
+  return phfEvalNormalizeProgram(a.defaultProgram||a.default_program||a.program)==='new_sales';
+}
+function phfEvalAccountMatchesEmployee(a,row,e){
+  const employeeId=String(row.id||row.employeeId||row.employee_id||'').trim();
+  const employeeCode=phfEvalNormalizeText(row.employeeCode||row.employee_code||row.code||e.employeeCode);
+  const accountEmployeeId=String(a.employeeId||a.employee_id||'').trim();
+  const accountCode=phfEvalNormalizeText(a.employeeCode||a.employee_code);
+  if(employeeId&&accountEmployeeId&&employeeId===accountEmployeeId) return true;
+  if(employeeCode&&accountCode&&employeeCode===accountCode) return true;
+  const employeeEmails=[row.email,row.workEmail,row.personalEmail,e.email].map(phfEvalNormalizeText).filter(Boolean);
+  const accountEmail=phfEvalNormalizeText(a.email);
+  if(accountEmail&&employeeEmails.indexOf(accountEmail)>=0) return true;
+  const phone=phfEvalPhoneDigits(row.phone||e.phone);
+  const accountPhone=phfEvalPhoneDigits(a.phone);
+  return !!phone&&!!accountPhone&&phone===accountPhone;
+}
+function phfEvalRowIsExplicitNewEmployeeHub(row,e){
+  const program=phfEvalNormalizeProgram(row.defaultProgram||row.default_program);
+  return program==='new_sales';
+}
+function phfEvalAttachHubAccount(e,a){
+  return Object.assign({},e,{
+    programId:'new_sales',
+    trainingAudience:'Nhân sự mới',
+    hubAssignmentStatus:phfEvalHubStatus(a),
+    hubAccountId:String(a&&a.id||'')
   });
-
-  // Học viên tuyệt đối chỉ được nhìn thấy hồ sơ của chính mình trong giao diện.
-  if(typeof phfCanEditEvaluation === 'function' && !phfCanEditEvaluation()){
-    const current = phfCurrentEmployeeProfile();
-    const phone = String(current.phone||'').replace(/\D/g,'');
-    const own = mapped.find(function(e){
-      return (current.id && String(e.id)===String(current.id)) ||
-             (phone && String(e.phone||'').replace(/\D/g,'')===phone);
+}
+function phfAllEvaluationLearners(){
+  const sourceData=window.__phfLocalData||window.localData||{};
+  const rows=Array.isArray(sourceData.employees)?sourceData.employees:[];
+  const mappedRows=rows.map(function(row){return {row:row,employee:phfEmployeeFromRow(row)};}).filter(function(item){
+    const e=item.employee;
+    if(!e.id||e.id==='admin-test-phf') return false;
+    return !/admin test/i.test(e.fullName+' '+e.position);
+  });
+  if(typeof phfCanEditEvaluation==='function'&&!phfCanEditEvaluation()){
+    const current=phfCurrentEmployeeProfile();
+    const phone=phfEvalPhoneDigits(current.phone);
+    const own=mappedRows.map(function(x){return x.employee;}).find(function(e){
+      return (current.id&&String(e.id)===String(current.id))||(phone&&phfEvalPhoneDigits(e.phone)===phone);
     });
-    return own ? [own] : (current.id ? [current] : []);
+    return own?[own]:(current.id?[current]:[]);
   }
 
-  return mapped.sort(function(a,b){ return String(a.fullName||'').localeCompare(String(b.fullName||''),'vi'); });
+  // Khi nguồn tài khoản đã sẵn sàng, đây là nguồn sự thật duy nhất cho khu Học viên/Báo cáo Hub.
+  if(sourceData.hubAccountsReady===true){
+    const hubAccounts=phfEvalAccountList().filter(phfEvalIsNewEmployeeHubAccount);
+    const filtered=mappedRows.map(function(item){
+      const account=hubAccounts.find(function(a){return phfEvalAccountMatchesEmployee(a,item.row,item.employee);});
+      return account?phfEvalAttachHubAccount(item.employee,account):null;
+    }).filter(Boolean);
+    return filtered.sort(function(a,b){return String(a.fullName||'').localeCompare(String(b.fullName||''),'vi');});
+  }
+
+  // PHF 62.28: Không dùng fallback từ bảng employees.
+  // Học viên/Báo cáo Hub chỉ được dựng khi nguồn user_accounts đã tải thành công.
+  return [];
 }
 function phfEvaluationTargetProfile(){
   if(!phfCanEditEvaluation()) return phfCurrentEmployeeProfile();
@@ -1269,16 +1331,20 @@ function phfEvalResetProfileFilters(){
 async function phfEnsureEvaluationDataReady(canEditWorkspace){
   function hasExpectedRows(){
     const sourceData = window.__phfLocalData || window.localData || {};
-  const rows = Array.isArray(sourceData.employees) ? sourceData.employees : [];
+    const rows = Array.isArray(sourceData.employees) ? sourceData.employees : [];
     const current = phfCurrentEmployeeProfile();
     const ownPhone = String(current && current.phone || '').replace(/\D/g,'');
-    return canEditWorkspace
-      ? rows.length > 0
-      : rows.some(function(row){
-          const idMatch = current && current.id && String(row.id||'') === String(current.id);
-          const phoneMatch = ownPhone && String(row.phone||'').replace(/\D/g,'') === ownPhone;
-          return idMatch || phoneMatch;
-        });
+    if(canEditWorkspace){
+      // PHF 62.28: false không được xem là đã sẵn sàng.
+      return Array.isArray(sourceData.employees) &&
+        Array.isArray(sourceData.hubAccounts) &&
+        sourceData.hubAccountsReady === true;
+    }
+    return rows.some(function(row){
+      const idMatch = current && current.id && String(row.id||'') === String(current.id);
+      const phoneMatch = ownPhone && String(row.phone||'').replace(/\D/g,'') === ownPhone;
+      return idMatch || phoneMatch;
+    });
   }
 
   if(window.__phfEvalReadFresh && hasExpectedRows()) return true;
@@ -1340,7 +1406,7 @@ async function phfRenderEvaluationWorkspace(view){
       busyWorkspace.removeAttribute('aria-busy');
       if(typeof phfToast==='function') phfToast('error','Không thể cập nhật dữ liệu','Nội dung hiện tại được giữ nguyên. Vui lòng kiểm tra kết nối rồi thử lại.',4800,'evaluation-update');
     }else if(loadingHost){
-      loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Chưa tải được dữ liệu phù hợp với tài khoản hiện tại.</p></div></div><section class="phf-eval-list-card" style="min-height:360px"><div class="phf-eval-empty">Vui lòng kiểm tra kết nối rồi tải lại trang.</div></section></section>`;
+      loadingHost.innerHTML = `<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>${canEditWorkspace?'Học viên':'Hồ sơ của tôi'}</h2><p>Chưa thể tải đầy đủ dữ liệu phân công Training Hub.</p></div></div><section class="phf-eval-list-card" style="min-height:360px"><div class="phf-eval-empty">Dữ liệu hiện tại chưa bị thay đổi.<div style="margin-top:14px"><button type="button" class="btn btn-primary" onclick="window.__phfEvalReadFresh=false;phfRenderEvaluationWorkspace('profiles')">Thử lại</button></div></div></section></section>`;
     }
     return false;
   }
@@ -2163,6 +2229,29 @@ function phfRenderHubPlaceholder(tab){
   phfScrollToPageTop();
 }
 
+
+function phfScrollToRenderedTarget(target, options){
+  target=String(target||'').trim();
+  if(!target)return;
+  options=options||{};
+  var attempts=0,maxAttempts=Number(options.maxAttempts||18),offset=Number(options.offset||96);
+  function find(){return document.getElementById(target)||document.querySelector(target)}
+  function run(){
+    var el=find();
+    if(el){
+      var rect=el.getBoundingClientRect();
+      var top=Math.max(0,(window.scrollY||window.pageYOffset||0)+rect.top-offset);
+      window.scrollTo({top:top,left:0,behavior:options.behavior||'smooth'});
+      el.classList.add('phf-target-arrived');
+      setTimeout(function(){try{el.classList.remove('phf-target-arrived')}catch(e){}},1400);
+      return;
+    }
+    attempts+=1;if(attempts<maxAttempts)setTimeout(run,60);
+  }
+  requestAnimationFrame(function(){requestAnimationFrame(run)});
+}
+window.phfScrollToRenderedTarget=phfScrollToRenderedTarget;
+
 async function renderEvaluationRecords(selectedKey, mode, options){
   const renderToken = (window.__phfEvalRenderToken = (window.__phfEvalRenderToken || 0) + 1);
   phfSetMainNavActive('profile');
@@ -2250,9 +2339,11 @@ async function renderEvaluationRecords(selectedKey, mode, options){
     else if(canEdit && !rec && activeTab === 'input') phfRenderWeeklyForm(selected);
     else phfRenderWeeklyView(selected);
   }
-  // Mở chi tiết phải bắt đầu từ đầu màn để người dùng luôn thấy nút quay lại
-  // và đường dẫn ngữ cảnh; khi quay lại danh sách, vị trí cũ vẫn được khôi phục.
-  if(typeof phfScrollToPageTop === 'function'){
+  // Nút thao tác trực tiếp phải đưa người dùng tới đúng phiếu/form vừa chọn.
+  // Điều hướng thông thường vẫn giữ đầu màn để người dùng thấy đường dẫn ngữ cảnh.
+  if(options.focusTarget){
+    phfScrollToRenderedTarget(options.focusTarget,{offset:104,behavior:'smooth'});
+  }else if(typeof phfScrollToPageTop === 'function'){
     requestAnimationFrame(function(){ phfScrollToPageTop(); });
   }else{
     requestAnimationFrame(function(){ window.scrollTo({top:0, behavior:'auto'}); });
@@ -2287,7 +2378,7 @@ function phfHubSetLearnerAndOpen(learnerId, tab, periodKey, mode){
     }
 
     if(typeof renderEvaluationRecords === 'function'){
-      renderEvaluationRecords(targetPeriod || undefined, targetMode || 'view', {silentNotice:true});
+      renderEvaluationRecords(targetPeriod || undefined, targetMode || 'view', {silentNotice:true,focusTarget:'#weeklyFormBox'});
       return;
     }
 

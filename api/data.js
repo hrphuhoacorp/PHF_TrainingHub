@@ -8,7 +8,7 @@ const {
   validatePayload,
   publicError
 } = require('../lib/request-guard');
-const { requireSession, authorizePayload } = require('../lib/auth');
+const { requireSession, authorizePayload, listHubAccountSummaries } = require('../lib/auth');
 
 
 function normalizePhone(value) {
@@ -63,6 +63,33 @@ module.exports = async function handler(req, res) {
         activityLimit: session.role === 'learner' ? 100 : 200
       });
       const scoped = session.role === 'learner' ? filterDataForRequest(data, 'learner', session.employeeId, session.phone) : data;
+      // PHF 62.24: Học viên/Báo cáo Hub cần trạng thái phân công thật từ user_accounts.
+      // Chỉ công bố các trường tối thiểu để ghép hồ sơ và lọc Hub; không trả dữ liệu mật khẩu.
+      if (session.role === 'admin' || session.role === 'manager') {
+        try {
+          const accounts = await listHubAccountSummaries();
+          scoped.hubAccounts = (accounts || []).map(account => ({
+            id: account.id || '',
+            employeeId: account.employeeId || '',
+            employeeCode: account.employeeCode || '',
+            email: account.email || '',
+            phone: account.phone || '',
+            role: account.role || 'learner',
+            status: account.status || 'active',
+            accountType: account.accountType || 'employee',
+            trainingAudience: account.trainingAudience || '',
+            defaultProgram: account.defaultProgram || '',
+            hubAssignmentStatus: account.hubAssignmentStatus || 'not_activated'
+          }));
+          scoped.hubAccountsReady = true;
+          scoped.hubAccountsError = '';
+        } catch (accountError) {
+          console.warn('[PHF API] hub account summary unavailable', accountError?.message || accountError);
+          scoped.hubAccounts = [];
+          scoped.hubAccountsReady = false;
+          scoped.hubAccountsError = 'HUB_ACCOUNT_SUMMARY_UNAVAILABLE';
+        }
+      }
       return res.status(200).json(scoped);
     }
     if (req.method === 'POST') {

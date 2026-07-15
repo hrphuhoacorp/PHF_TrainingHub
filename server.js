@@ -13,7 +13,7 @@ const {
   validatePayload,
   publicError
 } = require('./lib/request-guard');
-const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, makeSession, publicAccount } = require('./lib/auth');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount } = require('./lib/auth');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
@@ -267,6 +267,33 @@ const server = http.createServer(async (req, res) => {
         const scoped = session.role === 'learner'
           ? filterDataForRequest(data, 'learner', session.employeeId, session.phone)
           : data;
+        // Học viên/Báo cáo Training Hub phải dùng trạng thái phân công thật từ user_accounts.
+        // Chỉ công bố các trường tối thiểu để ghép hồ sơ; không trả dữ liệu mật khẩu.
+        if (session.role === 'admin' || session.role === 'manager') {
+          try {
+            const accounts = await listHubAccountSummaries();
+            scoped.hubAccounts = (accounts || []).map(account => ({
+              id: account.id || '',
+              employeeId: account.employeeId || '',
+              employeeCode: account.employeeCode || '',
+              email: account.email || '',
+              phone: account.phone || '',
+              role: account.role || 'learner',
+              status: account.status || 'active',
+              accountType: account.accountType || 'employee',
+              trainingAudience: account.trainingAudience || '',
+              defaultProgram: account.defaultProgram || '',
+              hubAssignmentStatus: account.hubAssignmentStatus || 'not_activated'
+            }));
+            scoped.hubAccountsReady = true;
+            scoped.hubAccountsError = '';
+          } catch (accountError) {
+            console.warn('[PHF API] hub account summary unavailable', accountError?.message || accountError);
+            scoped.hubAccounts = [];
+            scoped.hubAccountsReady = false;
+            scoped.hubAccountsError = 'HUB_ACCOUNT_SUMMARY_UNAVAILABLE';
+          }
+        }
         return sendJson(res, 200, scoped);
       }
       if (req.method === 'POST') {

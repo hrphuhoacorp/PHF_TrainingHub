@@ -55,11 +55,33 @@
   window.phfWhenAppReady = function(){
     return appReadySettled ? Promise.resolve(sessionUser || null) : appReady;
   };
+
+  function phfCurrentTrainingDataIsReady(){
+    var data = window.__phfLocalData;
+    if(!data || typeof data !== 'object') return false;
+    var role = String((sessionUser&&sessionUser.role)||'learner').toLowerCase();
+    if(role === 'admin' || role === 'manager'){
+      return Array.isArray(data.employees) && Array.isArray(data.hubAccounts) && data.hubAccountsReady === true;
+    }
+    return Array.isArray(data.employees);
+  }
+
   window.phfWhenTrainingDataReady = function(){
-    if(!sessionUser) return Promise.resolve(false);
+    if(!sessionUser){ if(window.phfTraceData)window.phfTraceData('auth:data-ready:no-session',{}); return Promise.resolve(false); }
+    if(window.phfTraceData)window.phfTraceData('auth:data-ready:enter',{hasCachedPromise:!!trainingDataPromise,userRole:String(sessionUser.role||''),state:window.phfSummarizeTrainingData?window.phfSummarizeTrainingData(window.__phfLocalData):{}});
+    /* 62.29: Không giữ vĩnh viễn một Promise đã resolve false trong suốt phiên.
+       Khi F5 gặp một lượt boot chưa đủ dữ liệu, route/tab sau phải được phép
+       dùng lại owner phfRefreshTrainingData để phục hồi thay vì nhận mãi kết
+       quả false cũ. Registry request ở learner-app vẫn chống gọi trùng. */
     if(!trainingDataPromise){
-      trainingDataPromise = Promise.resolve(preloadProtectedData('route-data-needed'))
-        .catch(function(){ return false; });
+      var currentPromise = Promise.resolve(preloadProtectedData('route-data-needed'))
+        .then(function(ok){ return ok === true || phfCurrentTrainingDataIsReady(); })
+        .catch(function(){ return phfCurrentTrainingDataIsReady(); });
+      trainingDataPromise = currentPromise;
+      currentPromise.then(function(ok){if(window.phfTraceData)window.phfTraceData('auth:data-ready:resolved',{ok:!!ok,state:window.phfSummarizeTrainingData?window.phfSummarizeTrainingData(window.__phfLocalData):{},lastWriter:String(window.__phfLocalDataLastWriter||'')});return ok;});
+      currentPromise.finally(function(){
+        if(trainingDataPromise === currentPromise) trainingDataPromise = null;
+      });
     }
     return trainingDataPromise;
   };
@@ -309,15 +331,22 @@
   }
 
   async function preloadProtectedData(reason){
+    if(window.phfTraceData)window.phfTraceData('auth:preload:enter',{reason:String(reason||''),hasOwnerPromise:!!window.__phfTrainingDataPromise});
     try{
       /* 62.1: Route chỉ chờ owner dữ liệu hiện có. Không reset runtime ở đây,
          vì reset giữa lúc learner app đang fetch sẽ xóa Promise/registry và
          làm phát sinh request /api/data thứ hai trong cùng một lần F5. */
       if(window.__phfTrainingDataPromise){
-        return await window.__phfTrainingDataPromise;
+        var ownerResult=await window.__phfTrainingDataPromise;
+        var ownerReady = ownerResult === true || phfCurrentTrainingDataIsReady();
+        if(window.phfTraceData)window.phfTraceData('auth:preload:owner-result',{ok:!!ownerReady,ownerRaw:!!ownerResult});
+        if(ownerReady) return true;
       }
       if(typeof window.phfRefreshTrainingData === 'function'){
-        return await window.phfRefreshTrainingData({force:false,boot:true,reason:reason || 'route-data-needed'});
+        var refreshResult=await window.phfRefreshTrainingData({force:false,boot:true,reason:reason || 'route-data-needed'});
+        var refreshReady = refreshResult === true || phfCurrentTrainingDataIsReady();
+        if(window.phfTraceData)window.phfTraceData('auth:preload:refresh-result',{ok:!!refreshReady,refreshRaw:!!refreshResult});
+        return refreshReady;
       }
       return true;
     }catch(e){

@@ -23,7 +23,20 @@
   }
   function canView(){ return role()==='admin' || role()==='manager'; }
   function data(){ return window.__phfLocalData || {}; }
-  function employees(){ return Array.isArray(data().employees) ? data().employees.slice() : []; }
+  // PHF 62.32: Danh sách của Hồ sơ đào tạo & đánh giá phải dùng cùng nguồn sự thật
+  // với Hồ sơ học viên/Tổng quan/Báo cáo: Phạm vi đào tạo = Hub + Classroom
+  // (mã nội bộ defaultProgram = new_sales). Không fallback về toàn bộ employees.
+  function employees(){
+    if(typeof window.phfAllEvaluationLearners==='function'){
+      const learners=window.phfAllEvaluationLearners();
+      return Array.isArray(learners)?learners.slice():[];
+    }
+    if(typeof phfAllEvaluationLearners==='function'){
+      const learners=phfAllEvaluationLearners();
+      return Array.isArray(learners)?learners.slice():[];
+    }
+    return [];
+  }
   function testResults(){ return Array.isArray(data().testResults) ? data().testResults.slice() : []; }
   function evaluations(){ return Array.isArray(data().evaluationRecords) ? data().evaluationRecords.slice() : []; }
   function commitments(){ return Array.isArray(data().confidentialityCommitments) ? data().confidentialityCommitments.slice() : []; }
@@ -236,7 +249,7 @@
     const action=document.getElementById('contextAction');if(action)action.textContent=role()==='admin'?'Admin':'Quản lý';
   }
   function renderHeader(active){
-    return `<div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>Hồ sơ đào tạo &amp; đánh giá</h2><p>Tập trung kết quả kiểm tra, phiếu đánh giá, tình trạng thử việc và cam kết của nhân viên.</p></div><div class="phf-eval-work-role phf-lib-role">${role()==='admin'?'Admin':'Quản lý'}<small>${employees().length} nhân viên trong dữ liệu</small></div></div>${baseTabs(active)}`;
+    return `<div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>Hồ sơ đào tạo &amp; đánh giá</h2><p>Tập trung kết quả kiểm tra, phiếu đánh giá, tình trạng thử việc và cam kết của học viên Training Hub.</p></div><div class="phf-eval-work-role phf-lib-role">${role()==='admin'?'Admin':'Quản lý'}<small>${employees().length} học viên Training Hub</small></div></div>${baseTabs(active)}`;
   }
   function metricShell(){
     const emps=employees();
@@ -244,7 +257,7 @@
     const withEval=emps.filter(function(e){return employeeEvaluations(e.id).length}).length;
     const withBMTT=emps.filter(function(e){return employeeCommitments(e.id).some(isCompleteBMTT)}).length;
     return `<div class="phf-records-grid">
-      <div class="phf-records-card"><span>Tổng nhân viên</span><b>${emps.length}</b></div>
+      <div class="phf-records-card"><span>Tổng học viên Hub</span><b>${emps.length}</b></div>
       <div class="phf-records-card"><span>Đã có kết quả kiểm tra</span><b>${withTests}</b></div>
       <div class="phf-records-card"><span>Đã có phiếu đánh giá</span><b>${withEval}</b></div>
       <div class="phf-records-card"><span>Đã xác nhận BMTT</span><b>${withBMTT}</b></div>
@@ -293,7 +306,7 @@
     return `${renderHeader('employees')}
       ${metricShell()}
       <section class="phf-eval-filter-card"><div class="phf-records-filter">
-        <div><label>Tìm nhân viên</label><input id="phfRecordQ" type="search" value="${esc(state.filters.q||'')}" placeholder="Tên, SĐT, mã NV, vị trí"></div>
+        <div><label>Tìm học viên</label><input id="phfRecordQ" type="search" value="${esc(state.filters.q||'')}" placeholder="Tên, SĐT, mã NV, vị trí"></div>
         <div><label>Chi nhánh</label><select id="phfRecordBranch"><option value="all">Tất cả chi nhánh</option>${branches}</select></div>
         <div><label>Trạng thái thử việc</label><select id="phfRecordStatus">
           <option value="all">Tất cả trạng thái</option>
@@ -306,7 +319,7 @@
         </select></div>
         <div class="phf-records-actions"><button class="phf-eval-btn primary" type="button" onclick="phfTrainingRecordsApplyFilters()">Lọc</button><button class="phf-eval-btn" type="button" onclick="phfTrainingRecordsResetFilters()">Xóa lọc</button></div>
       </div></section>
-      <section class="phf-eval-list-card"><div class="phf-eval-list-head"><div><h3>Danh sách hồ sơ nhân viên</h3><p>Chọn một nhân viên để xem toàn bộ kết quả, đánh giá, thử việc và cam kết.</p></div><span class="phf-eval-result-count">${filteredEmployees().length} kết quả</span></div>
+      <section class="phf-eval-list-card"><div class="phf-eval-list-head"><div><h3>Danh sách hồ sơ học viên</h3><p>Chỉ hiển thị người có Phạm vi đào tạo “Training Hub + PHF Classroom”.</p></div><span class="phf-eval-result-count">${filteredEmployees().length} kết quả</span></div>
       <div class="phf-eval-table-wrap"><table class="phf-eval-official-table"><thead><tr><th>STT</th><th>Nhân viên</th><th>SĐT / Mã NV</th><th>Chi nhánh</th><th>Tiến độ</th><th>Kiểm tra gần nhất</th><th>Phiếu đánh giá</th><th>Thử việc</th><th>BMTT</th><th>Thao tác</th></tr></thead><tbody>${employeeRows()||'<tr><td colspan="10"><div class="phf-records-empty">Không có hồ sơ phù hợp bộ lọc.</div></td></tr>'}</tbody></table></div></section>`;
   }
   function detailTabs(emp,active){
@@ -478,14 +491,33 @@
       return false;
     }
     ensureShell();
-    if(typeof window.phfEnsureEvaluationDataReady==='function'){
-      try{await window.phfEnsureEvaluationDataReady(true)}catch(e){}
-    }else if(typeof window.phfRefreshTrainingData==='function'){
-      try{await window.phfRefreshTrainingData({force:false})}catch(e){}
-    }
-    setMode(view,employeeId,tab);
     const host=document.getElementById('mainLesson');
     if(!host)return false;
+
+    /* 62.29 - F5 data guard:
+       Không biến trạng thái chưa tải/lỗi thành danh sách rỗng hợp lệ. Mỗi lượt
+       render có token riêng để callback cũ không được ghi đè lượt mới. */
+    const renderToken=(window.__phfTrainingRecordsRenderToken=(window.__phfTrainingRecordsRenderToken||0)+1);
+    if(window.phfTraceData)window.phfTraceData('records:render:start',{renderToken:renderToken,view:String(view||'employees'),lastWriter:String(window.__phfLocalDataLastWriter||''),state:window.phfSummarizeTrainingData?window.phfSummarizeTrainingData(window.__phfLocalData):{}});
+    host.innerHTML=`<section class="phf-eval-workspace phf-eval-is-busy" aria-busy="true"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>Hồ sơ đào tạo &amp; đánh giá</h2><p>Đang đồng bộ dữ liệu đào tạo, vui lòng chờ.</p></div></div><section class="phf-eval-list-card" style="min-height:320px"><div class="phf-eval-empty">Đang tải dữ liệu...</div></section></section>`;
+
+    let ready=false;
+    if(typeof window.phfEnsureEvaluationDataReady==='function'){
+      try{ready=await window.phfEnsureEvaluationDataReady(true)}catch(e){ready=false}
+    }else if(typeof window.phfRefreshTrainingData==='function'){
+      try{ready=await window.phfRefreshTrainingData({force:false})}catch(e){ready=false}
+    }
+    if(renderToken!==window.__phfTrainingRecordsRenderToken){if(window.phfTraceData)window.phfTraceData('records:render:stale',{renderToken:renderToken,currentToken:window.__phfTrainingRecordsRenderToken});return false;}
+
+    const source=window.__phfLocalData||{};
+    const complete=!!ready && Array.isArray(source.employees) && Array.isArray(source.hubAccounts) && source.hubAccountsReady===true;
+    if(window.phfTraceData)window.phfTraceData('records:render:readiness',{renderToken:renderToken,readyResult:!!ready,complete:complete,lastWriter:String(window.__phfLocalDataLastWriter||''),state:window.phfSummarizeTrainingData?window.phfSummarizeTrainingData(source):{}});
+    if(!complete){
+      host.innerHTML=`<section class="phf-eval-workspace"><div class="phf-eval-work-head phf-lib-hero"><div><span class="phf-lib-kicker">PHF TRAINING HUB</span><h2>Hồ sơ đào tạo &amp; đánh giá</h2><p>Chưa thể tải đầy đủ dữ liệu phân công Training Hub.</p></div></div><section class="phf-eval-list-card" style="min-height:320px"><div class="phf-eval-empty">Hệ thống không trình bày trạng thái này thành “0 hồ sơ”.<div style="margin-top:14px"><button type="button" class="btn btn-primary" onclick="window.__phfEvalReadFresh=false;window.phfTrainingRecordsOpen('${view||'employees'}')">Thử lại</button></div></div></section></section>`;
+      return false;
+    }
+
+    setMode(view,employeeId,tab);
     if(view==='detail'){
       const emp=employeeById(employeeId);
       if(!emp){state.view='employees';host.innerHTML=`<section class="phf-eval-workspace">${renderEmployees()}</section>`;return true}
