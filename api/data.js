@@ -60,7 +60,13 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const session = await requireSession(req, ['learner','manager','admin']);
       const classroomMode = String(req.query?.classroom || '') === '1';
+      const classroomUsersMode = String(req.query?.classroomUsers || '') === '1';
       const classroomAttendanceMode = String(req.query?.classroomAttendance || '') === '1';
+      // Classroom 1.10: xử lý danh sách user chuyên biệt trước GET /api/data chung.
+      // Nếu bỏ nhánh này, Vercel sẽ trả toàn bộ payload Training Hub dù HTTP vẫn là 200.
+      if (classroomUsersMode) {
+        return res.status(200).json({ ok: true, users: await listClassroomUsers(session) });
+      }
       if (classroomAttendanceMode) {
         const sessionId=String(req.query?.sessionId||'').trim();
         if(!sessionId)return res.status(400).json({ok:false,code:'CLASSROOM_SESSION_REQUIRED',message:'Thiếu mã buổi học.'});
