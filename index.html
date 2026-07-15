@@ -84,7 +84,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
   }catch(e){}
 },12000);
 </script>
-<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=62.10_hub_responsive_boundary">
+<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=62.11_hub_mobile_single_controller">
 <link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=27_6_12_3_4_deeplink_assets">
 
 
@@ -3184,6 +3184,9 @@ function render(){
     if(toggle){
       var header = toggle.closest('.phf-landing-header, .phf-site-header, .eval-admin-topbar');
       if(!header) return;
+      /* 62.11: the authenticated Training Hub shell is owned only by
+         assets/js/phf-hub-mobile-shell.js to avoid duplicate controllers. */
+      if(header.classList.contains('phf-site-header') && document.body.classList.contains('phf-main-shell-mode')) return;
       var willOpen = !header.classList.contains('phf-mobile-open');
       closeAllMobileMenus();
       if(willOpen){
@@ -3197,7 +3200,10 @@ function render(){
     }
     var navItem = e.target && e.target.closest ? e.target.closest('.phf-landing-nav button,.phf-main-nav button,.eval-admin-nav button,.phf-landing-login,.phf-login-entry') : null;
     if(navItem && window.matchMedia && window.matchMedia('(max-width:600px), (max-width:820px) and (hover:none) and (pointer:coarse)').matches){
-      setTimeout(closeAllMobileMenus, 0);
+      var owningHeader = navItem.closest('.phf-landing-header, .phf-site-header, .eval-admin-topbar');
+      if(!(owningHeader && owningHeader.classList.contains('phf-site-header') && document.body.classList.contains('phf-main-shell-mode'))){
+        setTimeout(closeAllMobileMenus, 0);
+      }
     }
   });
   document.addEventListener('DOMContentLoaded', initMobileMenus);
@@ -4520,6 +4526,6 @@ function render(){
 <script src="assets/js/phf-app-bootstrap.js?v=1.0.0_single_owner"></script>
 
 
-<script src="assets/js/phf-hub-mobile-shell.js?v=62.10_hub_responsive_boundary"></script>
+<script src="assets/js/phf-hub-mobile-shell.js?v=62.11_hub_mobile_single_controller"></script>
 </body>
 </html>
