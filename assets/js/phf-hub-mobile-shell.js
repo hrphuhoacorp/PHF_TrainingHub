@@ -1,8 +1,9 @@
-/* PHF 62.9 - Training Hub mobile drawer lifecycle only.
+/* PHF 62.10 - Training Hub mobile drawer lifecycle with device-aware breakpoint.
    Reuses the existing header/nav/account actions and does not own routing or session. */
 (function(){
   'use strict';
-  var mq=window.matchMedia ? window.matchMedia('(max-width:760px)') : null;
+  var MOBILE_QUERY='(max-width:600px), (max-width:820px) and (hover:none) and (pointer:coarse)';
+  var mq=window.matchMedia ? window.matchMedia(MOBILE_QUERY) : null;
   function isMobile(){ return !!(mq && mq.matches); }
   function header(){ return document.querySelector('body.phf-main-shell-mode .topbar.phf-site-header'); }
   function ensureBackdrop(){

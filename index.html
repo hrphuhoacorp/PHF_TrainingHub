@@ -84,7 +84,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
   }catch(e){}
 },12000);
 </script>
-<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=62.9_hub_mobile_drawer_safe">
+<link rel="stylesheet" href="assets/css/phf-training-hub.css?v=62.10_hub_responsive_boundary">
 <link rel="stylesheet" href="assets/css/phf-ui-polish.css?v=27_6_12_3_4_deeplink_assets">
 
 
@@ -3196,14 +3196,14 @@ function render(){
       return;
     }
     var navItem = e.target && e.target.closest ? e.target.closest('.phf-landing-nav button,.phf-main-nav button,.eval-admin-nav button,.phf-landing-login,.phf-login-entry') : null;
-    if(navItem && window.matchMedia && window.matchMedia('(max-width: 760px)').matches){
+    if(navItem && window.matchMedia && window.matchMedia('(max-width:600px), (max-width:820px) and (hover:none) and (pointer:coarse)').matches){
       setTimeout(closeAllMobileMenus, 0);
     }
   });
   document.addEventListener('DOMContentLoaded', initMobileMenus);
   setTimeout(initMobileMenus, 0);
   window.addEventListener('resize', function(){
-    if(!window.matchMedia || !window.matchMedia('(max-width: 760px)').matches){ closeAllMobileMenus(); }
+    if(!window.matchMedia || !window.matchMedia('(max-width:600px), (max-width:820px) and (hover:none) and (pointer:coarse)').matches){ closeAllMobileMenus(); }
   });
   window.phfCloseMobileMenus = closeAllMobileMenus;
   window.phfInitMobileMenus = initMobileMenus;
@@ -4520,6 +4520,6 @@ function render(){
 <script src="assets/js/phf-app-bootstrap.js?v=1.0.0_single_owner"></script>
 
 
-<script src="assets/js/phf-hub-mobile-shell.js?v=62.9_hub_mobile_drawer_safe"></script>
+<script src="assets/js/phf-hub-mobile-shell.js?v=62.10_hub_responsive_boundary"></script>
 </body>
 </html>
