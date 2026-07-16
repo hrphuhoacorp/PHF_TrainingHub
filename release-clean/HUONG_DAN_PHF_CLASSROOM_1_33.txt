@@ -1,0 +1,33 @@
+PHF Classroom 1.33 - Production Hardening
+
+1. Copy đè các file trong patch đúng cấu trúc.
+2. Chạy SQL một lần: scripts/phf_supabase_classroom_1_33_security.sql
+3. Trên Render đặt biến môi trường:
+   - SUPABASE_URL
+   - SUPABASE_SECRET_KEY
+   - PHF_SESSION_SECRET
+   - NODE_ENV=production
+   - PHF_LOGIN_MAX_ATTEMPTS=5 (tùy chọn)
+   - PHF_LOGIN_WINDOW_MS=900000 (tùy chọn)
+   - PHF_LOGIN_BLOCK_MS=900000 (tùy chọn)
+4. Chạy npm run check.
+5. Chạy npm start và kiểm tra /api/health.
+   - Kết nối Supabase thật: HTTP 200.
+   - Sai URL/key hoặc mất DB: HTTP 503.
+6. Smoke test:
+   - PHF_SMOKE_BASE_URL=http://localhost:3000 npm run smoke
+   - Có thể thêm PHF_SMOKE_ADMIN_EMAIL/PASSWORD, MANAGER, LEARNER để test đăng nhập ba vai trò.
+7. Tạo release sạch: npm run release:clean
+   Kết quả loại .env, private, backups, node_modules, rollback.
+
+Thay đổi chính:
+- Health check truy vấn Supabase thật, timeout và trả 503 khi lỗi.
+- Rate limit đăng nhập theo IP + email.
+- Đồng bộ classroomNotifications và classroomSettings cho api/data.js Vercel.
+- SQL revoke/RLS toàn bộ bảng Classroom và Storage.
+- CSP Report-Only + HSTS production.
+- Script check JS, smoke test và đóng gói release sạch.
+
+Rollback:
+- Khôi phục server.js, api/data.js, api/health.js, api/auth/login.js, package.json bản trước.
+- Không rollback SQL bảo mật trừ khi đã xác định backend không dùng service role.

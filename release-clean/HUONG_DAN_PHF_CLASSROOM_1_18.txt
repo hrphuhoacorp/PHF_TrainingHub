@@ -1,0 +1,32 @@
+PHF CLASSROOM 1.18 - TÀI LIỆU ĐÀO TẠO SUPABASE STORAGE
+
+Nền: hệ thống web đã chốt hiện tại(77).7z
+
+1. Chạy SQL một lần trên Supabase SQL Editor:
+   scripts/phf_supabase_classroom_1_18_materials.sql
+
+2. Copy đè các file trong patch, giữ nguyên cấu trúc thư mục.
+
+3. Biến môi trường tùy chọn:
+   PHF_CLASSROOM_STORAGE_BUCKET=phf-classroom
+   Nếu không khai báo, hệ thống mặc định dùng bucket phf-classroom.
+
+Nghiệp vụ:
+- Admin và Quản lý có đầy đủ quyền vận hành tài liệu Classroom.
+- Học viên chỉ thấy tài liệu đã phát hành của khóa được phân công.
+- Bắt buộc tạo nhóm nội dung trước khi upload.
+- Nhóm dùng chung toàn khóa, không gắn ngày hoàn thành riêng từng file.
+- Upload nhiều file một lần; tối đa 25 MB/file.
+- Cho phép PDF, Word, Excel, PowerPoint, JPG, PNG, WEBP; không nhận file nén.
+- File có trạng thái Nháp / Đã phát hành / Đã ẩn.
+- File có thể là Bắt buộc hoặc Tham khảo.
+- Học viên phải bấm Xác nhận đã đọc mới tính hoàn thành.
+- File được lưu trong Supabase Storage; không nằm trong source/GitHub/Vercel.
+
+QA nhanh:
+- Admin và Quản lý đều tạo nhóm, upload và phát hành được.
+- Upload nhiều file; file >25 MB hoặc sai định dạng phải bị từ chối.
+- Học viên ngoài khóa không truy cập được.
+- Học viên chỉ thấy nhóm/file đã phát hành.
+- Mở file tạo URL ký tạm thời; xác nhận đã đọc cập nhật tiến độ.
+- Hết hạn khóa, học viên không xác nhận thêm được.

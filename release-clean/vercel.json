@@ -1,0 +1,36 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/site.webmanifest",
+      "destination": "/site.webmanifest"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/favicon.ico"
+    },
+    {
+      "source": "/print/commitments/:id",
+      "destination": "/print-commitment.html"
+    },
+    {
+      "source": "/print/evaluations/:id",
+      "destination": "/print-evaluation.html"
+    },
+    {
+      "source": "/forms/:type/print",
+      "destination": "/print-form.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
+}

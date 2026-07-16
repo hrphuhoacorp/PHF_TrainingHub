@@ -1,0 +1,70 @@
+PHF CLASSROOM 1.21 – BÀI KIỂM TRA ĐỘC LẬP & THEO LỚP
+
+1. NỀN
+- Xây trên checkpoint hiện tại đã có Tài liệu và Tiến độ 1.20.
+- Không dùng chung test_results/progress của PHF Training Hub.
+
+2. FILE COPY ĐÈ
+- server.js
+- api/data.js
+- index.html
+- lib/classroom-tests.js
+- assets/js/classroom/phf-classroom-app.js
+- assets/css/phf-classroom.css
+- scripts/phf_supabase_classroom_1_21_tests.sql
+
+3. SQL BẮT BUỘC CHẠY 1 LẦN
+Chạy trong Supabase SQL Editor:
+- scripts/phf_supabase_classroom_1_21_tests.sql
+
+SQL tạo riêng:
+- classroom_tests
+- classroom_test_assignments
+- classroom_test_attempts
+
+4. NGHIỆP VỤ ĐÃ CÓ
+- Admin và Quản lý cùng có quyền vận hành bài kiểm tra.
+- Tạo bài kiểm tra độc lập, không bắt buộc thuộc lớp.
+- Soạn câu hỏi trắc nghiệm 4 lựa chọn, chọn đáp án đúng.
+- Thiết lập điểm đạt, số lần làm, thời lượng, trạng thái.
+- Giao bài theo lớp: bài cuối khóa hoặc theo buổi.
+- Giao bài độc lập/đột xuất cho nhân sự được chọn.
+- Học viên chỉ thấy bài đã phát hành được giao cho mình.
+- Học viên làm và nộp bài; hệ thống tự chấm theo đáp án.
+- Kết quả lưu riêng trong Classroom.
+- Màn Bài kiểm tra gom toàn bộ đề, lần giao và lượt làm.
+
+5. LUỒNG TẠO LỚP
+- Bước “Nội dung & đánh giá” có khu chọn bài kiểm tra.
+- Có thể chọn đề sẵn có.
+- Nút “Tạo bài mới” mở khu Bài kiểm tra ở tab mới để form lớp không mất dữ liệu.
+- Tạo xong quay lại, bấm “Làm mới”, chọn đề.
+- Khi lưu lớp, hệ thống tự tạo lần giao bài ở trạng thái Bản nháp cho lớp đó.
+- Sau đó phát hành tại khu Bài kiểm tra khi sẵn sàng.
+
+6. QA NHANH
+A. Đề độc lập
+- Vào Admin/Quản lý → Classroom → Bài kiểm tra.
+- Tạo đề 2–3 câu, lưu Nháp.
+- Giao độc lập cho 1 học viên, chuyển lần giao sang Đã phát hành.
+- Đăng nhập học viên → Bài kiểm tra của tôi → làm và nộp.
+- Kiểm tra điểm và đạt/chưa đạt.
+
+B. Theo lớp
+- Tạo đề đã phát hành.
+- Giao theo một lớp đã có học viên.
+- Học viên lớp đó thấy bài; người ngoài lớp không thấy.
+
+C. Trong luồng tạo lớp
+- Tại bước Nội dung & đánh giá, chọn đề có sẵn.
+- Lưu lớp nháp.
+- Vào Bài kiểm tra, xác nhận có lần giao gắn đúng lớp ở trạng thái Nháp.
+
+7. QA KỸ THUẬT ĐÃ CHẠY
+- node --check: server.js, api/data.js, lib/classroom-tests.js, phf-classroom-app.js đạt.
+- npm start: chạy thành công.
+- /api/health: HTTP 200.
+
+8. ROLLBACK
+- Copy lại các file tương ứng từ checkpoint trước 1.21.
+- Các bảng SQL mới có thể giữ nguyên; code cũ không gọi đến.

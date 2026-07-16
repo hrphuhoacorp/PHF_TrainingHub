@@ -1,0 +1,52 @@
+PHF CLASSROOM 1.22 – PHÂN LOẠI BÀI KIỂM TRA & CHẤM TỰ LUẬN
+Nền thực hiện: checkpoint 1.21.
+
+1. FILE COPY ĐÈ
+- index.html
+- server.js
+- api/data.js
+- lib/classroom-tests.js
+- assets/js/classroom/phf-classroom-app.js
+- assets/css/phf-classroom.css
+
+2. SQL CẦN CHẠY 1 LẦN
+- scripts/phf_supabase_classroom_1_22_essay_grading.sql
+SQL chỉ bổ sung cột/index, không xóa dữ liệu cũ.
+
+3. NGHIỆP VỤ
+- 3 loại bài: Trắc nghiệm tự động, Hỗn hợp, Tự luận.
+- Câu hỏi: một đáp án, nhiều đáp án, tự luận.
+- Bài trắc nghiệm tự chấm và trả kết quả ngay.
+- Bài hỗn hợp/tự luận chuyển sang Chờ chấm sau khi nộp.
+- Khi phát hành lần giao bài có tự luận phải chỉ định người chấm.
+- Lần giao nháp tạo từ luồng tạo lớp có thể chưa chọn người chấm; phải bổ sung trước khi phát hành.
+- Admin luôn có quyền chấm; Quản lý chỉ chấm bài được chỉ định.
+- Người chấm nhập điểm từng câu, nhận xét và hoàn tất chấm.
+- Điểm cuối tính trên tổng điểm toàn bài; chỉ sau chấm mới kết luận Đạt/Chưa đạt.
+
+4. QA NHANH
+A. Trắc nghiệm tự động
+- Tạo đề chỉ có câu trắc nghiệm.
+- Giao và phát hành không yêu cầu người chấm.
+- Học viên nộp, thấy điểm và đạt/chưa đạt ngay.
+
+B. Hỗn hợp
+- Tạo đề có trắc nghiệm + tự luận.
+- Khi phát hành phải chọn người chấm.
+- Học viên nộp, thấy thông báo chờ chấm.
+- Người chấm mở Chấm bài, nhập đủ điểm tự luận, hoàn tất.
+- Kiểm tra điểm cuối và trạng thái.
+
+C. Tự luận
+- Tạo đề chỉ có tự luận.
+- Phát hành bắt buộc có người chấm.
+- Học viên nhập câu trả lời, nộp, chờ chấm.
+
+5. KIỂM TRA KỸ THUẬT ĐÃ THỰC HIỆN
+- node --check các file JS liên quan: đạt.
+- npm start: đạt.
+- /api/health: HTTP 200.
+
+6. ROLLBACK
+- Copy lại các file từ checkpoint 1.21.
+- Không cần rollback SQL; các cột bổ sung không ảnh hưởng dữ liệu cũ.

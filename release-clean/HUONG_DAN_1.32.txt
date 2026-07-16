@@ -1,0 +1,9 @@
+PHF Classroom 1.32 – Cấu hình Classroom & Thùng rác
+
+1. Copy đè toàn bộ file trong patch.
+2. Chạy SQL: scripts/phf_supabase_classroom_1_32_settings_trash.sql
+3. npm start, Ctrl+F5.
+4. Vào Admin > Classroom > Cấu hình Classroom.
+
+Có: cấu hình lớp/điểm danh/tài liệu/bài kiểm tra/đề xuất/thông báo; khôi phục mặc định; lịch sử thay đổi; Thùng rác 30 ngày; khôi phục/xóa vĩnh viễn; nút Xóa lớp chuyển vào Thùng rác.
+Không đưa .env/private/node_modules vào patch.
