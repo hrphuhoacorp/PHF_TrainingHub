@@ -1,0 +1,1724 @@
+{
+  "settings": {
+    "passScore": 80,
+    "appName": "PHF Training Hub - Local Prototype Full Flow",
+    "note": "Bản local không dùng database. Dữ liệu demo được lưu vào data.json."
+  },
+  "employees": [
+    {
+      "id": "demo-nv-001",
+      "fullName": "Nhân viên demo PHF",
+      "branch": "PL",
+      "position": "Nhân viên bán hàng mới",
+      "createdAt": "2026-06-26T03:44:06.600Z",
+      "lastActiveAt": null
+    },
+    {
+      "id": "chua-phan-chi-nhanh",
+      "fullName": "Chưa phân chi nhánh",
+      "branch": "Chưa phân chi nhánh",
+      "position": "Nhân viên bán hàng mới",
+      "birthday": "",
+      "createdAt": "2026-06-26T03:52:05.542Z",
+      "lastActiveAt": "2026-06-26T03:52:15.640Z"
+    },
+    {
+      "id": "admin-test-phf",
+      "fullName": "Admin Test PHF",
+      "branch": "Văn phòng",
+      "position": "Admin test - mở khóa toàn bộ",
+      "birthday": "",
+      "phone": "",
+      "department": "Admin/HCNS",
+      "programId": "new_sales",
+      "createdAt": "2026-06-26T15:21:49.901Z",
+      "lastActiveAt": "2026-06-26T15:21:49.901Z",
+      "studyStartDate": ""
+    }
+  ],
+  "progress": {
+    "demo-nv-001": {
+      "currentPage": "welcomePage",
+      "unlockedSteps": [
+        "welcomePage"
+      ],
+      "completedPages": [],
+      "lastUpdatedAt": null
+    },
+    "chua-phan-chi-nhanh": {
+      "currentPage": "afternoonPage",
+      "completedPages": [
+        "welcomePage",
+        "infoPage",
+        "ruleLeavePage",
+        "ruleTimePage",
+        "styleIntroPage",
+        "ruleAssetPage",
+        "ruleCleanPage",
+        "ruleLatePage",
+        "ruleFeedbackPage",
+        "cultureIntroPage",
+        "b3IntroPage",
+        "morningTestPage",
+        "afternoonPage"
+      ],
+      "unlockedSteps": [
+        "ruleLeavePage",
+        "ruleFeedbackPage",
+        "morningTestPage",
+        "afternoonPage"
+      ],
+      "lastUpdatedAt": "2026-06-26T03:52:15.640Z"
+    },
+    "admin-test-phf": {
+      "currentPage": "1Chào mừngNền tảng chung",
+      "unlockedSteps": [
+        "1Chào mừngNền tảng chung",
+        "GD3",
+        "Bước 3 - Quy trình",
+        "1Định hướngCách học 5 phần",
+        "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+        "1Tổng quan Bước 4Bước 4",
+        "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+        "21Bạn còn thắc mắc hoặc góp ý gì về phần Văn hóa không?Nền tảng chung",
+        "GD1",
+        "GD2",
+        "GD4",
+        "GD5",
+        "Bước 1 - Hội nhập",
+        "Bước 2 - CSKH & Kỹ năng",
+        "Bước 4 - Thực hành",
+        "Bước 5 - Đánh giá",
+        "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+        "16Kiểm tra phần 45 câu tình huống",
+        "20Test tổng hợp20 câu · đạt 80/100",
+        "9Test Bước 3Quy trình bán hàng",
+        "37Hoàn thành Bước 4Hoàn thành",
+        "36Kiểm tra cuối Bước 4Ngày 10",
+        "2Khách đến cửa hàngQuy trình bán hàng",
+        "5Kiểm tra phần 15 câu tình huống",
+        "8Kiểm tra phần 25 câu tình huống",
+        "12Kiểm tra phần 35 câu tình huống",
+        "19Kiểm tra tổngHoàn thành Bước 2",
+        "4Trường hợp không có hàng / hết hàng / hàng chưa bánQuy trình bán hàng",
+        "2Mục đích ban hànhNgày 1",
+        "34Chanh vàng · mận cherry · lựuNgày 10",
+        "20Bài kiểm tra tổng hợp20 câu · đạt 80/100",
+        "19Hoàn tất Bước 2Bước đệm trước đánh giá",
+        "9Kiểm tra Bước 3Quy trình bán hàng",
+        "12Bài kiểm tra phần 35 câu trắc nghiệm",
+        "16Bài kiểm tra phần 45 câu trắc nghiệm",
+        "8Kế hoạch tiếp thu trong 2 ngàyQuy trình bán hàng",
+        "3Thời gian làm việc và giờ ăn/nghỉNền tảng chung",
+        "29Dâu · việt quấtNgày 9",
+        "35Tổng ôn trái câyNgày 10",
+        "28Dưa · lêNgày 9",
+        "27Cherry Kordia · SentennialNgày 8",
+        "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+        "11Bản tổng hợp sau khi hoàn tất đánh giá thử việcKết thúc thử việc",
+        "2Trước khi học, bạn vui lòng điền thông tin sauNền tảng chung",
+        "6Theo dõi thử việc thử việc đặt riêng, không trộn vào từng bưKết thúc thử việc",
+        "7Bài họcKết thúc thử việc",
+        "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+        "2Đánh giá bằng quá trình, không chỉ bằng điểm đánh giáKết thúc thử việc",
+        "3Nhân viên được theo dõi và phản hồi theo từng giai đoạnKết thúc thử việc",
+        "4Nhân viên cũng có phần tự nhìn lại sau 2 tháng thử việcKết thúc thử việc",
+        "1Tổng kết GĐ5Kết thúc thử việc",
+        "9Phản hồi sớm sau khoảng 1 thángKết thúc thử việc"
+      ],
+      "completedPages": [
+        "GD2",
+        "step2FinalTest",
+        "Bước 2 - Đã đạt test cuối",
+        "b3IntroPage",
+        "GD1 - Admin test mở khóa",
+        "GD2 - Admin test mở khóa",
+        "GD3 - Admin test mở khóa",
+        "GD4 - Admin test mở khóa",
+        "GD5 - Admin test mở khóa",
+        "ADMIN_TEST_UNLOCK_ALL",
+        "GD4",
+        "Bước 4 - Đã đạt bài kiểm tra cuối",
+        "GD3",
+        "Bước 3 - Đã đạt bài kiểm tra"
+      ],
+      "lastUpdatedAt": "2026-06-26T15:21:49.901Z"
+    }
+  },
+  "testResults": [
+    {
+      "id": "test-1782480931161",
+      "employeeId": "admin-test-phf",
+      "page": "20Test tổng hợp20 câu · đạt 80/100",
+      "score": 80,
+      "passScore": 80,
+      "status": "Đạt",
+      "resultText": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+      "savedAt": "2026-06-26T13:35:31.160Z"
+    },
+    {
+      "id": "test-1782480947981",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:35:47.981Z"
+    },
+    {
+      "id": "test-1782481039345",
+      "employeeId": "admin-test-phf",
+      "page": "37Hoàn thành Bước 4Hoàn thành",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:37:19.345Z"
+    },
+    {
+      "id": "test-1782481057864",
+      "employeeId": "admin-test-phf",
+      "page": "20Test tổng hợp20 câu · đạt 80/100",
+      "score": 80,
+      "passScore": 80,
+      "status": "Đạt",
+      "resultText": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+      "savedAt": "2026-06-26T13:37:37.863Z"
+    },
+    {
+      "id": "test-1782481177517",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:39:37.517Z"
+    },
+    {
+      "id": "test-1782481186692",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:39:46.692Z"
+    },
+    {
+      "id": "test-1782481225045",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:40:25.044Z"
+    },
+    {
+      "id": "test-1782481581219",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:46:21.217Z"
+    },
+    {
+      "id": "test-1782481706554",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:48:26.553Z"
+    },
+    {
+      "id": "test-1782481823429",
+      "employeeId": "admin-test-phf",
+      "page": "19Kiểm tra tổngHoàn thành Bước 2",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:50:23.429Z"
+    },
+    {
+      "id": "test-1782481827115",
+      "employeeId": "admin-test-phf",
+      "page": "20Test tổng hợp20 câu · đạt 80/100",
+      "score": 80,
+      "passScore": 80,
+      "status": "Đạt",
+      "resultText": "Sau khi chọn đủ 20 câu, bấm nút bên dưới để xem kết quả. Điểm đạt yêu cầu: 80/100 điểm.",
+      "savedAt": "2026-06-26T13:50:27.113Z"
+    },
+    {
+      "id": "test-1782481830477",
+      "employeeId": "admin-test-phf",
+      "page": "19Kiểm tra tổngHoàn thành Bước 2",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:50:30.477Z"
+    },
+    {
+      "id": "test-1782482018679",
+      "employeeId": "admin-test-phf",
+      "page": "9Test Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T13:53:38.679Z"
+    },
+    {
+      "id": "test-1782482757795",
+      "employeeId": "admin-test-phf",
+      "page": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa đạt",
+      "resultText": "Anh/chị đã chọn 0/10 câu. Vui lòng chọn đủ câu trước khi chấm điểm.",
+      "savedAt": "2026-06-26T14:05:57.794Z"
+    },
+    {
+      "id": "test-1782482965635",
+      "employeeId": "admin-test-phf",
+      "page": "37Hoàn thành Bước 4Hoàn thành",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:09:25.634Z"
+    },
+    {
+      "id": "test-1782483425374",
+      "employeeId": "admin-test-phf",
+      "page": "37Hoàn thành Bước 4Hoàn thành",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:17:05.373Z"
+    },
+    {
+      "id": "test-1782485345813",
+      "employeeId": "admin-test-phf",
+      "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:49:05.812Z"
+    },
+    {
+      "id": "test-1782485352913",
+      "employeeId": "admin-test-phf",
+      "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:49:12.912Z"
+    },
+    {
+      "id": "test-1782485375172",
+      "employeeId": "admin-test-phf",
+      "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:49:35.171Z"
+    },
+    {
+      "id": "test-1782485416829",
+      "employeeId": "admin-test-phf",
+      "page": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "score": null,
+      "passScore": 80,
+      "status": "Chưa có kết quả",
+      "resultText": "",
+      "savedAt": "2026-06-26T14:50:16.827Z"
+    }
+  ],
+  "activityLog": [
+    {
+      "id": "log-1782445925542",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleLeavePage",
+      "savedAt": "2026-06-26T03:52:05.542Z"
+    },
+    {
+      "id": "log-1782445927658",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleFeedbackPage",
+      "savedAt": "2026-06-26T03:52:07.658Z"
+    },
+    {
+      "id": "log-1782445928000",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "ruleFeedbackPage",
+      "savedAt": "2026-06-26T03:52:08.000Z"
+    },
+    {
+      "id": "log-1782445929025",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "morningTestPage",
+      "savedAt": "2026-06-26T03:52:09.025Z"
+    },
+    {
+      "id": "log-1782445930225",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:10.225Z"
+    },
+    {
+      "id": "log-1782445931708",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:11.708Z"
+    },
+    {
+      "id": "log-1782445932152",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:12.152Z"
+    },
+    {
+      "id": "log-1782445933124",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:13.124Z"
+    },
+    {
+      "id": "log-1782445933808",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:13.808Z"
+    },
+    {
+      "id": "log-1782445934230",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "navigation",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:14.230Z"
+    },
+    {
+      "id": "log-1782445935640",
+      "employeeId": "chua-phan-chi-nhanh",
+      "type": "test",
+      "currentPage": "afternoonPage",
+      "savedAt": "2026-06-26T03:52:15.640Z"
+    },
+    {
+      "id": "log-1782480163797",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:22:43.797Z"
+    },
+    {
+      "id": "log-1782480166247",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:22:46.246Z"
+    },
+    {
+      "id": "log-1782480166924",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:22:46.924Z"
+    },
+    {
+      "id": "log-1782480167477",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T13:22:47.477Z"
+    },
+    {
+      "id": "log-1782480171211",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:22:51.210Z"
+    },
+    {
+      "id": "log-1782480173334",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:22:53.333Z"
+    },
+    {
+      "id": "log-1782480178677",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "21Bạn còn thắc mắc hoặc góp ý gì về phần Văn hóa không?Nền tảng chung",
+      "savedAt": "2026-06-26T13:22:58.676Z"
+    },
+    {
+      "id": "log-1782480181221",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:23:01.221Z"
+    },
+    {
+      "id": "log-1782480344522",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:25:44.521Z"
+    },
+    {
+      "id": "log-1782480348803",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:25:48.803Z"
+    },
+    {
+      "id": "log-1782480349208",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:25:49.207Z"
+    },
+    {
+      "id": "log-1782480349610",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T13:25:49.609Z"
+    },
+    {
+      "id": "log-1782480350009",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T13:25:50.008Z"
+    },
+    {
+      "id": "log-1782480350692",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:25:50.691Z"
+    },
+    {
+      "id": "log-1782480353626",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:25:53.625Z"
+    },
+    {
+      "id": "log-1782480634766",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:30:34.766Z"
+    },
+    {
+      "id": "log-1782480743713",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:32:23.713Z"
+    },
+    {
+      "id": "log-1782480752105",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:32:32.104Z"
+    },
+    {
+      "id": "log-1782480752553",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:32:32.552Z"
+    },
+    {
+      "id": "log-1782480753021",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T13:32:33.021Z"
+    },
+    {
+      "id": "log-1782480753485",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T13:32:33.484Z"
+    },
+    {
+      "id": "log-1782480753981",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:32:33.980Z"
+    },
+    {
+      "id": "log-1782480754338",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:32:34.337Z"
+    },
+    {
+      "id": "log-1782480754633",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:32:34.633Z"
+    },
+    {
+      "id": "log-1782480754924",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:32:34.923Z"
+    },
+    {
+      "id": "log-1782480885331",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:34:45.330Z"
+    },
+    {
+      "id": "log-1782480888381",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:34:48.381Z"
+    },
+    {
+      "id": "log-1782480901451",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:35:01.450Z"
+    },
+    {
+      "id": "log-1782480903663",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "16Kiểm tra phần 45 câu tình huống",
+      "savedAt": "2026-06-26T13:35:03.662Z"
+    },
+    {
+      "id": "log-1782480931161",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "20Test tổng hợp20 câu · đạt 80/100",
+      "savedAt": "2026-06-26T13:35:31.160Z"
+    },
+    {
+      "id": "log-1782480944504",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:35:44.503Z"
+    },
+    {
+      "id": "log-1782480947981",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:35:47.981Z"
+    },
+    {
+      "id": "log-1782481035468",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T13:37:15.467Z"
+    },
+    {
+      "id": "log-1782481039345",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "37Hoàn thành Bước 4Hoàn thành",
+      "savedAt": "2026-06-26T13:37:19.345Z"
+    },
+    {
+      "id": "log-1782481039935",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T13:37:19.934Z"
+    },
+    {
+      "id": "log-1782481045586",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:37:25.586Z"
+    },
+    {
+      "id": "log-1782481047782",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:37:27.781Z"
+    },
+    {
+      "id": "log-1782481054568",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "21Bạn còn thắc mắc hoặc góp ý gì về phần Văn hóa không?Nền tảng chung",
+      "savedAt": "2026-06-26T13:37:34.567Z"
+    },
+    {
+      "id": "log-1782481055277",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:37:35.277Z"
+    },
+    {
+      "id": "log-1782481057864",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "20Test tổng hợp20 câu · đạt 80/100",
+      "savedAt": "2026-06-26T13:37:37.863Z"
+    },
+    {
+      "id": "log-1782481171816",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:39:31.816Z"
+    },
+    {
+      "id": "log-1782481174794",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:39:34.793Z"
+    },
+    {
+      "id": "log-1782481177517",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:39:37.517Z"
+    },
+    {
+      "id": "log-1782481180509",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:39:40.509Z"
+    },
+    {
+      "id": "log-1782481183915",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:39:43.914Z"
+    },
+    {
+      "id": "log-1782481186692",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:39:46.692Z"
+    },
+    {
+      "id": "log-1782481219874",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:40:19.873Z"
+    },
+    {
+      "id": "log-1782481222445",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:40:22.444Z"
+    },
+    {
+      "id": "log-1782481225045",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:40:25.044Z"
+    },
+    {
+      "id": "log-1782481576054",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:46:16.053Z"
+    },
+    {
+      "id": "log-1782481578471",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:46:18.470Z"
+    },
+    {
+      "id": "log-1782481581219",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:46:21.217Z"
+    },
+    {
+      "id": "log-1782481608519",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:46:48.518Z"
+    },
+    {
+      "id": "log-1782481610318",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Khách đến cửa hàngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:46:50.317Z"
+    },
+    {
+      "id": "log-1782481611505",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:46:51.503Z"
+    },
+    {
+      "id": "log-1782481614391",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:46:54.390Z"
+    },
+    {
+      "id": "log-1782481615238",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:46:55.237Z"
+    },
+    {
+      "id": "log-1782481617389",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:46:57.388Z"
+    },
+    {
+      "id": "log-1782481618552",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:46:58.551Z"
+    },
+    {
+      "id": "log-1782481620042",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:47:00.041Z"
+    },
+    {
+      "id": "log-1782481629154",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:47:09.153Z"
+    },
+    {
+      "id": "log-1782481639516",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:47:19.515Z"
+    },
+    {
+      "id": "log-1782481641220",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "21Bạn còn thắc mắc hoặc góp ý gì về phần Văn hóa không?Nền tảng chung",
+      "savedAt": "2026-06-26T13:47:21.219Z"
+    },
+    {
+      "id": "log-1782481645152",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T13:47:25.150Z"
+    },
+    {
+      "id": "log-1782481701433",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:48:21.432Z"
+    },
+    {
+      "id": "log-1782481701567",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:48:21.565Z"
+    },
+    {
+      "id": "log-1782481706554",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:48:26.553Z"
+    },
+    {
+      "id": "log-1782481709056",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:48:29.056Z"
+    },
+    {
+      "id": "log-1782481711995",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "5Kiểm tra phần 15 câu tình huống",
+      "savedAt": "2026-06-26T13:48:31.994Z"
+    },
+    {
+      "id": "log-1782481747606",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "8Kiểm tra phần 25 câu tình huống",
+      "savedAt": "2026-06-26T13:49:07.605Z"
+    },
+    {
+      "id": "log-1782481780501",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "12Kiểm tra phần 35 câu tình huống",
+      "savedAt": "2026-06-26T13:49:40.500Z"
+    },
+    {
+      "id": "log-1782481816217",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "16Kiểm tra phần 45 câu tình huống",
+      "savedAt": "2026-06-26T13:50:16.216Z"
+    },
+    {
+      "id": "log-1782481823429",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "19Kiểm tra tổngHoàn thành Bước 2",
+      "savedAt": "2026-06-26T13:50:23.429Z"
+    },
+    {
+      "id": "log-1782481827115",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "20Test tổng hợp20 câu · đạt 80/100",
+      "savedAt": "2026-06-26T13:50:27.113Z"
+    },
+    {
+      "id": "log-1782481830477",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "19Kiểm tra tổngHoàn thành Bước 2",
+      "savedAt": "2026-06-26T13:50:30.477Z"
+    },
+    {
+      "id": "log-1782482003341",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:53:23.341Z"
+    },
+    {
+      "id": "log-1782482004984",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "4Trường hợp không có hàng / hết hàng / hàng chưa bánQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:53:24.983Z"
+    },
+    {
+      "id": "log-1782482013363",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:53:33.362Z"
+    },
+    {
+      "id": "log-1782482018679",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Test Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:53:38.679Z"
+    },
+    {
+      "id": "log-1782482024214",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T13:53:44.211Z"
+    },
+    {
+      "id": "log-1782482027675",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Mục đích ban hànhNgày 1",
+      "savedAt": "2026-06-26T13:53:47.675Z"
+    },
+    {
+      "id": "log-1782482031700",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "34Chanh vàng · mận cherry · lựuNgày 10",
+      "savedAt": "2026-06-26T13:53:51.699Z"
+    },
+    {
+      "id": "log-1782482280843",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T13:58:00.842Z"
+    },
+    {
+      "id": "log-1782482289748",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:58:09.747Z"
+    },
+    {
+      "id": "log-1782482290341",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:58:10.340Z"
+    },
+    {
+      "id": "log-1782482291255",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:58:11.254Z"
+    },
+    {
+      "id": "log-1782482294559",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "20Bài kiểm tra tổng hợp20 câu · đạt 80/100",
+      "savedAt": "2026-06-26T13:58:14.557Z"
+    },
+    {
+      "id": "log-1782482297896",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "19Hoàn tất Bước 2Bước đệm trước đánh giá",
+      "savedAt": "2026-06-26T13:58:17.894Z"
+    },
+    {
+      "id": "log-1782482311186",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:58:31.185Z"
+    },
+    {
+      "id": "log-1782482314056",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:58:34.055Z"
+    },
+    {
+      "id": "log-1782482322138",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T13:58:42.136Z"
+    },
+    {
+      "id": "log-1782482326903",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "12Bài kiểm tra phần 35 câu trắc nghiệm",
+      "savedAt": "2026-06-26T13:58:46.902Z"
+    },
+    {
+      "id": "log-1782482359196",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "20Bài kiểm tra tổng hợp20 câu · đạt 80/100",
+      "savedAt": "2026-06-26T13:59:19.195Z"
+    },
+    {
+      "id": "log-1782482371035",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "16Bài kiểm tra phần 45 câu trắc nghiệm",
+      "savedAt": "2026-06-26T13:59:31.034Z"
+    },
+    {
+      "id": "log-1782482380356",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T13:59:40.355Z"
+    },
+    {
+      "id": "log-1782482383106",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T13:59:43.105Z"
+    },
+    {
+      "id": "log-1782482519796",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "8Kế hoạch tiếp thu trong 2 ngàyQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:01:59.794Z"
+    },
+    {
+      "id": "log-1782482609744",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T14:03:29.743Z"
+    },
+    {
+      "id": "log-1782482614799",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:03:34.799Z"
+    },
+    {
+      "id": "log-1782482623033",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T14:03:43.031Z"
+    },
+    {
+      "id": "log-1782482747043",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:05:47.042Z"
+    },
+    {
+      "id": "log-1782482749663",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:05:49.662Z"
+    },
+    {
+      "id": "log-1782482751764",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T14:05:51.763Z"
+    },
+    {
+      "id": "log-1782482757795",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "9Kiểm tra Bước 3Quy trình bán hàng",
+      "savedAt": "2026-06-26T14:05:57.794Z"
+    },
+    {
+      "id": "log-1782482959304",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:09:19.302Z"
+    },
+    {
+      "id": "log-1782482961528",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T14:09:21.527Z"
+    },
+    {
+      "id": "log-1782482965635",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "37Hoàn thành Bước 4Hoàn thành",
+      "savedAt": "2026-06-26T14:09:25.634Z"
+    },
+    {
+      "id": "log-1782482967537",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T14:09:27.536Z"
+    },
+    {
+      "id": "log-1782483396133",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:16:36.132Z"
+    },
+    {
+      "id": "log-1782483397572",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "3Thời gian làm việc và giờ ăn/nghỉNền tảng chung",
+      "savedAt": "2026-06-26T14:16:37.570Z"
+    },
+    {
+      "id": "log-1782483401469",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T14:16:41.468Z"
+    },
+    {
+      "id": "log-1782483406401",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:16:46.400Z"
+    },
+    {
+      "id": "log-1782483408666",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T14:16:48.664Z"
+    },
+    {
+      "id": "log-1782483414541",
+      "employeeId": "admin-test-phf",
+      "type": "form-change",
+      "currentPage": "36Kiểm tra cuối Bước 4Ngày 10",
+      "savedAt": "2026-06-26T14:16:54.539Z"
+    },
+    {
+      "id": "log-1782483425374",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "37Hoàn thành Bước 4Hoàn thành",
+      "savedAt": "2026-06-26T14:17:05.373Z"
+    },
+    {
+      "id": "log-1782483428216",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "34Chanh vàng · mận cherry · lựuNgày 10",
+      "savedAt": "2026-06-26T14:17:08.214Z"
+    },
+    {
+      "id": "log-1782483429243",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "29Dâu · việt quấtNgày 9",
+      "savedAt": "2026-06-26T14:17:09.242Z"
+    },
+    {
+      "id": "log-1782483430685",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "35Tổng ôn trái câyNgày 10",
+      "savedAt": "2026-06-26T14:17:10.683Z"
+    },
+    {
+      "id": "log-1782483431378",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "29Dâu · việt quấtNgày 9",
+      "savedAt": "2026-06-26T14:17:11.377Z"
+    },
+    {
+      "id": "log-1782483431931",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "28Dưa · lêNgày 9",
+      "savedAt": "2026-06-26T14:17:11.929Z"
+    },
+    {
+      "id": "log-1782483432602",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "27Cherry Kordia · SentennialNgày 8",
+      "savedAt": "2026-06-26T14:17:12.602Z"
+    },
+    {
+      "id": "log-1782483436161",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:17:16.161Z"
+    },
+    {
+      "id": "log-1782483440917",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:17:20.916Z"
+    },
+    {
+      "id": "log-1782483448501",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "11Bản tổng hợp sau khi hoàn tất đánh giá thử việcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:17:28.499Z"
+    },
+    {
+      "id": "log-1782483482230",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:18:02.229Z"
+    },
+    {
+      "id": "log-1782483482599",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:18:02.598Z"
+    },
+    {
+      "id": "log-1782483483126",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T14:18:03.125Z"
+    },
+    {
+      "id": "log-1782483483748",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:18:03.746Z"
+    },
+    {
+      "id": "log-1782483486167",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T14:18:06.166Z"
+    },
+    {
+      "id": "log-1782483490398",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:18:10.397Z"
+    },
+    {
+      "id": "log-1782483493996",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T14:18:13.994Z"
+    },
+    {
+      "id": "log-1782483495098",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:18:15.096Z"
+    },
+    {
+      "id": "log-1782483495616",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:18:15.615Z"
+    },
+    {
+      "id": "log-1782483496057",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:18:16.057Z"
+    },
+    {
+      "id": "log-1782483496400",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Quy trình bán hàng PHF gồm 4 chặngQuy trình bán hàng",
+      "savedAt": "2026-06-26T14:18:16.398Z"
+    },
+    {
+      "id": "log-1782483496818",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:18:16.816Z"
+    },
+    {
+      "id": "log-1782483497205",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:18:17.205Z"
+    },
+    {
+      "id": "log-1782483497616",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng quan Bước 4Bước 4",
+      "savedAt": "2026-06-26T14:18:17.614Z"
+    },
+    {
+      "id": "log-1782483498016",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T14:18:18.015Z"
+    },
+    {
+      "id": "log-1782483498429",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:18:18.427Z"
+    },
+    {
+      "id": "log-1782483669122",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T14:21:09.120Z"
+    },
+    {
+      "id": "log-1782483675164",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Trước khi học, bạn vui lòng điền thông tin sauNền tảng chung",
+      "savedAt": "2026-06-26T14:21:15.163Z"
+    },
+    {
+      "id": "log-1782485017841",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:43:37.839Z"
+    },
+    {
+      "id": "log-1782485021852",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:43:41.851Z"
+    },
+    {
+      "id": "log-1782485023856",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Định hướngCách học 5 phần",
+      "savedAt": "2026-06-26T14:43:43.854Z"
+    },
+    {
+      "id": "log-1782485024422",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:43:44.421Z"
+    },
+    {
+      "id": "log-1782485025949",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Trước khi học, bạn vui lòng điền thông tin sauNền tảng chung",
+      "savedAt": "2026-06-26T14:43:45.947Z"
+    },
+    {
+      "id": "log-1782485030928",
+      "employeeId": "admin-test-phf",
+      "type": "form-change",
+      "currentPage": "2Trước khi học, bạn vui lòng điền thông tin sauNền tảng chung",
+      "savedAt": "2026-06-26T14:43:50.926Z"
+    },
+    {
+      "id": "log-1782485035999",
+      "employeeId": "admin-test-phf",
+      "type": "form-change",
+      "currentPage": "2Trước khi học, bạn vui lòng điền thông tin sauNền tảng chung",
+      "savedAt": "2026-06-26T14:43:55.998Z"
+    },
+    {
+      "id": "log-1782485332264",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "22Ôn lại Nội quy, Tác phong và Văn hóa PHFNền tảng chung",
+      "savedAt": "2026-06-26T14:48:52.263Z"
+    },
+    {
+      "id": "log-1782485337866",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:48:57.864Z"
+    },
+    {
+      "id": "log-1782485339836",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "6Theo dõi thử việc thử việc đặt riêng, không trộn vào từng bưKết thúc thử việc",
+      "savedAt": "2026-06-26T14:48:59.834Z"
+    },
+    {
+      "id": "log-1782485342702",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "7Bài họcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:02.700Z"
+    },
+    {
+      "id": "log-1782485345813",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:05.812Z"
+    },
+    {
+      "id": "log-1782485347036",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "6Theo dõi thử việc thử việc đặt riêng, không trộn vào từng bưKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:07.034Z"
+    },
+    {
+      "id": "log-1782485352913",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:12.912Z"
+    },
+    {
+      "id": "log-1782485366649",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "6Theo dõi thử việc thử việc đặt riêng, không trộn vào từng bưKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:26.649Z"
+    },
+    {
+      "id": "log-1782485375172",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:35.171Z"
+    },
+    {
+      "id": "log-1782485375883",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Kết thúc thử việc & định hướng chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:35.882Z"
+    },
+    {
+      "id": "log-1782485383055",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Đánh giá bằng quá trình, không chỉ bằng điểm đánh giáKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:43.054Z"
+    },
+    {
+      "id": "log-1782485391489",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "3Nhân viên được theo dõi và phản hồi theo từng giai đoạnKết thúc thử việc",
+      "savedAt": "2026-06-26T14:49:51.488Z"
+    },
+    {
+      "id": "log-1782485404265",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "4Nhân viên cũng có phần tự nhìn lại sau 2 tháng thử việcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:50:04.263Z"
+    },
+    {
+      "id": "log-1782485416829",
+      "employeeId": "admin-test-phf",
+      "type": "test",
+      "currentPage": "5Hoàn thành lộ trình học nhân viên bán hàng mớiKết thúc thử việc",
+      "savedAt": "2026-06-26T14:50:16.827Z"
+    },
+    {
+      "id": "log-1782485463844",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "2Đánh giá bằng quá trình, không chỉ bằng điểm đánh giáKết thúc thử việc",
+      "savedAt": "2026-06-26T14:51:03.843Z"
+    },
+    {
+      "id": "log-1782485881202",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T14:58:01.201Z"
+    },
+    {
+      "id": "log-1782485889573",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:09.571Z"
+    },
+    {
+      "id": "log-1782485894088",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:14.086Z"
+    },
+    {
+      "id": "log-1782485901174",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "3Nhân viên được theo dõi và phản hồi theo từng giai đoạnKết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:21.172Z"
+    },
+    {
+      "id": "log-1782485909373",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:29.371Z"
+    },
+    {
+      "id": "log-1782485910923",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:30.922Z"
+    },
+    {
+      "id": "log-1782485916356",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Phản hồi sớm sau khoảng 1 thángKết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:36.354Z"
+    },
+    {
+      "id": "log-1782485935561",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Phản hồi sớm sau khoảng 1 thángKết thúc thử việc",
+      "savedAt": "2026-06-26T14:58:55.560Z"
+    },
+    {
+      "id": "log-1782485944842",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "9Phản hồi sớm sau khoảng 1 thángKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:04.840Z"
+    },
+    {
+      "id": "log-1782485957056",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:17.054Z"
+    },
+    {
+      "id": "log-1782485976835",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:36.833Z"
+    },
+    {
+      "id": "log-1782485979353",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:39.352Z"
+    },
+    {
+      "id": "log-1782485983870",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:43.868Z"
+    },
+    {
+      "id": "log-1782485989300",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "10Tổng hợp đủ dữ liệu trước khi đề xuất ký chính thứcKết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:49.299Z"
+    },
+    {
+      "id": "log-1782485991921",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T14:59:51.919Z"
+    },
+    {
+      "id": "log-1782486015084",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T15:00:15.082Z"
+    },
+    {
+      "id": "log-1782486021589",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "1Tổng kết GĐ5Kết thúc thử việc",
+      "savedAt": "2026-06-26T15:00:21.587Z"
+    },
+    {
+      "id": "log-1782486034904",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "11Bản tổng hợp sau khi hoàn tất đánh giá thử việcKết thúc thử việc",
+      "savedAt": "2026-06-26T15:00:34.903Z"
+    },
+    {
+      "id": "log-1782486050490",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "11Bản tổng hợp sau khi hoàn tất đánh giá thử việcKết thúc thử việc",
+      "savedAt": "2026-06-26T15:00:50.489Z"
+    },
+    {
+      "id": "log-1782486093596",
+      "employeeId": "admin-test-phf",
+      "type": "navigation",
+      "currentPage": "11Bản tổng hợp sau khi hoàn tất đánh giá thử việcKết thúc thử việc",
+      "savedAt": "2026-06-26T15:01:33.595Z"
+    },
+    {
+      "id": "log-1782487309902",
+      "employeeId": "admin-test-phf",
+      "type": "page-open",
+      "currentPage": "1Chào mừngNền tảng chung",
+      "savedAt": "2026-06-26T15:21:49.901Z"
+    }
+  ]
+}
