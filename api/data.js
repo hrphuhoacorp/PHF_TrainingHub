@@ -9,6 +9,7 @@ const { listClassroomUsers } = require('../lib/classroom-users');
 const { listProposals, saveProposal, reviewProposal } = require('../lib/classroom-proposals');
 const { listNotifications, saveNotification, markNotificationRead, markAllNotificationsRead, hideNotification } = require('../lib/classroom-notifications');
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('../lib/classroom-settings');
+const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/checklist-assignments');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -118,11 +119,15 @@ module.exports = async function handler(req, res) {
             id: account.id || '',
             employeeId: account.employeeId || '',
             employeeCode: account.employeeCode || '',
+            name: account.name || '',
             email: account.email || '',
             phone: account.phone || '',
             role: account.role || 'learner',
             status: account.status || 'active',
             accountType: account.accountType || 'employee',
+            branch: account.branch || '',
+            department: account.department || '',
+            position: account.position || '',
             trainingAudience: account.trainingAudience || '',
             defaultProgram: account.defaultProgram || '',
             hubAssignmentStatus: account.hubAssignmentStatus || 'not_activated'
@@ -134,6 +139,19 @@ module.exports = async function handler(req, res) {
           scoped.hubAccounts = [];
           scoped.hubAccountsReady = false;
           scoped.hubAccountsError = 'HUB_ACCOUNT_SUMMARY_UNAVAILABLE';
+        }
+      }
+      if (session.role === 'admin' || session.role === 'manager') {
+        try {
+          const assignmentData = await listChecklistAssignments();
+          scoped.checklistAssignments = assignmentData.assignments;
+          scoped.checklistAssignmentsReady = assignmentData.ready;
+          scoped.checklistAssignmentsError = assignmentData.error;
+        } catch (assignmentError) {
+          console.warn('[PHF Checklist] assignment data unavailable', assignmentError?.message || assignmentError);
+          scoped.checklistAssignments = [];
+          scoped.checklistAssignmentsReady = false;
+          scoped.checklistAssignmentsError = assignmentError?.code || 'CHECKLIST_ASSIGNMENTS_UNAVAILABLE';
         }
       }
       return res.status(200).json(scoped);
@@ -208,6 +226,10 @@ module.exports = async function handler(req, res) {
         if(!['saveDraft','publish'].includes(action)){const e=new Error('Thao tác Classroom không hợp lệ.');e.statusCode=400;e.code='CLASSROOM_ACTION_INVALID';throw e;}
         const saved=await saveClass(session,payload.classroomClass||payload,{publish:action==='publish'});
         return res.status(action==='publish'?200:201).json({ok:true,classroomClass:saved});
+      }
+      if (payload && payload.action === 'saveChecklistAssignments') {
+        const saved = await saveChecklistAssignments(session, payload.assignments || []);
+        return res.status(200).json({ok:true,...saved});
       }
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
