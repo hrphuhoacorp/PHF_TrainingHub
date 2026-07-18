@@ -41,6 +41,13 @@
       if(!manager) btn.classList.remove('active');
     });
   }
+
+  function guardHrHomeRoute(){
+    var p=String((window.location&&window.location.pathname)||'/').replace(/\/+$/,'')||'/';
+    if(!/^\/(?:admin|ql|hv)\/home$/.test(p)) return false;
+    if(typeof window.phfRenderHrGateway==='function') window.phfRenderHrGateway(p);
+    return true;
+  }
   function setShell(){
     try{ if(typeof window.phfHideIntroAndStopAuto === 'function') window.phfHideIntroAndStopAuto(); }catch(e){}
     try{ if(typeof window.phfEnsureSharedShell === 'function') window.phfEnsureSharedShell('trainingLibrary'); }catch(e){}
@@ -88,6 +95,7 @@
   var currentStage = 0;
 
   window.phfRenderTrainingLibrary = function phfRenderTrainingLibrary(stage){
+    if(guardHrHomeRoute()) return false;
     applyMenu();
     if(!isManager()){
       alert('Khu vực Nội dung đào tạo dành cho Trưởng ca/Admin.');
@@ -366,6 +374,7 @@
     window.phfRenderTrainingLibrary(state.stage);
   };
   window.phfRenderTrainingLibrary = function(stage){
+    if(guardHrHomeRoute()) return false;
     if(!isManager()){
       if(window.phfOfficialShowInfo) window.phfOfficialShowInfo('Nội dung đào tạo','Khu vực Nội dung đào tạo dành cho Trưởng ca/Admin.');
       else alert('Khu vực Nội dung đào tạo dành cho Trưởng ca/Admin.');

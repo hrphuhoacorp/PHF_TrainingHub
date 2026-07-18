@@ -80,9 +80,13 @@
   function classroomRoot(){return document.getElementById('phfClassroomRoot');}
   function homePath(){return role()==='admin'?'/admin/classroom':(role()==='manager'?'/ql/classroom':'/hv/classroom');}
   function goHub(){
-    var target=role()==='admin'?'/admin':(role()==='manager'?'/ql':'/hv');
-    if(typeof window.phfNavigate==='function') return window.phfNavigate(target);
-    location.href=target;
+    var target=role()==='admin'?'/admin/home':(role()==='manager'?'/ql/home':'/hv/home');
+    if(typeof window.phfNavigateToHrHome==='function') return window.phfNavigateToHrHome();
+    try{
+      if(cleanPath(location.pathname)===target){ location.reload(); return false; }
+      location.assign(target);
+    }catch(e){ location.href=target; }
+    return false;
   }
   function routeGroups(){return (ROUTES[role()]||ROUTES.learner).slice();}
   function allowedPaths(){var out=[];routeGroups().forEach(function(g){g.items.forEach(function(i){if(i[2]!==false)out.push(i[0]);});});return out;}
@@ -134,8 +138,8 @@
     var showPageHeading=['/admin/classroom','/ql/classroom','/hv/classroom','/admin/classroom/lop/tao-moi'].indexOf(active)===-1;
     var heading=showPageHeading?'<div class="phfc-topline"><div class="phfc-title"><small>PHF CLASSROOM</small><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div></div>':'';
     return '<section class="phfc-shell phfc-role-'+esc(role())+'">'+
-      '<header class="phfc-header"><button class="phfc-mobile-menu-button" type="button" data-phfc-mobile-menu aria-controls="phfcMobileSidebar" aria-expanded="false" aria-label="Mở menu Classroom"><span></span><span></span><span></span></button><button class="phfc-hub-back" type="button" data-phfc-back><span class="phfc-hub-back-icon" aria-hidden="true">←</span><span class="phfc-hub-back-copy"><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button><div class="phfc-header-brand"><div class="phfc-header-brand-main"><img class="phfc-header-company-logo" src="assets/images/classroom/phuhoafresh-wordmark.png" alt="Phuhoafresh"><strong>PHF Classroom</strong><small>Quản lý đào tạo nội bộ</small></div></div><div class="phfc-header-actions"><button class="phfc-notification-button" type="button" data-phfc-notifications aria-haspopup="dialog" aria-expanded="false" aria-label="Thông báo Classroom"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="phfc-notification-badge" data-phfc-notification-badge hidden>0</span></button><button class="phfc-header-user" type="button" data-phfc-account aria-haspopup="menu" aria-expanded="false"><span><span class="phfc-greeting-prefix">Xin chào, </span><strong class="phfc-greeting-name">'+esc(name())+'</strong></span><span class="phfc-header-user-bottom"><small>'+esc(label)+'</small><span class="phfc-account-chevron" aria-hidden="true"></span></span></button></div></header>'+ 
-      '<div class="phfc-layout"><button class="phfc-mobile-backdrop" type="button" data-phfc-mobile-close aria-label="Đóng menu Classroom"></button><aside class="phfc-sidebar" id="phfcMobileSidebar" aria-label="Menu PHF Classroom"><div class="phfc-sidebar-mobile-head"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div><button class="phfc-mobile-close-button" type="button" data-phfc-mobile-close aria-label="Đóng menu">×</button></div><button class="phfc-sidebar-hub-back" type="button" data-phfc-back><span aria-hidden="true">←</span><span><strong>PHF Training Hub</strong><small>Quay lại hệ thống đào tạo</small></span></button>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
+      '<header class="phfc-header"><button class="phfc-mobile-menu-button" type="button" data-phfc-mobile-menu aria-controls="phfcMobileSidebar" aria-expanded="false" aria-label="Mở menu Classroom"><span></span><span></span><span></span></button><button class="phfc-hub-back" type="button" data-phfc-back><span class="phfc-hub-back-icon" aria-hidden="true">←</span><span class="phfc-hub-back-copy"><strong>PHF HR</strong><small>Hệ sinh thái phát triển nhân sự</small></span></button><div class="phfc-header-brand"><div class="phfc-header-brand-main"><img class="phfc-header-company-logo" src="assets/images/classroom/phuhoafresh-wordmark.png" alt="Phuhoafresh"><strong>PHF Classroom</strong><small>Quản lý đào tạo nội bộ</small></div></div><div class="phfc-header-actions"><button class="phfc-notification-button" type="button" data-phfc-notifications aria-haspopup="dialog" aria-expanded="false" aria-label="Thông báo Classroom"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="phfc-notification-badge" data-phfc-notification-badge hidden>0</span></button><button class="phfc-header-user" type="button" data-phfc-account aria-haspopup="menu" aria-expanded="false"><span><span class="phfc-greeting-prefix">Xin chào, </span><strong class="phfc-greeting-name">'+esc(name())+'</strong></span><span class="phfc-header-user-bottom"><small>'+esc(label)+'</small><span class="phfc-account-chevron" aria-hidden="true"></span></span></button></div></header>'+ 
+      '<div class="phfc-layout"><button class="phfc-mobile-backdrop" type="button" data-phfc-mobile-close aria-label="Đóng menu Classroom"></button><aside class="phfc-sidebar" id="phfcMobileSidebar" aria-label="Menu PHF Classroom"><div class="phfc-sidebar-mobile-head"><div class="phfc-sidebar-brand">'+iconImg()+'<div><strong>PHF Classroom</strong></div></div><button class="phfc-mobile-close-button" type="button" data-phfc-mobile-close aria-label="Đóng menu">×</button></div><button class="phfc-sidebar-hub-back" type="button" data-phfc-back><span aria-hidden="true">←</span><span><strong>PHF HR</strong><small>Hệ sinh thái phát triển nhân sự</small></span></button>'+navHtml(active)+'</aside><main class="phfc-main">'+heading+content+'</main></div></section>';
   }
   function emptyState(title,copy){return '<section class="phfc-card phfc-panel phfc-empty-panel"><div class="phfc-empty-icon">▦</div><h3>'+esc(title)+'</h3><p>'+esc(copy)+'</p></section>';}
   var classroomCache={loaded:false,loading:null,classes:[],error:''};
@@ -1482,7 +1486,7 @@
     }catch(e){
       console.error('[PHF Classroom] logout failed:',e);
       if(typeof window.phfNotice==='function'){
-        window.phfNotice({type:'error',title:'Chưa thể đăng xuất',message:'Vui lòng thử lại hoặc quay về PHF Training Hub để đăng xuất.'});
+        window.phfNotice({type:'error',title:'Chưa thể đăng xuất',message:'Vui lòng thử lại hoặc quay về Trang chủ PHF HR để đăng xuất.'});
       }
       return false;
     }
@@ -1495,7 +1499,7 @@
     menu.id='phfcAccountMenu';
     menu.className='phfc-account-menu';
     menu.setAttribute('role','menu');
-    menu.innerHTML='<button type="button" role="menuitem" data-phfc-account-act="hub"><span class="phfc-account-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M10 6 4 12l6 6M5 12h14"/></svg></span><span><strong>Quay lại PHF Training Hub</strong><small>Về trang chủ theo tài khoản hiện tại</small></span></button><div class="phfc-account-menu-separator" aria-hidden="true"></div><button type="button" role="menuitem" class="is-danger" data-phfc-account-act="logout"><span class="phfc-account-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M14 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-3M10 12h11M18 8l4 4-4 4"/></svg></span><span><strong>Đăng xuất</strong><small>Thoát về trang PHF Training Hub</small></span></button>';
+    menu.innerHTML='<button type="button" role="menuitem" data-phfc-account-act="hub"><span class="phfc-account-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M10 6 4 12l6 6M5 12h14"/></svg></span><span><strong>PHF HR</strong><small>Hệ sinh thái phát triển nhân sự</small></span></button><div class="phfc-account-menu-separator" aria-hidden="true"></div><button type="button" role="menuitem" class="is-danger" data-phfc-account-act="logout"><span class="phfc-account-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M14 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-3M10 12h11M18 8l4 4-4 4"/></svg></span><span><strong>Đăng xuất</strong><small>Thoát khỏi PHF HR</small></span></button>';
     document.body.appendChild(menu);
     anchor.setAttribute('aria-expanded','true');
     function place(){
@@ -1790,21 +1794,9 @@
     return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 10c4-5 9-5 13-4-1 5-4 9-10 10" fill="#58b52b"/><path d="M22 12c-2-4-5-6-8-7 0 4 2 7 7 9" fill="#93c900"/><circle cx="24" cy="19" r="8" fill="#f1c400"/><path d="M24 11v16M16 19h16M18.3 13.3l11.4 11.4M29.7 13.3L18.3 24.7" stroke="#fff" stroke-width="1.7" opacity=".95"/><path d="M8 28c6-1 11 1 16 5v10c-5-4-10-6-16-5V28Z" fill="#2c633b"/><path d="M40 28c-6-1-11 1-16 5v10c5-4 10-6 16-5V28Z" fill="#3f7b48"/><path d="M24 33v10" stroke="#fff" stroke-width="1.5"/></svg>';
   }
   function ensureHeaderIcon(){
-    if(isClassroomPath(location.pathname)) return;
-    var header=document.querySelector('.phf-site-header');if(!header)return;
-    var icons=document.querySelectorAll('#phfClassroomHeaderIcon');
-    for(var i=1;i<icons.length;i++)icons[i].remove();
-    var icon=icons[0]||null;
-    if(!icon){
-      icon=document.createElement('button');icon.id='phfClassroomHeaderIcon';icon.className='phf-classroom-header-icon';icon.type='button';
-      icon.innerHTML=iconSvg()+'<span class="phf-classroom-icon-tip">PHF Classroom</span>';
-      icon.setAttribute('aria-label','Mở PHF Classroom');icon.onclick=function(){window.phfOpenClassroom();};
-    }
-    var notif=document.getElementById('phfNotificationWrap'), login=header.querySelector('.phf-login-entry');
-    if(notif&&icon.nextSibling!==notif) header.insertBefore(icon,notif);
-    else if(!notif&&login&&icon.nextSibling!==login) header.insertBefore(icon,login);
-    else if(!icon.parentNode)header.appendChild(icon);
-    icon.style.display=user()?'inline-flex':'none';
+    /* PHF HR Gateway là điểm vào duy nhất của Classroom.
+       Không hiển thị lối tắt Classroom trong header Training Hub. */
+    document.querySelectorAll('#phfClassroomHeaderIcon').forEach(function(node){node.remove();});
     syncLearningVisibility();
   }
   function open(){var r=role();return window.phfNavigate?window.phfNavigate(r==='admin'?'/admin/classroom':(r==='manager'?'/ql/classroom':'/hv/classroom')):navigate(r==='learner'?'/classroom/my-classes':'/classroom');}

@@ -6,11 +6,8 @@ async function req(path,opts={}){const r=await fetch(base+path,opts);let j={};tr
   let x=await req('/api/health'); assert.equal(x.r.status,200,`health ${x.r.status} ${JSON.stringify(x.j)}`); assert.equal(x.j.ok,true);
   x=await req('/api/data'); assert.equal(x.r.status,401,'unauth /api/data must be 401');
   x=await req('/admin/classroom',{headers:{accept:'text/html'}}); assert.equal(x.r.status,200,`deep link shell ${x.r.status}`);
-
-  const phfHrRoutes=['/admin/home','/ql/home','/hv/home','/admin','/ql','/hv','/admin/knl','/ql/knl','/hv/knl'];
-  for(const route of phfHrRoutes){
-    x=await req(route,{headers:{accept:'text/html'}});
-    assert.equal(x.r.status,200,`phf hr deep link ${route} ${x.r.status}`);
+  for(const route of ['/admin','/ql','/hv','/admin/hub','/ql/hub','/hv/hub','/admin/knl','/ql/knl','/hv/knl']){
+    x=await req(route,{headers:{accept:'text/html'}}); assert.equal(x.r.status,200,`PHF HR route ${route} ${x.r.status}`);
   }
   const checklistAdminRoutes=[
     '/admin/checklist',

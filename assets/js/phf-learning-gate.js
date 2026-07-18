@@ -1133,6 +1133,9 @@
     });
   }
   function openLessonIndex(idx, source){
+    // Chỉ route Bài học của học viên được quyền dựng lesson shell.
+    // Callback resume cũ có thể hoàn tất sau khi router đã chuyển sang PHF HR Home.
+    if(typeof window.phfLearnerLessonSurfaceIsActive === 'function' && !window.phfLearnerLessonSurfaceIsActive()) return false;
     var lessons = getLessons();
     if(window.phfB16LearningGate && typeof window.phfB16LearningGate.ensureLearningAccess === 'function'){
       if(!window.phfB16LearningGate.ensureLearningAccess(true)) return false;
@@ -1198,6 +1201,7 @@
       profile = linkedProfile(profile || rawSavedProfile());
       var out = oldOpenLearner.apply(this, [profile]);
       setTimeout(function(){
+        if(typeof window.phfLearnerLessonSurfaceIsActive === 'function' && !window.phfLearnerLessonSurfaceIsActive()) return;
         profile = linkedProfile(profile);
         var idx = resolveResumeIndex(profile);
         openLessonIndex(idx, 'phone-resume-16A');

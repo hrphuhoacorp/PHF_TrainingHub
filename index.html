@@ -2236,6 +2236,9 @@ window.__phfBootGuardTimer=setTimeout(function(){
 .phf-route-copy-chip{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 12px;margin-left:8px;border:1px solid #b9d7ca;border-radius:999px;background:#fff;color:#07543e;font:600 13px/1.2 "Segoe UI",Arial,sans-serif;cursor:pointer;white-space:nowrap}.phf-route-copy-chip:hover{background:#edf7f2}.phf-route-modal{position:fixed;inset:0;z-index:100500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,34,27,.48);font-family:"Segoe UI",Arial,sans-serif}.phf-route-modal-card{width:min(440px,100%);padding:24px;border:1px solid #d8e8e0;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(6,52,39,.22);color:#17382d}.phf-route-modal-mark{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;margin-bottom:14px;border-radius:14px;background:#edf7f2;color:#07543e;font-weight:750}.phf-route-modal-card h3{margin:0 0 8px;font-size:20px}.phf-route-modal-card p{margin:0;color:#557067;line-height:1.55;overflow-wrap:anywhere}.phf-route-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.phf-route-modal-actions button{min-height:38px;padding:8px 14px;border:1px solid #cbded5;border-radius:10px;background:#fff;color:#17382d;font:600 14px "Segoe UI",Arial,sans-serif;cursor:pointer}.phf-route-modal-actions button.primary{border-color:#07543e;background:#07543e;color:#fff}.phf-route-copy-text{margin-top:12px!important;padding:12px;border:1px solid #d8e8e0;border-radius:10px;background:#f7faf8;color:#17382d!important;user-select:all;cursor:text}@media(max-width:760px){.phf-route-copy-chip{margin-left:0;margin-top:8px}.phf-route-modal-actions{flex-direction:column-reverse}.phf-route-modal-actions button{width:100%}}
 </style>
   <link rel="stylesheet" href="assets/css/phf-classroom.css?v=1.33.5">
+  <link rel="stylesheet" href="assets/css/phf-checklist.css?v=1.7.68_people_cards_compact_color">
+  <link rel="stylesheet" href="assets/css/phf-hr-home.css?v=1.7.19_home_route_timeline">
+  <link rel="stylesheet" href="assets/css/phf-knl.css?v=1.7.15_placeholder">
 
 <!-- PHF BẢN 40.1: chặn lóe màn cũ trước khi router khôi phục route F5 -->
 <style id="phf-route-boot-guard-css">
@@ -2829,10 +2832,28 @@ window.__phfBootGuardTimer=setTimeout(function(){
 @keyframes phfTargetArrived{0%{box-shadow:0 0 0 0 rgba(7,84,62,.22)}35%{box-shadow:0 0 0 5px rgba(7,84,62,.11)}100%{box-shadow:0 0 0 0 rgba(7,84,62,0)}}
 @media(prefers-reduced-motion:reduce){.phf-target-arrived{animation:none}}
 </style>
+
+<style id="phf-hub-to-hr-css">
+/* 1.7.20: điều hướng cấp hệ sinh thái, không thay đổi route nghiệp vụ Hub. */
+.phf-hub-to-hr{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:9px;min-height:46px;
+  padding:6px 11px 6px 7px;border:1px solid #d4e5dd;border-radius:13px;
+  background:#f8fbf9;color:#07543e;font-family:Arial,Helvetica,system-ui,sans-serif;
+  text-align:left;cursor:pointer;box-shadow:none;transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.phf-hub-to-hr:hover{background:#eef7f3;border-color:#a9cfc0;transform:translateY(-1px)}
+.phf-hub-to-hr:focus-visible{outline:3px solid rgba(7,84,62,.18);outline-offset:2px}
+.phf-hub-to-hr-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#fff;border:1px solid #cfe3da;font-size:18px;line-height:1;color:#087158}
+.phf-hub-to-hr-copy{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.phf-hub-to-hr-copy strong{font-size:13.5px;font-weight:700;white-space:nowrap;color:#07543e}
+.phf-hub-to-hr-copy small{margin-top:3px;font-size:10.5px;font-weight:400;white-space:nowrap;color:#708179}
+@media(max-width:1100px){.phf-hub-to-hr-copy small{display:none}.phf-hub-to-hr{padding-right:8px}}
+@media(max-width:760px){.phf-hub-to-hr{min-height:40px;padding:4px 8px 4px 5px;border-radius:11px}.phf-hub-to-hr-icon{width:30px;height:30px}.phf-hub-to-hr-copy strong{font-size:12.5px}}
+</style>
 </head>
 <body class="phf-intro-active">
 
-<section id="introSection" class="phf-feature-intro-section" aria-label="Trang chủ chưa đăng nhập PHF Training Hub">
+<section id="introSection" class="phf-feature-intro-section" aria-label="Trang chủ chưa đăng nhập PHF HR">
   <main class="phf-official-intro-wrap">
     <header class="phf-official-intro-topbar">
       <div class="phf-official-intro-brand">
@@ -2841,8 +2862,8 @@ window.__phfBootGuardTimer=setTimeout(function(){
         </div>
         <div class="phf-official-intro-divider"></div>
         <div class="phf-official-intro-brand-copy">
-          <strong>Training Hub</strong>
-          <span>Cổng đào tạo nội bộ</span>
+          <strong>PHF HR</strong>
+          <span>Hệ thống phát triển nhân sự</span>
         </div>
       </div>
       <button class="phf-official-intro-login" type="button" data-intro-start>
@@ -2852,74 +2873,74 @@ window.__phfBootGuardTimer=setTimeout(function(){
     </header>
 
     <section class="phf-official-intro-hero">
-      <div class="phf-official-story" aria-label="Giới thiệu PHF Training Hub">
+      <div class="phf-official-story" aria-label="Giới thiệu PHF HR">
         <article class="phf-official-scene">
           <div class="phf-official-eyebrow">Bắt đầu</div>
-          <h1>PHUHOA FRESH <span>Training Hub</span></h1>
-          <p>Cổng đào tạo nội bộ dành cho nhân viên PHUHOA FRESH.</p>
+          <h1>PHUHOA FRESH <span>PHF HR</span></h1>
+          <p>Hệ thống phát triển nhân sự dành cho toàn bộ đội ngũ PHUHOA FRESH.</p>
         </article>
 
         <article class="phf-official-scene">
-          <div class="phf-official-eyebrow">Đăng nhập đơn giản</div>
-          <h2>Vào đúng lộ trình học của bạn.</h2>
-          <p>Người học đăng nhập để xem nội dung cần hoàn thành, hồ sơ học tập và tiến độ hiện tại.</p>
+          <div class="phf-official-eyebrow">Một tài khoản chung</div>
+          <h2>Truy cập đúng khu vực công việc của bạn.</h2>
+          <p>Đăng nhập một lần để sử dụng Training Hub, Classroom, Checklist và Khung năng lực theo quyền được giao.</p>
         </article>
 
         <article class="phf-official-scene">
-          <div class="phf-official-eyebrow">Theo dõi tiến độ</div>
-          <h2>Tiến độ học được ghi nhận <span>minh bạch.</span></h2>
-          <p>Training Hub giúp học viên và quản lý cùng nhìn rõ phần đã hoàn thành, phần đang học và việc cần xử lý.</p>
+          <div class="phf-official-eyebrow">Đào tạo đồng bộ</div>
+          <h2>Từ hội nhập đến <span>đào tạo nội bộ.</span></h2>
+          <p>Training Hub và Classroom hỗ trợ lộ trình nhân sự mới, lớp học, tài liệu, điểm danh và bài kiểm tra.</p>
         </article>
 
         <article class="phf-official-scene">
-          <div class="phf-official-eyebrow">Kiểm tra sau đào tạo</div>
-          <h2>Kiểm tra là luồng chung cho nhiều vị trí.</h2>
-          <p>Có thể dùng cho bán hàng, kho, gói quà, online hoặc các chương trình đào tạo nội bộ khác.</p>
+          <div class="phf-official-eyebrow">Theo dõi công việc</div>
+          <h2>Tuân thủ được ghi nhận rõ ràng, <span>minh bạch.</span></h2>
+          <p>Checklist giúp phân công mẫu, ghi nhận lỗi, giải trình, theo dõi điểm và đánh giá công việc hằng tháng.</p>
         </article>
 
         <article class="phf-official-scene">
-          <div class="phf-official-eyebrow">Quản lý đồng hành</div>
-          <h2>Trưởng ca và Quản trị dễ theo dõi hơn.</h2>
-          <p>Tổng quan, báo cáo và hồ sơ đánh giá giúp người quản lý nhận biết các nội dung cần hỗ trợ, nhắc nhở và hoàn tất.</p>
+          <div class="phf-official-eyebrow">Phát triển dài hạn</div>
+          <h2>Năng lực được đánh giá để <span>tiếp tục tiến bộ.</span></h2>
+          <p>Khung năng lực giúp xác định mức độ đáp ứng, khoảng trống cần cải thiện và kế hoạch phát triển phù hợp.</p>
         </article>
 
         <article class="phf-official-scene">
           <div class="phf-official-eyebrow">Sẵn sàng</div>
-          <h2>Đăng nhập để bắt đầu chương trình đào tạo.</h2>
-          <p>Hoàn thành từng bước với tinh thần nghiêm túc, chủ động và cầu tiến.</p>
-          <div class="phf-official-chips"><span>Bài học</span><span>Tiến độ</span><span>Kiểm tra</span><span>Đánh giá</span></div>
+          <h2>Đăng nhập để bắt đầu hành trình phát triển tại PHUHOA FRESH.</h2>
+          <p>Mỗi hệ thống là một phần của quá trình học tập, thực hiện công việc và nâng cao năng lực liên tục.</p>
+          <div class="phf-official-chips"><span>Training Hub</span><span>Classroom</span><span>Checklist</span><span>Khung năng lực</span></div>
         </article>
       </div>
 
-      <aside class="phf-official-mockup-shell" aria-label="Minh họa chức năng Training Hub">
+      <aside class="phf-official-mockup-shell" aria-label="Minh họa các hệ thống PHF HR">
         <div class="phf-official-mockup">
           <div class="phf-official-mockup-head">
             <div class="phf-official-mockup-title">
               <span class="phf-official-dots"><i></i><i></i><i></i></span>
-              <span>Training Hub</span>
+              <span>PHF HR</span>
             </div>
-            <span class="phf-official-tag">Đào tạo nội bộ</span>
+            <span class="phf-official-tag">Phát triển nhân sự</span>
           </div>
           <div class="phf-official-cards">
             <article class="phf-official-card">
-              <div class="phf-official-card-top"><div class="phf-official-icon">▶</div><span class="phf-official-pill">Lộ trình</span></div>
-              <strong>Bài học</strong>
-              <p>Học theo từng giai đoạn và tiếp tục đúng phần đang học.</p>
+              <div class="phf-official-card-top"><div class="phf-official-icon">▶</div><span class="phf-official-pill">Hội nhập</span></div>
+              <strong>Đào tạo</strong>
+              <p>Hội nhập, học theo lộ trình và phát triển kiến thức cần thiết.</p>
             </article>
             <article class="phf-official-card">
-              <div class="phf-official-card-top"><div class="phf-official-icon">✓</div><span class="phf-official-pill">Theo dõi</span></div>
-              <strong>Tiến độ</strong>
-              <p>Theo dõi nội dung đã hoàn tất và việc cần làm tiếp theo.</p>
+              <div class="phf-official-card-top"><div class="phf-official-icon">✓</div><span class="phf-official-pill">Lớp học</span></div>
+              <strong>Classroom</strong>
+              <p>Quản lý lớp học, tài liệu, điểm danh và bài kiểm tra nội bộ.</p>
             </article>
             <article class="phf-official-card">
-              <div class="phf-official-card-top"><div class="phf-official-icon">?</div><span class="phf-official-pill">Củng cố</span></div>
-              <strong>Kiểm tra</strong>
-              <p>Củng cố kiến thức sau đào tạo và ghi nhận kết quả cần thiết.</p>
+              <div class="phf-official-card-top"><div class="phf-official-icon">?</div><span class="phf-official-pill">Tuân thủ</span></div>
+              <strong>Checklist</strong>
+              <p>Theo dõi tuân thủ, ghi nhận công việc và đánh giá hằng tháng.</p>
             </article>
             <article class="phf-official-card">
-              <div class="phf-official-card-top"><div class="phf-official-icon">★</div><span class="phf-official-pill">Hỗ trợ</span></div>
-              <strong>Đánh giá</strong>
-              <p>Quản lý theo dõi, đánh giá và hỗ trợ nhân viên trong quá trình học.</p>
+              <div class="phf-official-card-top"><div class="phf-official-icon">★</div><span class="phf-official-pill">Phát triển</span></div>
+              <strong>Khung năng lực</strong>
+              <p>Đánh giá năng lực và xây dựng kế hoạch phát triển nhân sự.</p>
             </article>
           </div>
         </div>
@@ -2957,10 +2978,11 @@ window.__phfBootGuardTimer=setTimeout(function(){
 
 <div class="app">
   <header class="topbar phf-site-header">
-    <button type="button" class="brand phf-logo-home" onclick="phfGoIntroWelcome()" title="Về trang giới thiệu PHF"><div class="logo"><img src="assets/logo/phf-logo.png" alt="Phuhoa Fresh" onerror="this.style.display='none';this.closest('.logo,.phf-intro-brand,.phf-phone-entry-head,.phf-role-dialog-brand,.phf-print-logo')?.classList.add('phf-logo-fallback')"></div><div><h1>PHF Training Hub</h1><p>Cổng đào tạo nội bộ PHUHOA FRESH</p></div></button>
+    <button type="button" class="phf-hub-to-hr" onclick="return window.phfNavigateToHrHome?window.phfNavigateToHrHome():(window.location.href=(location.pathname.indexOf('/admin')===0?'/admin/home':(location.pathname.indexOf('/ql')===0?'/ql/home':'/hv/home')),false)" title="Về hệ sinh thái PHF HR" aria-label="Về PHF HR"><span class="phf-hub-to-hr-icon" aria-hidden="true">←</span><span class="phf-hub-to-hr-copy"><strong>PHF HR</strong><small>Hệ sinh thái phát triển nhân sự</small></span></button>
+    <button type="button" class="brand phf-logo-home" onclick="phfNavigate((window.phfGetRoleHubPath&&window.phfGetRoleHubPath())||'/hv')" title="Về Trang chủ Training Hub"><div class="logo"><img src="assets/logo/phf-logo.png" alt="Phuhoa Fresh" onerror="this.style.display='none';this.closest('.logo,.phf-intro-brand,.phf-phone-entry-head,.phf-role-dialog-brand,.phf-print-logo')?.classList.add('phf-logo-fallback')"></div><div><h1>PHF Training Hub</h1><p>Cổng đào tạo nội bộ PHUHOA FRESH</p></div></button>
     <button class="phf-mobile-menu-toggle phf-app-menu-toggle" type="button" aria-expanded="false" aria-label="Mở menu điều hướng">☰ Menu</button>
     <nav class="phf-main-nav phf-nav-preparing" aria-label="Điều hướng chính">
-      <button type="button" data-phf-main-nav="intro" onclick="phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv')">Trang chủ</button>
+      <button type="button" data-phf-main-nav="intro" onclick="phfNavigate((window.phfGetRoleHubPath&&window.phfGetRoleHubPath())||'/hv')">Trang chủ</button>
       <button type="button" data-phf-main-nav="workspace" style="display:none">Khu chức năng</button>
       <button type="button" class="active" data-phf-main-nav="learning" onclick="phfNavigate('/hv/bai-hoc')">Bài học</button>
       <button type="button" data-phf-main-nav="profile" onclick="phfNavigate('/hv/ho-so')">Hồ sơ</button>
@@ -2984,58 +3006,36 @@ window.__phfBootGuardTimer=setTimeout(function(){
   </div>
 </div>
 
-<!-- PHF Classroom dùng shell riêng, ngang cấp với Training Hub app. -->
+<!-- PHF Classroom và PHF Checklist dùng shell riêng, ngang cấp với Training Hub app. -->
 <script>
-/* PHF Classroom 59.2: mount-first shell controller, URL là nguồn trạng thái. */
 (function(){
   'use strict';
-  var HUB_TITLE = document.title || 'PHF Training Hub';
-  function cleanPath(v){
-    var p=String(v||location.pathname||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
-    if(p.length>1) p=p.replace(/\/$/,'');
-    return p||'/';
+  var HUB_TITLE=document.title||'PHF Training Hub';
+  function cleanPath(v){var p=String(v||location.pathname||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');if(p.length>1)p=p.replace(/\/$/,'');return p||'/';}
+  function shellFor(path){
+    path=cleanPath(path);
+    if(/^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(path))return 'classroom';
+    if(/^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(path))return 'checklist';
+    if(/^\/(?:admin|ql|hv)\/knl(?:\/|$)/.test(path))return 'knl';
+    if(/^\/(?:admin|ql|hv)\/home$/.test(path))return 'hr';
+    return 'hub';
   }
-  function isClassroom(path){ return /^\/(?:classroom|admin\/classroom|ql\/classroom|hv\/classroom)(?:\/|$)/.test(cleanPath(path)); }
-  function sync(path, options){
-    options=options||{};
-    var active=isClassroom(path||location.pathname);
-    var html=document.documentElement, body=document.body;
-    var app=document.querySelector('body > .app');
-    var root=document.getElementById('phfClassroomRoot');
-    html.classList.toggle('phf-classroom-route',active);
-    if(body){
-      body.classList.toggle('phf-classroom-mode',active);
-      if(active) body.classList.remove('phf-mobile-open','phf-intro-active');
-    }
-    if(app){
-      app.hidden=active;
-      app.style.display=active?'none':'';
-      app.setAttribute('aria-hidden',active?'true':'false');
-      try{app.inert=active;}catch(e){}
-    }
-    if(root){
-      root.hidden=!active;
-      root.style.display=active?'block':'none';
-      root.setAttribute('aria-hidden',active?'false':'true');
-      try{root.inert=!active;}catch(e){}
-      if(!active && options.clear!==false && root.childNodes.length) root.replaceChildren();
-    }
-    if(!active && options.restoreTitle!==false) document.title=HUB_TITLE;
-    return active;
+  function sync(path,options){
+    options=options||{};var shell=shellFor(path||location.pathname);var html=document.documentElement,body=document.body;
+    var app=document.querySelector('body > .app');var hr=document.getElementById('phfHrRoot');var classroom=document.getElementById('phfClassroomRoot');var checklist=document.getElementById('phfChecklistRoot');var knl=document.getElementById('phfKnlRoot');
+    html.classList.toggle('phf-hr-route',shell==='hr');html.classList.toggle('phf-classroom-route',shell==='classroom');html.classList.toggle('phf-checklist-route',shell==='checklist');html.classList.toggle('phf-knl-route',shell==='knl');
+    if(body){body.classList.toggle('phf-hr-mode',shell==='hr');body.classList.toggle('phf-hr-gateway-mode',shell==='hr');body.classList.toggle('phf-classroom-mode',shell==='classroom');body.classList.toggle('phf-checklist-mode',shell==='checklist');body.classList.toggle('phf-knl-mode',shell==='knl');if(shell!=='hub')body.classList.remove('phf-mobile-open','phf-intro-active');}
+    if(app){app.hidden=shell!=='hub';app.style.display=shell==='hub'?'':'none';app.setAttribute('aria-hidden',shell==='hub'?'false':'true');try{app.inert=shell!=='hub';}catch(e){}}
+    [[hr,'hr'],[classroom,'classroom'],[checklist,'checklist'],[knl,'knl']].forEach(function(pair){var root=pair[0],name=pair[1];if(!root)return;var active=shell===name;root.hidden=!active;root.style.display=active?'block':'none';root.setAttribute('aria-hidden',active?'false':'true');try{root.inert=!active;}catch(e){}if(!active&&options.clear!==false&&root.childNodes.length)root.replaceChildren();});
+    if(shell==='hub'&&options.restoreTitle!==false)document.title=HUB_TITLE;return shell;
   }
-  window.PHFAppShell={
-    version:'59.2',
-    cleanPath:cleanPath,
-    isClassroomRoute:isClassroom,
-    syncFromRoute:sync,
-    activateHub:function(options){return sync('/',options);},
-    activateClassroom:function(path){return sync(path||'/classroom',{clear:false,restoreTitle:false});},
-    getActiveShell:function(){return isClassroom(location.pathname)?'classroom':'hub';},
-    getHubTitle:function(){return HUB_TITLE;}
-  };
+  window.PHFAppShell={version:'1.7.17',cleanPath:cleanPath,isHrRoute:function(p){return shellFor(p)==='hr';},isClassroomRoute:function(p){return shellFor(p)==='classroom';},isChecklistRoute:function(p){return shellFor(p)==='checklist';},isKnlRoute:function(p){return shellFor(p)==='knl';},syncFromRoute:sync,activateHr:function(options){return sync(location.pathname,options||{clear:false,restoreTitle:false});},activateHub:function(options){if(shellFor(location.pathname)==='hr')return 'hr';var r=(window.phfGetSessionRole&&window.phfGetSessionRole())||'learner';var path=r==='admin'?'/admin':(r==='manager'?'/ql':'/hv');return sync(path,options);},activateClassroom:function(path){return sync(path||'/classroom',{clear:false,restoreTitle:false});},activateChecklist:function(path){return sync(path||'/admin/checklist',{clear:false,restoreTitle:false});},activateKnl:function(path){return sync(path||'/admin/knl',{clear:false,restoreTitle:false});},getActiveShell:function(){return shellFor(location.pathname);},getHubTitle:function(){return HUB_TITLE;}};
 })();
 </script>
+<div id="phfHrRoot" class="phf-hr-root" hidden aria-live="polite"></div>
 <div id="phfClassroomRoot" class="phf-classroom-root" hidden aria-live="polite"></div>
+<div id="phfChecklistRoot" class="phf-checklist-root" hidden aria-live="polite"></div>
+<div id="phfKnlRoot" class="phf-knl-root" hidden aria-live="polite"></div>
 
 <script>
 const SHOW_COMPANY_INTRO = true;
@@ -3053,7 +3053,7 @@ function phfGoIntroWelcome(){
   let hasRole = false;
   try{ hasRole = (typeof window.phfHasAuthenticatedSession === 'function') ? !!window.phfHasAuthenticatedSession() : false; }catch(e){}
   if(hasRole){
-    if(typeof window.phfNavigate === 'function') return window.phfNavigate('/home', true);
+    if(typeof window.phfNavigate === 'function') return window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv/home', true);
     return false;
   }
   const intro = document.getElementById('introSection');
@@ -3168,8 +3168,8 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-evaluation.js?v=62.28_single_hub_source"></script>
-<script src="assets/js/phf-learner-app.js?v=62.31_stable_session_data_owner"></script>
+<script src="assets/js/phf-evaluation.js?v=62.28_checklist_admin_entry_1_6_7"></script>
+<script src="assets/js/phf-learner-app.js?v=62.32_hr_home_route_guard"></script>
 <script src="assets/js/phf-training-records.js?v=62.32_training_scope_source"></script>
 <script src="assets/js/phf-notifications.js?v=27_1_ui_system_polish_1"></script>
 <script src="assets/js/phf-progress-profile.js?v=61.3_perf_guard"></script>
@@ -3723,7 +3723,7 @@ function render(){
     var test = nav.querySelector('[data-phf-main-nav="directTrainingTest"]');
 
     setButton(intro, true, 'Trang chủ', function(){
-      if(typeof window.phfNavigate === 'function') window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv');
+      if(typeof window.phfNavigate === 'function') window.phfNavigate((window.phfGetRoleHubPath&&window.phfGetRoleHubPath())||'/hv');
     });
 
     if(role === 'learner'){
@@ -4185,18 +4185,20 @@ function render(){
 </script>
 
 
-<script src="assets/js/phf-training-library.js?v=62.34"></script>
+<script src="assets/js/phf-training-library.js?v=1.7.19_home_route_guard"></script>
 <script src="assets/js/phf-forms-library.js?v=27_6_11_forms_library"></script>
 
   
 
 
-<script src="assets/js/phf-learning-gate.js?v=62.3_next_lesson_popup"></script>
+<script src="assets/js/phf-learning-gate.js?v=62.4_hr_home_resume_guard"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
 <script src="assets/js/phf-account-admin-safe.js?v=62.27_training_scope_required"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="assets/js/phf-url-router.js?v=62.36"></script>
-<script src="assets/js/phf-server-auth.js?v=62.31_stable_session_data_owner"></script>
+<script src="assets/js/phf-hr-home.js?v=1.7.22_click_cache_fix"></script>
+<script src="assets/js/knl/phf-knl-app.js?v=1.7.15_placeholder"></script>
+<script src="assets/js/phf-url-router.js?v=1.7.49_checklist_history_route"></script>
+<script src="assets/js/phf-server-auth.js?v=1.7.17_home_route"></script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){
@@ -4252,7 +4254,7 @@ function render(){
     try{
       document.querySelectorAll('.phf-test-login-help summary').forEach(function(el){ el.textContent='Hỗ trợ đăng nhập'; });
       document.querySelectorAll('.phf-login-note').forEach(function(el){
-        el.textContent='Quên mật khẩu hoặc chưa có tài khoản? Vui lòng liên hệ Admin/Quản lý để được hỗ trợ.';
+        el.textContent='Quên mật khẩu hoặc chưa được cấp quyền? Vui lòng liên hệ Admin PHF HR để được hỗ trợ.';
       });
       document.querySelectorAll('.phf-test-login-quick').forEach(function(el){ el.hidden=true; });
     }catch(e){}
@@ -4532,7 +4534,9 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/classroom/phf-classroom-app.js?v=1.33.4"></script>
+<script src="assets/js/classroom/phf-classroom-app.js?v=1.7.22_click_cache_fix"></script>
+<script src="assets/vendor/xlsx.full.min.js?v=0.18.5_phf_local"></script>
+<script src="assets/js/checklist/phf-checklist-app.js?v=1.7.67_people_cards_manager_edit"></script>
 <script src="assets/js/phf-app-bootstrap.js?v=1.0.0_single_owner"></script>
 
 

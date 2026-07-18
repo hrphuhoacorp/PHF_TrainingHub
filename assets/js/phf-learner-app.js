@@ -551,6 +551,27 @@ async function phfWaitForStableRouteIdentity(){
   return identity;
 }
 
+
+function phfHubSurfaceIsActive(){
+  var path = String((window.location && window.location.pathname) || '/').toLowerCase();
+  // PHF HR Home, Checklist, Classroom và Khung năng lực là các bề mặt độc lập.
+  // Không để callback/timer cũ của Training Hub render đè lên các route này.
+  if(/^\/(?:admin|ql|hv)\/(?:home|knl|checklist|classroom)(?:\/|$)/.test(path)) return false;
+  try{
+    if(window.PHFAppShell && typeof window.PHFAppShell.getActiveShell === 'function'){
+      return window.PHFAppShell.getActiveShell() === 'hub';
+    }
+  }catch(e){}
+  return true;
+}
+window.phfHubSurfaceIsActive = phfHubSurfaceIsActive;
+
+function phfLearnerLessonSurfaceIsActive(){
+  var path = String((window.location && window.location.pathname) || '/').toLowerCase();
+  return path === '/hv/bai-hoc';
+}
+window.phfLearnerLessonSurfaceIsActive = phfLearnerLessonSurfaceIsActive;
+
 function phfResetTrainingRuntime(reason){
   window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
   window.__phfTrainingDataActiveSessionKey = '';
@@ -1623,6 +1644,7 @@ function phfGetLessonVisual(l){
 }
 
 function render(){
+  if(!phfHubSurfaceIsActive() || !phfLearnerLessonSurfaceIsActive()) return false;
   // Stage 3.12.3: mọi đường vào học đều phải đi qua cùng khung học chuẩn.
   // Khung học chuẩn = GĐ1–GĐ5 + Bạn đang ở + 3 cột Việc cần làm / Nội dung bài học / Tiến độ.
   try{
@@ -1757,6 +1779,7 @@ function render(){
   phfApplyLessonScrollAfterRender();
 }
 function go(i){
+  if(!phfHubSurfaceIsActive() || !phfLearnerLessonSurfaceIsActive()) return false;
   if(i<0||i>=LESSONS.length) return;
   try{ phfSaveCurrentLessonScrollNow(); }catch(e){}
   phfRequestLessonScroll('navigation','#mainLesson');

@@ -3,7 +3,7 @@
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '59.9-phf-hr-gateway';
+  var ROUTER_VERSION = '59.8-checklist-admin-routes';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -158,26 +158,19 @@
   }
   function safeHomeForRole(){
     var currentRole=role();
-    if(currentRole==='admin') return '/admin/home';
-    if(currentRole==='manager') return '/ql/home';
-    return '/hv/home';
-  }
-  function safeHubHomeForRole(){
-    var currentRole=role();
     if(currentRole==='admin') return '/admin';
     if(currentRole==='manager') return '/ql';
     return '/hv';
   }
   window.phfGetRoleHomePath=safeHomeForRole;
-  window.phfGetRoleHubPath=safeHubHomeForRole;
   /* Route Registry là nguồn duy nhất mô tả namespace, role và screen owner.
      Không dùng chung /ql cho Admin; mỗi route gốc có một nghĩa cố định. */
   var ROUTE_REGISTRY=Object.freeze({
     '/':Object.freeze({area:'public',screen:'home',roles:[]}),
     '/login':Object.freeze({area:'public',screen:'login',roles:[]}),
 
-    '/hv':Object.freeze({area:'learner',screen:'hub-home',roles:['learner']}),
-    '/hv/home':Object.freeze({area:'learner',screen:'hr-home',roles:['learner']}),
+    '/hv':Object.freeze({area:'learner',screen:'home',roles:['learner']}),
+    '/hv/hub':Object.freeze({area:'learner',screen:'hub-home',roles:['learner']}),
     '/hv/knl':Object.freeze({area:'learner',screen:'knl-home',roles:['learner']}),
     '/hv/bai-hoc':Object.freeze({area:'learner',screen:'learning',roles:['learner']}),
     '/hv/ho-so':Object.freeze({area:'learner',screen:'profile',roles:['learner']}),
@@ -189,8 +182,8 @@
     '/hv/classroom/ket-qua':Object.freeze({area:'learner',screen:'classroom-results',roles:['learner']}),
     '/hv/classroom/de-xuat':Object.freeze({area:'learner',screen:'classroom-proposals',roles:['learner']}),
 
-    '/ql':Object.freeze({area:'manager',screen:'hub-home',roles:['manager']}),
-    '/ql/home':Object.freeze({area:'manager',screen:'hr-home',roles:['manager']}),
+    '/ql':Object.freeze({area:'manager',screen:'home',roles:['manager']}),
+    '/ql/hub':Object.freeze({area:'manager',screen:'hub-home',roles:['manager']}),
     '/ql/knl':Object.freeze({area:'manager',screen:'knl-home',roles:['manager']}),
     '/ql/quan-ly':Object.freeze({area:'manager',screen:'workspace',roles:['manager']}),
     '/ql/hoc-vien':Object.freeze({area:'manager',screen:'learners',roles:['manager']}),
@@ -211,8 +204,8 @@
     '/ql/classroom/bao-cao':Object.freeze({area:'manager',screen:'classroom-reports',roles:['manager']}),
     '/ql/classroom/thong-bao':Object.freeze({area:'manager',screen:'classroom-notifications',roles:['manager']}),
 
-    '/admin':Object.freeze({area:'admin',screen:'hub-home',roles:['admin']}),
-    '/admin/home':Object.freeze({area:'admin',screen:'hr-home',roles:['admin']}),
+    '/admin':Object.freeze({area:'admin',screen:'home',roles:['admin']}),
+    '/admin/hub':Object.freeze({area:'admin',screen:'hub-home',roles:['admin']}),
     '/admin/knl':Object.freeze({area:'admin',screen:'knl-home',roles:['admin']}),
     '/admin/quan-tri':Object.freeze({area:'admin',screen:'workspace',roles:['admin']}),
     '/admin/quan-tri/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
@@ -229,7 +222,6 @@
     '/admin/checklist/viec-can-xu-ly':Object.freeze({area:'admin',screen:'checklist-tasks',roles:['admin']}),
     '/admin/checklist/phieu-danh-gia-thang':Object.freeze({area:'admin',screen:'checklist-monthly',roles:['admin']}),
     '/admin/checklist/bao-cao':Object.freeze({area:'admin',screen:'checklist-reports',roles:['admin']}),
-    '/admin/checklist/lich-su':Object.freeze({area:'admin',screen:'checklist-history',roles:['admin']}),
     '/admin/checklist/cai-dat':Object.freeze({area:'admin',screen:'checklist-settings',roles:['admin']}),
     '/admin/classroom':Object.freeze({area:'admin',screen:'classroom-home',roles:['admin']}),
     '/admin/classroom/lop':Object.freeze({area:'admin',screen:'classroom-classes',roles:['admin']}),
@@ -248,22 +240,18 @@
   window.PHF_ROUTE_REGISTRY=ROUTE_REGISTRY;
   window.PHF_ROUTE_MAP=Object.freeze({
     public:['/','/login'],
-    learner:['/hv','/hv/home','/hv/knl','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
-    management:['/ql','/ql/home','/ql/knl','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
-    admin:['/admin','/admin/home','/admin/knl','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
+    learner:['/hv','/hv/hub','/hv/knl','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
+    management:['/ql','/ql/hub','/ql/knl','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
+    admin:['/admin','/admin/hub','/admin/knl','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
     knl:['/hv/knl','/ql/knl','/admin/knl'],
-    hr:['/hv/home','/ql/home','/admin/home'],
-    hub:['/hv','/ql','/admin'],
-    checklist:['/hv/checklist','/ql/checklist','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
+    checklist:['/hv/checklist','/ql/checklist','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/cai-dat']
   });
 
   function canonicalLegacyPath(path){
     path=cleanPath(path);
     if(path==='/home') return safeHomeForRole();
-    if(path==='/hv/dao-tao'||path==='/hv/hub') return '/hv';
-    if(path==='/ql/hub') return '/ql';
-    if(path==='/admin/hub') return '/admin';
+    if(path==='/hv/dao-tao') return '/hv';
     if(path==='/hv/dao-tao/bai-hoc'||/^\/hv\/dao-tao\/bai-hoc\//.test(path)) return path.replace(/^\/hv\/dao-tao\/bai-hoc/,'/hv/bai-hoc');
     if(path==='/hv/dao-tao/ho-so'||/^\/hv\/dao-tao\/ho-so\//.test(path)) return path.replace(/^\/hv\/dao-tao\/ho-so/,'/hv/ho-so');
     if(path==='/hv/dao-tao/ket-qua'||path==='/hv/ket-qua') return '/hv/bai-hoc';
@@ -276,7 +264,7 @@
     if(path==='/admin/kiem-tra') return '/admin/quan-tri/kiem-tra';
     if(path==='/my-lessons') return '/hv/bai-hoc';
     if(path==='/my-profile'||/^\/my-profile\//.test(path)) return '/hv/ho-so';
-    if(path==='/overview') return safeHomeForRole();
+    if(path==='/overview') return role()==='admin'?'/admin':(role()==='manager'?'/ql':'/hv');
     if(/^\/lessons\//.test(path)) return path.replace(/^\/lessons/,'/hv/bai-hoc');
     if(/^\/programs\//.test(path)) return path.replace(/^\/programs/,'/hv/chuong-trinh');
     if(path==='/employees'||/^\/employees\//.test(path)) return path.replace(/^\/employees/,role()==='admin'?'/admin/hoc-vien':'/ql/hoc-vien');
@@ -481,7 +469,7 @@
       title:isDetail?'Chi tiết lớp đào tạo':(isProposal?'Đề xuất đào tạo':(isSettings?'Cấu hình Classroom':'PHF Classroom · Quản trị')),
       subtitle:'Khung Classroom dành riêng cho Admin. Nghiệp vụ lớp học sẽ được xây sau trên route và quyền độc lập.',
       badge:'Admin · toàn quyền',
-      back:'/admin/home',
+      back:'/admin',
       items:['Quản lý toàn bộ lớp','Phân công học viên và người phụ trách','Duyệt đề xuất, bài kiểm tra và cấu hình']
     };
     if(area==='manager') return {
@@ -489,7 +477,7 @@
       title:isDetail?'Lớp được phân công':(isProposal?'Đề xuất đào tạo':'PHF Classroom · Quản lý'),
       subtitle:'Khung Classroom dành riêng cho Quản lý. Chỉ các lớp và nhân sự thuộc phạm vi được giao mới hiển thị.',
       badge:'Quản lý · theo phạm vi',
-      back:'/ql/home',
+      back:'/ql',
       items:['Lớp được giao phụ trách','Theo dõi tiến độ trong phạm vi','Gửi đề xuất đào tạo hoặc kiểm tra']
     };
     return {
@@ -497,7 +485,7 @@
       title:isDetail?'Chi tiết lớp của tôi':'Lớp đào tạo của tôi',
       subtitle:'Khung Classroom dành riêng cho Học viên/Nhân viên. Chỉ lớp được phân công mới hiển thị.',
       badge:'Cá nhân · lớp được giao',
-      back:'/hv/home',
+      back:'/hv',
       items:['Lớp đang tham gia','Lịch học và tài liệu','Bài kiểm tra, kết quả thuộc từng lớp']
     };
   }
@@ -513,7 +501,7 @@
       /* Mount-first: chuẩn bị đầy đủ HTML trước khi ẩn Hub. Nếu bước này lỗi,
          giao diện Hub vẫn còn nguyên và người dùng không bị màn trắng. */
       html='<section class="phfc-shell" data-classroom-area="'+esc(meta.area)+'">'
-        +'<header class="phfc-header"><button class="phfc-hub-back" type="button" onclick="phfNavigate(\''+esc(roleHome)+'\')"><span aria-hidden="true">←</span><span><strong>PHF HR</strong><small>Hệ sinh thái phát triển nhân sự</small></span></button><div class="phfc-header-brand"><div><strong>PHF Classroom</strong><span>Quản lý đào tạo nội bộ</span></div></div><div class="phfc-header-user"><span>'+esc(meta.badge)+'</span><small>Route riêng · shell riêng</small></div></header>'
+        +'<header class="phfc-header"><button class="phfc-hub-back" type="button" onclick="phfNavigate(\''+esc(roleHome)+'\')"><span aria-hidden="true">←</span><span><strong>PHF Training Hub</strong><small>Quay lại Trang chủ</small></span></button><div class="phfc-header-brand"><div><strong>PHF Classroom</strong><span>Quản lý đào tạo nội bộ</span></div></div><div class="phfc-header-user"><span>'+esc(meta.badge)+'</span><small>Route riêng · shell riêng</small></div></header>'
         +'<div class="phfc-layout"><aside class="phfc-sidebar"><div class="phfc-sidebar-brand"><div><strong>PHF Classroom</strong><span>Đào tạo nội bộ</span></div></div><section class="phfc-nav-group"><div class="phfc-nav-label">Khu vực</div><nav class="phfc-nav"><button class="active" type="button">'+esc(meta.title)+'</button></nav></section><div class="phfc-side-bottom">Một phần của hệ sinh thái PHUHOA FRESH</div></aside>'
         +'<main class="phfc-main"><div class="phfc-topline"><div class="phfc-title"><small>PHF Classroom</small><h2>'+esc(meta.title)+'</h2><p>'+esc(meta.subtitle)+'</p></div></div>'
         +'<section class="phfc-card phfc-panel"><div class="phfc-panel-head"><div><h3>Khung Classroom đã sẵn sàng</h3><span>Không còn dùng stage bar, danh sách việc cần làm hoặc tiến độ của Training Hub.</span></div></div><div class="phfc-empty">Route, role, shell và F5 đã được tách riêng. Dữ liệu lớp thật sẽ được kết nối ở giai đoạn xây Classroom.</div></section>'
@@ -607,9 +595,9 @@
         if(!requireRoles(['learner']))return false;
         if(!await ensureTrainingData(path)) return false;
         if(typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
-          modal('Chưa được phân công lộ trình học','Tài khoản của bạn hiện chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv/home',true);});
-          setUrl('/hv/home',true);
-          await Promise.resolve(window.phfRenderHrGateway&&window.phfRenderHrGateway('/hv/home'));
+          modal('Chưa được phân công lộ trình học','Tài khoản của bạn hiện chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv',true);});
+          setUrl('/hv',true);
+          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
           return false;
         }
         await Promise.resolve(window.phfGoLearning&&window.phfGoLearning()); return true;
@@ -619,21 +607,14 @@
         if(!await ensureTrainingData(path)) return false;
         await Promise.resolve(window.phfGoMyProfile&&window.phfGoMyProfile()); return true;
       }
-      if(path==='/hv/home'){
-        if(!requireRoles(['learner']))return false;
-        if(window.PHFAppShell) window.PHFAppShell.activateHr({clear:true,restoreTitle:false});
-        if(typeof window.phfRenderHrGateway!=='function') throw new Error('PHF_HR_GATEWAY_RENDERER_MISSING');
-        await Promise.resolve(window.phfRenderHrGateway(path));
-        return true;
-      }
       if(path==='/hv'){
         if(!requireRoles(['learner']))return false;
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/hv/knl'){
+      if(path==='/hv/hub'){
         if(!requireRoles(['learner']))return false;
-        await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
+        await Promise.resolve(window.phfRenderTrainingHubHome&&window.phfRenderTrainingHubHome());
         return true;
       }
       if(path==='/admin/hoc-vien'){
@@ -689,21 +670,14 @@
         }
         return true;
       }
-      if(path==='/ql/home'){
-        if(!requireRoles(['manager']))return false;
-        if(window.PHFAppShell) window.PHFAppShell.activateHr({clear:true,restoreTitle:false});
-        if(typeof window.phfRenderHrGateway!=='function') throw new Error('PHF_HR_GATEWAY_RENDERER_MISSING');
-        await Promise.resolve(window.phfRenderHrGateway(path));
-        return true;
-      }
       if(path==='/ql'){
         if(!requireRoles(['manager']))return false;
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/ql/knl'){
+      if(path==='/ql/hub'){
         if(!requireRoles(['manager']))return false;
-        await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
+        await Promise.resolve(window.phfRenderTrainingHubHome&&window.phfRenderTrainingHubHome());
         return true;
       }
       if(path==='/ql/quan-ly'){
@@ -774,9 +748,9 @@
         if(!requireRoles(['learner']))return false;
         if(!await ensureTrainingData(path)) return false;
         if(typeof window.phfCanAccessLearning==='function' && !window.phfCanAccessLearning()){
-          setUrl('/hv/home',true);
-          await Promise.resolve(window.phfRenderHrGateway&&window.phfRenderHrGateway('/hv/home'));
-          modal('Chưa được phân công lộ trình học','Bạn chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv/home',true);});
+          setUrl('/hv',true);
+          await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
+          modal('Chưa được phân công lộ trình học','Bạn chưa có chương trình Training Hub ở trạng thái “Đang học”.','Về Trang chủ',function(){navigate('/hv',true);});
           return false;
         }
         var idx=lessonIndex(lesson[1]);
@@ -804,6 +778,13 @@
         if(!requireRoles(['learner','manager','admin']))return false;
         await Promise.resolve((role()==='learner'?window.phfGoMyProfile:window.phfRenderTrainingOverview)&& (role()==='learner'?window.phfGoMyProfile():window.phfRenderTrainingOverview()));
         setTimeout(function(){var b=document.querySelector('[data-phf-notification-toggle],.phf-notification-button');if(b)b.click();},120);
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/knl(?:\/|$)/.test(path)){
+        var knlRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([knlRole])) return false;
+        if(typeof window.phfRenderKnl!=='function') throw new Error('PHF_KNL_RENDERER_MISSING');
+        await Promise.resolve(window.phfRenderKnl(path));
         return true;
       }
       if(/^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(path)){
@@ -860,21 +841,14 @@
         setUrl(safeHomeForRole(),true);
         return render(safeHomeForRole(),true);
       }
-      if(path==='/admin/home'){
-        if(!requireRoles(['admin']))return false;
-        if(window.PHFAppShell) window.PHFAppShell.activateHr({clear:true,restoreTitle:false});
-        if(typeof window.phfRenderHrGateway!=='function') throw new Error('PHF_HR_GATEWAY_RENDERER_MISSING');
-        await Promise.resolve(window.phfRenderHrGateway(path));
-        return true;
-      }
       if(path==='/admin'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'){
+      if(path==='/admin/hub'){
         if(!requireRoles(['admin']))return false;
-        await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
+        await Promise.resolve(window.phfRenderTrainingHubHome&&window.phfRenderTrainingHubHome());
         return true;
       }
       if(path==='/admin/quan-tri'||path==='/admin/quan-tri/tai-khoan'||path==='/admin/quan-tri/danh-muc'||path==='/admin/quan-tri/kiem-tra'||path==='/admin/quan-tri/cau-hinh'){
@@ -890,7 +864,7 @@
     }finally{
       var finalPath=cleanPath(location.pathname);
       if(runId===routeRenderSequence && window.PHFAppShell){
-        try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/(?:admin|ql|hv)(?:$|\/(?:hub|classroom|checklist|knl)(?:\/|$))/.test(finalPath)});}catch(e){}
+        try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/(?:classroom|admin\/(?:classroom|checklist)|ql\/(?:classroom|checklist)|hv\/(?:classroom|checklist))(?:\/|$)/.test(finalPath)});}catch(e){}
       }
       if(runId===routeRenderSequence){
         lastCommittedPath=finalPath;
@@ -937,21 +911,6 @@
     }
   }
   window.phfNavigate=navigate;
-  function navigateToHrHome(){
-    var target=safeHomeForRole();
-    /* Điều hướng giữa module về PHF HR dùng tải trang đầy đủ. Đây là ranh giới
-       cấp hệ sinh thái, không phải chuyển màn nội bộ Hub/Classroom. Hard navigation
-       tự hủy toàn bộ timer, listener và renderer cũ nên không còn DOM bị chiếm lại.
-       Nếu URL đã đúng nhưng DOM còn cũ, reload ngay để phục hồi đúng shell. */
-    routeRenderSequence++;
-    applyingRoute=false;
-    try{
-      if(cleanPath(location.pathname)===target){ location.reload(); return false; }
-      location.assign(target);
-    }catch(e){ location.href=target; }
-    return false;
-  }
-  window.phfNavigateToHrHome=navigateToHrHome;
 
   function commandWrap(name,pathFactory){
     var fn=window[name];
@@ -985,7 +944,7 @@
     window[name]=wrapped;
   }
   function installWrappers(){
-    commandWrap('phfRenderPostLoginHome',function(){return safeHubHomeForRole();});
+    commandWrap('phfRenderPostLoginHome',function(){return safeHomeForRole();});
     commandWrap('phfGoHome',function(){return safeHomeForRole();});
     commandWrap('phfGoLearning',function(){
       try{

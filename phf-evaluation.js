@@ -2014,9 +2014,7 @@ function phfRenderLearnerTrainingOverview(){
   phfScrollToPageTop();
 }
 
-function phfRenderPostLoginHome(){
-  const phfHubHomePath = String((window.location && window.location.pathname) || '/').replace(/\/$/,'') || '/';
-  if(!/^\/(?:admin|ql|hv)$/.test(phfHubHomePath)) return false;
+function phfRenderTrainingHubHome(){
   if(window.phfHubSurfaceIsActive && !window.phfHubSurfaceIsActive()) return false;
   try{ if(typeof phfHideIntroAndStopAuto === 'function') phfHideIntroAndStopAuto(); }catch(e){}
   phfSetMainNavActive('intro');
@@ -2072,7 +2070,7 @@ ${quickAdmin}
   try{ if(window.phfInitMobileMenus) setTimeout(window.phfInitMobileMenus, 0); }catch(e){}
   phfScrollToPageTop();
 }
-window.phfRenderPostLoginHome = phfRenderPostLoginHome;
+window.phfRenderTrainingHubHome = phfRenderTrainingHubHome;
 
 function phfRenderTrainingOverview(){
   if(window.phfHubSurfaceIsActive && !window.phfHubSurfaceIsActive()) return false;

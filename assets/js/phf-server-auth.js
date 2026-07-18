@@ -136,6 +136,24 @@
     return Object.assign({}, user, {name: resolvedName});
   }
 
+  function phfRoleHomeForUser(user){
+    var resolvedRole = String(user && user.role || '').trim().toLowerCase();
+    if(resolvedRole === 'admin') return '/admin/home';
+    if(resolvedRole === 'manager') return '/ql/home';
+    if(resolvedRole === 'learner') return '/hv/home';
+    return '/login';
+  }
+
+  function phfCleanAuthPath(value){
+    var path = String(value || '/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
+    if(path.length > 1) path = path.replace(/\/$/,'');
+    return path || '/';
+  }
+
+  function phfIsChecklistPath(path){
+    return /^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(phfCleanAuthPath(path));
+  }
+
   function phfWriteSessionMirror(user){
     try{
       var roleKeys = ['phfInternalRole','phfInternalTestRole','phfTestRole','phfRole','phfUserRole'];
@@ -435,11 +453,18 @@
 
   async function renderAuthenticatedDefault(user, reason){
     if(!user) return false;
+    /* Chụp URL ngay khi Auth bắt đầu bàn giao. Renderer/guard chạy song song có thể
+       thay location trước lần retry; deep link Checklist không được đọc lại từ URL
+       đã bị thay đổi đó. */
+    var authenticatedEntryPath = phfCleanAuthPath(location.pathname);
     try{
       if(typeof window.phfApplySimpleRoleMenu === 'function') window.phfApplySimpleRoleMenu();
     }catch(e){}
 
     await new Promise(function(resolve){ setTimeout(resolve, 0); });
+
+    /* Router là chủ sở hữu duy nhất của khôi phục route sau xác thực.
+       Auth không tự điều hướng riêng Checklist để tránh hai luồng tranh nhau. */
 
     /* 1.0.17: khi URL router đã sẵn sàng, auth chỉ bàn giao việc phục hồi route.
        Không tự render Hub song song với route /classroom. */
@@ -463,7 +488,7 @@
       /* Route mặc định sau xác thực phải đi qua Router để URL, menu và
          nội dung luôn đồng nhất. Không gọi renderer trực tiếp tại Auth. */
       if(typeof window.phfNavigate === 'function'){
-        await Promise.resolve(window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv', true,{source:'auth'}));
+        await Promise.resolve(window.phfNavigate(phfRoleHomeForUser(user), true,{source:'auth'}));
         return true;
       }
       /* Router chưa sẵn sàng thì không tự dựng màn tại Auth. */
@@ -522,18 +547,18 @@
     root.innerHTML =
       '<section class="phf-test-login-card" role="dialog" aria-modal="true">' +
         '<section class="phf-test-login-brand">' +
-          '<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Cổng đào tạo nội bộ</span></div>' +
-          '<div><div class="phf-login-title">Đăng nhập PHF Training Hub</div><div class="phf-login-subtitle">Phiên đăng nhập được xác minh tại máy chủ và áp dụng đúng quyền tài khoản.</div></div>' +
+          '<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Hệ thống phát triển nhân sự</span></div>' +
+          '<div><div class="phf-login-title">Đăng nhập PHF HR</div><div class="phf-login-subtitle">Đăng nhập để truy cập các hệ thống được phân quyền dành cho bạn tại PHUHOA FRESH.</div></div>' +
         '</section>' +
         '<section class="phf-test-login-form">' +
-          '<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Nhập email và mật khẩu nội bộ.</div>' +
+          '<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Sử dụng email và mật khẩu được PHUHOA FRESH cấp.</div>' +
           '<div class="phf-test-login-field"><label>Email</label><input id="phfTestEmail" type="email" autocomplete="username"></div>' +
           '<div class="phf-test-login-field"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
           '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
           '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
           '<div class="phf-login-divider"><span>Hoặc tiếp tục bằng</span></div>' +
-          '<div id="phfGoogleLoginWrap" class="phf-google-login-wrap"><div class="phf-google-login-heading"><b>Đăng nhập nhanh bằng Google</b><span>Dùng Gmail đã được Admin cấp quyền trong PHF.</span></div><div id="phfGoogleButton" class="phf-google-login-button" aria-label="Tiếp tục bằng Google"></div><div id="phfGoogleLoginStatus" class="phf-google-login-status" aria-live="polite">Đang chuẩn bị dịch vụ Google...</div></div>' +
-          '<p class="phf-login-note">Quên mật khẩu hoặc chưa có tài khoản? Liên hệ Admin để được hỗ trợ.</p>' +
+          '<div id="phfGoogleLoginWrap" class="phf-google-login-wrap"><div class="phf-google-login-heading"><b>Đăng nhập nhanh bằng Google</b><span>Sử dụng tài khoản Google đã được Admin cấp quyền truy cập PHF HR.</span></div><div id="phfGoogleButton" class="phf-google-login-button" aria-label="Tiếp tục bằng Google"></div><div id="phfGoogleLoginStatus" class="phf-google-login-status" aria-live="polite">Đang chuẩn bị dịch vụ Google...</div></div>' +
+          '<p class="phf-login-note">Quên mật khẩu hoặc chưa được cấp quyền? Vui lòng liên hệ Admin PHF HR để được hỗ trợ.</p>' +
         '</section>' +
       '</section>';
 
@@ -630,7 +655,7 @@
       }catch(e){
         var friendly=authFriendlyMessage(e,'Đăng nhập Google chưa thành công.');
         error.textContent=friendly;
-        if(googleStatus) googleStatus.textContent='Dùng Gmail đã được Admin cấp quyền trong PHF Training Hub.';
+        if(googleStatus) googleStatus.textContent='Sẵn sàng · Chọn Gmail đã được Admin cấp quyền PHF HR.';
         if(googleAuthNotice)googleAuthNotice.update('Đăng nhập Google chưa thành công',friendly,'error',true);
       }finally{
         googleLoginInflight=false;
@@ -852,6 +877,9 @@
     if(authBootStarted) return true;
     authBootStarted=true;
     var bootEpoch = authEpoch;
+    /* Nguồn sự thật của F5 phải là URL người dùng đang đứng trước mọi await.
+       Không đọc lại location sau timeout/race vì router cũ có thể đã đổi nó. */
+    var requestedBootPath = phfCleanAuthPath(location.pathname);
     try{
       var user = await withTimeout(readServerSession(),8000,'SESSION_TIMEOUT');
       if(bootEpoch !== authEpoch || authTransitioning) return;
@@ -887,9 +915,19 @@
         }
         var rendered=await renderInitialRouteSafely(user);
         if(!rendered){
-          /* Fallback vẫn phải đi qua Router để URL, menu, shell và nội dung
-             không thể bị các renderer tự ghi đè lẫn nhau. */
-          if(typeof window.phfNavigate==='function') await Promise.resolve(window.phfNavigate((window.phfGetRoleHomePath&&window.phfGetRoleHomePath())||'/hv',true,{source:'auth'}));
+          /* Lỗi/timeout renderer không phải lỗi phiên đăng nhập. Giữ nguyên user,
+             giữ nguyên deep link Checklist và chỉ thử một lượt điều hướng an toàn.
+             Tuyệt đối không để lỗi route rơi xuống catch chung rồi xóa session. */
+          try{
+            if(phfIsChecklistPath(requestedBootPath) && typeof window.phfNavigate==='function'){
+              await Promise.resolve(window.phfNavigate(requestedBootPath,true,{source:'auth-route-retry'}));
+            }else if(typeof window.phfNavigate==='function'){
+              await Promise.resolve(window.phfNavigate(phfRoleHomeForUser(user),true,{source:'auth'}));
+            }
+          }catch(routeRetryError){
+            console.error('[PHF Auth] route retry failed; session preserved:',routeRetryError&&routeRetryError.message||routeRetryError);
+            clearBootCloak();
+          }
         }
       }else{
         if(isProtectedPath()) showProtectedLogin('Phiên đăng nhập đã hết hạn hoặc thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.');
