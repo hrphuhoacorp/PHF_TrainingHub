@@ -710,3 +710,158 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-toast-host{position:fixed;z-index:120000;top:18px;right:18px;display:grid;gap:10px;width:min(390px,calc(100vw - 28px));pointer-events:none}.phfck-toast{position:relative;display:grid;grid-template-columns:38px 1fr 28px;gap:10px;align-items:start;overflow:hidden;border:1px solid #d9e6e0;border-left:5px solid #277b5f;border-radius:14px;background:#fff;padding:13px 12px 15px;box-shadow:0 18px 48px rgba(10,58,44,.2);opacity:0;transform:translateY(-10px);transition:.18s ease;pointer-events:auto}.phfck-toast.is-visible{opacity:1;transform:none}.phfck-toast.is-success{border-left-color:#2d8b57}.phfck-toast.is-warning{border-left-color:#d49522}.phfck-toast.is-error{border-left-color:#c94343}.phfck-toast-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#eaf6f0;color:#17674d;font-weight:900}.phfck-toast.is-warning .phfck-toast-icon{background:#fff4dc;color:#9a6500}.phfck-toast.is-error .phfck-toast-icon{background:#fff0ef;color:#b52f2f}.phfck-toast-copy b{display:block;color:#163f33;font-size:12.5px}.phfck-toast-copy p{margin:4px 0 0;color:#61766e;font-size:11px;line-height:1.45}.phfck-toast>button{border:0;background:transparent;color:#6c8179;font-size:19px;cursor:pointer}.phfck-toast-progress{position:absolute;left:0;bottom:0;height:3px;width:100%;background:linear-gradient(90deg,#2b8a62,#8bc9ad);animation:phfckToastProgress 5.2s linear forwards}.phfck-toast.is-success .phfck-toast-progress{animation-duration:3.6s}.phfck-toast.is-warning .phfck-toast-progress,.phfck-toast.is-error .phfck-toast-progress{background:transparent;animation:none}@keyframes phfckToastProgress{from{transform:scaleX(1);transform-origin:left}to{transform:scaleX(0);transform-origin:left}}
 .phfck-people-loading{padding:0!important}.phfck-loading-message{display:flex;align-items:center;gap:16px;padding:20px 22px;border-bottom:1px solid #e3ece8;background:linear-gradient(135deg,#f4fbf7,#fffaf0)}.phfck-loading-message>div{min-width:0;flex:1}.phfck-loading-message small{display:block;color:#398064;font-size:9.5px;font-weight:900;letter-spacing:.08em}.phfck-loading-message b{display:block;margin-top:4px;color:#174b3c;font-size:14px}.phfck-loading-message p{margin:4px 0 0;color:#6d8179;font-size:11px}.phfck-loading-spinner{width:36px;height:36px;flex:0 0 36px;border:3px solid #dbece4;border-top-color:#16805c;border-radius:50%;animation:phfckSpin .8s linear infinite}.phfck-loading-steps{display:flex;align-items:center;gap:7px;margin-top:10px;color:#6b8078;font-size:9.5px;font-weight:800}.phfck-loading-steps i{width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#edf3f0;color:#688078;font-style:normal}.phfck-loading-steps i.is-done{background:#dff2e8;color:#1b704f}.phfck-loading-steps em{width:26px;height:1px;background:#d4e2dc}.phfck-loading-table{display:grid;gap:0}.phfck-loading-table>div{display:grid;grid-template-columns:70px 1.2fr .8fr 2fr 1fr 1fr;gap:14px;padding:15px 20px;border-bottom:1px solid #edf2ef}.phfck-skeleton{position:relative;overflow:hidden;background:#edf3f0!important;border-radius:8px;color:transparent!important}.phfck-skeleton:after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.78),transparent);animation:phfckShimmer 1.25s infinite}@keyframes phfckShimmer{100%{transform:translateX(100%)}}@keyframes phfckSpin{to{transform:rotate(360deg)}}
 @media(max-width:680px){.phfck-official-modal{width:100%;max-height:calc(100dvh - 16px)}.phfck-readonly-chip{display:none}.phfck-section-title{align-items:flex-start;flex-direction:column}.phfck-manager-picker{position:fixed;left:8px;right:8px;top:auto;bottom:8px;max-height:78dvh}.phfck-toast-host{top:10px;right:10px}.phfck-loading-table>div{grid-template-columns:55px 1fr 1fr}.phfck-loading-table>div span:nth-child(n+4){display:none}}
+
+/* PHF Checklist 1.7.93 – layout mẫu tổng điểm + Excel phiên bản */
+.phfck-create-template-modal{width:min(1080px,calc(100vw - 32px));max-height:calc(100dvh - 28px)}
+.phfck-create-template-modal .phfck-modal-body{overflow-x:hidden}
+.phfck-create-summary-rows{display:grid;gap:10px}
+.phfck-create-summary-row{display:grid;grid-template-columns:32px minmax(110px,.75fr) minmax(220px,1.7fr) minmax(82px,.55fr) minmax(88px,.6fr) minmax(96px,.65fr) minmax(145px,.9fr) 38px;gap:9px;align-items:center;padding:11px;border:1px solid #dfeae5;border-radius:13px;background:#fbfdfc;min-width:0}
+.phfck-create-summary-row>span{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#eaf5ef;color:#25634d;font-weight:900;font-size:11px}
+.phfck-create-summary-row input,.phfck-create-summary-row select{width:100%;min-width:0;height:40px;border:1px solid #d4e2dc;border-radius:10px;background:#fff;padding:0 10px;color:#193f34;font-size:11px}
+.phfck-create-summary-row input:focus,.phfck-create-summary-row select:focus{outline:2px solid rgba(42,139,97,.16);border-color:#6eb493}
+.phfck-create-summary-row>button{width:36px;height:36px;border:1px solid #efc6c1;border-radius:10px;background:#fff;color:#b53d32;font-size:18px;cursor:pointer}
+.phfck-weight-total{display:inline-flex;align-items:center;margin-top:10px;border-radius:999px;background:#e8f6ef;color:#176548;padding:8px 12px;font-size:12px;font-weight:900}
+.phfck-bulk-confirm-fields.has-errors{border:1px solid #efb8b2;border-radius:12px;padding:10px;background:#fff8f7}
+.phfck-bulk-confirm-fields .is-invalid{border-color:#cf4b42!important;background:#fff8f7!important}
+@media(max-width:900px){.phfck-create-summary-row{grid-template-columns:32px 1fr 1.5fr 84px;align-items:end}.phfck-create-summary-row input[data-phfck-summary-unit],.phfck-create-summary-row input[data-phfck-summary-weight],.phfck-create-summary-row select{grid-column:auto}.phfck-create-summary-row>button{grid-column:4}}
+@media(max-width:680px){.phfck-create-template-modal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}.phfck-create-summary-row{grid-template-columns:28px 1fr;padding:10px}.phfck-create-summary-row>*{grid-column:2}.phfck-create-summary-row>span{grid-column:1;grid-row:1}.phfck-create-summary-row>button{grid-column:1;grid-row:2 / span 2}.phfck-create-summary-row input,.phfck-create-summary-row select{height:42px}}
+
+/* PHF Checklist 1.7.94 – fix layout danh sách mẫu và form tạo mẫu */
+.phfck-template-list-wrap{width:100%;overflow-x:auto;border:1px solid #dfe8e3;border-radius:14px;background:#fff}
+.phfck-template-list{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}
+.phfck-template-list th,.phfck-template-list td{padding:11px 12px;border-bottom:1px solid #e8efeb;text-align:left;vertical-align:middle;box-sizing:border-box}
+.phfck-template-list th{background:#f5f8f6;color:#244b3e;font-size:10px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+.phfck-template-list td{font-size:11px;color:#315248}
+.phfck-template-list th.is-order,.phfck-template-list td.is-order{width:52px;text-align:center}
+.phfck-template-list th:nth-child(2),.phfck-template-list td:nth-child(2){width:39%}
+.phfck-template-list th:nth-child(3),.phfck-template-list td:nth-child(3){width:10%}
+.phfck-template-list th:nth-child(4),.phfck-template-list td:nth-child(4){width:11%}
+.phfck-template-list th:nth-child(5),.phfck-template-list td:nth-child(5){width:9%}
+.phfck-template-list th:nth-child(6),.phfck-template-list td:nth-child(6){width:10%}
+.phfck-template-list th:nth-child(7),.phfck-template-list td:nth-child(7){width:11%}
+.phfck-template-list th.is-action,.phfck-template-list td.is-action{width:88px;text-align:center}
+.phfck-template-row-name{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;min-width:0}
+.phfck-template-row-icon{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#eaf5ef;color:#176548;font-size:14px;flex:none}
+.phfck-template-row-name>div{min-width:0}
+.phfck-template-row-name b{display:block;color:#143f33;font-size:11.5px;line-height:1.35;overflow-wrap:anywhere}
+.phfck-template-row-name small{display:block;margin-top:3px;color:#7a8d85;font-size:9.5px;line-height:1.35;overflow-wrap:anywhere}
+.phfck-template-row-index{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:#f0f5f2;color:#5d776d;font-weight:800;font-size:10px}
+.phfck-template-row-action{min-width:64px;height:32px;border:1px solid #bfd6cb;border-radius:999px;background:#fff;color:#075d45;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap}
+.phfck-template-row-action:hover{background:#edf8f3}
+
+.phfck-template-type-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.phfck-template-type-card{display:flex;align-items:flex-start;gap:9px;border:1px solid #dce7e2;border-radius:12px;padding:11px 12px;background:#fbfdfc;cursor:pointer;min-width:0}
+.phfck-template-type-card.is-selected{border-color:#72ad92;background:#eef8f3;box-shadow:0 0 0 2px rgba(58,137,99,.08)}
+.phfck-template-type-card input{margin:3px 0 0;flex:none}
+.phfck-template-type-card span{display:block;min-width:0}
+.phfck-template-type-card b{display:block;color:#164638;font-size:11.5px;line-height:1.35}
+.phfck-template-type-card small{display:block;margin-top:3px;color:#71857d;font-size:9.5px;line-height:1.42}
+
+.phfck-create-summary-row{grid-template-columns:32px minmax(105px,.8fr) minmax(190px,1.6fr) minmax(88px,.65fr) minmax(110px,.8fr) 38px;grid-template-rows:auto auto;align-items:center}
+.phfck-create-summary-row>span{grid-column:1;grid-row:1 / span 2;align-self:start;margin-top:6px}
+.phfck-create-summary-row [data-phfck-summary-code]{grid-column:2;grid-row:1}
+.phfck-create-summary-row [data-phfck-summary-content]{grid-column:3 / span 2;grid-row:1}
+.phfck-create-summary-row [data-phfck-summary-target]{grid-column:2;grid-row:2}
+.phfck-create-summary-row [data-phfck-summary-unit]{grid-column:3;grid-row:2}
+.phfck-create-summary-row [data-phfck-summary-weight]{grid-column:4;grid-row:2}
+.phfck-create-summary-row [data-phfck-summary-source]{grid-column:5;grid-row:1 / span 2;align-self:center}
+.phfck-create-summary-row>button{grid-column:6;grid-row:1 / span 2;align-self:center}
+.phfck-create-summary-row input,.phfck-create-summary-row select{max-width:100%;box-sizing:border-box}
+.phfck-create-template-modal .phfck-modal-body{overflow-x:hidden!important}
+.phfck-create-template-modal .phfck-form-section{min-width:0}
+
+@media(max-width:900px){
+  .phfck-template-type-grid{grid-template-columns:1fr}
+  .phfck-create-summary-row{grid-template-columns:30px minmax(120px,1fr) minmax(150px,1.3fr) 38px;grid-template-rows:repeat(3,auto)}
+  .phfck-create-summary-row>span{grid-column:1;grid-row:1 / span 3}
+  .phfck-create-summary-row [data-phfck-summary-code]{grid-column:2;grid-row:1}
+  .phfck-create-summary-row [data-phfck-summary-content]{grid-column:3;grid-row:1}
+  .phfck-create-summary-row [data-phfck-summary-target]{grid-column:2;grid-row:2}
+  .phfck-create-summary-row [data-phfck-summary-unit]{grid-column:3;grid-row:2}
+  .phfck-create-summary-row [data-phfck-summary-weight]{grid-column:2;grid-row:3}
+  .phfck-create-summary-row [data-phfck-summary-source]{grid-column:3;grid-row:3}
+  .phfck-create-summary-row>button{grid-column:4;grid-row:1 / span 3}
+}
+@media(max-width:620px){
+  .phfck-create-summary-row{grid-template-columns:28px minmax(0,1fr) 36px;grid-template-rows:repeat(6,auto)}
+  .phfck-create-summary-row>span{grid-column:1;grid-row:1}
+  .phfck-create-summary-row [data-phfck-summary-code],
+  .phfck-create-summary-row [data-phfck-summary-content],
+  .phfck-create-summary-row [data-phfck-summary-target],
+  .phfck-create-summary-row [data-phfck-summary-unit],
+  .phfck-create-summary-row [data-phfck-summary-weight],
+  .phfck-create-summary-row [data-phfck-summary-source]{grid-column:2;grid-row:auto}
+  .phfck-create-summary-row>button{grid-column:3;grid-row:1 / span 6}
+}
+
+/* PHF Checklist 1.7.95 – fix layout Tạo mẫu Checklist chi tiết */
+.phfck-create-criteria{display:grid;gap:10px;min-width:0}
+.phfck-create-criterion-row{
+  display:grid;
+  grid-template-columns:32px minmax(140px,.8fr) minmax(320px,2fr) minmax(92px,.55fr) 38px;
+  gap:10px;
+  align-items:center;
+  min-width:0;
+  padding:11px;
+  border:1px solid #dfeae5;
+  border-radius:13px;
+  background:#fbfdfc;
+  box-sizing:border-box;
+}
+.phfck-create-criterion-row>span{
+  width:28px;height:28px;display:grid;place-items:center;
+  border-radius:9px;background:#eaf5ef;color:#25634d;
+  font-weight:900;font-size:11px;
+}
+.phfck-create-criterion-row input{
+  width:100%;min-width:0;height:42px;box-sizing:border-box;
+  border:1px solid #d4e2dc;border-radius:10px;background:#fff;
+  padding:0 11px;color:#193f34;font-size:12px;outline:0;
+}
+.phfck-create-criterion-row input:focus{
+  border-color:#6eb493;box-shadow:0 0 0 3px rgba(42,139,97,.12);
+}
+.phfck-create-criterion-row input[data-phfck-create-criterion-content]{min-width:0}
+.phfck-create-criterion-row input[data-phfck-create-criterion-factor]{text-align:center;font-weight:800}
+.phfck-create-criterion-row>button{
+  width:36px;height:36px;display:grid;place-items:center;
+  border:1px solid #efc6c1;border-radius:10px;background:#fff;
+  color:#b53d32;font-size:18px;line-height:1;cursor:pointer;
+}
+.phfck-create-criterion-row>button:hover{background:#fff5f4;border-color:#df9d95}
+@media(max-width:900px){
+  .phfck-create-criterion-row{
+    grid-template-columns:32px minmax(130px,.8fr) minmax(230px,1.5fr) 88px 38px;
+  }
+}
+@media(max-width:680px){
+  .phfck-create-criterion-row{
+    grid-template-columns:28px 1fr 38px;
+    align-items:start;padding:10px;
+  }
+  .phfck-create-criterion-row>span{grid-column:1;grid-row:1}
+  .phfck-create-criterion-row input[data-phfck-create-criterion-code]{grid-column:2;grid-row:1}
+  .phfck-create-criterion-row input[data-phfck-create-criterion-content]{grid-column:2 / 4;grid-row:2}
+  .phfck-create-criterion-row input[data-phfck-create-criterion-factor]{grid-column:2;grid-row:3}
+  .phfck-create-criterion-row>button{grid-column:3;grid-row:1}
+}
+
+
+/* 1.7.96 - Tạo mẫu bằng nhập trực tiếp hoặc Upload Excel */
+.phfck-create-entry-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.phfck-create-entry-card{min-height:82px;padding:14px 16px;border:1px solid #cfe2d9;border-radius:14px;background:#fff;color:#064b3b;text-align:left;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:.18s ease}
+.phfck-create-entry-card:hover,.phfck-create-entry-card.is-active{border-color:#37a65a;background:#f2fbf3;box-shadow:0 6px 16px rgba(5,79,57,.08)}
+.phfck-create-entry-card b{font-size:14px}.phfck-create-entry-card small{font-size:12px;line-height:1.45;color:#668078}
+.phfck-create-import-result{margin-top:12px;padding:12px 14px;border-radius:12px;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.phfck-create-import-result.is-success{background:#edf9f0;border:1px solid #bfe4c8;color:#07543f}
+.phfck-create-import-result.is-error{background:#fff3f1;border:1px solid #f0c3bc;color:#8b2f24}
+.phfck-create-import-result ul{margin:5px 0 0;padding-left:20px}
+@media(max-width:760px){.phfck-create-entry-actions{grid-template-columns:1fr}.phfck-create-entry-card{min-height:auto}}
+
+/* 1.7.97 - Đối soát gán mẫu theo thư viện/phiên bản Supabase */
+.phfck-people-stats{grid-template-columns:repeat(auto-fit,minmax(175px,1fr))}
+.phfck-assignment-warning{display:flex;width:max-content;max-width:100%;margin-top:7px;white-space:normal;line-height:1.3}
+.phfck-chip-danger{background:#fdeceb!important;border:1px solid #f2c3bf!important;color:#a43c34!important}
+.phfck-notice.is-warning{background:#fff9e8;border-color:#ead79d}
+.phfck-notice.is-warning b{color:#86620f}
+.phfck-notice.is-warning p{color:#755f2c}

@@ -10,6 +10,7 @@ const { listProposals, saveProposal, reviewProposal } = require('../lib/classroo
 const { listNotifications, saveNotification, markNotificationRead, markAllNotificationsRead, hideNotification } = require('../lib/classroom-notifications');
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('../lib/classroom-settings');
 const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/checklist-assignments');
+const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('../lib/checklist-templates');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -153,6 +154,17 @@ module.exports = async function handler(req, res) {
           scoped.checklistAssignmentsReady = false;
           scoped.checklistAssignmentsError = assignmentError?.code || 'CHECKLIST_ASSIGNMENTS_UNAVAILABLE';
         }
+        try {
+          const templateData = await listChecklistTemplates();
+          scoped.checklistTemplates = templateData.templates;
+          scoped.checklistTemplatesReady = templateData.ready;
+          scoped.checklistTemplatesError = templateData.error;
+        } catch (templateError) {
+          console.warn('[PHF Checklist] template library unavailable', templateError?.message || templateError);
+          scoped.checklistTemplates = [];
+          scoped.checklistTemplatesReady = false;
+          scoped.checklistTemplatesError = templateError?.code || 'CHECKLIST_TEMPLATES_UNAVAILABLE';
+        }
       }
       return res.status(200).json(scoped);
     }
@@ -229,6 +241,14 @@ module.exports = async function handler(req, res) {
       }
       if (payload && payload.action === 'saveChecklistAssignments') {
         const saved = await saveChecklistAssignments(session, payload.assignments || []);
+        return res.status(200).json({ok:true,...saved});
+      }
+      if (payload && payload.action === 'saveChecklistTemplate') {
+        const saved = await saveChecklistTemplate(session, payload.template || {});
+        return res.status(200).json({ok:true,...saved});
+      }
+      if (payload && payload.action === 'saveChecklistTemplateLibrary') {
+        const saved = await saveChecklistTemplateLibrary(session, payload.templates || []);
         return res.status(200).json({ok:true,...saved});
       }
       authorizePayload(session, payload);

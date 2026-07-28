@@ -76,7 +76,7 @@
     return [
       ['overview','⌂','Tổng quan','Theo dõi nhanh'],
       ['people','♙','Nhân sự & phân công','Gán mẫu và phạm vi'],
-      ['templates','▤','Mẫu Checklist','Quản lý 18 bộ mẫu'],
+      ['templates','▤','Mẫu Checklist','Quản lý 19 bộ mẫu'],
       ['violations','✓','Ghi nhận lỗi','Lập lỗi và minh chứng'],
       ['tasks','◷','Việc cần xử lý','Xác nhận và giải trình'],
       ['monthly','▦','Phiếu đánh giá tháng','Tự đánh giá và thẩm định'],
@@ -161,7 +161,7 @@
         +'<button type="button" data-phfck-view="violations"><span>✓</span><b>Ghi nhận lỗi</b><small>Nhập nhanh hoặc ghi nhận chi tiết</small></button>'
         +'<button type="button" data-phfck-view="tasks"><span>◷</span><b>Việc cần xử lý</b><small>Xác nhận, giải trình và phản hồi</small></button>'
         +'<button type="button" data-phfck-view="people"><span>♙</span><b>Phân công nhân sự</b><small>Gán mẫu, hiệu lực và phạm vi</small></button>'
-        +'<button type="button" data-phfck-view="templates"><span>▤</span><b>Quản lý mẫu</b><small>18 bộ mẫu và phiên bản tiêu chí</small></button>'
+        +'<button type="button" data-phfck-view="templates"><span>▤</span><b>Quản lý mẫu</b><small>19 bộ mẫu và phiên bản tiêu chí</small></button>'
       +'</div></section>'
       +recentChangesHtml();
   }
@@ -184,9 +184,46 @@
     {id:'ke-toan-tong-hop',name:'Kế toán tổng hợp',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Bích',note:'Bảng tổng 10 chỉ tiêu; các công việc theo kỳ được gắn tag Thay đổi theo kế hoạch tháng.'},
     {id:'ke-toan-chi-phi-cnpt',name:'Kế toán viên – Chi phí & Công nợ phải trả',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Diễm',note:'Giữ đúng 10 chỉ tiêu và trọng số gốc; mục tiêu ngày tuân thủ thay đổi theo tháng.'},
     {id:'ke-toan-doanh-thu-cnpt',name:'Kế toán viên – Doanh thu & Công nợ phải thu',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Linh',note:'Bảng tổng 10 chỉ tiêu, mỗi chỉ tiêu 10%; giữ đúng mục tiêu file gốc.'},
-    {id:'ke-toan-truong',name:'Kế toán trưởng',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Thanh',note:'Mẫu quản lý riêng; các công việc dự án/kỳ được gắn tag Thay đổi theo kế hoạch tháng.'}
+    {id:'ke-toan-truong',name:'Kế toán trưởng',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Thanh',note:'Mẫu quản lý riêng; các công việc dự án/kỳ được gắn tag Thay đổi theo kế hoạch tháng.'},
+    {id:'tbp-thu-mua',name:'Trưởng bộ phận Thu mua',group:'Thu mua',hasChecklist:true,source:'THÁNG 7 Tiêu chuẩn PHF _ LINH.xlsx · sheet tổng điểm + checklist',note:'Một mẫu kết hợp: bảng tổng điểm 8 chỉ tiêu, tổng trọng số 100% và Checklist 12 công việc hằng ngày, tổng hệ số 16.'}
   ]);
-  var CHECKLIST_TEMPLATE_OPTIONS=Object.freeze(CHECKLIST_TEMPLATE_CATALOG.map(function(x){return [x.id,x.name+(x.id==='nv-online'?' (chuẩn Quyên)':'')];}));
+  var CHECKLIST_TEMPLATE_OPTIONS=Object.freeze(templateCatalog().map(function(x){return [x.id,x.name+(x.id==='nv-online'?' (chuẩn Quyên)':'')];}));
+  var CUSTOM_TEMPLATE_STORAGE_KEY='phfChecklistCustomTemplatesV1';
+  var checklistTemplateDbState={ready:false,rows:[],byId:{},hydratedSource:null,suppress:false,seeding:false,lastError:''};
+  function loadCustomTemplatesLocal(){try{var rows=JSON.parse(localStorage.getItem(CUSTOM_TEMPLATE_STORAGE_KEY)||'[]');return Array.isArray(rows)?rows:[];}catch(e){return [];}}
+  function saveCustomTemplates(rows){try{localStorage.setItem(CUSTOM_TEMPLATE_STORAGE_KEY,JSON.stringify(rows||[]));return true;}catch(e){return false;}}
+  function hydrateChecklistTemplatesFromDatabase(data){
+    if(!data||checklistTemplateDbState.hydratedSource===data)return;
+    checklistTemplateDbState.hydratedSource=data;
+    checklistTemplateDbState.ready=!!data.checklistTemplatesReady;
+    checklistTemplateDbState.lastError=normalizeText(data.checklistTemplatesError);
+    var rows=Array.isArray(data.checklistTemplates)?data.checklistTemplates:[];
+    checklistTemplateDbState.rows=rows;checklistTemplateDbState.byId={};
+    if(!checklistTemplateDbState.ready)return;
+    checklistTemplateDbState.suppress=true;
+    try{
+      var built={};CHECKLIST_TEMPLATE_CATALOG.forEach(function(x){built[x.id]=true;});
+      var custom=[];
+      rows.forEach(function(row){
+        var id=normalizeText(row.templateKey).toLowerCase();if(!id)return;
+        checklistTemplateDbState.byId[id]=row;
+        var item={id:id,name:row.name||id,group:row.groupName||'',hasChecklist:!!row.hasChecklist,templateType:row.templateType||'checklist_detail',source:row.source||'Database',note:row.note||'',status:row.status||'active',versions:Array.isArray(row.versions)?row.versions:[],custom:!built[id],code:row.code||'',version:row.version||'',effectiveFrom:row.effectiveDate||'',createdAt:row.updatedAt||''};
+        if(item.custom)custom.push(item);
+        if(row.definition&&typeof row.definition==='object'){
+          localStorage.setItem(bulkOverrideKey(id),JSON.stringify({templateId:id,templateType:row.templateType||row.definition.templateType||'checklist_detail',groups:Array.isArray(row.definition.groups)?row.definition.groups:[],totalRows:Array.isArray(row.definition.totalRows)?row.definition.totalRows:[],version:row.version||'',sourceVersion:row.sourceVersion||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||'',changeType:row.changeType||'database'}));
+        }
+      });
+      saveCustomTemplates(custom);
+    }catch(e){console.warn('[PHF Checklist] hydrate template library failed',e);}
+    checklistTemplateDbState.suppress=false;
+    if(!rows.length&&!checklistTemplateDbState.seeding)setTimeout(seedChecklistTemplateLibraryDatabase,250);
+  }
+  function ensureChecklistTemplatesHydrated(){var data=window.__phfLocalData||window.localData||null;if(data)hydrateChecklistTemplatesFromDatabase(data);}
+  function loadCustomTemplates(){ensureChecklistTemplatesHydrated();return loadCustomTemplatesLocal();}
+  function templateCatalog(){return CHECKLIST_TEMPLATE_CATALOG.concat(loadCustomTemplates());}
+  function templateOptions(){return templateCatalog().map(function(x){return [x.id,x.name+(x.id==='nv-online'?' (chuẩn Quyên)':'')];});}
+  function customTemplateById(id){return loadCustomTemplates().find(function(x){return x.id===id;})||null;}
+
   var SALES_TEMPLATE_VERSION=Object.freeze({
     templateCode:'BH',version:'BH-1.0',changedDate:'17/07/2026',effectiveFrom:'01/08/2026',changeReason:'Chuẩn hóa mẫu Nhân viên bán hàng từ file nguồn để triển khai trên PHF Checklist.',sourceOwner:'Mẫu gốc: Nhân viên bán hàng – Uyên',scope:'Áp dụng chung toàn hệ thống cho chức danh Bán hàng',evidence:'Khuyến khích',noteRequired:true
   });
@@ -542,7 +579,70 @@
     ['PHOIHOP','Phối hợp và công việc cấp trên',['Phối hợp các bộ phận và hoàn thành công việc cấp trên giao']]
   ]);
 
+
+  var PURCHASING_EMPLOYEE_GROUPS=Object.freeze([
+    {code:'XULY-DE-XUAT',name:'Tiếp nhận và xử lý đề xuất mua hàng',children:[
+      {code:'XULY-DE-XUAT',name:'Xử lý đề xuất đúng thời gian',items:[
+        ['NVT-MUA-DE-XUAT-01','Xử lý đề xuất mua hàng đối với trái cây và hoa tươi: nhận đề xuất và gửi nhà cung cấp trong ngày',2],
+        ['NVT-MUA-DE-XUAT-02','Xử lý đề xuất mua hàng đối với hàng khô và phụ kiện: gửi nhà cung cấp trong vòng 14 giờ làm việc',2]
+      ]}
+    ]},
+    {code:'KIEMTRA-BAOGIA',name:'Kiểm tra tồn kho và nhà cung cấp',children:[
+      {code:'KIEMTRA-BAOGIA',name:'Tồn kho, báo giá và lựa chọn nhà cung cấp',items:[
+        ['NVT-MUA-TONKHO-01','Kiểm tra thực tế hàng tồn kho',1],
+        ['NVT-MUA-BAOGIA-01','Tìm kiếm, cập nhật và so sánh báo giá nhà cung cấp khi có nhu cầu',1]
+      ]}
+    ]},
+    {code:'DATHANG',name:'Đặt hàng và theo dõi đơn hàng',children:[
+      {code:'DATHANG',name:'Lập, kiểm tra và theo dõi đơn đặt hàng',items:[
+        ['NVT-MUA-DATHANG-01','Lập đơn đặt hàng và gửi cho nhà cung cấp',1],
+        ['NVT-MUA-CHINHXAC-01','Đảm bảo đơn đặt hàng chính xác về số lượng, giá và điều kiện mua hàng',2],
+        ['NVT-MUA-THEODOI-01','Theo dõi đơn hàng đã đặt và phản hồi bộ phận đặt hàng về thời gian hàng về',1],
+        ['NVT-MUA-PHATSINH-01','Giám sát và xử lý phát sinh với nhà cung cấp',1]
+      ]}
+    ]},
+    {code:'CHUNGTU-HETHONG',name:'Chứng từ và cập nhật hệ thống',children:[
+      {code:'CHUNGTU-HETHONG',name:'Hoàn thiện chứng từ và nhập liệu',items:[
+        ['NVT-MUA-CHUNGTU-01','Chuyển chứng từ nhập hàng cho kế toán đúng hạn trong ngày',1],
+        ['NVT-MUA-NHAPHETHONG-01','Nhập hàng vào hệ thống bán hàng đầy đủ, kịp thời và chính xác',1]
+      ]}
+    ]},
+    {code:'TACPHONG',name:'Nội quy và tác phong',children:[
+      {code:'TACPHONG',name:'Nội quy, tác phong và văn hóa ứng xử',items:[
+        ['PHF-TACPHONG-NOIQ-01','Đảm bảo nội quy và tác phong',1],
+        ['PHF-TACPHONG-UNGXU-01','Đảm bảo tuân thủ văn hóa ứng xử PHF',10],
+        ['PHF-DITRE-01','Đi trễ so với giờ vào ca theo lịch',1]
+      ]}
+    ]}
+  ]);
+  var PURCHASING_MANAGER_GROUPS=Object.freeze([
+    {code:'QUANLY-THUMUA',name:'Quản lý hoạt động Thu mua',children:[
+      {code:'QUANLY-THUMUA',name:'Chỉ tiêu quản lý và phát triển nguồn cung',items:[
+        ['TBP-TM-DEAL-01','Đảm bảo có mã hàng để chạy deal và chương trình khuyến mãi',1],
+        ['TBP-TM-BAOCAO-01','Thực hiện đầy đủ các báo cáo và đánh giá hiệu quả hoạt động Thu mua',1],
+        ['TBP-TM-NCC-TIEMNANG-01','Tìm kiếm và đánh giá nhà cung cấp tiềm năng',1],
+        ['TBP-TM-NCC-MOI-01','Phát triển và đưa nhà cung cấp mới vào hợp tác chính thức theo nhu cầu kinh doanh và định hướng công ty',1],
+        ['TBP-TM-THUONGTHAO-01','Thương thảo thành công với nhà cung cấp về giao hàng, giảm giá, chiết khấu hoặc điều khoản hợp tác',1],
+        ['TBP-TM-SKU-01','Phát triển SKU mới đáp ứng nhu cầu kinh doanh',1]
+      ]}
+    ]},
+    {code:'TACPHONG',name:'Nội quy và tác phong',children:[
+      {code:'TACPHONG',name:'Tuân thủ tiêu chuẩn và công việc cấp trên',items:[
+        ['TBP-TM-TUANTHU-01','Tuân thủ tiêu chuẩn công việc; mỗi lỗi vi phạm trừ theo quy tắc tiêu chí',1],
+        ['TBP-TM-CAPTren-01','Thực hiện các công việc cấp trên giao',1],
+        ['PHF-TACPHONG-UNGXU-01','Đảm bảo tuân thủ văn hóa ứng xử PHF',10],
+        ['PHF-DITRE-01','Đi trễ so với giờ vào ca theo lịch',1]
+      ]}
+    ]}
+  ]);
+
   var ASSISTANT_TEMPLATE_CONFIGS=Object.freeze({
+    'tbp-thu-mua':{
+      title:'Trưởng bộ phận Thu mua',groupLabel:'Thu mua',code:'TBP-TM',version:'TBP-TM-1.0',policy:'TBP-TM-TỔNG-1.0',source:'THÁNG 7 Tiêu chuẩn PHF _ LINH.xlsx · TC PHF - Thu mua LINH',scope:'Áp dụng cho chức danh Trưởng bộ phận Thu mua',
+      reason:'Chuẩn hóa một mẫu Trưởng bộ phận Thu mua từ hai sheet Tháng 7: bảng tổng điểm và Checklist công việc hằng ngày; không tách riêng mẫu Nhân viên Thu mua.',groups:PURCHASING_EMPLOYEE_GROUPS,
+      rules:['Bảng tổng giữ đúng 8 chỉ tiêu và trọng số 10% – 10% – 10% – 10% – 10% – 10% – 30% – 10%.','Phần Checklist giữ nguyên 12 công việc hằng ngày và hệ số 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2; tổng hệ số 16.','Điểm Tuân thủ tiêu chuẩn công việc trên bảng tổng lấy từ kết quả Checklist và có mục tiêu 100 điểm.','Không tạo 31 cột ngày trên web; vi phạm được ghi nhận tại màn Ghi nhận lỗi.','Công thức chung: Thực đạt ×1, Thẩm định ×2, chia 3; sau đó quy đổi theo trọng số.'],
+      rows:[['Đảm bảo có mã hàng để chạy deal, CTKM',12,10,null,'mã hàng'],['Thực hiện đầy đủ báo cáo và đánh giá hiệu quả hoạt động Thu mua',2,10,null,'báo cáo'],['Tìm kiếm và đánh giá nhà cung cấp tiềm năng',3,10,null,'nhà cung cấp'],['Phát triển và đưa nhà cung cấp mới vào hợp tác chính thức',2,10,null,'nhà cung cấp'],['Thương thảo thành công với nhà cung cấp',2,10,null,'kết quả'],['Phát triển SKU mới đáp ứng nhu cầu kinh doanh',5,10,null,'SKU'],['Tuân thủ tiêu chuẩn công việc',100,30,null,'điểm'],['Thực hiện các công việc cấp trên giao',5,10,null,'công việc']]
+    },
     'nv-online':{
       title:'Nhân viên CSKH & Check đơn Online',groupLabel:'CSKH & Online',code:'NV-CHECKDON',version:'NV-CHECKDON-1.0',policy:'NV-CHECKDON-TỔNG-1.0',source:'Bộ tiêu chí Dung, Quyên và Vân',scope:'Áp dụng chung cho Nhân viên CSKH & Check đơn Online',
       reason:'Chuẩn hóa ba mẫu cá nhân thành một mẫu chức danh chung; giữ nguyên bảng tổng, chuẩn hóa ứng xử PHF hệ số 10 và bổ sung Đi trễ từ thư viện chung.',groups:ONLINE_TEMPLATE_GROUPS,
@@ -780,6 +880,19 @@
   var reportUiState={view:'summary',month:'',scope:'all'};
   var settingsUiState={section:'permissions'};
   function normalizeText(v){return String(v==null?'':v).trim();}
+  function normalizeEmployeeStatus(v){
+    var x=normalizeText(v);
+    if(x==='Tạm nghỉ')return 'Nghỉ dài hạn';
+    if(x==='Nghỉ việc')return 'Đã nghỉ việc';
+    if(x==='Thử việc')return 'Đang làm việc';
+    return x||'Đang làm việc';
+  }
+  function checklistParticipationStatus(item,assigned){
+    var status=normalizeEmployeeStatus(item&&item.employeeStatus);
+    if(status==='Nghỉ dài hạn')return {label:'Tạm dừng Checklist',kind:'warning'};
+    if(status==='Đã nghỉ việc')return {label:'Ngừng áp dụng',kind:'muted'};
+    return assigned?{label:'Đã phân công',kind:'green'}:{label:'Chưa phân công',kind:'muted'};
+  }
   function employeeCodeOf(row){return normalizeText(row&&((row.employeeCode||row.employee_code||row.code||row.staffCode||row.staff_code)));}
   function employeeNameOf(row){return normalizeText(row&&((row.fullName||row.full_name||row.name||row.employeeName||row.employee_name)));}
   function employeeIdOf(row,index){return normalizeText(row&&((row.id||row.employeeId||row.employee_id)))||('row-'+index);}
@@ -807,7 +920,7 @@
   function checklistAssignmentPayload(){
     return checklistEmployees().map(function(item){
       var x=assignmentMetaForItem(item),key=formAssignmentKey(item);
-      return {employeeKey:key,employeeId:item.id||'',employeeCode:item.code||'',employeeName:item.name||'',department:item.department||'',title:item.title||'',branch:item.branch||'',managerId:item.managerId||'',managerCode:item.managerCode||'',managerName:item.managerName||'',employeeStatus:item.employeeStatus||'Đang làm việc',templateId:x.form.templateId||'',templateVersion:x.form.templateVersion||'',effectiveDate:x.meta.effectiveDate||todayIso(),reason:x.meta.reason||'Đồng bộ cấu hình Checklist'};
+      return {employeeKey:key,employeeId:item.id||'',employeeCode:item.code||'',employeeName:item.name||'',department:item.department||'',title:item.title||'',branch:item.branch||'',managerId:item.managerId||'',managerCode:item.managerCode||'',managerName:item.managerName||'',employeeStatus:item.employeeStatus||'Đang làm việc',leaveUntil:item.leaveUntil||'',statusNote:item.statusNote||'',templateId:x.form.templateId||'',templateVersion:x.form.templateVersion||'',effectiveDate:x.meta.effectiveDate||todayIso(),reason:x.meta.reason||'Đồng bộ cấu hình Checklist'};
     });
   }
   function scheduleChecklistAssignmentsPersist(){
@@ -830,7 +943,7 @@
     checklistAssignmentDbState.ready=!!(data&&data.checklistAssignmentsReady);checklistAssignmentDbState.lastError=normalizeText(data&&data.checklistAssignmentsError);
     if(!checklistAssignmentDbState.ready||!rows.length){if(checklistAssignmentDbState.ready&&!rows.length)setTimeout(scheduleChecklistAssignmentsPersist,100);return;}
     var departments={},titles={},branches={},managers={},statuses={},forms={};
-    rows.forEach(function(row){var key=normalizeText(row.employeeKey||row.employeeCode||row.employeeId).toLowerCase();if(!key)return;departments[key]=normalizeText(row.department);titles[key]={title:normalizeText(row.title),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};branches[key]={branch:normalizeText(row.branch),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};managers[key]={managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};statuses[key]={status:row.employeeStatus||'Đang làm việc',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};if(row.templateId)forms[key]={templateId:row.templateId,templateVersion:row.templateVersion||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};});
+    rows.forEach(function(row){var key=normalizeText(row.employeeKey||row.employeeCode||row.employeeId).toLowerCase();if(!key)return;departments[key]=normalizeText(row.department);titles[key]={title:normalizeText(row.title),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};branches[key]={branch:normalizeText(row.branch),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};managers[key]={managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};statuses[key]={status:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',note:row.statusNote||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};if(row.templateId)forms[key]={templateId:normalizeLegacyTemplateId(row.templateId),templateVersion:(row.templateId==='nv-thu-mua'?'TBP-TM-1.0':(row.templateVersion||'')),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};});
     checklistAssignmentDbState.suppress=true;
     try{localStorage.setItem(CHECKLIST_DEPARTMENT_STORE,JSON.stringify(departments));localStorage.setItem(CHECKLIST_TITLE_STORE,JSON.stringify(titles));localStorage.setItem(CHECKLIST_BRANCH_STORE,JSON.stringify(branches));localStorage.setItem(CHECKLIST_MANAGER_STORE,JSON.stringify(managers));localStorage.setItem(CHECKLIST_EMPLOYEE_STATUS_STORE,JSON.stringify(statuses));localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(forms));}catch(_e){}
     checklistAssignmentDbState.suppress=false;
@@ -838,10 +951,17 @@
   function employeeTitleOf(row){return normalizeText(row&&((row.position||row.positionName||row.position_name||row.title||row.jobTitle||row.job_title||row.chucDanh||row.chuc_danh)));}
   function loadTitleAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_TITLE_STORE)||'{}');return x&&typeof x==='object'?x:{};}catch(_e){return {};}}
   function saveTitleAssignments(value){try{localStorage.setItem(CHECKLIST_TITLE_STORE,JSON.stringify(value||{}));scheduleChecklistAssignmentsPersist();}catch(_e){}}
-  function loadFormAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_FORM_ASSIGNMENT_STORE)||'{}');return x&&typeof x==='object'?x:{};}catch(_e){return {};}}
+  function loadFormAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_FORM_ASSIGNMENT_STORE)||'{}');if(!(x&&typeof x==='object'))return {};var changed=false;Object.keys(x).forEach(function(k){if(x[k]&&x[k].templateId==='nv-thu-mua'){x[k].templateId='tbp-thu-mua';x[k].templateVersion='TBP-TM-1.0';changed=true;}});if(changed)localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(x));return x;}catch(_e){return {};}}
   function saveFormAssignments(value){try{localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(value||{}));scheduleChecklistAssignmentsPersist();return true;}catch(_e){return false;}}
   function formAssignmentKey(item){return normalizeText(item&&((item.code||item.id||item.name))).toLowerCase();}
-  function templateById(id){return CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===id;})||null;}
+  function normalizeLegacyTemplateId(id){return id==='nv-thu-mua'?'tbp-thu-mua':id;}
+  function templateById(id){id=normalizeLegacyTemplateId(id);return templateCatalog().find(function(x){return x.id===id;})||null;}
+  function checklistTemplateDatabaseRow(id){ensureChecklistTemplatesHydrated();id=normalizeLegacyTemplateId(id);return checklistTemplateDbState.byId[id]||null;}
+  function checklistTemplateStatus(id){var row=checklistTemplateDatabaseRow(id),item=templateById(id),raw=normalizeText(row&&row.status||item&&item.status||'active').toLowerCase();return raw||'active';}
+  function checklistTemplateStatusLabel(status){status=normalizeText(status).toLowerCase();if(status==='active'||status==='published')return 'Đang áp dụng';if(status==='pending'||status==='scheduled'||status==='waiting')return 'Chờ hiệu lực';if(status==='inactive'||status==='stopped'||status==='disabled')return 'Ngừng áp dụng';if(status==='archived'||status==='old')return 'Phiên bản cũ';if(status==='draft')return 'Bản nháp';return status||'Đang áp dụng';}
+  function checklistTemplateCanAssign(id){var status=checklistTemplateStatus(id);return status==='active'||status==='published'||status==='pending'||status==='scheduled'||status==='waiting';}
+  function checklistIsoDate(value){value=normalizeText(value);var m=value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:value;}
+  function checklistTemplateVersions(id){var row=checklistTemplateDatabaseRow(id),versions=row&&Array.isArray(row.versions)?row.versions.slice():[];if(row&&row.version&&!versions.some(function(x){return x.version===row.version;}))versions.push({version:row.version,effectiveDate:row.effectiveDate||'',reason:row.reason||'',definition:row.definition||null});return versions.filter(function(x){return normalizeText(x&&x.version);}).sort(function(a,b){return checklistIsoDate(a.effectiveDate||'').localeCompare(checklistIsoDate(b.effectiveDate||''));});}
   function normalizeMatchText(v){return normalizeText(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');}
   function suggestChecklistTemplate(item){
     var department=normalizeMatchText(item&&item.department),title=normalizeMatchText(item&&item.title),id='',reason='',score=0;
@@ -854,6 +974,8 @@
       if(/media|marketing|mkt/.test(title+' '+department)&&!(/truong bo phan|tbp/.test(title)))choose('nv-marketing','Khớp chức danh Media Marketing',90);
       if(/truong bo phan|tbp/.test(title)&&/goi qua/.test(title+' '+department))choose('tbp-goi-qua','Khớp chức danh Trưởng bộ phận Gói quà',100);
       if(/goi qua/.test(title+' '+department)&&!(/truong bo phan|tbp/.test(title)))choose('nv-goi-qua','Khớp chức danh Nhân viên Gói quà',90);
+      if(/truong bo phan|tbp/.test(title)&&/thu mua|mua hang/.test(title+' '+department))choose('tbp-thu-mua','Khớp chức danh Trưởng bộ phận Thu mua',100);
+      if(/thu mua|mua hang/.test(title+' '+department)&&!(/truong bo phan|tbp/.test(title)))choose('tbp-thu-mua','Thu mua hiện dùng một mẫu chung Trưởng bộ phận Thu mua gồm bảng tổng điểm và Checklist hằng ngày',70);
       if(/truong bo phan|tbp/.test(title)&&/hcns|qtth|hanh chinh|nhan su/.test(title+' '+department))choose('qtth-hcns-thang','Khớp chức danh Trưởng bộ phận QTTH/HCNS',100);
       if(/hcns|qtth|hanh chinh|nhan su/.test(title+' '+department)&&!(/truong bo phan|tbp/.test(title)))choose('qtth-hcns-nhan-vien','Khớp chức danh Nhân viên QTTH/HCNS',90);
       if(/ke toan truong/.test(title))choose('ke-toan-truong','Khớp chức danh Kế toán trưởng',100);
@@ -871,11 +993,13 @@
       else if(/kho|so che/.test(department))choose('nv-kho','Khớp phòng ban Kho & Sơ chế; chưa có chức danh đủ rõ',50);
       else if(/marketing|mkt|media/.test(department))choose('nv-marketing','Khớp phòng ban Marketing; chưa có chức danh đủ rõ',50);
       else if(/goi qua/.test(department))choose('nv-goi-qua','Khớp phòng ban Gói quà; chưa có chức danh đủ rõ',50);
+      else if(/thu mua|mua hang/.test(department))choose('tbp-thu-mua','Phòng ban Thu mua hiện dùng một mẫu chung; Admin xác nhận trước khi gán',50);
       else if(/hcns|qtth|hanh chinh|nhan su/.test(department))choose('qtth-hcns-nhan-vien','Khớp phòng ban QTTH/HCNS; chưa có chức danh đủ rõ',50);
       else if(/ke toan/.test(department))choose('ke-toan-tong-hop','Khớp phòng ban Kế toán; chưa có chức danh đủ rõ',50);
       else if(/online|cskh/.test(department))choose('nv-online','Khớp phòng ban CSKH/Online; chưa có chức danh đủ rõ',50);
     }
-    return id?{templateId:id,template:templateById(id),reason:reason,score:score}:{templateId:'',template:null,reason:(!item||!item.department||!item.title?'Chưa đủ Phòng ban và Chức danh chính để gợi ý chính xác.':'Chưa tìm thấy mẫu phù hợp trong danh mục hiện tại.'),score:0};
+    if(id&&!checklistTemplateCanAssign(id)){id='';reason='Mẫu phù hợp theo chức danh hiện đang ngừng áp dụng hoặc chưa phát hành.';score=0;}
+    return id?{templateId:id,template:templateById(id),reason:reason,score:score}:{templateId:'',template:null,reason:reason||(!item||!item.department||!item.title?'Chưa đủ Phòng ban và Chức danh chính để gợi ý chính xác.':'Chưa tìm thấy mẫu phù hợp đang áp dụng trong thư viện.'),score:0};
   }
   function titleAssignmentKey(item){return normalizeText(item&&((item.code||item.id||item.name))).toLowerCase();}
   function titleCatalog(rows){
@@ -885,7 +1009,7 @@
     (Array.isArray(data.employees)?data.employees:[]).forEach(function(x){add(employeeTitleOf(x));});
     (Array.isArray(data.hubAccounts)?data.hubAccounts:[]).forEach(function(x){add(employeeTitleOf(x));});
     (Array.isArray(data.userAccounts)?data.userAccounts:[]).forEach(function(x){add(employeeTitleOf(x));});
-    CHECKLIST_TEMPLATE_CATALOG.forEach(function(x){add(x.title||x.name);});
+    templateCatalog().forEach(function(x){add(x.title||x.name);});
     return values.sort(function(a,b){return a.localeCompare(b,'vi');});
   }
   function loadDepartmentOverrides(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_DEPARTMENT_STORE)||'{}');return x&&typeof x==='object'?x:{};}catch(_e){return {};}}
@@ -937,7 +1061,7 @@
       .then(function(data){
         if(requestToken!==peopleDataSyncState.token)return data;
         if(!data||!Array.isArray(data.employees))throw new Error('Dữ liệu nhân sự trả về không hợp lệ.');
-        window.__phfLocalData=data;window.localData=data;hydrateChecklistAssignmentsFromDatabase(data);
+        window.__phfLocalData=data;window.localData=data;hydrateChecklistAssignmentsFromDatabase(data);hydrateChecklistTemplatesFromDatabase(data);
         peopleDataSyncState.sourceTotal=data.employees.length;
         peopleDataSyncState.lastLoadedAt=Date.now();peopleDataSyncState.lastError='';
         if(root&&adminViewFromPath(location.pathname)==='people')refreshPeopleWorkspace(root);
@@ -1013,7 +1137,7 @@
       var branchAssigned=loadBranchAssignments()[branchAssignmentKey(item)];if(branchAssigned&&branchAssigned.branch)item.branch=normalizeText(branchAssigned.branch);
       var managerAssigned=loadManagerAssignments()[managerAssignmentKey(item)];
       item.managerId=normalizeText(managerAssigned&&managerAssigned.managerId);item.managerName=normalizeText(managerAssigned&&managerAssigned.managerName);item.managerCode=normalizeText(managerAssigned&&managerAssigned.managerCode);
-      var statusAssigned=loadEmployeeStatusAssignments()[employeeStatusAssignmentKey(item)];item.employeeStatus=normalizeText(statusAssigned&&statusAssigned.status)||'Đang làm việc';
+      var statusAssigned=loadEmployeeStatusAssignments()[employeeStatusAssignmentKey(item)];item.employeeStatus=normalizeEmployeeStatus(statusAssigned&&statusAssigned.status);item.leaveUntil=normalizeText(statusAssigned&&statusAssigned.leaveUntil);item.statusNote=normalizeText(statusAssigned&&statusAssigned.note);
       return item;
     }).filter(function(item){
       if(!item.name||hidden.indexOf(item.id)>=0)return false;
@@ -1040,7 +1164,7 @@
   function quickDraftFor(item){
     var draft=peopleUiState.quickDrafts[item.id];
     if(draft)return draft;
-    draft={department:item.department||'',title:item.title||'',branch:item.branch||'',managerId:item.managerId||'',status:item.employeeStatus||'Đang làm việc',changed:false};
+    draft={department:item.department||'',title:item.title||'',branch:item.branch||'',managerId:item.managerId||'',changed:false};
     peopleUiState.quickDrafts[item.id]=draft;return draft;
   }
   function quickSelectOptions(values,current,empty){
@@ -1048,15 +1172,13 @@
   }
   function quickEditOrgHtml(item,all){
     var d=quickDraftFor(item),departments=departmentOptions(all),titles=titleCatalog(all),branches=branchOptions(all);
-    var managers=all.filter(function(x){return x.id!==item.id&&x.code&&x.employeeStatus!=='Nghỉ việc';});
+    var managers=all.filter(function(x){return x.id!==item.id&&x.code&&normalizeEmployeeStatus(x.employeeStatus)!=='Đã nghỉ việc';});
     var managerOptions='<option value="">Chưa chọn cấp trên</option>'+managers.map(function(x){return '<option value="'+esc(x.id)+'" '+(x.id===d.managerId?'selected':'')+'>'+esc(x.name)+' · '+esc(x.code)+'</option>';}).join('');
-    var statuses=['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc'];
     return '<div class="phfck-quick-edit-grid" data-phfck-quick-row="'+esc(item.id)+'">'
       +'<label><small>Phòng ban</small><select data-phfck-quick-person-field="department" data-phfck-quick-person-id="'+esc(item.id)+'">'+quickSelectOptions(departments,d.department,'Chưa phân phòng ban')+'</select></label>'
       +'<label><small>Chức danh</small><select data-phfck-quick-person-field="title" data-phfck-quick-person-id="'+esc(item.id)+'">'+quickSelectOptions(titles,d.title,'Chưa gán chức danh')+'</select></label>'
       +'<label><small>Chi nhánh</small><select data-phfck-quick-person-field="branch" data-phfck-quick-person-id="'+esc(item.id)+'">'+quickSelectOptions(branches,d.branch,'Chưa chọn chi nhánh')+'</select></label>'
       +'<label><small>Quản lý trực tiếp</small><select data-phfck-quick-person-field="managerId" data-phfck-quick-person-id="'+esc(item.id)+'">'+managerOptions+'</select></label>'
-      +'<label><small>Trạng thái</small><select data-phfck-quick-person-field="status" data-phfck-quick-person-id="'+esc(item.id)+'">'+statuses.map(function(x){return '<option value="'+esc(x)+'" '+(x===d.status?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
     +'</div>';
   }
   function changedQuickDraftIds(){return Object.keys(peopleUiState.quickDrafts).filter(function(id){return peopleUiState.quickDrafts[id]&&peopleUiState.quickDrafts[id].changed;});}
@@ -1065,15 +1187,14 @@
     if(!ids.length){if(window.phfNotice)window.phfNotice('Chưa có thông tin nào thay đổi.');return;}
     if(!date||!reason){if(window.phfNotice)window.phfNotice('Vui lòng chọn ngày hiệu lực và nhập lý do thay đổi chung.');return;}
     var all=checklistEmployees(),dept=loadDepartmentOverrides(),titles=loadTitleAssignments(),branches=loadBranchAssignments(),managers=loadManagerAssignments(),statuses=loadEmployeeStatusAssignments(),saved=0;
-    ids.forEach(function(id){var item=all.find(function(x){return x.id===id;}),d=peopleUiState.quickDrafts[id];if(!item||!d)return;var manager=d.managerId?all.find(function(x){return x.id===d.managerId;}):null;if(d.managerId&&(!manager||manager.id===item.id||manager.employeeStatus==='Nghỉ việc'))return;
+    ids.forEach(function(id){var item=all.find(function(x){return x.id===id;}),d=peopleUiState.quickDrafts[id];if(!item||!d)return;var manager=d.managerId?all.find(function(x){return x.id===d.managerId;}):null;if(d.managerId&&(!manager||manager.id===item.id||normalizeEmployeeStatus(manager.employeeStatus)==='Đã nghỉ việc'))return;
       var dk=departmentKey(item);if(d.department)dept[dk]=d.department;else delete dept[dk];
       titles[titleAssignmentKey(item)]={title:d.title,effectiveDate:date,reason:reason,previousTitle:item.title||'',updatedAt:new Date().toISOString()};
       branches[branchAssignmentKey(item)]={branch:d.branch,effectiveDate:date,reason:reason,previousBranch:item.branch||'',updatedAt:new Date().toISOString()};
       managers[managerAssignmentKey(item)]={managerId:manager?manager.id:'',managerName:manager?manager.name:'',managerCode:manager?manager.code:'',effectiveDate:date,reason:reason,previousManagerId:item.managerId||'',previousManagerName:item.managerName||'',updatedAt:new Date().toISOString()};
-      statuses[employeeStatusAssignmentKey(item)]={status:d.status||'Đang làm việc',effectiveDate:date,reason:reason,previousStatus:item.employeeStatus||'Đang làm việc',updatedAt:new Date().toISOString()};
-      addAudit({action:'Sửa nhanh thông tin nhân sự',area:'Nhân sự & phân công',object:item.name+' · '+(item.code||item.id),source:'Web',impact:'Một nhân sự',version:'1.7.70',reason:'Hiệu lực '+date+'; '+reason});saved+=1;
+            addAudit({action:'Sửa nhanh thông tin nhân sự',area:'Nhân sự & phân công',object:item.name+' · '+(item.code||item.id),source:'Web',impact:'Một nhân sự',version:'1.7.70',reason:'Hiệu lực '+date+'; '+reason});saved+=1;
     });
-    saveDepartmentOverrides(dept);saveTitleAssignments(titles);saveBranchAssignments(branches);saveManagerAssignments(managers);saveEmployeeStatusAssignments(statuses);
+    saveDepartmentOverrides(dept);saveTitleAssignments(titles);saveBranchAssignments(branches);saveManagerAssignments(managers);
     peopleUiState.quickEdit=false;peopleUiState.quickDrafts={};refreshPeopleWorkspace(root);if(window.phfNotice)window.phfNotice('Đã lưu thay đổi nhanh cho '+saved+' nhân sự.');
   }
   function sourceEmployeeRows(){var data=window.__phfLocalData||window.localData||{};return Array.isArray(data.employees)?data.employees:[];}
@@ -1090,12 +1211,13 @@
     return '<div class="phfck-people-reconcile"><div class="phfck-reconcile-copy"><b>Đối soát nguồn nhân sự</b><span>Nguồn máy chủ: <strong>'+sourceTotal+'</strong> · Đang hiển thị: <strong>'+visibleTotal+'</strong> · Đang ẩn trên trình duyệt này: <strong>'+hiddenCount+'</strong></span><small>'+esc(syncText)+'</small>'+warning+'</div><div class="phfck-reconcile-actions"><button type="button" class="phfck-secondary" data-phfck-sync-people>↻ Đồng bộ lại</button>'+(hiddenCount?'<button type="button" class="phfck-secondary" data-phfck-restore-hidden>Hiện lại '+hiddenCount+' hồ sơ</button>':'')+'</div></div>';
   }
   function peopleStatsHtml(total){
-    var assignments=loadFormAssignments(),assigned=checklistEmployees().filter(function(item){return !!assignments[formAssignmentKey(item)];}).length;
+    var assignments=loadFormAssignments(),employees=checklistEmployees(),assigned=employees.filter(function(item){return !!assignments[formAssignmentKey(item)];}).length,reviewCount=employees.filter(function(item){var a=assignments[formAssignmentKey(item)];return !!assignmentReview(item,a);}).length;
     return '<section class="phfck-people-stats">'
       +'<article><span>Tổng nhân sự nền</span><strong>'+total+'</strong><small>Lấy Họ tên và Mã NV từ Hub</small></article>'
       +'<article><span>Đã phân công</span><strong>'+assigned+'</strong><small>Admin đã xác nhận gán mẫu</small></article>'
       +'<article><span>Chưa phân công</span><strong>'+Math.max(0,total-assigned)+'</strong><small>Hệ thống chỉ gợi ý, không tự gán</small></article>'
-      +'<article><span>Bộ mẫu chính thức</span><strong>'+CHECKLIST_TEMPLATE_CATALOG.length+'</strong><small>Theo gói nghiệp vụ đã chốt</small></article>'
+      +'<article><span>Bộ mẫu chính thức</span><strong>'+templateCatalog().length+'</strong><small>Đọc từ thư viện mẫu chung</small></article>'
+      +'<article><span>Cần rà soát</span><strong>'+reviewCount+'</strong><small>Mẫu ngừng áp dụng, mất mẫu hoặc lệch phiên bản</small></article>'
     +'</section>';
   }
   function peopleInfoCard(label,value,kind){
@@ -1108,26 +1230,26 @@
     if(start>=rows.length){peopleUiState.page=1;start=0;}
     var pageRows=rows.slice(start,start+peopleUiState.pageSize),formAssignments=loadFormAssignments();
     var body=pageRows.map(function(item,index){
-      var unlinked=!item.code,accountLinked=!!item.account,assigned=formAssignments[formAssignmentKey(item)]||null,assignedTemplate=assigned&&templateById(assigned.templateId);
+      var unlinked=!item.code,accountLinked=!!item.account,assigned=formAssignments[formAssignmentKey(item)]||null,assignedTemplate=assigned&&templateById(assigned.templateId),assignmentWarning=assignmentReview(item,assigned);
       var editButton='<button type="button" class="phfck-table-action phfck-edit-person-button" data-phfck-edit-person="'+esc(item.id)+'">Sửa</button>';
-      var assignButton=!unlinked?'<button type="button" class="phfck-table-action" data-phfck-assign="'+esc(item.id)+'">'+'Gán mẫu'+'</button>':'';
+      var canAssign=!unlinked&&normalizeEmployeeStatus(item.employeeStatus)==='Đang làm việc';var assignButton=!unlinked?('<button type="button" class="phfck-table-action" '+(canAssign?'data-phfck-assign="'+esc(item.id)+'"':'disabled title="Chỉ gán mẫu khi nhân sự đang làm việc"')+'>'+'Gán mẫu'+'</button>'):'';
+      var statusButton='<button type="button" class="phfck-table-action phfck-status-action" data-phfck-change-status="'+esc(item.id)+'">Trạng thái</button>';
       var cleanup=unlinked?('<div class="phfck-row-tools"><button type="button" class="phfck-row-menu" data-phfck-person-menu="'+esc(item.id)+'" aria-label="Xử lý hồ sơ '+esc(item.name)+'">⋯</button><div class="phfck-row-menu-pop" data-phfck-person-menu-pop="'+esc(item.id)+'"><button type="button" data-phfck-hide-person="'+esc(item.id)+'">Ẩn khỏi Checklist</button>'+(!accountLinked?'<button type="button" class="is-danger" data-phfck-delete-person="'+esc(item.id)+'">Xóa hồ sơ không liên kết</button>':'')+'</div></div>'):'';
       var orgCards=peopleUiState.quickEdit?quickEditOrgHtml(item,checklistEmployees()):('<div class="phfck-person-info-stack">'
         +peopleInfoCard('Phòng ban',item.department||'Chưa phân phòng ban')
         +peopleInfoCard('Chức danh',item.title||'Chưa gán chức danh')
         +peopleInfoCard('Chi nhánh',item.branch||'Chưa chọn chi nhánh')
         +peopleInfoCard('Quản lý trực tiếp',item.managerName?(item.managerName+(item.managerCode?' · '+item.managerCode:'')):'Chưa chọn cấp trên')
-        +peopleInfoCard('Trạng thái',item.employeeStatus||'Đang làm việc','is-status')
-      +'</div>');
+              +'</div>');
       return '<tr>'
         +'<td><span class="phfck-row-no">'+(start+index+1)+'</span></td>'
         +'<td><strong class="phfck-fixed-value">'+esc(item.name)+'</strong></td>'
         +'<td><strong class="phfck-employee-code">'+esc(item.code||'Chưa có mã NV')+'</strong></td>'
         +'<td>'+orgCards+'</td>'
-        +'<td>'+(assigned?'<span class="phfck-chip phfck-chip-green">Đã phân công</span>':'<span class="phfck-chip phfck-chip-muted">Chưa phân công</span>')+'</td>'
-        +'<td>'+(assignedTemplate?'<strong class="phfck-assigned-template">'+esc(assignedTemplate.name)+'</strong><small class="phfck-assigned-version">'+esc(assigned.templateVersion||assignmentTemplateMeta(assigned.templateId,assigned.effectiveDate).version)+'</small>':'<span class="phfck-dash">—</span>')+'</td>'
+        +'<td>'+function(){var p=checklistParticipationStatus(item,assigned);var employeeKind=item.employeeStatus==='Đang làm việc'?'green':(item.employeeStatus==='Nghỉ dài hạn'?'warning':'muted');return '<div class="phfck-status-stack"><span class="phfck-chip phfck-chip-'+employeeKind+'">'+esc(item.employeeStatus||'Đang làm việc')+'</span><span class="phfck-chip phfck-chip-'+p.kind+'">'+esc(p.label)+'</span>'+(item.leaveUntil?'<small>Dự kiến lại: '+esc(item.leaveUntil)+'</small>':'')+'</div>';}()+'</td>'
+        +'<td>'+(assignedTemplate?'<strong class="phfck-assigned-template">'+esc(assignedTemplate.name)+'</strong><small class="phfck-assigned-version">'+esc(assigned.templateVersion||assignmentTemplateMeta(assigned.templateId,assigned.effectiveDate).version)+'</small>'+(assignmentWarning?'<span class="phfck-chip phfck-chip-'+(assignmentWarning.kind==='danger'?'danger':'warning')+' phfck-assignment-warning">'+esc(assignmentWarning.label)+'</span>':''):'<span class="phfck-dash">—</span>')+'</td>'
         +'<td>'+(assigned&&assigned.effectiveDate?'<span>'+esc(assigned.effectiveDate)+'</span>':'<span class="phfck-dash">—</span>')+'</td>'
-        +'<td class="phfck-actions-cell"><div class="phfck-person-actions">'+(peopleUiState.quickEdit?'<span class="phfck-quick-edit-state" data-phfck-quick-state=+esc(item.id)+>Chưa đổi</span>':editButton+assignButton+cleanup)+'</div></td>'
+        +'<td class="phfck-actions-cell"><div class="phfck-person-actions">'+(peopleUiState.quickEdit?'<span class="phfck-quick-edit-state" data-phfck-quick-state=+esc(item.id)+>Chưa đổi</span>':editButton+assignButton+statusButton+cleanup)+'</div></td>'
       +'</tr>';
     }).join('');
     if(!body) body='<tr><td colspan="8"><div class="phfck-table-empty"><b>Không tìm thấy nhân sự</b><span>Thử đổi từ khóa tìm kiếm.</span></div></td></tr>';
@@ -1148,10 +1270,8 @@
     if(!item)return '';
     var all=checklistEmployees(),departments=departmentOptions(all),titles=titleCatalog(all),branches=branchOptions(all);
     function options(values,current,empty){return '<option value="">'+esc(empty)+'</option>'+values.map(function(x){return '<option value="'+esc(x)+'" '+(x===current?'selected':'')+'>'+esc(x)+'</option>';}).join('');}
-    var managers=all.filter(function(x){return x.id!==item.id&&x.code&&x.employeeStatus!=='Nghỉ việc';}).sort(function(a,b){var diff=managerCandidateScore(b,item)-managerCandidateScore(a,item);return diff||a.name.localeCompare(b.name,'vi');});
+    var managers=all.filter(function(x){return x.id!==item.id&&x.code&&normalizeEmployeeStatus(x.employeeStatus)!=='Đã nghỉ việc';}).sort(function(a,b){var diff=managerCandidateScore(b,item)-managerCandidateScore(a,item);return diff||a.name.localeCompare(b.name,'vi');});
     var currentManager=managers.find(function(x){return x.id===item.managerId;});
-    var statuses=['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc'];
-    var statusOptions=statuses.map(function(x){return '<option value="'+esc(x)+'" '+(x===item.employeeStatus?'selected':'')+'>'+esc(x)+'</option>';}).join('');
     var tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);var iso=tomorrow.getFullYear()+'-'+String(tomorrow.getMonth()+1).padStart(2,'0')+'-'+String(tomorrow.getDate()).padStart(2,'0');
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-person-edit-layer><div class="phfck-modal phfck-person-edit-modal phfck-official-modal" role="dialog" aria-modal="true" aria-labelledby="phfckPersonEditTitle">'
       +'<div class="phfck-modal-head"><div><small>HỒ SƠ TỔ CHỨC</small><h2 id="phfckPersonEditTitle">Cập nhật thông tin nhân sự</h2><p>Điều chỉnh cơ cấu và ngày hiệu lực, không thay đổi Họ tên hoặc Mã nhân viên.</p></div><button type="button" data-phfck-cancel-person-edit aria-label="Đóng">×</button></div>'
@@ -1163,7 +1283,6 @@
         +'<label class="phfck-manager-field"><b>Cấp trên trực tiếp</b><input type="hidden" value="'+esc(item.managerId||'')+'" data-phfck-person-field="manager"><button type="button" class="phfck-manager-trigger" data-phfck-open-manager><span><small>Đang chọn</small><b data-phfck-manager-label>'+esc(currentManager?(currentManager.name+' · '+currentManager.code):'Chưa chọn cấp trên')+'</b></span><i>⌄</i></button><small>Hệ thống ưu tiên người phù hợp cùng phòng ban/chi nhánh, nhưng Admin vẫn có thể chọn nhân sự khác.</small>'
           +'<div class="phfck-manager-picker" data-phfck-manager-picker hidden><div class="phfck-manager-picker-head"><div><b>Tìm và chọn cấp trên</b><span>Gợi ý thông minh, không khóa cứng theo phòng ban</span></div><button type="button" data-phfck-close-manager aria-label="Đóng">×</button></div><div class="phfck-manager-search"><span>⌕</span><input type="search" placeholder="Tìm theo tên, mã NV, chức danh, phòng ban..." data-phfck-manager-search></div><div class="phfck-manager-tabs"><button type="button" class="is-active" data-phfck-manager-tab="suggested">Đề xuất phù hợp</button><button type="button" data-phfck-manager-tab="all">Tất cả nhân sự</button></div><div class="phfck-manager-options" data-phfck-manager-options>'+managerPickerRowsHtml(item,managers)+'</div><button type="button" class="phfck-manager-clear" data-phfck-clear-manager>Không chọn cấp trên</button></div>'
         +'</label>'
-        +'<label><b>Trạng thái nhân sự</b><select data-phfck-person-field="status">'+statusOptions+'</select></label>'
       +'</div></section>'
       +'<section class="phfck-form-section"><div class="phfck-section-title"><b>Thông tin hiệu lực</b><span>Được lưu vào lịch sử thay đổi</span></div><div class="phfck-person-edit-grid"><label><b>Ngày hiệu lực <em>*</em></b><input type="date" value="'+iso+'" data-phfck-person-field="effectiveDate"></label><label class="phfck-span-2 phfck-reason-field"><b>Lý do thay đổi <em>*</em></b><textarea rows="3" data-phfck-person-field="reason" placeholder="Ví dụ: Điều chuyển bộ phận, bổ nhiệm chức danh, thay đổi cấp quản lý trực tiếp..."></textarea></label></div></section>'
       +'<div class="phfck-notice"><b>Nguyên tắc áp dụng</b><p>Admin là người quyết định cuối cùng. Hệ thống chỉ cảnh báo khi cấp trên khác phòng ban/chi nhánh; chỉ chặn chọn chính mình, người đã nghỉ hoặc liên kết không hợp lệ.</p></div><p class="phfck-inline-error" data-phfck-person-edit-error hidden></p></div>'
@@ -1173,20 +1292,57 @@
   function savePersonEdit(root,id){
     var item=checklistEmployees().find(function(x){return x.id===normalizeText(id);}),modal=root.querySelector('[data-phfck-person-edit-layer]');if(!item||!modal)return;
     function val(name){return normalizeText((modal.querySelector('[data-phfck-person-field="'+name+'"]')||{}).value);}
-    var department=val('department'),title=val('title'),branch=val('branch'),managerId=val('manager'),status=val('status')||'Đang làm việc',effectiveDate=val('effectiveDate'),reason=val('reason'),err=modal.querySelector('[data-phfck-person-edit-error]');
+    var department=val('department'),title=val('title'),branch=val('branch'),managerId=val('manager'),effectiveDate=val('effectiveDate'),reason=val('reason'),err=modal.querySelector('[data-phfck-person-edit-error]');
     var manager=managerId?checklistEmployees().find(function(x){return x.id===managerId;}):null;
-    if(managerId&&(!manager||manager.id===item.id||manager.employeeStatus==='Nghỉ việc')){if(err){err.hidden=false;err.textContent='Quản lý trực tiếp không hợp lệ. Vui lòng chọn lại.';}return;}
+    if(managerId&&(!manager||manager.id===item.id||normalizeEmployeeStatus(manager.employeeStatus)==='Đã nghỉ việc')){if(err){err.hidden=false;err.textContent='Quản lý trực tiếp không hợp lệ. Vui lòng chọn lại.';}return;}
     if(manager&&((item.department&&manager.department&&item.department!==manager.department)||(item.branch&&manager.branch&&item.branch!==manager.branch))){checklistToast('warning','Cấp trên khác cơ cấu','Người được chọn khác phòng ban hoặc chi nhánh. Hệ thống vẫn cho phép lưu theo quyết định của Admin.');}
     if(!effectiveDate||!reason){if(err){err.hidden=false;err.textContent='Vui lòng nhập Ngày hiệu lực và Lý do thay đổi.';}return;}
-    var oldSummary=[item.department||'Chưa phân phòng ban',item.title||'Chưa gán chức danh',item.branch||'Chưa chọn chi nhánh',item.managerName||'Chưa chọn cấp trên',item.employeeStatus||'Đang làm việc'].join(' · ');
+    var oldSummary=[item.department||'Chưa phân phòng ban',item.title||'Chưa gán chức danh',item.branch||'Chưa chọn chi nhánh',item.managerName||'Chưa chọn cấp trên'].join(' · ');
     var dept=loadDepartmentOverrides(),dkey=departmentKey(item);if(department)dept[dkey]=department;else delete dept[dkey];saveDepartmentOverrides(dept);
     var titles=loadTitleAssignments(),tkey=titleAssignmentKey(item);titles[tkey]={title:title,effectiveDate:effectiveDate,reason:reason,previousTitle:item.title||'',updatedAt:new Date().toISOString()};saveTitleAssignments(titles);
     var branches=loadBranchAssignments(),bkey=branchAssignmentKey(item);branches[bkey]={branch:branch,effectiveDate:effectiveDate,reason:reason,previousBranch:item.branch||'',updatedAt:new Date().toISOString()};saveBranchAssignments(branches);
     var managers=loadManagerAssignments(),mkey=managerAssignmentKey(item);managers[mkey]={managerId:manager?manager.id:'',managerName:manager?manager.name:'',managerCode:manager?manager.code:'',effectiveDate:effectiveDate,reason:reason,previousManagerId:item.managerId||'',previousManagerName:item.managerName||'',updatedAt:new Date().toISOString()};saveManagerAssignments(managers);
-    var statuses=loadEmployeeStatusAssignments(),skey=employeeStatusAssignmentKey(item);statuses[skey]={status:status,effectiveDate:effectiveDate,reason:reason,previousStatus:item.employeeStatus||'Đang làm việc',updatedAt:new Date().toISOString()};saveEmployeeStatusAssignments(statuses);
-    var newSummary=[department||'Chưa phân phòng ban',title||'Chưa gán chức danh',branch||'Chưa chọn chi nhánh',manager?manager.name:'Chưa chọn cấp trên',status].join(' · ');
+    var newSummary=[department||'Chưa phân phòng ban',title||'Chưa gán chức danh',branch||'Chưa chọn chi nhánh',manager?manager.name:'Chưa chọn cấp trên'].join(' · ');
     addAudit({action:'Cập nhật thông tin phân công nhân sự',area:'Nhân sự & phân công',object:item.name+' · '+(item.code||item.id),source:'Web',impact:'Một nhân sự',version:'Không đổi',reason:oldSummary+' → '+newSummary+'; hiệu lực '+effectiveDate+'; '+reason});
     peopleUiState.editingId='';refreshPeopleWorkspace(root);checklistToast('success','Đã lưu thay đổi','Thông tin của '+item.name+' đã được cập nhật lên database và ghi vào lịch sử.');
+  }
+  function employeeStatusModalHtml(item){
+    if(!item)return '';
+    var current=normalizeEmployeeStatus(item.employeeStatus),tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+    var iso=tomorrow.getFullYear()+'-'+String(tomorrow.getMonth()+1).padStart(2,'0')+'-'+String(tomorrow.getDate()).padStart(2,'0');
+    var statuses=['Đang làm việc','Nghỉ dài hạn','Đã nghỉ việc'];
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-status-modal><div class="phfck-modal phfck-status-modal phfck-official-modal" role="dialog" aria-modal="true" aria-labelledby="phfckStatusTitle">'
+      +'<div class="phfck-modal-head"><div><small>TRẠNG THÁI NHÂN SỰ</small><h2 id="phfckStatusTitle">Cập nhật trạng thái làm việc</h2><p>Giữ nguyên hồ sơ và lịch sử Checklist; chỉ thay đổi phạm vi tác nghiệp từ ngày hiệu lực.</p></div><button type="button" data-phfck-close-status aria-label="Đóng">×</button></div>'
+      +'<div class="phfck-modal-body"><div class="phfck-selected-person phfck-person-summary"><span class="phfck-avatar">'+esc(item.name.charAt(0).toUpperCase())+'</span><div><b>'+esc(item.name)+'</b><small>'+esc(item.code||'Chưa có mã nhân viên')+' · Trạng thái hiện tại: '+esc(current)+'</small></div></div>'
+      +'<section class="phfck-form-section"><div class="phfck-section-title"><b>Trạng thái áp dụng</b><span>Admin xác nhận riêng, không chỉnh lẫn trong thông tin tổ chức</span></div><div class="phfck-status-choice-grid">'
+      +statuses.map(function(x){var desc=x==='Đang làm việc'?'Được gán mẫu và tham gia Checklist bình thường.':(x==='Nghỉ dài hạn'?'Tạm dừng tác nghiệp Checklist, vẫn giữ hồ sơ và mẫu đã gán.':'Ngừng áp dụng Checklist mới, giữ toàn bộ dữ liệu lịch sử.');return '<label class="phfck-status-choice"><input type="radio" name="phfckEmployeeStatus" value="'+esc(x)+'" '+(x===current?'checked':'')+' data-phfck-status-value><span><b>'+esc(x)+'</b><small>'+esc(desc)+'</small></span></label>';}).join('')
+      +'</div></section>'
+      +'<section class="phfck-form-section"><div class="phfck-section-title"><b>Thông tin hiệu lực</b><span>Bắt buộc để lưu lịch sử chính thức</span></div><div class="phfck-person-edit-grid"><label><b>Ngày hiệu lực <em>*</em></b><input type="date" value="'+esc((assignmentMetaForItem(item).status||{}).effectiveDate||iso)+'" data-phfck-status-effective></label><label data-phfck-return-wrap '+(current==='Nghỉ dài hạn'?'':'hidden')+'><b>Ngày dự kiến quay lại</b><input type="date" value="'+esc(item.leaveUntil||'')+'" data-phfck-status-return></label><label class="phfck-span-2 phfck-reason-field"><b>Lý do thay đổi <em>*</em></b><textarea rows="3" data-phfck-status-reason placeholder="Ví dụ: Nghỉ thai sản, nghỉ điều trị dài hạn, chấm dứt HĐLĐ..."></textarea></label><label class="phfck-span-2"><b>Ghi chú nội bộ</b><textarea rows="2" data-phfck-status-note placeholder="Thông tin bổ sung để Admin theo dõi (không bắt buộc).">'+esc(item.statusNote||'')+'</textarea></label></div></section>'
+      +'<div class="phfck-notice" data-phfck-status-impact><b>Ảnh hưởng dự kiến</b><p>'+esc(current==='Nghỉ dài hạn'?'Checklist chuyển sang Tạm dừng; không phát sinh tác nghiệp mới trong thời gian nghỉ.':(current==='Đã nghỉ việc'?'Checklist chuyển sang Ngừng áp dụng; hồ sơ và lịch sử vẫn được giữ nguyên.':'Nhân sự tiếp tục tham gia Checklist theo mẫu đang áp dụng.'))+'</p></div><p class="phfck-inline-error" data-phfck-status-error hidden></p></div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-status>Hủy</button><button type="button" class="phfck-primary" data-phfck-save-status="'+esc(item.id)+'">Xác nhận trạng thái</button></div>'
+    +'</div></div>';
+  }
+  function updateStatusModalUi(modal){
+    if(!modal)return;var selected=(modal.querySelector('[data-phfck-status-value]:checked')||{}).value||'Đang làm việc';
+    var wrap=modal.querySelector('[data-phfck-return-wrap]');if(wrap)wrap.hidden=selected!=='Nghỉ dài hạn';
+    var impact=modal.querySelector('[data-phfck-status-impact] p');if(impact)impact.textContent=selected==='Nghỉ dài hạn'?'Checklist chuyển sang Tạm dừng; không phát sinh tác nghiệp mới trong thời gian nghỉ.':(selected==='Đã nghỉ việc'?'Checklist chuyển sang Ngừng áp dụng; không gán mẫu hoặc ghi nhận lỗi mới, nhưng giữ toàn bộ lịch sử.':'Nhân sự tiếp tục tham gia Checklist theo mẫu đang áp dụng.');
+  }
+  function saveEmployeeStatusChange(root,id){
+    var item=checklistEmployees().find(function(x){return x.id===normalizeText(id);}),modal=root.querySelector('[data-phfck-status-modal]');if(!item||!modal)return;
+    var status=normalizeEmployeeStatus((modal.querySelector('[data-phfck-status-value]:checked')||{}).value);
+    var effectiveDate=(modal.querySelector('[data-phfck-status-effective]')||{}).value||'';
+    var leaveUntil=status==='Nghỉ dài hạn'?((modal.querySelector('[data-phfck-status-return]')||{}).value||''):'';
+    var reason=normalizeText((modal.querySelector('[data-phfck-status-reason]')||{}).value);
+    var note=normalizeText((modal.querySelector('[data-phfck-status-note]')||{}).value);
+    var err=modal.querySelector('[data-phfck-status-error]');
+    if(!effectiveDate||!reason){if(err){err.hidden=false;err.textContent='Vui lòng chọn Ngày hiệu lực và nhập Lý do thay đổi.';}return;}
+    if(status==='Nghỉ dài hạn'&&leaveUntil&&leaveUntil<effectiveDate){if(err){err.hidden=false;err.textContent='Ngày dự kiến quay lại không được trước Ngày hiệu lực.';}return;}
+    var oldStatus=normalizeEmployeeStatus(item.employeeStatus),statuses=loadEmployeeStatusAssignments(),key=employeeStatusAssignmentKey(item);
+    statuses[key]={status:status,leaveUntil:leaveUntil,note:note,effectiveDate:effectiveDate,reason:reason,previousStatus:oldStatus,updatedAt:new Date().toISOString()};
+    saveEmployeeStatusAssignments(statuses);
+    addAudit({action:'Cập nhật trạng thái nhân sự',area:'Nhân sự & phân công',object:item.name+' · '+(item.code||item.id),source:'Web',impact:'Trạng thái Checklist',version:'1.7.79',reason:oldStatus+' → '+status+'; hiệu lực '+effectiveDate+(leaveUntil?'; dự kiến quay lại '+leaveUntil:'')+'; '+reason});
+    modal.remove();syncChecklistModalScrollLock();refreshPeopleWorkspace(root);
+    checklistToast('success','Đã cập nhật trạng thái',item.name+' đã chuyển sang “'+status+'” từ ngày '+effectiveDate+'.');
   }
   function branchChangeModalHtml(item,newBranch){
     if(!item)return '';
@@ -1223,17 +1379,31 @@
     pendingTitleChange=null;var modal=root.querySelector('[data-phfck-submodal]');if(modal)modal.remove();syncChecklistModalScrollLock();refreshPeopleWorkspace(root);if(window.phfNotice)window.phfNotice('Đã cập nhật chức danh chính và ghi lịch sử thay đổi.');
   }
   function assignmentTemplateMeta(templateId,effectiveDate){
-    var item=templateById(templateId),base=viewWorkbookMetaBase(templateId),override=loadBulkOverride(templateId),version=base.version||'',sourceVersion=override&&override.sourceVersion||version,overrideDate=override&&override.effectiveDate||'';
+    templateId=normalizeLegacyTemplateId(templateId);var item=templateById(templateId),row=checklistTemplateDatabaseRow(templateId),status=checklistTemplateStatus(templateId),target=checklistIsoDate(effectiveDate||todayIso());
+    if(row){
+      var versions=checklistTemplateVersions(templateId),chosen=null;
+      versions.forEach(function(v){var d=checklistIsoDate(v.effectiveDate||'');if(!d||d<=target)chosen=v;});
+      return {id:templateId,name:item&&item.name||row.name||'Mẫu Checklist',version:chosen&&chosen.version||'',effectiveFrom:chosen&&chosen.effectiveDate||'',status:checklistTemplateStatusLabel(status),statusCode:status,assignable:checklistTemplateCanAssign(templateId)&&!!chosen,source:'database'};
+    }
+    var base=viewWorkbookMetaBase(templateId),override=loadBulkOverride(templateId),version=base.version||'',sourceVersion=override&&override.sourceVersion||version,overrideDate=override&&override.effectiveDate||'';
     if(override&&override.version){version=(!effectiveDate||!overrideDate||effectiveDate>=overrideDate)?override.version:sourceVersion;}
-    return {id:templateId,name:item&&item.name||base.name||'Mẫu Checklist',version:version||'Chưa có phiên bản',effectiveFrom:(override&&override.version&&version===override.version?overrideDate:''),status:version?'Đang áp dụng':'Chưa phát hành'};
+    return {id:templateId,name:item&&item.name||base.name||'Mẫu Checklist',version:version||'',effectiveFrom:(override&&override.version&&version===override.version?overrideDate:''),status:version?'Đang áp dụng':'Chưa phát hành',statusCode:version?'active':'draft',assignable:!!version,source:'fallback'};
   }
   function assignmentTemplateOptions(selected,effectiveDate){
-    return CHECKLIST_TEMPLATE_CATALOG.filter(function(item){return item.hasChecklist;}).map(function(item){var meta=assignmentTemplateMeta(item.id,effectiveDate);return '<option value="'+esc(item.id)+'" '+(selected===item.id?'selected':'')+'>'+esc(item.name+' · '+meta.version)+'</option>';}).join('');
+    var items=templateCatalog().filter(function(item){return item.hasChecklist&&(checklistTemplateCanAssign(item.id)||selected===item.id);});
+    return items.map(function(item){var meta=assignmentTemplateMeta(item.id,effectiveDate),inactive=!checklistTemplateCanAssign(item.id);return '<option value="'+esc(item.id)+'" '+(selected===item.id?'selected':'')+' '+(inactive?'disabled':'')+'>'+esc(item.name+' · '+(meta.version||'Chưa có phiên bản hiệu lực')+(inactive?' · '+meta.status:''))+'</option>';}).join('');
+  }
+  function assignmentReview(item,assigned){
+    if(!assigned)return null;var template=templateById(assigned.templateId);if(!template)return {kind:'danger',label:'Mẫu không còn trong thư viện'};
+    var meta=assignmentTemplateMeta(assigned.templateId,assigned.effectiveDate);if(!checklistTemplateCanAssign(assigned.templateId))return {kind:'warning',label:'Mẫu đã '+meta.status.toLowerCase()};
+    if(!meta.version)return {kind:'danger',label:'Không có phiên bản hiệu lực tại ngày gán'};
+    if(assigned.templateVersion&&assigned.templateVersion!==meta.version)return {kind:'warning',label:'Cần rà phiên bản: '+assigned.templateVersion+' → '+meta.version};
+    return null;
   }
   function assignmentVersionSummary(templateId,effectiveDate){
     if(!templateId)return '<div class="phfck-notice" data-phfck-assignment-version><b>Phiên bản áp dụng</b><p>Chọn Mẫu Checklist và Ngày hiệu lực để hệ thống xác định đúng phiên bản.</p></div>';
-    var meta=assignmentTemplateMeta(templateId,effectiveDate);
-    return '<div class="phfck-notice" data-phfck-assignment-version><b>'+esc(meta.name)+' · '+esc(meta.version)+'</b><p>'+esc(meta.effectiveFrom?'Phiên bản này có hiệu lực từ '+meta.effectiveFrom+'.':'Hệ thống sẽ lưu đúng phiên bản đang áp dụng tại ngày hiệu lực đã chọn.')+' Quyền ghi nhận và người thẩm định được cấu hình riêng tại Phân quyền Checklist.</p></div>';
+    var meta=assignmentTemplateMeta(templateId,effectiveDate),kind=meta.assignable?'':' is-warning';
+    return '<div class="phfck-notice'+kind+'" data-phfck-assignment-version><b>'+esc(meta.name)+' · '+esc(meta.version||'Chưa có phiên bản hiệu lực')+'</b><p>'+esc(meta.assignable?(meta.effectiveFrom?'Phiên bản này có hiệu lực từ '+meta.effectiveFrom+'.':'Hệ thống sẽ lưu đúng phiên bản đang áp dụng tại ngày hiệu lực đã chọn.'):(meta.status==='Ngừng áp dụng'?'Mẫu đã ngừng áp dụng và không thể gán mới.':'Chưa có phiên bản mẫu có hiệu lực tại ngày đã chọn.'))+' Quyền ghi nhận và người thẩm định được cấu hình riêng tại Phân quyền Checklist.</p></div>';
   }
   function refreshAssignmentVersion(modal){
     if(!modal)return;var select=modal.querySelector('[data-phfck-field="template"]'),date=modal.querySelector('[data-phfck-field="effectiveDate"]'),box=modal.querySelector('[data-phfck-assignment-version]');if(!select||!box)return;var meta=assignmentTemplateMeta(select.value||'',date&&date.value||'');box.outerHTML=assignmentVersionSummary(select.value||'',date&&date.value||'');
@@ -1249,7 +1419,7 @@
       +'<div class="phfck-modal-head"><div><small>PHÂN CÔNG CHECKLIST</small><h2 id="phfckAssignTitle">Gán mẫu Checklist</h2><p>Chọn đúng bộ mẫu và phiên bản áp dụng theo ngày hiệu lực.</p></div><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-selected-person"><span class="phfck-avatar">'+esc(item.name.charAt(0).toUpperCase())+'</span><div><b>'+esc(item.name)+'</b><small>'+esc(item.code||'Chưa có mã nhân viên')+' · '+esc(item.department||'Chưa có phòng ban')+' · '+esc(item.title||'Chưa có chức danh')+'</small></div></div>'
       +suggestionHtml
-      +'<div class="phfck-form-grid"><label><b>Mẫu Checklist <em>*</em></b><select data-phfck-field="template"><option value="">Chọn bộ mẫu áp dụng</option>'+options+'</select><small>Danh sách lấy từ 18 bộ mẫu mới và phiên bản hiện hành.</small></label><label><b>Ngày hiệu lực <em>*</em></b><input type="date" value="'+esc(iso)+'" data-phfck-field="effectiveDate"></label><label class="phfck-span-2 phfck-reason-field"><b>Lý do gán/thay đổi mẫu <em>*</em></b><textarea rows="3" data-phfck-field="reason" placeholder="Ví dụ: Gán theo chức danh hiện tại; điều chuyển mẫu từ ngày...">'+esc(existing&&existing.reason||'')+'</textarea></label></div>'
+      +'<div class="phfck-form-grid"><label><b>Mẫu Checklist <em>*</em></b><select data-phfck-field="template"><option value="">Chọn bộ mẫu áp dụng</option>'+options+'</select><small>Danh sách lấy trực tiếp từ thư viện Supabase; chỉ hiện mẫu đang áp dụng hoặc chờ hiệu lực.</small></label><label><b>Ngày hiệu lực <em>*</em></b><input type="date" value="'+esc(iso)+'" data-phfck-field="effectiveDate"></label><label class="phfck-span-2 phfck-reason-field"><b>Lý do gán/thay đổi mẫu <em>*</em></b><textarea rows="3" data-phfck-field="reason" placeholder="Ví dụ: Gán theo chức danh hiện tại; điều chuyển mẫu từ ngày...">'+esc(existing&&existing.reason||'')+'</textarea></label></div>'
       +assignmentVersionSummary(selected,iso)
       +'<div class="phfck-notice"><b>Quyền được cấu hình riêng</b><p>Người thẩm định, phạm vi ghi nhận lỗi và quyền kiểm tra chéo không còn gán tại popup này. Các quyền sẽ được cấu hình tại khu Phân quyền Checklist để tránh lưu lựa chọn giả hoặc sai phạm vi.</p></div><p class="phfck-inline-error" data-phfck-assignment-error hidden></p>'
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" data-phfck-confirm-assignment="'+esc(item.id)+'">Xác nhận gán mẫu</button></div>'
@@ -1260,7 +1430,7 @@
     if(!item||!modal)return;
     var templateId=normalizeText((modal.querySelector('[data-phfck-field="template"]')||{}).value),effectiveDate=(modal.querySelector('[data-phfck-field="effectiveDate"]')||{}).value||'',reason=normalizeText((modal.querySelector('[data-phfck-field="reason"]')||{}).value),err=modal.querySelector('[data-phfck-assignment-error]'),template=templateById(templateId),meta=assignmentTemplateMeta(templateId,effectiveDate);
     if(!templateId||!template||!effectiveDate||!reason){if(err){err.hidden=false;err.textContent='Vui lòng chọn Mẫu Checklist, Ngày hiệu lực và nhập Lý do.';}return;}
-    if(!meta.version||meta.version==='Chưa có phiên bản'){if(err){err.hidden=false;err.textContent='Mẫu này chưa có phiên bản hợp lệ để gán.';}return;}
+    if(!meta.assignable||!meta.version){if(err){err.hidden=false;err.textContent=!checklistTemplateCanAssign(templateId)?'Mẫu này đã ngừng áp dụng hoặc chưa được phát hành nên không thể gán mới.':'Không có phiên bản mẫu có hiệu lực tại ngày đã chọn.';}return;}
     var all=loadFormAssignments(),key=formAssignmentKey(item),previous=all[key]||null;
     all[key]={templateId:templateId,templateVersion:meta.version,effectiveDate:effectiveDate,reason:reason,department:item.department||'',title:item.title||'',suggestedTemplateId:suggestChecklistTemplate(item).templateId||'',updatedAt:new Date().toISOString()};
     if(!saveFormAssignments(all)){if(err){err.hidden=false;err.textContent='Không lưu được phân công trong trình duyệt.';}return;}
@@ -1275,9 +1445,9 @@
       departments:uniq(all.map(function(x){return x.department;})),
       titles:uniq(all.map(function(x){return x.title;})),
       branches:uniq(all.map(function(x){return x.branch;})),
-      managers:all.filter(function(x){return x.code&&x.employeeStatus!=='Nghỉ việc';}).map(function(x){return {code:x.code,name:x.name};}).sort(function(a,b){return a.name.localeCompare(b.name,'vi',{sensitivity:'base'});}),
-      statuses:['Đang làm việc','Tạm nghỉ','Nghỉ việc'],
-      templates:CHECKLIST_TEMPLATE_OPTIONS.map(function(x){return {id:x[0],name:x[1]};})
+      managers:all.filter(function(x){return x.code&&normalizeEmployeeStatus(x.employeeStatus)!=='Đã nghỉ việc';}).map(function(x){return {code:x.code,name:x.name};}).sort(function(a,b){return a.name.localeCompare(b.name,'vi',{sensitivity:'base'});}),
+      statuses:['Đang làm việc','Nghỉ dài hạn','Đã nghỉ việc'],
+      templates:templateOptions().map(function(x){return {id:x[0],name:x[1]};})
     };
   }
   function stylePeopleWorkbookSheet(ws,widths,freeze){
@@ -1381,7 +1551,7 @@
 
   function filteredTemplates(){
     var q=normalizeText(templateUiState.query).toLowerCase();
-    return CHECKLIST_TEMPLATE_CATALOG.filter(function(item){
+    return templateCatalog().filter(function(item){
       if(templateUiState.group!=='all'&&item.group!==templateUiState.group)return false;
       if(!q)return true;
       return (item.name+' '+item.group+' '+item.source+' '+item.note).toLowerCase().indexOf(q)>=0;
@@ -1393,9 +1563,9 @@
   function warehouseCriteriaCount(){return criteriaCount(WAREHOUSE_TEMPLATE_GROUPS);}
   function warehouseManagerCriteriaCount(){return criteriaCount(WAREHOUSE_MANAGER_TEMPLATE_GROUPS);}
   function templateStatsHtml(){
-    var withChecklist=CHECKLIST_TEMPLATE_CATALOG.filter(function(x){return x.hasChecklist;}).length;
+    var withChecklist=templateCatalog().filter(function(x){return x.hasChecklist;}).length;
     return '<section class="phfck-template-stats">'
-      +'<article><span>Bộ mẫu nguồn</span><strong>'+CHECKLIST_TEMPLATE_CATALOG.length+'</strong><small>Theo gói bàn giao đã chốt</small></article>'
+      +'<article><span>Bộ mẫu nguồn</span><strong>'+templateCatalog().length+'</strong><small>Theo gói bàn giao đã chốt</small></article>'
       +'<article><span>Có cơ chế Checklist</span><strong>'+withChecklist+'</strong><small>Có tiêu chí ghi lỗi và hệ số</small></article>'
       +'<article><span>Đã chuẩn hóa</span><strong>10</strong><small>4 mẫu vận hành + 3 mẫu Trợ lý + 2 mẫu Marketing + 1 mẫu HCNS</small></article>'
       +'<article><span>Tiêu chí TBP Kho</span><strong>'+warehouseManagerCriteriaCount()+'</strong><small>Kế thừa Nhân viên Kho + 9 tiêu chí quản lý bộ phận</small></article>'
@@ -1404,27 +1574,42 @@
   function templateCardsHtml(){
     var rows=filteredTemplates();
     if(!rows.length)return '<div class="phfck-template-empty"><div>▤</div><b>Không tìm thấy bộ mẫu</b><p>Thử đổi từ khóa hoặc nhóm phòng ban.</p></div>';
-    return '<div class="phfck-template-grid">'+rows.map(function(item,index){
-      var ready=item.id==='nv-ban-hang'||item.id==='truong-ca-ban-hang'||item.id==='nv-kho'||item.id==='tbp-kho'||!!ASSISTANT_TEMPLATE_CONFIGS[item.id];
-      var readyVersion=ASSISTANT_TEMPLATE_CONFIGS[item.id]?ASSISTANT_TEMPLATE_CONFIGS[item.id].version:(item.id==='truong-ca-ban-hang'?'TCP-BH-1.0':(item.id==='nv-kho'?'NVK-1.0':(item.id==='tbp-kho'?'TBP-KHO-1.0':'BH-1.0')));
-      return '<article class="phfck-template-card '+(ready?'is-ready':'')+'">'
-        +'<div class="phfck-template-card-top"><span class="phfck-template-index">'+String(index+1).padStart(2,'0')+'</span><span class="phfck-template-state">'+(ready?'Đã chuẩn hóa':'Nguồn đã chốt')+'</span></div>'
-        +'<div class="phfck-template-icon" aria-hidden="true">▤</div>'
-        +'<small>'+esc(item.group)+'</small><h3>'+esc(item.name)+'</h3><p>'+esc(item.source)+'</p>'
-        +'<div class="phfck-template-meta"><span class="'+(item.hasChecklist?'is-on':'is-off')+'">'+(item.hasChecklist?'Có Checklist lỗi':'Chưa có TCCV riêng')+'</span><span>'+(ready?readyVersion:'Phiếu tháng')+'</span></div>'
-        +'<div class="phfck-template-card-foot"><span>'+(ready?'Hiệu lực 01/08/2026':'Hiệu lực: Chưa phát hành')+'</span><button type="button" data-phfck-template-detail="'+esc(item.id)+'">'+(ready?'Quản lý mẫu':'Xem cấu trúc')+'</button></div>'
-      +'</article>';
-    }).join('')+'</div>';
+    function templateListMeta(item){
+      var config=ASSISTANT_TEMPLATE_CONFIGS[item.id];
+      var ready=item.id==='nv-ban-hang'||item.id==='truong-ca-ban-hang'||item.id==='nv-kho'||item.id==='tbp-kho'||!!config;
+      var version=config?config.version:(item.id==='truong-ca-ban-hang'?'TCP-BH-1.0':(item.id==='nv-kho'?'NVK-1.0':(item.id==='tbp-kho'?'TBP-KHO-1.0':'BH-1.0')));
+      var count=0;try{count=criteriaCount(baseTemplateGroups(item.id));}catch(_){count=0;}
+      var override=loadBulkOverride(item.id);
+      return {ready:ready,version:ready?version:'Phiếu tháng',count:count,status:ready?'Đang áp dụng':'Nguồn đã chốt',effective:ready?((override&&override.effectiveDate)||'01/08/2026'):'Chưa phát hành'};
+    }
+    return '<div class="phfck-template-list-wrap"><table class="phfck-template-list"><thead><tr><th class="is-order">STT</th><th>Mẫu Checklist</th><th>Phòng ban</th><th>Phiên bản</th><th>Tiêu chí</th><th>Hiệu lực</th><th>Trạng thái</th><th class="is-action">Thao tác</th></tr></thead><tbody>'+rows.map(function(item,index){
+      var meta=templateListMeta(item);
+      return '<tr class="'+(meta.ready?'is-ready':'')+'">'
+        +'<td class="is-order"><span class="phfck-template-row-index">'+String(index+1).padStart(2,'0')+'</span></td>'
+        +'<td><div class="phfck-template-row-name"><span class="phfck-template-row-icon" aria-hidden="true">▤</span><div><b>'+esc(item.name)+'</b><small>'+esc(item.source)+'</small></div></div></td>'
+        +'<td><span class="phfck-template-group-chip">'+esc(item.group)+'</span></td>'
+        +'<td><span class="phfck-template-version-chip">'+esc(meta.version)+'</span></td>'
+        +'<td><strong class="phfck-template-count">'+meta.count+'</strong><small class="phfck-template-count-note"> tiêu chí</small></td>'
+        +'<td><span class="phfck-template-effective">'+esc(meta.effective)+'</span></td>'
+        +'<td><span class="phfck-template-state '+(meta.ready?'is-active':'is-source')+'">'+esc(meta.status)+'</span></td>'
+        +'<td class="is-action"><button type="button" class="phfck-template-row-action" data-phfck-template-detail="'+esc(item.id)+'">'+(meta.ready?'Quản lý':'Xem')+'</button></td>'
+      +'</tr>';
+    }).join('')+'</tbody></table></div>';
   }
   function templateTreeHtml(groups){
-    return '<div class="phfck-sales-tree">'+(groups||SALES_TEMPLATE_GROUPS).map(function(group){
-      var groupCount=0;group.children.forEach(function(c){groupCount+=c.items.length;});
-      return '<section class="phfck-sales-group"><div class="phfck-sales-group-head"><div><small>NHÓM CHA · '+esc(group.code)+'</small><h3>'+esc(group.name)+'</h3></div><span>'+groupCount+' tiêu chí</span></div>'
-        +group.children.map(function(child){return '<details class="phfck-sales-child" open><summary><div><b>'+esc(child.name)+'</b><small>'+esc(child.code)+'</small></div><span>'+child.items.length+'</span></summary><div class="phfck-sales-criteria">'
-          +child.items.map(function(item){return '<article><code>'+esc(item[0])+'</code><p>'+esc(item[1])+'</p><strong>Hệ số '+esc(item[2])+'</strong><span>Minh chứng: Khuyến khích</span><button type="button" class="phfck-criterion-edit" data-phfck-edit-criterion="'+esc(item[0])+'">Sửa</button></article>';}).join('')
-        +'</div></details>';}).join('')
-      +'</section>';
-    }).join('')+'</div>';
+    var rows=[],order=0;
+    (groups||SALES_TEMPLATE_GROUPS).forEach(function(group){
+      (group.children||[]).forEach(function(child){
+        (child.items||[]).forEach(function(item){
+          order+=1;rows.push({order:order,groupCode:group.code,groupName:group.name,childCode:child.code,childName:child.name,code:item[0],content:item[1],factor:item[2]});
+        });
+      });
+    });
+    if(!rows.length)return '<div class="phfck-template-empty"><div>▤</div><b>Chưa có tiêu chí</b><p>Mẫu này chưa có dữ liệu tiêu chí để hiển thị.</p></div>';
+    return '<div class="phfck-template-detail-table-head"><div><small>DANH SÁCH TIÊU CHÍ</small><h3>'+rows.length+' tiêu chí đang áp dụng</h3></div><span>Bảng ngang · cuộn để xem đủ cột</span></div>'
+      +'<div class="phfck-template-detail-table-wrap"><table class="phfck-template-detail-table"><thead><tr><th class="is-order">STT</th><th>Nhóm tiêu chí</th><th>Mã tiêu chí</th><th>Nội dung tiêu chí</th><th>Hệ số</th><th>Minh chứng</th><th>Trạng thái</th><th class="is-action">Thao tác</th></tr></thead><tbody>'
+      +rows.map(function(row){return '<tr><td class="is-order"><span>'+String(row.order).padStart(2,'0')+'</span></td><td><div class="phfck-template-detail-group"><b>'+esc(row.childName)+'</b><small>'+esc(row.groupName)+' · '+esc(row.childCode)+'</small></div></td><td><code>'+esc(row.code)+'</code></td><td><p>'+esc(row.content)+'</p></td><td><strong class="phfck-template-factor">'+esc(row.factor)+'</strong></td><td><span class="phfck-template-evidence">Khuyến khích</span></td><td><span class="phfck-template-state is-active">Đang áp dụng</span></td><td class="is-action"><button type="button" class="phfck-template-row-action" data-phfck-edit-criterion="'+esc(row.code)+'">Xem</button></td></tr>';}).join('')
+      +'</tbody></table></div>';
   }
   function salesTemplateTreeHtml(){return templateTreeHtml(selectedTemplateGroups());}
   function shiftLeadTemplateTreeHtml(){return templateTreeHtml(selectedTemplateGroups());}
@@ -1452,7 +1637,7 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">'+esc(config.title)+'</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(config.groupLabel||'Mẫu đánh giá')+' · '+esc(config.scope)+'</span><b>'+esc(shownVersion)+' <em>(thay đổi gần nhất)</em></b><small>Nguồn tham chiếu nội bộ: '+esc(config.source)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải xuống để xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(config.scope)+'</b></section><section><small>HIỆU LỰC</small><b>01/08/2026 · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>Khuyến khích</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(config.reason)+'</p></div>'
       +(templateUiState.salesTab==='total'?(override?overrideTotalScoreHtml(item.id,config.title,config.policy):assistantTotalScoreHtml(config)):assistantTemplateTreeHtml(config)+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul>'+((config.rules||['File nguồn không có TCCV riêng; phần Checklist hiện áp dụng nhóm TACPHONG chung toàn công ty.','Tiêu chí ứng xử PHF giữ hệ số 10 và Đi trễ lấy từ thư viện chung.','Bảng tổng giữ nguyên toàn bộ chỉ tiêu, mục tiêu và trọng số trong file gốc.','Công thức chung: Thực đạt ×1, Thẩm định ×2, chia 3; sau đó quy đổi theo trọng số.']).map(function(x){return '<li>'+esc(x)+'</li>';}).join(''))+'</ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối database và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
@@ -1482,7 +1667,7 @@
       +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải xuống để xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
         +(templateUiState.salesTab==='total'?(loadBulkOverride('nv-ban-hang')?overrideTotalScoreHtml('nv-ban-hang','Nhân viên bán hàng','NVBH-TỔNG'):salesTotalScoreHtml(v.totalPolicyCode)):salesTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mỗi tháng, mỗi nhân viên Bán hàng áp dụng một mẫu.</li><li>Tất cả tiêu chí đều có cột Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa ít trên hệ thống, sửa nhiều bằng file chuẩn; cả hai đều tạo phiên bản mới.</li><li>Đổi nhóm cha/con phải tạo mã tiêu chí mới; tiêu chí cũ chỉ ngừng áp dụng.</li><li>Phiên bản mới tự áp dụng cho toàn bộ chức danh Bán hàng từ đầu tháng N+1.</li></ul></div>')
@@ -1496,7 +1681,7 @@
       +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải xuống để xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
         +(templateUiState.salesTab==='total'?salesTotalScoreHtml('TCP-BH-TỔNG-1.0'):shiftLeadTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mẫu dùng chung cho cả Trưởng ca và Phó ca bán hàng.</li><li>Kế thừa toàn bộ tiêu chí của Nhân viên bán hàng và bổ sung 6 tiêu chí Điều hành ca.</li><li>Tiêu chí “Tuân thủ nguyên tắc ứng xử PHF” là tiêu chí chung toàn công ty, hệ số 10.</li><li>Tất cả tiêu chí đều có Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa nội dung, hệ số hoặc cấu trúc phải tạo phiên bản mới và áp dụng từ tháng N+1.</li></ul></div>')
@@ -1527,7 +1712,7 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Nhân viên Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải xuống để xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
       +(templateUiState.salesTab==='total'?warehouseTotalScoreHtml():warehouseTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Giữ nguyên nội dung và hệ số theo file gốc Nhân viên Kho.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số 5% – 65% – 10% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối database và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
@@ -1558,11 +1743,12 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Trưởng bộ phận Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải xuống để xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
       +(templateUiState.salesTab==='total'?warehouseManagerTotalScoreHtml():warehouseManagerTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Kế thừa toàn bộ tiêu chuẩn Nhân viên Kho và bổ sung 9 tiêu chí quản lý bộ phận.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số gốc 5% – 60% – 10% – 5% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối database và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
   }
+  function genericTemplateTreeHtml(groups){var no=0;return '<div class="phfck-detail-table-wrap"><table class="phfck-detail-table"><thead><tr><th>STT</th><th>Nhóm</th><th>Mã tiêu chí</th><th>Nội dung</th><th>Hệ số</th><th>Thao tác</th></tr></thead><tbody>'+flattenCriteria(groups).map(function(x){no+=1;return '<tr><td>'+no+'</td><td>'+esc(x.groupName+' / '+x.childName)+'</td><td><b>'+esc(x.code)+'</b></td><td>'+esc(x.content)+'</td><td>'+esc(x.factor)+'</td><td><button type="button" class="phfck-row-action" data-phfck-direct-edit-code="'+esc(x.code)+'">Sửa</button></td></tr>';}).join('')+'</tbody></table></div>';}
   function templateDetailModalHtml(item){
     if(!item)return '';
     if(item.id==='nv-ban-hang')return salesTemplateDetailHtml(item);
@@ -1570,6 +1756,7 @@
     if(item.id==='nv-kho')return warehouseTemplateDetailHtml(item);
     if(item.id==='tbp-kho')return warehouseManagerTemplateDetailHtml(item);
     if(ASSISTANT_TEMPLATE_CONFIGS[item.id])return assistantTemplateDetailHtml(item);
+    if(item.custom){var meta=viewWorkbookMeta(item.id),groups=selectedTemplateGroups(),count=flattenCriteria(groups).length;return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>MẪU TẠO TRÊN WEB</small><h2>'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal>×</button></div><div class="phfck-template-tabs"><button class="active" type="button">Tiêu chuẩn Checklist</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div><div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(meta.version)+'</b><small>'+esc(item.source)+'</small></div></div><div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".xlsx,.xls" data-phfck-sales-file hidden></div><div class="phfck-template-detail-grid"><section><small>PHÒNG BAN/NHÓM</small><b>'+esc(item.group)+'</b></section><section><small>PHIÊN BẢN</small><b>'+esc(meta.version)+'</b></section><section><small>TIÊU CHÍ</small><b>'+count+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(item.effectiveFrom||'—')+'</b></section></div>'+genericTemplateTreeHtml(groups)+'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button></div></div></div>';}
     return '<div class="phfck-modal-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>CHI TIẾT BỘ MẪU</small><h2 id="phfckTemplateTitle">'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(item.name)+'</b><small>Nguồn nghiệp vụ đã chốt ngày 16/07/2026</small></div></div>'
@@ -1591,10 +1778,113 @@
   function historyRowsHtml(rows){return rows.map(function(r){return '<tr><td>'+esc(r.time)+'</td><td><b>'+esc(r.actor)+'</b></td><td>'+esc(r.action)+'</td><td><b>'+esc(r.area)+'</b><small>'+esc(r.object)+'</small></td><td><span class="phfck-source-chip">'+esc(r.source)+'</span></td><td>'+esc(r.impact)+'</td><td>'+esc(r.version||'—')+'</td><td>'+esc(r.reason||'—')+'</td></tr>';}).join('')||'<tr><td colspan="8" class="phfck-empty-cell">Chưa có lịch sử phù hợp.</td></tr>';}
   var pendingBulkImport=null;
   function bulkOverrideKey(id){return 'phfChecklistTemplateOverride:'+String(id||'');}
-  function loadBulkOverride(id){try{return JSON.parse(localStorage.getItem(bulkOverrideKey(id))||'null');}catch(e){return null;}}
-  function saveBulkOverride(id,data){try{localStorage.setItem(bulkOverrideKey(id),JSON.stringify(data));return true;}catch(e){return false;}}
-  function baseTemplateGroups(id){return ASSISTANT_TEMPLATE_CONFIGS[id]?(ASSISTANT_TEMPLATE_CONFIGS[id].groups||ASSISTANT_COMMON_GROUPS):(id==='truong-ca-ban-hang'?SHIFT_LEAD_TEMPLATE_GROUPS:(id==='nv-kho'?WAREHOUSE_TEMPLATE_GROUPS:(id==='tbp-kho'?WAREHOUSE_MANAGER_TEMPLATE_GROUPS:SALES_TEMPLATE_GROUPS)));}
-  function selectedTemplateGroups(){var id=templateUiState.selectedId;var override=loadBulkOverride(id);return override&&Array.isArray(override.groups)?override.groups:baseTemplateGroups(id);}
+  function isSharedCultureCriterion(item){
+    var code=String((item||[])[0]||'').trim().toUpperCase();
+    var content=normalizeText(String((item||[])[1]||'')).toLowerCase();
+    return code==='PHF-TACPHONG-UNGXU-01'||((content.indexOf('ung xu phf')>=0||content.indexOf('van hoa ung xu')>=0)&&content.indexOf('ung xu')>=0);
+  }
+  function normalizeSharedCriterionFactors(groups){
+    var cloned;try{cloned=JSON.parse(JSON.stringify(groups||[]));}catch(e){cloned=[];}
+    cloned.forEach(function(g){(g.children||[]).forEach(function(c){(c.items||[]).forEach(function(item){if(isSharedCultureCriterion(item))item[2]=10;});});});
+    return cloned;
+  }
+  function loadBulkOverrideLocal(id){try{var data=JSON.parse(localStorage.getItem(bulkOverrideKey(id))||'null');if(data&&Array.isArray(data.groups))data.groups=normalizeSharedCriterionFactors(data.groups);return data;}catch(e){return null;}}
+  function loadBulkOverride(id){ensureChecklistTemplatesHydrated();return loadBulkOverrideLocal(id);}
+  function templateCodeForDatabase(item,version){
+    var explicit=normalizeText(item&&item.code).toUpperCase();
+    if(explicit)return explicit.replace(/[^A-Z0-9-]/g,'-').slice(0,40);
+    var meta=viewWorkbookMetaBase(item&&item.id||''),metaCode=normalizeText(meta&&meta.code).toUpperCase();
+    if(metaCode&&normalizeText(meta&&meta.name)===normalizeText(item&&item.name))return metaCode.replace(/[^A-Z0-9-]/g,'-').slice(0,40);
+    return String(item&&item.id||'MAU').toUpperCase().replace(/[^A-Z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'MAU';
+  }
+  function templateVersionForDatabase(item,override){
+    var direct=normalizeText(override&&override.version)||normalizeText(item&&item.version);
+    if(direct)return direct;
+    var meta=viewWorkbookMetaBase(item&&item.id||'');
+    if(meta&&normalizeText(meta.name)===normalizeText(item&&item.name)&&normalizeText(meta.version))return normalizeText(meta.version);
+    return templateCodeForDatabase(item,'')+'-1.0';
+  }
+  function templateRecordForDatabase(item){
+    if(!item)return null;var override=loadBulkOverrideLocal(item.id)||{},version=templateVersionForDatabase(item,override),definition={groups:Array.isArray(override.groups)?override.groups:baseTemplateGroups(item.id),totalRows:Array.isArray(override.totalRows)?override.totalRows:effectiveTotalRows(item.id),templateType:item.templateType||(item.hasChecklist?'checklist_detail':'score_summary')};
+    return {templateKey:item.id,code:templateCodeForDatabase(item,version),name:item.name,groupName:item.group||'',templateType:definition.templateType,hasChecklist:!!item.hasChecklist,source:item.source||'',note:item.note||'',status:'active',version:version,effectiveDate:override.effectiveDate||item.effectiveFrom||todayIso(),reason:override.reason||item.note||'Đồng bộ thư viện mẫu Checklist',sourceVersion:override.sourceVersion||'',changeType:override.changeType||'sync',definition:definition};
+  }
+  function postChecklistTemplateDatabase(action,payload){return fetch('/api/data?checklistTemplates=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(Object.assign({action:action},payload||{}))}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false){var e=new Error(data.message||data.error||'Không thể lưu thư viện mẫu lên database.');e.code=data.code||'';throw e;}return data;});});}
+  function persistChecklistTemplateToDatabase(item){var record=templateRecordForDatabase(item);if(!record)return Promise.reject(new Error('Không tìm thấy mẫu cần lưu.'));return postChecklistTemplateDatabase('saveChecklistTemplate',{template:record}).then(function(data){checklistTemplateDbState.ready=true;checklistTemplateDbState.lastError='';if(data.template)checklistTemplateDbState.byId[item.id]=data.template;return data;});}
+  function seedChecklistTemplateLibraryDatabase(){
+    if(checklistTemplateDbState.seeding)return checklistTemplateDbState.seedPromise||Promise.resolve({skipped:true});
+    if(!checklistTemplateDbState.ready||checklistTemplateDbState.rows.length)return Promise.resolve({skipped:true});
+    checklistTemplateDbState.seeding=true;
+    var records=CHECKLIST_TEMPLATE_CATALOG.concat(loadCustomTemplatesLocal()).map(templateRecordForDatabase).filter(Boolean);
+    checklistTemplateDbState.seedPromise=postChecklistTemplateDatabase('saveChecklistTemplateLibrary',{templates:records}).then(function(data){
+      checklistTemplateDbState.rows=Array.isArray(data.templates)?data.templates:[];
+      checklistTemplateDbState.lastError='';
+      var failures=Array.isArray(data.failures)?data.failures:[];
+      if(failures.length){
+        var message=failures.slice(0,6).map(function(x){return (x.templateKey||x.code||'Mẫu')+': '+(x.message||x.code||'Lỗi không xác định');}).join(' · ');
+        checklistToast('warning','Đồng bộ chưa hoàn tất','Đã lưu '+Number(data.saved||0)+'/'+records.length+' mẫu. '+message,true);
+      }
+      console.info('[PHF Checklist] seeded template library',Number(data.saved||0),records.length,failures);
+      return {saved:Number(data.saved||0),failed:Number(data.failed||failures.length||0),failures:failures,templates:checklistTemplateDbState.rows};
+    }).catch(function(error){
+      checklistTemplateDbState.lastError=error&&error.message||'Không thể đồng bộ thư viện mẫu.';
+      console.warn('[PHF Checklist] seed template library failed',error);
+      throw error;
+    }).finally(function(){checklistTemplateDbState.seeding=false;checklistTemplateDbState.seedPromise=null;});
+    return checklistTemplateDbState.seedPromise;
+  }
+  var checklistTemplateSyncPromise=null;
+  function fetchChecklistTemplateLibrarySnapshot(){
+    return fetch('/api/data?checklistTemplates=1&_ts='+Date.now(),{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}}).then(function(response){
+      return response.json().catch(function(){return {};}).then(function(data){
+        if(!response.ok){var error=new Error(data.message||data.error||'Không thể tải thư viện mẫu từ máy chủ.');error.code=data.code||'';throw error;}
+        return data;
+      });
+    });
+  }
+  function refreshTemplateWorkspaceFromDatabase(){
+    var root=document.getElementById('phfChecklistRoot');
+    if(!root||adminViewFromPath(location.pathname)!=='templates')return;
+    var workspace=root.querySelector('[data-phfck-workspace]');
+    if(workspace)workspace.innerHTML=templatesHtml();
+  }
+  function syncChecklistTemplateLibraryOnOpen(force){
+    if(checklistTemplateSyncPromise&&!force)return checklistTemplateSyncPromise;
+    checklistTemplateSyncPromise=fetchChecklistTemplateLibrarySnapshot().then(function(data){
+      hydrateChecklistTemplatesFromDatabase(data);
+      if(!data.checklistTemplatesReady){
+        var code=normalizeText(data.checklistTemplatesError)||'CHECKLIST_TEMPLATES_UNAVAILABLE';
+        var error=new Error(code==='CHECKLIST_TEMPLATE_SCHEMA_MISSING'?'Chưa cài cấu trúc database thư viện mẫu Checklist.':'Máy chủ chưa sẵn sàng đọc thư viện mẫu Checklist.');
+        error.code=code;throw error;
+      }
+      var rows=Array.isArray(data.checklistTemplates)?data.checklistTemplates:[];
+      if(rows.length)return {seeded:false,count:rows.length};
+      checklistToast('info','Đang đồng bộ thư viện mẫu','Database đang trống. Hệ thống đang đưa 19 mẫu hiện hành lên Supabase.');
+      return seedChecklistTemplateLibraryDatabase().then(function(seedResult){
+        return fetchChecklistTemplateLibrarySnapshot().then(function(fresh){
+          hydrateChecklistTemplatesFromDatabase(fresh);
+          var count=Array.isArray(fresh.checklistTemplates)?fresh.checklistTemplates.length:0;
+          if(!fresh.checklistTemplatesReady||!count)throw new Error('Đã gửi dữ liệu nhưng chưa đọc lại được thư viện mẫu từ database.');
+          return {seeded:true,count:count,saved:Number(seedResult&&seedResult.saved||count),failed:Number(seedResult&&seedResult.failed||0),failures:seedResult&&seedResult.failures||[]};
+        });
+      });
+    }).then(function(result){
+      refreshTemplateWorkspaceFromDatabase();
+      if(result.seeded){
+        var saved=Number(result.saved||result.count),failed=Number(result.failed||0);
+        if(failed)checklistToast('warning','Đồng bộ chưa hoàn tất','Đã lưu '+saved+'/'+templateCatalog().length+' mẫu. Còn '+failed+' mẫu cần xử lý.',true);
+        else checklistToast('success','Đã đồng bộ thư viện mẫu','Đã lưu '+result.count+'/'+result.count+' mẫu hiện hành lên Supabase.');
+      }
+      return result;
+    }).catch(function(error){
+      checklistTemplateDbState.lastError=error&&error.message||'Không thể đồng bộ thư viện mẫu.';
+      checklistToast('error','Không thể đồng bộ thư viện mẫu',checklistTemplateDbState.lastError,true);
+      throw error;
+    }).finally(function(){checklistTemplateSyncPromise=null;});
+    return checklistTemplateSyncPromise;
+  }
+  function saveBulkOverride(id,data){try{if(data&&Array.isArray(data.groups))data.groups=normalizeSharedCriterionFactors(data.groups);localStorage.setItem(bulkOverrideKey(id),JSON.stringify(data));if(!checklistTemplateDbState.suppress){var item=templateCatalog().find(function(x){return x.id===id;});if(item)setTimeout(function(){persistChecklistTemplateToDatabase(item).catch(function(error){checklistTemplateDbState.lastError=error&&error.message||'Không thể lưu database.';checklistToast('warning','Đã lưu tạm trên trình duyệt','Chưa đồng bộ được phiên bản mẫu lên database. '+checklistTemplateDbState.lastError,true);});},20);}return true;}catch(e){return false;}}
+  function baseTemplateGroups(id){var groups=ASSISTANT_TEMPLATE_CONFIGS[id]?(ASSISTANT_TEMPLATE_CONFIGS[id].groups||ASSISTANT_COMMON_GROUPS):(id==='truong-ca-ban-hang'?SHIFT_LEAD_TEMPLATE_GROUPS:(id==='nv-kho'?WAREHOUSE_TEMPLATE_GROUPS:(id==='tbp-kho'?WAREHOUSE_MANAGER_TEMPLATE_GROUPS:SALES_TEMPLATE_GROUPS)));return normalizeSharedCriterionFactors(groups);}
+  function selectedTemplateGroups(){var id=templateUiState.selectedId;var override=loadBulkOverride(id);return normalizeSharedCriterionFactors(override&&Array.isArray(override.groups)?override.groups:baseTemplateGroups(id));}
   function effectiveTemplateVersion(id){var override=loadBulkOverride(id);return override&&override.version?override.version:viewWorkbookMetaBase(id).version;}
   function nextTemplateVersion(version){var m=String(version||'1.0').match(/^(.*?)(\d+)\.(\d+)$/);if(!m)return String(version||'PHF')+'-1.1';return m[1]+m[2]+'.'+(Number(m[3])+1);}
   function deepClone(v){return JSON.parse(JSON.stringify(v));}
@@ -1617,7 +1907,7 @@
     if(!info)errors.push('Thiếu sheet HƯỚNG DẪN.');if(!criteria)errors.push('Thiếu sheet TIÊU CHÍ.');if(!total)errors.push('Thiếu sheet BẢNG TỔNG.');if(errors.length)return {fileName:fileName,errors:errors,warnings:warnings};
     var infoMap={};(info||[]).forEach(function(r){var k=normalizeText(r[0]).toLowerCase();if(k)infoMap[k]=String(r[1]||'').trim();});
     var systemId=infoMap['mã hệ thống']||infoMap['ma he thong']||'',templateCode=infoMap['mã mẫu']||infoMap['ma mau']||'',sourceVersion=infoMap['phiên bản nguồn']||infoMap['phien ban nguon']||'',formatCode=infoMap['định dạng file']||infoMap['dinh dang file']||'';
-    if(formatCode!=='PHF-BULK-1.7.55')errors.push('File không đúng định dạng cập nhật an toàn PHF-BULK-1.7.55. Vui lòng tải lại file mới từ hệ thống.');
+    if(['PHF-BULK-1.7.55','PHF-BULK-1.7.93'].indexOf(formatCode)<0)errors.push('File không đúng định dạng cập nhật an toàn PHF-BULK-1.7.93. Vui lòng tải lại file mới từ hệ thống.');
     if(!systemId||systemId!==id)errors.push('File không thuộc đúng mẫu đang mở. Mã hệ thống trong file: '+(systemId||'trống')+'.');
     if(!templateCode||templateCode!==String(meta.code||''))errors.push('Mã mẫu trong file không đúng với mẫu đang mở.');
     if(!sourceVersion||sourceVersion!==String(meta.version||''))errors.push('Phiên bản nguồn trong file là '+(sourceVersion||'trống')+', trong khi mẫu hiện tại là '+String(meta.version||'')+'. Vui lòng tải file cập nhật mới nhất.');
@@ -1653,14 +1943,36 @@
   function applyBulkImport(pending,reason,effectiveDate){var id=pending.templateId,groups=deepClone(selectedTemplateGroups()),byCode={};groups.forEach(function(g){g.children.forEach(function(c){c.items.forEach(function(i){byCode[String(i[0])]={group:g,child:c,item:i};});});});pending.criteriaChanges.forEach(function(ch){if(ch.type==='update'&&byCode[ch.code]){byCode[ch.code].item[1]=ch.content;byCode[ch.code].item[2]=ch.factor;}else if(ch.type==='stop'&&byCode[ch.code]){var arr=byCode[ch.code].child.items;var at=arr.indexOf(byCode[ch.code].item);if(at>=0)arr.splice(at,1);}else if(ch.type==='add'){var gc=findGroupChild(groups,ch.groupCode,ch.childCode,ch.groupName,ch.childName);if(gc)gc.child.items.push([ch.code,ch.content,ch.factor]);}});
     var totals=[];pending.totalChanges.forEach(function(ch){if(ch.type==='stop')return;var old=ch.before||[];totals.push([totals.length+1,ch.code,ch.content||old[2],Number(ch.target||old[3]),ch.unit||old[4]||'điểm',Number(ch.weight),ch.monthly?'Có':'Không',ch.source||'Nhập đánh giá']);});var oldVersion=effectiveTemplateVersion(id),newVersion=nextTemplateVersion(oldVersion);var payload={templateId:id,groups:groups,totalRows:totals,version:newVersion,sourceVersion:oldVersion,effectiveDate:effectiveDate,reason:reason,updatedAt:new Date().toISOString()};if(!saveBulkOverride(id,payload))return null;return payload;}
   function findCriterion(code){var found=null;selectedTemplateGroups().some(function(g){return g.children.some(function(c){return c.items.some(function(i){if(i[0]===code){found={group:g,child:c,item:i};return true;}return false;});});});return found;}
-  function directEditModalHtml(code){var f=findCriterion(code)||{group:{name:''},child:{name:''},item:['','','1']};return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>SỬA TRỰC TIẾP TRÊN WEB</small><h2>'+esc(f.item[0]||'Tiêu chí mới')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-edit-grid"><label><b>Nhóm nội dung</b><input value="'+esc(f.group.name+' / '+f.child.name)+'" disabled></label><label><b>Mã tiêu chí</b><input value="'+esc(f.item[0])+'" disabled data-phfck-edit-code></label><label class="is-wide"><b>Nội dung tiêu chí <em>*</em></b><textarea data-phfck-edit-content>'+esc(f.item[1])+'</textarea></label><label><b>Hệ số <em>*</em></b><input type="number" min="1" step="1" value="'+esc(f.item[2])+'" data-phfck-edit-factor></label><label><b>Trạng thái</b><select data-phfck-edit-status><option>Đang áp dụng</option><option>Ngưng áp dụng</option></select></label><label><b>Ngày hiệu lực <em>*</em></b><input type="date" data-phfck-edit-effective></label><label class="is-wide"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-edit-reason placeholder="Nêu ngắn gọn lý do cập nhật"></textarea></label></div><div class="phfck-before-after"><div><small>TRƯỚC THAY ĐỔI</small><p>'+esc(f.item[1])+' · Hệ số '+esc(f.item[2])+'</p></div><div><small>SAU THAY ĐỔI</small><p>Dữ liệu sẽ được hiển thị tại bước xem trước trước khi tạo phiên bản mới.</p></div></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-secondary" data-phfck-save-draft>Lưu nháp</button><button type="button" class="phfck-primary" data-phfck-confirm-edit>Xem trước & tạo phiên bản</button></div></div></div>';}
-  function bulkStartModalHtml(){var meta=viewWorkbookMeta(templateUiState.selectedId||'nv-ban-hang');return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-bulk-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT HÀNG LOẠT BẰNG EXCEL</small><h2>'+esc(meta.name)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-bulk-steps"><article><span>1</span><div><b>Tải file cập nhật</b><p>File này khác file “Tải xuống để xem”. File có mã nhận diện, dropdown danh mục và dữ liệu hiện hành của đúng mẫu.</p><button type="button" class="phfck-secondary" data-phfck-download-bulk-file>⇩ Tải file cập nhật hàng loạt</button></div></article><article><span>2</span><div><b>Chỉnh file Excel</b><p>Không xóa dòng có sẵn. Các trường danh mục bắt buộc chọn từ dropdown; dùng cột Xử lý để xác định thay đổi.</p></div></article><article><span>3</span><div><b>Chọn file đã chỉnh</b><p>Hệ thống kiểm tra và cho xem trước, chưa ghi đè mẫu hiện hành.</p><button type="button" class="phfck-primary" data-phfck-choose-bulk-file>⇧ Chọn file để kiểm tra</button></div></article></div><div class="phfck-import-rules"><b>Quy tắc an toàn</b><ul><li>File phải thuộc đúng mẫu, mã mẫu và phiên bản đang mở.</li><li>Các giá trị danh mục phải khớp tuyệt đối với dữ liệu hệ thống.</li><li>Không đổi mã hoặc chuyển nhóm tiêu chí cũ.</li><li>Tổng trọng số phải bằng 100%.</li><li>Chỉ sau khi xác nhận mới tạo phiên bản mới.</li></ul></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
+  function directEditModalHtml(code){var f=findCriterion(code)||{group:{name:''},child:{name:''},item:['','','1']};return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>SỬA TRỰC TIẾP TRÊN WEB</small><h2>'+esc(f.item[0]||'Tiêu chí mới')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-form-error-summary" data-phfck-edit-summary hidden><b>Chưa thể tạo phiên bản mới</b><ul></ul></div><div class="phfck-edit-grid"><label><b>Nhóm nội dung</b><input value="'+esc(f.group.name+' / '+f.child.name)+'" disabled></label><label><b>Mã tiêu chí</b><input value="'+esc(f.item[0])+'" disabled data-phfck-edit-code></label><label class="is-wide" data-phfck-field-wrap="content"><b>Nội dung tiêu chí <em>*</em></b><textarea data-phfck-edit-content>'+esc(f.item[1])+'</textarea><small class="phfck-field-error" hidden></small></label><label data-phfck-field-wrap="factor"><b>Hệ số <em>*</em></b><input type="number" min="1" step="1" value="'+esc(f.item[2])+'" data-phfck-edit-factor><small class="phfck-field-error" hidden></small></label><label><b>Trạng thái</b><select data-phfck-edit-status><option>Đang áp dụng</option><option>Ngưng áp dụng</option></select></label><label data-phfck-field-wrap="effective"><b>Ngày hiệu lực <em>*</em></b><input type="date" data-phfck-edit-effective><small class="phfck-field-error" hidden></small></label><label class="is-wide" data-phfck-field-wrap="reason"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-edit-reason placeholder="Nêu ngắn gọn lý do cập nhật"></textarea><small class="phfck-field-error" hidden></small></label></div><div class="phfck-before-after"><div><small>TRƯỚC THAY ĐỔI</small><p>'+esc(f.item[1])+' · Hệ số '+esc(f.item[2])+'</p></div><div><small>SAU THAY ĐỔI</small><p>Dữ liệu sẽ được hiển thị tại bước xem trước trước khi tạo phiên bản mới.</p></div></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-secondary" data-phfck-save-draft>Lưu nháp</button><button type="button" class="phfck-primary" data-phfck-confirm-edit>Xem trước & tạo phiên bản</button></div></div></div>';}
+  function clearInlineValidation(modal){if(!modal)return;modal.querySelectorAll('.is-invalid').forEach(function(n){n.classList.remove('is-invalid');});modal.querySelectorAll('.phfck-field-error').forEach(function(n){n.hidden=true;n.textContent='';});var sum=modal.querySelector('[data-phfck-edit-summary]');if(sum){sum.hidden=true;var ul=sum.querySelector('ul');if(ul)ul.innerHTML='';}}
+  function showInlineValidation(modal,errors){clearInlineValidation(modal);var summary=modal&&modal.querySelector('[data-phfck-edit-summary]'),first=null;if(summary){summary.hidden=false;var ul=summary.querySelector('ul');if(ul)ul.innerHTML=errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}errors.forEach(function(x){var wrap=modal.querySelector('[data-phfck-field-wrap="'+x.key+'"]');if(!wrap)return;wrap.classList.add('is-invalid');var msg=wrap.querySelector('.phfck-field-error');if(msg){msg.hidden=false;msg.textContent=x.message;}if(!first)first=wrap.querySelector('input,textarea,select');});if(first){first.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){try{first.focus();}catch(_){}},180);}}
+  var pendingDirectEdit=null;
+  function directEditPreviewHtml(p){
+    var item=templateCatalog().find(function(x){return x.id===p.templateId;})||{};
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview" role="dialog" aria-modal="true">'
+      +'<div class="phfck-modal-head"><div><small>XEM TRƯỚC PHIÊN BẢN MỚI</small><h2>'+esc(item.name||'Mẫu Checklist')+' · '+esc(p.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div>'
+      +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>PHIÊN BẢN HIỆN TẠI</small><b>'+esc(p.oldVersion)+'</b></article><article><small>PHIÊN BẢN SẼ TẠO</small><b>'+esc(p.newVersion)+'</b></article><article><small>NGÀY HIỆU LỰC</small><b>'+esc(p.effectiveDate)+'</b></article></div>'
+      +'<div class="phfck-direct-diff"><div><small>TRƯỚC THAY ĐỔI</small><b>'+esc(p.code)+'</b><p>'+esc(p.beforeContent)+'</p><span>Hệ số '+esc(p.beforeFactor)+'</span></div><div class="is-after"><small>SAU THAY ĐỔI</small><b>'+esc(p.code)+'</b><p>'+esc(p.content)+'</p><span>Hệ số '+esc(p.factor)+' · '+esc(p.status)+'</span></div></div>'
+      +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Phiên bản hiện tại vẫn được giữ cho các kỳ trước ngày hiệu lực. Hệ thống chỉ áp dụng dữ liệu mới từ ngày đã chọn.</p></div></div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-back-direct-edit>Quay lại chỉnh</button><button type="button" class="phfck-primary" data-phfck-apply-direct-edit>Phát hành '+esc(p.newVersion)+'</button></div></div></div>';
+  }
+  function applyDirectEditVersion(p){
+    var groups=deepClone(selectedTemplateGroups()),found=null;
+    (groups||[]).some(function(g){return (g.children||[]).some(function(c){return (c.items||[]).some(function(i,index){if(String(i[0])===String(p.code)){found={child:c,index:index,item:i};return true;}return false;});});});
+    if(!found)return null;
+    if(p.status==='Ngưng áp dụng')found.child.items.splice(found.index,1);else{found.item[1]=p.content;found.item[2]=p.factor;}
+    var payload={templateId:p.templateId,groups:groups,totalRows:effectiveTotalRows(p.templateId),version:p.newVersion,sourceVersion:p.oldVersion,effectiveDate:p.effectiveDate,reason:p.reason,updatedAt:new Date().toISOString(),changeType:'web-direct'};
+    return saveBulkOverride(p.templateId,payload)?payload:null;
+  }
+
+  function bulkStartModalHtml(){var meta=viewWorkbookMeta(templateUiState.selectedId||'nv-ban-hang');return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-bulk-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT HÀNG LOẠT BẰNG EXCEL</small><h2>'+esc(meta.name)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-bulk-steps"><article><span>1</span><div><b>Tải file cập nhật</b><p>File được tạo trực tiếp từ phiên bản đang mở, có mã nhận diện và dữ liệu hiện hành của đúng mẫu.</p><button type="button" class="phfck-secondary" data-phfck-download-bulk-file>⇩ Tải file cập nhật hàng loạt</button></div></article><article><span>2</span><div><b>Chỉnh file Excel</b><p>Không xóa dòng có sẵn. Giữ nguyên tên sheet/cột; dùng cột Xử lý để chọn Giữ nguyên, Cập nhật, Thêm mới hoặc Ngưng áp dụng.</p></div></article><article><span>3</span><div><b>Chọn file đã chỉnh</b><p>Hệ thống kiểm tra và cho xem trước, chưa ghi đè mẫu hiện hành.</p><button type="button" class="phfck-primary" data-phfck-choose-bulk-file>⇧ Chọn file để kiểm tra</button></div></article></div><div class="phfck-import-rules"><b>Quy tắc an toàn</b><ul><li>File phải thuộc đúng mẫu, mã mẫu và phiên bản đang mở.</li><li>Các giá trị danh mục phải khớp tuyệt đối với dữ liệu hệ thống.</li><li>Không đổi mã hoặc chuyển nhóm tiêu chí cũ.</li><li>Tổng trọng số phải bằng 100%.</li><li>Chỉ sau khi xác nhận mới tạo phiên bản mới.</li></ul></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
   function bulkChangeRowsHtml(pending){var rows=(pending.criteriaChanges||[]).filter(function(x){return x.type!=='keep';}).slice(0,30);var totalRows=(pending.totalChanges||[]).filter(function(x){return x.type!=='keep';}).slice(0,20);function label(t){return t==='add'?'Thêm mới':(t==='stop'?'Ngưng áp dụng':'Cập nhật');}return '<div class="phfck-bulk-diff"><h3>Thay đổi tiêu chí</h3>'+(rows.length?'<div class="phfck-bulk-diff-list">'+rows.map(function(x){var before=x.before?(x.before.content+' · Hệ số '+x.before.factor):'—';var after=x.type==='stop'?'Ngưng áp dụng':(x.content+' · Hệ số '+x.factor);return '<article><span class="is-'+x.type+'">'+label(x.type)+'</span><b>'+esc(x.code)+'</b><p><small>Trước:</small> '+esc(before)+'</p><p><small>Sau:</small> '+esc(after)+'</p></article>';}).join('')+'</div>':'<p class="phfck-muted-line">Không thay đổi tiêu chí.</p>')+'<h3>Thay đổi Bảng tổng điểm</h3>'+(totalRows.length?'<div class="phfck-bulk-diff-list">'+totalRows.map(function(x){var before=x.before?(x.before[2]+' · '+x.before[5]+'%'):'—';var after=x.type==='stop'?'Ngưng áp dụng':(x.content+' · '+x.weight+'%');return '<article><span class="is-'+x.type+'">'+label(x.type)+'</span><b>'+esc(x.code)+'</b><p><small>Trước:</small> '+esc(before)+'</p><p><small>Sau:</small> '+esc(after)+'</p></article>';}).join('')+'</div>':'<p class="phfck-muted-line">Không thay đổi Bảng tổng điểm.</p>')+'</div>';}
   function bulkPreviewHtml(pending){var summary=pending.summary||{total:0,keep:0,update:0,add:0,stop:0,totalWeight:0};var hasErrors=(pending.errors||[]).length>0;var nextVersion=nextTemplateVersion(effectiveTemplateVersion(pending.templateId||templateUiState.selectedId));return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-bulk-modal is-preview" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT HÀNG LOẠT BẰNG EXCEL</small><h2>'+(hasErrors?'File cần điều chỉnh':'Kiểm tra và xem trước')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-file-summary"><b>'+esc(pending.fileName||'File Excel')+'</b><span>'+esc((pending.meta||{}).name||'Mẫu Checklist')+' · Dự kiến '+esc(nextVersion)+'</span></div>'+(hasErrors?'<div class="phfck-import-errors"><b>Chưa thể tạo phiên bản mới</b><p>Vui lòng sửa file rồi import lại:</p><ol>'+(pending.errors||[]).slice(0,40).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol></div>':'<div class="phfck-preview-cards"><article><strong>'+summary.keep+'</strong><span>Giữ nguyên</span></article><article><strong>'+summary.update+'</strong><span>Cập nhật</span></article><article><strong>'+summary.add+'</strong><span>Thêm mới</span></article><article><strong>'+summary.stop+'</strong><span>Ngưng áp dụng</span></article><article><strong>'+summary.totalWeight+'%</strong><span>Tổng trọng số</span></article></div>'+bulkChangeRowsHtml(pending)+'<div class="phfck-edit-grid phfck-bulk-confirm-fields"><label><b>Ngày hiệu lực <em>*</em></b><input type="date" data-phfck-bulk-effective></label><label class="is-wide"><b>Lý do cập nhật <em>*</em></b><textarea data-phfck-bulk-reason placeholder="Nêu rõ lý do cập nhật hàng loạt"></textarea></label></div>')+'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>'+(hasErrors?'Đóng':'Hủy')+'</button>'+(hasErrors?'':'<button type="button" class="phfck-primary" data-phfck-confirm-bulk>Tạo phiên bản '+esc(nextVersion)+'</button>')+'</div></div></div>';}
-  function versionHistoryModalHtml(){var rows=auditRows().filter(function(r){return r.area==='Mẫu Checklist'||r.area==='Bảng tổng điểm';}).slice(0,10);return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-version-modal"><div class="phfck-modal-head"><div><small>LỊCH SỬ PHIÊN BẢN</small><h2>'+esc((CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===templateUiState.selectedId;})||{}).name||'Mẫu Checklist')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-history-list">'+rows.map(function(r){return '<article><span>'+esc(r.time)+'</span><div><b>'+esc(r.action)+' · '+esc(r.version||'—')+'</b><p>'+esc(r.reason||'Không có lý do')+'</p></div><em>'+esc(r.source)+'</em></article>';}).join('')+'</div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
+  function versionHistoryModalHtml(){ensureChecklistTemplatesHydrated();var db=checklistTemplateDbState.byId[templateUiState.selectedId]||{},dbRows=(db.versions||[]).map(function(v){return {time:v.createdAt?new Date(v.createdAt).toLocaleString('vi-VN'):(v.effectiveDate||''),action:v.changeType==='web-create'?'Tạo mẫu trên web':'Phát hành phiên bản',version:v.version||'—',reason:v.reason||'',source:'Database'};}),localRows=auditRows().filter(function(r){return r.area==='Mẫu Checklist'||r.area==='Bảng tổng điểm';}),seen={},rows=dbRows.concat(localRows).filter(function(r){var k=[r.version,r.reason,r.time].join('|');if(seen[k])return false;seen[k]=true;return true;}).slice(0,15);return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-version-modal"><div class="phfck-modal-head"><div><small>LỊCH SỬ PHIÊN BẢN</small><h2>'+esc((templateCatalog().find(function(x){return x.id===templateUiState.selectedId;})||{}).name||'Mẫu Checklist')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-history-list">'+(rows.length?rows.map(function(r){return '<article><span>'+esc(r.time)+'</span><div><b>'+esc(r.action)+' · '+esc(r.version||'—')+'</b><p>'+esc(r.reason||'Không có lý do')+'</p></div><em>'+esc(r.source)+'</em></article>';}).join(''):'<p class="phfck-muted-line">Chưa có lịch sử phiên bản.</p>')+'</div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
   function appendSubmodal(root,html){root.querySelectorAll('[data-phfck-submodal]').forEach(function(n){n.remove();});root.insertAdjacentHTML('beforeend',html);syncChecklistModalScrollLock();}
   function viewWorkbookMetaBase(templateId){
-    var item=CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===templateId;})||{};
+    var item=templateCatalog().find(function(x){return x.id===templateId;})||{};
+    if(item.custom)return {name:item.name||'Mẫu Checklist',code:item.code||'',version:item.version||((item.code||'MAU')+'-1.0'),policy:(item.code||'MAU')+'-TONG-1.0',source:item.source||'Tạo trực tiếp trên web',scope:item.note||('Áp dụng cho '+(item.name||'mẫu mới'))};
     var cfg=ASSISTANT_TEMPLATE_CONFIGS[templateId];
     var meta={name:item.name||'Mẫu Checklist',code:'',version:'',policy:'',source:item.source||'',scope:item.note||''};
     if(cfg){meta.name=cfg.title||meta.name;meta.code=cfg.code||'';meta.version=cfg.version||'';meta.policy=cfg.policy||'';meta.source=cfg.source||meta.source;meta.scope=cfg.scope||meta.scope;return meta;}
@@ -1719,24 +2031,91 @@
   function phfckDownloadStaticWorkbook(url,fileName){
     return fetch(url,{cache:'no-store'}).then(function(res){if(!res.ok)throw new Error('Không tải được file mẫu: '+res.status);return res.blob();}).then(function(blob){var objectUrl=URL.createObjectURL(blob);var a=document.createElement('a');a.href=objectUrl;a.download=fileName;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(objectUrl);},1500);return true;});
   }
-  function downloadViewWorkbook(){
-    var templateId=templateUiState.selectedId||'nv-ban-hang';var meta=viewWorkbookMeta(templateId);
-    var safeName=(meta.name||meta.code||templateId);if(safeName.normalize)safeName=safeName.normalize('NFD').replace(/[\u0300-\u036f]/g,'');safeName=String(safeName).replace(/Đ/g,'D').replace(/đ/g,'d').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
-    var fileName='PHF_Checklist_'+safeName+'_'+(meta.version||'HIEN_HANH').replace(/[^A-Za-z0-9_.-]+/g,'_')+'.xlsx';
-    return phfckDownloadStaticWorkbook('/assets/templates/checklist-view/'+encodeURIComponent(templateId)+'.xlsx?v=1.7.53',fileName).catch(function(err){console.error('[PHF Checklist] download styled workbook failed',err);if(window.phfNotice)window.phfNotice('Không tải được file Excel trình bày chuẩn. Vui lòng kiểm tra đã copy thư mục assets/templates/checklist-view và tải lại trang.');return false;});
+  function safeTemplateFileName(value){value=String(value||'MAU');if(value.normalize)value=value.normalize('NFD').replace(/[\u0300-\u036f]/g,'');return value.replace(/Đ/g,'D').replace(/đ/g,'d').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')||'MAU';}
+  function buildTemplateWorkbook(forUpdate){
+    if(!window.XLSX){if(window.phfNotice)window.phfNotice('Chưa tải được thư viện Excel. Vui lòng Ctrl + F5 và thử lại.');return null;}
+    var id=templateUiState.selectedId||'nv-ban-hang',item=templateCatalog().find(function(x){return x.id===id;})||{},meta=viewWorkbookMeta(id),groups=selectedTemplateGroups(),totals=effectiveTotalRows(id),type=item.templateType||(item.hasChecklist?'checklist_detail':'score_summary');
+    var wb=XLSX.utils.book_new();
+    var info=[['PHF CHECKLIST – FILE '+(forUpdate?'CẬP NHẬT PHIÊN BẢN':'XEM MẪU')],['Mã hệ thống',id],['Mã mẫu',meta.code||templateCodeForDatabase(item,meta.version)],['Tên mẫu',meta.name||item.name||'Mẫu Checklist'],['Loại mẫu',type],['Phiên bản nguồn',meta.version||effectiveTemplateVersion(id)],['Ngày xuất',new Date().toLocaleString('vi-VN')],['Định dạng file',forUpdate?'PHF-BULK-1.7.93':'PHF-VIEW-1.7.93'],['Hướng dẫn',forUpdate?'Không đổi tên sheet/cột. Chọn Xử lý cho từng dòng; upload chỉ xem trước và tạo phiên bản mới.':'File chỉ dùng để xem/đối chiếu.']];
+    var criteria=[['STT','Nhóm/bước hợp lệ','Mã tiêu chí','Nội dung tiêu chí','Hệ số','Loại tiêu chí','Minh chứng','Ghi chú bắt buộc','Quyền ghi nhận','Trạng thái','Xử lý']];
+    var n=0;(groups||[]).forEach(function(g){(g.children||[]).forEach(function(c){(c.items||[]).forEach(function(i){n++;criteria.push([n,phfckGroupPath(g,c),i[0],i[1],Number(i[2]||1),i[0]==='PHF-DITRE-01'||i[0]==='BH-DITRE-01'?'Chung PHF':'Riêng chức danh','Khuyến khích','Có',i[0]==='PHF-DITRE-01'||i[0]==='BH-DITRE-01'?'Chỉ Admin':'Theo phân quyền','Đang áp dụng',forUpdate?'Giữ nguyên':'']);});});});
+    var total=[['STT','Mã chỉ tiêu','Nội dung chỉ tiêu','Mục tiêu','Đơn vị','Trọng số','Nguồn kết quả','Theo kế hoạch tháng','Xử lý']];
+    (totals||[]).forEach(function(r,i){total.push([i+1,r[1],r[2],Number(r[3]||0),r[4]||'điểm',Number(r[5]||0),r[7]||'Nhập đánh giá',r[6]||'Không',forUpdate?'Giữ nguyên':'']);});
+    var catalogs=[['DANH MỤC HỢP LỆ'],['Xử lý','Giữ nguyên','Cập nhật','Thêm mới','Ngưng áp dụng'],['Loại tiêu chí','Chung PHF','Riêng chức danh'],['Minh chứng','Khuyến khích','Bắt buộc'],['Có/Không','Có','Không'],['Quyền ghi nhận','Theo phân quyền','Chỉ Admin'],['Trạng thái','Đang áp dụng','Ngưng áp dụng'],['Nguồn kết quả','Checklist','Hệ thống','Nhập đánh giá']];
+    function add(name,data,widths){var ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=(widths||[]).map(function(w){return {wch:w};});XLSX.utils.book_append_sheet(wb,ws,name);}
+    add('HƯỚNG DẪN',info,[24,90]);add('TIÊU CHÍ',criteria,[7,38,24,62,10,18,16,18,18,16,18]);add('BẢNG TỔNG',total,[7,22,60,12,14,12,18,20,18]);add('DANH MỤC',catalogs,[24,24,24,24,24]);
+    return {wb:wb,id:id,item:item,meta:meta,type:type};
   }
-  function downloadBulkWorkbook(){
-    var id=templateUiState.selectedId||'nv-ban-hang',meta=viewWorkbookMeta(id),override=loadBulkOverride(id);
-    if(override&&override.version&&override.version!==viewWorkbookMetaBase(id).version){if(window.phfNotice)window.phfNotice('Mẫu đang có phiên bản cập nhật cục bộ '+override.version+'. Để an toàn, file dropdown chỉ phát hành từ dữ liệu nguồn chính thức; vui lòng chưa tiếp tục import lần hai trên bản prototype.');return false;}
-    var safe=(meta.code||id).replace(/[^A-Za-z0-9_-]+/g,'_');var fileName='PHF_CAP_NHAT_HANG_LOAT_'+safe+'_'+String(meta.version).replace(/[^A-Za-z0-9_.-]+/g,'_')+'.xlsx';
-    return phfckDownloadStaticWorkbook('/assets/templates/checklist-import/'+encodeURIComponent(id)+'.xlsx?v=1.7.55',fileName).catch(function(err){console.error('[PHF Checklist] download safe bulk workbook failed',err);if(window.phfNotice)window.phfNotice('Không tải được file cập nhật an toàn. Vui lòng kiểm tra đã copy thư mục assets/templates/checklist-import và Ctrl + F5.');return false;});
+  function downloadViewWorkbook(){var built=buildTemplateWorkbook(false);if(!built)return false;var name='PHF_XEM_MAU_'+safeTemplateFileName(built.meta.name||built.id)+'_'+safeTemplateFileName(built.meta.version||'HIEN_HANH')+'.xlsx';XLSX.writeFile(built.wb,name,{compression:true});return true;}
+  function downloadBulkWorkbook(){var built=buildTemplateWorkbook(true);if(!built)return false;var name='PHF_CAP_NHAT_MAU_'+safeTemplateFileName(built.meta.code||built.id)+'_'+safeTemplateFileName(built.meta.version||'HIEN_HANH')+'.xlsx';XLSX.writeFile(built.wb,name,{compression:true});return true;}
+
+
+  var newTemplateDraft={type:'checklist_detail',criteria:[{code:'',content:'',factor:1}],summaryRows:[{code:'',content:'',target:100,unit:'điểm',weight:100,source:'Nhập đánh giá'}]};
+  function slugTemplateId(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+  function createBlankTemplateWorkbook(type){
+    if(!window.XLSX){if(window.phfNotice)window.phfNotice('Chưa tải được thư viện Excel. Vui lòng tải lại trang.');return false;}
+    type=type==='score_summary'?'score_summary':'checklist_detail';
+    var wb=XLSX.utils.book_new();
+    var guide=[['PHF CHECKLIST – FILE TẠO MẪU MỚI'],['1. Không đổi tên các sheet hoặc tiêu đề cột.'],['2. Điền thông tin mẫu tại sheet THÔNG TIN.'],['3. Chỉ nhập dữ liệu tại sheet DỮ LIỆU.'],['4. Mẫu tổng điểm: tổng Trọng số % phải bằng 100.'],['5. Mẫu Checklist chi tiết: Hệ số để trống được hiểu là 1.'],['6. Upload chỉ đưa dữ liệu vào màn xem trước; Admin vẫn phải kiểm tra và bấm Tạo mẫu 1.0.']];
+    var info=[['Trường','Giá trị'],['Loại mẫu',type],['Tên mẫu',''],['Mã mẫu',''],['Phòng ban/Nhóm',''],['Ngày hiệu lực',todayIso()],['Lý do tạo mẫu','']];
+    var data=type==='score_summary'?
+      [['Mã chỉ tiêu','Tên chỉ tiêu','Mục tiêu','Đơn vị','Trọng số %','Nguồn kết quả'],['CT-01','',100,'điểm',100,'Nhập đánh giá']]:
+      [['Mã tiêu chí','Nội dung tiêu chí','Hệ số'],['TC-01','',1]];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(guide),'HƯỚNG DẪN');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(info),'THÔNG TIN');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),'DỮ LIỆU');
+    XLSX.writeFile(wb,'PHF_TAO_MAU_MOI_'+(type==='score_summary'?'TONG_DIEM':'CHECKLIST')+'.xlsx',{compression:true});
+    return true;
   }
+  function parseNewTemplateWorkbook(wb,fileName){
+    var errors=[],warnings=[],infoSheet=wb.Sheets['THÔNG TIN'],dataSheet=wb.Sheets['DỮ LIỆU'];
+    if(!infoSheet)errors.push('Thiếu sheet THÔNG TIN.');
+    if(!dataSheet)errors.push('Thiếu sheet DỮ LIỆU.');
+    if(errors.length)return {fileName:fileName,errors:errors,warnings:warnings};
+    var infoRows=XLSX.utils.sheet_to_json(infoSheet,{header:1,defval:''}),map={};
+    infoRows.slice(1).forEach(function(r){map[normalizeText(r[0]).toLowerCase()]=String(r[1]||'').trim();});
+    var type=map['loai mau']||map['loại mẫu']||'checklist_detail';type=type==='score_summary'?'score_summary':'checklist_detail';
+    var rows=XLSX.utils.sheet_to_json(dataSheet,{header:1,defval:''});
+    if(rows.length<2)errors.push('Sheet DỮ LIỆU chưa có dòng nội dung.');
+    var headers=(rows[0]||[]).map(function(x){return normalizeText(x).toLowerCase();});
+    function col(){for(var i=0;i<arguments.length;i++){var at=headers.indexOf(normalizeText(arguments[i]).toLowerCase());if(at>=0)return at;}return -1;}
+    var criteria=[],summaryRows=[];
+    if(type==='checklist_detail'){
+      var cc=col('Mã tiêu chí','Ma tieu chi'),ct=col('Nội dung tiêu chí','Noi dung tieu chi'),cf=col('Hệ số','He so');
+      if(ct<0)errors.push('DỮ LIỆU thiếu cột Nội dung tiêu chí.');
+      rows.slice(1).forEach(function(r,i){if(!r.some(function(v){return String(v).trim();}))return;var content=String(r[ct]||'').trim(),factor=cf>=0?Number(String(r[cf]||1).replace(',','.')):1;if(!content){errors.push('Dòng '+(i+2)+': thiếu Nội dung tiêu chí.');return;}if(!Number.isFinite(factor)||factor<=0){errors.push('Dòng '+(i+2)+': Hệ số phải lớn hơn 0.');return;}if(/ứng xử phf/i.test(content))factor=10;criteria.push({code:cc>=0?String(r[cc]||'').trim().toUpperCase():'',content:content,factor:factor});});
+      if(!criteria.length&&!errors.length)errors.push('Chưa có tiêu chí hợp lệ để nhập.');
+    }else{
+      var sc=col('Mã chỉ tiêu','Ma chi tieu'),sn=col('Tên chỉ tiêu','Ten chi tieu'),st=col('Mục tiêu','Muc tieu'),su=col('Đơn vị','Don vi'),sw=col('Trọng số %','Trong so %','Trọng số'),ss=col('Nguồn kết quả','Nguon ket qua');
+      if(sn<0||sw<0)errors.push('DỮ LIỆU phải có cột Tên chỉ tiêu và Trọng số %.');
+      rows.slice(1).forEach(function(r,i){if(!r.some(function(v){return String(v).trim();}))return;var content=String(r[sn]||'').trim(),weight=Number(String(r[sw]||0).replace(',','.')),target=Number(String(r[st]||0).replace(',','.')),unit=String(r[su]||'điểm').trim(),source=String(r[ss]||'Nhập đánh giá').trim();if(!content){errors.push('Dòng '+(i+2)+': thiếu Tên chỉ tiêu.');return;}if(!Number.isFinite(weight)||weight<=0){errors.push('Dòng '+(i+2)+': Trọng số phải lớn hơn 0.');return;}if(['Nhập đánh giá','Checklist','Hệ thống'].indexOf(source)<0){warnings.push('Dòng '+(i+2)+': Nguồn kết quả không hợp lệ, đã chuyển về Nhập đánh giá.');source='Nhập đánh giá';}summaryRows.push({code:sc>=0?String(r[sc]||'').trim().toUpperCase():'',content:content,target:Number.isFinite(target)?target:0,unit:unit||'điểm',weight:weight,source:source});});
+      var total=Math.round(summaryRows.reduce(function(a,r){return a+(Number(r.weight)||0);},0)*100)/100;if(summaryRows.length&&Math.abs(total-100)>0.001)errors.push('Tổng trọng số hiện là '+total+'%, bắt buộc bằng 100%.');
+      if(!summaryRows.length&&!errors.length)errors.push('Chưa có chỉ tiêu tổng điểm hợp lệ để nhập.');
+    }
+    return {fileName:fileName,type:type,name:map['ten mau']||map['tên mẫu']||'',code:(map['ma mau']||map['mã mẫu']||'').toUpperCase(),group:map['phong ban/nhom']||map['phòng ban/nhóm']||'',effective:map['ngay hieu luc']||map['ngày hiệu lực']||todayIso(),reason:map['ly do tao mau']||map['lý do tạo mẫu']||'',criteria:criteria,summaryRows:summaryRows,errors:errors,warnings:warnings};
+  }
+  function applyNewTemplateImport(modal,result){
+    newTemplateDraft.type=result.type||'checklist_detail';newTemplateDraft.criteria=result.criteria&&result.criteria.length?result.criteria:[{code:'',content:'',factor:1}];newTemplateDraft.summaryRows=result.summaryRows&&result.summaryRows.length?result.summaryRows:[{code:'',content:'',target:100,unit:'điểm',weight:100,source:'Nhập đánh giá'}];
+    function set(sel,val){var n=modal.querySelector(sel);if(n&&val!=null)n.value=val;}
+    set('[data-phfck-create-name]',result.name);set('[data-phfck-create-code]',result.code);set('[data-phfck-create-group]',result.group);set('[data-phfck-create-effective]',result.effective);set('[data-phfck-create-reason]',result.reason);
+    modal.querySelectorAll('[data-phfck-create-type]').forEach(function(input){input.checked=input.value===newTemplateDraft.type;input.closest('.phfck-template-type-card').classList.toggle('is-selected',input.checked);});
+    var ds=modal.querySelector('[data-phfck-create-detail-section]'),ss=modal.querySelector('[data-phfck-create-summary-section]');if(ds){ds.hidden=newTemplateDraft.type!=='checklist_detail';var cr=ds.querySelector('[data-phfck-create-criteria]');if(cr)cr.innerHTML=createCriterionRowsHtml();}if(ss){ss.hidden=newTemplateDraft.type!=='score_summary';var sr=ss.querySelector('[data-phfck-create-summary-rows]');if(sr)sr.innerHTML=createSummaryRowsHtml();var wt=ss.querySelector('[data-phfck-weight-total]');if(wt)wt.textContent='Tổng trọng số: '+summaryWeightTotal()+'%';}
+    var box=modal.querySelector('[data-phfck-create-import-result]');if(box){box.hidden=false;box.className='phfck-create-import-result is-success';box.innerHTML='<b>Đã đưa file vào màn xem trước</b><span>'+esc(result.fileName)+' · '+(newTemplateDraft.type==='score_summary'?newTemplateDraft.summaryRows.length+' chỉ tiêu':newTemplateDraft.criteria.length+' tiêu chí')+(result.warnings.length?' · '+result.warnings.length+' cảnh báo':'')+'</span>'+(result.warnings.length?'<ul>'+result.warnings.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'');}
+  }
+  function createTemplateModalHtml(){var today=new Date().toISOString().slice(0,10),type=newTemplateDraft.type||'checklist_detail';return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-create-template-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>THÊM MẪU TRỰC TIẾP TRÊN WEB</small><h2>Tạo mẫu mới</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-form-error-summary" data-phfck-create-summary hidden><b>Chưa thể tạo mẫu</b><ul></ul></div><section class="phfck-form-section"><div class="phfck-section-title"><b>Loại mẫu <em>*</em></b><span>Không thể đổi loại sau khi phát hành</span></div><div class="phfck-template-type-grid"><label class="phfck-template-type-card '+(type==='score_summary'?'is-selected':'')+'"><input type="radio" name="phfck-template-type" value="score_summary" data-phfck-create-type '+(type==='score_summary'?'checked':'')+'><span><b>Mẫu tổng điểm</b><small>Chỉ tiêu tổng hợp, mục tiêu và trọng số; không ghi lỗi từng tiêu chí.</small></span></label><label class="phfck-template-type-card '+(type==='checklist_detail'?'is-selected':'')+'"><input type="radio" name="phfck-template-type" value="checklist_detail" data-phfck-create-type '+(type==='checklist_detail'?'checked':'')+'><span><b>Mẫu Checklist chi tiết</b><small>Từng tiêu chí, hệ số và dùng trong luồng ghi nhận lỗi.</small></span></label></div></section><section class="phfck-form-section phfck-create-import-section"><div class="phfck-section-title"><b>Cách nhập dữ liệu</b><span>Upload chỉ đưa dữ liệu vào xem trước, chưa tự tạo mẫu</span></div><div class="phfck-create-entry-actions"><button type="button" class="phfck-create-entry-card is-active" data-phfck-create-direct><b>Nhập trực tiếp</b><small>Phù hợp mẫu ngắn hoặc chỉnh nhanh trên web.</small></button><button type="button" class="phfck-create-entry-card" data-phfck-create-download><b>⇩ Tải file chuẩn</b><small>Tải đúng cấu trúc theo loại mẫu đang chọn.</small></button><button type="button" class="phfck-create-entry-card" data-phfck-create-upload><b>⇧ Upload Excel</b><small>Kiểm tra và đưa dữ liệu vào form để xem trước.</small></button><input type="file" accept=".xlsx,.xls" data-phfck-create-file hidden></div><div class="phfck-create-import-result" data-phfck-create-import-result hidden></div></section><section class="phfck-form-section"><div class="phfck-section-title"><b>Thông tin chung</b><span>Mẫu mới được lưu thành phiên bản 1.0</span></div><div class="phfck-edit-grid"><label data-phfck-create-wrap="name"><b>Tên mẫu <em>*</em></b><input data-phfck-create-name placeholder="Ví dụ: Nhân viên Thu ngân"><small class="phfck-field-error" hidden></small></label><label data-phfck-create-wrap="code"><b>Mã mẫu <em>*</em></b><input data-phfck-create-code placeholder="Ví dụ: NV-TN"><small class="phfck-field-error" hidden></small></label><label data-phfck-create-wrap="group"><b>Phòng ban/Nhóm <em>*</em></b><input data-phfck-create-group placeholder="Ví dụ: Bán hàng"><small class="phfck-field-error" hidden></small></label><label data-phfck-create-wrap="effective"><b>Ngày hiệu lực <em>*</em></b><input type="date" value="'+today+'" data-phfck-create-effective><small class="phfck-field-error" hidden></small></label><label class="is-wide" data-phfck-create-wrap="reason"><b>Lý do tạo mẫu <em>*</em></b><textarea data-phfck-create-reason placeholder="Nêu mục đích và phạm vi áp dụng"></textarea><small class="phfck-field-error" hidden></small></label></div></section><section class="phfck-form-section" data-phfck-create-detail-section '+(type==='checklist_detail'?'':'hidden')+'><div class="phfck-section-title"><b>Tiêu chí Checklist</b><span>Hệ số để trống được hiểu là 1</span></div><div class="phfck-create-criteria" data-phfck-create-criteria>'+createCriterionRowsHtml()+'</div><button type="button" class="phfck-secondary" data-phfck-add-create-row>＋ Thêm tiêu chí</button></section><section class="phfck-form-section" data-phfck-create-summary-section '+(type==='score_summary'?'':'hidden')+'><div class="phfck-section-title"><b>Chỉ tiêu tổng điểm</b><span>Tổng trọng số bắt buộc bằng 100%</span></div><div class="phfck-create-summary-rows" data-phfck-create-summary-rows>'+createSummaryRowsHtml()+'</div><button type="button" class="phfck-secondary" data-phfck-add-summary-row>＋ Thêm chỉ tiêu</button><div class="phfck-weight-total" data-phfck-weight-total>Tổng trọng số: '+summaryWeightTotal()+'%</div></section><div class="phfck-safe-version-note"><b>Nguyên tắc</b><p>Mẫu tổng điểm dùng trọng số 100%. Mẫu Checklist chi tiết dùng tiêu chí và hệ số. Loại mẫu được khóa theo phiên bản sau khi phát hành.</p></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-primary" data-phfck-confirm-create-template>Tạo mẫu 1.0</button></div></div></div>';}
+  function createCriterionRowsHtml(){return (newTemplateDraft.criteria||[]).map(function(r,i){return '<div class="phfck-create-criterion-row" data-phfck-create-row="'+i+'"><span>'+(i+1)+'</span><input placeholder="Mã tiêu chí" value="'+esc(r.code||'')+'" data-phfck-create-criterion-code><input placeholder="Nội dung tiêu chí" value="'+esc(r.content||'')+'" data-phfck-create-criterion-content><input type="number" min="1" step="1" value="'+esc(r.factor||1)+'" data-phfck-create-criterion-factor><button type="button" data-phfck-remove-create-row="'+i+'" aria-label="Xóa dòng">×</button></div>';}).join('');}
+  function createSummaryRowsHtml(){return (newTemplateDraft.summaryRows||[]).map(function(r,i){return '<div class="phfck-create-summary-row" data-phfck-summary-row="'+i+'"><span>'+(i+1)+'</span><input placeholder="Mã chỉ tiêu" value="'+esc(r.code||'')+'" data-phfck-summary-code><input placeholder="Tên chỉ tiêu tổng" value="'+esc(r.content||'')+'" data-phfck-summary-content><input type="number" min="0" step="0.01" placeholder="Mục tiêu" value="'+esc(r.target==null?'':r.target)+'" data-phfck-summary-target><input placeholder="Đơn vị" value="'+esc(r.unit||'điểm')+'" data-phfck-summary-unit><input type="number" min="0" max="100" step="0.01" placeholder="Trọng số %" value="'+esc(r.weight==null?'':r.weight)+'" data-phfck-summary-weight><select data-phfck-summary-source><option '+(r.source==='Nhập đánh giá'?'selected':'')+'>Nhập đánh giá</option><option '+(r.source==='Checklist'?'selected':'')+'>Checklist</option><option '+(r.source==='Hệ thống'?'selected':'')+'>Hệ thống</option></select><button type="button" data-phfck-remove-summary-row="'+i+'" aria-label="Xóa dòng">×</button></div>';}).join('');}
+  function summaryWeightTotal(){return Math.round((newTemplateDraft.summaryRows||[]).reduce(function(sum,r){return sum+(Number(r.weight)||0);},0)*100)/100;}
+  function syncCreateRows(modal){var rows=[];modal.querySelectorAll('[data-phfck-create-row]').forEach(function(row){rows.push({code:(row.querySelector('[data-phfck-create-criterion-code]')||{}).value||'',content:(row.querySelector('[data-phfck-create-criterion-content]')||{}).value||'',factor:Number((row.querySelector('[data-phfck-create-criterion-factor]')||{}).value||1)});});newTemplateDraft.criteria=rows;var totals=[];modal.querySelectorAll('[data-phfck-summary-row]').forEach(function(row){totals.push({code:(row.querySelector('[data-phfck-summary-code]')||{}).value||'',content:(row.querySelector('[data-phfck-summary-content]')||{}).value||'',target:Number((row.querySelector('[data-phfck-summary-target]')||{}).value||0),unit:(row.querySelector('[data-phfck-summary-unit]')||{}).value||'',weight:Number((row.querySelector('[data-phfck-summary-weight]')||{}).value||0),source:(row.querySelector('[data-phfck-summary-source]')||{}).value||'Nhập đánh giá'});});newTemplateDraft.summaryRows=totals;}
+  function showCreateValidation(modal,errors){modal.querySelectorAll('.is-invalid').forEach(function(n){n.classList.remove('is-invalid');});modal.querySelectorAll('.phfck-field-error').forEach(function(n){n.hidden=true;n.textContent='';});var sum=modal.querySelector('[data-phfck-create-summary]');sum.hidden=false;sum.querySelector('ul').innerHTML=errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');var first=null;errors.forEach(function(x){var w=modal.querySelector('[data-phfck-create-wrap="'+x.key+'"]');if(w){w.classList.add('is-invalid');var m=w.querySelector('.phfck-field-error');if(m){m.hidden=false;m.textContent=x.message;}if(!first)first=w.querySelector('input,textarea,select');}});if(first){first.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){first.focus();},150);}}
+  function saveNewTemplate(data){var list=loadCustomTemplates();if(templateCatalog().some(function(x){return x.id===data.id||String(x.code||'').toUpperCase()===data.code.toUpperCase();}))return false;var isDetail=data.type==='checklist_detail';var item={id:data.id,name:data.name,group:data.group,hasChecklist:isDetail,templateType:data.type,source:'Tạo trực tiếp trên web',note:data.reason,custom:true,code:data.code,version:data.code+'-1.0',effectiveFrom:data.effectiveDate,createdAt:new Date().toISOString()};list.push(item);if(!saveCustomTemplates(list))return false;var groups=isDetail?[{code:'CONGVIEC',name:'Tiêu chuẩn công việc',children:[{code:'NOIDUNG',name:'Nội dung công việc',items:data.criteria.map(function(r,i){var item=[r.code||data.code+'-'+String(i+1).padStart(2,'0'),r.content,Number(r.factor||1)];if(isSharedCultureCriterion(item))item[2]=10;return item;})}]}]:[];var totalRows=isDetail?[[1,data.code+'-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',70,'Không','Checklist'],[2,data.code+'-CAPTREN','Công việc cấp trên giao',10,'điểm',30,'Không','Nhập đánh giá']]:data.summaryRows.map(function(r,i){return [i+1,r.code||data.code+'-'+String(i+1).padStart(2,'0'),r.content,Number(r.target||0),r.unit||'điểm',Number(r.weight||0),'Không',r.source||'Nhập đánh giá'];});return saveBulkOverride(item.id,{templateId:item.id,templateType:data.type,groups:groups,totalRows:totalRows,version:item.version,sourceVersion:'',effectiveDate:data.effectiveDate,reason:data.reason,updatedAt:new Date().toISOString(),changeType:'web-create'})?item:false;}
+
   function templatesHtml(){
-    var groups=['all'].concat(Array.from(new Set(CHECKLIST_TEMPLATE_CATALOG.map(function(x){return x.group;}))));
-    return '<div class="phfck-page-head phfck-template-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Mẫu Checklist</h1><p>Xây từng mẫu chậm và chắc. Mười ba mẫu đã được chuẩn hóa theo cùng chuẩn trải nghiệm, gồm 4 mẫu vận hành, 3 mẫu Trợ lý, 2 mẫu Marketing, 2 mẫu QTTH/HCNS và 2 mẫu Gói quà.</p></div><button class="phfck-primary" type="button" disabled title="Chỉ tạo mẫu mới sau khi chuẩn hóa xong các bộ nguồn">＋ Tạo mẫu</button></div>'
+    var groups=['all'].concat(Array.from(new Set(templateCatalog().map(function(x){return x.group;}))));
+    return '<div class="phfck-page-head phfck-template-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Mẫu Checklist</h1><p>Xây từng mẫu chậm và chắc. Quản lý mẫu theo phiên bản. Có thể tạo mẫu mới trực tiếp trên web, sau đó tiếp tục sửa và phát hành phiên bản mới.</p></div><button class="phfck-primary" type="button" data-phfck-create-template>＋ Tạo mẫu</button></div>'
       +templateStatsHtml()
       +'<section class="phfck-panel phfck-template-panel"><div class="phfck-template-toolbar"><div class="phfck-search"><span>⌕</span><input type="search" placeholder="Tìm tên mẫu, nhóm hoặc nguồn" value="'+esc(templateUiState.query)+'" data-phfck-template-search></div><label><span>Nhóm</span><select data-phfck-template-group>'+groups.map(function(g){return '<option value="'+esc(g)+'" '+(templateUiState.group===g?'selected':'')+'>'+(g==='all'?'Tất cả nhóm':esc(g))+'</option>';}).join('')+'</select></label><div class="phfck-filter-note"><span class="phfck-dot"></span>Nguồn chuẩn: gói Checklist</div></div><div data-phfck-template-list>'+templateCardsHtml()+'</div></section>'
-      +(templateUiState.selectedId?templateDetailModalHtml(CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===templateUiState.selectedId;})):'');
+      +(templateUiState.selectedId?templateDetailModalHtml(templateCatalog().find(function(x){return x.id===templateUiState.selectedId;})):'');
   }
   function salesExportRows(blank,templateId){
     var override=loadBulkOverride(templateId);var groups=override&&Array.isArray(override.groups)?override.groups:baseTemplateGroups(templateId);
@@ -1785,7 +2164,7 @@
     return '<option value="">Chọn nhân viên cần ghi nhận</option>'+rows.map(function(item){return '<option value="'+esc(item.id)+'" '+(violationUiState.employeeId===item.id?'selected':'')+'>'+esc(item.name)+(item.code?' · '+esc(item.code):'')+'</option>';}).join('');
   }
   function violationTemplateOptions(){
-    return '<option value="">Chọn mẫu đang áp dụng</option>'+CHECKLIST_TEMPLATE_CATALOG.filter(function(item){return item.hasChecklist;}).map(function(item){return '<option value="'+esc(item.id)+'" '+(violationUiState.templateId===item.id?'selected':'')+'>'+esc(item.name)+(item.id==='nv-online'?' · chuẩn Quyên':'')+'</option>';}).join('');
+    return '<option value="">Chọn mẫu đang áp dụng</option>'+templateCatalog().filter(function(item){return item.hasChecklist;}).map(function(item){return '<option value="'+esc(item.id)+'" '+(violationUiState.templateId===item.id?'selected':'')+'>'+esc(item.name)+(item.id==='nv-online'?' · chuẩn Quyên':'')+'</option>';}).join('');
   }
   function violationFlowHtml(){
     var steps=[['1','Chọn nhân sự','Xác định người và mẫu đang áp dụng'],['2','Chọn tiêu chí','Lấy đúng phiên bản tại ngày xảy ra'],['3','Ghi nhận sự việc','Mô tả, thời gian và minh chứng'],['4','Kiểm tra & gửi','Nháp hoặc ghi nhận chính thức']];
@@ -2064,7 +2443,7 @@
   function settingsHtml(){return '<div class="phfck-page-head phfck-settings-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Cài đặt vận hành</h1><p>Trung tâm điều khiển quyền, phạm vi, thời hạn và quy tắc cốt lõi. Chỉ Admin được truy cập; mọi thay đổi sau này phải lưu phiên bản và nhật ký.</p></div><button class="phfck-primary" type="button" disabled title="Sẽ mở sau khi chốt schema, API và nhật ký cấu hình">Lưu cấu hình</button></div><div class="phfck-settings-warning"><span>!</span><div><b>Cài đặt là lõi điều hướng nghiệp vụ</b><p>Không hard-code theo tên hoặc chức danh. Admin cấu hình theo người, phạm vi và ngày hiệu lực; quyền phải được kiểm tra lại ở backend.</p></div></div>'+settingsTabsHtml()+'<div data-phfck-settings-content>'+settingsContentHtml()+'</div>';}
 
   function placeholderHtml(key){
-    var map={people:['Nhân sự & phân công','Lấy Họ tên và Mã nhân viên từ Hub; Admin chủ động gán mẫu, ngày hiệu lực và phạm vi.'],templates:['Mẫu Checklist','Quản lý 18 bộ mẫu, phiên bản tiêu chí và ngày hiệu lực.'],violations:['Ghi nhận lỗi','Chọn nhân viên, tiêu chí, sự việc và minh chứng để ghi nhận lỗi.'],tasks:['Việc cần xử lý','Theo dõi xác nhận, giải trình, phản hồi và các việc báo Admin.'],monthly:['Phiếu đánh giá tháng','Tổng hợp điểm Checklist cùng phần tự đánh giá và thẩm định.'],reports:['Báo cáo','Theo dõi điểm tuân thủ, lỗi lặp lại, quá hạn và xuất dữ liệu.'],history:['Lịch sử thay đổi','Truy vết mọi tác động quan trọng trong PHF Checklist.'],settings:['Cài đặt','Thiết lập quyền, phạm vi, thời hạn và quy tắc vận hành Checklist.']};
+    var map={people:['Nhân sự & phân công','Lấy Họ tên và Mã nhân viên từ Hub; Admin chủ động gán mẫu, ngày hiệu lực và phạm vi.'],templates:['Mẫu Checklist','Quản lý 19 bộ mẫu, phiên bản tiêu chí và ngày hiệu lực.'],violations:['Ghi nhận lỗi','Chọn nhân viên, tiêu chí, sự việc và minh chứng để ghi nhận lỗi.'],tasks:['Việc cần xử lý','Theo dõi xác nhận, giải trình, phản hồi và các việc báo Admin.'],monthly:['Phiếu đánh giá tháng','Tổng hợp điểm Checklist cùng phần tự đánh giá và thẩm định.'],reports:['Báo cáo','Theo dõi điểm tuân thủ, lỗi lặp lại, quá hạn và xuất dữ liệu.'],history:['Lịch sử thay đổi','Truy vết mọi tác động quan trọng trong PHF Checklist.'],settings:['Cài đặt','Thiết lập quyền, phạm vi, thời hạn và quy tắc vận hành Checklist.']};
     var item=map[key]||['Tổng quan',''];
     return '<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>'+esc(item[0])+'</h1><p>'+esc(item[1])+'</p></div></div><section class="phfck-panel phfck-placeholder"><div class="phfck-placeholder-icon">▤</div><h2>'+esc(item[0])+'</h2><p>Màn hình này sẽ được xây ở bước nghiệp vụ tiếp theo. Hiện route và shell Admin vẫn được giữ nguyên, không tạo dữ liệu giả.</p><button class="phfck-secondary" type="button" data-phfck-view="overview">Quay lại Tổng quan</button></section>';
   }
@@ -2102,6 +2481,14 @@
       if(saveQuickEdit){e.preventDefault();saveQuickPeopleEdits(root);return;}
       var editPerson=e.target.closest('[data-phfck-edit-person]');
       if(editPerson){e.preventDefault();peopleUiState.selectedId='';peopleUiState.editingId=editPerson.getAttribute('data-phfck-edit-person')||'';refreshPeopleWorkspace(root);return;}
+      var changeStatus=e.target.closest('[data-phfck-change-status]');
+      if(changeStatus){e.preventDefault();var statusItem=checklistEmployees().find(function(x){return x.id===(changeStatus.getAttribute('data-phfck-change-status')||'');});if(statusItem)appendSubmodal(root,employeeStatusModalHtml(statusItem));return;}
+      var closeStatus=e.target.closest('[data-phfck-close-status]');
+      if(closeStatus){e.preventDefault();var statusModal=closeStatus.closest('[data-phfck-status-modal]');if(statusModal)statusModal.remove();syncChecklistModalScrollLock();return;}
+      var statusChoice=e.target.closest('[data-phfck-status-value]');
+      if(statusChoice){updateStatusModalUi(statusChoice.closest('[data-phfck-status-modal]'));return;}
+      var saveStatus=e.target.closest('[data-phfck-save-status]');
+      if(saveStatus){e.preventDefault();saveEmployeeStatusChange(root,saveStatus.getAttribute('data-phfck-save-status')||'');return;}
       var cancelPersonEdit=e.target.closest('[data-phfck-cancel-person-edit]');
       if(cancelPersonEdit){e.preventDefault();peopleUiState.editingId='';refreshPeopleWorkspace(root);return;}
       var savePersonButton=e.target.closest('[data-phfck-save-person-edit]');
@@ -2131,12 +2518,22 @@
       var bulkUpdate=e.target.closest('[data-phfck-bulk-update]');if(bulkUpdate){e.preventDefault();pendingBulkImport=null;appendSubmodal(root,bulkStartModalHtml());return;}
       var downloadBulk=e.target.closest('[data-phfck-download-bulk-file]');if(downloadBulk){e.preventDefault();downloadBulkWorkbook();return;}
       var chooseBulk=e.target.closest('[data-phfck-choose-bulk-file]');if(chooseBulk){e.preventDefault();var fi2=root.querySelector('[data-phfck-sales-file]');if(fi2)fi2.click();return;}
-      var downloadView=e.target.closest('[data-phfck-download-view]');if(downloadView){e.preventDefault();downloadView.disabled=true;downloadViewWorkbook().then(function(ok){downloadView.disabled=false;if(ok){addAudit({action:'Tải xuống để xem',area:'Mẫu Checklist',object:(CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===templateUiState.selectedId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Không thay đổi dữ liệu',version:'Bản hiện tại',reason:'Xuất file Excel trình bày chuẩn để xem, lưu hồ sơ hoặc đối chiếu.'});if(window.phfNotice)window.phfNotice('Đã tải file Excel trình bày chuẩn, gồm đủ 3 sheet.');}});return;}
+      var downloadView=e.target.closest('[data-phfck-download-view]');if(downloadView){e.preventDefault();downloadView.disabled=true;downloadViewWorkbook().then(function(ok){downloadView.disabled=false;if(ok){addAudit({action:'Tải xuống để xem',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===templateUiState.selectedId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Không thay đổi dữ liệu',version:'Bản hiện tại',reason:'Xuất file Excel trình bày chuẩn để xem, lưu hồ sơ hoặc đối chiếu.'});if(window.phfNotice)window.phfNotice('Đã tải file Excel trình bày chuẩn, gồm đủ 3 sheet.');}});return;}
       var versionHistory=e.target.closest('[data-phfck-version-history]');if(versionHistory){e.preventDefault();appendSubmodal(root,versionHistoryModalHtml());return;}
       var closeSub=e.target.closest('[data-phfck-close-submodal]');if(closeSub){e.preventDefault();var sm=closeSub.closest('[data-phfck-submodal]');if(sm)sm.remove();syncChecklistModalScrollLock();return;}
-      var confirmEdit=e.target.closest('[data-phfck-confirm-edit]');if(confirmEdit){e.preventDefault();var modal=confirmEdit.closest('[data-phfck-submodal]');var code=(modal.querySelector('[data-phfck-edit-code]')||{}).value||'';var content=(modal.querySelector('[data-phfck-edit-content]')||{}).value||'';var factor=Number((modal.querySelector('[data-phfck-edit-factor]')||{}).value||0);var reason=(modal.querySelector('[data-phfck-edit-reason]')||{}).value||'';var effective=(modal.querySelector('[data-phfck-edit-effective]')||{}).value||'';if(!content||factor<=0||!reason||!effective){if(window.phfNotice)window.phfNotice('Vui lòng nhập đủ nội dung, hệ số, ngày hiệu lực và lý do thay đổi.');return;}var found=findCriterion(code);if(found){found.item[1]=content;found.item[2]=factor;}addAudit({action:'Sửa tiêu chí trực tiếp',area:'Mẫu Checklist',object:code+' · '+content,source:'Web',impact:'Một mẫu',version:'Dự kiến phiên bản mới',reason:reason});if(modal)modal.remove();refreshTemplatesWorkspace(root);if(window.phfNotice)window.phfNotice('Đã ghi nhận thay đổi và tạo lịch sử tổng quan. Phiếu cũ không bị ảnh hưởng.');return;}
-      var saveDraft=e.target.closest('[data-phfck-save-draft]');if(saveDraft){e.preventDefault();if(window.phfNotice)window.phfNotice('Đã lưu nháp trên phiên làm việc hiện tại.');return;}
-      var confirmBulk=e.target.closest('[data-phfck-confirm-bulk]');if(confirmBulk){e.preventDefault();var bm=confirmBulk.closest('[data-phfck-submodal]');var br=(bm.querySelector('[data-phfck-bulk-reason]')||{}).value||'',be=(bm.querySelector('[data-phfck-bulk-effective]')||{}).value||'';if(!br.trim()){if(window.phfNotice)window.phfNotice('Vui lòng nhập lý do cập nhật hàng loạt.');return;}if(!be){if(window.phfNotice)window.phfNotice('Vui lòng chọn ngày hiệu lực.');return;}if(!pendingBulkImport||(pendingBulkImport.errors||[]).length){if(window.phfNotice)window.phfNotice('Không còn dữ liệu hợp lệ để tạo phiên bản. Vui lòng import lại file.');return;}var applied=applyBulkImport(pendingBulkImport,br.trim(),be);if(!applied){if(window.phfNotice)window.phfNotice('Không lưu được bản cập nhật trong trình duyệt.');return;}var catalog=CHECKLIST_TEMPLATE_CATALOG.find(function(x){return x.id===templateUiState.selectedId;})||{};addAudit({action:'Import cập nhật hàng loạt',area:'Mẫu Checklist',object:catalog.name||'Mẫu Checklist',source:'Excel',impact:'Một mẫu',version:applied.sourceVersion+' → '+applied.version,reason:br.trim()});pendingBulkImport=null;if(bm)bm.remove();syncChecklistModalScrollLock();var workspace=root.querySelector('[data-phfck-workspace]');if(workspace)rerenderKeepingScroll(workspace,templatesHtml());if(window.phfNotice)window.phfNotice('Đã tạo '+applied.version+' trong dữ liệu prototype. Phiên bản cũ vẫn được giữ trong lịch sử.');return;}
+      var createTemplate=e.target.closest('[data-phfck-create-template]');if(createTemplate){e.preventDefault();newTemplateDraft={type:'checklist_detail',criteria:[{code:'',content:'',factor:1}],summaryRows:[{code:'',content:'',target:100,unit:'điểm',weight:100,source:'Nhập đánh giá'}]};appendSubmodal(root,createTemplateModalHtml());return;}
+      var createDownload=e.target.closest('[data-phfck-create-download]');if(createDownload){e.preventDefault();var cdm=createDownload.closest('[data-phfck-submodal]');if(cdm){syncCreateRows(cdm);createBlankTemplateWorkbook(newTemplateDraft.type||'checklist_detail');}return;}
+      var createUpload=e.target.closest('[data-phfck-create-upload]');if(createUpload){e.preventDefault();var cum=createUpload.closest('[data-phfck-submodal]');var cfi=cum&&cum.querySelector('[data-phfck-create-file]');if(cfi)cfi.click();return;}
+      var addCreateRow=e.target.closest('[data-phfck-add-create-row]');if(addCreateRow){e.preventDefault();var cm=addCreateRow.closest('[data-phfck-submodal]');syncCreateRows(cm);newTemplateDraft.criteria.push({code:'',content:'',factor:1});cm.querySelector('[data-phfck-create-criteria]').innerHTML=createCriterionRowsHtml();return;}
+      var removeCreateRow=e.target.closest('[data-phfck-remove-create-row]');if(removeCreateRow){e.preventDefault();var cm2=removeCreateRow.closest('[data-phfck-submodal]');syncCreateRows(cm2);var ri=Number(removeCreateRow.getAttribute('data-phfck-remove-create-row'));if(newTemplateDraft.criteria.length>1)newTemplateDraft.criteria.splice(ri,1);cm2.querySelector('[data-phfck-create-criteria]').innerHTML=createCriterionRowsHtml();return;}
+      var addSummary=e.target.closest('[data-phfck-add-summary-row]');if(addSummary){e.preventDefault();var csm=addSummary.closest('[data-phfck-submodal]');syncCreateRows(csm);newTemplateDraft.summaryRows.push({code:'',content:'',target:100,unit:'điểm',weight:0,source:'Nhập đánh giá'});csm.querySelector('[data-phfck-create-summary-rows]').innerHTML=createSummaryRowsHtml();var wt=csm.querySelector('[data-phfck-weight-total]');if(wt)wt.textContent='Tổng trọng số: '+summaryWeightTotal()+'%';return;}
+      var removeSummary=e.target.closest('[data-phfck-remove-summary-row]');if(removeSummary){e.preventDefault();var csm2=removeSummary.closest('[data-phfck-submodal]');syncCreateRows(csm2);var si=Number(removeSummary.getAttribute('data-phfck-remove-summary-row'));if(newTemplateDraft.summaryRows.length>1)newTemplateDraft.summaryRows.splice(si,1);csm2.querySelector('[data-phfck-create-summary-rows]').innerHTML=createSummaryRowsHtml();var wt2=csm2.querySelector('[data-phfck-weight-total]');if(wt2)wt2.textContent='Tổng trọng số: '+summaryWeightTotal()+'%';return;}
+      var confirmCreate=e.target.closest('[data-phfck-confirm-create-template]');if(confirmCreate){e.preventDefault();var cm3=confirmCreate.closest('[data-phfck-submodal]');syncCreateRows(cm3);var type=newTemplateDraft.type||'checklist_detail',name=((cm3.querySelector('[data-phfck-create-name]')||{}).value||'').trim(),code=((cm3.querySelector('[data-phfck-create-code]')||{}).value||'').trim().toUpperCase(),group=((cm3.querySelector('[data-phfck-create-group]')||{}).value||'').trim(),effective=((cm3.querySelector('[data-phfck-create-effective]')||{}).value||''),reason=((cm3.querySelector('[data-phfck-create-reason]')||{}).value||'').trim(),errors=[];if(!name)errors.push({key:'name',message:'Vui lòng nhập tên mẫu.'});if(!code)errors.push({key:'code',message:'Vui lòng nhập mã mẫu.'});else if(!/^[A-Z0-9-]{2,30}$/.test(code))errors.push({key:'code',message:'Mã mẫu chỉ gồm chữ in hoa, số và dấu gạch ngang.'});if(!group)errors.push({key:'group',message:'Vui lòng nhập phòng ban/nhóm áp dụng.'});if(!effective)errors.push({key:'effective',message:'Vui lòng chọn ngày hiệu lực.'});if(!reason)errors.push({key:'reason',message:'Vui lòng nhập lý do tạo mẫu.'});var criteria=(newTemplateDraft.criteria||[]).filter(function(r){return String(r.content||'').trim();}),summaryRows=(newTemplateDraft.summaryRows||[]).filter(function(r){return String(r.content||'').trim();});if(type==='checklist_detail'){if(!criteria.length)errors.push({key:'name',message:'Mẫu Checklist chi tiết cần ít nhất một tiêu chí.'});criteria.forEach(function(r,i){if(!Number.isFinite(Number(r.factor))||Number(r.factor)<=0)errors.push({key:'name',message:'Tiêu chí dòng '+(i+1)+' có hệ số không hợp lệ.'});});}else{if(!summaryRows.length)errors.push({key:'name',message:'Mẫu tổng điểm cần ít nhất một chỉ tiêu.'});summaryRows.forEach(function(r,i){if(!Number.isFinite(Number(r.weight))||Number(r.weight)<=0)errors.push({key:'name',message:'Trọng số dòng '+(i+1)+' phải lớn hơn 0.'});if(!r.unit)errors.push({key:'name',message:'Chỉ tiêu dòng '+(i+1)+' chưa có đơn vị.'});});var total=Math.round(summaryRows.reduce(function(sum,r){return sum+(Number(r.weight)||0);},0)*100)/100;if(Math.abs(total-100)>0.001)errors.push({key:'name',message:'Tổng trọng số mẫu tổng điểm phải bằng 100% (hiện tại '+total+'%).'});}if(errors.length){showCreateValidation(cm3,errors);return;}var id=slugTemplateId(code+'-'+name);var saved=saveNewTemplate({id:id,type:type,name:name,code:code,group:group,effectiveDate:effective,reason:reason,criteria:criteria,summaryRows:summaryRows});if(!saved){showCreateValidation(cm3,[{key:'code',message:'Mã mẫu đã tồn tại hoặc không thể lưu dữ liệu.'}]);return;}addAudit({action:'Tạo mẫu mới trên web',area:'Mẫu Checklist',object:name,source:'Web',impact:'Một mẫu',version:code+'-1.0',reason:reason});templateUiState.selectedId=saved.id;if(cm3)cm3.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);if(window.phfNotice)window.phfNotice('Đã tạo '+(type==='score_summary'?'mẫu tổng điểm ':'mẫu Checklist chi tiết ')+name+' phiên bản '+code+'-1.0.');return;}
+      var confirmEdit=e.target.closest('[data-phfck-confirm-edit]');if(confirmEdit){e.preventDefault();var modal=confirmEdit.closest('[data-phfck-submodal]');var code=(modal.querySelector('[data-phfck-edit-code]')||{}).value||'';var content=((modal.querySelector('[data-phfck-edit-content]')||{}).value||'').trim();var factor=Number((modal.querySelector('[data-phfck-edit-factor]')||{}).value||0);var status=(modal.querySelector('[data-phfck-edit-status]')||{}).value||'Đang áp dụng';var reason=((modal.querySelector('[data-phfck-edit-reason]')||{}).value||'').trim();var effective=(modal.querySelector('[data-phfck-edit-effective]')||{}).value||'';var validation=[];if(!content)validation.push({key:'content',message:'Vui lòng nhập nội dung tiêu chí.'});if(!Number.isFinite(factor)||factor<=0)validation.push({key:'factor',message:'Hệ số phải là số lớn hơn 0.'});if(!effective)validation.push({key:'effective',message:'Vui lòng chọn ngày hiệu lực.'});if(!reason)validation.push({key:'reason',message:'Vui lòng nhập lý do tạo phiên bản mới.'});if(validation.length){showInlineValidation(modal,validation);return;}clearInlineValidation(modal);var found=findCriterion(code);if(!found){if(window.phfNotice)window.phfNotice('Không tìm thấy tiêu chí cần sửa. Vui lòng tải lại trang.');return;}var oldVersion=effectiveTemplateVersion(templateUiState.selectedId),newVersion=nextTemplateVersion(oldVersion);pendingDirectEdit={templateId:templateUiState.selectedId,code:code,beforeContent:String(found.item[1]||''),beforeFactor:Number(found.item[2]||1),content:content,factor:factor,status:status,reason:reason,effectiveDate:effective,oldVersion:oldVersion,newVersion:newVersion};appendSubmodal(root,directEditPreviewHtml(pendingDirectEdit));return;}
+      var backDirect=e.target.closest('[data-phfck-back-direct-edit]');if(backDirect){e.preventDefault();if(!pendingDirectEdit)return;appendSubmodal(root,directEditModalHtml(pendingDirectEdit.code));var mm=root.querySelector('[data-phfck-submodal]');if(mm){var c=mm.querySelector('[data-phfck-edit-content]'),f=mm.querySelector('[data-phfck-edit-factor]'),s=mm.querySelector('[data-phfck-edit-status]'),d=mm.querySelector('[data-phfck-edit-effective]'),r=mm.querySelector('[data-phfck-edit-reason]');if(c)c.value=pendingDirectEdit.content;if(f)f.value=pendingDirectEdit.factor;if(s)s.value=pendingDirectEdit.status;if(d)d.value=pendingDirectEdit.effectiveDate;if(r)r.value=pendingDirectEdit.reason;}return;}
+      var applyDirect=e.target.closest('[data-phfck-apply-direct-edit]');if(applyDirect){e.preventDefault();if(!pendingDirectEdit)return;var applied=applyDirectEditVersion(pendingDirectEdit);if(!applied){if(window.phfNotice)window.phfNotice('Không thể tạo phiên bản mới. Dữ liệu hiện tại chưa bị thay đổi.');return;}addAudit({action:'Phát hành phiên bản từ web',area:'Mẫu Checklist',object:pendingDirectEdit.code+' · '+pendingDirectEdit.content,source:'Web',impact:'Một mẫu',version:pendingDirectEdit.oldVersion+' → '+pendingDirectEdit.newVersion,reason:pendingDirectEdit.reason});pendingDirectEdit=null;var sm=applyDirect.closest('[data-phfck-submodal]');if(sm)sm.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);if(window.phfNotice)window.phfNotice('Đã phát hành phiên bản mới. Phiên bản cũ vẫn được giữ cho các kỳ trước ngày hiệu lực.');return;}
+      var saveDraft=e.target.closest('[data-phfck-save-draft]');if(saveDraft){e.preventDefault();var dm=saveDraft.closest('[data-phfck-submodal]');var draft={templateId:templateUiState.selectedId,code:(dm.querySelector('[data-phfck-edit-code]')||{}).value||'',content:(dm.querySelector('[data-phfck-edit-content]')||{}).value||'',factor:(dm.querySelector('[data-phfck-edit-factor]')||{}).value||1,status:(dm.querySelector('[data-phfck-edit-status]')||{}).value||'Đang áp dụng',effectiveDate:(dm.querySelector('[data-phfck-edit-effective]')||{}).value||'',reason:(dm.querySelector('[data-phfck-edit-reason]')||{}).value||'',savedAt:new Date().toISOString()};try{sessionStorage.setItem('phfChecklistDirectDraft:'+draft.templateId+':'+draft.code,JSON.stringify(draft));if(window.phfNotice)window.phfNotice('Đã lưu nháp trong phiên làm việc hiện tại.');}catch(_){if(window.phfNotice)window.phfNotice('Không lưu được bản nháp trên trình duyệt.');}return;}
+      var confirmBulk=e.target.closest('[data-phfck-confirm-bulk]');if(confirmBulk){e.preventDefault();var bm=confirmBulk.closest('[data-phfck-submodal]');var br=(bm.querySelector('[data-phfck-bulk-reason]')||{}).value||'',be=(bm.querySelector('[data-phfck-bulk-effective]')||{}).value||'';var errs=[];if(!be)errs.push('Vui lòng chọn ngày hiệu lực.');if(!br.trim())errs.push('Vui lòng nhập lý do cập nhật hàng loạt.');if(errs.length){var fields=bm.querySelector('.phfck-bulk-confirm-fields');if(fields)fields.classList.add('has-errors');checklistToast('error','Chưa thể tạo phiên bản mới',errs.join(' '),true);var target=!be?bm.querySelector('[data-phfck-bulk-effective]'):bm.querySelector('[data-phfck-bulk-reason]');if(target){target.classList.add('is-invalid');target.scrollIntoView({behavior:'smooth',block:'center'});target.focus();}return;}if(!pendingBulkImport||(pendingBulkImport.errors||[]).length){if(window.phfNotice)window.phfNotice('Không còn dữ liệu hợp lệ để tạo phiên bản. Vui lòng import lại file.');return;}var applied=applyBulkImport(pendingBulkImport,br.trim(),be);if(!applied){if(window.phfNotice)window.phfNotice('Không lưu được bản cập nhật trong trình duyệt.');return;}var catalog=templateCatalog().find(function(x){return x.id===templateUiState.selectedId;})||{};addAudit({action:'Import cập nhật hàng loạt',area:'Mẫu Checklist',object:catalog.name||'Mẫu Checklist',source:'Excel',impact:'Một mẫu',version:applied.sourceVersion+' → '+applied.version,reason:br.trim()});pendingBulkImport=null;if(bm)bm.remove();syncChecklistModalScrollLock();var workspace=root.querySelector('[data-phfck-workspace]');if(workspace)rerenderKeepingScroll(workspace,templatesHtml());if(window.phfNotice)window.phfNotice('Đã tạo '+applied.version+' trong dữ liệu prototype. Phiên bản cũ vẫn được giữ trong lịch sử.');return;}
       var historyExport=e.target.closest('[data-phfck-history-export]');if(historyExport){e.preventDefault();var hr=[['Thời gian','Người thực hiện','Hành động','Khu vực','Đối tượng','Nguồn','Mức ảnh hưởng','Phiên bản','Lý do']].concat(auditRows().map(function(r){return [r.time,r.actor,r.action,r.area,r.object,r.source,r.impact,r.version,r.reason];}));downloadTextFile('PHF_LICH_SU_THAY_DOI.csv','\uFEFF'+hr.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n'));return;}
       var templateDetail=e.target.closest('[data-phfck-template-detail]');
       if(templateDetail){e.preventDefault();templateUiState.selectedId=templateDetail.getAttribute('data-phfck-template-detail')||'';refreshTemplatesWorkspace(root);return;}
@@ -2264,7 +2661,10 @@
     });
     root.addEventListener('change',function(e){
       if(e.target&&e.target.matches('[data-phfck-people-config-file]')){var pf=e.target.files&&e.target.files[0];if(pf){if(!window.XLSX||!/\.xlsx?$/i.test(pf.name)){pendingPeopleWorkbookImport={fileName:pf.name,changes:[],unchanged:0,errors:['Chỉ chấp nhận file Excel .xlsx/.xls được tải từ nút Tải cấu hình.']};appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}else{var pr=new FileReader();pr.onload=function(){try{var pwb=XLSX.read(pr.result,{type:'array',cellDates:false});pendingPeopleWorkbookImport=parsePeopleConfigurationWorkbook(pwb,pf.name);appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}catch(err){console.error('[PHF Checklist] people config import',err);pendingPeopleWorkbookImport={fileName:pf.name,changes:[],unchanged:0,errors:['Không đọc được file Excel. Vui lòng tải lại file cấu hình mới từ hệ thống và không đổi tên cột.']};appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}};pr.readAsArrayBuffer(pf);}}e.target.value='';return;}
+      if(e.target&&e.target.matches('[data-phfck-create-file]')){var cf=e.target.files&&e.target.files[0],cmodal=e.target.closest('[data-phfck-submodal]');if(cf&&cmodal){var resultBox=cmodal.querySelector('[data-phfck-create-import-result]');if(!window.XLSX||!/\.xlsx?$/i.test(cf.name)){if(resultBox){resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>Không thể đọc file</b><span>Chỉ chấp nhận file Excel .xlsx/.xls được tải từ chức năng Tạo mẫu.</span>';}}else{var creader=new FileReader();creader.onload=function(){try{var cwb=XLSX.read(creader.result,{type:'array',cellDates:false}),cres=parseNewTemplateWorkbook(cwb,cf.name);if(cres.errors.length){resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>File chưa hợp lệ</b><ul>'+cres.errors.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>';}else applyNewTemplateImport(cmodal,cres);}catch(err){console.error('[PHF Checklist] create template import',err);resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>Không đọc được file Excel</b><span>Vui lòng tải lại file chuẩn và không đổi tên sheet/cột.</span>';}};creader.readAsArrayBuffer(cf);}}e.target.value='';return;}
       if(e.target&&e.target.matches('[data-phfck-people-sort]')){peopleUiState.sort=e.target.value||'name-asc';peopleUiState.page=1;var peopleTable=root.querySelector('[data-phfck-people-table]');if(peopleTable)peopleTable.innerHTML=peopleTableHtml();return;}
+      if(e.target&&e.target.matches('[data-phfck-create-type]')){var tm=e.target.closest('[data-phfck-submodal]');if(tm){syncCreateRows(tm);newTemplateDraft.type=e.target.value||'checklist_detail';tm.querySelectorAll('.phfck-template-type-card').forEach(function(card){var input=card.querySelector('[data-phfck-create-type]');card.classList.toggle('is-selected',!!input&&input.checked);});var ds=tm.querySelector('[data-phfck-create-detail-section]'),ss=tm.querySelector('[data-phfck-create-summary-section]');if(ds)ds.hidden=newTemplateDraft.type!=='checklist_detail';if(ss)ss.hidden=newTemplateDraft.type!=='score_summary';}return;}
+      if(e.target&&e.target.matches('[data-phfck-summary-weight],[data-phfck-summary-target],[data-phfck-summary-unit],[data-phfck-summary-content],[data-phfck-summary-code],[data-phfck-summary-source]')){var sm=e.target.closest('[data-phfck-submodal]');if(sm){syncCreateRows(sm);var tw=sm.querySelector('[data-phfck-weight-total]');if(tw)tw.textContent='Tổng trọng số: '+summaryWeightTotal()+'%';}return;}
       if(e.target&&e.target.matches('[data-phfck-field="template"],[data-phfck-field="effectiveDate"]')){refreshAssignmentVersion(e.target.closest('[data-phfck-modal-layer]'));return;}
 
       if(e.target&&e.target.matches('[data-phfck-quick-person-field]')){var cqid=e.target.getAttribute('data-phfck-quick-person-id')||'',cfield=e.target.getAttribute('data-phfck-quick-person-field')||'',cdraft=peopleUiState.quickDrafts[cqid];if(cdraft&&cfield){cdraft[cfield]=e.target.value||'';cdraft.changed=true;var cstate=root.querySelector('[data-phfck-quick-state="'+cqid+'"]');if(cstate){cstate.textContent='Đã sửa';cstate.classList.add('is-changed');}}return;}
@@ -2299,6 +2699,7 @@
     var workspace=root.querySelector('[data-phfck-workspace]');
     if(workspace){var currentName=(user()||{}).fullName||(user()||{}).name||(user()||{}).displayName||(user()||{}).username||'Người dùng';workspace.innerHTML=view==='overview'?adminOverviewHtml(currentName):(view==='people'?peopleHtml():(view==='templates'?templatesHtml():(view==='violations'?violationsHtml():(view==='tasks'?tasksHtml():(view==='monthly'?monthlyHtml():(view==='reports'?reportsHtml():(view==='history'?historyHtml():(view==='settings'?settingsHtml():placeholderHtml(view)))))))));}
     if(view==='people')refreshPeopleWhenDataReady(root,false);else stopPeopleDataSync();
+    if(view==='templates')setTimeout(function(){syncChecklistTemplateLibraryOnOpen(false).catch(function(){});},0);
     pendingScrollRestore=null;restoreScroll(restoreY);
   }
   function genericDashboard(path,name){
@@ -2320,6 +2721,7 @@
     else root.innerHTML=currentRole==='admin'?adminDashboard(name,path):genericDashboard(path,name);
     bindRootOnce(root);
     if(currentRole==='admin'&&adminViewFromPath(path)==='people')refreshPeopleWhenDataReady(root,false);
+    if(currentRole==='admin'&&adminViewFromPath(path)==='templates')setTimeout(function(){syncChecklistTemplateLibraryOnOpen(false).catch(function(){});},0);
     if(window.PHFAppShell&&typeof window.PHFAppShell.activateChecklist==='function')window.PHFAppShell.activateChecklist(path);
     else if(window.PHFAppShell)window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
     document.title=title(path)+' · PHF Checklist';
