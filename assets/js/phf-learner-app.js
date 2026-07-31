@@ -572,6 +572,16 @@ function phfLearnerLessonSurfaceIsActive(){
 }
 window.phfLearnerLessonSurfaceIsActive = phfLearnerLessonSurfaceIsActive;
 
+function phfChecklistRoleWorkspaceIsActive(){
+  var path = String((window.location && window.location.pathname) || '/').toLowerCase().replace(/\/+$/,'');
+  /* 62.33 / PHF 1.30.12: Hai màn Checklist theo vai trò dùng API chuyên biệt
+     (phạm vi, phiếu cá nhân, phiếu thẩm định), không cần payload Training Hub
+     scope=staff. Chỉ bỏ tải ở đúng hai route này; các màn Admin Checklist vẫn
+     giữ dữ liệu nhân sự chung cho phân công, mẫu và cấu hình. */
+  return path === '/ql/checklist' || path === '/hv/checklist';
+}
+window.phfChecklistRoleWorkspaceIsActive = phfChecklistRoleWorkspaceIsActive;
+
 function phfResetTrainingRuntime(reason){
   window.__phfTrainingDataGeneration = (window.__phfTrainingDataGeneration || 0) + 1;
   window.__phfTrainingDataActiveSessionKey = '';
@@ -596,6 +606,14 @@ window.phfResetTrainingRuntime = phfResetTrainingRuntime;
 async function phfRefreshTrainingData(options){
   options = options || {};
   const force = !!options.force;
+
+  if(phfChecklistRoleWorkspaceIsActive()){
+    window.phfTraceData('refresh:skip-independent-checklist',{
+      path:String((window.location&&window.location.pathname)||''),
+      reason:String(options.reason||'')
+    });
+    return true;
+  }
 
   try{
     if(typeof window.phfWhenAuthReady==='function'){

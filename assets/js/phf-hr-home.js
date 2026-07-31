@@ -26,7 +26,20 @@ function icon(type){
 }
 function journeyIcon(type){return '<span class="phf-hr-journey-icon">'+icon(type)+'</span>';}
 window.phfOpenHrModule=function(module){var p=prefix();var map={hub:p,classroom:p+'/classroom',checklist:p+'/checklist',knl:p+'/knl'};return go(map[module]||(p+'/home'));};
-window.phfRenderHrGateway=function(){
+window.phfRenderHrGateway=function(requestedPath){
+  var actualPath=String((window.location&&window.location.pathname)||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
+  if(actualPath.length>1)actualPath=actualPath.replace(/\/$/,'');
+  actualPath=actualPath||'/';
+  var targetPath=String(requestedPath||actualPath).split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
+  if(targetPath.length>1)targetPath=targetPath.replace(/\/$/,'');
+  targetPath=targetPath||'/';
+  var isHrHome=/^\/(?:admin|ql|hv)\/home$/.test(actualPath);
+  if(!isHrHome||targetPath!==actualPath){
+    if(window.PHFAppShell&&typeof window.PHFAppShell.syncFromRoute==='function'){
+      window.PHFAppShell.syncFromRoute(actualPath,{clear:false,restoreTitle:false});
+    }
+    return false;
+  }
   if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false});
   try{if(typeof phfHideIntroAndStopAuto==='function')phfHideIntroAndStopAuto();}catch(e){}
   document.body.classList.remove('phf-hub-mode','phf-classroom-mode','phf-checklist-mode','phf-knl-mode');
@@ -43,10 +56,10 @@ window.phfRenderHrGateway=function(){
         <div class="phf-hr-hero-copy"><span class="phf-hr-kicker">PHF HR <i aria-hidden="true"></i></span><h1>Nền tảng phát triển nhân sự<br>tại PHUHOA FRESH</h1><p>Kết nối hội nhập, đào tạo, checklist và phát triển năng lực<br>trên một hành trình thống nhất.</p></div>
         <div class="phf-hr-journey" aria-label="Hành trình phát triển nhân sự">
           <div class="phf-hr-flow" aria-hidden="true"><span></span><i></i></div>
-          <div class="phf-hr-step is-hub"><b>Bước 1</b><strong>Hội nhập &amp; Khởi đầu</strong>${journeyIcon('hub')}<p>Làm quen hệ thống và<br>định hướng ban đầu</p></div>
-          <div class="phf-hr-step is-classroom"><b>Bước 2</b><strong>Đào tạo &amp; Học tập</strong>${journeyIcon('classroom')}<p>Học nội bộ, lớp học,<br>tài liệu và kiểm tra</p></div>
-          <div class="phf-hr-step is-checklist"><b>Bước 3</b><strong>Tuân thủ &amp; Thực thi</strong>${journeyIcon('checklist')}<p>Theo dõi tuân thủ, công việc<br>và kết quả thực hiện</p></div>
-          <div class="phf-hr-step is-knl"><b>Bước 4</b><strong>Đánh giá &amp; Phát triển</strong>${journeyIcon('knl')}<p>Đánh giá năng lực và<br>định hướng phát triển</p></div>
+          <div class="phf-hr-step is-hub"><b>Bước 1</b><strong>Hội nhập &amp; Lộ trình</strong>${journeyIcon('hub')}<p>Lộ trình hội nhập và<br>đào tạo nhân sự mới</p></div>
+          <div class="phf-hr-step is-classroom"><b>Bước 2</b><strong>Đào tạo nội bộ</strong>${journeyIcon('classroom')}<p>Lớp học, tài liệu và<br>bài kiểm tra nội bộ</p></div>
+          <div class="phf-hr-step is-checklist"><b>Bước 3</b><strong>Tuân thủ &amp; Đánh giá</strong>${journeyIcon('checklist')}<p>Tuân thủ công việc và<br>đánh giá hằng tháng</p></div>
+          <div class="phf-hr-step is-knl"><b>Bước 4</b><strong>Đánh giá &amp; Phát triển</strong>${journeyIcon('knl')}<p>Đánh giá năng lực và<br>xây dựng kế hoạch phát triển</p></div>
         </div>
       </section>
       <section class="phf-hr-modules" aria-label="Các hệ thống PHF HR">

@@ -405,14 +405,52 @@
     try{
       window.__phfTrainingEntryReady = false;
 
-      var intro = document.getElementById('introSection');
-      if(intro) intro.hidden = false;
+      /* Đăng xuất có thể bắt đầu từ HR, Hub, Classroom, Checklist hoặc KNL.
+         Đóng các menu nổi trước khi dọn shell để không giữ lại thông tin
+         tài khoản trên màn công khai. */
+      var accountMenu = document.getElementById('phfAccountMenu');
+      if(accountMenu){
+        if(accountMenu.__phfCleanup){ try{ accountMenu.__phfCleanup(); }catch(_cleanupError){} }
+        accountMenu.remove();
+      }
+      document.querySelectorAll('.phf-hr-account-menu.is-open').forEach(function(menu){
+        menu.classList.remove('is-open');
+      });
+      document.querySelectorAll('.phf-hr-account[aria-expanded="true"]').forEach(function(button){
+        button.setAttribute('aria-expanded','false');
+      });
 
-      document.body.classList.add('phf-intro-active');
+      /* URL phải về route công khai trước khi đồng bộ App Shell. Nếu giữ
+         /admin|/ql|/hv/home, shell HR vẫn được xem là đang hoạt động và
+         chồng phía dưới màn giới thiệu sau đăng xuất. */
+      try{
+        history.replaceState({phf:true,route:'intro',sub:'',role:'anonymous'},'', '/');
+      }catch(e){}
+      try{
+        if(window.PHFAppShell&&typeof window.PHFAppShell.activatePublic==='function'){
+          window.PHFAppShell.activatePublic({clear:true,restoreTitle:true});
+        }else if(window.PHFAppShell&&typeof window.PHFAppShell.syncFromRoute==='function'){
+          window.PHFAppShell.syncFromRoute('/',{clear:true,restoreTitle:true});
+        }
+      }catch(shellError){
+        console.warn('[PHF Auth] logout shell cleanup:',shellError&&shellError.message||shellError);
+      }
+
+      var intro = document.getElementById('introSection');
+      if(!window.PHFAppShell){
+        if(intro) intro.hidden = false;
+        document.body.classList.add('phf-intro-active');
+      }
       document.body.classList.remove(
         'phf-main-shell-mode',
         'phf-module-page-mode',
         'phf-eval-mode',
+        'phf-hr-mode',
+        'phf-hr-gateway-mode',
+        'phf-hub-mode',
+        'phf-classroom-mode',
+        'phf-checklist-mode',
+        'phf-knl-mode',
         'phf-role-admin',
         'phf-role-manager',
         'phf-role-learner'
@@ -426,10 +464,6 @@
         localStorage.removeItem('phfLastMainNav');
         localStorage.removeItem('phfLastAdminSubscreen');
         localStorage.removeItem('phfRefreshResumeState');
-      }catch(e){}
-
-      try{
-        history.replaceState({phf:true,route:'intro',sub:'',role:'anonymous'},'',location.href);
       }catch(e){}
 
       if(typeof window.phfIntroGo === 'function'){
@@ -935,10 +969,20 @@
       }
     }catch(e){
       if(bootEpoch !== authEpoch || authTransitioning) return;
-      await establishSession(null,'server-session-error');
+      /* Lỗi mạng/timeout khi F5 không chứng minh cookie phiên đã hết hạn.
+         Không xóa mirror hoặc đổi URL sang /login. Chỉ endpoint session trả
+         thành công authenticated=false mới được chuyển sang anonymous. */
+      console.warn('[PHF Auth] session boot unavailable; preserve current route/session:',e&&e.message||e);
       clearBootCloak();
-      if(isProtectedPath()) showProtectedLogin(e&&e.code==='TIMEOUT'?'Máy chủ xác minh phiên phản hồi quá lâu. Vui lòng đăng nhập lại.':'Chưa thể xác minh phiên đăng nhập. Vui lòng thử đăng nhập lại.');
-      else showPublicIntro('session-error');
+      if(isProtectedPath()){
+        try{
+          var recovered=await handleExpiredSession();
+          if(recovered&&typeof window.phfNavigate==='function')await Promise.resolve(window.phfNavigate(requestedBootPath,true,{source:'auth-session-recovered'}));
+          else if(!recovered)showProtectedLogin('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        }catch(recheckError){
+          console.warn('[PHF Auth] session recheck unavailable; keep current protected route:',recheckError&&recheckError.message||recheckError);
+        }
+      }else showPublicIntro('session-unavailable');
     }finally{
       clearBootCloak();
     }

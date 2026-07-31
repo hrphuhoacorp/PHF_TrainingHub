@@ -240,6 +240,14 @@
     }
   }
   async function restore(){
+    /* Router URL trung tâm sở hữu toàn bộ deep link. Resume legacy chỉ được
+       khôi phục tại trang gốc; nếu chạy trên /admin/noi-dung, /ql/noi-dung,
+       Checklist, Classroom... nó sẽ render màn đã lưu và ghi đè màn đích
+       ngay sau khi Router vừa hoàn tất. */
+    const currentPath = String((window.location && window.location.pathname) || '/')
+      .split('?')[0].split('#')[0].replace(/\/{2,}/g,'/').replace(/\/$/,'') || '/';
+    const resumeRoots = ['/', '/login', '/admin', '/ql', '/hv'];
+    if(resumeRoots.indexOf(currentPath) < 0) return false;
     const st = read();
     if(!st) return false;
     if(st.screen === 'intro'){

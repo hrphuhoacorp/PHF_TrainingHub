@@ -14,6 +14,12 @@ const { listNotifications, saveNotification, markNotificationRead, markAllNotifi
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./lib/classroom-settings');
 const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
+const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
+const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('./lib/checklist-tasks');
+const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('./lib/checklist-permissions');
+const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy } = require('./lib/checklist-monthly');
+const { getChecklistMonthlyReport } = require('./lib/checklist-reports');
+const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -50,6 +56,10 @@ function sendJson(res, status, payload) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(status, baseHeaders({ 'Content-Type': 'application/json; charset=utf-8' }));
   res.end(body);
+}
+async function emitChecklistNotificationSafe(eventCode,input){
+  try{return await emitChecklistNotification(eventCode,input);}
+  catch(error){console.warn('[PHF Checklist] notification emit skipped',eventCode,error?.message||error);return {created:0,skipped:'error'};}
 }
 
 function readBody(req) {
@@ -286,8 +296,32 @@ const server = http.createServer(async (req, res) => {
       const classroomProposalsMode = requestUrl.searchParams.get('classroomProposals') === '1';
       const classroomNotificationsMode = requestUrl.searchParams.get('classroomNotifications') === '1';
       const classroomSettingsMode = requestUrl.searchParams.get('classroomSettings') === '1';
+      const checklistWorkspaceMode = requestUrl.searchParams.get('checklistWorkspace') === '1';
       if (req.method === 'GET') {
         const session = await requireSession(req, ['learner','manager','admin']);
+        if (checklistWorkspaceMode) {
+          const [workspace, templateData, violationMode] = await Promise.all([
+            getChecklistRoleWorkspace(session),
+            listChecklistTemplates(),
+            getChecklistViolationMode()
+          ]);
+          return sendJson(res,200,{
+            ok:true,
+            checklistWorkspace:true,
+            roleWorkspace:workspace,
+            employees:Array.isArray(workspace.people)?workspace.people.map(person=>({id:person.employeeId||'',employeeId:person.employeeId||'',code:person.employeeCode||'',employeeCode:person.employeeCode||'',name:person.employeeName||'',employeeName:person.employeeName||'',department:person.department||'',title:person.title||'',branch:person.branch||'',managerId:person.managerId||'',managerCode:person.managerCode||'',managerName:person.managerName||'',employeeStatus:person.employeeStatus||'',templateId:person.templateId||'',templateVersion:person.templateVersion||'',effectiveDate:person.effectiveDate||''})):[],
+            checklistAssignments:Array.isArray(workspace.people)?workspace.people:[],
+            checklistAssignmentsReady:true,
+            checklistAssignmentsError:'',
+            checklistTemplates:Array.isArray(templateData.templates)?templateData.templates:[],
+            checklistTemplatesReady:templateData.ready===true,
+            checklistTemplatesError:templateData.error||'',
+            checklistViolationMode:violationMode.mode||'test',
+            checklistViolationModeReady:violationMode.ready===true,
+            checklistViolationModeError:violationMode.error||'',
+            generatedAt:new Date().toISOString()
+          });
+        }
         if (classroomUsersMode) {
           return sendJson(res, 200, { ok:true, users:await listClassroomUsers(session) });
         }
@@ -380,6 +414,30 @@ const server = http.createServer(async (req, res) => {
             scoped.checklistTemplatesReady = false;
             scoped.checklistTemplatesError = templateError?.code || 'CHECKLIST_TEMPLATES_UNAVAILABLE';
           }
+          try {
+            const violationMode = await getChecklistViolationMode();
+            scoped.checklistViolationMode = violationMode.mode;
+            scoped.checklistViolationModeReady = violationMode.ready;
+            scoped.checklistViolationModeError = violationMode.error;
+          } catch (modeError) {
+            scoped.checklistViolationMode = 'test';
+            scoped.checklistViolationModeReady = false;
+            scoped.checklistViolationModeError = modeError?.code || 'CHECKLIST_VIOLATION_MODE_UNAVAILABLE';
+          }
+          try {
+            const permissionData = await listChecklistPermissionGrants(session);
+            scoped.checklistPermissionGrants = permissionData.grants;
+            scoped.checklistPermissionPresets = permissionData.presets;
+            scoped.checklistPermissionScopeTypes = permissionData.scopeTypes;
+            scoped.checklistPermissionsReady = true;
+            scoped.checklistPermissionsError = '';
+          } catch (permissionError) {
+            console.warn('[PHF Checklist] permission data unavailable', permissionError?.message || permissionError);
+            scoped.checklistPermissionGrants = [];
+            scoped.checklistPermissionPresets = [];
+            scoped.checklistPermissionsReady = false;
+            scoped.checklistPermissionsError = permissionError?.code || 'CHECKLIST_PERMISSIONS_UNAVAILABLE';
+          }
         }
         return sendJson(res, 200, scoped);
       }
@@ -453,6 +511,41 @@ const server = http.createServer(async (req, res) => {
           const saved=await saveClass(session, payload.classroomClass||payload, { publish:action==='publish' });
           return sendJson(res, action==='publish'?200:201, {ok:true, classroomClass:saved});
         }
+        if (payload && (payload.action === 'saveChecklistViolations' || payload.action === 'saveChecklistTestViolations')) {
+          const saved=await saveChecklistViolations(session, payload.violations || []);
+          if(saved.isTest!==true){
+            const recipients=[...new Set((payload.violations||[]).map(row=>String(row.employeeCode||row.employee_code||'').trim().toUpperCase()).filter(Boolean))];
+            for(const employeeCode of recipients)await emitChecklistNotificationSafe('VIOLATION_CREATED',{recipient:{employeeCode},title:'Có lỗi Checklist mới',message:'Bạn có lỗi mới cần xác nhận hoặc giải trình.',targetPath:'/hv/checklist/viec-can-xu-ly',subjectType:'violation_batch',subjectId:saved.testBatchId||'',dedupeKey:'violation|'+employeeCode+'|'+Date.now()});
+          }
+          return sendJson(res, 200, {ok:true,...saved});
+        }
+        if (payload && payload.action === 'listChecklistViolations') {
+          return sendJson(res, 200, {ok:true,...await listChecklistViolations(session, payload)});
+        }
+        if (payload && payload.action === 'listChecklistTasks') {
+          return sendJson(res, 200, {ok:true,...await listChecklistTasks(session, payload)});
+        }
+        if(payload&&payload.action==='getChecklistTaskHistory')return sendJson(res,200,{ok:true,...await getChecklistTaskHistory(session,payload)});
+        if(payload&&payload.action==='transitionChecklistTask'){
+          const result=await transitionChecklistTask(session,payload),task=result.task||{},event=payload.taskAction==='employee_explain'?'EXPLANATION_SUBMITTED':'VIOLATION_DUE_SOON';
+          if(payload.taskAction==='employee_explain')await emitChecklistNotificationSafe(event,{recipient:{accountId:task.current_assignee_id,employeeCode:task.current_assignee_code},title:'Có giải trình lỗi cần phản hồi',message:'Nhân viên đã gửi giải trình; vui lòng phản hồi.',targetPath:'/admin/checklist/viec-can-xu-ly',subjectType:'violation_task',subjectId:task.id,dedupeKey:'task|'+task.id+'|'+task.status+'|'+task.updated_at});
+          return sendJson(res,200,{ok:true,...result});
+        }
+        if (payload && payload.action === 'listChecklistViolationHistory') {
+          return sendJson(res, 200, {ok:true,...await listChecklistViolationHistory(session, payload)});
+        }
+        if (payload && payload.action === 'deleteChecklistTestViolations') {
+          return sendJson(res, 200, {ok:true,...await deleteChecklistTestViolations(session, payload)});
+        }
+        if (payload && payload.action === 'updateChecklistViolation') {
+          return sendJson(res, 200, {ok:true,...await updateChecklistViolation(session, payload)});
+        }
+        if (payload && payload.action === 'cancelChecklistViolation') {
+          return sendJson(res, 200, {ok:true,...await cancelChecklistViolation(session, payload)});
+        }
+        if (payload && payload.action === 'deleteChecklistTestViolation') {
+          return sendJson(res, 200, {ok:true,...await deleteChecklistTestViolation(session, payload)});
+        }
         if (payload && payload.action === 'saveChecklistAssignments') {
           const saved = await saveChecklistAssignments(session, payload.assignments || []);
           return sendJson(res, 200, {ok:true,...saved});
@@ -465,6 +558,52 @@ const server = http.createServer(async (req, res) => {
           const saved = await saveChecklistTemplateLibrary(session, payload.templates || []);
           return sendJson(res, 200, {ok:true,...saved});
         }
+        if (payload && payload.action === 'listChecklistPermissionGrants') {
+          return sendJson(res, 200, {ok:true,...await listChecklistPermissionGrants(session,{includeInactive:payload.includeInactive===true})});
+        }
+        if (payload && payload.action === 'saveChecklistPermissionGrants') {
+          const saved=await saveChecklistPermissionGrants(session,payload.grants || []);
+          for(const grant of saved.grants||[])await emitChecklistNotificationSafe('PERMISSION_CHANGED',{recipient:{accountId:grant.accountId,employeeCode:grant.employeeCode},title:'Quyền Checklist đã thay đổi',message:'Quyền Checklist của bạn đã được cập nhật.',targetPath:'/ql/checklist',subjectType:'permission_grant',subjectId:grant.id,dedupeKey:'permission|'+grant.id+'|'+grant.updatedAt});
+          return sendJson(res, 200, {ok:true,...saved});
+        }
+        if (payload && payload.action === 'disableChecklistPermissionGrant') {
+          return sendJson(res, 200, {ok:true,...await disableChecklistPermissionGrant(session,payload)});
+        }
+        if (payload && payload.action === 'getChecklistRoleWorkspace') {
+          return sendJson(res, 200, {ok:true,...await getChecklistRoleWorkspace(session)});
+        }
+        if(payload&&payload.action==='listChecklistNotificationRules')return sendJson(res,200,{ok:true,...await listChecklistNotificationRules(session)});
+        if(payload&&payload.action==='saveChecklistNotificationRule')return sendJson(res,200,{ok:true,...await saveChecklistNotificationRule(session,payload)});
+        if(payload&&payload.action==='listMyChecklistNotifications')return sendJson(res,200,{ok:true,...await listMyChecklistNotifications(session,payload)});
+        if(payload&&payload.action==='markChecklistNotificationRead')return sendJson(res,200,{ok:true,...await markChecklistNotificationRead(session,payload)});
+        if(payload&&payload.action==='markAllChecklistNotificationsRead')return sendJson(res,200,{ok:true,...await markAllChecklistNotificationsRead(session)});
+        if(payload&&payload.action==='listChecklistMonthly')return sendJson(res,200,{ok:true,...await listMonthly(session,payload)});
+        if(payload&&payload.action==='createChecklistMonthly')return sendJson(res,200,{ok:true,...await createMonthly(session,payload)});
+        if(payload&&payload.action==='openChecklistMonthly')return sendJson(res,200,{ok:true,...await openMonthly(session,payload)});
+        if(payload&&payload.action==='lockChecklistMonthly')return sendJson(res,200,{ok:true,...await lockMonthly(session,payload)});
+        if(payload&&payload.action==='openChecklistMonthlyException')return sendJson(res,200,{ok:true,...await openMonthlyException(session,payload)});
+        if(payload&&payload.action==='openChecklistMonthlyPilot')return sendJson(res,200,{ok:true,...await openMonthlyPilot(session,payload)});
+        if(payload&&payload.action==='getMyChecklistMonthly')return sendJson(res,200,{ok:true,...await myMonthlyForm(session,payload)});
+        if(payload&&payload.action==='saveMyChecklistMonthly'){
+          const saved=await saveMyMonthly(session,payload);
+          if(payload.submit===true&&saved.form)await emitChecklistNotificationSafe('SELF_REVIEW_SUBMITTED',{recipient:{accountId:saved.form.reviewer_id,employeeCode:saved.form.reviewer_code},title:'Có phiếu tháng chờ thẩm định',targetPath:'/ql/checklist/phieu-danh-gia-thang',subjectType:'monthly_form',subjectId:saved.form.id,dedupeKey:'monthly-self|'+saved.form.id+'|'+(saved.form.self_submitted_at||Date.now()),variables:{TEN_NHAN_VIEN:saved.form.employee_name,KY_DANH_GIA:saved.form.period_month}});
+          return sendJson(res,200,{ok:true,...saved});
+        }
+        if(payload&&payload.action==='listMyChecklistMonthlyReviews')return sendJson(res,200,{ok:true,...await myMonthlyReviews(session,payload)});
+        if(payload&&payload.action==='saveChecklistMonthlyReview')return sendJson(res,200,{ok:true,...await saveMonthlyReview(session,payload)});
+        if(payload&&payload.action==='changeChecklistMonthlyReviewer')return sendJson(res,200,{ok:true,...await changeMonthlyReviewer(session,payload)});
+        if(payload&&payload.action==='exportChecklistMonthlyData')return sendJson(res,200,{ok:true,...await exportMonthlyData(session,payload)});
+        if(payload&&payload.action==='getChecklistMonthlyReport')return sendJson(res,200,{ok:true,...await getChecklistMonthlyReport(session,payload)});
+      if(payload&&payload.action==='getChecklistLatePointsPolicy')return sendJson(res,200,{ok:true,...await getChecklistLatePointsPolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistLatePointsPolicy')return sendJson(res,200,{ok:true,...await saveChecklistLatePointsPolicy(session,payload)});
+      if(payload&&payload.action==='getChecklistRepeatViolationPolicy')return sendJson(res,200,{ok:true,...await getChecklistRepeatViolationPolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistRepeatViolationPolicy')return sendJson(res,200,{ok:true,...await saveChecklistRepeatViolationPolicy(session,payload)});
+      if(payload&&payload.action==='getChecklistRepeatViolationSuggestions')return sendJson(res,200,{ok:true,...await getChecklistRepeatViolationSuggestions(session,payload)});
+      if(payload&&payload.action==='getChecklistMonthlyScorePolicy')return sendJson(res,200,{ok:true,...await getChecklistMonthlyScorePolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistMonthlyScorePolicy')return sendJson(res,200,{ok:true,...await saveChecklistMonthlyScorePolicy(session,payload)});
+      if(payload&&payload.action==='getChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await getMonthlyOverduePolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await saveMonthlyOverduePolicy(session,payload)});
+      if(payload&&payload.action==='processChecklistMonthlyOverdue')return sendJson(res,200,{ok:true,...await processMonthlySelfOverdue(session,payload)});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

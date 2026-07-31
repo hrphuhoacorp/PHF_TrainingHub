@@ -224,6 +224,12 @@
     }
     return isAdmin() ? 'Admin' : (isManager() ? 'Trưởng ca / Quản lý' : 'Học viên');
   }
+  function guardHrHomeRoute(){
+    var p=String((window.location&&window.location.pathname)||'/').replace(/\/+$/,'')||'/';
+    if(!/^\/(?:admin|ql|hv)\/home$/.test(p)) return false;
+    if(typeof window.phfRenderHrGateway==='function') window.phfRenderHrGateway(p);
+    return true;
+  }
   function setShell(){
     try{ if(typeof window.phfHideIntroAndStopAuto === 'function') window.phfHideIntroAndStopAuto(); }catch(e){}
     try{ if(typeof window.phfEnsureSharedShell === 'function') window.phfEnsureSharedShell('trainingLibrary'); }catch(e){}
@@ -373,9 +379,12 @@
     state.sort = 'index';
     window.phfRenderTrainingLibrary(state.stage);
   };
-  window.phfRenderTrainingLibrary = function(stage){
+  function phfRenderTrainingLibraryFinal(stage, routeOwned){
     if(guardHrHomeRoute()) return false;
-    if(!isManager()){
+    /* Router trung tâm đã xác thực namespace và role trước khi gọi renderer.
+       Không lặp guard bằng nguồn role legacy trong đúng lượt route-owned vì
+       nó có thể chưa đồng bộ và đẩy DOM về Trang chủ dù URL đã đúng. */
+    if(!routeOwned && !isManager()){
       if(window.phfOfficialShowInfo) window.phfOfficialShowInfo('Nội dung đào tạo','Khu vực Nội dung đào tạo dành cho Trưởng ca/Admin.');
       else alert('Khu vực Nội dung đào tạo dành cho Trưởng ca/Admin.');
       if(typeof window.phfRenderPostLoginHome === 'function') return window.phfRenderPostLoginHome();
@@ -402,6 +411,53 @@
       + '<main class="phf-b23-main"><section class="phf-b23-panel"><div class="phf-b23-panel-head"><div><h3>'+esc((state.program==='all'?'Tất cả chương trình':programLabel(state.program))+' · '+stageName(state.stage))+'</h3><p>Danh sách bài học phù hợp bộ lọc. Bấm vào từng bài để xem mục tiêu, điểm cần nhớ và nội dung chi tiết.</p></div>'+chip(rows.length+' bài','blue')+'</div><div class="phf-b23-lessons">'+cards(rows)+'</div></section></main></div>'
       + '</section>';
     try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){}
+    return !!main.querySelector('.phf-training-library');
+  }
+  window.phfRenderTrainingLibrary = function(stage){
+    return phfRenderTrainingLibraryFinal(stage, false);
+  };
+  /* Renderer riêng cho Router: giữ tham chiếu bất biến, không bị commandWrap
+     hoặc các lớp legacy thay thế sau khi module đã load. */
+  var phfTrainingLibraryRouteObserver = null;
+  var phfTrainingLibraryRouteRestoring = false;
+  function phfTrainingLibraryOwnsCurrentRoute(){
+    var path = String((window.location && window.location.pathname) || '').replace(/\/+$/,'') || '/';
+    return path === '/admin/noi-dung' || path === '/ql/noi-dung';
+  }
+  function phfInstallTrainingLibraryRouteOwnership(){
+    var main = document.getElementById('mainLesson');
+    if(!main || typeof MutationObserver !== 'function') return;
+    if(phfTrainingLibraryRouteObserver) phfTrainingLibraryRouteObserver.disconnect();
+    phfTrainingLibraryRouteObserver = new MutationObserver(function(){
+      if(!phfTrainingLibraryOwnsCurrentRoute()){
+        phfTrainingLibraryRouteObserver.disconnect();
+        phfTrainingLibraryRouteObserver = null;
+        return;
+      }
+      if(phfTrainingLibraryRouteRestoring || main.querySelector('.phf-training-library')) return;
+      phfTrainingLibraryRouteRestoring = true;
+      Promise.resolve().then(function(){
+        if(phfTrainingLibraryOwnsCurrentRoute() && !main.querySelector('.phf-training-library')){
+          phfRenderTrainingLibraryFinal(state.stage, true);
+        }
+      }).finally(function(){ phfTrainingLibraryRouteRestoring = false; });
+    });
+    phfTrainingLibraryRouteObserver.observe(main,{childList:true,subtree:false});
+  }
+  window.__phfRenderTrainingLibraryRoute = function(stage){
+    var mounted = phfRenderTrainingLibraryFinal(stage, true);
+    phfInstallTrainingLibraryRouteOwnership();
+    /* Một số bootstrap legacy hoàn tất ở requestAnimationFrame kế tiếp và dựng
+       lại Trang chủ. Kiểm tra thêm sau frame để route luôn sở hữu DOM cuối cùng. */
+    if(typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(function(){
+        var main=document.getElementById('mainLesson');
+        if(phfTrainingLibraryOwnsCurrentRoute() && main && !main.querySelector('.phf-training-library')){
+          phfRenderTrainingLibraryFinal(state.stage, true);
+        }
+      });
+    }
+    return mounted;
   };
   window.phfRenderTrainingLibraryLesson = function(idx){
     if(!isManager()){

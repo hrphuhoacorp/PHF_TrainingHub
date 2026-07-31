@@ -50,7 +50,7 @@ html.phf-checklist-route #phfChecklistRoot,body.phf-checklist-mode #phfChecklist
 @media(max-width:680px){.phfck-task-summary,.phfck-task-flow{grid-template-columns:1fr}.phfck-task-head .phfck-primary{width:100%}.phfck-task-tabs{display:grid;grid-template-columns:1fr 1fr}.phfck-task-tabs button{justify-content:space-between}}
 
 /* 1.7.5 - Phiếu đánh giá tháng */
-.phfck-monthly-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.phfck-monthly-summary article{background:#fff;border:1px solid var(--phfck-line);border-radius:15px;padding:15px 16px;box-shadow:0 7px 18px rgba(32,79,64,.04)}.phfck-monthly-summary span{display:block;color:var(--phfck-muted);font-size:10.8px;font-weight:700}.phfck-monthly-summary strong{display:block;color:var(--phfck-green);font-size:23px;margin:5px 0}.phfck-monthly-summary small{display:block;color:#8a9a94;font-size:10px}.phfck-monthly-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-bottom:16px}.phfck-monthly-flow article{display:grid;grid-template-columns:34px 1fr;gap:9px;background:#fff;border:1px solid #e1ebe6;border-radius:14px;padding:12px}.phfck-monthly-flow article>span{width:31px;height:31px;border-radius:9px;background:var(--phfck-green-soft);color:var(--phfck-green);display:grid;place-items:center;font-size:9px;font-weight:900}.phfck-monthly-flow b{display:block;font-size:10.8px;color:#294b40}.phfck-monthly-flow p{margin:4px 0 0;color:#7b8e86;font-size:9.4px;line-height:1.42}.phfck-monthly-panel{padding:18px}.phfck-monthly-toolbar{display:grid;grid-template-columns:190px minmax(280px,1fr) auto;gap:12px;align-items:end}.phfck-monthly-toolbar label span{display:block;font-size:10px;color:#758880;font-weight:800;margin-bottom:6px}.phfck-monthly-toolbar input[type=month]{height:42px;width:100%;box-sizing:border-box;border:1px solid #d9e5df;border-radius:10px;background:#fff;padding:0 10px;color:#2c4c42;font:inherit;font-size:12px}.phfck-monthly-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.phfck-monthly-tabs button{border:1px solid #dce7e2;background:#fff;border-radius:999px;padding:8px 11px;display:flex;align-items:center;gap:8px;color:#587168;font-size:10.5px;font-weight:800;cursor:pointer}.phfck-monthly-tabs button b{min-width:22px;height:22px;border-radius:999px;background:#eff4f2;display:grid;place-items:center;color:#6c8179;font-size:9.5px}.phfck-monthly-tabs button.active{border-color:#7fb29b;background:#edf7f2;color:var(--phfck-green)}.phfck-monthly-tabs button.active b{background:var(--phfck-green);color:#fff}.phfck-monthly-empty{text-align:center;padding:44px 20px;border:1px dashed #cfded7;border-radius:15px;background:#fbfdfc}.phfck-monthly-empty>div{width:56px;height:56px;border-radius:18px;background:var(--phfck-green-soft);color:var(--phfck-green);display:grid;place-items:center;margin:0 auto 12px;font-size:26px}.phfck-monthly-empty b{display:block;color:#2d4e43;font-size:15px}.phfck-monthly-empty p{max-width:590px;margin:8px auto 16px;color:#788b84;font-size:11px;line-height:1.55}.phfck-monthly-rules{margin-top:16px}.phfck-monthly-modal{max-width:980px}.phfck-monthly-person{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.phfck-monthly-person>div{border:1px solid #e1ebe6;background:#fbfdfc;border-radius:12px;padding:11px}.phfck-monthly-person span{display:block;color:#7d8f88;font-size:9.5px;font-weight:800}.phfck-monthly-person b{display:block;color:#294b40;font-size:11.2px;margin-top:5px}.phfck-monthly-structure td,.phfck-monthly-structure th{font-size:10.5px}.phfck-monthly-formula{margin-top:14px;border:1px solid #cfe3d9;background:#f0f8f4;border-radius:14px;padding:14px}.phfck-monthly-formula span,.phfck-monthly-formula small{display:block}.phfck-monthly-formula span{font-size:10px;color:#71877e;font-weight:800}.phfck-monthly-formula strong{display:block;color:var(--phfck-green);font-size:17px;margin:5px 0}.phfck-monthly-formula small{font-size:10px;color:#6f837b;line-height:1.5}
+.phfck-monthly-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.phfck-monthly-summary article{background:#fff;border:1px solid var(--phfck-line);border-radius:15px;padding:15px 16px;box-shadow:0 7px 18px rgba(32,79,64,.04)}.phfck-monthly-summary span{display:block;color:var(--phfck-muted);font-size:10.8px;font-weight:700}.phfck-monthly-summary strong{display:block;color:var(--phfck-green);font-size:23px;margin:5px 0}.phfck-monthly-summary small{display:block;color:#8a9a94;font-size:10px}.phfck-monthly-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-bottom:16px}.phfck-monthly-flow article{display:grid;grid-template-columns:34px 1fr;gap:9px;background:#fff;border:1px solid #e1ebe6;border-radius:14px;padding:12px}.phfck-monthly-flow article>span{width:31px;height:31px;border-radius:9px;background:var(--phfck-green-soft);color:var(--phfck-green);display:grid;place-items:center;font-size:9px;font-weight:900}.phfck-monthly-flow b{display:block;font-size:10.8px;color:#294b40}.phfck-monthly-flow p{margin:4px 0 0;color:#7b8e86;font-size:9.4px;line-height:1.42}.phfck-monthly-panel{padding:18px}.phfck-monthly-toolbar{display:grid;grid-template-columns:170px 170px minmax(260px,1fr) auto auto auto;gap:12px;align-items:end}.phfck-monthly-toolbar label span{display:block;font-size:10px;color:#758880;font-weight:800;margin-bottom:6px}.phfck-monthly-toolbar input[type=month],.phfck-monthly-toolbar select{height:42px;width:100%;box-sizing:border-box;border:1px solid #d9e5df;border-radius:10px;background:#fff;padding:0 10px;color:#2c4c42;font:inherit;font-size:12px}.phfck-monthly-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.phfck-monthly-tabs button{border:1px solid #dce7e2;background:#fff;border-radius:999px;padding:8px 11px;display:flex;align-items:center;gap:8px;color:#587168;font-size:10.5px;font-weight:800;cursor:pointer}.phfck-monthly-tabs button b{min-width:22px;height:22px;border-radius:999px;background:#eff4f2;display:grid;place-items:center;color:#6c8179;font-size:9.5px}.phfck-monthly-tabs button.active{border-color:#7fb29b;background:#edf7f2;color:var(--phfck-green)}.phfck-monthly-tabs button.active b{background:var(--phfck-green);color:#fff}.phfck-monthly-empty{text-align:center;padding:44px 20px;border:1px dashed #cfded7;border-radius:15px;background:#fbfdfc}.phfck-monthly-empty>div{width:56px;height:56px;border-radius:18px;background:var(--phfck-green-soft);color:var(--phfck-green);display:grid;place-items:center;margin:0 auto 12px;font-size:26px}.phfck-monthly-empty b{display:block;color:#2d4e43;font-size:15px}.phfck-monthly-empty p{max-width:590px;margin:8px auto 16px;color:#788b84;font-size:11px;line-height:1.55}.phfck-monthly-rules{margin-top:16px}.phfck-monthly-modal{max-width:980px}.phfck-monthly-person{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.phfck-monthly-person>div{border:1px solid #e1ebe6;background:#fbfdfc;border-radius:12px;padding:11px}.phfck-monthly-person span{display:block;color:#7d8f88;font-size:9.5px;font-weight:800}.phfck-monthly-person b{display:block;color:#294b40;font-size:11.2px;margin-top:5px}.phfck-monthly-structure td,.phfck-monthly-structure th{font-size:10.5px}.phfck-monthly-formula{margin-top:14px;border:1px solid #cfe3d9;background:#f0f8f4;border-radius:14px;padding:14px}.phfck-monthly-formula span,.phfck-monthly-formula small{display:block}.phfck-monthly-formula span{font-size:10px;color:#71877e;font-weight:800}.phfck-monthly-formula strong{display:block;color:var(--phfck-green);font-size:17px;margin:5px 0}.phfck-monthly-formula small{font-size:10px;color:#6f837b;line-height:1.5}
 @media(max-width:1180px){.phfck-monthly-flow{grid-template-columns:repeat(3,minmax(0,1fr))}.phfck-monthly-person{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.phfck-monthly-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-monthly-toolbar{grid-template-columns:1fr 1fr}.phfck-monthly-toolbar .phfck-filter-note{grid-column:1/-1}}
 @media(max-width:680px){.phfck-monthly-summary,.phfck-monthly-flow,.phfck-monthly-person{grid-template-columns:1fr}.phfck-monthly-toolbar{grid-template-columns:1fr}.phfck-monthly-toolbar .phfck-filter-note{grid-column:auto}.phfck-monthly-tabs{display:grid;grid-template-columns:1fr 1fr}.phfck-monthly-tabs button{justify-content:space-between}.phfck-monthly-head .phfck-primary{width:100%}}
@@ -865,3 +865,1757 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-notice.is-warning{background:#fff9e8;border-color:#ead79d}
 .phfck-notice.is-warning b{color:#86620f}
 .phfck-notice.is-warning p{color:#755f2c}
+
+/* 1.7.99 - Demo ghi nhận lỗi an toàn */
+.phfck-test-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 16px;padding:14px 16px;border:1px solid #d9b54a;border-radius:16px;background:#fff9e8}.phfck-test-banner b{color:#5c4600}.phfck-test-banner p{margin:4px 0 0;color:#6c6654;font-size:13px}.phfck-test-chip{background:#fff3c4!important;color:#6a5000!important;border-color:#e6c75d!important}@media(max-width:720px){.phfck-test-banner{align-items:flex-start;flex-direction:column}.phfck-test-banner button{width:100%}}
+
+/* PHF Checklist 1.7.101 — Ghi nhận lỗi: bố cục chắc, toast rõ, chọn giờ nhanh 24h */
+.phfck-quick-entry{padding:22px 24px 26px}
+.phfck-quick-context{gap:16px;margin-bottom:16px}
+.phfck-quick-context label>b,.phfck-quick-detail label>b{margin-bottom:9px;font-size:12px;line-height:1.25}
+.phfck-quick-context input,.phfck-quick-context select{height:46px;padding:0 14px}
+.phfck-quick-list{gap:10px}
+.phfck-quick-row{grid-template-columns:48px minmax(0,1fr) 118px;gap:15px;padding:15px 16px;border-radius:15px;align-items:center}
+.phfck-quick-index{width:40px;height:40px;border-radius:12px;font-size:11px}
+.phfck-quick-criterion{min-width:0;padding:1px 0}
+.phfck-quick-criterion small{font-size:10px;line-height:1.35;letter-spacing:.01em}
+.phfck-quick-criterion b{font-size:12.5px;line-height:1.45;margin-top:5px}
+.phfck-quick-criterion span{font-size:10.5px;line-height:1.4;margin-top:5px}
+.phfck-quick-toggle{height:42px;border-radius:12px;font-size:11px}
+.phfck-quick-detail{grid-template-columns:minmax(0,1fr) 170px 150px;gap:14px;padding-top:14px;margin-top:2px}
+.phfck-quick-detail textarea{min-height:82px;padding:13px 14px;line-height:1.5}
+.phfck-quick-detail input{height:46px;padding:0 13px}
+.phfck-quick-evidence{height:46px;border-radius:12px}
+.phfck-quick-footer{bottom:16px;margin-top:18px;padding:14px 16px}
+.phfck-toast-host{top:18px;right:20px;bottom:auto;width:min(420px,calc(100vw - 32px))}
+.phfck-toast-copy p:empty{display:none}
+.phfck-toast-copy p{font-size:11.5px;line-height:1.5}
+.phfck-time-picker{width:360px;padding:16px;border-radius:18px}
+.phfck-time-picker-head>div{min-width:0}
+.phfck-time-picker-head b{display:block;font-size:13px}
+.phfck-time-picker-head small{display:block;margin-top:3px;color:#7b8f87;font-size:9.5px}
+.phfck-time-direct{display:grid;grid-template-columns:82px 1fr;gap:10px;align-items:center;margin-top:13px;padding:10px 12px;border:1px solid #dce8e1;border-radius:12px;background:#f8fbf9}
+.phfck-time-direct span{font-size:10px;font-weight:800;color:#657c73}
+.phfck-time-direct input{width:100%;height:40px;border:1px solid #cfe0d6;border-radius:10px;background:#fff;padding:0 12px;color:#174b34;font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;outline:0;box-sizing:border-box}
+.phfck-time-direct input:focus{border-color:#68a67f;box-shadow:0 0 0 3px rgba(80,153,108,.12)}
+.phfck-time-picker-body{grid-template-columns:1fr 92px;gap:12px;margin:13px 0}
+.phfck-time-options{grid-template-columns:repeat(8,1fr);max-height:108px;gap:5px}
+.phfck-minute-options{grid-template-columns:1fr;max-height:none;overflow:visible}
+.phfck-time-options button{height:32px}
+.phfck-time-picker-foot{padding-top:12px}
+@media(max-width:760px){.phfck-quick-entry{padding:16px}.phfck-quick-context{grid-template-columns:1fr}.phfck-quick-row{grid-template-columns:42px minmax(0,1fr) 96px;padding:13px 12px;gap:10px}.phfck-quick-detail{grid-column:1/-1;grid-template-columns:1fr}.phfck-time-picker{width:calc(100vw - 20px)}.phfck-time-picker-body{grid-template-columns:1fr}.phfck-minute-options{grid-template-columns:repeat(4,1fr)}}
+
+
+/* 1.7.102 - Violation lifecycle and compact assignment context */
+.phfck-quick-person-row{display:grid;grid-template-columns:minmax(300px,560px);gap:14px;margin:16px 0 12px}
+.phfck-quick-person-row label,.phfck-quick-meta-row label{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phfck-quick-person-row label>b,.phfck-quick-meta-row label>b{font-size:12px;line-height:1.2;color:#183f33;margin:0}
+.phfck-quick-person-row select,.phfck-quick-meta-row input{height:48px;border:1px solid #d5e4db;border-radius:13px;background:#fff;padding:0 15px;font:inherit;color:#244b3f;outline:0}
+.phfck-quick-person-row select:focus,.phfck-quick-meta-row input:focus{border-color:#82b96f;box-shadow:0 0 0 3px rgba(87,157,68,.10)}
+.phfck-assignment-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 17px;margin:0 0 14px;border:1px solid #cfe1d3;border-left:4px solid #2f9a46;border-radius:14px;background:linear-gradient(135deg,#f7fcf5,#eef8ed)}
+.phfck-assignment-main{min-width:0}.phfck-assignment-main small{display:block;font-size:9.5px;letter-spacing:.08em;font-weight:900;color:#6d887d;margin-bottom:5px}.phfck-assignment-main b{display:block;font-size:13.5px;line-height:1.35;color:#0b4b37}.phfck-assignment-main span{display:block;margin-top:4px;font-size:10.5px;line-height:1.4;color:#70857d}
+.phfck-assignment-chips{display:flex;justify-content:flex-end;align-items:center;gap:7px;flex-wrap:wrap}.phfck-assignment-chips span{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border:1px solid #c7dccd;border-radius:8px;background:#fff;color:#315e50;font-size:10px;font-weight:800;white-space:nowrap}
+.phfck-assignment-card.is-empty{border-left-color:#9bb3a9;background:#f8faf9}.phfck-assignment-card.is-warning{border-left-color:#d29a2d;background:#fffaf0}.phfck-assignment-card.is-warning .phfck-assignment-main b{color:#725317}
+.phfck-quick-meta-row{display:grid;grid-template-columns:220px minmax(260px,1fr);gap:14px;margin-bottom:16px}
+.phfck-quick-entry>.phfck-notice{margin:14px 0 0}
+@media(max-width:860px){.phfck-quick-person-row{grid-template-columns:1fr}.phfck-assignment-card{align-items:flex-start;flex-direction:column}.phfck-assignment-chips{justify-content:flex-start}.phfck-quick-meta-row{grid-template-columns:1fr}}
+
+
+/* 1.7.103 - Unified search fields and branch-aware employee picker */
+.phfck-search{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border:1px solid #d5e4db;border-radius:13px;background:#fff;box-shadow:none;transition:border-color .15s ease,box-shadow .15s ease}
+.phfck-search:focus-within{border-color:#82b96f;box-shadow:0 0 0 3px rgba(87,157,68,.10)}
+.phfck-search>span{color:#0b6a4f;font-size:20px;line-height:1}
+.phfck-search input,.phfck-search input[type="search"]{width:100%;height:42px;min-width:0;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;color:#244b3f;font:inherit;-webkit-appearance:none;appearance:none}
+.phfck-search input:focus,.phfck-search input[type="search"]:focus{border:0!important;outline:0!important;box-shadow:none!important}
+.phfck-quick-person-row{grid-template-columns:minmax(190px,26%) minmax(420px,74%);align-items:end;gap:14px;margin:16px 0 12px}
+.phfck-quick-person-row select,.phfck-quick-meta-row input,.phfck-quick-meta-row select{width:100%;height:48px;border:1px solid #d5e4db;border-radius:13px;background:#fff;padding:0 15px;font:inherit;color:#244b3f;outline:0}
+.phfck-quick-person-row select:focus,.phfck-quick-meta-row input:focus,.phfck-quick-meta-row select:focus{border-color:#82b96f;box-shadow:0 0 0 3px rgba(87,157,68,.10)}
+.phfck-employee-picker-controls{display:grid;grid-template-columns:minmax(230px,.82fr) minmax(300px,1.18fr);gap:10px;min-width:0}
+.phfck-search-compact{min-height:48px}
+.phfck-quick-meta-row{grid-template-columns:220px minmax(260px,1fr)}
+.phfck-quick-toolbar .phfck-search{min-height:46px}
+@media(max-width:1050px){.phfck-quick-person-row{grid-template-columns:220px minmax(0,1fr)}.phfck-employee-picker-controls{grid-template-columns:1fr}}
+@media(max-width:760px){.phfck-quick-person-row{grid-template-columns:1fr}.phfck-employee-picker-controls{grid-template-columns:1fr}.phfck-quick-meta-row{grid-template-columns:1fr}}
+
+
+/* PHF Checklist 1.7.104 - quick violation actions */
+.phfck-quick-footer>div:last-child{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.phfck-quick-review-modal{width:min(900px,calc(100vw - 28px));max-height:90vh}
+.phfck-quick-review-context{display:grid;grid-template-columns:1.4fr 1fr .8fr;gap:12px;margin-bottom:14px}
+.phfck-quick-review-context>div{border:1px solid #dce8e2;background:#f8fbf9;border-radius:12px;padding:12px 13px}
+.phfck-quick-review-context small,.phfck-quick-review-context b,.phfck-quick-review-context span{display:block}
+.phfck-quick-review-context small{font-size:10px;color:#779087;text-transform:uppercase;font-weight:800}
+.phfck-quick-review-context b{font-size:13px;color:#214c3d;margin-top:5px}
+.phfck-quick-review-context span{font-size:11px;color:#6f847c;margin-top:4px}
+.phfck-quick-review-list{display:flex;flex-direction:column;gap:9px}
+.phfck-quick-review-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;border:1px solid #dfe9e4;border-radius:12px;background:#fff;padding:12px 14px}
+.phfck-quick-review-item small{display:block;font-size:9.5px;color:#81938b;text-transform:uppercase;font-weight:800}
+.phfck-quick-review-item b{display:block;font-size:12.5px;color:#284c40;margin-top:4px}
+.phfck-quick-review-item p{margin:6px 0 0;font-size:11.5px;color:#5e746b;line-height:1.5}
+.phfck-quick-review-item>span{white-space:nowrap;border:1px solid #d8e5df;border-radius:9px;padding:7px 9px;font-size:10.5px;color:#4d6b60;background:#f8fbfa}
+.phfck-review-warning{margin:0 0 14px;border:1px solid #eed1a8;background:#fff8ed;border-radius:12px;padding:11px 13px;color:#765024}
+.phfck-review-warning.is-info{margin:14px 0 0;border-color:#cfe1d8;background:#f2f8f5;color:#315f50}
+.phfck-review-warning b{display:block;font-size:12px}.phfck-review-warning p{margin:4px 0 0;font-size:11px;line-height:1.5}
+@media(max-width:760px){.phfck-quick-footer>div:last-child{display:grid;grid-template-columns:1fr 1fr}.phfck-quick-footer>div:last-child .phfck-primary{grid-column:1/-1}.phfck-quick-review-context{grid-template-columns:1fr}.phfck-quick-review-item{grid-template-columns:1fr}.phfck-quick-review-item>span{white-space:normal}.phfck-quick-review-modal{width:calc(100vw - 16px)}}
+
+/* PHF Checklist 1.7.105 — sticky actions & draft recovery */
+.phfck-quick-entry{padding-bottom:108px}
+.phfck-quick-footer{position:fixed;left:calc(var(--phfck-sidebar-width,260px) + 34px);right:24px;bottom:16px;z-index:42;margin:0;padding:12px 14px;border:1px solid #d7e5dc;border-radius:15px;background:rgba(255,255,255,.97);box-shadow:0 14px 38px rgba(21,75,55,.18);backdrop-filter:blur(12px)}
+.phfck-quick-summary{appearance:none;border:0;background:transparent;text-align:left;padding:2px 4px;cursor:pointer;color:inherit}
+.phfck-quick-summary:hover strong{text-decoration:underline}
+.phfck-quick-footer>div:last-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.phfck-quick-row.is-collapsed .phfck-quick-detail{display:none!important}
+.phfck-quick-row.is-collapsed{background:#fbfdfb;border-color:#cfe1d5;box-shadow:inset 3px 0 0 #5b9a70}
+
+/* PHF Checklist 1.19 - lọc nhân sự theo phòng ban và tiêu chí phân cấp */
+.phfck-person-filter-grid{display:grid;grid-template-columns:minmax(190px,240px) minmax(440px,1fr) minmax(155px,185px);gap:12px;align-items:end;margin:16px 0 10px}
+.phfck-person-filter-grid label{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phfck-person-filter-grid label>b,.phfck-more-filter-panel label>b{font-size:12px;line-height:1.2;color:#183f33}
+.phfck-person-filter-grid select,.phfck-more-filter-panel select{width:100%;height:48px;border:1px solid #d5e4db;border-radius:13px;background:#fff;padding:0 14px;font:inherit;color:#244b3f;outline:0}
+.phfck-person-filter-grid select:focus,.phfck-more-filter-panel select:focus{border-color:#82b96f;box-shadow:0 0 0 3px rgba(87,157,68,.10)}
+.phfck-person-filter-grid .phfck-employee-picker-controls{grid-template-columns:minmax(220px,.78fr) minmax(300px,1.22fr)}
+.phfck-more-filter-toggle{height:48px;border:1px solid #d5e4db;border-radius:13px;background:#f8fbf9;color:#31584b;padding:7px 12px;display:grid;grid-template-columns:1fr 22px;text-align:left;cursor:pointer}
+.phfck-more-filter-toggle span{font-size:11px;font-weight:850}.phfck-more-filter-toggle small{font-size:9px;color:#70877e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.phfck-more-filter-toggle i{grid-column:2;grid-row:1/3;align-self:center;justify-self:center;width:22px;height:22px;border-radius:8px;background:#e8f2ed;display:grid;place-items:center;font-style:normal;font-weight:900}
+.phfck-more-filter-toggle.active{border-color:#8fbea9;background:#f1f8f4}.phfck-more-filter-panel{margin:-2px 0 12px;padding:12px 14px;border:1px solid #dbe8e1;border-radius:13px;background:#f8fbf9;display:flex;align-items:end;gap:14px}.phfck-more-filter-panel label{width:min(300px,100%);display:flex;flex-direction:column;gap:7px}.phfck-more-filter-panel span{font-size:10px;color:#70857d;padding-bottom:14px}
+.phfck-quick-toolbar{grid-template-columns:1fr;margin:14px 0 10px}.phfck-quick-toolbar .phfck-search{max-width:680px}
+.phfck-quick-group-chips{display:flex;gap:8px;overflow-x:auto;padding:1px 1px 10px;scrollbar-width:thin}.phfck-quick-group-chips button{flex:0 0 auto;min-height:34px;border:1px solid #d8e5de;border-radius:999px;background:#fff;color:#4a695e;padding:0 13px;font-size:10px;font-weight:800;cursor:pointer}.phfck-quick-group-chips button:hover{border-color:#91b8a5}.phfck-quick-group-chips button.active{background:#176a50;border-color:#176a50;color:#fff}
+.phfck-quick-list{gap:12px}.phfck-quick-group{border:1px solid #dbe7e1;border-radius:15px;background:#fbfdfc;overflow:hidden}.phfck-quick-group.is-open{border-color:#b8d5c7;background:#fff;box-shadow:0 5px 16px rgba(30,82,63,.05)}
+.phfck-quick-group-head{width:100%;min-height:62px;border:0;background:#f5f9f7;color:#284f42;padding:10px 14px;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer}.phfck-quick-group.is-open .phfck-quick-group-head{background:#edf6f1;border-bottom:1px solid #dbe8e1}.phfck-quick-group-arrow{width:26px;height:26px;border-radius:9px;background:#dfeee7;display:grid;place-items:center;font-size:17px;font-weight:900}.phfck-quick-group-head>span:nth-child(2) small{display:block;font-size:8.5px;letter-spacing:.06em;color:#769086}.phfck-quick-group-head>span:nth-child(2) b{display:block;margin-top:2px;font-size:12.5px;color:#214b3d}.phfck-quick-group-meta{text-align:right}.phfck-quick-group-meta strong,.phfck-quick-group-meta small{display:block}.phfck-quick-group-meta strong{font-size:10.5px}.phfck-quick-group-meta small{font-size:9px;color:#7a8d85;margin-top:3px}.phfck-quick-group-body{display:flex;flex-direction:column;gap:7px;padding:8px}
+.phfck-quick-group-body .phfck-quick-row{grid-template-columns:38px minmax(0,1fr) 112px;gap:11px;padding:10px 12px;border-radius:11px;box-shadow:none}.phfck-quick-group-body .phfck-quick-index{width:32px;height:32px}.phfck-quick-group-body .phfck-quick-criterion b{font-size:11.5px;line-height:1.35}.phfck-quick-group-body .phfck-quick-toggle{height:36px;min-width:104px}.phfck-quick-group-body .phfck-quick-row.is-selected{background:#f7fcf4;border-color:#8bc874;box-shadow:inset 3px 0 0 #67a650}.phfck-quick-group-body .phfck-quick-row.is-selected .phfck-quick-toggle{background:#2f7c55;border-color:#2f7c55;color:#fff}
+@media(max-width:1100px){.phfck-person-filter-grid{grid-template-columns:220px minmax(0,1fr)}.phfck-more-filter-toggle{grid-column:1/-1;width:185px}.phfck-person-filter-grid .phfck-employee-picker-controls{grid-template-columns:1fr}}
+@media(max-width:760px){.phfck-person-filter-grid{grid-template-columns:1fr}.phfck-more-filter-toggle{grid-column:auto;width:100%}.phfck-more-filter-panel{align-items:stretch;flex-direction:column}.phfck-more-filter-panel label{width:100%}.phfck-more-filter-panel span{padding-bottom:0}.phfck-quick-group-head{grid-template-columns:26px minmax(0,1fr)}.phfck-quick-group-meta{grid-column:2;text-align:left;display:flex;gap:8px}.phfck-quick-group-body .phfck-quick-row{grid-template-columns:34px minmax(0,1fr)}.phfck-quick-group-body .phfck-quick-toggle{grid-column:1/-1}.phfck-quick-group-body .phfck-quick-detail{grid-column:1/-1}}
+.phfck-quick-detail{grid-template-columns:minmax(0,1fr) 170px 210px}
+.phfck-quick-detail-actions{display:grid;grid-template-columns:1fr 76px;gap:8px;align-items:end}
+.phfck-quick-detail-actions button{height:42px}
+.phfck-draft-banner{margin:10px 0 14px;padding:12px 14px;border:1px solid #e2d59d;border-left:4px solid #c69b28;border-radius:12px;background:#fffaf0;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.phfck-draft-banner small{display:block;font-size:9px;letter-spacing:.08em;font-weight:900;color:#8c742d}
+.phfck-draft-banner b{display:block;margin-top:3px;color:#4d4b37;font-size:12px}
+.phfck-draft-banner span{display:block;margin-top:3px;color:#7d795d;font-size:9.7px}
+.phfck-draft-banner>div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.phfck-danger-soft{border:1px solid #dfb9b2;border-radius:10px;background:#fff7f5;color:#a04c40;font-weight:800;padding:0 13px;min-height:38px;cursor:pointer}
+.phfck-draft-modal{width:min(760px,calc(100vw - 30px))}
+.phfck-draft-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #e5ece7}
+.phfck-draft-item:last-child{border-bottom:0}
+.phfck-draft-item small,.phfck-draft-item span{display:block;color:#778a81;font-size:10px}
+.phfck-draft-item b{display:block;color:#2c5142;font-size:12.5px;margin:3px 0}
+.phfck-draft-item>div:last-child{display:flex;gap:8px}
+@media(max-width:900px){
+  .phfck-quick-footer{left:14px;right:14px;bottom:12px}
+  .phfck-quick-detail{grid-template-columns:1fr 150px}
+  .phfck-quick-detail-actions{grid-column:1/-1;grid-template-columns:1fr 90px}
+}
+@media(max-width:680px){
+  .phfck-quick-entry{padding-bottom:16px}
+  .phfck-quick-footer{position:sticky;left:auto;right:auto;bottom:0;flex-direction:column;align-items:stretch}
+  .phfck-quick-footer>div:last-child{display:grid;grid-template-columns:1fr 1fr}
+  .phfck-quick-footer>div:last-child .phfck-primary{grid-column:1/-1}
+  .phfck-draft-banner,.phfck-draft-item{align-items:flex-start;flex-direction:column}
+  .phfck-draft-banner>div:last-child,.phfck-draft-item>div:last-child{width:100%}
+  .phfck-draft-banner button,.phfck-draft-item button{flex:1}
+}
+
+
+/* 1.7.107 · Chế độ ghi nhận Test/Production */
+.phfck-violation-mode{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px;padding:14px 16px;border:1px solid #d8e1dc;border-radius:14px;background:#f7faf8;box-shadow:0 8px 24px rgba(28,55,43,.06)}
+.phfck-violation-mode>div{display:flex;align-items:flex-start;gap:12px;min-width:0}.phfck-violation-mode>div>span{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;font-weight:900}.phfck-violation-mode small{display:block;font-size:11px;letter-spacing:.08em;color:#6d7d75}.phfck-violation-mode b{display:block;margin-top:2px;font-size:15px;color:#173f31}.phfck-violation-mode p{margin:3px 0 0;font-size:13px;line-height:1.45;color:#5e6f67}.phfck-violation-mode>strong{flex:0 0 auto;padding:7px 10px;border-radius:8px;font-size:12px;letter-spacing:.05em}
+.phfck-violation-mode.is-test{border-color:#ecd99c;background:#fffaf0}.phfck-violation-mode.is-test>div>span{background:#f6e6ad;color:#6f5200}.phfck-violation-mode.is-test>strong{background:#f6e6ad;color:#634900}.phfck-violation-mode.is-production{border-color:#b9d8c8;background:#f2faf6}.phfck-violation-mode.is-production>div>span,.phfck-violation-mode.is-production>strong{background:#d9eee3;color:#155d3e}
+@media(max-width:700px){.phfck-violation-mode{align-items:flex-start}.phfck-violation-mode>strong{display:none}}
+
+/* 1.7.108 · Nhật ký lỗi */
+.phfck-violation-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}
+.phfck-log-panel{padding:20px}
+.phfck-log-filters{display:grid;grid-template-columns:minmax(240px,1.6fr) minmax(190px,1fr) minmax(150px,.8fr) minmax(145px,.72fr) minmax(145px,.72fr);gap:12px;align-items:end;margin:16px 0}
+.phfck-log-filters label{display:grid;gap:6px}.phfck-log-filters label>span{font-size:11px;font-weight:800;color:#47665a}.phfck-log-filters input,.phfck-log-filters select{width:100%;height:44px;border:1px solid #d3e1d9;border-radius:11px;background:#fff;padding:0 12px;color:#183f31;outline:0;box-shadow:none}.phfck-log-filters input:focus,.phfck-log-filters select:focus{border-color:#73ad83;box-shadow:0 0 0 3px rgba(65,154,86,.1)}
+.phfck-log-count{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;color:#647970}.phfck-log-count b{font-size:13px;color:#1c4b39}.phfck-log-count span{font-size:11px}
+.phfck-log-table{border:1px solid #dce8e1;border-radius:14px;overflow:hidden;background:#fff}.phfck-log-head,.phfck-log-row{display:grid;grid-template-columns:130px 1.05fr 1.7fr 90px 125px 28px;gap:12px;align-items:center}.phfck-log-head{padding:10px 14px;background:#f3f8f5;color:#6b8177;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.phfck-log-row{width:100%;border:0;border-top:1px solid #e4ece7;background:#fff;padding:13px 14px;text-align:left;cursor:pointer;color:#244d3e}.phfck-log-row:hover{background:#f8fbf9}.phfck-log-row span{min-width:0}.phfck-log-row b,.phfck-log-row small{display:block;overflow:hidden;text-overflow:ellipsis}.phfck-log-row b{font-size:12.5px;white-space:nowrap}.phfck-log-row small{margin-top:3px;font-size:10px;color:#75887f;white-space:nowrap}.phfck-log-row i{display:inline-flex;padding:4px 7px;border-radius:7px;font-size:9px;font-style:normal;font-weight:900}.phfck-log-row i.is-test{background:#fff0bf;color:#755600}.phfck-log-row i.is-production{background:#dff1e7;color:#17613e}.phfck-log-row>span:last-child{font-size:24px;color:#8da198;text-align:right}
+.phfck-log-empty,.phfck-log-loading{padding:48px 20px;text-align:center;border:1px dashed #ccdcd3;border-radius:14px;background:#fafcfb}.phfck-log-empty b,.phfck-log-loading b{display:block;color:#244d3e}.phfck-log-empty p,.phfck-log-loading p{margin:6px 0 14px;color:#71857b;font-size:12px}.phfck-log-empty.is-error{border-color:#e4beb8;background:#fff8f7}.phfck-log-empty.is-error b{color:#9e4b40}
+.phfck-log-modal{width:min(760px,calc(100vw - 30px))}.phfck-log-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 0}.phfck-log-detail-grid>div{padding:12px;border:1px solid #dfe9e3;border-radius:11px;background:#fafcfb}.phfck-log-detail-grid .is-wide{grid-column:1/-1}.phfck-log-detail-grid small,.phfck-log-detail-grid span{display:block;color:#71857b;font-size:10px}.phfck-log-detail-grid b{display:block;margin-top:4px;color:#214b3a;font-size:12.5px}.phfck-log-detail-grid p{margin:5px 0 0;white-space:pre-wrap;color:#294f40;font-size:12.5px;line-height:1.55}
+@media(max-width:1100px){.phfck-violation-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-log-filters{grid-template-columns:1fr 1fr}.phfck-log-head{display:none}.phfck-log-row{grid-template-columns:120px 1fr 1.5fr 75px 105px 20px}}
+@media(max-width:700px){.phfck-log-filters{grid-template-columns:1fr}.phfck-log-row{grid-template-columns:1fr 24px}.phfck-log-row>span:nth-child(3),.phfck-log-row>span:nth-child(4),.phfck-log-row>span:nth-child(5){grid-column:1}.phfck-log-row>span:last-child{grid-column:2;grid-row:1/5}.phfck-log-detail-grid{grid-template-columns:1fr}.phfck-log-detail-grid .is-wide{grid-column:auto}}
+
+/* PHF Checklist 1.7.109 · Ghi nhận chi tiết dùng dữ liệu thật */
+.phfck-detail-workspace{display:grid;gap:16px;padding-bottom:92px}
+.phfck-detail-context,.phfck-detail-form{overflow:visible}
+.phfck-detail-top-grid{display:grid;grid-template-columns:minmax(190px,.32fr) minmax(320px,1fr);gap:14px;margin-bottom:14px}
+.phfck-detail-top-grid label,.phfck-detail-grid label{display:grid;gap:7px;min-width:0}
+.phfck-detail-top-grid label>span,.phfck-detail-grid label>span{font-size:12px;font-weight:800;letter-spacing:.02em;color:#49605a}
+.phfck-detail-top-grid select,.phfck-detail-grid select,.phfck-detail-grid input,.phfck-detail-grid textarea{width:100%;min-height:44px;border:1px solid #cbd8d3;border-radius:10px;background:#fff;padding:10px 12px;box-shadow:none;outline:0;color:#1d3430;font:inherit}
+.phfck-detail-grid textarea{resize:vertical;line-height:1.55}
+.phfck-detail-top-grid select:focus,.phfck-detail-grid select:focus,.phfck-detail-grid input:focus,.phfck-detail-grid textarea:focus{border-color:#6d9689;box-shadow:0 0 0 3px rgba(43,104,87,.10)}
+.phfck-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:8px}
+.phfck-detail-grid .is-wide{grid-column:1/-1}
+.phfck-detail-grid label small{font-size:12px;line-height:1.45;color:#71827d}
+.phfck-detail-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.phfck-detail-summary>div{border:1px solid #dce6e2;border-radius:10px;background:#f8fbfa;padding:12px 14px;display:grid;gap:4px}
+.phfck-detail-summary small{font-size:10px;font-weight:900;letter-spacing:.08em;color:#73847f}
+.phfck-detail-summary b{font-size:14px;color:#203a34}
+.phfck-detail-actions{position:sticky;bottom:12px;z-index:12;margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #ccdcd6;border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 12px 30px rgba(26,59,50,.13);backdrop-filter:blur(10px)}
+.phfck-detail-actions>span{font-size:12px;color:#667a74}
+.phfck-detail-actions>div{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.phfck-detail-review{max-width:780px}
+@media(max-width:900px){.phfck-detail-top-grid,.phfck-detail-grid{grid-template-columns:1fr}.phfck-detail-grid .is-wide{grid-column:auto}.phfck-detail-summary{grid-template-columns:1fr}.phfck-detail-actions{align-items:stretch;flex-direction:column}.phfck-detail-actions>div{display:grid;grid-template-columns:1fr 1fr}.phfck-detail-actions .phfck-primary{grid-column:1/-1}}
+
+/* 1.7.110 - UX spacing + multi-day live data */
+.phfck-assignment-card .phfck-assignment-main{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0}
+.phfck-assignment-card .phfck-assignment-main small{margin:0 0 6px;line-height:1.35}
+.phfck-assignment-card .phfck-assignment-main b{margin:0;line-height:1.45}
+.phfck-assignment-card .phfck-assignment-main span{margin-top:5px;line-height:1.5}
+.phfck-assignment-card.is-warning,.phfck-assignment-card.is-empty{padding-top:16px;padding-bottom:16px}
+.phfck-quick-context label>span,.phfck-detail-top-grid label>span,.phfck-detail-grid label>span{margin-bottom:8px;line-height:1.35}
+.phfck-detail-form .phfck-panel-head{margin-bottom:18px}.phfck-detail-grid{row-gap:18px}.phfck-detail-grid label>small{margin-top:7px;line-height:1.5}
+.phfck-multi-shared{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(300px,1.2fr);gap:14px;align-items:end;margin:4px 0 18px;padding:14px;border:1px solid #dce9df;border-radius:13px;background:#f8fbf8}
+.phfck-multi-shared label>span{display:block;margin-bottom:8px;font-size:11px;font-weight:850;color:#284d3e}.phfck-multi-shared em{color:#bc4940;font-style:normal}
+.phfck-multi-shared select{width:100%;height:44px;border:1px solid #d3e2d8;border-radius:11px;background:#fff;padding:0 12px;color:#274b3d;font:inherit}
+.phfck-multi-shared div b{display:block;font-size:11.5px;color:#244a3a}.phfck-multi-shared div small{display:block;margin-top:5px;font-size:10px;line-height:1.45;color:#758a81}
+.phfck-multi-row-live{grid-template-columns:34px 140px 128px minmax(250px,1.25fr) minmax(260px,1fr) 42px 34px;align-items:start;padding:13px;row-gap:10px}
+.phfck-multi-row-live label>span{margin-bottom:7px;line-height:1.35}.phfck-multi-row-live textarea{width:100%;min-height:58px;resize:vertical;border:1px solid #d9e5df;border-radius:10px;background:#fff;color:#2c4c42;font:inherit;font-size:11px;padding:9px 10px;box-sizing:border-box;outline:0}
+.phfck-multi-row-live .phfck-multi-criterion small{display:block;margin-top:6px;font-size:9.5px;line-height:1.4;color:#73887e}
+.phfck-multi-row-live.is-warning{border-color:#e5c77f;background:#fffaf0}.phfck-multi-evidence-note{grid-column:2/7}.phfck-multi-evidence-note input{height:40px!important}
+.phfck-multi-footer.is-sticky{position:sticky;bottom:10px;z-index:18;box-shadow:0 10px 30px rgba(20,72,49,.13);background:rgba(255,255,255,.97);backdrop-filter:blur(8px)}
+.phfck-multi-review-list{display:flex;flex-direction:column;gap:9px;max-height:52vh;overflow:auto;padding:2px}.phfck-multi-review-list article{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:11px;align-items:start;padding:12px;border:1px solid #dde9e1;border-radius:12px;background:#fbfdfb}.phfck-multi-review-list article>span{width:30px;height:30px;border-radius:9px;background:#edf5ef;display:grid;place-items:center;font-weight:900;color:#3d7257}.phfck-multi-review-list small,.phfck-multi-review-list b,.phfck-multi-review-list p{display:block}.phfck-multi-review-list small{font-size:9.5px;color:#71877d}.phfck-multi-review-list b{margin-top:4px;font-size:11.5px;color:#173f31}.phfck-multi-review-list p{margin:5px 0 0;font-size:10.5px;line-height:1.45;color:#536e63}.phfck-multi-review-list strong{white-space:nowrap;font-size:11px;color:#a34d42}
+@media(max-width:1100px){.phfck-multi-row-live{grid-template-columns:32px 130px 125px minmax(220px,1fr) 38px 30px}.phfck-multi-row-live .phfck-multi-note{grid-column:2/5}.phfck-multi-evidence-note{grid-column:2/5}.phfck-multi-shared{grid-template-columns:1fr}}
+@media(max-width:760px){.phfck-multi-row-live{grid-template-columns:30px 1fr 1fr 34px}.phfck-multi-row-live .phfck-multi-criterion,.phfck-multi-row-live .phfck-multi-note,.phfck-multi-evidence-note{grid-column:2/5}.phfck-multi-footer.is-sticky{bottom:6px}.phfck-multi-footer.is-sticky>div:last-child{grid-template-columns:1fr 1fr}.phfck-multi-footer.is-sticky .phfck-primary{grid-column:1/-1}}
+
+
+/* PHF Checklist 1.9 · UX tab Đi trễ */
+.phfck-late-review-layer{padding:20px;display:flex;align-items:center;justify-content:center}
+.phfck-late-review-modal{width:min(820px,calc(100vw - 32px));max-height:min(88vh,760px);display:flex;flex-direction:column;overflow:hidden}
+.phfck-late-review-modal .phfck-modal-head{flex:0 0 auto}
+.phfck-late-review-modal .phfck-modal-body{flex:1 1 auto;min-height:0;overflow:auto;padding:18px 20px}
+.phfck-late-review-modal .phfck-modal-foot{flex:0 0 auto;position:sticky;bottom:0;background:#fff;border-top:1px solid #e1ebe5;display:flex;justify-content:flex-end;gap:10px}
+.phfck-late-review-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.phfck-late-review-summary>div{padding:12px 14px;border:1px solid #dce8e1;border-radius:11px;background:#f8fbf9}
+.phfck-late-review-summary small,.phfck-late-review-summary b{display:block}.phfck-late-review-summary small{font-size:9.5px;color:#71857b;text-transform:uppercase;font-weight:850;letter-spacing:.06em}.phfck-late-review-summary b{margin-top:5px;font-size:13px;color:#214c3d}
+.phfck-late-review-list{display:flex;flex-direction:column;gap:10px}
+.phfck-late-review-list article{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:start;padding:13px 14px;border:1px solid #dfe9e4;border-radius:12px;background:#fff}
+.phfck-late-review-list article>span{width:32px;height:32px;border-radius:9px;background:#edf5ef;display:grid;place-items:center;font-size:11px;font-weight:900;color:#3d7257}
+.phfck-late-review-list small,.phfck-late-review-list b{display:block}.phfck-late-review-list small{font-size:10px;color:#71877d}.phfck-late-review-list b{margin-top:4px;font-size:12.5px;color:#173f31}.phfck-late-review-list p{margin:6px 0 0;font-size:11.5px;line-height:1.5;color:#536e63;white-space:pre-wrap}.phfck-late-review-list strong{white-space:nowrap;font-size:12px;color:#a34d42;padding-top:5px}
+@media(max-width:760px){.phfck-late-review-layer{padding:8px}.phfck-late-review-modal{width:calc(100vw - 16px);max-height:94vh}.phfck-late-review-summary{grid-template-columns:1fr}.phfck-late-review-list article{grid-template-columns:34px minmax(0,1fr)}.phfck-late-review-list strong{grid-column:2;justify-self:start}.phfck-late-review-modal .phfck-modal-foot{display:grid;grid-template-columns:1fr 1fr}.phfck-late-review-modal .phfck-modal-foot button{width:100%}}
+
+
+/* PHF Checklist 1.12 · Nhật ký lỗi: chi tiết bản ghi dùng modal chuẩn */
+.phfck-log-detail-layer{z-index:10060;padding:18px;background:rgba(4,38,29,.42);backdrop-filter:blur(2px)}
+.phfck-log-detail-layer>.phfck-log-modal{width:min(780px,calc(100vw - 32px));max-height:min(88dvh,820px);display:flex;flex-direction:column;overflow:hidden;border-radius:18px;box-shadow:0 24px 70px rgba(3,48,35,.28)}
+.phfck-log-modal .phfck-modal-head{flex:0 0 auto;padding:18px 22px;background:linear-gradient(180deg,#fff,#fbfdfc);border-bottom:1px solid #e1ebe5}
+.phfck-log-modal .phfck-modal-head h2{font-size:21px;line-height:1.25;margin-top:4px}
+.phfck-log-modal .phfck-modal-body{flex:1 1 auto;min-height:0;overflow:auto;padding:18px 22px 22px;background:#fbfdfc}
+.phfck-log-modal .phfck-modal-foot{flex:0 0 auto;position:sticky;bottom:0;padding:14px 22px;background:#fff;border-top:1px solid #e1ebe5;display:flex;justify-content:flex-end;gap:10px}
+.phfck-log-detail-summary{display:flex;align-items:center;gap:10px;margin-bottom:4px;padding:12px 14px;border:1px solid #dce9e3;border-radius:13px;background:#fff}
+.phfck-log-detail-summary span{display:inline-flex;align-items:center;min-height:26px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:.03em}
+.phfck-log-detail-summary span.is-test{background:#fff0bd;color:#725100}.phfck-log-detail-summary span.is-production{background:#e4f5ec;color:#0c694b}
+.phfck-log-detail-summary b{color:#153f32}.phfck-log-detail-summary small{margin-left:auto;color:#70847b}
+.phfck-log-modal .phfck-log-detail-grid{padding:12px 0 0}
+.phfck-log-modal .phfck-log-detail-grid>div{min-width:0;padding:14px;background:#fff}
+.phfck-log-modal .phfck-log-detail-grid b,.phfck-log-modal .phfck-log-detail-grid p{overflow-wrap:anywhere}
+.phfck-log-detail-layer~.phfck-toast-host,.phfck-modal-layer[data-phfck-submodal]~.phfck-toast-host{z-index:10040}
+@media(max-width:680px){.phfck-log-detail-layer{padding:8px}.phfck-log-detail-layer>.phfck-log-modal{width:calc(100vw - 16px);max-height:94dvh}.phfck-log-modal .phfck-modal-head,.phfck-log-modal .phfck-modal-body,.phfck-log-modal .phfck-modal-foot{padding-left:16px;padding-right:16px}.phfck-log-modal .phfck-log-detail-grid{grid-template-columns:1fr}.phfck-log-modal .phfck-log-detail-grid .is-wide{grid-column:auto}.phfck-log-modal .phfck-modal-foot{display:grid;grid-template-columns:1fr}.phfck-log-modal .phfck-modal-foot button{width:100%}}
+
+
+/* PHF Checklist 1.13 - Nhật ký lỗi: sửa/hủy an toàn */
+.phfck-log-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}.phfck-log-edit-grid label,.phfck-log-cancel-reason{display:flex;flex-direction:column;gap:8px}.phfck-log-edit-grid label>span,.phfck-log-cancel-reason>span{font-weight:700;color:#18382f}.phfck-log-edit-grid .is-wide{grid-column:1/-1}.phfck-log-edit-grid input,.phfck-log-edit-grid textarea,.phfck-log-cancel-reason textarea{width:100%;box-sizing:border-box;border:1px solid #cbd9d4;border-radius:10px;padding:11px 12px;background:#fff;color:#18382f;font:inherit}.phfck-log-edit-grid input:focus,.phfck-log-edit-grid textarea:focus,.phfck-log-cancel-reason textarea:focus{outline:0;border-color:#5e8e7f;box-shadow:0 0 0 3px rgba(59,113,94,.12)}.phfck-check-row{flex-direction:row!important;align-items:center;gap:10px!important}.phfck-check-row input{width:18px;height:18px}.phfck-cancel-warning{padding:15px 16px;border:1px solid #efd3a8;border-radius:12px;background:#fff9ef;margin-bottom:18px}.phfck-cancel-warning b{display:block;color:#7f4a13;margin-bottom:5px}.phfck-cancel-warning p{margin:0;color:#6d5a43;line-height:1.55}.phfck-danger{border:1px solid #b42318;background:#b42318;color:#fff;border-radius:9px;padding:10px 16px;font-weight:700;cursor:pointer}.phfck-danger:disabled{opacity:.55;cursor:not-allowed}.phfck-log-row span i+small{margin-top:5px}@media(max-width:760px){.phfck-log-edit-grid{grid-template-columns:1fr}.phfck-log-edit-grid .is-wide{grid-column:auto}.phfck-modal-foot{flex-wrap:wrap}}
+
+/* PHF Checklist 1.14 · lịch sử bản ghi và an toàn thao tác */
+.phfck-log-history{margin-top:18px;padding-top:16px;border-top:1px solid rgba(27,78,60,.14)}
+.phfck-log-history-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.phfck-log-history-head>div{display:flex;flex-direction:column;gap:3px}
+.phfck-log-history-head small{font-size:11px;font-weight:800;letter-spacing:.08em;color:#6d7f77}
+.phfck-log-history-head b{font-size:14px;color:#183f34}
+.phfck-log-history-head>span{display:inline-flex;align-items:center;min-height:26px;padding:4px 9px;border:1px solid rgba(27,78,60,.16);border-radius:7px;background:#f6faf8;color:#557168;font-size:12px;font-weight:700}
+.phfck-log-history-list{display:grid;gap:10px}
+.phfck-log-history-list article{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:11px 12px;border:1px solid rgba(27,78,60,.12);border-radius:10px;background:#fbfdfc}
+.phfck-log-history-list article>span{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#edf5f1;color:#1d5d49;font-weight:900}
+.phfck-log-history-list article div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.phfck-log-history-list article b{font-size:14px;color:#183f34}
+.phfck-log-history-list article small{font-size:12px;color:#71827b}
+.phfck-log-history-list article p{margin:2px 0 0;font-size:13px;line-height:1.5;color:#42564f}
+.phfck-log-history-empty{padding:13px 14px;border:1px dashed rgba(27,78,60,.2);border-radius:10px;background:#fafcfb;color:#6b7e76;font-size:13px}
+
+/* PHF Checklist 1.15 — Toast tự đóng đồng bộ */
+.phfck-toast-progress{animation-duration:4.2s}
+.phfck-toast.is-success .phfck-toast-progress{animation-duration:3.2s}
+.phfck-toast.is-info .phfck-toast-progress{animation-duration:4.2s}
+.phfck-toast.is-warning .phfck-toast-progress{background:linear-gradient(90deg,#d49522,#f0c768);animation:phfckToastProgress 5.2s linear forwards}
+.phfck-toast.is-error .phfck-toast-progress{background:linear-gradient(90deg,#c94343,#ef8f88);animation:phfckToastProgress 6.5s linear forwards}
+.phfck-toast.is-paused .phfck-toast-progress{animation-play-state:paused}
+
+/* PHF Checklist 1.20 — Cân đối toàn bộ màn Ghi nhận lỗi ở zoom 100% */
+.phfck-violations-view{
+  --phfck-v-space:12px;
+  color:#173f37;
+  font-size:13px;
+  line-height:1.45;
+  padding-bottom:76px;
+}
+.phfck-violations-view .phfck-page-head{margin-bottom:12px}
+.phfck-violations-view .phfck-page-head h1{font-size:24px;line-height:1.25;letter-spacing:-.02em}
+.phfck-violations-view .phfck-page-head p{font-size:12.5px;line-height:1.45;margin-top:4px}
+.phfck-violations-view h2{font-size:20px;line-height:1.3}
+.phfck-violations-view h3{font-size:17px;line-height:1.35}
+.phfck-violations-view label{font-size:12px;line-height:1.35;font-weight:700}
+.phfck-violations-view input,
+.phfck-violations-view select,
+.phfck-violations-view textarea{font-size:13.5px}
+.phfck-violations-view button{font-size:13px}
+.phfck-violations-view .phfck-env-banner{margin-bottom:12px;padding:8px 12px;font-size:11.5px}
+
+.phfck-violations-view .phfck-violation-tabs{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+  padding:6px;
+}
+.phfck-violations-view .phfck-violation-tabs button{
+  min-height:72px;
+  padding:9px 10px;
+  gap:9px;
+  border-radius:12px;
+}
+.phfck-violations-view .phfck-violation-tabs button > span{
+  width:32px;
+  height:32px;
+  min-width:32px;
+  font-size:15px;
+}
+.phfck-violations-view .phfck-violation-tabs button b{font-size:13px;line-height:1.3}
+.phfck-violations-view .phfck-violation-tabs button small{font-size:10.5px;line-height:1.35}
+
+.phfck-violations-view .phfck-panel{
+  padding:16px;
+  border-radius:16px;
+}
+.phfck-violations-view .phfck-quick-head{margin-bottom:10px;padding-bottom:10px}
+.phfck-violations-view .phfck-quick-head > div:first-child{font-size:10.5px}
+.phfck-violations-view .phfck-quick-head h3{font-size:18px;margin-top:2px}
+.phfck-violations-view .phfck-mode-badge{padding:5px 10px;font-size:10.5px}
+
+.phfck-violations-view .phfck-person-filter-grid{
+  display:grid;
+  grid-template-columns:minmax(170px,.75fr) minmax(200px,.9fr) minmax(300px,1.45fr) 150px;
+  align-items:end;
+  gap:10px;
+  margin-bottom:10px;
+}
+.phfck-violations-view .phfck-person-filter-grid > *{min-width:0}
+.phfck-violations-view .phfck-person-filter-grid label{display:block;margin:0}
+.phfck-violations-view .phfck-person-filter-grid label > b{display:block;margin:0 0 5px}
+.phfck-violations-view .phfck-person-filter-grid input,
+.phfck-violations-view .phfck-person-filter-grid select,
+.phfck-violations-view .phfck-search-compact{
+  width:100%;
+  height:42px;
+  min-height:42px;
+}
+.phfck-violations-view .phfck-search-compact input{height:40px;min-height:40px}
+.phfck-violations-view .phfck-more-filter-toggle{
+  width:100%;
+  height:42px;
+  min-height:42px;
+  padding:0 12px;
+  white-space:nowrap;
+}
+.phfck-violations-view .phfck-more-filter-toggle small{font-size:9.5px}
+
+.phfck-violations-view .phfck-assignment-card{
+  margin:10px 0 12px;
+  padding:11px 14px;
+  min-height:0;
+  border-radius:13px;
+}
+.phfck-violations-view .phfck-assignment-main small{font-size:10px;line-height:1.3}
+.phfck-violations-view .phfck-assignment-main b{font-size:14px;line-height:1.35}
+.phfck-violations-view .phfck-assignment-main span{font-size:11.5px;line-height:1.35}
+.phfck-violations-view .phfck-assignment-chips{gap:6px}
+.phfck-violations-view .phfck-assignment-chips span{padding:5px 9px;font-size:10.5px}
+.phfck-violations-view .phfck-context-notice{margin:8px 0 10px;padding:9px 12px;font-size:11.5px}
+
+.phfck-violations-view .phfck-quick-meta-row{gap:10px;margin-bottom:10px}
+.phfck-violations-view .phfck-quick-meta-row input,
+.phfck-violations-view .phfck-quick-meta-row select{height:42px;min-height:42px}
+.phfck-violations-view .phfck-quick-toolbar{gap:10px;margin-bottom:10px}
+.phfck-violations-view .phfck-quick-toolbar .phfck-search{height:42px;min-height:42px}
+.phfck-violations-view .phfck-quick-toolbar .phfck-search input{font-size:13px}
+.phfck-violations-view .phfck-quick-toolbar select{height:42px;min-height:42px;font-size:12.5px}
+.phfck-violations-view .phfck-quick-group-chips{gap:6px;margin:0 0 10px}
+.phfck-violations-view .phfck-quick-group-chips button{min-height:32px;padding:6px 10px;font-size:11px}
+
+/* Mục cha dùng đỏ rất nhẹ để phân tầng; mục con vẫn trắng, dễ rà lỗi. */
+.phfck-violations-view .phfck-quick-group{
+  margin-bottom:8px;
+  overflow:hidden;
+  border:1px solid #ecd8d4;
+  border-radius:13px;
+  background:#fffafa;
+}
+.phfck-violations-view .phfck-quick-group-head{
+  min-height:54px;
+  padding:9px 12px;
+  background:#fff5f3;
+  border-bottom-color:#f0dedb;
+}
+.phfck-violations-view .phfck-quick-group.is-open .phfck-quick-group-head{background:#fff1ee}
+.phfck-violations-view .phfck-quick-group-arrow{
+  width:28px;
+  height:28px;
+  min-width:28px;
+  background:#f4ddd8;
+  color:#985448;
+}
+.phfck-violations-view .phfck-quick-group-head > span:nth-child(2) b{font-size:13px;line-height:1.35;color:#563d38}
+.phfck-violations-view .phfck-quick-group-head > span:nth-child(2) small{font-size:10px;color:#8b6962}
+.phfck-violations-view .phfck-quick-group-meta strong{font-size:10.5px}
+.phfck-violations-view .phfck-quick-group-body{padding:7px;background:#fff}
+.phfck-violations-view .phfck-quick-row{
+  min-height:66px;
+  margin-bottom:6px;
+  padding:9px 10px;
+  gap:10px;
+  border-radius:10px;
+}
+.phfck-violations-view .phfck-quick-row:last-child{margin-bottom:0}
+.phfck-violations-view .phfck-quick-index{width:34px;height:34px;min-width:34px;font-size:11px}
+.phfck-violations-view .phfck-quick-criterion small{font-size:9.5px;line-height:1.3}
+.phfck-violations-view .phfck-quick-criterion b{font-size:12.5px;line-height:1.4}
+.phfck-violations-view .phfck-quick-criterion span{font-size:10.5px;line-height:1.35}
+.phfck-violations-view .phfck-quick-toggle{
+  min-width:104px;
+  height:38px;
+  min-height:38px;
+  padding:0 12px;
+  font-size:11.5px;
+}
+
+.phfck-violations-view .phfck-quick-footer{
+  bottom:12px;
+  min-height:62px;
+  padding:9px 12px;
+  gap:10px;
+  border-radius:15px;
+}
+.phfck-violations-view .phfck-quick-footer > div:first-child strong{font-size:13px;line-height:1.35}
+.phfck-violations-view .phfck-quick-footer > div:first-child small{font-size:10.5px;line-height:1.35}
+.phfck-violations-view .phfck-quick-footer > div:last-child{gap:8px}
+.phfck-violations-view .phfck-quick-footer button{
+  height:42px;
+  min-height:42px;
+  padding:0 18px;
+  font-size:13px;
+}
+
+.phfck-violations-view .phfck-form-grid{gap:10px}
+.phfck-violations-view .phfck-form-grid input,
+.phfck-violations-view .phfck-form-grid select{height:42px;min-height:42px}
+.phfck-violations-view textarea{line-height:1.5}
+.phfck-violations-view .phfck-detail-actions,
+.phfck-violations-view .phfck-multi-actions{gap:8px}
+.phfck-violations-view .phfck-detail-actions button,
+.phfck-violations-view .phfck-multi-actions button{min-height:40px;padding:0 14px}
+.phfck-violations-view .phfck-multi-row,
+.phfck-violations-view .phfck-late-row,
+.phfck-violations-view .phfck-log-row{font-size:12px}
+.phfck-violations-view .phfck-late-toolbar input,
+.phfck-violations-view .phfck-late-toolbar select,
+.phfck-violations-view .phfck-log-filters input,
+.phfck-violations-view .phfck-log-filters select{height:40px;min-height:40px;font-size:12.5px}
+
+@media (max-width:1200px){
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfck-violations-view .phfck-violation-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .phfck-violations-view .phfck-violation-tabs button{min-height:64px}
+  .phfck-violations-view .phfck-assignment-card{align-items:flex-start}
+}
+@media (max-width:760px){
+  .phfck-violations-view{padding-bottom:0}
+  .phfck-violations-view .phfck-page-head h1{font-size:21px}
+  .phfck-violations-view .phfck-panel{padding:12px;border-radius:13px}
+  .phfck-violations-view .phfck-violation-tabs{
+    display:flex;
+    overflow-x:auto;
+    padding:5px;
+    scroll-snap-type:x proximity;
+  }
+  .phfck-violations-view .phfck-violation-tabs button{flex:0 0 190px;scroll-snap-align:start}
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-assignment-card{display:block}
+  .phfck-violations-view .phfck-assignment-chips{justify-content:flex-start;margin-top:8px}
+  .phfck-violations-view .phfck-quick-meta-row,
+  .phfck-violations-view .phfck-quick-toolbar{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-quick-row{align-items:flex-start}
+  .phfck-violations-view .phfck-quick-toggle{min-width:88px}
+  .phfck-violations-view .phfck-quick-footer{
+    position:sticky;
+    left:auto;
+    right:auto;
+    bottom:0;
+    display:block;
+    margin-top:10px;
+  }
+  .phfck-violations-view .phfck-quick-footer > div:last-child{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px}
+  .phfck-violations-view .phfck-quick-footer button{width:100%;padding:0 10px}
+}
+
+/* PHF Checklist 1.21 — ghi từng lỗi tại dòng, chống che và mất chữ */
+.phfck-violations-view{overflow:visible}
+.phfck-violations-view .phfck-violation-tabs button{
+  grid-template-columns:32px minmax(0,1fr);
+  align-content:center;
+  overflow:visible;
+}
+.phfck-violations-view .phfck-violation-tabs button div{min-width:0;overflow:visible}
+.phfck-violations-view .phfck-violation-tabs button b,
+.phfck-violations-view .phfck-violation-tabs button small{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+.phfck-violations-view .phfck-person-filter-grid{
+  grid-template-columns:minmax(170px,.72fr) minmax(190px,.82fr) minmax(300px,1.55fr) minmax(180px,.72fr);
+  margin:12px 0 10px;
+}
+.phfck-violations-view .phfck-more-filter-toggle{
+  height:46px;
+  min-height:46px;
+}
+.phfck-violations-view .phfck-more-filter-toggle small{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.2;
+}
+.phfck-violations-view .phfck-assignment-card,
+.phfck-violations-view .phfck-assignment-main,
+.phfck-violations-view .phfck-assignment-chips{min-width:0}
+.phfck-violations-view .phfck-assignment-main b,
+.phfck-violations-view .phfck-assignment-main span,
+.phfck-violations-view .phfck-assignment-chips span{
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+.phfck-violations-view .phfck-quick-detail{
+  grid-template-columns:minmax(260px,1fr) minmax(150px,180px) minmax(130px,155px) minmax(145px,170px);
+  align-items:end;
+}
+.phfck-violations-view .phfck-quick-detail > *{min-width:0}
+.phfck-violations-view .phfck-quick-row-submit{
+  height:42px;
+  min-height:42px;
+  padding:0 13px;
+  white-space:nowrap;
+  border-radius:10px;
+}
+.phfck-violations-view .phfck-quick-footer{
+  position:sticky;
+  left:auto;
+  right:auto;
+  bottom:8px;
+  width:auto;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:12px 0 0;
+}
+.phfck-violations-view .phfck-quick-footer > div:last-child{flex-wrap:nowrap}
+.phfck-violations-view .phfck-quick-footer button{white-space:nowrap}
+
+.phfck-violations-view .phfck-multi-entry{overflow:hidden}
+.phfck-violations-view .phfck-multi-list,
+.phfck-violations-view .phfck-multi-row-live{min-width:0;max-width:100%;box-sizing:border-box}
+.phfck-violations-view .phfck-multi-row-live{
+  grid-template-columns:34px minmax(125px,.75fr) minmax(110px,.65fr) minmax(210px,1.25fr) minmax(220px,1.2fr) 42px 34px;
+  gap:8px;
+  overflow:hidden;
+}
+.phfck-violations-view .phfck-multi-row-live > *{min-width:0;max-width:100%;box-sizing:border-box}
+.phfck-violations-view .phfck-multi-evidence,
+.phfck-violations-view .phfck-multi-remove{
+  position:static;
+  width:100%;
+  min-width:0;
+  transform:none;
+}
+.phfck-violations-view .phfck-multi-footer.is-sticky{
+  position:sticky;
+  left:auto;
+  right:auto;
+  bottom:8px;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.phfck-violations-view .phfck-detail-actions{bottom:8px}
+
+@media (max-width:1350px){
+  .phfck-violations-view .phfck-person-filter-grid{
+    grid-template-columns:minmax(180px,.8fr) minmax(210px,1fr) minmax(300px,1.4fr);
+  }
+  .phfck-violations-view .phfck-more-filter-toggle{grid-column:auto;width:100%}
+  .phfck-violations-view .phfck-multi-row-live{
+    grid-template-columns:34px minmax(135px,.8fr) minmax(120px,.7fr) minmax(250px,1.5fr) 42px 34px;
+  }
+  .phfck-violations-view .phfck-multi-row-live .phfck-multi-note{grid-column:2/5}
+  .phfck-violations-view .phfck-multi-evidence-note{grid-column:2/5}
+}
+@media (max-width:1100px){
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfck-violations-view .phfck-more-filter-toggle{grid-column:auto}
+  .phfck-violations-view .phfck-quick-detail{grid-template-columns:minmax(0,1fr) 150px}
+  .phfck-violations-view .phfck-quick-evidence,
+  .phfck-violations-view .phfck-quick-row-submit{grid-row:2}
+  .phfck-violations-view .phfck-quick-evidence{grid-column:1}
+  .phfck-violations-view .phfck-quick-row-submit{grid-column:2}
+  .phfck-violations-view .phfck-quick-footer{align-items:flex-start}
+  .phfck-violations-view .phfck-quick-footer > div:last-child{flex-wrap:wrap}
+}
+@media (max-width:760px){
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-quick-detail{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-quick-evidence,
+  .phfck-violations-view .phfck-quick-row-submit{grid-column:1;grid-row:auto}
+  .phfck-violations-view .phfck-multi-row-live{
+    grid-template-columns:30px minmax(0,1fr) 34px;
+    overflow:visible;
+  }
+  .phfck-violations-view .phfck-multi-row-live > label,
+  .phfck-violations-view .phfck-multi-row-live .phfck-multi-criterion,
+  .phfck-violations-view .phfck-multi-row-live .phfck-multi-note,
+  .phfck-violations-view .phfck-multi-evidence-note{grid-column:2/4}
+  .phfck-violations-view .phfck-multi-evidence{grid-column:2}
+  .phfck-violations-view .phfck-multi-remove{grid-column:3}
+}
+
+/* PHF Checklist 1.22 — công cụ Excel dùng chung cho toàn bộ Ghi nhận lỗi */
+.phfck-violation-excel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:-2px 0 12px;
+  padding:9px 11px;
+  border:1px solid #d9e7df;
+  border-radius:12px;
+  background:#f8fbf9;
+}
+.phfck-violation-excel > div:first-child{min-width:0}
+.phfck-violation-excel b{display:block;font-size:12px;color:#214d3e}
+.phfck-violation-excel small{display:block;margin-top:2px;font-size:10px;line-height:1.35;color:#73877f}
+.phfck-violation-excel > div:last-child{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.phfck-violation-excel button{min-height:36px;padding:0 11px;font-size:11px;white-space:nowrap}
+@media(max-width:900px){
+  .phfck-violation-excel{align-items:flex-start;flex-direction:column}
+  .phfck-violation-excel > div:last-child{width:100%;justify-content:flex-start}
+}
+@media(max-width:560px){
+  .phfck-violation-excel > div:last-child{display:grid;grid-template-columns:1fr}
+  .phfck-violation-excel button{width:100%}
+}
+
+/* PHF Checklist 1.23 — danh sách Việc cần xử lý từ Supabase */
+.phfck-filter-note.is-live{color:#237451;background:#eef8f2;border-color:#cfe7d8}
+.phfck-filter-note.is-live .phfck-dot{background:#35a166;box-shadow:0 0 0 4px rgba(53,161,102,.12)}
+.phfck-task-list{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.phfck-task-card{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(210px,270px);
+  gap:16px;
+  padding:14px 16px;
+  border:1px solid #dce8e2;
+  border-left:4px solid #78aa91;
+  border-radius:13px;
+  background:#fff;
+}
+.phfck-task-card.is-overdue{border-color:#edcbc4;border-left-color:#bd594c;background:#fffafa}
+.phfck-task-card-main{min-width:0}
+.phfck-task-card-main small{display:block;font-size:9.5px;font-weight:800;color:#789087;text-transform:uppercase}
+.phfck-task-card-main b{display:block;margin-top:3px;font-size:13.5px;line-height:1.4;color:#1b4639}
+.phfck-task-card-main p{margin:5px 0 0;font-size:11.5px;line-height:1.45;color:#536e64}
+.phfck-task-card-main span{display:block;margin-top:6px;font-size:10.5px;color:#7a8c85}
+.phfck-task-card-side{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;text-align:right}
+.phfck-task-card-side i{padding:5px 9px;border-radius:999px;background:#eaf5ee;color:#28694d;font-size:10px;font-style:normal;font-weight:800}
+.phfck-task-card-side strong{font-size:11.5px;color:#34594d}
+.phfck-task-card-side small{font-size:10px;color:#7b8e86}
+.phfck-task-card.is-overdue .phfck-task-card-side i{background:#f8e5e1;color:#a14337}
+@media(max-width:720px){
+  .phfck-task-card{grid-template-columns:1fr}
+  .phfck-task-card-side{align-items:flex-start;text-align:left}
+}
+
+/* PHF Checklist 1.24 — phân quyền động theo từng năng lực và phạm vi */
+.phfck-status.is-live{background:#edf8f1;color:#237450;border-color:#cbe5d5}
+.phfck-permission-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 170px auto;align-items:center;gap:10px;margin:15px 0 12px}
+.phfck-permission-toolbar .phfck-search{min-width:0}
+.phfck-permission-toolbar>select{height:42px;border:1px solid #d7e5de;border-radius:11px;background:#fff;padding:0 11px;color:#31584b}
+.phfck-permission-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.phfck-permission-actions button{min-height:40px;padding:0 11px;font-size:10.5px;white-space:nowrap}
+.phfck-permission-table{border:1px solid #dce8e2;border-radius:13px;overflow:hidden}
+.phfck-permission-head,.phfck-permission-row{display:grid;grid-template-columns:minmax(145px,1.05fr) minmax(135px,.9fr) minmax(190px,1.25fr) minmax(190px,1.25fr) minmax(120px,.8fr) 58px;gap:11px;align-items:center;padding:11px 13px}
+.phfck-permission-head{background:#f3f8f5;color:#668078;font-size:9px;font-weight:900;text-transform:uppercase}
+.phfck-permission-row{border-top:1px solid #e5ede9;background:#fff;color:#254d40}
+.phfck-permission-row:hover{background:#fbfdfc}
+.phfck-permission-row span{min-width:0}
+.phfck-permission-row b,.phfck-permission-row i{display:block;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;line-height:1.35;font-style:normal}
+.phfck-permission-row small{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#7a8d85;font-size:9.5px;line-height:1.3}
+.phfck-permission-row i{width:max-content;max-width:100%;padding:4px 7px;border-radius:999px;background:#edf7f1;color:#286c50;font-weight:800}
+.phfck-row-action{border:1px solid #cadfd5;border-radius:9px;background:#fff;color:#126044;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer}
+.phfck-permission-empty{padding:34px 18px;text-align:center;background:#fbfdfc}
+.phfck-permission-empty b{display:block;color:#244f40}.phfck-permission-empty p{margin:5px 0 0;color:#7a8d85;font-size:11px}
+.phfck-permission-modal{width:min(900px,calc(100vw - 28px))}
+.phfck-permission-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.phfck-permission-form label{display:block}.phfck-permission-form label.is-wide{grid-column:1/-1}
+.phfck-permission-form label>span{display:block;margin-bottom:6px;color:#31584b;font-size:10.5px;font-weight:800}
+.phfck-permission-form input,.phfck-permission-form select,.phfck-permission-form textarea{width:100%;border:1px solid #d4e3dc;border-radius:10px;background:#fff;color:#244d40;padding:10px 11px;font:inherit}
+.phfck-permission-form input,.phfck-permission-form select{height:42px}.phfck-permission-form textarea{resize:vertical}
+.phfck-permission-capabilities{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:15px 0}
+.phfck-permission-capabilities>b{width:100%;color:#244f40;font-size:11px}
+.phfck-permission-capabilities label{display:flex;align-items:center;gap:6px;border:1px solid #d9e7df;border-radius:999px;background:#f8fbf9;padding:7px 10px;color:#385e51;font-size:10.5px;font-weight:700}
+.phfck-permission-capabilities input{accent-color:#1b805d}
+.phfck-danger-soft{margin-right:auto;border:1px solid #efc9c2;border-radius:10px;background:#fff4f1;color:#a64a3d;padding:9px 13px;font-weight:800;cursor:pointer}
+.phfck-permission-preview{width:min(880px,calc(100vw - 28px))}
+.phfck-permission-preview-list{display:flex;flex-direction:column;gap:7px;margin-top:12px;max-height:390px;overflow:auto}
+.phfck-permission-preview-list>div{display:grid;grid-template-columns:1fr .9fr 1.5fr;gap:12px;align-items:center;border:1px solid #deebe4;border-radius:11px;padding:10px;background:#fff;color:#34594d;font-size:10.5px}
+.phfck-permission-preview-list b{color:#214c3e}.phfck-permission-preview-list small{display:block;margin-top:2px;color:#81928b}
+@media(max-width:1180px){
+  .phfck-permission-toolbar{grid-template-columns:1fr 160px}.phfck-permission-actions{grid-column:1/-1;justify-content:flex-start}
+  .phfck-permission-head,.phfck-permission-row{grid-template-columns:1fr .9fr 1.2fr 1.2fr 100px 52px}
+}
+@media(max-width:820px){
+  .phfck-permission-toolbar{grid-template-columns:1fr}.phfck-permission-actions{grid-column:auto}
+  .phfck-permission-head{display:none}.phfck-permission-row{grid-template-columns:1fr 1fr;padding:13px}.phfck-permission-row>span:last-child{grid-column:1/-1}
+  .phfck-permission-form{grid-template-columns:1fr}.phfck-permission-form label.is-wide{grid-column:auto}
+  .phfck-permission-preview-list>div{grid-template-columns:1fr}
+}
+
+/* PHF Checklist 1.25 — màn theo vai trò và phạm vi server-side */
+.phfck-role-shell{min-height:100vh;background:radial-gradient(circle at 85% 12%,rgba(192,225,166,.2),transparent 30%),#f5f9f6}
+.phfck-role-main{width:min(1420px,calc(100% - 42px));margin:0 auto;padding:28px 0 50px}
+.phfck-role-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.phfck-role-heading small{display:block;color:#6e8c80;font-size:10px;font-weight:900;letter-spacing:.08em}
+.phfck-role-heading h1{margin:5px 0 4px;color:#064f3b;font-size:27px;line-height:1.2}
+.phfck-role-heading p{margin:0;color:#647c73;font-size:12px}
+.phfck-role-scope{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #cce4d7;border-left:5px solid #2e9b68;border-radius:14px;background:linear-gradient(105deg,#f1faf4,#fbfefc);padding:14px 17px}
+.phfck-role-scope small{display:block;color:#799087;font-size:9px;font-weight:900;letter-spacing:.06em}.phfck-role-scope b{display:block;margin-top:3px;color:#174d3b;font-size:14px}.phfck-role-scope span{display:block;margin-top:3px;color:#73877f;font-size:10.5px}
+.phfck-role-scope i{font-style:normal;border:1px solid #c5dfd2;border-radius:999px;background:#fff;color:#28704f;padding:6px 10px;font-size:10px;font-weight:800;white-space:nowrap}
+.phfck-role-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:14px 0}
+.phfck-role-stats article{border:1px solid #dce9e2;border-radius:13px;background:#fff;padding:13px 15px}.phfck-role-stats span{display:block;color:#71877e;font-size:10px}.phfck-role-stats strong{display:block;margin-top:5px;color:#0d5b43;font-size:23px}.phfck-role-stats small{display:block;margin-top:3px;color:#87968f;font-size:9.5px}
+.phfck-role-own,.phfck-role-team{margin-top:13px;padding:17px}
+.phfck-role-person-card{display:grid;grid-template-columns:minmax(220px,1fr) minmax(390px,1.35fr) auto;gap:15px;align-items:center;border:1px solid #dce9e2;border-radius:12px;background:#fff;padding:12px 13px}
+.phfck-role-person-card.is-own{background:linear-gradient(105deg,#f1faf3,#fff);border-color:#cbe4d6}
+.phfck-role-person-main{display:flex;align-items:center;gap:10px;min-width:0}.phfck-role-person-main>span{display:grid;place-items:center;width:48px;height:42px;border-radius:10px;background:#eaf5ed;color:#176348;font-size:10px;font-weight:900}.phfck-role-person-main div{min-width:0}.phfck-role-person-main b{display:block;overflow:hidden;text-overflow:ellipsis;color:#1d4b3b;font-size:12px}.phfck-role-person-main small{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#788c84;font-size:9.5px;white-space:nowrap}
+.phfck-role-person-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.phfck-role-person-meta span{min-width:0;border-left:1px solid #e2ebe6;padding-left:9px}.phfck-role-person-meta small{display:block;color:#84948e;font-size:8.5px;text-transform:uppercase}.phfck-role-person-meta b{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#345c4e;font-size:10px;white-space:nowrap}
+.phfck-role-person-action{display:flex;align-items:center;gap:7px}.phfck-role-person-action>span{border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850;white-space:nowrap}.phfck-role-person-action .can-review{background:#e7f5eb;color:#24704d}.phfck-role-person-action .view-only{background:#f2f5f3;color:#718078}.phfck-role-person-action button{border:1px solid #d8e4de;border-radius:9px;background:#f7faf8;color:#87958f;padding:7px 9px;font-size:9.5px}
+.phfck-role-team-list{display:flex;flex-direction:column;gap:8px}
+.phfck-role-note{margin-top:13px;border:1px solid #e5d7a8;border-radius:12px;background:#fffaf0;padding:12px 14px}.phfck-role-note b{display:block;color:#705d20;font-size:11px}.phfck-role-note p{margin:3px 0 0;color:#85764b;font-size:10px;line-height:1.45}
+.phfck-role-loading,.phfck-role-error{display:flex;align-items:center;justify-content:center;gap:13px;min-height:320px;border:1px solid #dce8e2;border-radius:16px;background:#fff;text-align:left}.phfck-role-loading b,.phfck-role-error b{display:block;color:#244e3f;font-size:14px}.phfck-role-loading p,.phfck-role-error p{margin:4px 0 0;color:#758981;font-size:11px}.phfck-role-error>span{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fae9e5;color:#a6493d;font-size:20px;font-weight:900}.phfck-role-error button{margin-top:10px;border:0;border-radius:9px;background:#1e805c;color:#fff;padding:8px 12px;font-weight:800;cursor:pointer}
+.phfck-role-empty-card{border:1px dashed #d5e3dc;border-radius:12px;background:#fafcfb;padding:18px}.phfck-role-empty-card b{display:block;color:#355b4e}.phfck-role-empty-card p{margin:4px 0 0;color:#7e9088;font-size:10.5px}
+@media(max-width:1050px){
+  .phfck-role-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfck-role-person-card{grid-template-columns:1fr}.phfck-role-person-action{justify-content:flex-start}
+}
+@media(max-width:650px){
+  .phfck-role-main{width:min(100% - 22px,1420px);padding-top:18px}.phfck-role-heading{flex-direction:column}.phfck-role-scope{align-items:flex-start;flex-direction:column}.phfck-role-stats{grid-template-columns:1fr 1fr}.phfck-role-person-meta{grid-template-columns:1fr}.phfck-role-person-meta span{border-left:0;border-top:1px solid #e4ece8;padding:7px 0 0}.phfck-role-own,.phfck-role-team{padding:12px}
+}
+
+/* PHF Checklist 1.26 — Phiếu tháng, bước 1: Admin đọc và khởi tạo dữ liệu thật */
+.phfck-monthly-data td{vertical-align:middle}
+.phfck-monthly-data td b,.phfck-monthly-data td strong{display:block;color:#214f3f;font-size:11px}
+.phfck-monthly-data td small{display:block;margin-top:4px;color:#7d9088;font-size:9.5px;line-height:1.35}
+.phfck-monthly-data td small.is-warning{color:#a65b35;font-weight:800}
+.phfck-monthly-state{display:inline-flex;border-radius:999px;padding:6px 9px;background:#eef4f1;color:#526e63;font-size:9.5px;font-weight:850;white-space:nowrap}
+.phfck-monthly-state.waiting_self{background:#fff5df;color:#8a641b}
+.phfck-monthly-state.waiting_review{background:#e9f4ff;color:#28668b}
+.phfck-monthly-state.reviewed{background:#eeeaff;color:#6250a0}
+.phfck-monthly-state.locked{background:#e8f5ec;color:#27704d}
+.phfck-monthly-empty.is-error>div{background:#fae9e5;color:#a6493d}
+.phfck-monthly-toolbar .phfck-secondary{height:42px;white-space:nowrap}
+@media(max-width:900px){
+  .phfck-monthly-data{min-width:820px}
+}
+
+/* PHF Checklist 1.26.1 — thông báo dễ thấy và hệ chữ Phiếu tháng đồng bộ */
+.phfck-toast-host{top:20px;right:auto;left:50%;transform:translateX(-50%);width:min(460px,calc(100vw - 32px))}
+.phfck-toast{grid-template-columns:40px 1fr 28px;padding:14px 14px 16px}
+.phfck-toast-copy b{font-size:14px;font-weight:850;line-height:1.3}
+.phfck-toast-copy p{margin-top:5px;font-size:12px;line-height:1.5}
+.phfck-monthly-head h1{font-size:28px;font-weight:850;line-height:1.2}
+.phfck-monthly-head p{font-size:12.5px;line-height:1.5}
+.phfck-monthly-summary span{font-size:11.5px;font-weight:750}
+.phfck-monthly-summary strong{font-size:27px;font-weight:900}
+.phfck-monthly-summary small{font-size:10.5px;line-height:1.4}
+.phfck-monthly-flow b{font-size:11.5px;font-weight:850;line-height:1.35}
+.phfck-monthly-flow p{font-size:10.2px;line-height:1.45}
+.phfck-monthly-toolbar label span{font-size:11px;font-weight:850}
+.phfck-monthly-toolbar input[type=month],.phfck-monthly-toolbar .phfck-search input{font-size:12.5px}
+.phfck-monthly-tabs button{font-size:11px;font-weight:800}
+.phfck-monthly-data th{font-size:10.5px;font-weight:900;color:#47665b}
+.phfck-monthly-data td b,.phfck-monthly-data td strong{font-size:12px;font-weight:850;line-height:1.35}
+.phfck-monthly-data td small{font-size:10px;line-height:1.4}
+.phfck-monthly-state{font-size:10px;font-weight:850}
+.phfck-monthly-rules .phfck-panel-head h3{font-weight:850}
+@media(max-width:680px){
+  .phfck-toast-host{top:10px;left:10px;right:10px;transform:none;width:auto}
+}
+
+/* PHF Checklist 1.27 — mở kỳ đánh giá tháng an toàn */
+.phfck-monthly-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.phfck-monthly-period-state{display:inline-flex;align-items:center;min-height:40px;border:1px solid #c8dfd3;border-radius:999px;background:#f1f8f4;color:#267052;padding:0 14px;font-size:11px;font-weight:850}
+.phfck-monthly-period-state.locked{background:#f2f4f3;color:#687b73}
+.phfck-monthly-state.draft{background:#edf1ef;color:#5f756c}
+.phfck-monthly-open-modal{width:min(720px,100%)}
+.phfck-monthly-open-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.phfck-monthly-open-summary article{border:1px solid #dce9e2;border-radius:13px;background:#f9fcfa;padding:13px 14px}
+.phfck-monthly-open-summary article.is-warning{border-color:#ead79d;background:#fff9e8}
+.phfck-monthly-open-summary span{display:block;color:#71877e;font-size:10.5px;font-weight:800}
+.phfck-monthly-open-summary strong{display:block;margin-top:5px;color:#135b43;font-size:24px;font-weight:900}
+.phfck-monthly-open-summary .is-warning strong{color:#9a6500}
+@media(max-width:680px){
+  .phfck-monthly-head-actions{width:100%;display:grid;grid-template-columns:1fr}
+  .phfck-monthly-open-summary{grid-template-columns:1fr}
+}
+
+/* PHF Checklist 1.28 — mở thử một tài khoản và tự đánh giá */
+.phfck-monthly-pilot-select>span{display:block;margin-bottom:7px;color:#31584b;font-size:11px;font-weight:850}
+.phfck-monthly-pilot-select select{width:100%;height:44px;border:1px solid #d4e3dc;border-radius:11px;background:#fff;color:#244d40;padding:0 12px;font:inherit}
+.phfck-monthly-pilot-person{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.phfck-monthly-pilot-person>div{border:1px solid #dfeae5;border-radius:12px;background:#fafcfb;padding:11px 12px}
+.phfck-monthly-pilot-person small{display:block;color:#81928b;font-size:9.5px}.phfck-monthly-pilot-person b{display:block;margin-top:4px;color:#245142;font-size:11.5px}
+.phfck-self-monthly{margin-top:13px;padding:17px}
+.phfck-self-monthly.is-empty>div{padding:10px}.phfck-self-monthly.is-empty small{color:#71877e;font-size:9.5px;font-weight:900;letter-spacing:.06em}.phfck-self-monthly.is-empty h3{margin:6px 0;color:#214f3f}.phfck-self-monthly.is-empty p{margin:0;color:#778b83;font-size:10.5px}
+.phfck-role-loading.is-compact{min-height:150px;border:0}
+.phfck-self-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.phfck-self-context>div{border:1px solid #dfeae5;border-radius:11px;background:#f9fcfa;padding:10px 12px}.phfck-self-context small{display:block;color:#82938c;font-size:9px;text-transform:uppercase}.phfck-self-context b{display:block;margin-top:4px;color:#255344;font-size:11px}
+.phfck-self-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px}
+.phfck-self-row{display:grid;grid-template-columns:minmax(250px,1.5fr) 100px 80px 120px minmax(180px,1fr);gap:9px;align-items:center;min-width:850px;padding:9px 11px;border-bottom:1px solid #e8efeb}
+.phfck-self-row:last-child{border-bottom:0}.phfck-self-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:900;text-transform:uppercase}
+.phfck-self-row div small{display:block;color:#83948d;font-size:8.8px}.phfck-self-row div b{display:block;margin-top:3px;color:#264f41;font-size:10.8px}.phfck-self-row>span{color:#526e64;font-size:10px}
+.phfck-self-row input{width:100%;height:38px;border:1px solid #d6e4dd;border-radius:9px;background:#fff;color:#264f41;padding:0 9px;font:inherit;font-size:10.5px}.phfck-self-row input:disabled{background:#f1f5f3;color:#74877f}
+.phfck-self-note{display:block;margin-top:12px}.phfck-self-note>span{display:block;margin-bottom:6px;color:#31584b;font-size:10.5px;font-weight:850}.phfck-self-note textarea{width:100%;box-sizing:border-box;border:1px solid #d6e4dd;border-radius:10px;padding:10px;color:#264f41;font:inherit;resize:vertical}.phfck-self-note textarea:disabled{background:#f2f5f3}
+.phfck-self-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:12px}
+.phfck-self-fallback{border:1px solid #ead79d;border-radius:11px;background:#fff9e8;padding:13px}.phfck-self-fallback b{color:#775b17}.phfck-self-fallback p{margin:4px 0 0;color:#837044;font-size:10px}
+@media(max-width:700px){
+  .phfck-monthly-pilot-person,.phfck-self-context{grid-template-columns:1fr}
+  .phfck-self-actions{display:grid;grid-template-columns:1fr 1fr}
+}
+
+/* PHF Checklist 1.29.1 — khóa điểm Checklist ở phần nhân viên và giải thích nguồn */
+.phfck-checklist-breakdown{margin:0 0 12px;border:1px solid #c9e2d4;border-left:4px solid #2d9a67;border-radius:12px;background:#f5fbf7;overflow:hidden}
+.phfck-checklist-breakdown summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;cursor:pointer;list-style:none}
+.phfck-checklist-breakdown summary::-webkit-details-marker{display:none}
+.phfck-checklist-breakdown summary small{display:block;color:#718a80;font-size:9px;font-weight:900;letter-spacing:.06em}
+.phfck-checklist-breakdown summary b{display:block;margin-top:3px;color:#155b42;font-size:13px;font-weight:900}
+.phfck-checklist-breakdown summary span{display:block;margin-top:3px;color:#70867d;font-size:10px}
+.phfck-checklist-breakdown summary>strong{flex:none;border:1px solid #c8dfd3;border-radius:999px;background:#fff;color:#267052;padding:6px 10px;font-size:10px}
+.phfck-checklist-breakdown-body{border-top:1px solid #dcebe3;padding:8px 13px 11px;background:#fff}
+.phfck-checklist-breakdown-body article{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:9px 2px;border-bottom:1px solid #e8efeb}
+.phfck-checklist-breakdown-body article div{min-width:0}
+.phfck-checklist-breakdown-body article small{display:block;color:#81938b;font-size:9px}
+.phfck-checklist-breakdown-body article b{display:block;margin-top:3px;color:#284f41;font-size:10.8px}
+.phfck-checklist-breakdown-body article p{margin:3px 0 0;color:#6f837b;font-size:9.8px;line-height:1.4}
+.phfck-checklist-breakdown-body article>strong{flex:none;color:#b14e40;font-size:11.5px}
+.phfck-checklist-rule{margin:9px 0 0;color:#667d74;font-size:9.8px;line-height:1.45}
+.phfck-checklist-no-error{padding:8px 1px;color:#38705b;font-size:10px}
+.phfck-self-row.is-automatic{background:#f8fcf9}
+.phfck-auto-score{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:38px;border:1px solid #c8e1d4;border-radius:9px;background:#eaf6ee;padding:0 8px}
+.phfck-auto-score b{color:#176046;font-size:11.5px}
+.phfck-auto-score small{color:#688078;font-size:8px;font-weight:800}
+.phfck-auto-note{display:flex;align-items:center;min-height:38px;border:1px solid #dce8e2;border-radius:9px;background:#f2f6f4;color:#667d74;padding:0 9px;font-size:9.5px;font-weight:750}
+@media(max-width:700px){
+  .phfck-checklist-breakdown summary{align-items:flex-start}
+}
+
+/* PHF Checklist 1.30 — người quản lý thẩm định phiếu tháng */
+.phfck-review-workspace,.phfck-review-detail{margin-top:13px;padding:17px}
+.phfck-review-list{display:flex;flex-direction:column;gap:8px}
+.phfck-review-list>button{display:grid;grid-template-columns:minmax(220px,1fr) 150px auto;gap:14px;align-items:center;width:100%;border:1px solid #dce8e2;border-radius:11px;background:#fff;padding:11px 13px;color:#244f40;text-align:left;cursor:pointer}
+.phfck-review-list>button:hover,.phfck-review-list>button.is-selected{border-color:#75b895;background:#f4faf6}
+.phfck-review-list span b,.phfck-review-list span small{display:block}.phfck-review-list span b{font-size:11.5px}.phfck-review-list span small{margin-top:3px;color:#7d9088;font-size:9.5px}
+.phfck-review-list i{font-style:normal}
+.phfck-review-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.phfck-review-context>div{border:1px solid #dfeae5;border-radius:11px;background:#f9fcfa;padding:10px 12px}.phfck-review-context small{display:block;color:#82938c;font-size:9px;text-transform:uppercase}.phfck-review-context b{display:block;margin-top:4px;color:#255344;font-size:11px}
+.phfck-review-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px}
+.phfck-review-row{display:grid;grid-template-columns:minmax(260px,1.45fr) 100px 130px minmax(210px,1fr);gap:10px;align-items:center;min-width:850px;padding:10px 11px;border-bottom:1px solid #e8efeb}
+.phfck-review-row:last-child{border-bottom:0}.phfck-review-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:900;text-transform:uppercase}
+.phfck-review-row.is-automatic{background:#f7fcf8}
+.phfck-review-row>div small,.phfck-review-row>div b,.phfck-review-row>div span{display:block}.phfck-review-row>div small{color:#82938c;font-size:8.8px}.phfck-review-row>div b{margin-top:3px;color:#244f40;font-size:10.8px}.phfck-review-row>div span{margin-top:3px;color:#7b8e86;font-size:9px}
+.phfck-review-row>strong{color:#245743;font-size:11px}
+.phfck-review-row input,.phfck-review-row textarea{width:100%;box-sizing:border-box;border:1px solid #d5e3dc;border-radius:9px;background:#fff;color:#264f41;padding:8px 9px;font:inherit;font-size:10.5px}.phfck-review-row input{height:39px}.phfck-review-row textarea{resize:vertical}.phfck-review-row input:disabled,.phfck-review-row textarea:disabled{background:#f1f4f2;color:#73857e}
+.phfck-review-warning{margin-top:10px;border:1px solid #e7ca8c;border-radius:11px;background:#fff8e9;padding:10px 12px}.phfck-review-warning b{display:block;color:#855f15;font-size:10.8px}.phfck-review-warning p{margin:3px 0 0;color:#887342;font-size:9.8px}
+@media(max-width:700px){
+  .phfck-review-list>button{grid-template-columns:1fr}.phfck-review-context{grid-template-columns:1fr}
+}
+
+/* PHF Checklist 1.30.1 — Admin đổi người thẩm định trên web */
+.phfck-monthly-reviewer-btn{display:inline-flex;margin-top:6px;border:1px solid #bfdccc;border-radius:8px;background:#f4faf6;color:#1e6a4c;padding:6px 8px;font-size:9px;font-weight:850;cursor:pointer}
+.phfck-monthly-reviewer-btn:hover{background:#e8f5ed}
+.phfck-monthly-reviewer-modal{width:min(720px,calc(100vw - 28px))}
+.phfck-reviewer-before-after{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:14px}
+.phfck-reviewer-before-after>div{border:1px solid #dfe9e4;border-radius:11px;background:#f9fcfa;padding:11px 12px}
+.phfck-reviewer-before-after small{display:block;color:#82938c;font-size:9px;text-transform:uppercase}
+.phfck-reviewer-before-after b{display:block;margin-top:4px;color:#255344;font-size:11px;line-height:1.4}
+.phfck-reviewer-field{display:block;margin-top:12px}.phfck-reviewer-field>span{display:block;margin-bottom:6px;color:#31584b;font-size:10.5px;font-weight:850}.phfck-reviewer-field em{color:#b64b3e}
+.phfck-reviewer-field select,.phfck-reviewer-field textarea{width:100%;box-sizing:border-box;border:1px solid #d4e3dc;border-radius:10px;background:#fff;color:#244d40;padding:10px 11px;font:inherit}.phfck-reviewer-field select{height:43px}.phfck-reviewer-field textarea{resize:vertical}
+.phfck-reviewer-field>small{display:block;margin-top:5px;color:#7d9088;font-size:9.5px;line-height:1.4}
+@media(max-width:700px){.phfck-reviewer-before-after{grid-template-columns:1fr}}
+
+/* PHF Checklist 1.30.2 — Admin thẩm định toàn công ty */
+.phfck-monthly-admin-review-btn{display:block;margin-top:7px;border:1px solid #82bfa0;border-radius:8px;background:#eef8f1;color:#176646;padding:7px 10px;font-size:9.5px;font-weight:900;cursor:pointer}
+.phfck-monthly-admin-review-btn:hover{background:#def1e5}
+.phfck-admin-review-modal{width:min(1180px,calc(100vw - 28px));max-height:94vh}
+.phfck-admin-review-modal .phfck-modal-body{background:#fbfdfc}
+.phfck-admin-review-notice{margin:0 0 14px}
+.phfck-admin-review-progress{margin:0 0 12px;border:1px solid #d8e8df;border-radius:11px;background:#fff;padding:10px 12px}.phfck-admin-review-progress>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.phfck-admin-review-progress b{color:#245442;font-size:10.8px}.phfck-admin-review-progress div span{color:#267352;font-size:10px;font-weight:850}.phfck-admin-review-progress>i{display:block;height:6px;margin-top:8px;border-radius:999px;background:#e9f0ec;overflow:hidden}.phfck-admin-review-progress>i span{display:block;height:100%;border-radius:inherit;background:#37a85d;transition:width .2s ease}.phfck-admin-review-progress>small{display:block;margin-top:6px;color:#7b8e86;font-size:9px}
+.phfck-admin-review-modal .phfck-review-row.is-missing{background:#fff3f1;box-shadow:inset 4px 0 #d94c45}.phfck-admin-review-modal .phfck-review-row.is-missing input[data-phfck-admin-review-value]{border-color:#d94c45;background:#fff9f8;box-shadow:0 0 0 3px rgba(217,76,69,.12)}
+.phfck-review-history{margin-top:14px;border:1px solid #dce9e2;border-radius:12px;background:#fff;padding:12px 14px}.phfck-review-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #e7efeb}.phfck-review-history-head small,.phfck-review-history-head b{display:block}.phfck-review-history-head small{color:#81938b;font-size:8.5px;letter-spacing:.08em}.phfck-review-history-head b{margin-top:3px;color:#244f40;font-size:11px}.phfck-review-history-head>span{border-radius:999px;background:#eef7f1;color:#247151;padding:5px 8px;font-size:9px;font-weight:850}.phfck-review-timeline{padding-top:10px}.phfck-review-timeline article{position:relative;display:grid;grid-template-columns:14px 1fr;gap:9px;padding-bottom:12px}.phfck-review-timeline article:last-child{padding-bottom:0}.phfck-review-timeline article:before{content:"";position:absolute;left:5px;top:11px;bottom:-2px;width:1px;background:#cfe2d8}.phfck-review-timeline article:last-child:before{display:none}.phfck-review-timeline article>i{position:relative;z-index:1;width:11px;height:11px;margin-top:2px;border:3px solid #dff0e6;border-radius:50%;background:#2f9d67}.phfck-review-timeline b,.phfck-review-timeline span{display:block}.phfck-review-timeline b{color:#285143;font-size:10.5px}.phfck-review-timeline span{margin-top:2px;color:#7d9088;font-size:9px}.phfck-review-timeline p{margin:3px 0 0;color:#536f65;font-size:9.5px;line-height:1.45}.phfck-review-history-empty{margin:0;color:#7d9088;font-size:10px}
+@media(max-width:700px){.phfck-admin-review-modal{width:calc(100vw - 12px);max-height:96vh}.phfck-admin-review-modal .phfck-modal-head,.phfck-admin-review-modal .phfck-modal-body,.phfck-admin-review-modal .phfck-modal-foot{padding-left:12px;padding-right:12px}.phfck-admin-review-modal .phfck-modal-foot{flex-wrap:wrap}.phfck-admin-review-modal .phfck-modal-foot button{flex:1 1 140px}}
+
+/* PHF Checklist 1.30.5 — Nhân viên xem kết quả thẩm định */
+.phfck-employee-review-result{margin-top:14px;border:1px solid #cfe4d8;border-radius:14px;background:#fbfefc;padding:14px}.phfck-employee-review-result>.phfck-panel-head{padding:0 0 11px}.phfck-employee-result-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px;background:#fff}.phfck-employee-result-row{display:grid;grid-template-columns:minmax(260px,1.5fr) 120px 140px minmax(220px,1fr);gap:10px;align-items:center;min-width:820px;padding:10px 12px;border-bottom:1px solid #e8efeb}.phfck-employee-result-row:last-child{border-bottom:0}.phfck-employee-result-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:900;text-transform:uppercase}.phfck-employee-result-row.is-automatic{background:#f4fbf6}.phfck-employee-result-row>div small,.phfck-employee-result-row>div b{display:block}.phfck-employee-result-row>div small{color:#82938c;font-size:8.8px}.phfck-employee-result-row>div b{margin-top:3px;color:#244f40;font-size:10.8px}.phfck-employee-result-row>strong{color:#205b43;font-size:11px}.phfck-employee-result-row>span{color:#647c72;font-size:9.8px;line-height:1.45}.phfck-employee-review-note{margin-top:10px;border:1px solid #dce8e2;border-radius:10px;background:#fff;padding:10px 12px}.phfck-employee-review-note small{display:block;color:#82938c;font-size:8.5px}.phfck-employee-review-note p{margin:4px 0 0;color:#345c4e;font-size:10.5px;line-height:1.5}.phfck-employee-history{display:flex;gap:18px;margin-top:11px;padding:10px 12px;border-radius:10px;background:#eef7f1}.phfck-employee-history article{display:grid;grid-template-columns:10px 1fr;gap:7px;align-items:start;flex:1}.phfck-employee-history i{width:8px;height:8px;margin-top:3px;border-radius:50%;background:#329d68;box-shadow:0 0 0 3px #d9ede1}.phfck-employee-history b,.phfck-employee-history span{display:block}.phfck-employee-history b{color:#285143;font-size:10px}.phfck-employee-history span{margin-top:2px;color:#72877e;font-size:9px}
+@media(max-width:700px){.phfck-employee-history{flex-direction:column}}
+
+/* PHF Checklist 1.30.6 — Điểm kết quả cuối */
+.phfck-final-score-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.phfck-final-score-cards article{position:relative;overflow:hidden;border:1px solid #dce8e2;border-radius:12px;background:#fff;padding:12px 14px}.phfck-final-score-cards article:after{content:"";position:absolute;width:62px;height:62px;right:-18px;top:-22px;border-radius:50%;background:#eef7f1}.phfck-final-score-cards article.is-final{border-color:#8bc99f;background:#f1faf4}.phfck-final-score-cards article.is-final:after{background:#d9f0df}.phfck-final-score-cards span,.phfck-final-score-cards strong,.phfck-final-score-cards small{position:relative;z-index:1;display:block}.phfck-final-score-cards span{color:#71877e;font-size:9px;text-transform:uppercase}.phfck-final-score-cards strong{margin:4px 0;color:#176343;font-size:23px}.phfck-final-score-cards small{color:#7b8e86;font-size:9px;line-height:1.4}
+@media(max-width:700px){.phfck-final-score-cards{grid-template-columns:1fr}}
+
+/* PHF Checklist 1.31.0 — Báo cáo điều hành dùng dữ liệu demo cô lập */
+.phfck-demo-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px;border:1px solid #efd58f;border-radius:14px;background:#fff9e9;padding:13px 16px;color:#715714}.phfck-demo-banner b,.phfck-demo-banner span{display:block}.phfck-demo-banner b{font-size:13px}.phfck-demo-banner span{margin-top:3px;font-size:11px;line-height:1.45}.phfck-demo-banner>strong{flex:0 0 auto;border-radius:999px;background:#f4c84c;padding:7px 11px;font-size:10px}
+.phfck-exec-filters{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr)) auto;gap:10px;align-items:end;margin-bottom:14px}.phfck-exec-filters label>span{display:block;margin-bottom:6px;color:#48665b;font-size:10px;font-weight:850}.phfck-exec-filters select{width:100%;height:43px;border:1px solid #cfe0d7;border-radius:11px;background:#fff;color:#234f40;padding:0 12px;font:inherit;font-size:11px}.phfck-exec-filters button{height:43px;white-space:nowrap}
+.phfck-exec-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfck-exec-kpis article{position:relative;overflow:hidden;border:1px solid #d7e7df;border-radius:15px;background:#fff;padding:15px 17px;box-shadow:0 8px 24px rgba(24,91,61,.055)}.phfck-exec-kpis article:after{content:"";position:absolute;width:72px;height:72px;right:-22px;top:-25px;border-radius:50%;background:#e7f5eb}.phfck-exec-kpis article.is-warning:after{background:#fff0c8}.phfck-exec-kpis article.is-danger:after{background:#ffe1dc}.phfck-exec-kpis span,.phfck-exec-kpis strong,.phfck-exec-kpis small{position:relative;z-index:1;display:block}.phfck-exec-kpis span{color:#617a70;font-size:10.5px;font-weight:800}.phfck-exec-kpis strong{margin:6px 0 4px;color:#075a3b;font-size:28px;line-height:1}.phfck-exec-kpis small{color:#83958e;font-size:10px}
+.phfck-exec-insights{display:grid;grid-template-columns:250px 1fr;gap:22px;align-items:start;margin-bottom:14px;padding:16px 18px;background:linear-gradient(115deg,#eef9f1,#fbfefc)}.phfck-exec-insights h3{margin:4px 0 0;color:#124f38;font-size:16px}.phfck-exec-insights small{color:#2b865e;font-size:9px;font-weight:900;letter-spacing:.08em}.phfck-exec-insights ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}.phfck-exec-insights li{border-left:3px solid #58b66f;border-radius:0 9px 9px 0;background:#fff;padding:10px 11px;color:#375c4e;font-size:11px;line-height:1.5}
+.phfck-exec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}.phfck-exec-chart,.phfck-exec-trend,.phfck-exec-table{padding:16px}.phfck-exec-chart .phfck-panel-head,.phfck-exec-trend .phfck-panel-head,.phfck-exec-table .phfck-panel-head{padding:0 0 13px}.phfck-exec-chart .phfck-panel-head h3,.phfck-exec-trend .phfck-panel-head h3,.phfck-exec-table .phfck-panel-head h3{margin:3px 0 0;color:#164f3a;font-size:15px}.phfck-exec-chart .phfck-panel-head>span,.phfck-exec-table .phfck-panel-head>span{color:#6e857b;font-size:10px}
+.phfck-exec-bars,.phfck-issue-bars{display:grid;gap:8px}.phfck-exec-bars button,.phfck-issue-bars button{display:grid;grid-template-columns:minmax(135px,1.15fr) minmax(100px,1fr) 45px;gap:10px;align-items:center;width:100%;border:0;border-radius:10px;background:#f8fbf9;padding:9px 10px;color:#285344;text-align:left;cursor:pointer}.phfck-exec-bars button:hover,.phfck-issue-bars button:hover,.phfck-issue-bars button.active{background:#eef8f1}.phfck-exec-bars button span b,.phfck-exec-bars button span small,.phfck-issue-bars button span b,.phfck-issue-bars button span small{display:block}.phfck-exec-bars button b,.phfck-issue-bars button b{font-size:11px}.phfck-exec-bars button small,.phfck-issue-bars button small{margin-top:2px;color:#7d9088;font-size:9px}.phfck-exec-bars button>i,.phfck-issue-bars button>i{height:8px;overflow:hidden;border-radius:999px;background:#e3ece7}.phfck-exec-bars button>i em,.phfck-issue-bars button>i em{display:block;height:100%;border-radius:inherit;background:#42ad63}.phfck-issue-bars button>i em{background:#e3a731}.phfck-exec-bars button>strong,.phfck-issue-bars button>strong{text-align:right;font-size:12px}
+.phfck-score-columns,.phfck-trend-points{display:flex;align-items:stretch;gap:8px;height:190px}.phfck-score-columns button,.phfck-trend-points article{display:grid;grid-template-rows:25px 1fr 34px;flex:1;min-width:0;border:1px solid transparent;border-radius:10px;background:#f8fbf9;padding:8px 6px;color:#31594b;text-align:center}.phfck-score-columns button{cursor:pointer}.phfck-score-columns button:hover,.phfck-score-columns button.active{border-color:#77bd8c;background:#eef8f1}.phfck-score-columns strong,.phfck-trend-points strong{font-size:12px}.phfck-score-columns i,.phfck-trend-points i{display:flex;align-items:flex-end;justify-content:center}.phfck-score-columns i em,.phfck-trend-points i em{display:block;width:65%;min-height:8px;border-radius:7px 7px 2px 2px;background:#56b86f}.phfck-score-columns span,.phfck-trend-points span{align-self:center;color:#687f75;font-size:9px;line-height:1.25}.phfck-trend-points{height:190px}.phfck-trend-points article{grid-template-rows:25px 1fr 24px;border-color:#edf2ef}.phfck-trend-points i em{background:#2d9561}
+.phfck-exec-table{margin-bottom:14px}.phfck-exec-table .phfck-table-wrap{overflow:auto;border:1px solid #dce8e2;border-radius:11px}.phfck-exec-table .phfck-table{min-width:850px}.phfck-exec-table td small{display:block;margin-top:2px;color:#84968e;font-size:9px}.phfck-exec-table td strong{color:#176343}.phfck-report-loading{padding:38px;text-align:center;color:#617a70}
+@media(max-width:1050px){.phfck-exec-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-exec-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-exec-insights{grid-template-columns:1fr}.phfck-exec-insights ul{grid-template-columns:1fr}}
+@media(max-width:720px){.phfck-demo-banner{align-items:flex-start;flex-direction:column}.phfck-exec-filters,.phfck-exec-kpis,.phfck-exec-grid{grid-template-columns:1fr}.phfck-exec-bars button,.phfck-issue-bars button{grid-template-columns:minmax(120px,1fr) 80px 35px}.phfck-score-columns{height:170px;gap:4px}.phfck-score-columns button{padding-left:2px;padding-right:2px}.phfck-score-columns span{font-size:8px}}
+
+/* PHF Checklist 1.31.1 — Báo cáo ưu tiên phòng ban và đề xuất điều hành */
+.phfck-exec-grid-main{grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr)}
+.phfck-department-ranking .phfck-exec-bars button.is-warning{background:#fffaf0}.phfck-department-ranking .phfck-exec-bars button.is-warning>i em{background:#e2aa35}.phfck-department-ranking .phfck-exec-bars button.is-danger{background:#fff2f0}.phfck-department-ranking .phfck-exec-bars button.is-danger>i em{background:#d95b50}
+.phfck-report-more{display:block;margin:12px auto 0;border:1px solid #cfe0d7;border-radius:999px;background:#f7fbf8;color:#386452;padding:8px 18px;font-size:10px;font-weight:850;cursor:pointer}.phfck-report-more:hover{background:#edf7f0}
+.phfck-action-panel,.phfck-quality-panel,.phfck-cross-panel{margin-bottom:14px;padding:16px}.phfck-action-panel .phfck-panel-head,.phfck-quality-panel .phfck-panel-head,.phfck-cross-panel .phfck-panel-head{padding:0 0 13px}.phfck-action-panel h3,.phfck-quality-panel h3,.phfck-cross-panel h3{margin:3px 0 0;color:#164f3a;font-size:15px}.phfck-action-panel .phfck-panel-head>span,.phfck-quality-panel .phfck-panel-head>span,.phfck-cross-panel .phfck-panel-head>span{color:#70877d;font-size:10px}
+.phfck-action-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.phfck-action-list article{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(170px,1fr) auto;gap:12px;align-items:center;border-left:4px solid #7dbd90;border-radius:0 11px 11px 0;background:#f7fbf8;padding:12px}.phfck-action-list article.is-high{border-left-color:#d85b50;background:#fff5f3}.phfck-action-list article.is-medium{border-left-color:#e0a632;background:#fffaf0}.phfck-action-list article.is-watch{border-left-color:#8aa39a}.phfck-action-list b,.phfck-action-list small{display:block}.phfck-action-list b{color:#285344;font-size:11px}.phfck-action-list small{margin-top:3px;color:#7a8f86;font-size:9px}.phfck-action-list p{margin:0;color:#536f65;font-size:10px;line-height:1.45}.phfck-action-list strong{border-radius:999px;background:#eaf5ed;color:#266849;padding:6px 8px;font-size:9px;white-space:nowrap}
+.phfck-quality-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.phfck-quality-list article{border:1px solid #dbe8e1;border-radius:11px;background:#fbfdfc;padding:12px}.phfck-quality-list article.is-review{border-color:#e9c981;background:#fffaf0}.phfck-quality-list article.is-calibrate{border-color:#dfaaa3;background:#fff5f3}.phfck-quality-list b,.phfck-quality-list small,.phfck-quality-list span,.phfck-quality-list strong{display:block}.phfck-quality-list b{color:#285344;font-size:11px}.phfck-quality-list small{margin-top:3px;color:#7a8f86;font-size:9px}.phfck-quality-list p{min-height:30px;margin:9px 0;color:#536f65;font-size:10px;line-height:1.45}.phfck-quality-list span{color:#6c8379;font-size:9px}.phfck-quality-list strong{margin-top:8px;color:#286849;font-size:10px}
+.phfck-cross-panel .phfck-table-wrap{overflow:auto;border:1px solid #dce8e2;border-radius:11px}.phfck-cross-panel .phfck-table{min-width:850px}.phfck-signal-status{display:inline-block;border-radius:999px;background:#eef6f1;color:#28684a;padding:5px 8px;font-size:9px;font-weight:850}.phfck-report-rule{margin:11px 0 0;border-radius:9px;background:#f1f6f3;padding:9px 11px;color:#657d73;font-size:9.5px;line-height:1.45}
+@media(max-width:1100px){.phfck-exec-grid-main{grid-template-columns:1fr}.phfck-action-list{grid-template-columns:1fr}.phfck-quality-list{grid-template-columns:1fr}}
+@media(max-width:720px){.phfck-action-list article{grid-template-columns:1fr}.phfck-action-list strong{justify-self:start}}
+
+/* PHF Checklist 1.31.4 — Chọn phạm vi từ danh mục thật */
+.phfck-permission-scope-field>span{display:block;margin-bottom:6px;color:#31584b;font-size:10.5px;font-weight:850}.phfck-scope-picker{overflow:hidden;border:1px solid #d4e3dc;border-radius:10px;background:#fbfdfc}.phfck-scope-search{display:flex;align-items:center;gap:7px;border-bottom:1px solid #e2ebe6;background:#fff;padding:7px 10px}.phfck-scope-search>span{color:#16714e;font-size:15px}.phfck-scope-search input{width:100%;border:0;outline:0;background:transparent;color:#244d40;font:inherit;font-size:10.5px}.phfck-scope-choice-list{max-height:176px;overflow:auto;padding:7px}.phfck-scope-choice-list>label,.phfck-scope-choice-group>label{display:flex;align-items:flex-start;gap:8px;border-radius:8px;padding:7px 8px;cursor:pointer}.phfck-scope-choice-list>label:hover,.phfck-scope-choice-group>label:hover{background:#edf7f0}.phfck-scope-choice-list input,.phfck-scope-choice-group input{width:15px;height:15px;margin:1px 0 0;accent-color:#218858}.phfck-scope-choice-list label span b,.phfck-scope-choice-list label span small{display:block}.phfck-scope-choice-list label span b{color:#285344;font-size:10.5px}.phfck-scope-choice-list label span small{margin-top:2px;color:#7a8f86;font-size:9px}.phfck-scope-choice-group+ .phfck-scope-choice-group{margin-top:7px;border-top:1px solid #e2ebe6;padding-top:7px}.phfck-scope-choice-group>strong{display:block;padding:4px 8px;color:#246a4b;font-size:9.5px;text-transform:uppercase}.phfck-scope-auto{padding:12px}.phfck-scope-auto b,.phfck-scope-auto p{display:block}.phfck-scope-auto b{color:#285344;font-size:10.5px}.phfck-scope-auto p{margin:3px 0 0;color:#758a81;font-size:9.5px;line-height:1.45}
+
+/* PHF Checklist 1.31.5 — Form quyền ngắn gọn cho Admin */
+.phfck-permission-person.is-wide{grid-column:1/-1;border:1px solid #cfe3d8;border-radius:11px;background:#f5fbf7;padding:11px 13px}.phfck-permission-person>span,.phfck-permission-person>b,.phfck-permission-person>small{display:block}.phfck-permission-person>span{color:#71877e;font-size:9px;text-transform:uppercase}.phfck-permission-person>b{margin-top:4px;color:#20543f;font-size:12px}.phfck-permission-person>small{margin-top:3px;color:#7a8f86;font-size:9.5px}
+.phfck-permission-custom-warning{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px 0;border:1px solid #e8c879;border-radius:11px;background:#fff9e9;padding:11px 13px}.phfck-permission-custom-warning b,.phfck-permission-custom-warning p{display:block}.phfck-permission-custom-warning b{color:#735615;font-size:11px}.phfck-permission-custom-warning p{margin:3px 0 0;color:#86713e;font-size:9.5px;line-height:1.4}.phfck-permission-custom-warning button{flex:0 0 auto;border:1px solid #d6aa43;border-radius:9px;background:#fff;color:#765817;padding:8px 10px;font-size:9.5px;font-weight:850;cursor:pointer}
+.phfck-permission-summary{margin-top:14px;border:1px solid #d8e7df;border-radius:12px;background:#fff;padding:13px}.phfck-permission-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px}.phfck-permission-section-head small,.phfck-permission-section-head h3{display:block}.phfck-permission-section-head small{color:#28845b;font-size:8.5px;letter-spacing:.07em}.phfck-permission-section-head h3{margin:3px 0 0;color:#20513e;font-size:13px}.phfck-permission-summary-table{overflow:hidden;border:1px solid #e0e9e4;border-radius:10px}.phfck-permission-summary-table>div{display:grid;grid-template-columns:150px minmax(150px,.8fr) minmax(220px,1.25fr);gap:10px;align-items:center;padding:9px 11px;border-bottom:1px solid #e8efeb}.phfck-permission-summary-table>div:last-child{border-bottom:0}.phfck-permission-summary-table>div.is-head{background:#f2f7f4;color:#71857d;font-size:8.5px;font-weight:850;text-transform:uppercase}.phfck-permission-summary-table b{color:#285344;font-size:10.5px}.phfck-permission-summary-table span{color:#60786e;font-size:10px}.phfck-permission-summary-table strong{color:#246448;font-size:10px}.phfck-permission-summary-table strong.is-missing{color:#bd473d}
+.phfck-permission-advanced{margin-top:12px;border:1px solid #dce8e2;border-radius:12px;background:#fbfdfc;padding:13px}.phfck-permission-scope-stack{display:grid;gap:10px}.phfck-permission-scope-block{border:1px solid #dce8e2;border-radius:11px;background:#fff;padding:11px}.phfck-permission-scope-head{display:grid;grid-template-columns:minmax(170px,1fr) minmax(230px,1.3fr);gap:12px;align-items:center;margin-bottom:8px}.phfck-permission-scope-head>span{color:#31584b;font-size:10.5px;font-weight:850}.phfck-permission-scope-head select{width:100%;height:40px;border:1px solid #d4e3dc;border-radius:9px;background:#fff;color:#244d40;padding:0 10px;font:inherit;font-size:10.5px}.phfck-permission-advanced .phfck-permission-capabilities{margin-top:0}
+.phfck-permission-reason{display:block;margin-top:14px}.phfck-permission-reason>span{display:block;margin-bottom:6px;color:#31584b;font-size:10.5px;font-weight:850}.phfck-permission-reason textarea{width:100%;box-sizing:border-box;border:1px solid #d4e3dc;border-radius:10px;background:#fff;color:#244d40;padding:10px 11px;font:inherit;resize:vertical}
+@media(max-width:700px){.phfck-permission-person.is-wide{grid-column:auto}.phfck-permission-custom-warning,.phfck-permission-section-head{align-items:stretch;flex-direction:column}.phfck-permission-summary-table>div{grid-template-columns:1fr}.phfck-permission-summary-table>div.is-head{display:none}.phfck-permission-scope-head{grid-template-columns:1fr}}
+
+/* PHF Checklist 1.31.8 · Chuẩn hóa khu phân quyền và nguyên tắc an toàn */
+.phfck-permission-settings .phfck-settings-card{padding:20px}
+.phfck-permission-settings .phfck-panel-head{margin-bottom:16px;padding-bottom:14px}
+.phfck-permission-settings .phfck-panel-head small{font-size:10.5px;line-height:1.3;letter-spacing:.08em}
+.phfck-permission-settings .phfck-panel-head h3{margin-top:6px;font-size:18px;line-height:1.3}
+.phfck-permission-settings .phfck-settings-intro{font-size:12px;line-height:1.55;margin:0 0 16px}
+.phfck-permission-settings .phfck-permission-head{font-size:10px;line-height:1.35}
+.phfck-permission-settings .phfck-permission-row b,
+.phfck-permission-settings .phfck-permission-row i{font-size:12.5px;line-height:1.4}
+.phfck-permission-settings .phfck-permission-row small{font-size:10.5px;line-height:1.4;margin-top:4px}
+.phfck-permission-safety-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #e7efe9}
+.phfck-permission-safety-row:last-child{border-bottom:0}
+.phfck-permission-safety-row>span{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#e7f4ec;color:#08734e;font-size:15px;font-weight:900}
+.phfck-permission-safety-row b{display:block;color:#214b3c;font-size:13px;line-height:1.4}
+.phfck-permission-safety-row p{margin:4px 0 0;color:#6d8178;font-size:11.5px;line-height:1.5}
+.phfck-permission-safety-row strong{display:inline-flex;align-items:center;white-space:nowrap;padding:6px 9px;border:1px solid #c9dfd3;border-radius:999px;background:#f2f9f5;color:#276a4f;font-size:10px;line-height:1;font-weight:850}
+.phfck-permission-presets .phfck-settings-list{gap:10px}
+.phfck-permission-presets .phfck-settings-list>div{grid-template-columns:40px minmax(0,1fr);gap:12px;padding:12px 13px;align-items:start}
+.phfck-permission-presets .phfck-settings-list>div>span{width:34px;height:34px;border-radius:10px;font-size:10px}
+.phfck-permission-presets .phfck-settings-list b{font-size:13px;line-height:1.4}
+.phfck-permission-presets .phfck-settings-list small{font-size:11px;line-height:1.5;margin-top:5px}
+.phfck-permission-presets .phfck-settings-list em{font-style:normal;font-weight:800;color:#496b5e}
+@media(max-width:760px){
+  .phfck-permission-safety-row{grid-template-columns:34px 1fr}
+  .phfck-permission-safety-row strong{grid-column:2;width:max-content}
+}
+
+/* PHF Checklist 1.31.9 · Cài đặt gọn theo bốn nhóm vận hành */
+.phfck-settings-combined{display:grid;gap:14px}
+.phfck-settings-combined>.phfck-settings-grid{margin:0}
+.phfck-settings-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.phfck-settings-head{align-items:flex-start}
+
+/* PHF Checklist 1.32.0 · Xem trước cấu hình thông báo */
+.phfck-notification-settings .phfck-settings-wide{padding:20px}
+.phfck-notification-preview-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:-3px 0 18px;padding:12px 14px;border:1px solid #ead38f;border-radius:12px;background:#fff9e8;color:#745713}
+.phfck-notification-preview-banner b,.phfck-notification-preview-banner span{display:block}.phfck-notification-preview-banner b{font-size:11px;letter-spacing:.04em}.phfck-notification-preview-banner span{margin-top:3px;font-size:10.5px}.phfck-notification-preview-banner strong{font-size:10px;white-space:nowrap}
+.phfck-notification-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.phfck-notification-kpis>div{padding:13px;border:1px solid #dce9e2;border-radius:12px;background:#f8fcf9}.phfck-notification-kpis span,.phfck-notification-kpis b{display:block}.phfck-notification-kpis span{color:#71867d;font-size:10.5px}.phfck-notification-kpis b{margin-top:5px;color:#155c42;font-size:16px;line-height:1.35}
+.phfck-notification-toolbar{display:grid;grid-template-columns:minmax(280px,1fr) 210px;gap:10px;margin-bottom:12px}.phfck-notification-toolbar select{height:44px;border:1px solid #d4e2db;border-radius:11px;background:#fff;padding:0 12px;color:#284e40;font:inherit;font-size:12px}
+.phfck-notification-rule-list{border:1px solid #dce8e2;border-radius:13px;overflow:hidden}.phfck-notification-rule-list>article{display:grid;grid-template-columns:minmax(250px,1.35fr) minmax(180px,.9fr) minmax(190px,1fr) minmax(150px,.75fr) 90px;gap:12px;align-items:center;padding:13px;border-bottom:1px solid #e5ede9;background:#fff}.phfck-notification-rule-list>article:last-child{border-bottom:0}.phfck-notification-rule-list>article.is-mandatory{background:#fffdf6}.phfck-notification-rule-list small,.phfck-notification-rule-list b{display:block}.phfck-notification-rule-list>article>div>small{color:#7b8d85;font-size:9.5px;margin-bottom:4px}.phfck-notification-rule-list>article>div>b{color:#2b5143;font-size:11px;line-height:1.4}
+.phfck-notification-rule-main{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:center}.phfck-notification-rule-main>span{display:inline-flex;justify-content:center;padding:5px 7px;border-radius:999px;font-size:9px;font-weight:850}.phfck-notification-rule-main>span.is-violations{background:#fff0e7;color:#98542e}.phfck-notification-rule-main>span.is-monthly{background:#eaf4ff;color:#276497}.phfck-notification-rule-main>span.is-operation{background:#f0f4df;color:#687921}.phfck-notification-rule-main>span.is-system{background:#f3eefe;color:#6847a0}.phfck-notification-rule-main div>b{font-size:12.5px;color:#174c39}.phfck-notification-rule-main div>small{display:block;margin-top:4px;color:#70837b;font-size:10.5px}
+.phfck-notification-rule-state>span,.phfck-notification-rule-state>strong{display:block}.phfck-notification-rule-state>span{width:max-content;padding:4px 7px;border-radius:999px;background:#eef6f1;color:#27684e;font-size:9px;font-weight:850}.phfck-notification-rule-state>span.is-khẩn{background:#ffeae6;color:#a44135}.phfck-notification-rule-state>strong{margin-top:5px;color:#526e62;font-size:9.5px;line-height:1.35}.phfck-notification-rule-list button{border:1px solid #bed7ca;border-radius:9px;background:#fff;color:#176044;padding:8px 9px;font-size:10px;font-weight:850;cursor:pointer}
+.phfck-notification-empty{padding:40px;text-align:center;border:1px dashed #ceddd5;border-radius:12px}.phfck-notification-empty b{color:#285143}.phfck-notification-empty p{margin:5px 0 0;color:#74877f;font-size:11px}
+.phfck-notification-permissions{display:grid;gap:9px}.phfck-notification-permissions>div{display:grid;grid-template-columns:36px 1fr;gap:11px;padding:12px;border:1px solid #dfeae4;border-radius:11px;background:#fafdfb}.phfck-notification-permissions>div>span{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:#e8f4ec;color:#176347;font-size:10px;font-weight:900}.phfck-notification-permissions p{margin:0}.phfck-notification-permissions b,.phfck-notification-permissions small{display:block}.phfck-notification-permissions b{font-size:12.5px;color:#245140}.phfck-notification-permissions small{margin-top:4px;color:#70847b;font-size:11px;line-height:1.45}
+.phfck-notification-modal{width:min(880px,calc(100vw - 30px))}.phfck-notification-draft-note{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;padding:10px 12px;border:1px solid #ead38f;border-radius:10px;background:#fff9e8}.phfck-notification-draft-note b{color:#755812;font-size:11px}.phfck-notification-draft-note span{color:#826f3c;font-size:10px}.phfck-notification-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.phfck-notification-form label{display:grid;gap:6px}.phfck-notification-form label.is-wide{grid-column:1/-1}.phfck-notification-form label>span{color:#35584b;font-size:11px;font-weight:850}.phfck-notification-form select,.phfck-notification-form input,.phfck-notification-form textarea{width:100%;box-sizing:border-box;border:1px solid #d2e0d9;border-radius:10px;background:#fff;padding:10px 11px;color:#234b3d;font:inherit;font-size:12px}.phfck-notification-form select,.phfck-notification-form input{height:42px}.phfck-notification-form textarea{resize:vertical;line-height:1.5}.phfck-notification-form label>small{color:#7a8c84;font-size:10px}.phfck-notification-access{margin-top:14px;padding:12px 14px;border:1px solid #cfe2d8;border-radius:11px;background:#f2f9f5}.phfck-notification-access b{color:#176045;font-size:12px}.phfck-notification-access p{margin:4px 0 0;color:#667e73;font-size:10.5px;line-height:1.5}
+@media(max-width:1100px){.phfck-notification-rule-list>article{grid-template-columns:1.2fr 1fr 1fr 130px}.phfck-notification-rule-list button{grid-column:1/-1;width:max-content}.phfck-notification-kpis{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.phfck-notification-preview-banner,.phfck-notification-draft-note{align-items:flex-start;flex-direction:column}.phfck-notification-toolbar,.phfck-notification-form{grid-template-columns:1fr}.phfck-notification-form label.is-wide{grid-column:auto}.phfck-notification-rule-list>article{grid-template-columns:1fr}.phfck-notification-rule-main{grid-template-columns:82px 1fr}.phfck-notification-kpis{grid-template-columns:1fr}}
+
+/* PHF Checklist 1.32.1 · Chuông và hộp thông báo thật */
+.phfck-notification-preview-banner.is-live{border-color:#acd8be;background:#edf9f1;color:#176044}.phfck-notification-preview-banner.is-pending{border-color:#ead38f;background:#fff9e8;color:#745713}
+.phfck-notification-bell-wrap{position:relative}.phfck-notification-bell{position:relative}.phfck-bell-glyph{width:23px;height:23px;display:block}.phfck-bell-glyph svg{width:100%;height:100%;display:block;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.phfck-notification-bell b{position:absolute;right:-5px;top:-6px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border-radius:999px;display:grid;place-items:center;background:#e0473e;color:#fff;border:2px solid #14804c;font-size:9px;line-height:1;font-weight:900}.phfck-notification-bell b[hidden]{display:none}
+.phfck-notification-inbox{position:absolute;right:0;top:51px;width:min(410px,calc(100vw - 28px));max-height:min(560px,calc(100vh - 100px));z-index:10030;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;border:1px solid #d6e5dd;border-radius:16px;background:#fff;box-shadow:0 22px 60px rgba(7,51,36,.24);color:#234a3b}
+.phfck-notification-inbox-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:15px 16px 12px;border-bottom:1px solid #e2ebe6;background:#f8fcf9}.phfck-notification-inbox-head b,.phfck-notification-inbox-head small{display:block}.phfck-notification-inbox-head b{font-size:15px;color:#124d37}.phfck-notification-inbox-head small{margin-top:3px;color:#71847a;font-size:10.5px}.phfck-notification-inbox-head button{border:0;background:transparent;color:#19704f;font-size:10px;font-weight:850;cursor:pointer}.phfck-notification-inbox-head button:disabled{opacity:.45;cursor:default}
+.phfck-notification-inbox-list{overflow:auto}.phfck-notification-inbox-list>button{width:100%;display:grid;grid-template-columns:9px 1fr;gap:10px;padding:13px 15px;border:0;border-bottom:1px solid #e8efeb;background:#fff;text-align:left;cursor:pointer}.phfck-notification-inbox-list>button.is-unread{background:#f2f9f5}.phfck-notification-inbox-list>button:hover{background:#f7fbf8}.phfck-notification-inbox-list>button>span{width:8px;height:8px;margin-top:5px;border-radius:50%;background:#8aa096}.phfck-notification-inbox-list>button>span.is-high{background:#e19a20}.phfck-notification-inbox-list>button>span.is-urgent{background:#dd4c41}.phfck-notification-inbox-list b,.phfck-notification-inbox-list p,.phfck-notification-inbox-list small{display:block}.phfck-notification-inbox-list b{color:#214f3e;font-size:12px}.phfck-notification-inbox-list p{margin:4px 0;color:#60766c;font-size:11px;line-height:1.45}.phfck-notification-inbox-list small{color:#899991;font-size:9.5px}.phfck-notification-inbox-empty{padding:35px 18px;text-align:center;color:#768981;font-size:11px}.phfck-notification-inbox-empty.is-error{color:#a34e43}
+@media(max-width:700px){.phfck-notification-inbox{position:fixed;top:70px;right:12px;left:12px;width:auto;max-height:calc(100vh - 86px)}}
+
+/* PHF Checklist 1.32.4 · Luồng xử lý thật và đồng bộ ô tìm kiếm */
+.phfck-permission-toolbar{grid-template-columns:minmax(360px,460px) 170px minmax(0,1fr)}
+.phfck-permission-toolbar .phfck-search{height:42px;min-height:42px;max-width:460px;padding:0 12px;border-radius:11px}
+.phfck-permission-toolbar .phfck-search input{height:40px;font-size:13px}.phfck-permission-toolbar .phfck-search>span{font-size:17px}
+.phfck-task-card-side>button{margin-top:8px;border:1px solid #b9d5c7;border-radius:9px;background:#fff;color:#146244;min-height:32px;padding:0 10px;font-size:10px;font-weight:850;cursor:pointer}
+.phfck-task-detail-modal{width:min(820px,calc(100vw - 30px))}.phfck-task-detail-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phfck-task-detail-summary>div{padding:11px 12px;border:1px solid #dfeae4;border-radius:10px;background:#f9fcfa}.phfck-task-detail-summary>div.is-wide{grid-column:1/-1}.phfck-task-detail-summary small,.phfck-task-detail-summary b{display:block}.phfck-task-detail-summary small{color:#7a8e84;font-size:9.5px}.phfck-task-detail-summary b{margin-top:4px;color:#285143;font-size:11.5px}.phfck-task-detail-summary p{margin:5px 0 0;color:#536e62;font-size:11px;line-height:1.5}
+.phfck-task-response{display:grid;gap:6px;margin-top:14px}.phfck-task-response>span{color:#31584a;font-size:11px;font-weight:850}.phfck-task-response textarea{box-sizing:border-box;width:100%;border:1px solid #d5e3dc;border-radius:10px;padding:10px;color:#274d40;font:inherit;font-size:11.5px;line-height:1.5;resize:vertical}.phfck-task-response>small{color:#7b8d85;font-size:9.5px}
+.phfck-task-history{margin-top:16px;padding-top:14px;border-top:1px solid #e2ebe6}.phfck-task-history>b{display:block;color:#21513e;font-size:12px;margin-bottom:10px}.phfck-task-history>div{display:grid;grid-template-columns:10px 1fr;gap:9px;padding:7px 0}.phfck-task-history>div>span{width:8px;height:8px;margin-top:4px;border-radius:50%;background:#50a56f}.phfck-task-history p{margin:0}.phfck-task-history p>b,.phfck-task-history p>small,.phfck-task-history p>em{display:block}.phfck-task-history p>b{font-size:10.5px;color:#31574a}.phfck-task-history p>small{margin-top:2px;color:#84958e;font-size:9px}.phfck-task-history p>em{margin-top:4px;color:#657a70;font-size:10px;font-style:normal}.phfck-task-action-buttons{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:1100px){.phfck-permission-toolbar{grid-template-columns:minmax(300px,1fr) 160px}.phfck-permission-toolbar .phfck-search{max-width:none}.phfck-permission-actions{grid-column:1/-1}}
+@media(max-width:700px){.phfck-permission-toolbar{grid-template-columns:1fr}.phfck-permission-actions{grid-column:auto}.phfck-task-detail-summary{grid-template-columns:1fr}.phfck-task-detail-summary>div.is-wide{grid-column:auto}.phfck-task-action-buttons{width:100%}.phfck-task-action-buttons>button{flex:1}}
+
+/* PHF Checklist 1.32.18 · Chuẩn hóa UI Cài đặt kỳ, quá hạn và công thức điểm */
+.phfck-cycle-settings-ui .phfck-settings-card,
+.phfck-monthly-policy-settings .phfck-settings-card,
+.phfck-scoring-settings .phfck-settings-card{padding:20px}
+.phfck-cycle-settings-ui .phfck-panel-head,
+.phfck-monthly-policy-settings .phfck-panel-head,
+.phfck-scoring-settings .phfck-panel-head{margin-bottom:16px;padding-bottom:14px}
+.phfck-cycle-settings-ui .phfck-panel-head small,
+.phfck-monthly-policy-settings .phfck-panel-head small,
+.phfck-scoring-settings .phfck-panel-head small{font-size:9.5px;line-height:1.35;letter-spacing:.07em}
+.phfck-cycle-settings-ui .phfck-panel-head h3,
+.phfck-monthly-policy-settings .phfck-panel-head h3,
+.phfck-scoring-settings .phfck-panel-head h3{margin-top:5px;font-size:17px;line-height:1.3}
+.phfck-cycle-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.phfck-cycle-toolbar .phfck-status{font-size:9.5px;padding:7px 10px}
+.phfck-cycle-toolbar .phfck-secondary{min-height:40px;padding:0 14px;border-radius:11px;font-size:11px}
+.phfck-cycle-deadline-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.phfck-cycle-deadline-grid>label{display:block;min-width:0;border:1px solid #dce9e2;border-radius:14px;background:linear-gradient(145deg,#fff,#f8fbf9);padding:15px}
+.phfck-cycle-deadline-grid>label>b{display:block;margin-bottom:10px;color:#234d3e;font-size:12px;line-height:1.4}
+.phfck-cycle-deadline-grid>label>small{display:block;margin-top:8px;color:#71857c;font-size:10px;line-height:1.45}
+.phfck-unit-input{display:flex;align-items:center;gap:8px}
+.phfck-unit-input>span{flex:0 0 auto;color:#607a6f;font-size:10.5px;font-weight:800}
+.phfck-cycle-deadline-grid input,
+.phfck-after-lock-editor select,
+.phfck-config-meta-grid input,
+.phfck-policy-config-row input,
+.phfck-process-row input{box-sizing:border-box;width:100%;height:42px;border:1px solid #d4e2db;border-radius:10px;background:#fff;padding:0 11px;color:#234d3f;font:inherit;font-size:12px;outline:0}
+.phfck-cycle-deadline-grid input:focus,
+.phfck-after-lock-editor select:focus,
+.phfck-config-meta-grid input:focus,
+.phfck-policy-config-row input:focus,
+.phfck-process-row input:focus{border-color:#75ae90;box-shadow:0 0 0 3px rgba(51,139,91,.10)}
+.phfck-cycle-deadline-grid input:disabled{opacity:1;background:#f8fbf9;color:#244e40;-webkit-text-fill-color:#244e40;cursor:default}
+.phfck-cutoff-inputs{display:grid;grid-template-columns:minmax(105px,.75fr) minmax(125px,1fr);gap:8px;align-items:center}
+.phfck-cycle-current{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;border:1px solid #cfe3d8;border-radius:12px;background:#f2f9f5;padding:11px 13px}
+.phfck-cycle-current b{color:#195f43;font-size:11.5px}
+.phfck-cycle-current span{color:#6d8178;font-size:10px;text-align:right}
+.phfck-after-lock-summary{display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;align-items:start;margin-bottom:8px;border:1px solid #cee3d7;border-radius:13px;background:#f2f9f5;padding:12px 13px}
+.phfck-after-lock-summary>span{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#dff0e7;color:#176747;font-size:16px;font-weight:900}
+.phfck-after-lock-summary.is-disabled{border-color:#eadbd8;background:#fff8f7}
+.phfck-after-lock-summary.is-disabled>span{background:#f8e7e4;color:#a84a3f}
+.phfck-after-lock-summary b{display:block;color:#20503d;font-size:12.5px;line-height:1.4}
+.phfck-after-lock-summary p{margin:4px 0 0;color:#667c72;font-size:10.5px;line-height:1.5}
+.phfck-after-lock-editor{display:grid;gap:7px;margin-bottom:8px;border:1px solid #cfe3d8;border-radius:13px;background:#f5faf7;padding:13px}
+.phfck-after-lock-editor>span{color:#285244;font-size:11.5px;font-weight:850}
+.phfck-after-lock-editor>small{color:#71857c;font-size:9.8px;line-height:1.45}
+.phfck-lock-rules-card .phfck-setting-row b{font-size:12px}
+.phfck-lock-rules-card .phfck-setting-row p{font-size:10.5px;line-height:1.45}
+.phfck-cycle-save-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;border:1px solid #cfe2d8;border-radius:15px;background:#f4faf6;padding:15px 16px}
+.phfck-config-meta-grid{display:grid;grid-template-columns:minmax(210px,.7fr) minmax(320px,1.3fr);gap:12px}
+.phfck-config-meta-grid label{display:grid;gap:6px;min-width:0}
+.phfck-config-meta-grid b{color:#285244;font-size:11.5px}
+.phfck-config-meta-grid small{color:#71857c;font-size:9.8px;line-height:1.4}
+.phfck-cycle-save-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px}
+.phfck-cycle-save-actions button{min-height:42px;padding:0 16px;border-radius:11px;font-size:11px}
+.phfck-policy-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.phfck-policy-choice{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:11px;align-items:start;min-height:82px;box-sizing:border-box;border:1px solid #dce8e2;border-radius:14px;background:linear-gradient(145deg,#fff,#f8fbf9);padding:15px;cursor:pointer;transition:border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.phfck-policy-choice:hover{border-color:#a9ceba;background:#f7fbf8}
+.phfck-policy-choice:has(input:checked){border-color:#69a987;background:#eef8f1;box-shadow:inset 3px 0 0 #25915d}
+.phfck-policy-choice input{position:absolute;opacity:0;pointer-events:none}
+.phfck-policy-choice>i{width:18px;height:18px;box-sizing:border-box;border:2px solid #b7c9c0;border-radius:50%;background:#fff;position:relative;margin-top:1px}
+.phfck-policy-choice input:checked+i{border-color:#238b59}
+.phfck-policy-choice input:checked+i:after{content:"";position:absolute;inset:3px;border-radius:50%;background:#238b59}
+.phfck-policy-choice b,.phfck-policy-choice small{display:block}
+.phfck-policy-choice b{color:#22503d;font-size:12.5px;line-height:1.4}
+.phfck-policy-choice small{margin-top:5px;color:#687e74;font-size:10.5px;line-height:1.5}
+.phfck-policy-config-row{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(360px,1.3fr);gap:12px;margin-top:13px}
+.phfck-policy-config-row label{display:grid;gap:7px;border:1px solid #e0eae5;border-radius:13px;background:#fbfdfc;padding:13px}
+.phfck-policy-config-row b{color:#285244;font-size:11.5px}
+.phfck-policy-config-row small{color:#71857c;font-size:9.8px;line-height:1.4}
+.phfck-policy-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:13px;padding-top:13px;border-top:1px solid #e3ece7}
+.phfck-policy-footer p{margin:0;color:#687e74;font-size:10.5px;line-height:1.45}
+.phfck-policy-footer button{flex:0 0 auto;min-height:42px;padding:0 17px;border-radius:11px;font-size:11px}
+.phfck-monthly-process-card{padding-top:18px!important;padding-bottom:18px!important}
+.phfck-monthly-process-card .phfck-panel-head{margin-bottom:12px;padding-bottom:11px}
+.phfck-process-row{display:grid;grid-template-columns:minmax(230px,.75fr) minmax(330px,1.25fr) auto;gap:12px;align-items:center}
+.phfck-process-row>label{display:grid;gap:6px;min-width:0}
+.phfck-process-row>label>b{color:#285244;font-size:11.5px}
+.phfck-process-row>label>small{color:#71857c;font-size:9.8px;line-height:1.4}
+.phfck-process-note{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #dce8e2;border-radius:12px;background:#f8fbf9;padding:10px 12px}
+.phfck-process-note>span{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:#e5f3ea;color:#1c704d;font-size:15px;font-weight:900}
+.phfck-process-note p{margin:0}.phfck-process-note b,.phfck-process-note small{display:block}
+.phfck-process-note b{color:#285244;font-size:11.5px}.phfck-process-note small{margin-top:3px;color:#71857c;font-size:9.8px;line-height:1.4}
+.phfck-process-row>button{min-height:42px;padding:0 15px;border-radius:11px;white-space:nowrap;font-size:11px}
+.phfck-scoring-formula .phfck-formula-card{display:grid;grid-template-columns:125px minmax(300px,.9fr) minmax(0,1fr);gap:18px;align-items:center;border-radius:14px;padding:16px 18px;text-align:left}
+.phfck-scoring-formula .phfck-formula-card span{font-size:10px}
+.phfck-scoring-formula .phfck-formula-card strong{margin:0;font-size:17px;line-height:1.4}
+.phfck-scoring-formula .phfck-formula-card p{font-size:10.5px;line-height:1.5}
+@media(max-width:1100px){
+  .phfck-cycle-deadline-grid{grid-template-columns:1fr 1fr}
+  .phfck-cycle-deadline-grid>label:last-child{grid-column:1/-1}
+  .phfck-process-row{grid-template-columns:1fr 1fr}.phfck-process-row>button{grid-column:2;justify-self:end}
+  .phfck-scoring-formula .phfck-formula-card{grid-template-columns:110px 1fr}.phfck-scoring-formula .phfck-formula-card p{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .phfck-cycle-toolbar,.phfck-policy-footer{align-items:stretch;flex-direction:column}
+  .phfck-cycle-toolbar .phfck-secondary,.phfck-policy-footer button{width:100%}
+  .phfck-cycle-deadline-grid,.phfck-policy-choice-grid,.phfck-policy-config-row,.phfck-config-meta-grid,.phfck-process-row,.phfck-scoring-formula .phfck-formula-card{grid-template-columns:1fr}
+  .phfck-cycle-deadline-grid>label:last-child,.phfck-process-row>button,.phfck-scoring-formula .phfck-formula-card p{grid-column:auto}
+  .phfck-cutoff-inputs{grid-template-columns:1fr}
+  .phfck-cycle-current{align-items:flex-start;flex-direction:column}.phfck-cycle-current span{text-align:left}
+  .phfck-cycle-save-bar{grid-template-columns:1fr}.phfck-cycle-save-actions{width:100%}.phfck-cycle-save-actions button{flex:1}
+  .phfck-process-row>button{width:100%;justify-self:stretch}
+  .phfck-scoring-formula .phfck-formula-card{gap:8px}
+}
+
+/* 1.32.19 - Quy tắc hệ thống cố định, không hiển thị như công tắc tính năng */
+.phfck-fixed-system-rule{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #edf2ef}
+.phfck-fixed-system-rule:last-child{border-bottom:0}
+.phfck-fixed-system-rule>span{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#e8f4ed;color:#1d7450;font-size:13px;font-weight:900}
+.phfck-fixed-system-rule b,.phfck-fixed-system-rule p{display:block}
+.phfck-fixed-system-rule b{color:#294c40;font-size:11px;line-height:1.35}
+.phfck-fixed-system-rule p{margin:4px 0 0;color:#74877f;font-size:9.8px;line-height:1.45}
+.phfck-fixed-system-rule strong{display:inline-flex;align-items:center;justify-content:center;min-height:24px;padding:0 9px;border:1px solid #cfe3d8;border-radius:999px;background:#f1f8f4;color:#36745b;font-size:8.8px;font-weight:800;white-space:nowrap}
+@media(max-width:620px){.phfck-fixed-system-rule{grid-template-columns:28px minmax(0,1fr)}.phfck-fixed-system-rule>strong{grid-column:2;justify-self:start}}
+
+/* PHF Checklist 1.32.23 - làm rõ Ghi chú và Lý do khác điểm chuẩn ở Đi trễ */
+.phfck-late-row.is-adjusted{background:linear-gradient(90deg,#fff 0,#fff 72%,#fffaf0 100%)}
+.phfck-late-note input{background:#fff}
+.phfck-late-reason.is-required input{border-color:#d6a651;background:#fffaf0;box-shadow:0 0 0 1px rgba(214,166,81,.10) inset;color:#3e4f47}
+.phfck-late-reason.is-required input::placeholder{color:#8a7041;opacity:1}
+.phfck-late-reason.is-required{position:relative}
+.phfck-late-reason.is-required:after{display:none;content:''}
+.phfck-late-row label.is-validation-error input,.phfck-late-row input.is-validation-error{border-color:#d65d51!important;background:#fff7f6!important;box-shadow:0 0 0 3px rgba(214,93,81,.12)!important}
+.phfck-late-row label.is-validation-error:after{content:'Vui lòng nhập tại đây';background:#fde8e5;color:#a33f36;border-color:#efbdb7}
+.phfck-late-review-list p em{font-style:normal;font-weight:800;color:#385c4d}
+.phfck-late-review-list .phfck-late-review-reason{margin-top:4px;padding:7px 9px;border-radius:8px;background:#fff8e9;border:1px solid #f0dfb6;color:#6e5724}
+@media(max-width:900px){.phfck-late-reason.is-required:after{display:none}}
+
+/* PHF Checklist 1.32.24 · Lý do khác điểm chuẩn không chồng tiêu đề */
+.phfck-late-reason.is-required input{border-color:#d6a651;background:#fffaf0;box-shadow:inset 3px 0 0 #e0b04d}
+.phfck-late-reason.is-required input:focus{border-color:#b98118;box-shadow:0 0 0 3px rgba(214,166,81,.16),inset 3px 0 0 #d79c29}
+
+/* PHF Checklist 1.32.25 · Đi trễ: lý do ngoại lệ ở dòng phụ và giữ vị trí nhập */
+.phfck-late-table-head,.phfck-late-row{
+  grid-template-columns:42px minmax(188px,1.35fr) 126px 112px 96px 108px 92px 98px minmax(220px,1.55fr) 34px;
+  min-width:1120px;
+}
+.phfck-late-row{align-items:end}
+.phfck-late-row.is-adjusted{background:#fff}
+.phfck-late-row>.phfck-multi-no,
+.phfck-late-row>.phfck-late-employee,
+.phfck-late-row>.phfck-late-date,
+.phfck-late-row>.phfck-late-shift,
+.phfck-late-row>.phfck-late-minutes,
+.phfck-late-row>.phfck-late-level,
+.phfck-late-row>.phfck-late-suggested,
+.phfck-late-row>.phfck-late-points,
+.phfck-late-row>.phfck-late-note,
+.phfck-late-row>.phfck-late-remove{grid-row:1!important}
+.phfck-late-reason-row{
+  grid-column:2/10!important;
+  grid-row:2!important;
+  display:grid!important;
+  grid-template-columns:minmax(250px,.7fr) minmax(380px,1.3fr);
+  align-items:center;
+  gap:10px;
+  margin-top:2px!important;
+  padding:9px 10px;
+  border:1px solid #ead6a3;
+  border-radius:10px;
+  background:#fffaf0;
+}
+.phfck-late-reason-row>span{
+  display:block!important;
+  color:#70571f!important;
+  font-size:10.5px!important;
+  font-weight:800!important;
+  line-height:1.35!important;
+}
+.phfck-late-reason-row input{
+  min-width:0!important;
+  height:36px!important;
+  border-color:#d6a651!important;
+  background:#fff!important;
+  box-shadow:inset 3px 0 0 #e0b04d;
+}
+.phfck-late-reason-row input:focus{
+  border-color:#b98118!important;
+  box-shadow:0 0 0 3px rgba(214,166,81,.16),inset 3px 0 0 #d79c29!important;
+}
+.phfck-late-reason-row.is-validation-error{border-color:#e2aaa4;background:#fff5f3}
+.phfck-late-reason-row.is-validation-error input,
+.phfck-late-reason-row input.is-validation-error{border-color:#d65d51!important;background:#fff!important}
+.phfck-late-reason-row.is-validation-error:after{display:none!important}
+@media(max-width:900px){
+  .phfck-late-table-head,.phfck-late-row{min-width:1060px}
+  .phfck-late-reason-row{grid-template-columns:230px minmax(360px,1fr)}
+}
+
+/* PHF Checklist 1.32.26 · Cấu hình bảng mức Đi trễ theo kỳ */
+.phfck-late-policy-card{overflow:hidden}
+.phfck-late-policy-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.phfck-late-policy-note{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #dce9e3;border-radius:12px;background:#f7fbf9;color:#547167}
+.phfck-late-policy-note b{color:#294f40;font-size:12px;white-space:nowrap}
+.phfck-late-policy-note span{font-size:11px;line-height:1.5}
+.phfck-late-policy-levels{display:grid;gap:8px;margin-top:12px}
+.phfck-late-policy-view-row{display:grid;grid-template-columns:34px minmax(0,1fr) 104px;align-items:center;gap:10px;padding:11px 13px;border:1px solid #e0ebe6;border-radius:11px;background:#fff}
+.phfck-late-policy-view-row>span{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#edf6f1;color:#36735b;font-size:10px;font-weight:900}
+.phfck-late-policy-view-row b{color:#38574b;font-size:12px}
+.phfck-late-policy-view-row strong{justify-self:end;color:#1f6c4d;font-size:12px}
+.phfck-late-policy-edit-row{display:grid;grid-template-columns:34px repeat(3,minmax(120px,1fr)) auto;align-items:end;gap:10px;padding:12px 13px;border:1px solid #dce8e2;border-radius:12px;background:#fbfdfc}
+.phfck-late-policy-edit-row>span{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#edf6f1;color:#36735b;font-size:10px;font-weight:900;margin-bottom:5px}
+.phfck-late-policy-edit-row label{display:grid;gap:5px;min-width:0}
+.phfck-late-policy-edit-row label small{color:#6c8178;font-size:10px;font-weight:800}
+.phfck-late-policy-edit-row input{width:100%;height:40px;border:1px solid #d7e4de;border-radius:10px;background:#fff;padding:0 11px;color:#334e43;font-size:12px}
+.phfck-late-policy-edit-row input:disabled{background:#f2f6f4;color:#7b8b84}
+.phfck-late-policy-edit-row .phfck-danger-soft{height:40px;min-width:64px;margin-bottom:0}
+.phfck-late-policy-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.phfck-late-policy-tools small{color:#71857d;font-size:10.5px;line-height:1.45}
+.phfck-late-policy-config{margin-top:14px}
+.phfck-late-policy-meta{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin-top:13px;padding:10px 12px;border-radius:10px;background:#f7faf8;color:#6b8178;font-size:10.5px}
+.phfck-late-policy-meta b{color:#38574b;font-size:11px}
+.phfck-settings-empty{padding:16px;border:1px dashed #d8e5df;border-radius:12px;color:#74887f;font-size:11px;text-align:center}
+.phfck-late-policy-history{display:grid;gap:8px}
+.phfck-late-policy-history>div{display:grid;grid-template-columns:126px minmax(0,1fr);gap:12px;align-items:start;padding:10px 12px;border:1px solid #e1ebe6;border-radius:10px;background:#fff}
+.phfck-late-policy-history>div>span{color:#74877f;font-size:10px;font-weight:700}
+.phfck-late-policy-history p{margin:0;display:grid;gap:3px}
+.phfck-late-policy-history b{color:#38574b;font-size:11px}
+.phfck-late-policy-history small{color:#71857d;font-size:10px;line-height:1.45}
+@media(max-width:820px){
+  .phfck-late-policy-note{display:grid}
+  .phfck-late-policy-note b{white-space:normal}
+  .phfck-late-policy-edit-row{grid-template-columns:34px repeat(2,minmax(110px,1fr))}
+  .phfck-late-policy-edit-row label:nth-of-type(3){grid-column:2/3}
+  .phfck-late-policy-edit-row .phfck-danger-soft{grid-column:3;grid-row:2}
+  .phfck-late-policy-tools{align-items:flex-start;flex-direction:column}
+  .phfck-late-policy-meta{grid-template-columns:1fr}
+  .phfck-late-policy-history>div{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .phfck-late-policy-head-actions{justify-content:flex-start}
+  .phfck-late-policy-edit-row{grid-template-columns:28px minmax(0,1fr)}
+  .phfck-late-policy-edit-row label,.phfck-late-policy-edit-row label:nth-of-type(3),.phfck-late-policy-edit-row .phfck-danger-soft{grid-column:2;grid-row:auto}
+}
+
+
+/* PHF Checklist 1.32.27 · Ngưỡng lỗi lặp lại và gợi ý đào tạo */
+.phfck-repeat-policy-card{overflow:hidden}
+.phfck-repeat-policy-note{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #dce9e3;border-radius:12px;background:#f7fbf9;color:#547167}
+.phfck-repeat-policy-note b{color:#294f40;font-size:12px;white-space:nowrap}
+.phfck-repeat-policy-note span{font-size:11px;line-height:1.5}
+.phfck-repeat-grid-live{margin-top:12px}
+.phfck-repeat-policy-edit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.phfck-repeat-policy-edit-grid label{display:grid;gap:6px;padding:12px;border:1px solid #dce8e2;border-radius:12px;background:#fbfdfc}
+.phfck-repeat-policy-edit-grid label>small{font-size:10px;font-weight:800;color:#6b8178}
+.phfck-repeat-policy-edit-grid label>div{display:flex;align-items:center;gap:8px}
+.phfck-repeat-policy-edit-grid input{min-width:0;width:100%;height:40px;border:1px solid #d7e4de;border-radius:10px;background:#fff;padding:0 11px;color:#334e43;font-size:13px;font-weight:800}
+.phfck-repeat-policy-edit-grid label>div>span{color:#60786e;font-size:11px;font-weight:800}
+.phfck-repeat-preview-tools{display:flex;align-items:end;gap:10px;margin-bottom:12px}
+.phfck-repeat-preview-tools label{display:grid;gap:5px;min-width:190px}
+.phfck-repeat-preview-tools label b{font-size:11px;color:#476459}
+.phfck-repeat-preview-tools input{height:40px;border:1px solid #d7e4de;border-radius:10px;background:#fff;padding:0 11px;color:#334e43}
+.phfck-repeat-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:11px}
+.phfck-repeat-summary>div{display:grid;gap:3px;padding:12px;border:1px solid #deebe5;border-radius:11px;background:#f8fbfa}
+.phfck-repeat-summary strong{font-size:20px;color:#176447}
+.phfck-repeat-summary span{font-size:10.5px;color:#6c8178;font-weight:700}
+.phfck-repeat-suggestion-list{display:grid;gap:8px}
+.phfck-repeat-suggestion-list>div{display:grid;grid-template-columns:74px minmax(0,1fr) 150px;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e0ebe6;border-radius:11px;background:#fff}
+.phfck-repeat-suggestion-list>div>span{display:inline-flex;justify-content:center;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900}
+.phfck-repeat-suggestion-list>div.is-training>span{background:#fff0d9;color:#8c5b13}
+.phfck-repeat-suggestion-list>div.is-warning>span{background:#eaf5ef;color:#236347}
+.phfck-repeat-suggestion-list p{margin:0;display:grid;gap:3px;min-width:0}
+.phfck-repeat-suggestion-list p b{font-size:11.5px;color:#355448}
+.phfck-repeat-suggestion-list p small{font-size:10px;color:#73877e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfck-repeat-suggestion-list>div>strong{display:grid;gap:2px;text-align:right;color:#45675a;font-size:10.5px}
+.phfck-repeat-suggestion-list>div>strong small{font-size:9.5px;color:#7b8e86}
+.phfck-repeat-no-class{display:flex;align-items:center;gap:9px;margin-top:11px;padding:10px 12px;border:1px dashed #d7e5df;border-radius:10px;background:#fafcfb}
+.phfck-repeat-no-class b{font-size:10.5px;color:#45675a;white-space:nowrap}
+.phfck-repeat-no-class span{font-size:10px;color:#758981}
+@media(max-width:760px){
+  .phfck-repeat-policy-note{display:grid}.phfck-repeat-policy-note b{white-space:normal}
+  .phfck-repeat-policy-edit-grid,.phfck-repeat-summary{grid-template-columns:1fr}
+  .phfck-repeat-preview-tools{align-items:stretch;flex-direction:column}.phfck-repeat-preview-tools label{min-width:0;width:100%}
+  .phfck-repeat-suggestion-list>div{grid-template-columns:68px minmax(0,1fr)}
+  .phfck-repeat-suggestion-list>div>strong{grid-column:2;text-align:left}
+  .phfck-repeat-no-class{align-items:flex-start;flex-direction:column}.phfck-repeat-no-class b{white-space:normal}
+}
+
+/* PHF Checklist 1.32.29 · Đồng bộ UI Cài đặt Ghi nhận lỗi & điểm */
+.phfck-violation-rules-ui .phfck-settings-card{padding:20px}
+.phfck-violation-rules-ui .phfck-panel-head{margin-bottom:14px;padding-bottom:12px}
+.phfck-violation-rules-ui .phfck-panel-head small{font-size:9.5px;line-height:1.35;letter-spacing:.07em}
+.phfck-violation-rules-ui .phfck-panel-head h3{margin-top:5px;font-size:17px;line-height:1.3}
+.phfck-violation-rules-ui .phfck-fixed-rules-card .phfck-panel-head{margin-bottom:4px}
+.phfck-violation-rules-ui .phfck-fixed-system-rule{padding:11px 0}
+.phfck-violation-rules-ui .phfck-fixed-system-rule b{font-size:11.5px}
+.phfck-violation-rules-ui .phfck-fixed-system-rule p{font-size:10px;line-height:1.45}
+.phfck-violation-rules-ui .phfck-fixed-system-rule strong{min-height:23px;padding:0 8px;font-size:8.6px}
+
+.phfck-violation-rules-ui .phfck-policy-head-actions{gap:8px}
+.phfck-violation-rules-ui .phfck-policy-period-chip{display:inline-flex;align-items:center;min-height:30px;box-sizing:border-box;padding:0 10px;border-color:#c9dfb9;background:#f4faee;color:#4f7b2b;font-size:9.5px;font-weight:750}
+.phfck-violation-rules-ui .phfck-settings-edit-btn{min-height:38px;padding:0 13px;border-radius:10px;font-size:11px;font-weight:800;box-shadow:none}
+.phfck-violation-rules-ui .phfck-settings-edit-btn:hover{box-shadow:none}
+
+.phfck-violation-rules-ui .phfck-late-policy-meta{margin-top:11px;padding:9px 11px;font-size:10px}
+.phfck-violation-rules-ui .phfck-late-policy-meta b{font-size:10.5px}
+.phfck-violation-rules-ui .phfck-late-policy-meta small{font-size:9.5px}
+
+.phfck-violation-rules-ui .phfck-settings-preview-card,
+.phfck-violation-rules-ui .phfck-settings-history-card{padding:18px 20px}
+.phfck-violation-rules-ui .phfck-settings-preview-card .phfck-panel-head,
+.phfck-violation-rules-ui .phfck-settings-history-card .phfck-panel-head{margin-bottom:12px;padding-bottom:11px}
+.phfck-violation-rules-ui .phfck-settings-preview-card .phfck-panel-head h3,
+.phfck-violation-rules-ui .phfck-settings-history-card .phfck-panel-head h3{font-size:16px}
+.phfck-violation-rules-ui .phfck-readonly-chip{margin-left:auto;display:inline-flex;align-items:center;min-height:26px;box-sizing:border-box;padding:0 9px;border:1px solid #d5e4dc;border-radius:999px;background:#f5f9f7;color:#657b71;font-size:8.8px;font-weight:750}
+.phfck-violation-rules-ui .phfck-repeat-preview-tools{align-items:end;gap:9px;margin-bottom:10px}
+.phfck-violation-rules-ui .phfck-repeat-preview-tools label{gap:5px;min-width:180px}
+.phfck-violation-rules-ui .phfck-repeat-preview-tools label b{font-size:10.5px}
+.phfck-violation-rules-ui .phfck-repeat-preview-tools input{height:38px;border-radius:10px;padding:0 10px;font-size:11.5px}
+.phfck-violation-rules-ui .phfck-settings-inline-btn{min-height:38px;padding:0 13px;border-radius:10px;font-size:11px;box-shadow:none}
+.phfck-violation-rules-ui .phfck-settings-empty{padding:14px 16px;border-radius:11px;font-size:10.5px;line-height:1.5}
+.phfck-violation-rules-ui .phfck-late-policy-history{gap:7px}
+.phfck-violation-rules-ui .phfck-late-policy-history>div{padding:9px 11px;border-radius:10px}
+.phfck-violation-rules-ui .phfck-late-policy-history>div>span{font-size:9.5px}
+.phfck-violation-rules-ui .phfck-late-policy-history b{font-size:10.5px}
+.phfck-violation-rules-ui .phfck-late-policy-history small{font-size:9.5px}
+
+@media(max-width:760px){
+  .phfck-violation-rules-ui .phfck-policy-head-actions{width:100%;justify-content:flex-start}
+  .phfck-violation-rules-ui .phfck-settings-edit-btn{margin-left:auto}
+  .phfck-violation-rules-ui .phfck-repeat-preview-tools{align-items:stretch}
+}
+@media(max-width:620px){
+  .phfck-violation-rules-ui .phfck-settings-edit-btn{width:100%;margin-left:0}
+  .phfck-violation-rules-ui .phfck-policy-period-chip{justify-content:center}
+  .phfck-violation-rules-ui .phfck-readonly-chip{display:inline-flex}
+}
+
+/* PHF Checklist 1.32.30 - Báo cáo Phiếu đánh giá tháng dùng dữ liệu thật */
+.phfck-report-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}.phfck-report-scope-chip{display:inline-flex;align-items:center;min-height:40px;border:1px solid #cee1d6;border-radius:999px;background:#f3f9f5;padding:0 13px;color:#2c664d;font-size:10.5px;font-weight:850}.phfck-report-live-note{display:flex;align-items:center;gap:8px;margin:-2px 0 13px;border:1px solid #d7e7df;border-radius:12px;background:#f7fbf8;padding:10px 13px;color:#48665b}.phfck-report-live-note>span{width:8px;height:8px;border-radius:50%;background:#42ad63;box-shadow:0 0 0 4px #e5f5e9}.phfck-report-live-note b{font-size:10.5px}.phfck-report-live-note small{color:#789087;font-size:9.5px}.phfck-report-live-filters{grid-template-columns:repeat(4,minmax(145px,1fr)) auto}.phfck-report-status-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.phfck-report-status-grid button{min-height:82px;border:1px solid #dbe8e1;border-radius:11px;background:#f8fbf9;padding:10px;color:#31594b;cursor:pointer}.phfck-report-status-grid button:hover,.phfck-report-status-grid button.active{border-color:#77bd8c;background:#eef8f1}.phfck-report-status-grid strong,.phfck-report-status-grid span{display:block}.phfck-report-status-grid strong{font-size:20px;color:#075a3b}.phfck-report-status-grid span{margin-top:7px;color:#687f75;font-size:9.5px;line-height:1.25}.phfck-report-loading .phfck-loading-spinner{display:block;margin:0 auto 12px}.phfck-report-empty{box-sizing:border-box;width:100%}.phfck-exec-chart>.phfck-report-empty,.phfck-action-panel>.phfck-report-empty,.phfck-exec-table>.phfck-report-empty{padding:28px 16px}.phfck-exec-chart>.phfck-report-empty>div,.phfck-action-panel>.phfck-report-empty>div,.phfck-exec-table>.phfck-report-empty>div{width:44px;height:44px;border-radius:14px;font-size:19px}
+@media(max-width:1180px){.phfck-report-live-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-report-live-filters>button{grid-column:span 2}.phfck-report-status-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.phfck-report-head-actions{width:100%;justify-content:flex-start}.phfck-report-head-actions .phfck-primary,.phfck-report-head-actions .phfck-secondary{width:auto}.phfck-report-live-note{align-items:flex-start;flex-wrap:wrap}.phfck-report-live-note small{width:100%;padding-left:16px}.phfck-report-live-filters{grid-template-columns:1fr}.phfck-report-live-filters>button{grid-column:auto}.phfck-report-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* PHF Checklist 1.32.30 · Báo cáo cho tài khoản được cấp quyền */
+.phfck-manager-report-main{box-sizing:border-box;width:min(1500px,100%);margin:0 auto;padding:22px 24px 36px}
+@media(max-width:720px){.phfck-manager-report-main{padding:16px 12px 28px}}
+
+
+/* PHF Checklist 1.34.3 — trạng thái tải dữ liệu thật, không hiển thị 0 giả */
+.phfck-data-loading-layer{position:fixed;inset:0;z-index:130000;display:grid;place-items:center;padding:20px;background:rgba(8,35,27,.42);backdrop-filter:blur(2px)}
+.phfck-data-loading-card{width:min(470px,100%);display:grid;grid-template-columns:44px 1fr;gap:15px;align-items:center;border:1px solid #d4e6dd;border-radius:18px;background:#fff;padding:22px;box-shadow:0 28px 80px rgba(6,43,31,.28)}
+.phfck-data-loading-card small{display:block;color:#2b8062;font-size:10px;font-weight:900;letter-spacing:.1em}.phfck-data-loading-card h2{margin:5px 0 0;color:#173f33;font-size:19px}.phfck-data-loading-card p{margin:7px 0 0;color:#62786f;font-size:12px;line-height:1.55}.phfck-data-loading-card .phfck-loading-spinner{width:42px;height:42px}.phfck-data-loading-note{grid-column:1/-1;border-top:1px solid #edf3f0;padding-top:12px;color:#7a8d85;font-size:10.5px;text-align:center}.phfck-data-loading-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#fff0ef;color:#b52f2f;font-size:22px;font-weight:900}.phfck-data-loading-card.is-error{border-color:#efcecb}.phfck-data-loading-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;border-top:1px solid #edf3f0;padding-top:14px}
+@media(max-width:560px){.phfck-data-loading-layer{padding:12px}.phfck-data-loading-card{grid-template-columns:38px 1fr;padding:18px}.phfck-data-loading-card .phfck-loading-spinner,.phfck-data-loading-icon{width:36px;height:36px}.phfck-data-loading-actions{display:grid;grid-template-columns:1fr 1fr}.phfck-data-loading-actions button{width:100%}}
+
+/* PHF Checklist 1.34.4 - loading portal thuộc body, độc lập với workspace renderer */
+body.phfck-overview-loading-open { overflow: hidden !important; }
+body > .phfck-data-loading-layer { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(5, 55, 39, .34); backdrop-filter: blur(2px); }
+body > .phfck-data-loading-layer .phfck-data-loading-card { width: min(520px, calc(100vw - 32px)); }
+
+
+/* 1.34.8 - Popup xác nhận/nhập liệu chuẩn PHF */
+.phfck-decision-layer{z-index:10080;padding:18px}
+.phfck-decision-modal{width:min(560px,calc(100vw - 28px));max-height:min(88dvh,680px)}
+.phfck-decision-modal .phfck-modal-head p{max-width:460px;line-height:1.55}
+.phfck-decision-modal.is-danger .phfck-modal-head{border-top:4px solid #b42318}
+.phfck-decision-modal.is-warning .phfck-modal-head{border-top:4px solid #d69b1c}
+.phfck-decision-note{display:flex;align-items:flex-start;gap:12px;padding:14px 15px;border:1px solid #dce8e2;border-radius:12px;background:#f7fbf9}
+.phfck-decision-note>span{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#e6f5ed;color:#176045;font-weight:900}
+.phfck-decision-modal.is-danger .phfck-decision-note{border-color:#efd2cf;background:#fff8f7}.phfck-decision-modal.is-danger .phfck-decision-note>span{background:#fde8e6;color:#b42318}
+.phfck-decision-note b{display:block;color:#173c30;font-size:12.5px}.phfck-decision-note p{margin:4px 0 0;color:#61786e;font-size:11.5px;line-height:1.55}
+.phfck-decision-input{display:grid;gap:8px}.phfck-decision-input>b{color:#183d31;font-size:12.5px}.phfck-decision-input em{color:#b42318;font-style:normal}.phfck-decision-input textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:104px;border:1px solid #cbd9d4;border-radius:11px;padding:12px;background:#fff;color:#173c30;font:inherit;line-height:1.5}.phfck-decision-input textarea:focus{outline:0;border-color:#4c8c74;box-shadow:0 0 0 3px rgba(43,118,89,.13)}.phfck-decision-input>small{color:#758a81;font-size:10.5px}
+@media(max-width:680px){.phfck-decision-layer{padding:8px}.phfck-decision-modal{width:calc(100vw - 16px);max-height:94dvh}.phfck-decision-modal .phfck-modal-foot{display:grid;grid-template-columns:1fr}.phfck-decision-modal .phfck-modal-foot button{width:100%}}
+
+/* PHF Checklist 1.34.9 - đối soát nhân sự trước khi gán quyền */
+.phfck-permission-sync-status{margin:10px 0 14px;padding:10px 12px;border:1px solid #d8e8df;border-radius:12px;background:#f7fbf8;color:#49675d;font-size:12px}
+.phfck-permission-sync-modal{max-width:760px}
+.phfck-permission-sync-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.phfck-permission-sync-kpis>div{padding:12px;border:1px solid #dbe9e1;border-radius:12px;background:#f8fbf9;display:flex;flex-direction:column;gap:4px}
+.phfck-permission-sync-kpis span{font-size:11px;color:#668077}.phfck-permission-sync-kpis b{font-size:23px;color:#075c45}.phfck-permission-sync-kpis .is-warning{background:#fff9ee;border-color:#f1d9a9}
+.phfck-permission-sync-alert{padding:13px 14px;border-radius:12px;margin:10px 0;border:1px solid #d8e8df}.phfck-permission-sync-alert b{display:block;margin-bottom:4px}.phfck-permission-sync-alert p{margin:0;line-height:1.55}
+.phfck-permission-sync-alert.is-warning{background:#fff9ee;border-color:#efd39a;color:#76551b}.phfck-permission-sync-alert.is-danger{background:#fff3f1;border-color:#efc3bb;color:#9b3023}.phfck-permission-sync-alert.is-ok{background:#effaf4;border-color:#bfe3ce;color:#176344}
+@media(max-width:900px){.phfck-permission-sync-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 1.34.12 · Quyền nền Nhân viên hiển thị rõ cho Admin */
+.phfck-permission-default-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:center;margin:14px 0 16px;padding:16px;border:1px solid #d7e8df;border-radius:16px;background:linear-gradient(135deg,#f7fcf9 0%,#fff 100%)}
+.phfck-permission-default-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#e8f5ee;font-size:24px}
+.phfck-permission-default-main small,.phfck-permission-base-note small{display:block;color:#6b8579;font-size:10px;font-weight:800;letter-spacing:.08em}
+.phfck-permission-default-main h3,.phfck-permission-base-note h3{margin:3px 0 5px;color:#234f40;font-size:17px}
+.phfck-permission-default-main h3 i,.phfck-permission-base-note h3 i{display:inline-block;margin-left:6px;padding:3px 7px;border-radius:999px;background:#e8f5ee;color:#2b7256;font-size:10px;font-style:normal;vertical-align:middle}
+.phfck-permission-default-main p,.phfck-permission-base-note p{margin:0;color:#657c72;font-size:12px;line-height:1.5}
+.phfck-permission-default-rules{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:9px;color:#355f50;font-size:11px}
+.phfck-permission-default-kpis{display:grid;grid-template-columns:repeat(3,minmax(78px,1fr));gap:8px}
+.phfck-permission-default-kpis>div{padding:10px;border:1px solid #deebe5;border-radius:12px;background:#fff;text-align:center}
+.phfck-permission-default-kpis b{display:block;color:#255a47;font-size:18px}
+.phfck-permission-default-kpis span{display:block;margin-top:2px;color:#7b8e86;font-size:9.5px}
+.phfck-permission-default-kpis .is-warning{border-color:#f0d7a3;background:#fffaf0}
+.phfck-permission-default-kpis .is-warning b{color:#a96b08}
+.phfck-permission-head,.phfck-permission-row{grid-template-columns:minmax(150px,1.1fr) minmax(105px,.72fr) minmax(130px,.9fr) minmax(170px,1.1fr) minmax(170px,1.1fr) minmax(112px,.75fr) 54px}
+.phfck-permission-row i.is-base{background:#eef2f0;color:#536b61}
+.phfck-permission-row.is-inactive{background:#fafafa;opacity:.82}
+.phfck-permission-none{color:#8b9b94!important;font-size:18px!important}
+.phfck-permission-base-note{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:14px 0;padding:14px 16px;border:1px solid #dce9e3;border-radius:14px;background:#f8fbf9}
+.phfck-permission-base-note>span{padding:6px 10px;border-radius:999px;background:#eef4f1;color:#49685b;font-size:11px;font-weight:800;white-space:nowrap}
+@media(max-width:1100px){.phfck-permission-default-card{grid-template-columns:auto 1fr}.phfck-permission-default-kpis{grid-column:1/-1}.phfck-permission-head,.phfck-permission-row{grid-template-columns:1fr .7fr .9fr 1.05fr 1.05fr 95px 48px}}
+@media(max-width:700px){.phfck-permission-default-card{grid-template-columns:1fr}.phfck-permission-default-icon{display:none}.phfck-permission-default-kpis{grid-template-columns:repeat(3,1fr)}.phfck-permission-default-rules{display:grid}.phfck-permission-row{grid-template-columns:1fr 1fr}.phfck-permission-row>span:last-child{grid-column:1/-1}.phfck-permission-base-note{align-items:flex-start;flex-direction:column}}
+
+/* 1.34.13 - Bộ lọc quyền mở rộng rõ nghĩa */
+.phfck-permission-filter{display:flex;flex-direction:column;gap:4px;min-width:220px;margin:0}
+.phfck-permission-filter small{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#6b8178;padding-left:2px}
+.phfck-permission-filter select{width:100%;min-height:42px}
+@media(max-width:980px){.phfck-permission-filter{min-width:100%;width:100%}}
+
+/* PHF Checklist 1.34.15 — Giao diện Nhân viên / Việc cần xử lý */
+.phfck-employee-inbox .phfck-panel-head{align-items:flex-start;gap:20px}
+.phfck-employee-inbox .phfck-panel-head p{margin:6px 0 0;color:#6a7d73;max-width:720px}
+.phfck-employee-inbox-count{min-width:112px;padding:12px 16px;border:1px solid #d7e8df;border-radius:16px;background:#f5fbf7;text-align:center}
+.phfck-employee-inbox-count strong{display:block;font-size:28px;line-height:1;color:#087a4a}
+.phfck-employee-inbox-count span{display:block;margin-top:5px;font-size:12px;color:#61756a}
+
+.phfck-employee-guide{margin:16px 0;border:1px solid #cfe4d8;border-radius:16px;background:#f7fbf8;overflow:hidden}
+.phfck-employee-guide summary{display:flex;align-items:center;gap:9px;padding:13px 15px;cursor:pointer;list-style:none;color:#174c35}
+.phfck-employee-guide summary::-webkit-details-marker{display:none}
+.phfck-employee-guide summary span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#e5f4eb;color:#087a4a;font-weight:800}
+.phfck-employee-guide summary b{font-size:14px}
+.phfck-employee-guide summary i{margin-left:auto;font-style:normal;font-size:12px;color:#6d8076}
+.phfck-employee-guide:not([open]) summary i::before{content:'Xem hướng dẫn';font-size:12px}
+.phfck-employee-guide:not([open]) summary i{font-size:0}
+.phfck-employee-guide-body{padding:0 15px 14px 48px;border-top:1px solid #deebe3}
+.phfck-employee-guide-body p{margin:11px 0 0;color:#455e51;line-height:1.5}
+.phfck-employee-guide-body small{display:block;margin-top:10px;color:#6d8076}
+
+.phfck-employee-task-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.phfck-employee-task-summary article{padding:14px 16px;border:1px solid #e1ebe5;border-radius:14px;background:#fbfdfc}
+.phfck-employee-task-summary strong{display:block;font-size:24px;color:#0a5f3d}
+.phfck-employee-task-summary span{display:block;margin-top:4px;font-size:12px;color:#6b7d73}
+.phfck-employee-task-list{display:grid;gap:12px}
+.phfck-employee-task-card{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:14px;align-items:center;padding:16px;border:1px solid #dfe9e3;border-radius:16px;background:#fff}
+.phfck-employee-task-card.is-actionable{border-color:#a9d8bd;box-shadow:0 6px 18px rgba(8,122,74,.08)}
+.phfck-employee-task-card.is-overdue{border-left:4px solid #bd3c35}
+.phfck-employee-task-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#edf7f1;color:#087a4a;font-weight:800;font-size:18px}
+.phfck-employee-task-card.is-actionable .phfck-employee-task-icon{background:#fff2df;color:#a55b00}
+.phfck-employee-task-main{min-width:0}
+.phfck-employee-task-kicker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.phfck-employee-task-kicker span{font-size:11px;color:#667a6e;text-transform:uppercase;letter-spacing:.04em}
+.phfck-employee-task-kicker i{font-style:normal;font-size:11px;padding:4px 8px;border-radius:999px;background:#eef4f0;color:#4d6659}
+.phfck-employee-task-kicker i.is-waiting_employee{background:#fff1db;color:#965200}
+.phfck-employee-task-kicker i.is-waiting_reviewer,.phfck-employee-task-kicker i.is-waiting_admin{background:#eef1ff;color:#4a50a3}
+.phfck-employee-task-main>b{display:block;font-size:15px;color:#123f2d}
+.phfck-employee-task-main p{margin:6px 0;color:#455e51;line-height:1.45}
+.phfck-employee-task-main small{color:#788a80}
+.phfck-employee-task-side{display:flex;min-width:180px;flex-direction:column;align-items:flex-end;gap:9px}
+.phfck-employee-task-side strong{font-size:12px;color:#6a7b72}
+.phfck-employee-task-side button{white-space:nowrap}
+.phfck-employee-task-empty{display:flex;align-items:center;gap:14px;padding:20px;border:1px dashed #cfe0d6;border-radius:16px;background:#fafdfb}
+.phfck-employee-task-empty>span{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#eaf7ef;color:#087a4a;font-weight:800}
+.phfck-employee-task-empty b{display:block;color:#174c35}
+.phfck-employee-task-empty p{margin:4px 0 0;color:#6b7d73}
+.phfck-employee-task-history{margin-top:16px;border-top:1px solid #e3ece7;padding-top:12px}
+.phfck-employee-task-history summary{cursor:pointer;font-weight:700;color:#315c48}
+.phfck-employee-task-history .phfck-employee-task-list{margin-top:12px}
+.phfck-employee-task-history .phfck-employee-task-card{background:#fafcfb}
+@media(max-width:760px){.phfck-employee-task-summary{grid-template-columns:1fr}.phfck-employee-task-card{grid-template-columns:38px minmax(0,1fr)}.phfck-employee-task-side{grid-column:1/-1;align-items:stretch;min-width:0}.phfck-employee-task-side button{width:100%}.phfck-employee-inbox-count{min-width:88px}}
+
+
+/* PHF Checklist 1.34.16 — Luồng phản hồi Nhân viên */
+.phfck-employee-next-step{margin:0 0 16px;padding:14px 16px;border:1px solid #d9e6ff;border-radius:12px;background:#f7faff;display:flex;flex-direction:column;gap:4px}
+.phfck-employee-next-step b{font-size:15px;color:#172b4d}.phfck-employee-next-step span{font-size:13px;color:#526277;line-height:1.5}
+.phfck-employee-next-step.is-waiting{background:#f8f8f8;border-color:#e5e7eb}
+
+/* 1.34.17 · Phân tách rõ lớp cá nhân và lớp quản lý, không thay đổi nghiệp vụ */
+.phfck-role-section-label{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:6px 2px -2px;padding:0 4px;color:#174f3d}
+.phfck-role-section-label b{font-size:15px}
+.phfck-role-section-label span{font-size:12px;color:#6c827a;text-align:right}
+@media (max-width:760px){.phfck-role-section-label{align-items:flex-start;flex-direction:column;gap:2px}.phfck-role-section-label span{text-align:left}}
+
+/* PHF Checklist 1.34.20 · Trưởng ca dùng chung hệ giao diện Admin */
+.phfck-manager-layout{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:calc(100vh - 104px);align-items:start;background:transparent}
+.phfck-manager-sidebar{z-index:4}
+.phfck-manager-layout>.phfck-role-main{width:auto;max-width:none;margin:0;padding:28px 30px 48px;min-width:0}
+.phfck-manager-tool-main>.phfck-violations{margin-top:18px}
+.phfck-manager-scope-card strong{font-size:12px;line-height:1.45}
+@media(max-width:1100px){.phfck-manager-layout{grid-template-columns:220px minmax(0,1fr)}.phfck-manager-layout>.phfck-role-main{padding:24px 20px 40px}}
+@media(max-width:760px){.phfck-manager-layout{display:block;min-height:0}.phfck-manager-layout>.phfck-role-main{padding:18px 12px 36px}.phfck-manager-sidebar{position:static;height:auto}.phfck-manager-scope-card{display:none}}
+
+/* PHF Checklist 1.34.24 — Tổng quan điều hành Trưởng ca */
+.phfck-manager-command,.phfck-manager-progress,.phfck-manager-attention{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.phfck-manager-command-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}.phfck-manager-command-head small,.phfck-manager-progress .phfck-panel-head small,.phfck-manager-attention .phfck-panel-head small{font-size:11px;font-weight:800;letter-spacing:.08em;color:#64748b}.phfck-manager-command-head h3{margin:4px 0 0;font-size:21px}.phfck-manager-command-head>span{max-width:42%;padding:7px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:700;text-align:right}
+.phfck-manager-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.phfck-manager-action-grid button{border:1px solid #e2e8f0;border-radius:14px;background:#fff;text-align:left;padding:15px;min-height:142px;cursor:pointer;display:flex;flex-direction:column;transition:.18s ease}.phfck-manager-action-grid button:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(15,23,42,.08)}.phfck-manager-action-grid button>span{font-size:13px;font-weight:750;color:#475569}.phfck-manager-action-grid button strong{font-size:30px;line-height:1;margin:10px 0 8px;color:#0f172a}.phfck-manager-action-grid button small{color:#64748b;line-height:1.4}.phfck-manager-action-grid button i{margin-top:auto;padding-top:10px;font-style:normal;font-size:12px;font-weight:800;color:#2563eb}.phfck-manager-action-grid button.is-due{border-color:#fed7aa;background:#fffaf4}.phfck-manager-action-grid button.is-due strong,.phfck-manager-action-grid button.is-due i{color:#c2410c}
+.phfck-manager-progress-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.phfck-manager-progress-summary article{background:#f8fafc;border-radius:13px;padding:13px}.phfck-manager-progress-summary span{display:block;font-size:12px;color:#64748b}.phfck-manager-progress-summary strong{display:block;font-size:23px;margin:5px 0}.phfck-manager-progress-summary small{font-size:11px;color:#64748b}
+.phfck-manager-branch-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.phfck-manager-branch-list button{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;border:1px solid #e2e8f0;border-radius:13px;background:#fff;padding:13px;text-align:left;cursor:pointer}.phfck-manager-branch-list button:hover{background:#f8fafc}.phfck-manager-branch-list b,.phfck-manager-branch-list span{display:block}.phfck-manager-branch-list span,.phfck-manager-branch-list small{font-size:11px;color:#64748b}.phfck-manager-branch-list strong{grid-row:1/3;grid-column:2;font-size:22px;color:#0f766e}.phfck-manager-branch-list small{grid-column:1/3}
+.phfck-manager-attention-list{display:grid;gap:9px}.phfck-manager-attention-list>button{display:flex;align-items:center;gap:12px;width:100%;border:1px solid #e2e8f0;border-radius:13px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer}.phfck-manager-attention-list>button:hover{background:#f8fafc}.phfck-manager-avatar{width:38px;height:38px;border-radius:12px;background:#e0f2fe;color:#075985;display:grid;place-items:center;font-weight:900;flex:0 0 auto}.phfck-manager-attention-list div{min-width:0;flex:1}.phfck-manager-attention-list b,.phfck-manager-attention-list small,.phfck-manager-attention-list p{display:block;margin:0}.phfck-manager-attention-list small{font-size:11px;color:#64748b;margin-top:2px}.phfck-manager-attention-list p{font-size:12px;color:#b45309;margin-top:4px}.phfck-manager-attention-list i{font-style:normal;font-weight:900;color:#64748b}.phfck-manager-all-good{display:flex;align-items:center;gap:12px;padding:18px;border-radius:14px;background:#f0fdf4}.phfck-manager-all-good>span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#dcfce7;color:#15803d;font-weight:900}.phfck-manager-all-good b{display:block}.phfck-manager-all-good p{margin:3px 0 0;color:#64748b;font-size:13px}
+@media(max-width:1100px){.phfck-manager-action-grid,.phfck-manager-progress-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.phfck-manager-branch-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.phfck-manager-command,.phfck-manager-progress,.phfck-manager-attention{padding:14px;border-radius:14px}.phfck-manager-command-head{display:block}.phfck-manager-command-head>span{display:inline-block;max-width:100%;margin-top:10px;text-align:left}.phfck-manager-action-grid,.phfck-manager-progress-summary,.phfck-manager-branch-list{grid-template-columns:1fr}.phfck-manager-action-grid button{min-height:120px}}
+
+
+/* PHF Checklist 1.34.26 — Việc của tôi: trực quan, đồng bộ kích thước, không đổi nghiệp vụ */
+.phfck-mywork-dashboard{padding:20px;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.045)}
+.phfck-mywork-head{align-items:center;margin-bottom:14px}.phfck-mywork-head h3{font-size:19px;line-height:1.3;margin-top:3px}.phfck-mywork-head p{font-size:13px;line-height:1.5;color:#64748b;margin:5px 0 0}.phfck-mywork-head>div:first-child>small{font-size:10.5px;letter-spacing:.08em;color:#64748b}
+.phfck-employee-inbox-count{min-width:112px;padding:10px 14px;border:1px solid #f3d6a6;border-radius:14px;background:#fffaf1;text-align:center}.phfck-employee-inbox-count strong{display:block;font-size:25px;line-height:1;color:#a85b08}.phfck-employee-inbox-count span{display:block;margin-top:5px;font-size:11.5px;font-weight:750;color:#8a5b20}
+.phfck-employee-guide{margin:0 0 15px;border:1px solid #dbe7f4;border-radius:13px;background:#f8fbff;overflow:hidden}.phfck-employee-guide summary{padding:11px 13px;color:#294c70}.phfck-employee-guide summary span{width:22px;height:22px;background:#e7f1fb;color:#336b9c;font-size:12px}.phfck-employee-guide summary b{font-size:13px}.phfck-employee-guide summary i:after{content:'Xem hướng dẫn';font-size:11.5px;color:#60758a}.phfck-employee-guide[open] summary i:after{content:'Thu gọn'}.phfck-employee-guide-body{padding:0 14px 13px 45px;border-color:#e3edf7}.phfck-employee-guide-body p{font-size:12.5px}.phfck-employee-guide-body small{font-size:11px}
+.phfck-employee-task-summary{gap:10px;margin:0 0 18px}.phfck-employee-task-summary article{position:relative;overflow:hidden;padding:13px 15px;border-radius:14px;background:#fff}.phfck-employee-task-summary article:before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#94a3b8}.phfck-employee-task-summary article.is-action{background:#fffaf1;border-color:#f3d6a6}.phfck-employee-task-summary article.is-action:before{background:#d97706}.phfck-employee-task-summary article.is-waiting{background:#f7f9ff;border-color:#dbe3fb}.phfck-employee-task-summary article.is-waiting:before{background:#6476c8}.phfck-employee-task-summary article.is-done{background:#f5fbf7;border-color:#d5eadc}.phfck-employee-task-summary article.is-done:before{background:#32905c}.phfck-employee-task-summary span{margin:0;font-size:11.5px;font-weight:750;color:#526277}.phfck-employee-task-summary strong{margin:7px 0 4px;font-size:25px;line-height:1;color:#183f31}.phfck-employee-task-summary small{display:block;font-size:10.5px;color:#7a8a82}
+.phfck-mywork-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 2px 10px}.phfck-mywork-section-title small{display:block;font-size:10px;letter-spacing:.08em;color:#789087;font-weight:800}.phfck-mywork-section-title b{display:block;margin-top:2px;font-size:15px;color:#183f31}.phfck-mywork-section-title>span{padding:5px 9px;border-radius:999px;background:#eef4f0;color:#526b5f;font-size:11px;font-weight:750}
+.phfck-employee-task-list{gap:10px}.phfck-employee-task-card{grid-template-columns:40px minmax(0,1fr) auto;gap:13px;padding:14px 15px;border-radius:14px;box-shadow:none;transition:.16s ease}.phfck-employee-task-card:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(15,23,42,.055)}.phfck-employee-task-card.is-actionable{border-color:#efcf9b;background:#fffdf8;box-shadow:0 5px 15px rgba(180,105,10,.06)}.phfck-employee-task-card.is-waiting{border-color:#d9e1f7;background:#fafbff}.phfck-employee-task-card.is-neutral{background:#fbfdfc}.phfck-employee-task-card.is-overdue{border-color:#efc7c3;border-left:4px solid #bd3c35;background:#fff9f8}.phfck-employee-task-icon{width:38px;height:38px;border-radius:11px;font-size:16px}.phfck-employee-task-card.is-waiting .phfck-employee-task-icon{background:#eef1ff;color:#5964b3}.phfck-employee-task-card.is-overdue .phfck-employee-task-icon{background:#fae7e5;color:#a53d36}
+.phfck-employee-task-kicker{margin-bottom:4px}.phfck-employee-task-kicker span{font-size:10px}.phfck-employee-task-kicker i{font-size:10px;padding:3px 7px}.phfck-employee-task-main>b{font-size:14.5px;line-height:1.35}.phfck-employee-task-main p{margin:5px 0;font-size:12.5px;line-height:1.45}.phfck-employee-task-main small{font-size:11px;line-height:1.4}.phfck-employee-task-side{min-width:155px;gap:7px}.phfck-employee-task-side strong{font-size:11px}.phfck-employee-task-side button{min-height:34px;font-size:11.5px;padding:0 11px}
+.phfck-employee-task-empty{padding:22px;background:#f8fcfa}.phfck-employee-task-empty b{font-size:14px}.phfck-employee-task-empty p{font-size:12.5px}
+.phfck-employee-task-history{margin-top:16px;padding-top:13px}.phfck-employee-task-history summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border-radius:10px;background:#f5f8f6;font-size:12px}.phfck-employee-task-history summary b{padding:3px 8px;border-radius:999px;background:#e6eee9;color:#526b5f;font-size:10.5px}.phfck-employee-task-history .phfck-employee-task-card{opacity:.9}
+@media(max-width:760px){.phfck-mywork-dashboard{padding:14px}.phfck-mywork-head{align-items:flex-start}.phfck-employee-inbox-count{min-width:92px;padding:9px}.phfck-employee-guide-body{padding-left:13px}.phfck-employee-task-summary{grid-template-columns:repeat(3,minmax(130px,1fr));overflow-x:auto;padding-bottom:3px}.phfck-employee-task-summary article{min-width:130px}.phfck-employee-task-card{grid-template-columns:36px minmax(0,1fr);padding:13px}.phfck-employee-task-side{grid-column:1/-1;align-items:stretch;min-width:0}.phfck-employee-task-side button{width:100%}}
+
+
+/* 1.34.27 · Lối vào thẩm định từ Việc của tôi */
+.phfck-review-reminder{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:16px;margin:0 0 16px;padding:17px 18px;border:1px solid #d9e6df;border-radius:16px;background:linear-gradient(135deg,#f7fbf8 0%,#f3f8f6 100%);box-shadow:0 8px 24px rgba(25,68,52,.06)}
+.phfck-review-reminder.has-work{border-color:#efd59a;background:linear-gradient(135deg,#fffaf0 0%,#fff6df 100%)}
+.phfck-review-reminder-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:15px;background:#e5f2eb;color:#1f6b4c;font-size:24px;font-weight:800}
+.phfck-review-reminder.has-work .phfck-review-reminder-icon{background:#ffe8aa;color:#8a5a00}
+.phfck-review-reminder-main{min-width:0}
+.phfck-review-reminder-main>small{display:block;margin-bottom:3px;color:#708079;font-size:11.5px;font-weight:800;letter-spacing:.08em}
+.phfck-review-reminder-main h3{margin:0;color:#18392e;font-size:17px;line-height:1.35}
+.phfck-review-reminder-main p{margin:5px 0 9px;color:#617169;font-size:13.5px;line-height:1.5}
+.phfck-review-reminder-meta{display:flex;flex-wrap:wrap;gap:7px 14px}
+.phfck-review-reminder-meta span{color:#67756f;font-size:12.5px}
+.phfck-review-reminder-meta b{color:#29483d;font-size:13.5px}
+.phfck-review-reminder>button{white-space:nowrap;min-width:138px}
+@media(max-width:760px){.phfck-review-reminder{grid-template-columns:44px minmax(0,1fr);padding:15px;gap:12px}.phfck-review-reminder-icon{width:44px;height:44px;border-radius:13px;font-size:21px}.phfck-review-reminder>button{grid-column:1/-1;width:100%}.phfck-review-reminder-main h3{font-size:16px}.phfck-review-reminder-meta{gap:5px 10px}}
+
+/* 1.34.29 · Tóm tắt rõ ràng cho màn Tôi cần thẩm định */
+.phfck-review-summary-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 16px}
+.phfck-review-summary-cards article{min-height:118px;padding:18px;border:1px solid rgba(24,62,51,.10);border-radius:16px;display:flex;flex-direction:column;justify-content:center;box-shadow:0 8px 24px rgba(28,58,49,.05)}
+.phfck-review-summary-cards span{font-size:13px;font-weight:700;color:#496259}
+.phfck-review-summary-cards strong{font-size:30px;line-height:1.05;margin:8px 0 6px;color:#173e33}
+.phfck-review-summary-cards small{font-size:12.5px;line-height:1.4;color:#687b74}
+.phfck-review-summary-cards .is-assigned{background:#f3f4ff;border-color:#dfe1fa}
+.phfck-review-summary-cards .is-waiting-self{background:#fff9e9;border-color:#f3e6b7}
+.phfck-review-summary-cards .is-waiting-review{background:#fff2e9;border-color:#f4d6c0}
+.phfck-review-summary-cards .is-reviewed{background:#edf8f2;border-color:#cce8d8}
+@media(max-width:980px){.phfck-review-summary-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.phfck-review-summary-cards{grid-template-columns:1fr 1fr;gap:10px}.phfck-review-summary-cards article{min-height:108px;padding:14px}.phfck-review-summary-cards strong{font-size:26px}.phfck-review-summary-cards small{font-size:12px}}
+
+
+/* PHF Checklist 1.34.43 - Quick violation employee picker safety UX */
+.phfck-violations-view .phfck-person-filter-grid{
+  grid-template-columns:minmax(260px,.9fr) minmax(360px,1.15fr) minmax(300px,1fr);
+  align-items:end;
+}
+.phfck-violations-view .phfck-employee-search-controls,
+.phfck-violations-view .phfck-employee-select-controls{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  min-width:0;
+}
+.phfck-violations-view .phfck-employee-search-controls .phfck-search,
+.phfck-violations-view .phfck-employee-select-controls select{min-width:0;width:100%}
+.phfck-violations-view .phfck-employee-search-button,
+.phfck-violations-view .phfck-employee-picker-close{
+  height:42px;
+  min-height:42px;
+  padding:0 14px;
+  white-space:nowrap;
+  border-radius:13px;
+}
+.phfck-violations-view .phfck-employee-picker-close{padding:0 12px}
+.phfck-violations-view .phfck-violation-safety-banner{
+  border-color:#9bc8ab;
+  background:#f0f8f2;
+}
+.phfck-violations-view .phfck-violation-safety-banner b{color:#176136}
+@media(max-width:1100px){
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr 1fr}
+  .phfck-violations-view .phfck-more-filter-toggle{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-more-filter-toggle{grid-column:auto}
+}
+@media(max-width:460px){
+  .phfck-violations-view .phfck-employee-search-controls,
+  .phfck-violations-view .phfck-employee-select-controls{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-employee-search-button,
+  .phfck-violations-view .phfck-employee-picker-close{width:100%}
+}
+
+
+/* PHF Checklist 1.34.44 - Scientific quick violation flow */
+.phfck-violations-view .phfck-person-filter-grid{
+  grid-template-columns:minmax(300px,.95fr) minmax(340px,1.05fr) minmax(360px,1.15fr);
+  align-items:end;
+  gap:12px;
+}
+.phfck-violations-view .phfck-employee-select-field > select{height:42px}
+.phfck-violations-view .phfck-selected-employee-summary{
+  position:relative;
+  min-height:64px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:2px;
+  padding:10px 46px 10px 14px;
+  border:1px solid #9bc8ab;
+  border-radius:13px;
+  background:#f0f8f2;
+  overflow:hidden;
+}
+.phfck-violations-view .phfck-selected-employee-summary small{font-size:10px;font-weight:800;letter-spacing:.05em;color:#5e7e70}
+.phfck-violations-view .phfck-selected-employee-summary b{font-size:14px;color:#145b34;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfck-violations-view .phfck-selected-employee-summary span{font-size:11px;color:#557066;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfck-violations-view .phfck-selected-employee-summary i{position:absolute;right:13px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#dff1e3;color:#176136;font-style:normal;font-weight:900}
+.phfck-violations-view .phfck-selected-employee-summary.is-empty{border-color:#d8e3dc;background:#f8faf9}
+.phfck-violations-view .phfck-selected-employee-summary.is-empty b{color:#365448}
+.phfck-violations-view .phfck-selected-employee-summary.is-empty i{background:#edf2ef;color:#6c8076}
+@media(max-width:1180px){.phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr 1fr}.phfck-violations-view .phfck-selected-employee-summary{grid-column:1/-1}}
+@media(max-width:760px){.phfck-violations-view .phfck-person-filter-grid{grid-template-columns:1fr}.phfck-violations-view .phfck-selected-employee-summary{grid-column:auto}}
+
+/* PHF Checklist 1.34.46 - one safety identity + deterministic criteria refresh */
+.phfck-violations-view .phfck-person-filter-grid.phfck-person-filter-grid-compact{
+  grid-template-columns:minmax(300px,.9fr) minmax(420px,1.35fr);
+  align-items:end;
+}
+.phfck-violations-view .phfck-violation-safety-banner-compact{
+  padding:12px 14px;
+  margin-bottom:12px;
+}
+.phfck-violations-view .phfck-violation-safety-banner-compact p{
+  margin-top:3px;
+}
+@media(max-width:900px){
+  .phfck-violations-view .phfck-person-filter-grid.phfck-person-filter-grid-compact{grid-template-columns:1fr}
+}
+
+/* Build 1.34.54 - Nhập và chọn nhân viên trong một ô gợi ý */
+.phfck-violations-view .phfck-person-filter-grid.phfck-person-filter-grid-single{grid-template-columns:minmax(0,1fr)}
+.phfck-violations-view .phfck-employee-combobox-field{max-width:none}
+.phfck-violations-view .phfck-employee-combobox{flex:1;min-width:0}
+.phfck-violations-view .phfck-employee-combobox input{width:100%}
+.phfck-violations-view .phfck-employee-combobox-field>small{display:block;margin-top:5px;color:#6a8279;font-size:11px}
+
+/* PHF Checklist 1.35.1 - searchable employee combobox */
+.phfck-employee-combo{position:relative;flex:1;min-width:0}
+.phfck-employee-combo-menu{position:absolute;z-index:80;left:0;right:0;top:calc(100% + 6px);max-height:320px;overflow:auto;background:#fff;border:1px solid #dbe7e2;border-radius:12px;box-shadow:0 14px 34px rgba(22,60,48,.16);padding:6px}
+.phfck-employee-combo-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;border:0;background:#fff;border-radius:9px;padding:10px 12px;text-align:left;cursor:pointer}
+.phfck-employee-combo-option:hover,.phfck-employee-combo-option:focus{background:#f0f8f4;outline:none}
+.phfck-employee-combo-option span{min-width:0;display:flex;flex-direction:column;gap:3px}
+.phfck-employee-combo-option b{color:#173f34;font-size:14px}
+.phfck-employee-combo-option small{color:#6a8279;font-size:11px;white-space:normal}
+.phfck-employee-combo-option i{font-style:normal;color:#19704f;font-size:12px;font-weight:700}
+.phfck-employee-combo-empty{padding:14px;color:#6a8279;font-size:13px;text-align:center}
+.phfck-employee-search-controls{align-items:flex-start}
+@media(max-width:760px){.phfck-employee-search-controls{flex-direction:column}.phfck-employee-search-controls>.phfck-secondary{width:100%}}
+
+/* PHF Checklist 1.35.3 - searchable dropdown + compact quick-entry context */
+.phfck-violations-view .phfck-employee-combobox{position:relative;padding-right:42px}
+.phfck-violations-view .phfck-employee-combo-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:#315e50;font-size:22px;line-height:1;cursor:pointer;transition:transform .15s ease,background .15s ease}
+.phfck-violations-view .phfck-employee-combo-toggle:hover{background:#edf7f1}
+.phfck-violations-view .phfck-employee-combo.is-open .phfck-employee-combo-toggle{transform:translateY(-50%) rotate(180deg)}
+.phfck-violations-view .phfck-employee-combo.is-open .phfck-employee-combobox{border-color:#49a56c;box-shadow:0 0 0 3px rgba(55,155,91,.12)}
+.phfck-violations-view .phfck-employee-combo-option:focus{background:#e8f6ed;box-shadow:inset 0 0 0 2px rgba(44,139,78,.18)}
+.phfck-violations-view .phfck-employee-change{height:42px;align-self:flex-start}
+.phfck-violations-view .phfck-quick-context{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:10px 0 12px;padding:10px 12px;border:1px solid #d8e9df;border-radius:12px;background:#f5fbf7}
+.phfck-violations-view .phfck-quick-context.is-empty{min-height:44px;color:#667d73;background:#fafcfb;border-style:dashed}
+.phfck-violations-view .phfck-quick-context.is-warning{background:#fffaf0;border-color:#efdfb8}
+.phfck-violations-view .phfck-context-person{display:flex;flex-direction:column;min-width:190px;gap:1px}
+.phfck-violations-view .phfck-context-person small{font-size:9px;font-weight:800;letter-spacing:.07em;color:#668073}
+.phfck-violations-view .phfck-context-person b{font-size:14px;color:#174b35}
+.phfck-violations-view .phfck-context-person span{font-size:11px;color:#6c8177}
+.phfck-violations-view .phfck-context-chips{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.phfck-violations-view .phfck-context-chips span{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border:1px solid #d6e6dd;border-radius:999px;background:#fff;color:#315b4d;font-size:11px;font-weight:700;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfck-violations-view .phfck-quick-actions-row{display:grid;grid-template-columns:220px minmax(280px,700px);align-items:end;gap:12px;margin:0 0 10px}
+.phfck-violations-view .phfck-quick-date-field{display:flex;flex-direction:column;gap:6px}
+.phfck-violations-view .phfck-quick-date-field>b{font-size:12px;color:#244f40}
+.phfck-violations-view .phfck-quick-date-field input{height:42px}
+.phfck-violations-view .phfck-quick-actions-row .phfck-quick-toolbar{margin:0}
+.phfck-violations-view .phfck-quick-actions-row .phfck-search{width:100%;max-width:none}
+.phfck-violations-view .phfck-quick-entry>.phfck-notice,.phfck-violations-view .phfck-quick-entry>.phfck-assignment-card{display:none}
+@media(max-width:900px){.phfck-violations-view .phfck-quick-context{align-items:flex-start;flex-direction:column}.phfck-violations-view .phfck-context-chips{justify-content:flex-start}.phfck-violations-view .phfck-quick-actions-row{grid-template-columns:190px minmax(0,1fr)}}
+@media(max-width:620px){.phfck-violations-view .phfck-quick-actions-row{grid-template-columns:1fr}.phfck-violations-view .phfck-context-chips span{max-width:100%}}
+
+
+/* PHF Checklist 1.35.3 - polish employee chevron and date field */
+.phfck-violations-view .phfck-employee-combo-toggle{
+  right:6px;
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:1px solid transparent;
+  border-radius:9px;
+  color:#42695b;
+  font-size:0;
+}
+.phfck-violations-view .phfck-employee-combo-toggle svg{
+  width:18px;
+  height:18px;
+  display:block;
+  pointer-events:none;
+  transition:transform .16s ease;
+}
+.phfck-violations-view .phfck-employee-combo-toggle:hover{
+  background:#eef7f2;
+  border-color:#d7e7de;
+  color:#165f3d;
+}
+.phfck-violations-view .phfck-employee-combo-toggle:focus-visible{
+  outline:none;
+  border-color:#55a876;
+  box-shadow:0 0 0 3px rgba(55,155,91,.13);
+}
+.phfck-violations-view .phfck-employee-combo.is-open .phfck-employee-combo-toggle{
+  transform:translateY(-50%);
+}
+.phfck-violations-view .phfck-employee-combo.is-open .phfck-employee-combo-toggle svg{
+  transform:rotate(180deg);
+}
+.phfck-violations-view .phfck-quick-date-field input[type="date"]{
+  width:100%;
+  min-width:0;
+  height:42px;
+  padding:0 12px;
+  border:1px solid #d5e3dc;
+  border-radius:12px;
+  background:#fff;
+  color:#24493c;
+  font:inherit;
+  font-size:13px;
+  line-height:1;
+  box-shadow:none;
+  outline:none;
+  color-scheme:light;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.phfck-violations-view .phfck-quick-date-field input[type="date"]:hover{
+  border-color:#b9d4c6;
+  background:#fcfefd;
+}
+.phfck-violations-view .phfck-quick-date-field input[type="date"]:focus{
+  border-color:#55a876;
+  box-shadow:0 0 0 3px rgba(55,155,91,.12);
+}
+.phfck-violations-view .phfck-quick-date-field input[type="date"]::-webkit-calendar-picker-indicator{
+  width:18px;
+  height:18px;
+  margin:0;
+  padding:2px;
+  border-radius:6px;
+  cursor:pointer;
+  opacity:.72;
+}
+.phfck-violations-view .phfck-quick-date-field input[type="date"]::-webkit-calendar-picker-indicator:hover{
+  background:#edf7f1;
+  opacity:1;
+}
+.phfck-violations-view .phfck-quick-actions-row{
+  grid-template-columns:200px minmax(280px,700px);
+  gap:14px;
+}

@@ -34,6 +34,29 @@ async function req(path,opts={}){const r=await fetch(base+path,opts);let j={};tr
     assert.equal(x.r.status,200,`${role} login failed ${JSON.stringify(x.j)}`);
     const cookie=x.r.headers.get('set-cookie'); assert(cookie,`${role} missing cookie`);
     const y=await req('/api/data?classroom=1',{headers:{cookie,origin:base}}); assert.equal(y.r.status,200,`${role} classroom failed`);
+    const month=new Date().toISOString().slice(0,7);
+    const checks=role==='ADMIN' ? [
+      {action:'listChecklistTasks',scope:'all'},
+      {action:'listChecklistViolations',mode:'production'},
+      {action:'listChecklistPermissionGrants',includeInactive:false},
+      {action:'getChecklistMonthlyReport',month},
+      {action:'listChecklistNotificationRules'},
+      {action:'listMyChecklistNotifications',limit:5}
+    ] : role==='MANAGER' ? [
+      {action:'getChecklistRoleWorkspace'},
+      {action:'listChecklistTasks',scope:'mine'},
+      {action:'listMyChecklistNotifications',limit:5}
+    ] : [
+      {action:'getChecklistRoleWorkspace'},
+      {action:'listChecklistTasks',scope:'mine'},
+      {action:'getMyChecklistMonthly',month},
+      {action:'listMyChecklistNotifications',limit:5}
+    ];
+    for(const payload of checks){
+      const z=await req('/api/data?smokeChecklist=1',{method:'POST',headers:{cookie,origin:base,'content-type':'application/json'},body:JSON.stringify(payload)});
+      assert.equal(z.r.status,200,`${role} checklist ${payload.action} failed ${z.r.status} ${JSON.stringify(z.j)}`);
+      assert.equal(z.j.ok,true,`${role} checklist ${payload.action} returned not ok`);
+    }
     console.log(`PASS ${role}`);
   }
   console.log('SMOKE PASS');

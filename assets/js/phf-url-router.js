@@ -1,9 +1,10 @@
+/* checklist stability baseline: 1.33.1_production_stability */
 /* PHF Training Hub - URL router nhẹ, phân quyền route và liên kết an toàn */
 (function(){
   'use strict';
 
   var ROUTE_MARK = '__phfUrlRouterWrapped';
-  var ROUTER_VERSION = '59.9-phf-hr-gateway';
+  var ROUTER_VERSION = '1.34.53-violation-lifecycle';
   var ROUTER_VERSION_KEY = 'phfUrlRouterVersion';
   var pendingPath = '';
   var applyingRoute = false;
@@ -19,6 +20,85 @@
   var reconcileTimer = null;
   var pageShowInstalled = false;
   var routeGuardOwnerRunId = 0;
+  var routeModuleLoads = Object.create(null);
+  var ROUTE_MODULES = {
+    classroom:{
+      src:'assets/js/classroom/phf-classroom-app.js?v=1.30.10_lazy_module',
+      renderer:'phfRenderClassroom',
+      label:'Classroom'
+    },
+    checklist:{
+      src:'assets/js/checklist/phf-checklist-app.js?v=1.35.3_violation_ui_polish',
+      renderer:'phfRenderChecklist',
+      label:'Checklist'
+    }
+  };
+
+  function routeModuleReady(name){
+    var config=ROUTE_MODULES[name];
+    return !!(config&&typeof window[config.renderer]==='function');
+  }
+  function ensureRouteModule(name){
+    var config=ROUTE_MODULES[name];
+    if(!config)return Promise.reject(new Error('PHF_ROUTE_MODULE_UNKNOWN'));
+    if(routeModuleReady(name))return Promise.resolve(true);
+    if(routeModuleLoads[name])return routeModuleLoads[name];
+
+    var loadingToken=null;
+    try{
+      if(typeof window.phfLoadingShow==='function'){
+        loadingToken=window.phfLoadingShow('generic',{
+          title:'Đang mở '+config.label,
+          text:'Hệ thống đang chuẩn bị chức năng. Vui lòng chờ trong giây lát.'
+        });
+      }
+    }catch(e){}
+
+    var request=new Promise(function(resolve,reject){
+      var script=document.createElement('script');
+      script.src=config.src;
+      script.async=true;
+      script.setAttribute('data-phf-route-module',name);
+      script.onload=function(){
+        if(routeModuleReady(name))resolve(true);
+        else reject(new Error('PHF_'+name.toUpperCase()+'_RENDERER_MISSING'));
+      };
+      script.onerror=function(){
+        script.remove();
+        reject(new Error('PHF_'+name.toUpperCase()+'_MODULE_LOAD_FAILED'));
+      };
+      document.head.appendChild(script);
+    }).then(function(result){
+      try{
+        if(typeof window.phfLoadingSettle==='function')window.phfLoadingSettle(loadingToken);
+        else if(typeof window.phfLoadingHide==='function')window.phfLoadingHide(loadingToken);
+      }catch(e){}
+      return result;
+    }).catch(function(error){
+      routeModuleLoads[name]=null;
+      try{if(typeof window.phfLoadingHideNow==='function')window.phfLoadingHideNow();}catch(e){}
+      throw error;
+    });
+    routeModuleLoads[name]=request;
+    return request;
+  }
+  function renderRouteModuleError(name,path,error){
+    var config=ROUTE_MODULES[name]||{label:'chức năng'};
+    var root=document.getElementById(name==='classroom'?'phfClassroomRoot':'phfChecklistRoot');
+    if(window.PHFAppShell)window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
+    if(root){
+      root.innerHTML='<section style="min-height:70vh;display:grid;place-items:center;padding:28px;background:#f5faf7"><div style="width:min(520px,100%);padding:28px;border:1px solid #d8e8df;border-radius:20px;background:#fff;box-shadow:0 18px 46px rgba(15,74,55,.10);text-align:center;font-family:Segoe UI,Arial,sans-serif"><strong style="display:block;color:#07543e;font-size:22px;margin-bottom:10px">Chưa thể mở '+config.label+'</strong><p style="margin:0 0 20px;color:#60736b;line-height:1.6">Kết nối tải chức năng chưa hoàn tất. Dữ liệu của bạn không bị thay đổi.</p><button type="button" data-phf-module-retry="'+name+'" style="min-height:44px;padding:0 22px;border:0;border-radius:12px;background:#07543e;color:#fff;font-weight:700;cursor:pointer">Thử lại</button></div></section>';
+      var retry=root.querySelector('[data-phf-module-retry]');
+      if(retry)retry.onclick=function(){
+        retry.disabled=true;
+        retry.textContent='Đang thử lại…';
+        routeModuleLoads[name]=null;
+        navigate(path,true,{source:'module-retry'}).catch(function(){});
+      };
+    }
+    console.error('[PHF ROUTER] module load failed',name,error&&error.message||error);
+    return false;
+  }
 
   /* Hệ thống cũ còn một lớp history nội bộ chỉ thay state nhưng giữ nguyên URL.
      Khi router URL mới cùng hoạt động, mỗi lần đổi màn có thể sinh hai history
@@ -45,7 +125,7 @@
   function normalizeCurrentHistoryEntry(){
     try{
       var path=cleanPath(location.pathname);
-      var state=Object.assign({},history.state||{},{phfUrl:true,path:path});
+      var state=Object.assign({},history.state||{},{phfUrl:true,path:path,routeKey:currentRouteKey()});
       nativeReplaceState(state,'',path+(location.search||'')+(location.hash||''));
     }catch(e){}
   }
@@ -58,8 +138,9 @@
     reconcileTimer=setTimeout(function(){
       reconcileTimer=null;
       var current=cleanPath(location.pathname);
+      var currentKey=currentRouteKey();
       if(applyingRoute) return reconcileCurrentRoute(source||'reconcile-busy',60);
-      if(lastCommittedPath===current){
+      if(lastCommittedPath===currentKey){
         syncRouteUi(current);
         normalizeCurrentHistoryEntry();
         return;
@@ -124,6 +205,8 @@
     if(raw.length>1) raw=raw.replace(/\/$/,'');
     return raw||'/';
   }
+  function currentRouteKey(){return cleanPath(location.pathname)+(location.search||'');}
+  function routeKeyFor(path){var raw=String(path||currentRouteKey());try{var u=new URL(raw,location.origin);return cleanPath(u.pathname)+(u.search||'');}catch(e){return cleanPath(raw);}}
   function safeReturnTo(value){
     var p=cleanPath(value);
     return p.startsWith('/') && !p.startsWith('//') ? p : '/';
@@ -131,7 +214,7 @@
   function setUrl(path,replace){
     path=cleanPath(path);
     if(location.pathname===path && !location.search) return;
-    var state=Object.assign({},history.state||{},{phfUrl:true,path:path});
+    var state=Object.assign({},history.state||{},{phfUrl:true,path:path,routeKey:currentRouteKey()});
     try{ (replace?nativeReplaceState:nativePushState)(state,'',path); }catch(e){}
     updateCopyAction();
   }
@@ -198,6 +281,7 @@
     '/ql/bao-cao':Object.freeze({area:'manager',screen:'reports',roles:['manager']}),
     '/ql/de-xuat-dao-tao':Object.freeze({area:'manager',screen:'training-proposals',roles:['manager']}),
     '/ql/checklist':Object.freeze({area:'manager',screen:'checklist-home',roles:['manager']}),
+    '/ql/checklist/bao-cao':Object.freeze({area:'manager',screen:'checklist-reports',roles:['manager']}),
     '/ql/classroom':Object.freeze({area:'manager',screen:'classroom-home',roles:['manager']}),
     '/ql/classroom/lop':Object.freeze({area:'manager',screen:'classroom-classes',roles:['manager']}),
     '/ql/classroom/lich':Object.freeze({area:'manager',screen:'classroom-calendar',roles:['manager']}),
@@ -249,13 +333,13 @@
   window.PHF_ROUTE_MAP=Object.freeze({
     public:['/','/login'],
     learner:['/hv','/hv/home','/hv/knl','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
-    management:['/ql','/ql/home','/ql/knl','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
+    management:['/ql','/ql/home','/ql/knl','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
     admin:['/admin','/admin/home','/admin/knl','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
     knl:['/hv/knl','/ql/knl','/admin/knl'],
     hr:['/hv/home','/ql/home','/admin/home'],
     hub:['/hv','/ql','/admin'],
-    checklist:['/hv/checklist','/ql/checklist','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
+    checklist:['/hv/checklist','/ql/checklist','/ql/checklist/bao-cao','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
   });
 
   function canonicalLegacyPath(path){
@@ -553,7 +637,8 @@
     meta=meta||{};
     currentRenderSource=String(meta.source||currentRenderSource||'system');
     path=canonicalLegacyPath(path);
-    if(cleanPath(location.pathname)!==path) setUrl(path,true);
+    if(cleanPath(location.pathname)!==cleanPath(path)) setUrl(path,true);
+    var targetRouteKey=routeKeyFor(path.indexOf('?')>=0?path:currentRouteKey());
     applyingRoute=true;
     var runId=++routeRenderSequence;
     /* 60.8: Hai route từng lộ màn Training Hub/Học viên trong lúc renderer đích
@@ -573,7 +658,7 @@
       routeGuardOwnerRunId=0;
       try{document.documentElement.classList.remove('phf-route-boot-pending','phf-route-shell-early');}catch(e){}
     }
-    function stale(){return runId!==routeRenderSequence || cleanPath(location.pathname)!==path;}
+    function stale(){return runId!==routeRenderSequence || currentRouteKey()!==targetRouteKey;}
     try{
       if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:true});
       if(path==='/'){
@@ -645,7 +730,10 @@
       }
       if(path==='/admin/noi-dung'){
         if(!requireRoles(['admin']))return false;
-        await Promise.resolve(window.phfRenderTrainingLibrary&&window.phfRenderTrainingLibrary());
+        if(typeof window.__phfRenderTrainingLibraryRoute!=='function') throw new Error('PHF_TRAINING_LIBRARY_ROUTE_RENDERER_MISSING');
+        await Promise.resolve(window.__phfRenderTrainingLibraryRoute());
+        var adminLibraryRoot=document.querySelector('#mainLesson .phf-training-library');
+        if(!adminLibraryRoot) throw new Error('PHF_TRAINING_LIBRARY_MOUNT_FAILED');
         return true;
       }
       if(path==='/admin/bao-cao'){
@@ -728,7 +816,11 @@
       }
       if(path==='/ql/noi-dung'){
         if(!requireRoles(['manager']))return false;
-        await Promise.resolve(window.phfRenderTrainingLibrary&&window.phfRenderTrainingLibrary()); return true;
+        if(typeof window.__phfRenderTrainingLibraryRoute!=='function') throw new Error('PHF_TRAINING_LIBRARY_ROUTE_RENDERER_MISSING');
+        await Promise.resolve(window.__phfRenderTrainingLibraryRoute());
+        var managerLibraryRoot=document.querySelector('#mainLesson .phf-training-library');
+        if(!managerLibraryRoot) throw new Error('PHF_TRAINING_LIBRARY_MOUNT_FAILED');
+        return true;
       }
       if(path==='/ql/bao-cao'){
         if(!requireRoles(['manager']))return false;
@@ -815,7 +907,10 @@
           setUrl(checklistHome,true);
           path=checklistHome;
         }
-        if(typeof window.phfRenderChecklist!=='function') throw new Error('PHF_CHECKLIST_RENDERER_MISSING');
+        try{await ensureRouteModule('checklist');}
+        catch(checklistLoadError){return renderRouteModuleError('checklist',path,checklistLoadError);}
+        if(stale())return false;
+        if(typeof window.phfRenderChecklist!=='function')return renderRouteModuleError('checklist',path,new Error('PHF_CHECKLIST_RENDERER_MISSING'));
         await Promise.resolve(window.phfRenderChecklist(path));
         return true;
       }
@@ -831,14 +926,11 @@
           setUrl(classroomHome,true);
           path=classroomHome;
         }
-        /* 62.5.1: Classroom app owns the final UI. The router skeleton is only a
-           fallback when the Classroom bundle has not loaded, otherwise it would
-           overwrite the new Admin/Manager/Learner dashboard with the old temporary shell. */
-        if(typeof window.phfRenderClassroom==='function'){
-          await Promise.resolve(window.phfRenderClassroom(path));
-        }else{
-          await Promise.resolve(renderClassroomSkeleton(path));
-        }
+        try{await ensureRouteModule('classroom');}
+        catch(classroomLoadError){return renderRouteModuleError('classroom',path,classroomLoadError);}
+        if(stale())return false;
+        if(typeof window.phfRenderClassroom!=='function')return renderRouteModuleError('classroom',path,new Error('PHF_CLASSROOM_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderClassroom(path));
         return true;
       }
       if(/^\/classroom(?:\/|$)/.test(path)){
@@ -849,16 +941,15 @@
         if(role()==='admin') classroomAllowed=classroomAllowed.concat(['/classroom/reports','/classroom/settings']);
         var classroomHome = role()==='learner' ? '/classroom/my-classes' : '/classroom';
         if(classroomAllowed.indexOf(path)<0){path=classroomHome;setUrl(path,true);}
-        if(typeof window.phfRenderClassroom==='function'){
-          if(stale()) return false;
-          await Promise.resolve(window.phfRenderClassroom(path));
-          if(stale()) return false;
-          if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
-          try{window.scrollTo({top:0,left:0,behavior:'auto'});}catch(e){}
-          return true;
-        }
-        setUrl(safeHomeForRole(),true);
-        return render(safeHomeForRole(),true);
+        try{await ensureRouteModule('classroom');}
+        catch(legacyClassroomLoadError){return renderRouteModuleError('classroom',path,legacyClassroomLoadError);}
+        if(stale()) return false;
+        if(typeof window.phfRenderClassroom!=='function')return renderRouteModuleError('classroom',path,new Error('PHF_CLASSROOM_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderClassroom(path));
+        if(stale()) return false;
+        if(window.PHFAppShell) window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
+        try{window.scrollTo({top:0,left:0,behavior:'auto'});}catch(e){}
+        return true;
       }
       if(path==='/admin/home'){
         if(!requireRoles(['admin']))return false;
@@ -893,7 +984,7 @@
         try{window.PHFAppShell.syncFromRoute(finalPath,{clear:!/^\/(?:admin|ql|hv)(?:$|\/(?:hub|classroom|checklist|knl)(?:\/|$))/.test(finalPath)});}catch(e){}
       }
       if(runId===routeRenderSequence){
-        lastCommittedPath=finalPath;
+        lastCommittedPath=currentRouteKey();
         syncRouteUi(finalPath);
         normalizeCurrentHistoryEntry();
         setTimeout(function(){if(runId===routeRenderSequence)syncRouteUi(cleanPath(location.pathname));},160);
@@ -1102,7 +1193,7 @@
     applyingRoute=false;
     Promise.resolve(render(path,true,{source:'popstate'})).then(function(){
       if(run===popstateRun){
-        lastCommittedPath=cleanPath(location.pathname);
+        lastCommittedPath=currentRouteKey();
         normalizeCurrentHistoryEntry();
       }
     }).catch(function(err){
