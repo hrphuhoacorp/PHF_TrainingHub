@@ -1,7 +1,7 @@
 {
-  "version": "1.38.46",
-  "fingerprint": "13846-admin-permission-filter-inline-alignment",
-  "builtAt": "2026-08-02T20:08:00+07:00",
-  "note": "Chỉ bỏ nhãn hiển thị riêng phía trên bộ lọc hồ sơ quyền và căn ô lọc cùng một hàng, cùng chiều cao với ô tìm kiếm và nhóm nút. Không sửa logic lọc, nội dung lựa chọn, Router, quyền, API, DB hoặc UI khác.",
-  "build": "13846-admin-permission-filter-inline-alignment"
+  "version": "1.38.53",
+  "fingerprint": "13853-marketing-kpi-state-based-editing",
+  "builtAt": "2026-08-02T22:45:00+07:00",
+  "notes": "Riêng KPI tháng TBP Marketing và Media Marketing: bỏ giới hạn ngày 1-3; TBP Marketing, Trợ lý GĐ và Admin được sửa bất kỳ lúc nào khi chưa phát sinh dữ liệu tự đánh giá. Tự khóa ngay khi có dữ liệu tự đánh giá. Không ảnh hưởng mẫu khác, chu kỳ chung, RPC, DB hoặc snapshot.",
+  "build": "13853-marketing-kpi-state-based-editing"
 }

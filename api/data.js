@@ -14,7 +14,7 @@ const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibr
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('../lib/checklist-violations');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('../lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
-const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('../lib/checklist-monthly');
+const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('../lib/checklist-monthly');
 const { getChecklistMonthlyReport } = require('../lib/checklist-reports');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const {
@@ -363,6 +363,8 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='listMyChecklistNotifications')return res.status(200).json({ok:true,...await listMyChecklistNotifications(session,payload)});
       if(payload&&payload.action==='markChecklistNotificationRead')return res.status(200).json({ok:true,...await markChecklistNotificationRead(session,payload)});
       if(payload&&payload.action==='markAllChecklistNotificationsRead')return res.status(200).json({ok:true,...await markAllChecklistNotificationsRead(session)});
+      if(payload&&payload.action==='getMarketingMonthlyKpiConfig')return res.status(200).json({ok:true,...await getMarketingMonthlyKpiConfig(session,payload)});
+      if(payload&&payload.action==='saveMarketingMonthlyKpiConfig')return res.status(200).json({ok:true,...await saveMarketingMonthlyKpiConfig(session,payload)});
       if(payload&&payload.action==='listChecklistMonthly')return res.status(200).json({ok:true,...await listMonthly(session,payload)});
       if(payload&&payload.action==='createChecklistMonthly')return res.status(200).json({ok:true,...await createMonthly(session,payload)});
       if(payload&&payload.action==='openChecklistMonthly')return res.status(200).json({ok:true,...await openMonthly(session,payload)});
