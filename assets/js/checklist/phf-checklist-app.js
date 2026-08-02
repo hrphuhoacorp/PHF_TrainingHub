@@ -1430,7 +1430,7 @@
     }catch(error){checklistToast('error','Chưa thể xuất Excel',error&&error.message?error.message:'Vui lòng thử lại.',true);}
     finally{monthlyUiState.exporting=false;if(button){button.disabled=false;button.textContent=buttonLabel||'⇩ Xuất Excel';}}
   }
-  function normalizeText(v){return String(v==null?'':v).trim();}
+  function normalizeText(v){return String(v==null?'':v).normalize('NFC').replace(/ /g,' ').replace(/\s+/g,' ').trim();}
   function normalizeEmployeeStatus(v){
     var x=normalizeText(v);
     if(x==='Tạm nghỉ')return 'Nghỉ dài hạn';
@@ -2067,11 +2067,11 @@
     var all=checklistEmployees(),uniq=function(values){var seen={};return values.map(peopleExcelText).filter(function(x){if(!x||seen[x])return false;seen[x]=true;return true;}).sort(function(a,b){return a.localeCompare(b,'vi',{sensitivity:'base'});});};
     return {
       departments:uniq(all.map(function(x){return x.department;})),
-      titles:uniq(all.map(function(x){return x.title;})),
+      titles:titleCatalog(all),
       branches:uniq(all.map(function(x){return x.branch;})),
       managers:all.filter(function(x){return x.code&&normalizeEmployeeStatus(x.employeeStatus)!=='Đã nghỉ việc';}).map(function(x){return {code:x.code,name:x.name};}).sort(function(a,b){return a.name.localeCompare(b.name,'vi',{sensitivity:'base'});}),
       statuses:['Đang làm việc','Nghỉ dài hạn','Đã nghỉ việc'],
-      templates:templateOptions().map(function(x){return {id:x[0],name:x[1]};})
+      templates:templateCatalog().map(function(x){return {id:x.id,name:x.name};})
     };
   }
   function stylePeopleWorkbookSheet(ws,widths,freeze){
