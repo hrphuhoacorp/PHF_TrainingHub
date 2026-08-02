@@ -242,7 +242,7 @@
         if(cleanEmail(account.email)===currentLoginEmail()&&nextAccountStatus!=='active')throw new Error('Không thể khóa hoặc ngừng tài khoản đang đăng nhập.');
         if(nextAccountStatus!==account.status||nextHubStatus!==account.hubAssignmentStatus){
           var payload=Object.assign({},account,{status:nextAccountStatus,hubAssignmentStatus:nextHubStatus});
-          var result=await accountApi('/api/auth/accounts/update',{accountId:account.id,account:payload});
+          var result=await accountApi('/api/auth/accounts',{action:'update',accountId:account.id,account:payload});
           if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận cập nhật tài khoản.');
         }
         var checklistSelect=root.querySelector('#phfHrAccessChecklistStatus');
@@ -288,7 +288,7 @@
   window.phfAcctToggleAccountType=function(){var type=(document.getElementById('phfAcctSafeType')||{}).value||'employee',system=type==='system_admin';Array.prototype.forEach.call(document.querySelectorAll('.phf-employee-only'),function(el){el.style.display=system?'none':''});var role=document.getElementById('phfAcctSafeRole');if(role){if(system){role.value='admin';role.disabled=true}else role.disabled=false}var help=document.getElementById('phfAcctTypeHelp');if(help)help.textContent=system?'Tài khoản hệ thống không liên kết hồ sơ nhân viên, không dùng mã NV/SĐT để tự ghép và chỉ có quyền Admin.':'Tài khoản nhân viên phải liên kết đúng một hồ sơ nhân sự.';if(!system)window.phfAcctTrainingScopeChanged();};
 
   async function accountApi(url,payload){var response=await fetch(url,{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})});var json=await response.json().catch(function(){return{}});if(!response.ok){var err=new Error(json.error||'Không thể kết nối máy chủ.');err.code=json.code||'';throw err}return json}
-  async function loadAccountsFromServer(force){if(ACCOUNT_LIST_LOADING&&!force)return ACCOUNT_LIST_LOADING;ACCOUNT_LIST_LOADING=(async function(){var response=await fetch('/api/auth/accounts/list',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});var json=await response.json().catch(function(){return{}});if(!response.ok){var err=new Error(json.error||'Không thể tải danh sách tài khoản từ máy chủ.');err.code=json.code||'';throw err}var list=Array.isArray(json.accounts)?json.accounts:[];write(KEY,list.map(normalizeAccount));refreshAccounts();return list})().finally(function(){ACCOUNT_LIST_LOADING=null});return ACCOUNT_LIST_LOADING}
+  async function loadAccountsFromServer(force){if(ACCOUNT_LIST_LOADING&&!force)return ACCOUNT_LIST_LOADING;ACCOUNT_LIST_LOADING=(async function(){var response=await fetch('/api/auth/accounts?action=list',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});var json=await response.json().catch(function(){return{}});if(!response.ok){var err=new Error(json.error||'Không thể tải danh sách tài khoản từ máy chủ.');err.code=json.code||'';throw err}var list=Array.isArray(json.accounts)?json.accounts:[];write(KEY,list.map(normalizeAccount));refreshAccounts();return list})().finally(function(){ACCOUNT_LIST_LOADING=null});return ACCOUNT_LIST_LOADING}
   function copyText(value){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(value);var ta=document.createElement('textarea');ta.value=value;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();return Promise.resolve()}
   function showCreatedCredentials(account,temp){return new Promise(function(resolve){var root=document.createElement('div');root.className='phf-modal-backdrop';var full='PHF TRAINING HUB\n\nHọ tên: '+(account.name||'')+'\nTài khoản: '+(account.email||'')+'\nMật khẩu tạm: '+temp+'\n\nVui lòng đăng nhập và đổi mật khẩu trong lần sử dụng đầu tiên.';root.innerHTML='<section class="phf-modal-card phf-credential-card" role="dialog" aria-modal="true"><div class="phf-modal-head"><button class="phf-modal-close" type="button" id="phfCredentialCloseTop" aria-label="Đóng">×</button><div class="phf-modal-icon">✓</div><div><h3>Tạo tài khoản thành công</h3><p>Mật khẩu tạm chỉ hiển thị trong lần này.</p></div></div><div class="phf-credential-body"><dl><div><dt>Họ tên</dt><dd>'+esc(account.name||'—')+'</dd></div><div><dt>Tài khoản</dt><dd>'+esc(account.email||'—')+'</dd></div><div><dt>Vai trò</dt><dd>'+esc(roleLabel(account.role))+'</dd></div><div><dt>Trạng thái</dt><dd>Cần đổi mật khẩu lần đầu</dd></div></dl><div class="phf-credential-secret"><span>Mật khẩu tạm</span><strong id="phfCreatedTempPassword">'+esc(temp)+'</strong></div><p class="phf-credential-note">Sau khi đóng cửa sổ này, hệ thống không thể xem lại mật khẩu. Nếu thất lạc, Admin cần cấp lại mật khẩu mới.</p></div><div class="phf-modal-actions"><button class="phf-modal-btn" id="phfCopyTemp">Sao chép mật khẩu</button><button class="phf-modal-btn" id="phfCopyAll">Sao chép thông tin</button><button class="phf-modal-btn primary" id="phfCredentialClose">Đóng</button></div></section>';document.body.appendChild(root);root.querySelector('#phfCopyTemp').onclick=async function(){await copyText(temp);this.textContent='Đã sao chép'};root.querySelector('#phfCopyAll').onclick=async function(){await copyText(full);this.textContent='Đã sao chép'};function closeCredential(){root.remove();resolve(true)};root.querySelector('#phfCredentialClose').onclick=closeCredential;root.querySelector('#phfCredentialCloseTop').onclick=closeCredential})}
 
@@ -307,7 +307,7 @@
     var btn=document.getElementById('phfAcctSafeSubmit');if(btn){btn.disabled=true;btn.textContent=old?'Đang lưu...':'Đang tạo...'}
     try{
       if(old){
-        var result=await accountApi('/api/auth/accounts/update',{accountId:old.id,account:a});
+        var result=await accountApi('/api/auth/accounts',{action:'update',accountId:old.id,account:a});
         var updated=normalizeAccount(Object.assign({},old,result.user||a));
         var i=list.findIndex(function(x){return x.id===updated.id});
         if(i>=0)list[i]=updated;
@@ -324,7 +324,7 @@
         await phfAlert('Đã lưu thay đổi tài khoản. Thông tin đăng nhập mới đã có hiệu lực.','Cập nhật thành công','');
         renderAccounts();return
       }
-      var result=await accountApi('/api/auth/accounts/create',{account:a});var created=normalizeAccount(Object.assign({},a,result.user||{},{mustChangePassword:true}));list.unshift(created);write(KEY,list.map(normalizeAccount));try{await loadAccountsFromServer(true)}catch(syncError){console.warn('[PHF Accounts] Chưa tải lại được danh sách sau tạo:',syncError&&syncError.message||syncError)}addLog('Tạo tài khoản '+created.email+' · mật khẩu tạm do máy chủ cấp');renderAccounts();await showCreatedCredentials(created,result.temporaryPassword||'');
+      var result=await accountApi('/api/auth/accounts',{action:'create',account:a});var created=normalizeAccount(Object.assign({},a,result.user||{},{mustChangePassword:true}));list.unshift(created);write(KEY,list.map(normalizeAccount));try{await loadAccountsFromServer(true)}catch(syncError){console.warn('[PHF Accounts] Chưa tải lại được danh sách sau tạo:',syncError&&syncError.message||syncError)}addLog('Tạo tài khoản '+created.email+' · mật khẩu tạm do máy chủ cấp');renderAccounts();await showCreatedCredentials(created,result.temporaryPassword||'');
     }catch(error){var fallback=old?'Chưa thể cập nhật tài khoản. Vui lòng thử lại.':'Chưa thể tạo tài khoản. Vui lòng thử lại.';var title=old?'Cập nhật tài khoản chưa thành công':'Tạo tài khoản chưa thành công';await phfAlert(error&&error.message?error.message:fallback,title,'danger')}
     finally{var current=document.getElementById('phfAcctSafeSubmit');if(current){current.disabled=false;current.textContent=old?'Lưu thay đổi':'Tạo tài khoản'}}
   };
@@ -472,7 +472,7 @@
     var stop=showAccountProcessing('Đang liên kết tài khoản','Hệ thống đang kiểm tra xung đột và ghi liên kết hồ sơ.');
     try{
       var payload=Object.assign({},a,{employeeId:staffId,employeeCode:String(s.employeeCode||''),linkReviewTargetCode:String(s.employeeCode||'')});
-      var result=await accountApi('/api/auth/accounts/update',{accountId:a.id,account:payload});
+      var result=await accountApi('/api/auth/accounts',{action:'update',accountId:a.id,account:payload});
       var savedUser=result&&result.user||null,savedEmployeeId=String(savedUser&&savedUser.employeeId||'').trim();
       var savedCode=String(savedUser&&savedUser.employeeCode||'').trim();
       if(!savedUser||!savedEmployeeId||!sameText(savedCode,s.employeeCode||''))throw new Error('Máy chủ chưa xác nhận liên kết hồ sơ theo mã nhân viên.');
@@ -500,7 +500,7 @@
       var targetId=staffProfileId(s),occupied=accounts().find(function(x){return String(x.id)!==String(accountId)&&String(x.employeeId||'').trim()===targetId});
       if(occupied)throw new Error('Hồ sơ đích vừa được tài khoản khác liên kết. Hệ thống đã dừng để tránh trùng.');
       var payload=Object.assign({},latest,{employeeId:targetId,employeeCode:String(s.employeeCode||''),linkReviewTargetCode:String(s.employeeCode||'')});
-      var result=await accountApi('/api/auth/accounts/update',{accountId:latest.id,account:payload});
+      var result=await accountApi('/api/auth/accounts',{action:'update',accountId:latest.id,account:payload});
       var savedUser=result&&result.user||null,savedEmployeeId=String(savedUser&&savedUser.employeeId||'').trim();
       var savedCode=String(savedUser&&savedUser.employeeCode||'').trim();
       if(!savedUser||!savedEmployeeId||!sameText(savedCode,s.employeeCode||''))throw new Error('Máy chủ chưa xác nhận liên kết hồ sơ theo mã nhân viên.');
@@ -591,7 +591,7 @@
     var list=accounts(),targets=list.filter(function(a){return ids.indexOf(String(a.id||''))>=0&&!accountBulkProtected(a)});if(!targets.length){await phfAlert('Các tài khoản đã chọn đều đang được bảo vệ.','Không thể thực hiện','warn');return}
     if(!(await phfConfirm('Chuyển '+targets.length+' tài khoản sang trạng thái “Ngừng sử dụng”?\n\nCác tài khoản sẽ không đăng nhập được, nhưng hồ sơ và toàn bộ dữ liệu đào tạo vẫn được giữ nguyên.','Xác nhận ngừng sử dụng','warn','Ngừng sử dụng')))return;
     ACCOUNT_BULK_INFLIGHT=true;var stop=showAccountProcessing('Đang cập nhật tài khoản','Máy chủ đang chuyển '+targets.length+' tài khoản sang Ngừng sử dụng.');var ok=[],failed=[];
-    try{for(var i=0;i<targets.length;i++){var a=targets[i];try{var payload=Object.assign({},a,{status:'inactive'});var result=await accountApi('/api/auth/accounts/update',{accountId:a.id,account:payload});if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận cập nhật.');ok.push(a)}catch(err){failed.push({account:a,error:(err&&err.message)||'Không thể cập nhật'})}}await loadAccountsFromServer(true);try{addLog('Ngừng sử dụng hàng loạt '+ok.length+' tài khoản · người thực hiện: '+currentAdminLabel())}catch(e){}stop();renderAccounts();var msg='Đã ngừng sử dụng '+ok.length+' tài khoản.'+(failed.length?'\n\nKhông xử lý được '+failed.length+' tài khoản:\n'+failed.map(function(x){return '• '+(x.account.email||x.account.name)+': '+x.error}).join('\n'):'');await phfAlert(msg,failed.length?'Đã xử lý một phần':'Đã xử lý an toàn',failed.length?'warn':'')}finally{ACCOUNT_BULK_INFLIGHT=false;try{stop()}catch(e){}}
+    try{for(var i=0;i<targets.length;i++){var a=targets[i];try{var payload=Object.assign({},a,{status:'inactive'});var result=await accountApi('/api/auth/accounts',{action:'update',accountId:a.id,account:payload});if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận cập nhật.');ok.push(a)}catch(err){failed.push({account:a,error:(err&&err.message)||'Không thể cập nhật'})}}await loadAccountsFromServer(true);try{addLog('Ngừng sử dụng hàng loạt '+ok.length+' tài khoản · người thực hiện: '+currentAdminLabel())}catch(e){}stop();renderAccounts();var msg='Đã ngừng sử dụng '+ok.length+' tài khoản.'+(failed.length?'\n\nKhông xử lý được '+failed.length+' tài khoản:\n'+failed.map(function(x){return '• '+(x.account.email||x.account.name)+': '+x.error}).join('\n'):'');await phfAlert(msg,failed.length?'Đã xử lý một phần':'Đã xử lý an toàn',failed.length?'warn':'')}finally{ACCOUNT_BULK_INFLIGHT=false;try{stop()}catch(e){}}
   };
   window.phfAcctBulkDelete=async function(){
     if(ACCOUNT_BULK_INFLIGHT)return;
@@ -601,7 +601,7 @@
     if(!(await phfConfirm('Anh sắp xóa '+targets.length+' tài khoản đăng nhập:\n\n'+preview+'\n\nHồ sơ nhân viên, tiến độ, bài thi, BMTT và phiếu đánh giá vẫn được giữ nguyên. Chỉ dùng cho tài khoản test hoặc tạo nhầm.','Xác nhận xóa hàng loạt','danger','Tiếp tục')))return;
     if(!(await phfConfirm('Đây là bước xác nhận cuối. Sau khi xóa, các tài khoản này không thể đăng nhập.\n\nTài khoản Admin gốc và tài khoản đang đăng nhập luôn được bảo vệ.','Xác nhận lần cuối','danger','Xóa '+targets.length+' tài khoản')))return;
     ACCOUNT_BULK_INFLIGHT=true;var stop=showAccountProcessing('Đang xóa tài khoản','Máy chủ đang gỡ '+targets.length+' tài khoản đăng nhập. Không đóng trang hoặc bấm lặp.');var ok=[],failed=[];
-    try{for(var i=0;i<targets.length;i++){var a=targets[i];try{var result=await accountApi('/api/auth/accounts/delete',{accountId:a.id});if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận xóa.');ok.push(a)}catch(err){failed.push({account:a,error:(err&&err.message)||'Không thể xóa'})}}await loadAccountsFromServer(true);try{addLog('Xóa hàng loạt '+ok.length+' tài khoản đăng nhập; giữ nguyên hồ sơ và dữ liệu đào tạo · người thực hiện: '+currentAdminLabel())}catch(e){}stop();renderAccounts();var msg='Đã xóa '+ok.length+' tài khoản đăng nhập.'+(failed.length?'\n\nKhông xóa được '+failed.length+' tài khoản:\n'+failed.map(function(x){return '• '+(x.account.email||x.account.name)+': '+x.error}).join('\n'):'')+'\n\nHồ sơ và dữ liệu đào tạo liên quan không bị xóa.';await phfAlert(msg,failed.length?'Đã xử lý một phần':'Xóa tài khoản thành công',failed.length?'warn':'')}finally{ACCOUNT_BULK_INFLIGHT=false;try{stop()}catch(e){}}
+    try{for(var i=0;i<targets.length;i++){var a=targets[i];try{var result=await accountApi('/api/auth/accounts',{action:'delete',accountId:a.id});if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận xóa.');ok.push(a)}catch(err){failed.push({account:a,error:(err&&err.message)||'Không thể xóa'})}}await loadAccountsFromServer(true);try{addLog('Xóa hàng loạt '+ok.length+' tài khoản đăng nhập; giữ nguyên hồ sơ và dữ liệu đào tạo · người thực hiện: '+currentAdminLabel())}catch(e){}stop();renderAccounts();var msg='Đã xóa '+ok.length+' tài khoản đăng nhập.'+(failed.length?'\n\nKhông xóa được '+failed.length+' tài khoản:\n'+failed.map(function(x){return '• '+(x.account.email||x.account.name)+': '+x.error}).join('\n'):'')+'\n\nHồ sơ và dữ liệu đào tạo liên quan không bị xóa.';await phfAlert(msg,failed.length?'Đã xử lý một phần':'Xóa tài khoản thành công',failed.length?'warn':'')}finally{ACCOUNT_BULK_INFLIGHT=false;try{stop()}catch(e){}}
   };
   window.phfAcctDeleteAccount=async function(id){
     if(!requireAdminUi())return;
@@ -615,7 +615,7 @@
     if(!(await phfConfirm('Xác nhận lần cuối: tài khoản '+(a.email||'')+' sẽ không thể đăng nhập sau thao tác này.','Xác nhận lần cuối','danger','Xóa vĩnh viễn tài khoản')))return;
     var stop=showAccountProcessing('Đang xóa tài khoản','Máy chủ đang gỡ tài khoản đăng nhập. Vui lòng không đóng trang hoặc bấm lặp.');
     try{
-      var result=await accountApi('/api/auth/accounts/delete',{accountId:a.id});
+      var result=await accountApi('/api/auth/accounts',{action:'delete',accountId:a.id});
       if(!result||!result.user)throw new Error('Máy chủ chưa xác nhận tài khoản đã được xóa.');
       await loadAccountsFromServer(true);
       if(accounts().some(function(item){return String(item.id||'')===String(a.id||'')}))throw new Error('Tài khoản vẫn còn trên máy chủ sau khi tải lại. Hệ thống chưa ghi nhận xóa.');
@@ -633,7 +633,7 @@
     if(!(await phfConfirm('Hệ thống sẽ tạo mật khẩu tạm mới cho '+(a.name||a.email)+'. Mật khẩu cũ và các phiên đăng nhập cũ sẽ ngừng sử dụng.','Cấp lại mật khẩu','warn','Cấp mật khẩu mới')))return;
     var stop=showAccountProcessing('Đang cấp lại mật khẩu','Hệ thống đang cập nhật bảo mật tài khoản '+(a.email||'')+'. Vui lòng không đóng trang.');
     try{
-      var result=await accountApi('/api/auth/accounts/reset-password',{accountId:a.id});
+      var result=await accountApi('/api/auth/accounts',{action:'reset-password',accountId:a.id});
       if(!result||!result.temporaryPassword)throw new Error('Máy chủ chưa trả lại mật khẩu tạm. Vui lòng thử lại.');
       var serverUser=result.user||{};
       Object.keys(serverUser).forEach(function(k){a[k]=serverUser[k]});

@@ -803,10 +803,10 @@
       }catch(e){}
     }
     try{
-      await request('/api/auth/accounts/sync',{
+      await request('/api/auth/accounts',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({accounts:accounts})
+        body:JSON.stringify({action:'sync',accounts:accounts})
       });
       return true;
     }catch(e){
