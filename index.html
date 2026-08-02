@@ -3,6 +3,27 @@
 <html lang="vi">
 <head>
 <base href="/">
+<script id="phf-build-bootstrap">
+(function(){
+  var fallback={version:'1.37.6',fingerprint:'1376-version-single-source-hot-refresh',builtAt:'2026-08-01T17:45:00+07:00',release:'Single Source Version + Runtime Hot Refresh'};
+  function apply(info){
+    info=info&&typeof info==='object'?info:fallback;
+    window.PHF_BUILD_INFO=Object.freeze(info);
+    window.PHF_BUILD_VERSION=String(info.version||fallback.version);
+    window.PHF_BUILD_FINGERPRINT=String(info.fingerprint||fallback.fingerprint);
+    window.phfAssetUrl=function(path){
+      var value=String(path||'');
+      var join=value.indexOf('?')>=0?'&':'?';
+      return value+join+'v='+encodeURIComponent(window.PHF_BUILD_FINGERPRINT);
+    };
+    return info;
+  }
+  window.phfBuildReady=fetch('/build-info.json?ts='+Date.now(),{cache:'no-store',credentials:'same-origin'})
+    .then(function(res){if(!res.ok)throw new Error('BUILD_INFO_HTTP_'+res.status);return res.json();})
+    .then(apply)
+    .catch(function(err){console.warn('[PHF BUILD] Dùng thông tin dự phòng:',err&&err.message||err);return apply(fallback);});
+})();
+</script>
 <script id="phf-stale-service-worker-cleanup">
 (function(){
   /* 61.6: chỉ dọn Service Worker/cache legacy một lần theo phiên bản phát hành.
@@ -2236,7 +2257,15 @@ window.__phfBootGuardTimer=setTimeout(function(){
 .phf-route-copy-chip{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 12px;margin-left:8px;border:1px solid #b9d7ca;border-radius:999px;background:#fff;color:#07543e;font:600 13px/1.2 "Segoe UI",Arial,sans-serif;cursor:pointer;white-space:nowrap}.phf-route-copy-chip:hover{background:#edf7f2}.phf-route-modal{position:fixed;inset:0;z-index:100500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,34,27,.48);font-family:"Segoe UI",Arial,sans-serif}.phf-route-modal-card{width:min(440px,100%);padding:24px;border:1px solid #d8e8e0;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(6,52,39,.22);color:#17382d}.phf-route-modal-mark{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;margin-bottom:14px;border-radius:14px;background:#edf7f2;color:#07543e;font-weight:750}.phf-route-modal-card h3{margin:0 0 8px;font-size:20px}.phf-route-modal-card p{margin:0;color:#557067;line-height:1.55;overflow-wrap:anywhere}.phf-route-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.phf-route-modal-actions button{min-height:38px;padding:8px 14px;border:1px solid #cbded5;border-radius:10px;background:#fff;color:#17382d;font:600 14px "Segoe UI",Arial,sans-serif;cursor:pointer}.phf-route-modal-actions button.primary{border-color:#07543e;background:#07543e;color:#fff}.phf-route-copy-text{margin-top:12px!important;padding:12px;border:1px solid #d8e8e0;border-radius:10px;background:#f7faf8;color:#17382d!important;user-select:all;cursor:text}@media(max-width:760px){.phf-route-copy-chip{margin-left:0;margin-top:8px}.phf-route-modal-actions{flex-direction:column-reverse}.phf-route-modal-actions button{width:100%}}
 </style>
   <link rel="stylesheet" href="assets/css/phf-classroom.css?v=1.33.5">
-  <link rel="stylesheet" href="assets/css/phf-checklist.css?v=1.35.3_violation_ui_polish">
+  <script id="phf-checklist-css-loader">
+window.phfBuildReady.then(function(){
+  var link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href=window.phfAssetUrl('/assets/css/phf-checklist.css');
+  link.setAttribute('data-phf-build-asset','checklist-css');
+  document.head.appendChild(link);
+});
+</script>
   <link rel="stylesheet" href="assets/css/phf-hr-home.css?v=1.7.19_home_route_timeline">
   <link rel="stylesheet" href="assets/css/phf-knl.css?v=1.7.15_placeholder">
 
@@ -4219,12 +4248,31 @@ function render(){
 
 <script src="assets/js/phf-learning-gate.js?v=62.4_hr_home_resume_guard"></script>
 <script src="assets/data/phf-existing-staff.js"></script>
-<script src="assets/js/phf-account-admin-safe.js?v=1.7.81_phf_hr_access_admin"></script>
+<script src="assets/js/phf-account-admin-safe.js?v=1.38.1_assistant_web_operator"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/phf-hr-home.js?v=1.7.23_journey_content_sync"></script>
 <script src="assets/js/knl/phf-knl-app.js?v=1.7.15_placeholder"></script>
-<script src="assets/js/phf-url-router.js?v=1.35.3_violation_ui_polish"></script>
-<script src="assets/js/phf-server-auth.js?v=1.35.3_f5_session_preserve"></script>
+<script id="phf-runtime-loader">
+window.phfBuildReady.then(function(){
+  function load(src,name){
+    return new Promise(function(resolve,reject){
+      var script=document.createElement('script');
+      script.src=window.phfAssetUrl(src);
+      script.async=false;
+      script.setAttribute('data-phf-build-asset',name);
+      script.onload=resolve;
+      script.onerror=function(){reject(new Error('Không tải được '+name));};
+      document.body.appendChild(script);
+    });
+  }
+  return load('/assets/js/phf-url-router.js','url-router')
+    .then(function(){return load('/assets/js/phf-server-auth.js','server-auth');})
+    .then(function(){return load('/assets/js/phf-app-bootstrap.js','app-bootstrap');});
+}).catch(function(error){
+  console.error('[PHF BUILD] Không thể tải runtime:',error);
+  document.documentElement.classList.remove('phf-auth-boot');
+});
+</script>
 
 <script id="phf-ban20-chip-normalize-js">
 (function(){
@@ -4560,7 +4608,7 @@ function render(){
 })();
 </script>
 
-<script src="assets/js/phf-app-bootstrap.js?v=1.0.0_single_owner"></script>
+<!-- PHF 1.37.2: bootstrap được runtime loader nạp sau Router + Auth để tránh race condition khi F5. -->
 
 
 <script src="assets/js/phf-hub-mobile-shell.js?v=62.11_hub_mobile_single_controller"></script>

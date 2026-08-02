@@ -839,9 +839,13 @@
         return false;
       }catch(e){
         /* Lỗi mạng, timeout hoặc lỗi máy chủ không đồng nghĩa hết phiên.
-           Giữ nguyên user hiện tại để router/UI không tự đăng xuất sai. */
-        console.warn('[PHF Auth] session recheck unavailable:', e && e.message || e);
-        return !!sessionUser;
+           Trên một lượt F5 mới, sessionUser chưa kịp dựng nên trả false ở đây
+           sẽ bị hiểu nhầm là phiên đã hết hạn và tự đẩy người dùng về /login.
+           Phải giữ trạng thái 'không xác định' bằng cách ném lỗi để boot giữ
+           nguyên deep-link và cho phép thử lại, chỉ authenticated=false từ
+           endpoint session mới được phép chuyển sang anonymous. */
+        console.warn('[PHF Auth] session recheck unavailable; keep protected route:', e && e.message || e);
+        throw e;
       }
     })();
 
@@ -981,6 +985,11 @@
           else if(!recovered)showProtectedLogin('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         }catch(recheckError){
           console.warn('[PHF Auth] session recheck unavailable; keep current protected route:',recheckError&&recheckError.message||recheckError);
+          try{
+            if(typeof window.phfLoadingFail==='function'){
+              window.phfLoadingFail('Chưa xác minh được phiên đăng nhập do máy chủ phản hồi chậm. Hệ thống giữ nguyên trang hiện tại; vui lòng thử lại.',function(){ location.reload(); });
+            }
+          }catch(_loadingError){}
         }
       }else showPublicIntro('session-unavailable');
     }finally{

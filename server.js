@@ -16,8 +16,8 @@ const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/ch
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('./lib/checklist-tasks');
-const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('./lib/checklist-permissions');
-const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy } = require('./lib/checklist-monthly');
+const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./lib/checklist-permissions');
+const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('./lib/checklist-monthly');
 const { getChecklistMonthlyReport } = require('./lib/checklist-reports');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const {
@@ -30,15 +30,65 @@ const {
   publicError
 } = require('./lib/request-guard');
 const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./lib/production-hardening');
-const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount } = require('./lib/auth');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./lib/auth');
+
+
+async function requireWebOperatorSession(req){
+  const session=await requireSession(req,['manager','admin']);
+  await requireChecklistWebOperator(session);
+  return session;
+}
+async function assertAccountMutationAllowed(session,input={},targetId=''){
+  if(session.role==='admin')return;
+  const requestedRole=String(input.role||'').trim().toLowerCase();
+  const requestedType=String(input.accountType||input.account_type||'').trim().toLowerCase();
+  if(requestedRole==='admin'||requestedType==='system_admin'){
+    const error=new Error('Trợ lý điều hành không được tạo hoặc nâng tài khoản thành Admin hệ thống.');error.statusCode=403;error.code='ADMIN_ACCOUNT_PROTECTED';throw error;
+  }
+  if(targetId){
+    const target=await getAccountById(targetId);
+    if(!target){const error=new Error('Không tìm thấy tài khoản cần xử lý.');error.statusCode=404;error.code='ACCOUNT_NOT_FOUND';throw error;}
+    if(String(target.role||'').toLowerCase()==='admin'||String(target.accountType||target.metadata?.accountType||'').toLowerCase()==='system_admin'){
+      const error=new Error('Trợ lý điều hành không được sửa tài khoản Admin hệ thống.');error.statusCode=403;error.code='ADMIN_ACCOUNT_PROTECTED';throw error;
+    }
+    const targetSession={role:target.role,sub:target.id,account:target,employeeCode:target.employeeCode,employeeId:target.employeeId,email:target.email};
+    if(await isChecklistWebOperator(targetSession)){
+      const error=new Error('Chỉ Admin hệ thống được sửa tài khoản Trợ lý Giám đốc – Điều hành web.');error.statusCode=403;error.code='ASSISTANT_ACCOUNT_PROTECTED';throw error;
+    }
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.resolve(__dirname);
 const INDEX_HTML_PATH = path.join(ROOT, 'index.html');
-/* F5 always requests the no-store HTML shell. Keep it in memory so a OneDrive
-   cold read cannot delay every navigation. A release already requires a server
-   restart, which refreshes this buffer together with the running code. */
-const INDEX_HTML_BUFFER = fs.readFileSync(INDEX_HTML_PATH);
+const BUILD_INFO_PATH = path.join(ROOT, 'build-info.json');
+const BUILD_FALLBACK = Object.freeze({version:'1.37.6',fingerprint:'1376-version-single-source-hot-refresh',builtAt:null,release:'Single Source Version + Runtime Hot Refresh'});
+let buildInfoCache = BUILD_FALLBACK;
+let buildInfoMtimeMs = -1;
+let indexHtmlBuffer = null;
+let indexHtmlMtimeMs = -1;
+
+function readBuildInfoFresh() {
+  try {
+    const stat = fs.statSync(BUILD_INFO_PATH);
+    if (stat.mtimeMs !== buildInfoMtimeMs) {
+      buildInfoCache = Object.freeze(JSON.parse(fs.readFileSync(BUILD_INFO_PATH, 'utf8')));
+      buildInfoMtimeMs = stat.mtimeMs;
+    }
+  } catch (error) {
+    console.warn('[PHF BUILD] Không đọc được build-info.json:', error?.message || error);
+  }
+  return buildInfoCache || BUILD_FALLBACK;
+}
+
+function readIndexHtmlFresh() {
+  const stat = fs.statSync(INDEX_HTML_PATH);
+  if (!indexHtmlBuffer || stat.mtimeMs !== indexHtmlMtimeMs) {
+    indexHtmlBuffer = fs.readFileSync(INDEX_HTML_PATH);
+    indexHtmlMtimeMs = stat.mtimeMs;
+  }
+  return indexHtmlBuffer;
+}
 
 function baseHeaders(extra = {}) {
   return {
@@ -46,6 +96,7 @@ function baseHeaders(extra = {}) {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'same-origin',
+    'X-PHF-Build': `${readBuildInfoFresh().version || 'unknown'}-${readBuildInfoFresh().fingerprint || 'unknown'}`,
     ...(String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? {'Strict-Transport-Security':'max-age=31536000; includeSubDomains'} : {}),
     'Content-Security-Policy-Report-Only': "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://*.supabase.co https://accounts.google.com; frame-src 'self' https://accounts.google.com https://docs.google.com; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
     ...extra
@@ -186,8 +237,13 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, health.ok ? 200 : 503, {
         ...health,
         service: 'PHF Training Hub',
+        build: readBuildInfoFresh(),
         time: new Date().toISOString()
       });
+    }
+
+    if (pathname === '/api/build-info' && req.method === 'GET') {
+      return sendJson(res, 200, { ok:true, build:readBuildInfoFresh() });
     }
 
     if (pathname === '/api/auth/session' && req.method === 'GET') {
@@ -235,23 +291,25 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res,200,{ok:true,user:publicAccount(updated)});
     }
     if ((pathname === '/api/auth/accounts' || pathname === '/api/auth/accounts/list') && req.method === 'GET') {
-      await requireSession(req,['admin']);
+      await requireWebOperatorSession(req);
       const accounts = await listAccountsForAdmin();
       return sendJson(res,200,{ok:true,accounts});
     }
     if (pathname === '/api/auth/accounts/create' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      await requireSession(req,['admin']);
+      const session=await requireWebOperatorSession(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu tạo tài khoản không hợp lệ.',400,'JSON_INVALID')}
+      await assertAccountMutationAllowed(session,body.account||body);
       const result=await createAccountByAdmin(body.account||body);
       return sendJson(res,201,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
     }
     if (pathname === '/api/auth/accounts/update' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session=await requireSession(req,['admin']);
+      const session=await requireWebOperatorSession(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu cập nhật tài khoản không hợp lệ.',400,'JSON_INVALID')}
+      await assertAccountMutationAllowed(session,body.account||body,body.accountId);
       const user=await updateAccountByAdmin(body.accountId, body.account||body);
       const reauthRequired=String(session.sub||'')===String(user.id||'') && (session.email!==user.email || session.role!==user.role || user.status!=='active');
       if(reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
@@ -259,18 +317,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/auth/accounts/delete' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session = await requireSession(req,['admin']);
+      const session = await requireWebOperatorSession(req);
       const raw = await readBody(req); let body = {};
       try { body = JSON.parse(raw || '{}'); }
       catch { throw new RequestError('Dữ liệu xóa tài khoản không hợp lệ.',400,'JSON_INVALID'); }
+      await assertAccountMutationAllowed(session,{},body.accountId);
       const user = await deleteAccountByAdmin(body.accountId, session);
       return sendJson(res,200,{ok:true,user});
     }
     if (pathname === '/api/auth/accounts/reset-password' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      await requireSession(req,['admin']);
+      const session=await requireWebOperatorSession(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu đặt lại mật khẩu không hợp lệ.',400,'JSON_INVALID')}
+      await assertAccountMutationAllowed(session,{},body.accountId);
       const result=await resetPasswordByAdmin(body.accountId);
       return sendJson(res,200,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
     }
@@ -302,15 +362,14 @@ const server = http.createServer(async (req, res) => {
         if (checklistWorkspaceMode) {
           const [workspace, templateData, violationMode] = await Promise.all([
             getChecklistRoleWorkspace(session),
-            listChecklistTemplates(),
+            listChecklistTemplates({compact:true}),
             getChecklistViolationMode()
           ]);
           return sendJson(res,200,{
             ok:true,
             checklistWorkspace:true,
-            roleWorkspace:workspace,
             employees:Array.isArray(workspace.people)?workspace.people.map(person=>({id:person.employeeId||'',employeeId:person.employeeId||'',code:person.employeeCode||'',employeeCode:person.employeeCode||'',name:person.employeeName||'',employeeName:person.employeeName||'',department:person.department||'',title:person.title||'',branch:person.branch||'',managerId:person.managerId||'',managerCode:person.managerCode||'',managerName:person.managerName||'',employeeStatus:person.employeeStatus||'',templateId:person.templateId||'',templateVersion:person.templateVersion||'',effectiveDate:person.effectiveDate||''})):[],
-            checklistAssignments:Array.isArray(workspace.people)?workspace.people:[],
+            checklistWorkspaceCompact:true,
             checklistAssignmentsReady:true,
             checklistAssignmentsError:'',
             checklistTemplates:Array.isArray(templateData.templates)?templateData.templates:[],
@@ -589,7 +648,8 @@ const server = http.createServer(async (req, res) => {
           if(payload.submit===true&&saved.form)await emitChecklistNotificationSafe('SELF_REVIEW_SUBMITTED',{recipient:{accountId:saved.form.reviewer_id,employeeCode:saved.form.reviewer_code},title:'Có phiếu tháng chờ thẩm định',targetPath:'/ql/checklist/phieu-danh-gia-thang',subjectType:'monthly_form',subjectId:saved.form.id,dedupeKey:'monthly-self|'+saved.form.id+'|'+(saved.form.self_submitted_at||Date.now()),variables:{TEN_NHAN_VIEN:saved.form.employee_name,KY_DANH_GIA:saved.form.period_month}});
           return sendJson(res,200,{ok:true,...saved});
         }
-        if(payload&&payload.action==='listMyChecklistMonthlyReviews')return sendJson(res,200,{ok:true,...await myMonthlyReviews(session,payload)});
+        if(payload&&payload.action==='listMyChecklistMonthlyReviews')return sendJson(res,200,{ok:true,...await myMonthlyReviews(session,{...payload,summary:true})});
+        if(payload&&payload.action==='getMyChecklistMonthlyReviewDetail')return sendJson(res,200,{ok:true,...await myMonthlyReviewDetail(session,payload)});
         if(payload&&payload.action==='saveChecklistMonthlyReview')return sendJson(res,200,{ok:true,...await saveMonthlyReview(session,payload)});
         if(payload&&payload.action==='changeChecklistMonthlyReviewer')return sendJson(res,200,{ok:true,...await changeMonthlyReviewer(session,payload)});
         if(payload&&payload.action==='exportChecklistMonthlyData')return sendJson(res,200,{ok:true,...await exportMonthlyData(session,payload)});
@@ -601,6 +661,10 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='getChecklistRepeatViolationSuggestions')return sendJson(res,200,{ok:true,...await getChecklistRepeatViolationSuggestions(session,payload)});
       if(payload&&payload.action==='getChecklistMonthlyScorePolicy')return sendJson(res,200,{ok:true,...await getChecklistMonthlyScorePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyScorePolicy')return sendJson(res,200,{ok:true,...await saveChecklistMonthlyScorePolicy(session,payload)});
+      if(payload&&payload.action==='getChecklistMonthlyCyclePolicy')return sendJson(res,200,({ok:true,...await getMonthlyCyclePolicy(session,payload)}));
+      if(payload&&payload.action==='saveChecklistMonthlyCyclePolicy')return sendJson(res,200,({ok:true,...await saveMonthlyCyclePolicy(session,payload)}));
+      if(payload&&payload.action==='saveChecklistMonthlyCycleOverride')return sendJson(res,200,({ok:true,...await saveMonthlyCycleOverride(session,payload)}));
+      if(payload&&payload.action==='syncChecklistMonthlyCycle')return sendJson(res,200,({ok:true,...await syncMonthlyCycle(session,payload)}));
       if(payload&&payload.action==='getChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await getMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await saveMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='processChecklistMonthlyOverdue')return sendJson(res,200,{ok:true,...await processMonthlySelfOverdue(session,payload)});
@@ -652,7 +716,8 @@ const server = http.createServer(async (req, res) => {
         return res.end('404 - Không tìm thấy');
       }
     }
-    const contentLength = isIndexShell ? INDEX_HTML_BUFFER.length : fs.statSync(filePath).size;
+    const indexBuffer = isIndexShell ? readIndexHtmlFresh() : null;
+    const contentLength = isIndexShell ? indexBuffer.length : fs.statSync(filePath).size;
     const headers = baseHeaders({
       'Content-Type': getMime(filePath),
       'Content-Length': contentLength,
@@ -660,7 +725,7 @@ const server = http.createServer(async (req, res) => {
     });
     res.writeHead(200, headers);
     if (req.method === 'HEAD') return res.end();
-    if (isIndexShell) return res.end(INDEX_HTML_BUFFER);
+    if (isIndexShell) return res.end(indexBuffer);
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('[PHF API]', err?.code || err?.name || 'ERROR', err?.message || err);
@@ -671,6 +736,18 @@ const server = http.createServer(async (req, res) => {
 
 const HOST = process.env.HOST || '0.0.0.0';
 
+
+async function runChecklistMonthlyScheduler(){
+  if(String(process.env.CHECKLIST_MONTHLY_SCHEDULER_ENABLED||'true').toLowerCase()==='false')return;
+  if(!process.env.SUPABASE_URL||!process.env.SUPABASE_SECRET_KEY)return;
+  try{
+    const month=new Date().toISOString().slice(0,7);
+    const session={role:'admin',sub:'system-checklist-scheduler',account:{id:'system-checklist-scheduler',name:'PHF Checklist Scheduler',employeeCode:'SYSTEM'}};
+    const result=await syncMonthlyCycle(session,{month,automatic:true});
+    console.log('[PHF Checklist scheduler]',month,result.synced===false?result.skipped:('created='+Number(result.created||0)+', opened='+Boolean(result.opened)+', locked='+Boolean(result.locked)+', lockBlocked='+Boolean(result.lockBlocked)));
+  }catch(error){console.error('[PHF Checklist scheduler]',error&&error.message||error);}
+}
+
 server.listen(PORT, HOST, () => {
   const publicUrl = String(process.env.PHF_PUBLIC_URL || '').trim();
   console.log(`PHF Training Hub đang chạy tại ${publicUrl || `http://${HOST}:${PORT}`}`);
@@ -679,4 +756,5 @@ server.listen(PORT, HOST, () => {
   if (hasSupabase) console.log('Dữ liệu lưu trên Supabase.');
   else if (allowLocalData) console.warn('Dữ liệu đang lưu local theo PHF_ALLOW_LOCAL_DATA=true. Chỉ dùng khi chủ động chạy thử.');
   else console.error('Thiếu cấu hình Supabase: API dữ liệu sẽ báo lỗi rõ ràng và không tự lưu sang data.json.');
+  if(hasSupabase&&String(process.env.CHECKLIST_MONTHLY_SCHEDULER_ENABLED||'true').toLowerCase()!=='false'){setTimeout(runChecklistMonthlyScheduler,30000);setInterval(runChecklistMonthlyScheduler,60*60*1000);}
 });

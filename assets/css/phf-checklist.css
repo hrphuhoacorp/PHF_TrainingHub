@@ -2619,3 +2619,1881 @@ body > .phfck-data-loading-layer .phfck-data-loading-card { width: min(520px, ca
   grid-template-columns:200px minmax(280px,700px);
   gap:14px;
 }
+
+/* 1.35.10 - Nhật ký lỗi: bộ lọc server, phân trang và trạng thái hủy */
+.phfck-log-filter-action{display:flex;align-items:flex-end;padding-bottom:1px}
+.phfck-log-filter-action .phfck-primary{min-height:42px;white-space:nowrap}
+.phfck-log-pagination{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px}
+.phfck-log-pagination span{font-size:13px;font-weight:700;color:#52606d}
+.phfck-log-row.is-cancelled{opacity:.72;background:#f8fafc}
+.phfck-log-row.is-cancelled>span:nth-child(4) b{color:#64748b}
+@media(max-width:900px){.phfck-log-filter-action{align-items:stretch}.phfck-log-filter-action .phfck-primary{width:100%}}
+\n/* PHF Checklist 1.35.11 — Violation UI polish */
+.phfck-quick-detail-actions{display:grid;grid-template-columns:minmax(128px,.75fr) minmax(170px,1fr) 82px;gap:9px;align-items:end}
+.phfck-quick-detail-actions .phfck-quick-evidence,.phfck-quick-detail-actions .phfck-quick-row-submit,.phfck-quick-detail-actions .phfck-quick-close{height:42px;white-space:nowrap}
+.phfck-quick-close{border-color:#cbdcd3;background:#fff;color:#46675c;font-weight:800}
+.phfck-quick-close:hover{border-color:#8fb6a4;background:#f4f9f6}
+.phfck-quick-toggle.is-selected-status{background:#2f7c55!important;border-color:#2f7c55!important;color:#fff!important;cursor:default}
+.phfck-quick-toggle.is-selected-status[data-phfck-quick-open]{cursor:pointer;background:#f2f8f4!important;color:#2f7150!important;border-color:#9fc8b1!important}
+.phfck-assignment-chips span:first-child,.phfck-period-chip{display:inline-flex;align-items:center;min-height:34px;padding:0 13px;border:1px solid #d4e4db;border-radius:999px;background:#fff;color:#45675b;font-size:11px;white-space:nowrap}
+.phfck-log-panel-head{align-items:center}
+.phfck-log-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.phfck-log-filters-simple{grid-template-columns:minmax(250px,1.4fr) minmax(190px,.9fr) minmax(160px,.7fr) minmax(150px,.7fr) minmax(150px,.7fr) auto}
+.phfck-log-empty{min-height:180px;display:grid;place-content:center;text-align:center}
+.phfck-log-empty b{font-size:15px;color:#285044}.phfck-log-empty p{margin:7px 0 0;color:#7a8d85}
+@media(max-width:1100px){.phfck-log-filters-simple{grid-template-columns:repeat(3,minmax(0,1fr))}.phfck-log-filter-action{align-self:end}.phfck-quick-detail-actions{grid-template-columns:1fr 1fr}.phfck-quick-detail-actions .phfck-quick-close{grid-column:1/-1}}
+@media(max-width:760px){.phfck-log-panel-head{align-items:flex-start}.phfck-log-head-actions{width:100%;justify-content:flex-start}.phfck-log-filters-simple{grid-template-columns:1fr}.phfck-quick-detail-actions{grid-template-columns:1fr}.phfck-quick-detail-actions .phfck-quick-close{grid-column:auto}}
+
+
+/* PHF Checklist 1.36.0 — Manager people menu, honest loading, compact quick actions */
+.phfck-nav b{display:flex;align-items:center;gap:8px}.phfck-nav-badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#e8f5ed;color:#247149;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;font-weight:900}.phfck-nav button.active .phfck-nav-badge{background:rgba(255,255,255,.22);color:#fff}
+.phfck-people-scope-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 16px}.phfck-people-scope-tabs button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;align-items:center;text-align:left;border:1px solid #d8e5de;border-radius:14px;background:#fff;padding:14px 16px;color:#315b4c;cursor:pointer}.phfck-people-scope-tabs button:hover{border-color:#9fc5b3;background:#f8fcfa}.phfck-people-scope-tabs button.active{border-color:#4ca36f;background:#edf8f1;box-shadow:inset 0 0 0 1px #4ca36f}.phfck-people-scope-tabs span{font-size:14px;font-weight:900}.phfck-people-scope-tabs b{grid-row:1/3;grid-column:2;font-size:24px;color:#176b45}.phfck-people-scope-tabs small{font-size:11px;color:#71877e}
+.phfck-role-loading-detailed{min-height:420px;padding:28px}.phfck-role-loading-detailed small{display:block;margin-bottom:5px;color:#6c8279;font-size:10px;font-weight:900;letter-spacing:.08em}.phfck-role-loading-steps{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.phfck-role-loading-steps span{padding:6px 9px;border-radius:999px;background:#eef7f2;color:#477061;font-size:10px;font-weight:800}
+.phfck-quick-detail-actions{grid-template-columns:minmax(120px,.75fr) minmax(170px,1.15fr) 88px!important;align-items:end}.phfck-quick-detail-actions .phfck-quick-close{grid-column:auto!important;min-width:0!important;width:88px!important;padding:0 12px!important}
+@media(max-width:900px){.phfck-quick-detail-actions{grid-template-columns:1fr 1fr 84px!important}.phfck-quick-detail-actions .phfck-quick-close{width:84px!important}}
+@media(max-width:680px){.phfck-people-scope-tabs{grid-template-columns:1fr}.phfck-quick-detail-actions{grid-template-columns:1fr!important}.phfck-quick-detail-actions .phfck-quick-close{width:100%!important}}
+
+
+/* PHF Checklist 1.36.1 — Compact people chips + stable quick editor layout */
+.phfck-people-scope-chips{display:flex!important;align-items:center;gap:9px;margin:0 0 14px!important}
+.phfck-people-scope-chips button{display:inline-flex!important;align-items:center;gap:8px;width:auto!important;min-height:38px;padding:0 13px!important;border-radius:999px!important;box-shadow:none!important}
+.phfck-people-scope-chips button span{font-size:12px!important;font-weight:850}
+.phfck-people-scope-chips button b{position:static!important;display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#eef4f1;color:#32634f;font-size:10px!important;line-height:1}
+.phfck-people-scope-chips button.active b{background:#fff;color:#176b45}
+.phfck-manager-people-panel{overflow:visible}
+.phfck-manager-people-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 0 14px;border-bottom:1px solid #e5ede9;margin-bottom:12px}
+.phfck-manager-people-toolbar .phfck-search{max-width:520px}
+.phfck-manager-people-toolbar>span{color:#71877e;font-size:11px;font-weight:800;white-space:nowrap}
+.phfck-manager-person-row{grid-template-columns:minmax(260px,1.15fr) minmax(420px,1.35fr) auto}
+.phfck-manager-people-empty{margin-top:4px}
+/* Keep note + time + actions inside the criterion card without clipping at desktop widths. */
+.phfck-violations-view .phfck-quick-detail{grid-template-columns:minmax(360px,1fr) minmax(150px,190px);gap:14px;align-items:end}
+.phfck-violations-view .phfck-quick-detail-actions{display:flex!important;align-items:center;justify-content:flex-end;gap:9px;min-width:0;grid-template-columns:none!important}
+.phfck-violations-view .phfck-quick-detail-actions button{flex:0 0 auto;height:42px}
+.phfck-violations-view .phfck-quick-detail-actions .phfck-quick-evidence{min-width:132px}
+.phfck-violations-view .phfck-quick-detail-actions .phfck-quick-row-submit{min-width:174px}
+.phfck-violations-view .phfck-quick-detail-actions .phfck-quick-close{width:auto!important;min-width:82px!important;padding:0 16px!important}
+@media(max-width:1180px){
+  .phfck-violations-view .phfck-quick-detail{grid-template-columns:1fr 150px}
+  .phfck-violations-view .phfck-quick-detail-actions{grid-column:1/-1;justify-content:flex-start;flex-wrap:wrap}
+  .phfck-manager-person-row{grid-template-columns:1fr}
+  .phfck-role-person-action{justify-content:flex-start}
+}
+@media(max-width:760px){
+  .phfck-people-scope-chips{overflow-x:auto;padding-bottom:3px}
+  .phfck-people-scope-chips button{flex:0 0 auto}
+  .phfck-manager-people-toolbar{align-items:stretch;flex-direction:column}
+  .phfck-manager-people-toolbar .phfck-search{max-width:none}
+  .phfck-violations-view .phfck-quick-detail{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-quick-detail-actions{display:grid!important;grid-template-columns:1fr 1fr!important}
+  .phfck-violations-view .phfck-quick-detail-actions .phfck-quick-close{grid-column:1/-1;width:100%!important}
+}
+
+/* PHF Checklist 1.36.2 — chu kỳ đánh giá tự động */
+.phfck-cycle-settings{margin-bottom:16px}.phfck-cycle-switch{margin:14px 0;padding:14px 16px;border:1px solid #cfe3d5;border-radius:14px;background:#f4fbf6}.phfck-cycle-switch label{display:flex;gap:12px;align-items:flex-start}.phfck-cycle-switch input{margin-top:4px;width:18px;height:18px}.phfck-cycle-switch span{display:grid;gap:4px}.phfck-cycle-switch small{color:#6d8378}.phfck-cycle-grid{display:grid;grid-template-columns:2fr 1.3fr .8fr 1fr;gap:12px;margin-bottom:14px}.phfck-cycle-grid label,.phfck-cycle-window-grid label{display:grid;gap:6px}.phfck-cycle-grid input,.phfck-cycle-grid select,.phfck-cycle-window-grid input{min-height:42px;border:1px solid #cfe0d5;border-radius:11px;padding:0 12px;background:#fff}.phfck-cycle-window-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfck-cycle-window-grid article{padding:14px;border:1px solid #d7e7dc;border-radius:14px;background:#fbfefc;display:grid;grid-template-columns:1fr 1fr;gap:10px}.phfck-cycle-window-grid article>b,.phfck-cycle-window-grid article>small{grid-column:1/-1}.phfck-cycle-window-grid article>small{color:#6d8378;line-height:1.45}.phfck-manager-person-row .phfck-role-person-meta span small+small{margin-top:3px;color:#6d8378}.phfck-manager-person-row .phfck-role-person-action button:disabled{opacity:.62;cursor:not-allowed}
+@media(max-width:1100px){.phfck-cycle-grid{grid-template-columns:1fr 1fr}.phfck-cycle-window-grid{grid-template-columns:1fr}.phfck-cycle-window-grid article{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.phfck-cycle-grid{grid-template-columns:1fr}.phfck-cycle-window-grid article{grid-template-columns:1fr}.phfck-cycle-window-grid article>b,.phfck-cycle-window-grid article>small{grid-column:auto}}
+
+/* Build 1.36.8: giải thích chu kỳ tháng kế tiếp */
+.phfck-cycle-example{display:flex;gap:12px;align-items:flex-start;margin-top:12px;padding:12px 14px;border:1px solid rgba(22,101,52,.14);border-radius:14px;background:rgba(240,253,244,.72);color:#315b4e}.phfck-cycle-example b{white-space:nowrap;color:#07563e}.phfck-cycle-example span{line-height:1.5}@media(max-width:900px){.phfck-cycle-example{display:block}.phfck-cycle-example b{display:block;margin-bottom:4px}}
+
+/* PHF Checklist 1.38.7 — Manager dashboard visual polish
+   Scope: content area only. Keep sidebar/menu/layout/DOM and business logic unchanged. */
+.phfck-manager-command,
+.phfck-manager-progress,
+.phfck-manager-attention,
+.phfck-manager-command button,
+.phfck-manager-progress article,
+.phfck-manager-progress button{
+  font-family:inherit;
+}
+.phfck-manager-command-head h3,
+.phfck-manager-progress .phfck-panel-head h3,
+.phfck-manager-attention .phfck-panel-head h3{
+  font-weight:800;
+  color:#07563e;
+}
+.phfck-manager-action-grid button{
+  border-width:1px;
+  box-shadow:0 5px 14px rgba(15,23,42,.045);
+}
+.phfck-manager-action-grid button>span{
+  font-weight:700;
+  color:#263b34;
+}
+.phfck-manager-action-grid button strong{
+  font-weight:800;
+}
+.phfck-manager-action-grid button small{
+  color:#536b62;
+  font-weight:500;
+}
+.phfck-manager-action-grid button i{
+  font-family:inherit;
+  font-style:normal;
+  font-weight:700;
+  letter-spacing:0;
+}
+.phfck-manager-action-grid button.is-review{
+  border-color:#9fc4ff;
+  background:linear-gradient(135deg,#eef5ff 0%,#f8fbff 100%);
+}
+.phfck-manager-action-grid button.is-review strong,
+.phfck-manager-action-grid button.is-review i{color:#1556c0}
+.phfck-manager-action-grid button.is-comment{
+  border-color:#cfb0f3;
+  background:linear-gradient(135deg,#f5edff 0%,#fbf8ff 100%);
+}
+.phfck-manager-action-grid button.is-comment strong,
+.phfck-manager-action-grid button.is-comment i{color:#6d28d9}
+.phfck-manager-action-grid button.is-due{
+  border-color:#f4b27f;
+  background:linear-gradient(135deg,#fff0e4 0%,#fff9f4 100%);
+}
+.phfck-manager-action-grid button.is-due strong,
+.phfck-manager-action-grid button.is-due i{color:#c2410c}
+.phfck-manager-action-grid button.is-work{
+  border-color:#9fd5b6;
+  background:linear-gradient(135deg,#eaf8ef 0%,#f7fcf9 100%);
+}
+.phfck-manager-action-grid button.is-work strong,
+.phfck-manager-action-grid button.is-work i{color:#087443}
+.phfck-manager-progress-summary article{
+  border:1px solid transparent;
+  box-shadow:0 4px 12px rgba(15,23,42,.035);
+}
+.phfck-manager-progress-summary article span{
+  color:#334b42;
+  font-weight:700;
+}
+.phfck-manager-progress-summary article strong{
+  font-weight:800;
+  color:#10271f;
+}
+.phfck-manager-progress-summary article small{
+  color:#5f756c;
+  font-weight:500;
+}
+.phfck-manager-progress-summary article:nth-child(1){background:#eaf3ff;border-color:#c6dcff}
+.phfck-manager-progress-summary article:nth-child(1) strong{color:#1556c0}
+.phfck-manager-progress-summary article:nth-child(2){background:#eaf8ef;border-color:#c5e7d2}
+.phfck-manager-progress-summary article:nth-child(2) strong{color:#087443}
+.phfck-manager-progress-summary article:nth-child(3){background:#fff3df;border-color:#f5d8a7}
+.phfck-manager-progress-summary article:nth-child(3) strong{color:#b45309}
+.phfck-manager-progress-summary article:nth-child(4){background:#f3ebff;border-color:#ddc7fa}
+.phfck-manager-progress-summary article:nth-child(4) strong{color:#6d28d9}
+.phfck-manager-branch-list button{
+  box-shadow:0 4px 12px rgba(15,23,42,.035);
+}
+.phfck-manager-branch-list button b{
+  font-weight:800;
+  color:#173c2f;
+}
+.phfck-manager-branch-list button span,
+.phfck-manager-branch-list button small{
+  color:#5f756c;
+  font-weight:500;
+}
+.phfck-manager-branch-list button:nth-child(4n+1){background:#f0faf4;border-color:#bfe1cc}
+.phfck-manager-branch-list button:nth-child(4n+1) strong{color:#087443}
+.phfck-manager-branch-list button:nth-child(4n+2){background:#fff4ec;border-color:#f3cfb5}
+.phfck-manager-branch-list button:nth-child(4n+2) strong{color:#c2410c}
+.phfck-manager-branch-list button:nth-child(4n+3){background:#eef5ff;border-color:#c4d9fa}
+.phfck-manager-branch-list button:nth-child(4n+3) strong{color:#1556c0}
+.phfck-manager-branch-list button:nth-child(4n+4){background:#f5f1f8;border-color:#ddd4e5}
+.phfck-manager-branch-list button:nth-child(4n+4) strong{color:#64748b}
+
+
+/* PHF Checklist 1.38.8 — Manager dashboard card balance, real icons and monthly branch counts */
+.phfck-role-shell .phfck-manager-command,
+.phfck-role-shell .phfck-manager-progress{font-family:inherit}
+.phfck-manager-action-grid{gap:14px!important}
+.phfck-manager-action-grid button{
+  display:grid!important;
+  grid-template-columns:54px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:14px!important;
+  min-height:142px!important;
+  padding:16px!important;
+  border-width:1px!important;
+  overflow:hidden;
+}
+.phfck-manager-card-icon,.phfck-manager-summary-icon,.phfck-manager-branch-icon{
+  display:grid;place-items:center;flex:0 0 auto;border-radius:16px
+}
+.phfck-manager-card-icon{width:54px;height:54px;margin-top:1px}
+.phfck-manager-card-icon svg{width:29px;height:29px}
+.phfck-manager-card-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;height:100%}
+.phfck-manager-card-copy b{font-family:inherit;font-size:13.5px;line-height:1.35;font-weight:750;color:#173e33}
+.phfck-manager-card-copy strong{font-family:inherit;font-size:30px;line-height:1;margin:8px 0 7px;font-weight:800}
+.phfck-manager-card-copy small{font-family:inherit;font-size:12px;line-height:1.45;color:#5f746b;min-height:34px}
+.phfck-manager-card-copy i{font-family:inherit;font-style:normal;font-size:12.5px;line-height:1.2;font-weight:750;margin-top:auto;padding-top:8px}
+.phfck-manager-action-grid .is-review{background:#eaf3ff!important;border-color:#a9cafa!important}.phfck-manager-action-grid .is-review .phfck-manager-card-icon{background:#cfe2ff;color:#1463d7}.phfck-manager-action-grid .is-review strong,.phfck-manager-action-grid .is-review i{color:#145dcc}
+.phfck-manager-action-grid .is-response{background:#f4ecff!important;border-color:#d5b8fb!important}.phfck-manager-action-grid .is-response .phfck-manager-card-icon{background:#e5d2ff;color:#6d28d9}.phfck-manager-action-grid .is-response strong,.phfck-manager-action-grid .is-response i{color:#6420c6}
+.phfck-manager-action-grid .is-due{background:#fff0e7!important;border-color:#f3b17d!important}.phfck-manager-action-grid .is-due .phfck-manager-card-icon{background:#ffd9c2;color:#d9480f}.phfck-manager-action-grid .is-due strong,.phfck-manager-action-grid .is-due i{color:#c83e0b}
+.phfck-manager-action-grid .is-open{background:#eaf8f0!important;border-color:#a8d9bc!important}.phfck-manager-action-grid .is-open .phfck-manager-card-icon{background:#ccebd8;color:#078143}.phfck-manager-action-grid .is-open strong,.phfck-manager-action-grid .is-open i{color:#08743e}
+.phfck-manager-progress-summary{gap:14px!important}
+.phfck-manager-progress-summary article{
+  display:grid!important;grid-template-columns:48px minmax(0,1fr)!important;align-items:center!important;gap:12px!important;
+  min-height:112px!important;padding:14px 16px!important;overflow:hidden
+}
+.phfck-manager-summary-icon{width:48px;height:48px}.phfck-manager-summary-icon svg{width:26px;height:26px}
+.phfck-manager-progress-summary article>div{min-width:0;display:grid;grid-template-columns:1fr auto;column-gap:10px;align-items:end}
+.phfck-manager-progress-summary article b{font-family:inherit;font-size:12.5px;line-height:1.3;font-weight:750;color:#2b4d42}
+.phfck-manager-progress-summary article strong{grid-column:1;grid-row:2;font-family:inherit;font-size:25px;line-height:1.05;font-weight:800;margin:5px 0 4px}
+.phfck-manager-progress-summary article small{grid-column:1/-1;font-family:inherit;font-size:11.5px;line-height:1.35;color:#667a72}
+.phfck-manager-progress-summary .is-self{background:#e8f2ff!important;border-color:#b8d3f5!important}.phfck-manager-progress-summary .is-self .phfck-manager-summary-icon{background:#d2e5ff;color:#1769dc}.phfck-manager-progress-summary .is-self strong{color:#145dc4}
+.phfck-manager-progress-summary .is-reviewed{background:#e8f7ef!important;border-color:#b8ddc8!important}.phfck-manager-progress-summary .is-reviewed .phfck-manager-summary-icon{background:#d1ecdc;color:#078143}.phfck-manager-progress-summary .is-reviewed strong{color:#08743e}
+.phfck-manager-progress-summary .is-employee{background:#fff3df!important;border-color:#f0cf96!important}.phfck-manager-progress-summary .is-employee .phfck-manager-summary-icon{background:#ffe5b8;color:#dc8700}.phfck-manager-progress-summary .is-employee strong{color:#b96c00}
+.phfck-manager-progress-summary .is-admin{background:#f3eaff!important;border-color:#d8bcf5!important}.phfck-manager-progress-summary .is-admin .phfck-manager-summary-icon{background:#e6d3fb;color:#7024ca}.phfck-manager-progress-summary .is-admin strong{color:#6820bd}
+.phfck-manager-branch-list{gap:12px!important}
+.phfck-manager-branch-list button{
+  display:grid!important;grid-template-columns:48px minmax(0,1fr) auto!important;grid-template-rows:auto!important;
+  align-items:center!important;gap:12px!important;min-height:104px;padding:14px 16px!important;
+  background:#f0faf4!important;border-color:#b9dfc8!important
+}
+.phfck-manager-branch-list button:nth-child(3n+2){background:#fff2ea!important;border-color:#f1c4a7!important}
+.phfck-manager-branch-list button:nth-child(3n+3){background:#edf4ff!important;border-color:#b8d0f5!important}
+.phfck-manager-branch-list button.is-unknown{background:#f4f6f7!important;border-color:#d7dde0!important}
+.phfck-manager-branch-icon{width:48px;height:48px;background:#d5efdf;color:#078143}
+.phfck-manager-branch-list button:nth-child(3n+2) .phfck-manager-branch-icon{background:#ffe0ce;color:#d9480f}
+.phfck-manager-branch-list button:nth-child(3n+3) .phfck-manager-branch-icon{background:#d7e7ff;color:#1463d7}
+.phfck-manager-branch-list button.is-unknown .phfck-manager-branch-icon{background:#e3e7e9;color:#73808a}
+.phfck-manager-branch-icon svg{width:27px;height:27px}
+.phfck-manager-branch-copy{min-width:0}.phfck-manager-branch-copy b{font-family:inherit;font-size:14px!important;line-height:1.25;font-weight:800;color:#173e33}.phfck-manager-branch-copy span{font-family:inherit;font-size:11.5px!important;margin-top:3px;color:#566e64!important}.phfck-manager-branch-copy small{font-family:inherit;font-size:11.5px!important;line-height:1.35;margin-top:8px;color:#405f53!important}
+.phfck-manager-branch-metric{min-width:72px;text-align:right;align-self:center}.phfck-manager-branch-metric strong{display:block!important;grid-row:auto!important;grid-column:auto!important;font-family:inherit;font-size:24px!important;line-height:1;font-weight:850;color:#078143!important}.phfck-manager-branch-list button:nth-child(3n+2) .phfck-manager-branch-metric strong{color:#d9480f!important}.phfck-manager-branch-list button:nth-child(3n+3) .phfck-manager-branch-metric strong{color:#1463d7!important}.phfck-manager-branch-list button.is-unknown .phfck-manager-branch-metric strong{color:#73808a!important}.phfck-manager-branch-metric em{display:block;font-family:inherit;font-style:normal;font-size:10px;line-height:1.2;font-weight:700;color:#687b73;margin-top:5px;white-space:nowrap}
+@media(max-width:1100px){.phfck-manager-action-grid button{min-height:134px!important}.phfck-manager-progress-summary article{min-height:106px!important}.phfck-manager-branch-list button{min-height:100px}}
+@media(max-width:720px){.phfck-manager-action-grid button{grid-template-columns:48px minmax(0,1fr)!important;min-height:128px!important}.phfck-manager-card-icon{width:48px;height:48px}.phfck-manager-branch-list button{grid-template-columns:44px minmax(0,1fr) auto!important}.phfck-manager-branch-icon{width:44px;height:44px}}
+
+/* PHF Checklist 1.38.9 — Align manager SVG icons and balance dashboard cards
+   Scope: manager content only; no sidebar, route, permission, API or business changes. */
+.phfck-manager-card-icon,
+.phfck-manager-summary-icon,
+.phfck-manager-branch-icon{
+  line-height:0;
+  overflow:hidden;
+}
+.phfck-manager-card-icon svg,
+.phfck-manager-summary-icon svg,
+.phfck-manager-branch-icon svg{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  vertical-align:middle;
+  transform:translateZ(0);
+}
+.phfck-manager-card-icon svg{padding:12px;box-sizing:border-box}
+.phfck-manager-summary-icon svg{padding:10px;box-sizing:border-box}
+.phfck-manager-branch-icon svg{padding:10px;box-sizing:border-box}
+
+/* Top-align the visual anchor, copy and metric so every card starts on one baseline. */
+.phfck-manager-progress-summary article{
+  align-items:start!important;
+  padding-top:16px!important;
+}
+.phfck-manager-progress-summary article>div{
+  align-self:start;
+  padding-top:1px;
+}
+.phfck-manager-summary-icon{
+  align-self:start;
+  margin-top:0;
+}
+.phfck-manager-progress-summary article b{
+  min-height:17px;
+  display:flex;
+  align-items:center;
+}
+.phfck-manager-progress-summary article strong{
+  margin:6px 0 5px!important;
+}
+
+.phfck-manager-branch-list button{
+  align-items:start!important;
+  min-height:116px!important;
+  padding:16px!important;
+}
+.phfck-manager-branch-icon{
+  align-self:start;
+  margin-top:0;
+}
+.phfck-manager-branch-copy{
+  align-self:start;
+  padding-top:1px;
+}
+.phfck-manager-branch-copy b{
+  min-height:18px;
+  display:flex!important;
+  align-items:center;
+}
+.phfck-manager-branch-copy span{
+  display:block!important;
+  margin-top:4px!important;
+  line-height:1.3!important;
+}
+.phfck-manager-branch-copy small{
+  display:block!important;
+  margin-top:9px!important;
+  line-height:1.3!important;
+  white-space:nowrap;
+}
+.phfck-manager-branch-metric{
+  align-self:start!important;
+  padding-top:1px;
+  min-width:82px;
+}
+.phfck-manager-branch-metric strong{
+  line-height:1!important;
+}
+.phfck-manager-branch-metric em{
+  margin-top:7px!important;
+}
+
+@media(max-width:1250px){
+  .phfck-manager-branch-copy small{white-space:normal}
+}
+@media(max-width:720px){
+  .phfck-manager-card-icon svg{padding:10px}
+  .phfck-manager-summary-icon svg,.phfck-manager-branch-icon svg{padding:9px}
+  .phfck-manager-branch-list button{min-height:108px!important}
+}
+
+/* 1.38.10 - Manager progress cards are actionable without changing layout */
+.phfck-manager-progress-summary>button{font:inherit;text-align:left;cursor:pointer;position:relative;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.phfck-manager-progress-summary>button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.09)}
+.phfck-manager-progress-summary>button:focus-visible{outline:3px solid rgba(37,99,235,.22);outline-offset:2px}
+.phfck-manager-progress-summary>button>div{min-width:0}
+.phfck-manager-progress-summary>button i{display:block;margin-top:5px;font-style:normal;font-size:12px;font-weight:700;line-height:1.25;color:currentColor;opacity:.78}
+.phfck-manager-progress-summary>button.is-self i{color:#1559c9}
+.phfck-manager-progress-summary>button.is-reviewed i{color:#08783f}
+.phfck-manager-progress-summary>button.is-employee i{color:#a65200}
+.phfck-manager-progress-summary>button.is-admin i{color:#6921c9}
+
+/* 1.38.10 - Actionable progress cards; no layout or sidebar changes */
+.phfck-manager-progress-summary>button{font:inherit;text-align:left;cursor:pointer;position:relative;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.phfck-manager-progress-summary>button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.09)}
+.phfck-manager-progress-summary>button:focus-visible{outline:3px solid rgba(37,99,235,.22);outline-offset:2px}
+.phfck-manager-progress-summary>button>div{min-width:0}
+.phfck-manager-progress-summary>button i{display:block;margin-top:5px;font-style:normal;font-size:12px;font-weight:700;line-height:1.25;opacity:.78}
+.phfck-manager-progress-summary>button.is-self i{color:#1559c9}
+.phfck-manager-progress-summary>button.is-reviewed i{color:#08783f}
+.phfck-manager-progress-summary>button.is-employee i{color:#a65200}
+.phfck-manager-progress-summary>button.is-admin i{color:#6921c9}
+
+/* PHF Checklist 1.38.11 — Progress cards use the same visual structure as priority cards.
+   Scope: manager content only; no sidebar, route, permission, API or business changes. */
+.phfck-manager-progress-summary>button{
+  display:grid!important;
+  grid-template-columns:54px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:14px!important;
+  min-height:142px!important;
+  padding:16px!important;
+  border-width:1px!important;
+  border-style:solid!important;
+  border-radius:14px!important;
+  overflow:hidden;
+}
+.phfck-manager-progress-summary>button .phfck-manager-summary-icon{
+  width:54px!important;
+  height:54px!important;
+  align-self:start!important;
+  margin:0!important;
+  border-radius:16px!important;
+}
+.phfck-manager-progress-summary>button .phfck-manager-summary-icon svg{
+  padding:12px!important;
+  box-sizing:border-box!important;
+}
+.phfck-manager-progress-summary>button>div{
+  min-width:0!important;
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  padding:0!important;
+}
+.phfck-manager-progress-summary>button b{
+  display:block!important;
+  min-height:0!important;
+  font-family:inherit!important;
+  font-size:13.5px!important;
+  line-height:1.35!important;
+  font-weight:750!important;
+  color:#173e33!important;
+}
+.phfck-manager-progress-summary>button strong{
+  display:block!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  font-family:inherit!important;
+  font-size:30px!important;
+  line-height:1!important;
+  font-weight:800!important;
+  margin:8px 0 7px!important;
+}
+.phfck-manager-progress-summary>button small{
+  display:block!important;
+  grid-column:auto!important;
+  font-family:inherit!important;
+  font-size:12px!important;
+  line-height:1.45!important;
+  color:#5f746b!important;
+  min-height:34px!important;
+}
+.phfck-manager-progress-summary>button i{
+  display:block!important;
+  margin-top:auto!important;
+  padding-top:8px!important;
+  font-family:inherit!important;
+  font-style:normal!important;
+  font-size:12.5px!important;
+  line-height:1.2!important;
+  font-weight:750!important;
+  opacity:1!important;
+}
+@media(max-width:1100px){
+  .phfck-manager-progress-summary>button{min-height:134px!important}
+}
+@media(max-width:720px){
+  .phfck-manager-progress-summary>button{
+    grid-template-columns:48px minmax(0,1fr)!important;
+    min-height:128px!important;
+  }
+  .phfck-manager-progress-summary>button .phfck-manager-summary-icon{
+    width:48px!important;
+    height:48px!important;
+  }
+  .phfck-manager-progress-summary>button .phfck-manager-summary-icon svg{padding:10px!important}
+}
+
+/* PHF Checklist 1.38.12 - People filters and responsive search */
+.phfck-manager-people-toolbar{align-items:center}
+.phfck-manager-people-filters{display:grid;grid-template-columns:minmax(360px,1fr) minmax(240px,280px);align-items:center;gap:12px;flex:1;min-width:0}
+.phfck-manager-people-toolbar .phfck-search{max-width:none;min-width:0}
+.phfck-manager-people-search-wrap{position:relative}
+.phfck-manager-people-search-wrap input{padding-right:42px}
+.phfck-manager-people-search-wrap button{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:999px;background:transparent;color:#6f827a;font:700 20px/1 inherit;cursor:pointer}
+.phfck-manager-people-search-wrap button:hover,.phfck-manager-people-search-wrap button:focus-visible{background:#edf5f0;color:#075c45;outline:none}
+.phfck-manager-people-department-filter{position:relative;display:flex;align-items:center;min-width:0}
+.phfck-manager-people-department-filter select{width:100%;height:48px;padding:0 40px 0 16px;border:1px solid #d3e2da;border-radius:14px;background:#fff;color:#26483d;font:700 14px/1 inherit;appearance:none;cursor:pointer;box-shadow:0 1px 2px rgba(10,74,55,.03)}
+.phfck-manager-people-department-filter:after{content:'▾';position:absolute;right:15px;color:#087253;pointer-events:none}
+.phfck-manager-people-department-filter select:hover,.phfck-manager-people-department-filter select:focus{border-color:#68b897;box-shadow:0 0 0 3px rgba(47,158,114,.10);outline:none}
+@media(max-width:980px){.phfck-manager-people-filters{grid-template-columns:1fr}.phfck-manager-people-toolbar>span{align-self:flex-end}}
+@media(max-width:720px){.phfck-manager-people-toolbar>span{align-self:flex-start}.phfck-manager-people-filters{width:100%}}
+
+/* PHF Checklist 1.38.14 — People toolbar final alignment and live filter feedback.
+   Scope: manager People content only; no sidebar, route, permission, API or business changes. */
+.phfck-manager-people-toolbar{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 0;
+}
+.phfck-manager-people-filters{
+  grid-template-columns:minmax(420px,1fr) 286px;
+  gap:14px;
+}
+.phfck-manager-people-search-wrap,
+.phfck-manager-people-department-filter select{
+  height:50px;
+}
+.phfck-manager-people-search-wrap{
+  border-radius:14px;
+}
+.phfck-manager-people-department-filter select{
+  padding-left:17px;
+  padding-right:42px;
+  font-weight:650;
+  background:#fff;
+}
+.phfck-manager-people-department-filter:before{content:none!important;display:none!important}
+.phfck-manager-people-department-filter:after{
+  content:'▾';
+  right:16px;
+  top:50%;
+  transform:translateY(-52%);
+  font-size:13px;
+  font-weight:800;
+}
+.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{
+  flex:0 0 auto;
+  min-width:132px;
+  text-align:right;
+  color:#73877e;
+  font-size:12px;
+  line-height:1.35;
+  white-space:nowrap;
+}
+@media(max-width:1080px){
+  .phfck-manager-people-filters{grid-template-columns:minmax(300px,1fr) 250px}
+}
+@media(max-width:900px){
+  .phfck-manager-people-toolbar{align-items:stretch;flex-direction:column}
+  .phfck-manager-people-filters{grid-template-columns:1fr}
+  .phfck-manager-people-toolbar>[data-phfck-manager-people-count]{text-align:left;min-width:0}
+}
+
+
+/* PHF Checklist 1.38.15 - Manager people table + functional filters */
+.phfck-manager-people-panel{padding:18px 20px 16px}
+.phfck-manager-people-panel .phfck-panel-head{margin-bottom:14px}
+.phfck-manager-people-toolbar{background:#fff;border:1px solid #e1ebe6;border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:0 8px 22px rgba(8,76,55,.045)}
+.phfck-manager-people-filters{grid-template-columns:minmax(420px,1fr) 280px;gap:14px}
+.phfck-manager-people-search-wrap,.phfck-manager-people-department-filter select{height:48px}
+.phfck-manager-people-department-filter select{font-weight:700;color:#173f34;background:#fff}
+.phfck-manager-people-table-wrap{overflow:auto;border:1px solid #e1ebe6;border-radius:16px;background:#fff}
+.phfck-manager-people-table{width:100%;border-collapse:separate;border-spacing:0;min-width:1050px;font-size:12px;color:#24483d}
+.phfck-manager-people-table th{padding:11px 12px;background:#f7faf8;color:#75877f;text-transform:uppercase;font-size:10px;letter-spacing:.03em;text-align:left;border-bottom:1px solid #e1ebe6;white-space:nowrap}
+.phfck-manager-people-table td{padding:12px;border-bottom:1px solid #edf2ef;vertical-align:middle}
+.phfck-manager-people-table tbody tr:last-child td{border-bottom:0}
+.phfck-manager-people-table tbody tr:hover{background:#fbfdfc}
+.phfck-manager-people-code{display:inline-flex;align-items:center;justify-content:center;min-width:54px;height:32px;padding:0 9px;border-radius:10px;background:#e7f4eb;color:#08704f;font-weight:800}
+.phfck-manager-people-name{display:flex;flex-direction:column;gap:3px;min-width:160px}.phfck-manager-people-name b{font-size:13px;color:#073f31}.phfck-manager-people-name small{font-size:10px;color:#75877f}
+.phfck-manager-people-window{display:flex;flex-direction:column;gap:3px;min-width:150px}.phfck-manager-people-window b{font-size:11px}.phfck-manager-people-window small{font-size:9px;color:#75877f;text-transform:uppercase}
+.phfck-manager-people-status{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;background:#f0f4f2;color:#6c7e76;font-size:10px;font-weight:800;white-space:nowrap}.phfck-manager-people-status.can-review{background:#e3f4e9;color:#08704f}
+.phfck-manager-people-action{height:32px;padding:0 12px;border:1px solid #d6e3dc;border-radius:10px;background:#fff;color:#315e50;font:700 11px/1 inherit;white-space:nowrap;cursor:pointer}.phfck-manager-people-action:hover:not(:disabled){border-color:#65b894;color:#08704f;background:#f5fbf8}.phfck-manager-people-action:disabled{opacity:.55;cursor:not-allowed}
+.phfck-manager-people-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 2px 0;color:#72847c;font-size:11px}.phfck-manager-people-pagination>div{display:flex;align-items:center;gap:6px}.phfck-manager-people-pagination button,.phfck-manager-people-pagination select{height:34px;min-width:34px;border:1px solid #dce7e1;border-radius:9px;background:#fff;color:#315e50;font:700 11px/1 inherit}.phfck-manager-people-pagination button{cursor:pointer}.phfck-manager-people-pagination button.active{background:#08704f;color:#fff;border-color:#08704f}.phfck-manager-people-pagination button:disabled{opacity:.4;cursor:not-allowed}.phfck-manager-people-pagination select{padding:0 28px 0 10px}
+.phfck-manager-people-empty-state{min-height:180px;border:1px dashed #b9d8c8;border-radius:16px;background:#fbfdfc;display:flex;align-items:center;justify-content:center;gap:18px;text-align:left;padding:28px}.phfck-manager-people-empty-state>span{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#e5f4eb;color:#248961;font-size:28px}.phfck-manager-people-empty-state b{display:block;font-size:17px;color:#073f31;margin-bottom:6px}.phfck-manager-people-empty-state p{margin:0 0 12px;color:#72847c}
+@media(max-width:1100px){.phfck-manager-people-filters{grid-template-columns:1fr 250px}.phfck-manager-people-toolbar{align-items:stretch;flex-direction:column}.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{align-self:flex-end}}
+@media(max-width:760px){.phfck-manager-people-filters{grid-template-columns:1fr}.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{align-self:flex-start}.phfck-manager-people-pagination{align-items:flex-start;flex-direction:column}}
+
+
+/* PHF 1.38.16 · Nhân sự: UI chuẩn + filter tức thời */
+.phfck-manager-people-panel{padding:20px 22px 18px!important}
+.phfck-manager-people-panel .phfck-panel-head{padding-bottom:14px;border-bottom:1px solid #e5ede9;margin-bottom:14px!important}
+.phfck-manager-people-toolbar{position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center!important;gap:16px!important;padding:14px 16px!important;margin-bottom:14px!important;background:#fff!important;border:1px solid #dfeae4!important;border-radius:16px!important;box-shadow:0 8px 22px rgba(8,76,55,.045)!important}
+.phfck-manager-people-filters{display:grid!important;grid-template-columns:minmax(420px,1fr) 292px!important;gap:14px!important;min-width:0}
+.phfck-manager-people-search-wrap{height:48px!important;border:1px solid #d3e2da!important;border-radius:14px!important;background:#fff!important;box-shadow:none!important}
+.phfck-manager-people-search-wrap:focus-within{border-color:#52aa84!important;box-shadow:0 0 0 3px rgba(47,158,114,.10)!important}
+.phfck-manager-people-search-wrap input{font-size:14px!important}
+.phfck-manager-people-department-filter{position:relative;display:block;min-width:0;z-index:8}
+.phfck-manager-people-department-filter>button{width:100%;height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 15px;border:1px solid #d3e2da;border-radius:14px;background:#fff;color:#173f34;font:700 14px/1 inherit;cursor:pointer;box-shadow:none}
+.phfck-manager-people-department-filter>button:hover,.phfck-manager-people-department-filter>button[aria-expanded="true"]{border-color:#52aa84;box-shadow:0 0 0 3px rgba(47,158,114,.10)}
+.phfck-manager-people-department-filter>button i{font-style:normal;color:#087253;font-size:12px}
+.phfck-manager-department-menu{position:absolute;top:56px;right:0;width:100%;max-height:330px;overflow:auto;padding:8px;background:#fff;border:1px solid #d8e6df;border-radius:14px;box-shadow:0 18px 44px rgba(8,65,49,.18);z-index:40}
+.phfck-manager-department-menu-head{padding:7px 9px 9px;color:#7a8d85;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.phfck-manager-department-menu button{width:100%;display:grid;grid-template-columns:24px 1fr;align-items:center;gap:8px;padding:9px;border:0;border-radius:9px;background:#fff;color:#294b40;text-align:left;cursor:pointer;font:600 12px/1.3 inherit}
+.phfck-manager-department-menu button:hover,.phfck-manager-department-menu button[aria-selected="true"]{background:#eaf6ef;color:#086848}
+.phfck-manager-department-check{width:20px;height:20px;display:grid;place-items:center;border:1px solid #cbdcd3;border-radius:5px;background:#fff;color:#fff;font-weight:900}
+.phfck-manager-department-menu button[aria-selected="true"] .phfck-manager-department-check{background:#12905f;border-color:#12905f;color:#fff}
+.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{min-width:160px;text-align:right;color:#6f837b!important;font-size:11px!important;font-weight:700!important}
+.phfck-manager-people-table-wrap{border-radius:14px!important;border-color:#dce8e2!important;box-shadow:none!important}
+.phfck-manager-people-table th{height:38px;padding:10px 12px!important;background:#f4f8f6!important;color:#597168!important;font-size:10px!important;font-weight:800!important}
+.phfck-manager-people-table td{height:58px;padding:10px 12px!important;color:#28493f!important}
+.phfck-manager-people-table tbody tr:hover{background:#f7fbf9!important}
+.phfck-manager-people-name b{font-size:12px!important}.phfck-manager-people-name small{margin-top:3px!important;color:#789087!important}
+.phfck-manager-people-code{min-width:50px;justify-content:center!important}
+.phfck-manager-people-action{height:34px!important;padding:0 14px!important;border-radius:10px!important;font-weight:700!important}
+.phfck-manager-people-pagination{padding-top:15px!important}
+@media(max-width:1100px){.phfck-manager-people-toolbar{grid-template-columns:1fr!important}.phfck-manager-people-filters{grid-template-columns:1fr 260px!important}.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{text-align:left!important}}
+@media(max-width:760px){.phfck-manager-people-filters{grid-template-columns:1fr!important}.phfck-manager-department-menu{position:fixed;left:16px;right:16px;top:auto;width:auto}.phfck-manager-people-panel{padding:16px!important}}
+
+/* PHF Checklist 1.38.18 — People UI polish.
+   Scope: manager content only. Filter lifecycle, sidebar, route, permission, API and DB remain unchanged. */
+.phfck-manager-people-panel{
+  padding:18px!important;
+  border:1px solid #dfe9e4!important;
+  border-radius:20px!important;
+  box-shadow:0 12px 30px rgba(8,76,55,.055)!important;
+  background:#fff!important;
+}
+.phfck-manager-people-panel>.phfck-panel-head{
+  padding:0 2px 15px!important;
+  margin-bottom:14px!important;
+  border-bottom:1px solid #e7efeb!important;
+}
+.phfck-manager-people-panel>.phfck-panel-head small{font-weight:800!important;letter-spacing:.045em!important;color:#80938b!important}
+.phfck-manager-people-panel>.phfck-panel-head h3{font-size:18px!important;font-weight:800!important;color:#063f30!important;margin-top:5px!important}
+.phfck-manager-people-toolbar{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:16px!important;
+  padding:12px 14px!important;
+  margin-bottom:14px!important;
+  background:#f9fcfa!important;
+  border:1px solid #dce8e2!important;
+  border-radius:16px!important;
+  box-shadow:none!important;
+}
+.phfck-manager-people-filters{grid-template-columns:minmax(360px,1fr) 280px!important;gap:12px!important}
+.phfck-manager-people-search-wrap,
+.phfck-manager-people-department-filter>button{
+  height:46px!important;
+  border-color:#cfdfd7!important;
+  border-radius:13px!important;
+  background:#fff!important;
+}
+.phfck-manager-people-search-wrap{display:flex!important;align-items:center!important;padding-left:14px!important}
+.phfck-manager-people-search-wrap>span{font-size:18px!important;color:#087253!important;margin-right:9px!important}
+.phfck-manager-people-search-wrap input{height:44px!important;padding-left:0!important;font-size:14px!important;color:#173f34!important}
+.phfck-manager-people-search-wrap input::placeholder{color:#83938d!important}
+.phfck-manager-people-department-filter>button{padding:0 15px!important;font-size:13.5px!important;font-weight:750!important}
+.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  min-width:148px!important;height:34px!important;padding:0 12px!important;border-radius:999px!important;
+  background:#edf8f1!important;border:1px solid #cfe7d8!important;color:#197251!important;
+  font-size:11px!important;font-weight:750!important;text-align:center!important;
+}
+.phfck-manager-department-menu{
+  border:1px solid #d7e4de!important;border-radius:14px!important;
+  box-shadow:0 18px 40px rgba(10,62,47,.14)!important;padding:7px!important;background:#fff!important;
+}
+.phfck-manager-department-menu-head{padding:8px 10px!important;color:#7a8d85!important;font-size:10px!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.04em!important}
+.phfck-manager-department-menu button{min-height:38px!important;border-radius:9px!important;padding:0 10px!important;font-size:12px!important}
+.phfck-manager-department-menu button:hover{background:#f0f8f3!important}
+.phfck-manager-department-menu button[aria-selected="true"]{background:#e8f5ed!important;color:#08704f!important}
+.phfck-manager-people-table-wrap{
+  overflow:auto!important;border:1px solid #dbe6e1!important;border-radius:15px!important;
+  background:#fff!important;box-shadow:0 3px 10px rgba(17,74,57,.025)!important;
+}
+.phfck-manager-people-table{font-size:12px!important;color:#26483d!important}
+.phfck-manager-people-table th{
+  height:42px!important;padding:0 14px!important;background:#f1f6f3!important;color:#536d63!important;
+  font-size:10px!important;font-weight:850!important;letter-spacing:.035em!important;border-bottom:1px solid #cfddd6!important;
+}
+.phfck-manager-people-table td{
+  height:62px!important;padding:10px 14px!important;border-bottom:1px solid #e1ebe6!important;
+  color:#294b40!important;line-height:1.35!important;
+}
+.phfck-manager-people-table tbody tr{transition:background .14s ease,box-shadow .14s ease}
+.phfck-manager-people-table tbody tr:hover{background:#f7fbf9!important;box-shadow:inset 3px 0 #65b894!important}
+.phfck-manager-people-code{
+  min-width:58px!important;height:34px!important;padding:0 10px!important;border-radius:10px!important;
+  background:#e6f4eb!important;border:1px solid #d3e9dc!important;color:#08704f!important;font-size:11px!important;font-weight:850!important;
+}
+.phfck-manager-people-name{gap:3px!important;min-width:175px!important}
+.phfck-manager-people-name b{font-size:12.5px!important;line-height:1.25!important;font-weight:800!important;color:#063f30!important}
+.phfck-manager-people-name small{font-size:10.5px!important;color:#758a82!important;line-height:1.35!important}
+.phfck-manager-people-window{display:grid!important;gap:3px!important;min-width:160px!important}
+.phfck-manager-people-window b{font-size:10.5px!important;color:#1e5d49!important;white-space:nowrap!important}
+.phfck-manager-people-window small{font-size:9.5px!important;color:#83938d!important}
+.phfck-manager-people-status{
+  gap:6px!important;min-height:30px!important;padding:0 11px!important;border:1px solid transparent!important;
+  font-size:10.5px!important;font-weight:750!important;letter-spacing:0!important;
+}
+.phfck-manager-people-status i{display:block!important;width:7px!important;height:7px!important;border-radius:50%!important;background:#8ea199!important;flex:0 0 auto!important}
+.phfck-manager-people-status.can-review{background:#e5f5eb!important;border-color:#cbe8d6!important;color:#08704f!important}
+.phfck-manager-people-status.can-review i{background:#13a05b!important;box-shadow:0 0 0 3px rgba(19,160,91,.10)!important}
+.phfck-manager-people-status.view-only{background:#f1f5f3!important;border-color:#e2eae6!important;color:#63776f!important}
+.phfck-manager-people-status.no-form{background:#f7f8f8!important;border-color:#e8ecea!important;color:#8a9892!important}
+.phfck-manager-people-action{
+  height:35px!important;padding:0 14px!important;border:1px solid #9dcdb8!important;border-radius:10px!important;
+  background:#fff!important;color:#08704f!important;font-size:11px!important;font-weight:800!important;
+}
+.phfck-manager-people-action:hover:not(:disabled){background:#eaf7ef!important;border-color:#50a77f!important;box-shadow:0 4px 10px rgba(8,112,79,.08)!important}
+.phfck-manager-people-action:disabled{background:#f5f7f6!important;border-color:#e1e7e4!important;color:#98a59f!important;opacity:1!important}
+.phfck-manager-people-pagination{
+  padding:14px 2px 0!important;color:#73877f!important;font-size:11px!important;
+}
+.phfck-manager-people-pagination>div{gap:7px!important}
+.phfck-manager-people-pagination button,.phfck-manager-people-pagination select{height:36px!important;border-radius:10px!important;border-color:#d7e3dd!important}
+.phfck-manager-people-pagination button:hover:not(:disabled):not(.active){background:#eef7f2!important;border-color:#acd2bf!important}
+.phfck-manager-people-pagination button.active{background:#08704f!important;border-color:#08704f!important;box-shadow:0 5px 12px rgba(8,112,79,.16)!important}
+.phfck-manager-people-empty-state{min-height:210px!important;background:#fbfdfc!important;border-color:#b9d8c8!important}
+.phfck-manager-people-empty-state>span{background:#e4f3ea!important;color:#248961!important}
+.phfck-people-scope-chips{gap:9px!important;margin-bottom:14px!important}
+.phfck-people-scope-chips button{min-height:40px!important;padding:0 14px!important;border-radius:999px!important;font-weight:700!important}
+.phfck-people-scope-chips button.active{background:#edf8f1!important;border-color:#66b28f!important;color:#075f46!important;box-shadow:0 3px 10px rgba(8,112,79,.05)!important}
+@media(max-width:1100px){
+  .phfck-manager-people-filters{grid-template-columns:1fr 250px!important}
+  .phfck-manager-people-toolbar{grid-template-columns:1fr!important}
+  .phfck-manager-people-toolbar>[data-phfck-manager-people-count]{justify-self:start!important}
+}
+@media(max-width:760px){
+  .phfck-manager-people-panel{padding:14px!important;border-radius:16px!important}
+  .phfck-manager-people-filters{grid-template-columns:1fr!important}
+  .phfck-manager-people-toolbar{padding:12px!important}
+}
+
+
+/* PHF Checklist 1.38.19 — Typography polish for People */
+.phfck-manager-people-panel,
+.phfck-manager-people-panel button,
+.phfck-manager-people-panel input,
+.phfck-manager-people-panel select,
+.phfck-manager-people-panel table{
+  font-family:inherit!important;
+}
+.phfck-manager-people-panel .phfck-panel-head h3{
+  font-weight:750!important;
+  letter-spacing:-.012em;
+}
+.phfck-manager-people-table th{
+  font-weight:800!important;
+  color:#4d685e!important;
+  letter-spacing:.045em!important;
+}
+.phfck-manager-people-table td{
+  font-weight:450;
+  line-height:1.35;
+}
+.phfck-manager-people-name b{
+  font-size:13px!important;
+  font-weight:750!important;
+  color:#073f31!important;
+  letter-spacing:-.008em;
+  line-height:1.25!important;
+}
+.phfck-manager-people-name small{
+  font-size:10.5px!important;
+  font-weight:450!important;
+  color:#789087!important;
+  line-height:1.3!important;
+}
+.phfck-manager-people-code{
+  font-size:11.5px!important;
+  font-weight:700!important;
+  letter-spacing:.015em!important;
+}
+.phfck-manager-department-chip{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  max-width:100%;
+  padding:0 10px;
+  border:1px solid #cfe7da;
+  border-radius:999px;
+  background:#edf8f2;
+  color:#12684d;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.phfck-manager-people-manager{
+  display:inline-block;
+  color:#173f34;
+  font-size:11.5px;
+  font-weight:750;
+  line-height:1.3;
+}
+.phfck-manager-people-plain{
+  color:#36574c;
+  font-size:11.5px;
+  font-weight:500;
+}
+.phfck-manager-people-period,
+.phfck-manager-people-score{
+  color:#124f3d;
+  font-weight:750!important;
+}
+.phfck-manager-people-window b{
+  color:#214b3d;
+  font-weight:700!important;
+}
+.phfck-manager-people-window small{
+  font-weight:500!important;
+}
+.phfck-manager-people-status{
+  font-weight:650!important;
+}
+.phfck-manager-people-action{
+  font-weight:700!important;
+  letter-spacing:.005em;
+}
+.phfck-manager-people-pagination,
+.phfck-manager-people-toolbar>[data-phfck-manager-people-count]{
+  font-weight:550!important;
+}
+@media(max-width:1150px){
+  .phfck-manager-department-chip{white-space:normal;text-align:center;padding-top:5px;padding-bottom:5px}
+}
+
+/* PHF Checklist 1.38.20 — Phiếu của tôi: typography & color polish, giữ nguyên bố cục */
+.phfck-manager-screen .phfck-self-monthly,
+.phfck-manager-screen .phfck-employee-inbox,
+.phfck-manager-screen .phfck-role-own,
+.phfck-manager-screen .phfck-employee-review-result{
+  font-family:inherit!important;
+}
+.phfck-manager-screen .phfck-role-heading h1{
+  font-size:28px!important;
+  line-height:1.16!important;
+  font-weight:800!important;
+  letter-spacing:-.025em!important;
+  color:#073f31!important;
+}
+.phfck-manager-screen .phfck-role-heading>div>small{
+  color:#70877e!important;
+  font-size:10.5px!important;
+  font-weight:800!important;
+  letter-spacing:.08em!important;
+}
+.phfck-manager-screen .phfck-role-heading p{
+  color:#62786f!important;
+  font-size:13px!important;
+  line-height:1.5!important;
+}
+.phfck-manager-screen .phfck-panel-head h3{
+  color:#073f31!important;
+  font-size:18px!important;
+  line-height:1.28!important;
+  font-weight:800!important;
+  letter-spacing:-.015em!important;
+}
+.phfck-manager-screen .phfck-panel-head>div>small{
+  color:#70877e!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.075em!important;
+}
+.phfck-manager-screen .phfck-monthly-state{
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  font-size:10.5px!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-monthly-state.reviewed,
+.phfck-manager-screen .phfck-monthly-state.locked{
+  background:#eee8ff!important;
+  color:#6d3cc5!important;
+  border-color:#d8c7fb!important;
+}
+.phfck-manager-screen .phfck-self-context{
+  gap:10px!important;
+  margin:14px 0!important;
+}
+.phfck-manager-screen .phfck-self-context>div{
+  min-height:58px!important;
+  border-color:#d9e7e0!important;
+  background:linear-gradient(180deg,#fbfdfc 0%,#f5faf7 100%)!important;
+  padding:12px 14px!important;
+  box-shadow:0 3px 10px rgba(20,69,52,.035)!important;
+}
+.phfck-manager-screen .phfck-self-context small,
+.phfck-manager-screen .phfck-review-context small{
+  color:#748980!important;
+  font-size:9.5px!important;
+  font-weight:750!important;
+  letter-spacing:.045em!important;
+}
+.phfck-manager-screen .phfck-self-context b,
+.phfck-manager-screen .phfck-review-context b{
+  color:#124d3b!important;
+  font-size:12px!important;
+  font-weight:750!important;
+  line-height:1.35!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown{
+  border-color:#b9dfca!important;
+  border-left-width:5px!important;
+  background:linear-gradient(135deg,#f1fbf5 0%,#fbfefc 100%)!important;
+  box-shadow:0 5px 14px rgba(23,96,70,.055)!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown summary{
+  padding:14px 16px!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown summary small{
+  font-size:9.5px!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown summary b{
+  color:#075f43!important;
+  font-size:15px!important;
+  font-weight:800!important;
+  letter-spacing:-.01em!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown summary span{
+  color:#657d73!important;
+  font-size:11px!important;
+}
+.phfck-manager-screen .phfck-checklist-breakdown summary>strong{
+  min-height:32px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  background:#fff!important;
+  color:#08704f!important;
+  border-color:#b9dccb!important;
+  font-size:10.5px!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-self-table{
+  border-color:#d7e5de!important;
+  box-shadow:0 4px 14px rgba(18,68,50,.035)!important;
+}
+.phfck-manager-screen .phfck-self-row{
+  padding:11px 13px!important;
+  border-bottom-color:#e4ede8!important;
+}
+.phfck-manager-screen .phfck-self-row.is-head{
+  background:#eef5f1!important;
+  color:#45685a!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.045em!important;
+}
+.phfck-manager-screen .phfck-self-row div small{
+  color:#82958d!important;
+  font-size:9px!important;
+  font-weight:550!important;
+}
+.phfck-manager-screen .phfck-self-row div b{
+  color:#163f33!important;
+  font-size:11.5px!important;
+  font-weight:750!important;
+  line-height:1.35!important;
+}
+.phfck-manager-screen .phfck-self-row>span{
+  color:#416156!important;
+  font-size:10.5px!important;
+  font-weight:550!important;
+}
+.phfck-manager-screen .phfck-self-row input{
+  height:40px!important;
+  border-color:#cfdfd7!important;
+  border-radius:10px!important;
+  color:#183f33!important;
+  font-size:11px!important;
+  font-weight:550!important;
+}
+.phfck-manager-screen .phfck-self-row input:focus{
+  border-color:#70b895!important;
+  box-shadow:0 0 0 3px rgba(45,154,103,.10)!important;
+  outline:0!important;
+}
+.phfck-manager-screen .phfck-auto-score{
+  min-height:40px!important;
+  border-color:#abd8bf!important;
+  background:#e7f7ed!important;
+}
+.phfck-manager-screen .phfck-auto-score b{
+  color:#08704f!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-auto-note{
+  min-height:40px!important;
+  background:#f2f7f4!important;
+  color:#536d62!important;
+  font-size:10px!important;
+  font-weight:650!important;
+}
+.phfck-manager-screen .phfck-self-note>span{
+  color:#174c3b!important;
+  font-size:11.5px!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-self-note textarea{
+  min-height:86px!important;
+  border-color:#cfdfd7!important;
+  background:#fbfdfc!important;
+  color:#183f33!important;
+  font-size:11.5px!important;
+  line-height:1.5!important;
+}
+.phfck-manager-screen .phfck-final-score-cards{
+  gap:12px!important;
+  margin:14px 0!important;
+}
+.phfck-manager-screen .phfck-final-score-cards article{
+  min-height:92px!important;
+  border-color:#d5e4dc!important;
+  background:linear-gradient(160deg,#ffffff 0%,#f7fbf9 100%)!important;
+  padding:14px 16px!important;
+  box-shadow:0 5px 15px rgba(18,68,50,.04)!important;
+}
+.phfck-manager-screen .phfck-final-score-cards article:nth-child(2){
+  border-color:#d9d8ef!important;
+  background:linear-gradient(160deg,#fff 0%,#f7f6ff 100%)!important;
+}
+.phfck-manager-screen .phfck-final-score-cards article.is-final{
+  border-color:#78c497!important;
+  background:linear-gradient(145deg,#effaf3 0%,#e8f7ee 100%)!important;
+  box-shadow:0 8px 20px rgba(45,144,91,.09)!important;
+}
+.phfck-manager-screen .phfck-final-score-cards span{
+  color:#6e847b!important;
+  font-size:9.5px!important;
+  font-weight:750!important;
+  letter-spacing:.04em!important;
+}
+.phfck-manager-screen .phfck-final-score-cards strong{
+  margin:6px 0 4px!important;
+  color:#075f43!important;
+  font-size:26px!important;
+  line-height:1!important;
+  font-weight:850!important;
+  letter-spacing:-.025em!important;
+}
+.phfck-manager-screen .phfck-final-score-cards article:nth-child(2) strong{color:#5248a8!important}
+.phfck-manager-screen .phfck-final-score-cards article.is-final strong{color:#08704f!important;font-size:28px!important}
+.phfck-manager-screen .phfck-final-score-cards small{
+  color:#71877e!important;
+  font-size:9.5px!important;
+  font-weight:500!important;
+}
+.phfck-manager-screen .phfck-review-context{
+  gap:10px!important;
+}
+.phfck-manager-screen .phfck-review-context>div{
+  border-color:#d9e7e0!important;
+  background:#f8fbf9!important;
+  padding:11px 13px!important;
+}
+.phfck-manager-screen .phfck-employee-result-table{
+  border-color:#d7e5de!important;
+  box-shadow:0 4px 14px rgba(18,68,50,.035)!important;
+}
+.phfck-manager-screen .phfck-employee-result-row.is-head{
+  background:#eef5f1!important;
+  color:#45685a!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-employee-result-row div b{
+  color:#173f33!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-employee-result-row>strong{
+  color:#075f43!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-mywork-dashboard{
+  border-color:#d8e5df!important;
+  background:#fff!important;
+}
+.phfck-manager-screen .phfck-mywork-head h3{
+  color:#073f31!important;
+  font-size:18px!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-mywork-head p{
+  color:#62786f!important;
+  font-size:12.5px!important;
+}
+.phfck-manager-screen .phfck-employee-inbox-count{
+  border-color:#efc983!important;
+  background:linear-gradient(145deg,#fffaf0 0%,#fff4df 100%)!important;
+  box-shadow:0 5px 14px rgba(185,108,15,.06)!important;
+}
+.phfck-manager-screen .phfck-employee-inbox-count strong{
+  color:#a75700!important;
+  font-size:27px!important;
+  font-weight:850!important;
+}
+.phfck-manager-screen .phfck-employee-guide{
+  border-color:#cfe0ef!important;
+  background:#f6faff!important;
+}
+.phfck-manager-screen .phfck-employee-guide summary b{
+  color:#294c70!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary article{
+  min-height:74px!important;
+  padding:14px 16px!important;
+  box-shadow:0 4px 12px rgba(18,68,50,.035)!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary article.is-action{
+  background:linear-gradient(145deg,#fffaf0,#fff7e8)!important;
+  border-color:#efc983!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary article.is-waiting{
+  background:linear-gradient(145deg,#f6f8ff,#f0f3ff)!important;
+  border-color:#cdd6f4!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary article.is-done{
+  background:linear-gradient(145deg,#f3fbf6,#ebf7ef)!important;
+  border-color:#bddfc9!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary span{
+  color:#465f55!important;
+  font-size:11.5px!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary strong{
+  color:#073f31!important;
+  font-size:27px!important;
+  font-weight:850!important;
+}
+.phfck-manager-screen .phfck-employee-task-summary small{
+  color:#70847b!important;
+  font-size:10.5px!important;
+  font-weight:500!important;
+}
+.phfck-manager-screen .phfck-employee-task-empty{
+  border-color:#cbe3d6!important;
+  background:linear-gradient(145deg,#f6fcf8 0%,#fbfefc 100%)!important;
+}
+.phfck-manager-screen .phfck-employee-task-empty b{
+  color:#124d3b!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-role-person-card.is-own{
+  border-color:#b9dfca!important;
+  background:linear-gradient(110deg,#effaf3 0%,#fbfefc 100%)!important;
+  box-shadow:0 5px 15px rgba(18,68,50,.045)!important;
+}
+.phfck-manager-screen .phfck-role-person-main>span{
+  background:#e5f4eb!important;
+  color:#08704f!important;
+  border-color:#c7e5d5!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-role-person-main b{
+  color:#073f31!important;
+  font-size:12.5px!important;
+  font-weight:800!important;
+}
+.phfck-manager-screen .phfck-role-person-main small{
+  color:#70867d!important;
+  font-size:10px!important;
+  font-weight:500!important;
+}
+.phfck-manager-screen .phfck-role-person-meta small{
+  color:#748980!important;
+  font-size:9px!important;
+  font-weight:750!important;
+  letter-spacing:.035em!important;
+}
+.phfck-manager-screen .phfck-role-person-meta b{
+  color:#124d3b!important;
+  font-size:11px!important;
+  font-weight:750!important;
+}
+.phfck-manager-screen .phfck-role-person-meta span:first-child b{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:25px!important;
+  padding:0 8px!important;
+  border:1px solid #c9e4d6!important;
+  border-radius:999px!important;
+  background:#edf8f2!important;
+  color:#12684d!important;
+}
+@media(max-width:900px){
+  .phfck-manager-screen .phfck-role-heading h1{font-size:25px!important}
+  .phfck-manager-screen .phfck-final-score-cards strong{font-size:24px!important}
+}
+
+/* PHF Checklist 1.38.21 — Violation workspace visual balance polish */
+.phfck-violations-view .phfck-violation-tabs{
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  width:100%;
+  gap:10px;
+  padding:8px;
+}
+.phfck-violations-view .phfck-violation-tabs button{
+  width:100%;
+  min-width:0;
+  min-height:76px;
+  padding:11px 13px;
+  align-items:center;
+}
+.phfck-violations-view .phfck-violation-tabs button > span{
+  width:36px;
+  height:36px;
+  min-width:36px;
+  font-size:16px;
+}
+.phfck-violations-view .phfck-violation-tabs button b{
+  font-size:13.5px;
+  font-weight:750;
+  line-height:1.25;
+}
+.phfck-violations-view .phfck-violation-tabs button small{
+  margin-top:3px;
+  font-size:10.8px;
+  font-weight:500;
+  line-height:1.4;
+}
+.phfck-violations-view .phfck-employee-search-controls{
+  grid-template-columns:minmax(0,560px) auto;
+  justify-content:start;
+  align-items:center;
+  gap:10px;
+}
+.phfck-violations-view .phfck-employee-search-controls .phfck-employee-combo{
+  width:100%;
+}
+.phfck-violations-view .phfck-employee-change{
+  height:46px;
+  min-height:46px;
+  margin:0;
+  padding:0 16px;
+  align-self:center;
+  border-radius:12px;
+  font-size:12.5px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.phfck-violations-view .phfck-employee-combobox-field > b,
+.phfck-violations-view .phfck-quick-date-field > b,
+.phfck-violations-view .phfck-shared-tools b{
+  font-size:12px;
+  font-weight:750;
+  color:#173f34;
+}
+.phfck-violations-view .phfck-employee-combobox-field > small{
+  font-size:10.8px;
+  font-weight:500;
+  line-height:1.45;
+}
+.phfck-violations-view .phfck-quick-context .phfck-context-person b{
+  font-size:15px;
+  font-weight:750;
+}
+.phfck-violations-view .phfck-context-chips span{
+  min-height:32px;
+  padding:6px 11px;
+  font-size:11px;
+  font-weight:650;
+}
+.phfck-violations-view .phfck-quick-actions-row{
+  grid-template-columns:210px minmax(320px,1fr);
+  gap:14px;
+}
+.phfck-violations-view .phfck-quick-head h3,
+.phfck-violations-view .phfck-panel-head h3{
+  font-weight:750;
+}
+.phfck-violations-view .phfck-criterion-group-head b,
+.phfck-violations-view .phfck-quick-row b{
+  font-weight:700;
+}
+.phfck-violations-view .phfck-quick-toggle,
+.phfck-violations-view .phfck-quick-footer button{
+  font-weight:700;
+}
+@media(max-width:1100px){
+  .phfck-violations-view .phfck-violation-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfck-violations-view .phfck-employee-search-controls{grid-template-columns:minmax(0,1fr) auto}
+}
+@media(max-width:680px){
+  .phfck-violations-view .phfck-violation-tabs{display:grid;grid-template-columns:1fr;overflow:visible}
+  .phfck-violations-view .phfck-violation-tabs button{min-width:0}
+  .phfck-violations-view .phfck-employee-search-controls{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-employee-change{width:100%}
+}
+
+
+/* PHF Checklist 1.38.22 - violation employee reselect UX */
+.phfck-violations-view .phfck-employee-search-controls{
+  grid-template-columns:minmax(0,560px) 112px;
+  justify-content:start;
+  align-items:center;
+  column-gap:10px;
+}
+.phfck-violations-view .phfck-employee-change{
+  width:112px;
+  height:46px;
+  min-height:46px;
+  padding:0 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border-radius:12px;
+  border-color:#a9cdb9;
+  background:#fff;
+  color:#17603f;
+  font-size:12.5px;
+  font-weight:700;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:none;
+}
+.phfck-violations-view .phfck-employee-change span{
+  font-size:15px;
+  line-height:1;
+}
+.phfck-violations-view .phfck-employee-change:hover{
+  border-color:#65a47c;
+  background:#eef8f2;
+  color:#0f5132;
+}
+.phfck-violations-view .phfck-employee-change:focus-visible{
+  outline:0;
+  box-shadow:0 0 0 3px rgba(55,155,91,.14);
+}
+@media(max-width:760px){
+  .phfck-violations-view .phfck-employee-search-controls{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-employee-change{width:100%}
+}
+
+
+/* PHF Checklist 1.38.23 - compact employee reselect + direct click search */
+.phfck-violations-view .phfck-employee-search-controls{
+  width:min(100%,820px);
+  grid-template-columns:minmax(0,1fr) auto;
+  justify-content:start;
+  align-items:center;
+  column-gap:6px;
+}
+.phfck-violations-view .phfck-employee-change{
+  width:auto;
+  min-width:94px;
+  height:36px;
+  min-height:36px;
+  padding:0 12px;
+  border-radius:999px;
+  border:1px solid #cfe4d7;
+  background:#eef8f2;
+  color:#17603f;
+  font-size:11.8px;
+  font-weight:700;
+  box-shadow:none;
+}
+.phfck-violations-view .phfck-employee-change span{
+  font-size:13px;
+}
+.phfck-violations-view .phfck-employee-change:hover{
+  border-color:#9bc7aa;
+  background:#e3f4e9;
+}
+@media(max-width:760px){
+  .phfck-violations-view .phfck-employee-search-controls{width:100%;grid-template-columns:1fr}
+  .phfck-violations-view .phfck-employee-change{width:max-content;min-width:94px;justify-self:start}
+}
+
+/* PHF Checklist 1.38.24 - keep employee reselect chip attached to combobox */
+.phfck-violations-view .phfck-employee-search-controls{
+  width:min(100%,760px);
+  grid-template-columns:minmax(0,1fr) auto;
+  column-gap:8px;
+  align-items:center;
+}
+.phfck-violations-view .phfck-employee-search-controls .phfck-search,
+.phfck-violations-view .phfck-employee-search-controls .phfck-employee-combobox{
+  width:100%;
+  max-width:none;
+}
+.phfck-violations-view .phfck-employee-change{
+  justify-self:start;
+  margin:0;
+}
+@media(max-width:760px){
+  .phfck-violations-view .phfck-employee-search-controls{
+    width:100%;
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  .phfck-violations-view .phfck-employee-change{
+    width:auto;
+    min-width:94px;
+  }
+}
+@media(max-width:520px){
+  .phfck-violations-view .phfck-employee-search-controls{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-employee-change{justify-self:start}
+}
+
+/* PHF Checklist 1.38.31 — modal stack, focus and backdrop governance */
+.phfck-modal-layer.is-phfck-modal-under{background:transparent!important;backdrop-filter:none!important;pointer-events:none!important}
+.phfck-modal-layer.is-phfck-modal-top{background:rgba(10,35,27,.45);backdrop-filter:blur(2px);pointer-events:auto!important}
+.phfck-modal-layer.is-phfck-modal-top>.phfck-modal{position:relative;z-index:1}
+.phfck-modal-layer[aria-hidden="true"]{visibility:visible}
+html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
+
+/* 1.38.32: modal cha tạm ẩn khi mở hộp xác nhận con; giữ nguyên state để khôi phục khi Hủy. */
+.phfck-modal-layer.is-phfck-modal-suspended{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+
+/* 1.38.34 — Employee UI + actionable notification design system */
+[data-checklist-role="employee"] .phfck-role-main{font-family:inherit}
+[data-checklist-role="employee"] .phfck-role-heading h1{font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.025em;color:#073f2c}
+[data-checklist-role="employee"] .phfck-role-heading p{font-size:13.5px;line-height:1.55;color:#61786d}
+[data-checklist-role="employee"] .phfck-role-scope{border-color:#bfe2cd;background:linear-gradient(135deg,#f4fbf7 0%,#fbfefd 100%);box-shadow:0 8px 24px rgba(11,94,61,.055)}
+[data-checklist-role="employee"] .phfck-role-scope small{font-weight:750;letter-spacing:.04em;color:#658176}
+[data-checklist-role="employee"] .phfck-role-scope b{font-size:15px;font-weight:800;color:#124d37}
+[data-checklist-role="employee"] .phfck-role-scope span{font-size:11.5px;color:#73877d}
+[data-checklist-role="employee"] .phfck-role-scope i{font-style:normal;font-size:11px;font-weight:750;color:#2e6d51;background:#fff;border:1px solid #cce4d5;border-radius:999px;padding:7px 11px}
+[data-checklist-role="employee"] .phfck-employee-role-stats{gap:12px}
+[data-checklist-role="employee"] .phfck-employee-role-stats article{position:relative;overflow:hidden;min-height:106px;border-radius:15px;padding:15px 17px;background:#fff;box-shadow:0 7px 20px rgba(15,23,42,.045)}
+[data-checklist-role="employee"] .phfck-employee-role-stats article:before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#2f7ee6}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-scope{background:#f2f7ff;border-color:#c9dcfb}[data-checklist-role="employee"] .phfck-employee-role-stats article.is-scope:before{background:#2772d6}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-review{background:#f1faf5;border-color:#cbe8d7}[data-checklist-role="employee"] .phfck-employee-role-stats article.is-review:before{background:#15905b}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form{background:#f7f3ff;border-color:#ddd0f8}[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form:before{background:#7650d8}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-warning{background:#fff8ee;border-color:#f0d9b6}[data-checklist-role="employee"] .phfck-employee-role-stats article.is-warning:before{background:#d78313}
+[data-checklist-role="employee"] .phfck-employee-role-stats span{font-size:11.5px;font-weight:750;color:#526b60}
+[data-checklist-role="employee"] .phfck-employee-role-stats strong{margin:8px 0 5px;font-size:27px;line-height:1;font-weight:800;color:#0b5138}
+[data-checklist-role="employee"] .phfck-employee-role-stats small{font-size:10.5px;line-height:1.4;color:#73867d}
+[data-checklist-role="employee"] .phfck-role-section-label b{font-size:15px;font-weight:800;color:#124d37}
+[data-checklist-role="employee"] .phfck-role-section-label span{font-size:11.5px;color:#71857b}
+[data-checklist-role="employee"] .phfck-panel{border-radius:17px;border-color:#dce9e2;box-shadow:0 10px 28px rgba(16,67,46,.055)}
+[data-checklist-role="employee"] .phfck-panel-head h3{font-size:18px;font-weight:800;letter-spacing:-.015em;color:#0d4b35}
+[data-checklist-role="employee"] .phfck-panel-head small{font-size:10.5px;font-weight:750;letter-spacing:.05em;color:#70867b}
+
+.phfck-notification-inbox{width:min(430px,calc(100vw - 28px));border-radius:18px;border-color:#d4e4dc;box-shadow:0 24px 64px rgba(7,51,36,.27)}
+.phfck-notification-inbox-head{padding:16px 17px 13px;background:linear-gradient(180deg,#fbfefc 0%,#f5faf7 100%)}
+.phfck-notification-inbox-head b{font-size:15.5px;font-weight:800}.phfck-notification-inbox-head small{font-size:10.5px;line-height:1.45}
+.phfck-notification-inbox-list>button.phfck-notification-item{grid-template-columns:38px minmax(0,1fr);gap:12px;padding:14px 16px;align-items:flex-start;cursor:default}
+.phfck-notification-inbox-list>button.phfck-notification-item.is-actionable{cursor:pointer}
+.phfck-notification-inbox-list>button.phfck-notification-item.is-actionable:hover{background:#f4faf6}
+.phfck-notification-item-icon{width:34px!important;height:34px!important;margin:0!important;border-radius:11px!important;display:grid!important;place-items:center!important;font-size:14px!important;font-weight:900!important;background:#e9f2ff!important;color:#2765b1!important}
+.phfck-notification-item.is-warning .phfck-notification-item-icon{background:#fff0d9!important;color:#ad6200!important}
+.phfck-notification-item.is-danger .phfck-notification-item-icon{background:#fae6e4!important;color:#b33e36!important}
+.phfck-notification-item.is-success .phfck-notification-item-icon{background:#e5f5eb!important;color:#157c4c!important}
+.phfck-notification-item-content{min-width:0}.phfck-notification-item-content>b{font-size:12.5px!important;line-height:1.35;font-weight:800!important;color:#184b37!important}
+.phfck-notification-item-content>p{margin:5px 0 8px!important;font-size:11.25px!important;line-height:1.5!important;color:#5f756a!important}
+.phfck-notification-item-meta{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.phfck-notification-item-meta small{font-size:9.75px!important;color:#87978f!important}
+.phfck-notification-item-meta strong{font-size:10.5px;color:#10734a;font-weight:850;white-space:nowrap}
+.phfck-notification-item-meta em{font-style:normal;font-size:9.75px;font-weight:700;color:#7c8d84;background:#eef3f0;border-radius:999px;padding:3px 7px}
+.phfck-notification-item.is-unread{box-shadow:inset 3px 0 0 #2b9a64}
+
+
+/* PHF Checklist 1.38.35 - Employee UI parity + notification route safety */
+.phfck-employee-guide:not([open]) summary i::before{content:none!important}
+[data-checklist-role="employee"] .phfck-role-main{width:min(1420px,calc(100% - 42px));padding:28px 0 52px}
+[data-checklist-role="employee"] .phfck-role-heading{margin-bottom:18px}
+[data-checklist-role="employee"] .phfck-role-heading small{font-size:10px;font-weight:800;letter-spacing:.065em;color:#668074}
+[data-checklist-role="employee"] .phfck-role-heading h1{font-size:30px;font-weight:800;letter-spacing:-.025em;color:#073f2c}
+[data-checklist-role="employee"] .phfck-role-heading p{font-size:13px;color:#61786d}
+[data-checklist-role="employee"] .phfck-role-scope{min-height:104px;padding:17px 20px;border-radius:17px;border-left-width:5px;box-shadow:0 9px 25px rgba(12,84,57,.06)}
+[data-checklist-role="employee"] .phfck-role-scope b{font-size:16px;line-height:1.35}
+[data-checklist-role="employee"] .phfck-role-scope span{font-size:12px;line-height:1.45}
+[data-checklist-role="employee"] .phfck-employee-role-stats article{display:grid;grid-template-columns:minmax(0,1fr) 46px;grid-template-rows:auto auto 1fr;column-gap:12px;align-items:start;min-height:122px;padding:17px 18px}
+[data-checklist-role="employee"] .phfck-employee-role-stats article:after{grid-column:2;grid-row:1/4;align-self:center;content:'✓';width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:18px;font-weight:900;background:rgba(39,114,214,.11);color:#2772d6}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-review:after{content:'◉';background:rgba(21,144,91,.11);color:#15905b}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form:after{content:'▦';background:rgba(118,80,216,.11);color:#7650d8}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-warning:after{content:'!';background:rgba(215,131,19,.12);color:#b96d08}
+[data-checklist-role="employee"] .phfck-employee-role-stats span,[data-checklist-role="employee"] .phfck-employee-role-stats strong,[data-checklist-role="employee"] .phfck-employee-role-stats small{grid-column:1}
+[data-checklist-role="employee"] .phfck-role-section-label{margin-top:9px;margin-bottom:7px;padding:0 6px}
+[data-checklist-role="employee"] .phfck-role-section-label b{font-size:17px}
+[data-checklist-role="employee"] .phfck-mywork-dashboard{border-radius:17px;border-color:#d4e6dc;box-shadow:0 10px 28px rgba(15,83,57,.055)}
+[data-checklist-role="employee"] .phfck-mywork-head h3{font-size:20px;font-weight:800;color:#0d4d38}
+[data-checklist-role="employee"] .phfck-mywork-head p{font-size:12.5px;line-height:1.5;color:#657b70}
+[data-checklist-role="employee"] .phfck-employee-task-summary article{border-radius:14px;padding:15px 16px;min-height:100px}
+[data-checklist-role="employee"] .phfck-employee-task-summary article strong{font-size:25px;font-weight:800}
+[data-checklist-role="employee"] .phfck-role-own{border-radius:17px;box-shadow:0 9px 24px rgba(15,83,57,.05)}
+@media(max-width:760px){[data-checklist-role="employee"] .phfck-role-main{width:min(100% - 22px,1420px);padding-top:18px}[data-checklist-role="employee"] .phfck-employee-role-stats article{grid-template-columns:minmax(0,1fr) 38px;min-height:108px;padding:14px}[data-checklist-role="employee"] .phfck-employee-role-stats article:after{width:36px;height:36px;border-radius:11px}}
+
+/* PHF Checklist 1.38.37 — Employee UI hierarchy polish */
+[data-checklist-role="employee"] .phfck-employee-main{width:min(100% - 44px,1460px);padding:28px 0 42px}
+[data-checklist-role="employee"] .phfck-employee-heading{margin-bottom:16px;padding:24px 26px;border:1px solid #cfe2d7;border-radius:20px;background:linear-gradient(135deg,#f4fbf7 0%,#fff 72%);box-shadow:0 10px 30px rgba(14,75,51,.06)}
+[data-checklist-role="employee"] .phfck-employee-heading h1{font-size:31px;line-height:1.15;font-weight:800;letter-spacing:-.025em;color:#073f2c}
+[data-checklist-role="employee"] .phfck-employee-heading p{margin-top:7px;font-size:13.5px;line-height:1.55;color:#60776c}
+[data-checklist-role="employee"] .phfck-employee-context{display:grid;grid-template-columns:46px minmax(0,1fr) auto;align-items:center;gap:14px;margin-bottom:16px;padding:16px 18px;border:1px solid #c8ded2;border-radius:17px;background:#fff;box-shadow:0 7px 22px rgba(18,76,53,.05)}
+[data-checklist-role="employee"] .phfck-employee-context-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:#ddf3e6;color:#08704f;font-size:20px;font-weight:900}
+[data-checklist-role="employee"] .phfck-employee-context small{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:#52806c}
+[data-checklist-role="employee"] .phfck-employee-context b{display:block;margin-top:3px;font-size:15px;font-weight:750;color:#073f2c}
+[data-checklist-role="employee"] .phfck-employee-context span{display:block;margin-top:3px;font-size:12px;color:#6b8177}
+[data-checklist-role="employee"] .phfck-employee-context i{padding:7px 10px;border:1px solid #bfe0cc;border-radius:999px;background:#edf8f1;color:#0a7550;font-size:11px;font-style:normal;font-weight:750;white-space:nowrap}
+[data-checklist-role="employee"] .phfck-employee-role-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:20px}
+[data-checklist-role="employee"] .phfck-employee-role-stats article{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:auto auto auto;column-gap:13px;min-height:116px;padding:17px;border:1px solid;border-radius:17px;box-shadow:0 7px 20px rgba(15,61,45,.055)}
+[data-checklist-role="employee"] .phfck-employee-role-stats article:before{grid-row:1/4;display:grid;place-items:center;width:42px;height:42px;margin-top:1px;border-radius:13px;font-size:18px;font-weight:900}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action{background:linear-gradient(145deg,#fff4e7,#fffaf3);border-color:#efcb91}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action:before{content:'!';background:#ffe2b6;color:#a95b00}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting{background:linear-gradient(145deg,#edf4ff,#f8faff);border-color:#c8d8f3}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting:before{content:'…';background:#dce8fb;color:#295da5}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form{background:linear-gradient(145deg,#f4efff,#fbf9ff);border-color:#d7c8f3}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form:before{content:'▦';background:#e8ddff;color:#6737bd}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment{background:linear-gradient(145deg,#eaf8f0,#f8fcfa);border-color:#bfe0cc}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment:before{content:'✓';background:#d7efe1;color:#08704f}
+[data-checklist-role="employee"] .phfck-employee-role-stats span,[data-checklist-role="employee"] .phfck-employee-role-stats strong,[data-checklist-role="employee"] .phfck-employee-role-stats small{grid-column:2}
+[data-checklist-role="employee"] .phfck-employee-role-stats span{font-size:11.5px;font-weight:750;color:#3d5e50}
+[data-checklist-role="employee"] .phfck-employee-role-stats strong{margin:6px 0 4px;font-size:29px;line-height:1;font-weight:850;letter-spacing:-.03em;color:#073f2c}
+[data-checklist-role="employee"] .phfck-employee-role-stats small{font-size:10.8px;line-height:1.4;color:#6c8177}
+[data-checklist-role="employee"] .phfck-role-section-label{margin:22px 0 10px;padding:0 5px}
+[data-checklist-role="employee"] .phfck-role-section-label b{font-size:18px;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-role-section-label span{font-size:11.5px;font-weight:500;color:#6d8278}
+[data-checklist-role="employee"] .phfck-employee-primary-label{margin-top:8px}
+[data-checklist-role="employee"] .phfck-mywork-dashboard{overflow:hidden;border:1px solid #c8ded2;border-radius:20px;background:#fff;box-shadow:0 13px 34px rgba(12,75,50,.07)}
+[data-checklist-role="employee"] .phfck-mywork-head{padding:20px 22px 17px;background:linear-gradient(180deg,#fff,#fbfdfc)}
+[data-checklist-role="employee"] .phfck-mywork-head h3{font-size:21px;line-height:1.25;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-mywork-head p{margin-top:6px;font-size:12.5px;line-height:1.55;color:#647b70}
+[data-checklist-role="employee"] .phfck-employee-inbox-count{min-width:116px;border:1px solid #efc77f;border-radius:15px;background:#fff4df}
+[data-checklist-role="employee"] .phfck-employee-inbox-count strong{font-size:29px;font-weight:850;color:#a95b00}
+[data-checklist-role="employee"] .phfck-employee-guide{margin:14px 20px 0;border:1px solid #cedfec;border-radius:14px;background:#f4f8fc}
+[data-checklist-role="employee"] .phfck-employee-task-summary{gap:12px;padding:14px 20px 0}
+[data-checklist-role="employee"] .phfck-employee-task-summary article{min-height:90px;padding:15px 16px;border-radius:15px;box-shadow:none}
+[data-checklist-role="employee"] .phfck-employee-task-empty{margin:15px 20px 20px;border:1px dashed #bfe0cc;border-radius:15px;background:#f3faf6}
+[data-checklist-role="employee"] .phfck-employee-assignment{margin-top:0;overflow:hidden;border:1px solid #c8ded2;border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(14,75,51,.06)}
+[data-checklist-role="employee"] .phfck-employee-assignment .phfck-panel-head{padding:17px 20px;background:linear-gradient(180deg,#fff,#f8fcfa)}
+[data-checklist-role="employee"] .phfck-employee-assignment .phfck-panel-head h3{font-size:19px;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-role-person-card.is-own{margin:0 20px 20px;border-color:#b9dfca;background:linear-gradient(110deg,#edf9f2,#fbfefc);box-shadow:none}
+[data-checklist-role="employee"] .phfck-role-person-main>span{border-color:#c2e2d0;background:#dff2e7;color:#08704f;font-weight:750}
+[data-checklist-role="employee"] .phfck-role-person-main b,[data-checklist-role="employee"] .phfck-role-person-meta b{color:#073f2c;font-weight:750}
+[data-checklist-role="employee"] .phfck-role-person-meta span{padding:7px 10px;border:1px solid #cde2d6;border-radius:12px;background:#fff}
+[data-checklist-role="employee"] .phfck-employee-monthly-label{margin-top:22px}
+[data-checklist-role="employee"] .phfck-self-monthly{border-radius:20px;box-shadow:0 10px 28px rgba(14,75,51,.055)}
+[data-checklist-role="employee"] .phfck-employee-privacy-note{margin-top:20px;border-color:#d7e6de;background:#f8fbf9}
+@media(max-width:980px){[data-checklist-role="employee"] .phfck-employee-role-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){[data-checklist-role="employee"] .phfck-employee-main{width:min(100% - 22px,1460px);padding-top:18px}[data-checklist-role="employee"] .phfck-employee-heading{padding:19px 17px}[data-checklist-role="employee"] .phfck-employee-heading h1{font-size:27px}[data-checklist-role="employee"] .phfck-employee-context{grid-template-columns:42px minmax(0,1fr);padding:14px}[data-checklist-role="employee"] .phfck-employee-context i{grid-column:2;justify-self:start}[data-checklist-role="employee"] .phfck-employee-role-stats{grid-template-columns:1fr}[data-checklist-role="employee"] .phfck-employee-role-stats article{min-height:106px}[data-checklist-role="employee"] .phfck-mywork-head{padding:17px}[data-checklist-role="employee"] .phfck-employee-guide,[data-checklist-role="employee"] .phfck-employee-task-empty{margin-left:14px;margin-right:14px}[data-checklist-role="employee"] .phfck-employee-task-summary{padding-left:14px;padding-right:14px}}
+
+
+/* PHF Checklist 1.38.38 — Employee visual hierarchy refinement */
+[data-checklist-role="employee"] .phfck-employee-heading{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+  padding:26px 28px;border-color:#c9dfd3;
+  background:linear-gradient(135deg,#f4fbf7 0%,#ffffff 68%);
+}
+[data-checklist-role="employee"] .phfck-employee-heading>div:first-child{min-width:0}
+[data-checklist-role="employee"] .phfck-employee-heading small{
+  display:block;margin-bottom:7px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#5c786a
+}
+[data-checklist-role="employee"] .phfck-employee-heading h1{margin:0;font-size:32px;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-employee-heading p{max-width:760px;margin:8px 0 0;font-size:13.5px;line-height:1.55;color:#5f746a}
+[data-checklist-role="employee"] .phfck-employee-context{
+  grid-template-columns:44px minmax(0,1fr) auto;gap:14px;
+  padding:15px 18px;border-color:#c9dfd3;background:linear-gradient(90deg,#f6fbf8,#ffffff)
+}
+[data-checklist-role="employee"] .phfck-employee-context-copy{min-width:0}
+[data-checklist-role="employee"] .phfck-employee-context-copy small,
+[data-checklist-role="employee"] .phfck-employee-context-copy b,
+[data-checklist-role="employee"] .phfck-employee-context-copy span{display:block;white-space:normal}
+[data-checklist-role="employee"] .phfck-employee-context-copy small{margin:0 0 4px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#4f7664}
+[data-checklist-role="employee"] .phfck-employee-context-copy b{margin:0;font-size:15px;line-height:1.35;font-weight:750;color:#083f2d}
+[data-checklist-role="employee"] .phfck-employee-context-copy span{margin:4px 0 0;font-size:12px;line-height:1.45;color:#6a7f75}
+[data-checklist-role="employee"] .phfck-employee-role-stats article{padding:18px 18px 16px;min-height:126px}
+[data-checklist-role="employee"] .phfck-employee-role-stats span{font-size:12px;font-weight:800;line-height:1.3}
+[data-checklist-role="employee"] .phfck-employee-role-stats strong{margin:7px 0 6px;font-size:31px}
+[data-checklist-role="employee"] .phfck-employee-role-stats small{font-size:11.2px;line-height:1.45;color:#63796f}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action span{color:#b45f00}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting span{color:#235ba7}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form span{color:#6131ad}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment span{color:#08704f}
+
+[data-checklist-role="employee"] .phfck-employee-primary-label{margin:24px 0 9px;padding:0 7px}
+[data-checklist-role="employee"] .phfck-employee-primary-label b{font-size:21px;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-employee-primary-label span{font-size:12px;color:#60766b}
+[data-checklist-role="employee"] .phfck-mywork-dashboard{border-color:#bcd9ca;box-shadow:0 15px 38px rgba(11,72,48,.09)}
+[data-checklist-role="employee"] .phfck-mywork-head{
+  position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  padding:22px 24px 19px;border-bottom:1px solid #d7e8df;
+  background:linear-gradient(135deg,#f2fbf6 0%,#ffffff 70%)
+}
+[data-checklist-role="employee"] .phfck-mywork-head:before{
+  content:'✓';display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;
+  background:#dff3e7;color:#08704f;font-size:20px;font-weight:900
+}
+[data-checklist-role="employee"] .phfck-mywork-head>div:first-of-type{flex:1;min-width:0}
+[data-checklist-role="employee"] .phfck-mywork-head small{font-size:10px;font-weight:800;letter-spacing:.08em;color:#4c7864}
+[data-checklist-role="employee"] .phfck-mywork-head h3{margin-top:4px;font-size:22px;font-weight:800;color:#073f2c}
+[data-checklist-role="employee"] .phfck-mywork-head p{max-width:760px;margin-top:6px;font-size:12.5px;color:#5d7468}
+[data-checklist-role="employee"] .phfck-employee-inbox-count{min-width:126px;padding:12px 18px;border-color:#bcd9ca;background:#f0faf4}
+[data-checklist-role="employee"] .phfck-employee-inbox-count strong{font-size:32px;color:#08704f}
+[data-checklist-role="employee"] .phfck-employee-inbox-count span{font-weight:700;color:#315f4a}
+[data-checklist-role="employee"] .phfck-employee-task-summary article{border-width:1px;box-shadow:0 6px 16px rgba(12,64,43,.045)}
+[data-checklist-role="employee"] .phfck-employee-task-summary article span{font-size:11.5px;font-weight:800}
+[data-checklist-role="employee"] .phfck-employee-task-summary article strong{font-size:27px}
+
+[data-checklist-role="employee"] .phfck-employee-task-history{
+  margin:18px 20px 20px;padding:0;border:1px solid #c7ddd2;border-radius:16px;background:#fff;overflow:hidden
+}
+[data-checklist-role="employee"] .phfck-employee-task-history summary{
+  min-height:54px;padding:0 16px;border-radius:0;background:linear-gradient(90deg,#eaf6ef,#f8fcfa);
+  color:#073f2c;font-size:14px;font-weight:800;list-style:none
+}
+[data-checklist-role="employee"] .phfck-employee-task-history summary::-webkit-details-marker{display:none}
+[data-checklist-role="employee"] .phfck-employee-task-history summary:before{
+  content:'✓';display:grid;place-items:center;width:30px;height:30px;margin-right:10px;border-radius:10px;background:#d7eee1;color:#08704f;font-weight:900
+}
+[data-checklist-role="employee"] .phfck-employee-task-history summary span{flex:1}
+[data-checklist-role="employee"] .phfck-employee-task-history summary b{padding:5px 10px;background:#dcefe5;color:#0a6a49;font-size:11px;font-weight:800}
+[data-checklist-role="employee"] .phfck-employee-task-history .phfck-employee-task-list{margin:0;padding:14px;background:#fbfdfc}
+[data-checklist-role="employee"] .phfck-employee-task-history .phfck-employee-task-card{opacity:1;border-color:#d9e6df;background:#fff}
+
+[data-checklist-role="employee"] .phfck-self-table{border-color:#bcd7ca;border-radius:16px;box-shadow:0 8px 22px rgba(11,68,46,.05)}
+[data-checklist-role="employee"] .phfck-self-row.is-head{
+  min-height:48px;background:linear-gradient(90deg,#0a6b4b,#087957);color:#fff;
+  font-size:10px;font-weight:800;letter-spacing:.035em
+}
+[data-checklist-role="employee"] .phfck-self-row.is-head span{color:#fff;font-weight:800}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head)>div:first-child b{font-weight:750;color:#173f30}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head)>div:first-child small{font-weight:650;color:#62796e}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head){background:#fff}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head):nth-child(odd){background:#fbfdfc}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head)>span{color:#274d3d;font-weight:600}
+
+@media(max-width:680px){
+  [data-checklist-role="employee"] .phfck-employee-heading{padding:20px 18px}
+  [data-checklist-role="employee"] .phfck-employee-context{grid-template-columns:42px minmax(0,1fr)}
+  [data-checklist-role="employee"] .phfck-employee-context i{grid-column:2;justify-self:start}
+  [data-checklist-role="employee"] .phfck-mywork-head{align-items:flex-start;flex-wrap:wrap;padding:18px}
+  [data-checklist-role="employee"] .phfck-mywork-head:before{width:40px;height:40px;flex-basis:40px}
+  [data-checklist-role="employee"] .phfck-employee-inbox-count{margin-left:54px}
+  [data-checklist-role="employee"] .phfck-employee-task-history{margin-left:14px;margin-right:14px}
+}
+
+/* PHF Checklist 1.38.39 — capability-first employee visual role sync */
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action:after{
+  content:'✓';background:rgba(224,126,5,.13);color:#c96c00
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting:after{
+  content:'◷';background:rgba(35,91,167,.12);color:#235ba7
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form:after{
+  content:'▦';background:rgba(97,49,173,.12);color:#6131ad
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment:after{
+  content:'✓';background:rgba(8,112,79,.12);color:#08704f
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action{
+  background:linear-gradient(135deg,#fff9f1,#fff);border-color:#efd3ad
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting{
+  background:linear-gradient(135deg,#f3f7ff,#fff);border-color:#cbdaf2
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form{
+  background:linear-gradient(135deg,#f8f3ff,#fff);border-color:#ded0f1
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment{
+  background:linear-gradient(135deg,#f1faf5,#fff);border-color:#c7e2d2
+}
+
+/* PHF Checklist 1.38.40 — capability lifecycle sync + visible runtime version */
+.phfck-brand-logo .phfck-runtime-version{
+  display:inline-flex;align-items:center;justify-content:center;align-self:center;
+  margin-top:4px;padding:2px 8px;border:1px solid rgba(255,255,255,.34);
+  border-radius:999px;background:rgba(255,255,255,.12);color:#fff;
+  font-size:10px;line-height:1.4;font-weight:750;letter-spacing:.02em;
+  white-space:nowrap;cursor:help;opacity:.92
+}
+.phfck-brand-logo .phfck-runtime-version:hover{background:rgba(255,255,255,.2);opacity:1}
+@media(max-width:680px){.phfck-brand-logo .phfck-runtime-version{font-size:9px;padding:1px 6px;margin-top:3px}}
+
+
+/* PHF Checklist 1.38.41 — Employee inner-content visual polish only.
+   Scope locked: do not change top brand/header, page title, route or permissions. */
+[data-checklist-role="employee"] .phfck-employee-role-stats article::after{
+  content:none!important;display:none!important;
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article{
+  min-height:138px;padding:20px 20px 18px;
+  grid-template-columns:58px minmax(0,1fr);column-gap:16px;
+  border-width:1px;box-shadow:0 10px 26px rgba(15,61,45,.065);
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article::before{
+  position:static!important;inset:auto!important;
+  width:52px;height:52px;margin:1px 0 0;border-radius:16px;
+  font-size:22px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.42);
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article>span{
+  margin-top:1px;font-size:13px;font-weight:800;line-height:1.25;
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article>strong{
+  margin:8px 0 7px;font-size:35px;font-weight:850;line-height:1;
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article>small{
+  font-size:12px;line-height:1.45;font-weight:500;
+}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action>span,
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-action>strong{color:#b85f00}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting>span,
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-waiting>strong{color:#145fb6}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form>span,
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-form>strong{color:#6530b8}
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment>span,
+[data-checklist-role="employee"] .phfck-employee-role-stats article.is-assignment>strong{color:#08704f}
+
+[data-checklist-role="employee"] .phfck-employee-monthly-label{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  margin:26px 0 10px;padding:0 8px;
+}
+[data-checklist-role="employee"] .phfck-employee-monthly-label b{
+  font-size:21px;font-weight:850;letter-spacing:-.015em;color:#073f2c;
+}
+[data-checklist-role="employee"] .phfck-employee-monthly-label span{
+  max-width:650px;text-align:right;font-size:12px;line-height:1.45;color:#5f766b;
+}
+[data-checklist-role="employee"] .phfck-self-table{
+  overflow:hidden;border:1px solid #b9d5c7;border-radius:16px;
+}
+[data-checklist-role="employee"] .phfck-self-row.is-head{
+  min-height:56px;background:linear-gradient(90deg,#076b4b,#0a7c58)!important;
+  color:#fff!important;font-size:10.5px;font-weight:850;letter-spacing:.025em;
+}
+[data-checklist-role="employee"] .phfck-self-row.is-head>span{
+  color:#fff!important;font-weight:850!important;line-height:1.25;
+}
+[data-checklist-role="employee"] .phfck-self-row.is-head>span small{
+  display:block;margin-top:3px;color:#d7f2e4;font-size:9px;font-weight:650;
+  letter-spacing:0;text-transform:none;
+}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head){min-height:64px}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head)>div:first-child b{
+  font-size:12.5px;font-weight:800;color:#123e2f;
+}
+[data-checklist-role="employee"] .phfck-self-row:not(.is-head)>div:first-child small{
+  font-size:10.5px;font-weight:650;color:#60786d;
+}
+[data-checklist-role="employee"] .phfck-self-row input[type="number"],
+[data-checklist-role="employee"] .phfck-self-row input[type="text"]{
+  min-height:38px;border-color:#cddfd6;background:#f9fcfa;
+  font-size:12px;font-weight:650;
+}
+
+[data-checklist-role="employee"] .phfck-employee-result-table{
+  overflow:hidden;border:1px solid #b9d5c7;border-radius:16px;
+  box-shadow:0 7px 20px rgba(11,68,46,.04);
+}
+[data-checklist-role="employee"] .phfck-employee-result-row.is-head{
+  min-height:50px;background:linear-gradient(90deg,#076b4b,#0a7c58)!important;
+  color:#fff!important;font-size:10.5px;font-weight:850;letter-spacing:.025em;
+}
+[data-checklist-role="employee"] .phfck-employee-result-row.is-head>span{
+  color:#fff!important;font-weight:850!important;
+}
+[data-checklist-role="employee"] .phfck-employee-result-row:not(.is-head)>div b{
+  font-weight:800;color:#123e2f;
+}
+[data-checklist-role="employee"] .phfck-employee-result-row:not(.is-head)>strong{
+  font-weight:800;color:#174f39;
+}
+
+@media(max-width:760px){
+  [data-checklist-role="employee"] .phfck-employee-role-stats article{
+    min-height:118px;padding:16px;grid-template-columns:46px minmax(0,1fr);column-gap:12px;
+  }
+  [data-checklist-role="employee"] .phfck-employee-role-stats article::before{
+    width:42px;height:42px;border-radius:13px;font-size:18px;
+  }
+  [data-checklist-role="employee"] .phfck-employee-monthly-label{display:block}
+  [data-checklist-role="employee"] .phfck-employee-monthly-label span{display:block;margin-top:5px;text-align:left}
+}
+
+/* PHF Checklist 1.38.43 — Trưởng ca / Phiếu của tôi: parity với UI Nhân viên */
+.phfck-manager-my-work .phfck-self-monthly > .phfck-panel-head h3{
+  color:#073f2f!important;font-size:20px!important;font-weight:850!important;letter-spacing:-.015em!important;
+}
+.phfck-manager-my-work .phfck-self-heading-note{
+  margin:6px 0 0;color:#61786d;font-size:11.5px;line-height:1.45;
+}
+.phfck-manager-my-work .phfck-self-heading-note b{color:#075f43;font-weight:800}
+.phfck-manager-my-work .phfck-self-table{
+  overflow:hidden;border:1px solid #b9d5c7!important;border-radius:16px!important;box-shadow:0 7px 20px rgba(11,68,46,.035);
+}
+.phfck-manager-my-work .phfck-self-row.is-head{
+  min-height:56px;background:linear-gradient(90deg,#076b4b,#0a7c58)!important;color:#fff!important;font-size:10.5px!important;font-weight:850!important;letter-spacing:.025em!important;
+}
+.phfck-manager-my-work .phfck-self-row.is-head>span{color:#fff!important;font-weight:850!important;line-height:1.25!important}
+.phfck-manager-my-work .phfck-self-row.is-head>span small{
+  display:block;margin-top:3px;color:#d7f2e4!important;font-size:9px!important;font-weight:650!important;letter-spacing:0;text-transform:none;
+}
+.phfck-manager-my-work .phfck-self-row:not(.is-head){min-height:64px}
+.phfck-manager-my-work .phfck-self-row:not(.is-head)>div:first-child b{font-size:12.5px!important;font-weight:800!important;color:#123e2f!important}
+.phfck-manager-my-work .phfck-self-row:not(.is-head)>div:first-child small{font-size:10.5px!important;font-weight:650!important;color:#60786d!important}
+.phfck-manager-my-work .phfck-self-row input[type="number"],
+.phfck-manager-my-work .phfck-self-row input[type="text"]{min-height:38px!important;border-color:#cddfd6!important;background:#f9fcfa!important;font-size:12px!important;font-weight:650!important}
+
+.phfck-manager-my-work .phfck-employee-review-result > .phfck-panel-head h3{
+  color:#073f2f!important;font-size:19px!important;font-weight:850!important;letter-spacing:-.01em!important;
+}
+.phfck-manager-my-work .phfck-employee-result-table{
+  overflow:hidden;border:1px solid #b9d5c7!important;border-radius:16px!important;box-shadow:0 7px 20px rgba(11,68,46,.04)!important;
+}
+.phfck-manager-my-work .phfck-employee-result-row.is-head{
+  min-height:52px;background:linear-gradient(90deg,#076b4b,#0a7c58)!important;color:#fff!important;font-size:10.5px!important;font-weight:850!important;letter-spacing:.025em!important;
+}
+.phfck-manager-my-work .phfck-employee-result-row.is-head>span{color:#fff!important;font-weight:850!important;line-height:1.25!important}
+.phfck-manager-my-work .phfck-employee-result-row.is-head>span small{display:block;margin-top:3px;color:#d7f2e4!important;font-size:9px!important;font-weight:650!important;letter-spacing:0;text-transform:none}
+.phfck-manager-my-work .phfck-employee-result-row:not(.is-head)>div b{font-weight:800!important;color:#123e2f!important}
+.phfck-manager-my-work .phfck-employee-result-row:not(.is-head)>strong{font-weight:850!important;color:#075f43!important}
+
+.phfck-manager-my-work .phfck-employee-task-history{
+  margin-top:18px;padding:0;border:1px solid #cfe1d8;border-radius:15px;background:#fbfdfc;overflow:hidden;
+}
+.phfck-manager-my-work .phfck-employee-task-history summary{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#eef5f1;color:#154b38;font-size:13px;font-weight:850;cursor:pointer;list-style:none;
+}
+.phfck-manager-my-work .phfck-employee-task-history summary::-webkit-details-marker{display:none}
+.phfck-manager-my-work .phfck-employee-task-history summary:before{content:'✓';display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:#dff1e7;color:#0a7a52;font-size:15px;font-weight:900}
+.phfck-manager-my-work .phfck-employee-task-history summary span{flex:1}
+.phfck-manager-my-work .phfck-employee-task-history summary b{padding:5px 10px;border-radius:999px;background:#dcefe5;color:#0a6a49;font-size:11px;font-weight:850}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-list{margin:0;padding:14px;background:#fbfdfc;gap:10px}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-card{
+  opacity:1!important;min-height:112px;border:1px solid #d4e4dc!important;border-left:4px solid #3ca875!important;border-radius:14px!important;background:#fff!important;padding:14px 16px!important;box-shadow:0 5px 15px rgba(18,68,50,.035)!important;
+}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-main>b{color:#164c39!important;font-size:13px!important;font-weight:850!important;line-height:1.4!important}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-main>p{margin-top:5px!important;color:#597267!important;font-size:11.5px!important;line-height:1.45!important}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-main>small{margin-top:7px!important;color:#758a80!important;font-size:10.5px!important}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-side>strong{color:#6c8077!important;font-size:10.5px!important;font-weight:750!important}
+.phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-side button{min-width:106px!important;font-weight:800!important}
+
+@media(max-width:760px){
+  .phfck-manager-my-work .phfck-self-heading-note{font-size:10.5px}
+  .phfck-manager-my-work .phfck-employee-task-history .phfck-employee-task-card{min-height:auto;padding:13px!important}
+}
+
+/* 1.38.44 — Admin commercial language + permission filter parity */
+.phfck-permission-toolbar .phfck-permission-filter{min-width:210px;width:210px;gap:5px}
+.phfck-permission-toolbar .phfck-permission-filter small{padding-left:2px;font-size:10px;line-height:1.2;font-weight:800;letter-spacing:.045em;color:#647c72}
+.phfck-permission-toolbar .phfck-permission-filter select{height:42px;min-height:42px;border:1px solid #d5e4db;border-radius:11px;background:#fff;padding:0 34px 0 12px;color:#24483d;font:inherit;font-size:13px;outline:0;box-shadow:none}
+.phfck-permission-toolbar .phfck-permission-filter select:focus{border-color:#6da88f;box-shadow:0 0 0 3px #e8f5ef}
+@media(max-width:1100px){.phfck-permission-toolbar .phfck-permission-filter{width:160px;min-width:160px}}
+@media(max-width:700px){.phfck-permission-toolbar .phfck-permission-filter{width:100%;min-width:0}}
+
+/* PHF Checklist 1.38.45 — Admin permission toolbar alignment only.
+   Scope: position and size parity for search, permission filter and action buttons. */
+.phfck-permission-toolbar{
+  grid-template-columns:minmax(360px,1fr) 252px auto;
+  align-items:end;
+  column-gap:12px;
+  row-gap:10px;
+}
+.phfck-permission-toolbar .phfck-search{
+  width:100%;
+  max-width:none;
+  height:42px;
+  min-height:42px;
+  margin:0;
+  align-self:end;
+}
+.phfck-permission-toolbar .phfck-permission-filter{
+  width:252px;
+  min-width:252px;
+  gap:6px;
+  margin:0;
+  align-self:end;
+}
+.phfck-permission-toolbar .phfck-permission-filter small{
+  min-height:12px;
+  padding:0 0 0 2px;
+  line-height:12px;
+}
+.phfck-permission-toolbar .phfck-permission-filter select{
+  width:100%;
+  height:42px;
+  min-height:42px;
+  box-sizing:border-box;
+}
+.phfck-permission-toolbar .phfck-permission-actions{
+  min-height:42px;
+  display:flex;
+  align-items:stretch;
+  justify-content:flex-end;
+  gap:8px;
+  margin:0;
+  align-self:end;
+  white-space:nowrap;
+}
+.phfck-permission-toolbar .phfck-permission-actions>button,
+.phfck-permission-toolbar .phfck-permission-actions>a{
+  min-height:42px;
+  height:42px;
+  box-sizing:border-box;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin:0;
+}
+@media(max-width:1250px){
+  .phfck-permission-toolbar{grid-template-columns:minmax(300px,1fr) 220px}
+  .phfck-permission-toolbar .phfck-permission-filter{width:220px;min-width:220px}
+  .phfck-permission-toolbar .phfck-permission-actions{grid-column:1/-1;justify-content:flex-start}
+}
+@media(max-width:700px){
+  .phfck-permission-toolbar{grid-template-columns:1fr;align-items:stretch}
+  .phfck-permission-toolbar .phfck-permission-filter{width:100%;min-width:0}
+  .phfck-permission-toolbar .phfck-permission-actions{grid-column:auto;flex-wrap:wrap}
+}
+
+/* PHF Checklist 1.38.46 — Admin permission filter inline alignment only.
+   Scope: remove the separate visual label so search, filter and actions share one row baseline. */
+.phfck-permission-toolbar .phfck-permission-filter{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:0;
+  height:42px;
+  min-height:42px;
+}
+.phfck-permission-toolbar .phfck-permission-filter small{
+  display:none;
+}
+.phfck-permission-toolbar .phfck-permission-filter select{
+  margin:0;
+  align-self:stretch;
+}

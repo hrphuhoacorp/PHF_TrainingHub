@@ -14,7 +14,7 @@ const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibr
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('../lib/checklist-violations');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('../lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
-const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy } = require('../lib/checklist-monthly');
+const { listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('../lib/checklist-monthly');
 const { getChecklistMonthlyReport } = require('../lib/checklist-reports');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const {
@@ -90,15 +90,14 @@ module.exports = async function handler(req, res) {
       if (checklistWorkspaceMode) {
         const [workspace, templateData, violationMode] = await Promise.all([
           getChecklistRoleWorkspace(session),
-          listChecklistTemplates(),
+          listChecklistTemplates({compact:true}),
           getChecklistViolationMode()
         ]);
         return res.status(200).json({
           ok:true,
           checklistWorkspace:true,
-          roleWorkspace:workspace,
           employees:Array.isArray(workspace.people)?workspace.people.map(person=>({id:person.employeeId||'',employeeId:person.employeeId||'',code:person.employeeCode||'',employeeCode:person.employeeCode||'',name:person.employeeName||'',employeeName:person.employeeName||'',department:person.department||'',title:person.title||'',branch:person.branch||'',managerId:person.managerId||'',managerCode:person.managerCode||'',managerName:person.managerName||'',employeeStatus:person.employeeStatus||'',templateId:person.templateId||'',templateVersion:person.templateVersion||'',effectiveDate:person.effectiveDate||''})):[],
-          checklistAssignments:Array.isArray(workspace.people)?workspace.people:[],
+          checklistWorkspaceCompact:true,
           checklistAssignmentsReady:true,
           checklistAssignmentsError:'',
           checklistTemplates:Array.isArray(templateData.templates)?templateData.templates:[],
@@ -376,7 +375,8 @@ module.exports = async function handler(req, res) {
         if(payload.submit===true&&saved.form)await emitChecklistNotificationSafe('SELF_REVIEW_SUBMITTED',{recipient:{accountId:saved.form.reviewer_id,employeeCode:saved.form.reviewer_code},title:'Có phiếu tháng chờ thẩm định',targetPath:'/ql/checklist/phieu-danh-gia-thang',subjectType:'monthly_form',subjectId:saved.form.id,dedupeKey:'monthly-self|'+saved.form.id+'|'+(saved.form.self_submitted_at||Date.now()),variables:{TEN_NHAN_VIEN:saved.form.employee_name,KY_DANH_GIA:saved.form.period_month}});
         return res.status(200).json({ok:true,...saved});
       }
-      if(payload&&payload.action==='listMyChecklistMonthlyReviews')return res.status(200).json({ok:true,...await myMonthlyReviews(session,payload)});
+      if(payload&&payload.action==='listMyChecklistMonthlyReviews')return res.status(200).json({ok:true,...await myMonthlyReviews(session,{...payload,summary:true})});
+      if(payload&&payload.action==='getMyChecklistMonthlyReviewDetail')return res.status(200).json({ok:true,...await myMonthlyReviewDetail(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyReview')return res.status(200).json({ok:true,...await saveMonthlyReview(session,payload)});
       if(payload&&payload.action==='changeChecklistMonthlyReviewer')return res.status(200).json({ok:true,...await changeMonthlyReviewer(session,payload)});
       if(payload&&payload.action==='exportChecklistMonthlyData')return res.status(200).json({ok:true,...await exportMonthlyData(session,payload)});
@@ -388,6 +388,10 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='getChecklistRepeatViolationSuggestions')return res.status(200).json({ok:true,...await getChecklistRepeatViolationSuggestions(session,payload)});
       if(payload&&payload.action==='getChecklistMonthlyScorePolicy')return res.status(200).json({ok:true,...await getChecklistMonthlyScorePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyScorePolicy')return res.status(200).json({ok:true,...await saveChecklistMonthlyScorePolicy(session,payload)});
+      if(payload&&payload.action==='getChecklistMonthlyCyclePolicy')return res.status(200).json({ok:true,...await getMonthlyCyclePolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistMonthlyCyclePolicy')return res.status(200).json({ok:true,...await saveMonthlyCyclePolicy(session,payload)});
+      if(payload&&payload.action==='saveChecklistMonthlyCycleOverride')return res.status(200).json({ok:true,...await saveMonthlyCycleOverride(session,payload)});
+      if(payload&&payload.action==='syncChecklistMonthlyCycle')return res.status(200).json({ok:true,...await syncMonthlyCycle(session,payload)});
       if(payload&&payload.action==='getChecklistMonthlyOverduePolicy')return res.status(200).json({ok:true,...await getMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyOverduePolicy')return res.status(200).json({ok:true,...await saveMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='processChecklistMonthlyOverdue')return res.status(200).json({ok:true,...await processMonthlySelfOverdue(session,payload)});

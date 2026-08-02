@@ -1,0 +1,7 @@
+{
+  "version": "1.38.46",
+  "fingerprint": "13846-admin-permission-filter-inline-alignment",
+  "builtAt": "2026-08-02T20:08:00+07:00",
+  "note": "Chỉ bỏ nhãn hiển thị riêng phía trên bộ lọc hồ sơ quyền và căn ô lọc cùng một hàng, cùng chiều cao với ô tìm kiếm và nhóm nút. Không sửa logic lọc, nội dung lựa chọn, Router, quyền, API, DB hoặc UI khác.",
+  "build": "13846-admin-permission-filter-inline-alignment"
+}
