@@ -1,7 +1,7 @@
 {
-  "version": "1.38.55",
-  "fingerprint": "13855-pilot-readiness-batch",
-  "builtAt": "2026-08-03T10:06:00+07:00",
-  "notes": "Pilot Readiness batch: sửa reconcileMissingMonthlyReviewers đồng bộ người thẩm định khi đổi quản lý trực tiếp; ẩn nút dọn cả đợt TEST vi phạm (chưa có action tương ứng); bổ sung regression tự đánh giá/thẩm định tháng; ghi runbook đồng bộ kỳ tháng thủ công (cron chưa gắn trên Vercel) và runbook backup/restore Supabase. Không đổi Business Logic/Permission/Workflow đã chốt, không đổi RPC/DB.",
-  "build": "13855-pilot-readiness-batch"
+  "version": "1.38.56",
+  "fingerprint": "13856-mobile-app-shell-phase2",
+  "builtAt": "2026-08-03T00:00:00+07:00",
+  "notes": "Mobile App Shell Phase 2: thêm splash app-mode khi mở PWA/standalone (dùng lại đúng boot-cloak/timing hiện có, không đổi auth/session/router); login hiển thị full-screen tự nhiên hơn trên điện thoại, input đủ 16px tránh zoom iPhone, hỗ trợ safe-area, thêm version nhỏ cuối màn hình đăng nhập; Home mobile shell thêm safe-area và giảm khoảng trắng trên màn nhỏ. Không đổi Business Logic/Permission/Workflow/RPC/DB.",
+  "build": "13856-mobile-app-shell-phase2"
 }

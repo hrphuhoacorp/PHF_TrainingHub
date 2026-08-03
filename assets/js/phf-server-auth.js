@@ -593,10 +593,15 @@
           '<div class="phf-login-divider"><span>Hoặc tiếp tục bằng</span></div>' +
           '<div id="phfGoogleLoginWrap" class="phf-google-login-wrap"><div class="phf-google-login-heading"><b>Đăng nhập nhanh bằng Google</b><span>Sử dụng tài khoản Google đã được Admin cấp quyền truy cập PHF HR.</span></div><div id="phfGoogleButton" class="phf-google-login-button" aria-label="Tiếp tục bằng Google"></div><div id="phfGoogleLoginStatus" class="phf-google-login-status" aria-live="polite">Đang chuẩn bị dịch vụ Google...</div></div>' +
           '<p class="phf-login-note">Quên mật khẩu hoặc chưa được cấp quyền? Vui lòng liên hệ Admin PHF HR để được hỗ trợ.</p>' +
+          '<p class="phf-login-version" id="phfLoginVersion"></p>' +
         '</section>' +
       '</section>';
 
     document.body.appendChild(root);
+    try{
+      var versionEl = root.querySelector('#phfLoginVersion');
+      if(versionEl && window.PHF_BUILD_VERSION) versionEl.textContent = 'PHF HR · v' + window.PHF_BUILD_VERSION;
+    }catch(e){}
     var email = root.querySelector('#phfTestEmail');
     var pass = root.querySelector('#phfTestPass');
     var error = root.querySelector('#phfTestLoginError');
