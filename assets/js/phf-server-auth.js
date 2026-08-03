@@ -585,11 +585,15 @@
           '<div><div class="phf-login-title">Đăng nhập PHF HR</div><div class="phf-login-subtitle">Đăng nhập để truy cập các hệ thống được phân quyền dành cho bạn tại PHUHOA FRESH.</div></div>' +
         '</section>' +
         '<section class="phf-test-login-form">' +
-          '<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Sử dụng email và mật khẩu được PHUHOA FRESH cấp.</div>' +
-          '<div class="phf-test-login-field phf-test-login-field-email"><label>Email</label><input id="phfTestEmail" type="email" autocomplete="username"></div>' +
-          '<div class="phf-test-login-field phf-test-login-field-pass"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
-          '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
-          '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
+          '<button type="button" class="phf-login-use-email-toggle" id="phfLoginUseEmailToggle">Đăng nhập bằng tài khoản nội bộ</button>' +
+          '<div class="phf-test-login-inline" id="phfLoginInlineForm">' +
+            '<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Sử dụng email và mật khẩu được PHUHOA FRESH cấp.</div>' +
+            '<div class="phf-test-login-field phf-test-login-field-email"><label>Email</label><input id="phfTestEmail" type="email" autocomplete="username"></div>' +
+            '<div class="phf-test-login-field phf-test-login-field-pass"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
+            '<label class="phf-test-login-remember"><input type="checkbox" id="phfRememberEmail"><span>Ghi nhớ tài khoản</span></label>' +
+            '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
+            '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
+          '</div>' +
           '<div class="phf-login-divider"><span>Hoặc tiếp tục bằng</span></div>' +
           '<div id="phfGoogleLoginWrap" class="phf-google-login-wrap"><div class="phf-google-login-heading"><b>Đăng nhập nhanh bằng Google</b><span>Sử dụng tài khoản Google đã được Admin cấp quyền truy cập PHF HR.</span></div><div id="phfGoogleButton" class="phf-google-login-button" aria-label="Tiếp tục bằng Google"></div><div id="phfGoogleLoginStatus" class="phf-google-login-status" aria-live="polite">Đang chuẩn bị dịch vụ Google...</div></div>' +
           '<p class="phf-login-note">Quên mật khẩu hoặc chưa được cấp quyền? Vui lòng liên hệ Admin PHF HR để được hỗ trợ.</p>' +
@@ -608,6 +612,24 @@
     var pass = root.querySelector('#phfTestPass');
     var error = root.querySelector('#phfTestLoginError');
     var submitButton = root.querySelector('#phfTestSubmit');
+    var rememberBox = root.querySelector('#phfRememberEmail');
+    var useEmailToggle = root.querySelector('#phfLoginUseEmailToggle');
+    var inlineForm = root.querySelector('#phfLoginInlineForm');
+    try{
+      /* Ghi nhớ tài khoản: chỉ lưu email trên thiết bị, không bao giờ lưu
+         mật khẩu. Không đụng auth/session - đây chỉ là tiện ích điền sẵn form. */
+      var rememberedEmail = localStorage.getItem('phfRememberedLoginEmail');
+      if(rememberedEmail && email){
+        email.value = rememberedEmail;
+        if(rememberBox) rememberBox.checked = true;
+      }
+    }catch(e){}
+    if(useEmailToggle && inlineForm){
+      useEmailToggle.addEventListener('click',function(){
+        root.querySelector('.phf-test-login-form').classList.add('is-email-open');
+        setTimeout(function(){ if(email) email.focus(); },30);
+      });
+    }
     var googleButton = root.querySelector('#phfGoogleButton');
     var googleStatus = root.querySelector('#phfGoogleLoginStatus');
     var googleLoginInflight = false;
@@ -636,6 +658,10 @@
       error.textContent = '';
       submitButton.disabled = true;
       submitButton.textContent = 'Đang xác minh...';
+      try{
+        if(rememberBox && rememberBox.checked) localStorage.setItem('phfRememberedLoginEmail', String(email.value||'').trim().toLowerCase());
+        else localStorage.removeItem('phfRememberedLoginEmail');
+      }catch(e){}
       beginAuthTransition();
       try{
         var loginResult = await request('/api/auth/login',{

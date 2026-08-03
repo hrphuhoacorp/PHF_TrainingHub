@@ -1,7 +1,7 @@
 {
-  "version": "1.38.58",
-  "fingerprint": "13858-mobile-app-shell-ui-polish-final",
+  "version": "1.38.59",
+  "fingerprint": "13859-mobile-app-shell-final-polish-v2",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "UI polish (final) cho Mobile App Shell: chỉ chỉnh hierarchy/spacing/typography, không đổi layout/nghiệp vụ/router/auth/session/API. Login mobile: Google là CTA chính (khoảng cách quanh nút Google/divider/form theo đúng thang 16-24px yêu cầu, thẻ Google gọn hơn ~15-20% chiều cao, ẩn dòng ghi chú phụ để Đăng nhập→Version còn 24px). Home mobile: thêm khoảng cách tên bước→mô tả (chống dính chữ), icon→nội dung, khoảng cách giữa card và nhóm bước→module đầu, tăng padding card theo đúng thang 18-20px. Version hiển thị cho người dùng đổi thành nhãn tĩnh 'Version 1.0' (build-info.json vẫn giữ nguyên version kỹ thuật). Không đổi Business Logic/Checklist/Router/Auth/Session/API/Google OAuth/Permission/Desktop.",
-  "build": "13858-mobile-app-shell-ui-polish-final"
+  "notes": "Final polish vòng 2 cho Mobile App Shell (Login + Home), chỉ UI/UX, không đổi nghiệp vụ/Checklist/Router/Auth/Session/API/Google OAuth/Desktop. Login mobile: form Email/Mật khẩu thu gọn thành nút phụ 'Đăng nhập bằng tài khoản nội bộ', chỉ mở khi bấm (Google vẫn là CTA chính, không còn bị kẹp giữa hai khối); thêm 'Ghi nhớ tài khoản' (chỉ lưu email vào localStorage, không lưu mật khẩu, không đổi auth/session). Home mobile: tăng khoảng cách ngang icon-vòng tròn -> nội dung ở 4 bước lên 28px (đúng yêu cầu 24-32px, nguyên nhân chữ dính vào icon), tăng khoảng cách giữa các step card, tăng nhịp mô tả->nhóm 4 bước và nhóm 4 bước->module đầu, chỉnh line-height/letter-spacing tiêu đề cho dễ đọc hơn trên mobile. Giữ nguyên icon/kích thước card/bố cục, giữ nguyên Desktop.",
+  "build": "13859-mobile-app-shell-final-polish-v2"
 }
