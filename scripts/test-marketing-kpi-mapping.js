@@ -240,11 +240,11 @@ async function main() {
     const cfgRow = store.checklist_monthly_kpi_configs.find(c => c.period_month === '2026-08' && c.template_id === 'nv-media-1.0');
     assert.ok(cfgRow, 'Thiếu dòng cấu hình KPI tháng vừa lưu.');
     const savedTargets = cfgRow.definition_snapshot.totalRows.map(r => r[3]);
-    assert.deepStrictEqual(savedTargets, ['200', '5'], 'Snapshot cấu hình chưa phản ánh mục tiêu mới.');
+    assert.deepStrictEqual(savedTargets, [200, 5], 'Snapshot cấu hình chưa phản ánh mục tiêu mới.');
     // 2. Phiếu NV-MEDIA-01 (chưa tự đánh giá) phải được cập nhật đúng mục tiêu mới.
     const form = store.checklist_monthly_forms.find(f => f.id === 'f-nv-0808');
     const formTargets = form.template_snapshot.version.definition.totalRows.map(r => r[3]);
-    assert.deepStrictEqual(formTargets, ['200', '5'], 'Phiếu NV-MEDIA-01 (chưa tự đánh giá) phải được cập nhật mục tiêu mới nhưng lại giữ giá trị cũ.');
+    assert.deepStrictEqual(formTargets, [200, 5], 'Phiếu NV-MEDIA-01 (chưa tự đánh giá) phải được cập nhật mục tiêu mới nhưng lại giữ giá trị cũ.');
   });
 
   await record('Phiếu ĐÃ tự đánh giá không bị cập nhật (kỳ 2026-09, phải bị chặn và không gọi RPC)', async () => {
