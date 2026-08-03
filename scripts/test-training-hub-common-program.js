@@ -250,18 +250,15 @@ function boundaryFor(department) {
 })();
 
 // ---------------------------------------------------------------------------
-// PASS 4 + PASS 5: Admin filter Phong ban trong phf-training-library.js.
-// File nay phu thuoc nhieu DOM (render HTML); test truc tiep cac ham loc
-// thuan (khong DOM) duoc trich xuat cung logic bang cach doc lai dung
-// nguon that va gia lap __phfLocalData.employees that.
+// PASS 4: departments metadata tren lesson data van dung cau truc (dung cho
+// learner gate - phf-learning-gate.js). Admin/Quan ly KHONG con filter Phong
+// ban (da bo theo UX refinement) - chi con dropdown Chuong trinh dao tao.
 // ---------------------------------------------------------------------------
-(function pass4And5() {
+(function pass4() {
   const lessonsSrc = fs.readFileSync(path.join(ROOT, 'assets/data/phf-lessons-new-sales.js'), 'utf8');
   const m = lessonsSrc.match(/window\.PHF_LESSONS_NEW_SALES\s*=\s*(\[[\s\S]*\]);/);
   const lessons = JSON.parse(m[1]).map((x, i) => Object.assign({ __idx: i }, x));
 
-  // Dung dung logic da them vao phf-training-library.js (lessonMatchesDepartment):
-  // dept === 'all' hoac departments chua 'all' hoac dung dept duoc chon.
   function lessonMatchesDepartment(item, dept) {
     if (!dept || dept === 'all') return true;
     const list = Array.isArray(item.departments) && item.departments.length ? item.departments : ['all'];
@@ -269,15 +266,79 @@ function boundaryFor(department) {
   }
 
   const khoRows = lessons.filter((x) => lessonMatchesDepartment(x, 'Kho'));
-  assert.strictEqual(khoRows.length, 43, 'Admin filter Kho phải trả về đúng 43 bài Hội nhập');
+  assert.strictEqual(khoRows.length, 43, 'Metadata departments phải cho ra đúng 43 bài chung khi lọc theo Kho (dùng bởi learner gate)');
   assert.ok(khoRows.every((x) => x.stage === 0));
-  ok('PASS 4 - Admin filter Phòng ban = Kho => đúng 43 bài Hội nhập (không có bài Bán hàng lọt vào)');
 
   const salesRows = lessons.filter((x) => lessonMatchesDepartment(x, 'Bán hàng'));
-  assert.strictEqual(salesRows.length, 120, 'Admin filter Bán hàng phải trả về 43 bài chung + 77 bài chuyên môn = 120');
-  const salesOnly = salesRows.filter((x) => x.stage !== 0);
-  assert.strictEqual(salesOnly.length, 77, 'Trong đó đúng 77 bài chuyên môn Bán hàng (GĐ2-5)');
-  ok('PASS 5 - Admin filter Phòng ban = Bán hàng => 43 bài Hội nhập + 77 bài chuyên môn = 120 bài');
+  assert.strictEqual(salesRows.length, 120, 'Metadata departments phải cho ra đủ 120 bài khi lọc theo Bán hàng');
+  ok('PASS 4 - Metadata departments trên lesson data vẫn đúng cấu trúc (Kho=43, Bán hàng=120) - nền cho learner gate, không phải Admin UI filter');
+})();
+
+// ---------------------------------------------------------------------------
+// PASS 5: UX refinement - Admin/Quản lý (assets/js/phf-training-library.js)
+// CHỈ còn dropdown "Chương trình đào tạo" (Tất cả / Nhân viên bán hàng),
+// KHÔNG còn dropdown Phòng ban, KHÔNG còn banner "đang được cập nhật".
+// Chạy thật file production trong vm sandbox - không viết lại logic riêng.
+// ---------------------------------------------------------------------------
+(function pass5() {
+  const fsMod = fs;
+  const vm = require('vm');
+  function makeSandbox() {
+    const sandbox = {};
+    sandbox.window = sandbox; sandbox.global = sandbox; sandbox.self = sandbox;
+    sandbox.console = Object.assign({}, console, { info() {}, warn() {} });
+    sandbox.addEventListener = () => {}; sandbox.removeEventListener = () => {};
+    sandbox.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+    sandbox.sessionStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+    sandbox.navigator = {};
+    sandbox.location = { pathname: '/admin/noi-dung', search: '' };
+    sandbox.URLSearchParams = URLSearchParams;
+    sandbox.MutationObserver = class { observe() {} disconnect() {} };
+    sandbox.requestAnimationFrame = () => 0;
+    sandbox.setTimeout = () => 0; sandbox.setInterval = () => 0; sandbox.clearTimeout = () => {}; sandbox.clearInterval = () => {};
+    sandbox.SHOW_COMPANY_INTRO = true; sandbox.__phfTrainingEntryReady = false;
+    const fakeEl = () => ({
+      textContent: '', innerHTML: '', style: {}, dataset: {}, children: [],
+      classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+      addEventListener() {}, setAttribute() {}, getAttribute() { return null; },
+      appendChild() {}, querySelector() { return null; }, querySelectorAll() { return []; }
+    });
+    const mainEl = fakeEl();
+    sandbox.document = {
+      getElementById: (id) => (id === 'mainLesson' ? mainEl : fakeEl()),
+      querySelector() { return null; }, querySelectorAll() { return []; },
+      addEventListener() {}, createElement() { return fakeEl(); },
+      head: { appendChild() {} }, body: { classList: { add() {}, remove() {}, toggle() {} } }
+    };
+    sandbox.window.phfGetSessionRole = () => 'admin';
+    sandbox.window.scrollTo = () => {};
+    return sandbox;
+  }
+  const sandbox = makeSandbox();
+  const ctx = vm.createContext(sandbox);
+  function load(rel) { vm.runInContext(fsMod.readFileSync(path.join(ROOT, rel), 'utf8'), ctx, { filename: rel }); }
+  load('assets/data/phf-lessons-new-sales.js');
+  load('assets/js/phf-learner-app.js');
+  load('assets/js/phf-training-library.js');
+
+  sandbox.window.phfRenderTrainingLibrary();
+  const htmlAll = String(sandbox.document.getElementById('mainLesson').innerHTML || '');
+  assert.ok(!/phfB23Department/.test(htmlAll), 'Dropdown Phòng ban phải đã bị bỏ khỏi toolbar Admin/Quản lý');
+  assert.ok(!/đang được cập nhật/i.test(htmlAll), 'Banner "chương trình đang được cập nhật" phải đã bị bỏ');
+  assert.ok(/phfB23Program/.test(htmlAll), 'Dropdown Chương trình đào tạo phải vẫn còn');
+  const programOptionMatches = htmlAll.match(/<option value="[^"]*"[^>]*>[^<]*<\/option>/g) || [];
+  const programOptionsBlock = (htmlAll.match(/id="phfB23Program"[^>]*>([\s\S]*?)<\/select>/) || [])[1] || '';
+  const optionCount = (programOptionsBlock.match(/<option/g) || []).length;
+  assert.strictEqual(optionCount, 2, 'Dropdown Chương trình đào tạo chỉ được có đúng 2 lựa chọn (Tất cả chương trình + Nhân viên bán hàng)');
+  assert.ok(/Tất cả chương trình đào tạo/.test(programOptionsBlock));
+  assert.ok(/Nhân viên bán hàng/.test(programOptionsBlock));
+  assert.ok(/<b>120<\/b>/.test(htmlAll), '"Tất cả chương trình" phải hiện đủ 120 bài');
+
+  sandbox.window.phfB23SetTrainingStage; // no-op reference, giu lint yen
+  const stateApply = sandbox.window.phfB23ApplyTrainingFilters;
+  assert.strictEqual(typeof stateApply, 'function');
+
+  ok('PASS 5 - UI Admin/Quản lý chỉ còn dropdown Chương trình đào tạo (2 lựa chọn), không còn filter Phòng ban, không còn banner "đang được cập nhật"; "Tất cả chương trình" hiện đủ 120 bài');
 })();
 
 // ---------------------------------------------------------------------------
