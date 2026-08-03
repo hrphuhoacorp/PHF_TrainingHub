@@ -19,6 +19,7 @@ const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } =
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('./lib/checklist-monthly');
 const { getChecklistMonthlyReport } = require('./lib/checklist-reports');
+const { inspectMonthlyRecovery } = require('./lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const {
   MAX_BODY_BYTES,
@@ -656,6 +657,7 @@ const server = http.createServer(async (req, res) => {
         if(payload&&payload.action==='changeChecklistMonthlyReviewer')return sendJson(res,200,{ok:true,...await changeMonthlyReviewer(session,payload)});
         if(payload&&payload.action==='exportChecklistMonthlyData')return sendJson(res,200,{ok:true,...await exportMonthlyData(session,payload)});
         if(payload&&payload.action==='getChecklistMonthlyReport')return sendJson(res,200,{ok:true,...await getChecklistMonthlyReport(session,payload)});
+        if(payload&&payload.action==='inspectChecklistMonthlyRecovery')return sendJson(res,200,{ok:true,...await inspectMonthlyRecovery(session,payload)});
       if(payload&&payload.action==='getChecklistLatePointsPolicy')return sendJson(res,200,{ok:true,...await getChecklistLatePointsPolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistLatePointsPolicy')return sendJson(res,200,{ok:true,...await saveChecklistLatePointsPolicy(session,payload)});
       if(payload&&payload.action==='getChecklistRepeatViolationPolicy')return sendJson(res,200,{ok:true,...await getChecklistRepeatViolationPolicy(session,payload)});
