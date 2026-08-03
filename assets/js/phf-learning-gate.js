@@ -115,6 +115,53 @@
     }
     return false;
   }
+  /* PHF Bản 1.1.0 - Bài chung PHF + chuyên môn theo phòng ban.
+     Phòng ban chỉ đọc từ hồ sơ nhân sự thật (window.__phfLocalData.employees),
+     không đọc profile tự khai — đúng nghiệp vụ đã chốt. */
+  function learnerHrEmployeeRow(){
+    try{
+      var p = getProfile();
+      var id = p && p.id ? String(p.id) : '';
+      if(!id) return null;
+      var rows = (window.__phfLocalData && Array.isArray(window.__phfLocalData.employees)) ? window.__phfLocalData.employees : [];
+      return rows.find(function(e){ return String(e && e.id || '') === id; }) || null;
+    }catch(e){ return null; }
+  }
+  function learnerHrDepartment(){
+    if(isAdminSimulation()) return '';
+    var row = learnerHrEmployeeRow();
+    return row ? String(row.department || '').trim() : '';
+  }
+  function lessonAllowedForDepartment(lesson, dept){
+    var list = lesson && Array.isArray(lesson.departments) ? lesson.departments : null;
+    if(!list || !list.length) return true;
+    if(list.indexOf('all') >= 0) return true;
+    return !!dept && list.indexOf(dept) >= 0;
+  }
+  function departmentLessonBoundary(lessons){
+    if(isAdminSimulation()) return lessons.length - 1;
+    var dept = learnerHrDepartment();
+    for(var i = lessons.length - 1; i >= 0; i--){
+      if(lessonAllowedForDepartment(lessons[i], dept)) return i;
+    }
+    return 0;
+  }
+  function renderDepartmentPendingScreen(lessons, boundary){
+    var main = document.getElementById('mainLesson');
+    if(!main) return;
+    var dept = learnerHrDepartment();
+    var label = dept || 'của bạn';
+    var backIdx = Math.max(0, boundary);
+    main.innerHTML = '<section class="focus-head"><div class="chip">GĐ1 · Hội nhập</div><h2>Chương trình chuyên môn ' + esc(label) + ' đang được cập nhật</h2>'
+      + '<p>Bạn đã hoàn thành Chương trình học chung PHF. Chương trình chuyên môn dành riêng cho bộ phận của bạn sẽ được bổ sung sau — vui lòng chờ thông báo tiếp theo từ Quản lý hoặc Phòng Nhân sự.</p></section>'
+      + '<section class="focus-body"><div class="actions"><button class="btn btn-soft" type="button" onclick="(window.phfGo||window.go)(' + backIdx + ')">← Xem lại bài học chung</button></div></section>';
+  }
+  function showDepartmentPendingNotice(lessons, boundary){
+    var dept = learnerHrDepartment();
+    var label = dept || 'của bạn';
+    notice('warning','Đã hoàn thành Chương trình học chung PHF','Chương trình chuyên môn ' + label + ' đang được cập nhật.');
+    renderDepartmentPendingScreen(lessons, boundary);
+  }
   function getLessons(){
     try{ if(typeof LESSONS !== 'undefined' && Array.isArray(LESSONS)) return LESSONS; }catch(e){}
     return [];
@@ -418,6 +465,7 @@
     Object.keys(MAIN_TESTS).map(Number).sort(function(a,b){return a-b;}).forEach(function(idx){
       if(allowed > idx && !hasPassedMain(MAIN_TESTS[idx].key)) allowed = idx;
     });
+    allowed = Math.min(allowed, departmentLessonBoundary(lessons));
     return Math.max(0, Math.min(allowed, lessons.length - 1));
   }
   function studyStartValue(){
@@ -686,6 +734,16 @@
 
     if(!ensureLearningAccess(true)) return;
 
+    /* Ranh giới phòng ban tách riêng khỏi ranh giới quiz/tiến độ: dù đã hoàn
+       thành mọi bài/kiểm tra, không phòng ban nào được vượt qua ranh giới này
+       trừ khi lesson đích có departments chứa 'all' hoặc đúng phòng ban. */
+    var deptBoundary = departmentLessonBoundary(lessons);
+    if(target > deptBoundary){
+      showDepartmentPendingNotice(lessons, deptBoundary);
+      decorateLockedItems();
+      return;
+    }
+
     /* Khóa tuyệt đối mọi đích vượt quá bài đang được phép mở.
        Chỉ nút Tiếp tục từ đúng bài hiện tại mới được phép hoàn tất gate rồi mở bài kế tiếp.
        Không dùng currentIdx làm lối tắt vì currentIdx có thể là dữ liệu cũ hoặc bị can thiệp. */
@@ -864,6 +922,9 @@
     markCompleted:markCompleted,
     hasActiveHubAssignment:hasActiveHubAssignment,
     ensureLearningAccess:ensureLearningAccess,
+    learnerHrDepartment:learnerHrDepartment,
+    lessonAllowedForDepartment:lessonAllowedForDepartment,
+    departmentLessonBoundary:departmentLessonBoundary,
     quizRuntime:{
       PASS_SCORE:PASS_SCORE,
       TEST_SUBMISSION_INFLIGHT:TEST_SUBMISSION_INFLIGHT,
