@@ -3643,7 +3643,7 @@ function render(){
 <!-- PHF 16.0K CLEAN BASE: removed unstable 16.0H test-login patch. -->
 <!-- PHF BẢN 6: giao diện đăng nhập chính thức từ demo, giữ nguyên logic Bản 2 -->
 <style>
-  .phf-test-login-overlay{position:fixed!important;inset:0!important;z-index:99999!important;background:linear-gradient(120deg,rgba(0,60,43,.80),rgba(12,75,54,.62))!important;backdrop-filter:blur(6px)!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px!important;overflow:auto!important;font-family:"Segoe UI",Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif!important;box-sizing:border-box!important}
+  .phf-test-login-overlay{position:fixed!important;inset:0!important;z-index:99999!important;background:linear-gradient(120deg,rgba(0,60,43,.80),rgba(12,75,54,.62))!important;backdrop-filter:blur(6px)!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px!important;overflow:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;font-family:"Segoe UI",Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif!important;box-sizing:border-box!important}
   .phf-test-login-overlay *{box-sizing:border-box!important}
   .phf-test-login-card{width:min(940px,calc(100vw - 48px))!important;max-width:940px!important;background:rgba(255,255,255,.96)!important;border:1px solid rgba(255,255,255,.78)!important;border-radius:24px!important;box-shadow:0 28px 78px rgba(0,45,32,.28)!important;overflow:hidden!important;display:grid!important;grid-template-columns:1.05fr .95fr!important;color:#12352a!important}
   .phf-test-login-brand{display:flex!important;flex-direction:column!important;gap:26px!important;padding:42px 40px!important;background:linear-gradient(180deg,#f7fcf8 0%,#eef8f1 100%)!important;border-right:1px solid #dcebe3!important;min-width:0!important}
@@ -3680,8 +3680,20 @@ function render(){
   .phf-test-login-quick small{display:block!important;color:#6a8178!important;font-weight:500!important;margin-top:4px!important;font-size:12px!important;line-height:1.35!important}
   .phf-login-note{font-size:12px!important;color:#7b8b85!important;margin:14px 0 0!important;line-height:1.5!important}
   .phf-login-version{display:none!important;text-align:center!important;color:#8ba095!important;font-size:11px!important;font-weight:700!important;letter-spacing:.02em!important;margin:16px 0 0!important}
-  @media(max-width:860px){.phf-test-login-overlay{align-items:flex-start!important;padding:18px 12px!important}.phf-test-login-card{width:min(620px,calc(100vw - 24px))!important;grid-template-columns:1fr!important;border-radius:22px!important}.phf-test-login-brand{padding:28px 24px!important;border-right:0!important;border-bottom:1px solid #dcebe3!important;gap:18px!important}.phf-test-login-form{padding:28px 24px!important}.phf-login-title{font-size:30px!important}.phf-login-subtitle{font-size:15px!important}.phf-login-points{display:none!important}.phf-login-version{display:block!important}}
-  @media(max-width:480px){.phf-test-login-overlay{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;align-items:stretch!important;background:#0b4b39!important;backdrop-filter:none!important}.phf-test-login-card{width:100%!important;min-height:100%!important;border-radius:20px!important;box-shadow:none!important}.phf-login-logo-line{align-items:flex-start!important;flex-direction:column!important}.phf-login-logo-box{width:170px!important;min-height:50px!important}.phf-login-title{font-size:26px!important}.phf-test-login-actions{flex-direction:column!important;align-items:stretch!important}.phf-test-login-actions button{width:100%!important}.phf-test-login-actions button.primary{min-width:0!important}}
+  @media(max-width:860px){.phf-test-login-overlay{align-items:flex-start!important;padding:18px 12px!important}.phf-test-login-card{width:min(620px,calc(100vw - 24px))!important;grid-template-columns:1fr!important;border-radius:22px!important}.phf-test-login-brand{padding:28px 24px!important;border-right:0!important;border-bottom:1px solid #dcebe3!important;gap:18px!important}.phf-test-login-form{padding:28px 24px!important}.phf-login-title{font-size:30px!important}.phf-login-subtitle{font-size:15px!important}.phf-login-points{display:none!important}.phf-login-version{display:block!important}
+    /* Ưu tiên đăng nhập Google trên mobile/standalone: chỉ đổi thứ tự hiển thị
+       (flex order), không đổi DOM/logic — Google hiện ngay trong màn hình đầu. */
+    #phfGoogleLoginWrap{order:1!important}
+    .phf-login-divider{order:2!important}
+    .phf-login-form-title,.phf-login-form-sub{order:3!important;margin-top:22px!important}
+    .phf-test-login-field-email{order:4!important}
+    .phf-test-login-field-pass{order:5!important}
+    .phf-test-login-error{order:6!important}
+    .phf-test-login-actions{order:7!important}
+    .phf-login-note{order:8!important}
+    .phf-login-version{order:9!important}
+  }
+  @media(max-width:480px){.phf-test-login-overlay{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;align-items:flex-start!important;background:#0b4b39!important;backdrop-filter:none!important}.phf-test-login-card{width:100%!important;min-height:100%!important;border-radius:20px!important;box-shadow:none!important}.phf-login-logo-line{align-items:flex-start!important;flex-direction:column!important}.phf-login-logo-box{width:170px!important;min-height:50px!important}.phf-login-title{font-size:26px!important}.phf-test-login-actions{flex-direction:column!important;align-items:stretch!important}.phf-test-login-actions button{width:100%!important}.phf-test-login-actions button.primary{min-width:0!important}}
   @media(max-height:760px) and (min-width:861px){.phf-test-login-overlay{align-items:flex-start!important}.phf-test-login-brand,.phf-test-login-form{padding-top:30px!important;padding-bottom:30px!important}.phf-login-title{font-size:32px!important}.phf-login-points{display:none!important}}
 </style>
 <script id="phf-server-session-menu-bridge">

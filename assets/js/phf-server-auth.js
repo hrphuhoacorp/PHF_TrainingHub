@@ -586,8 +586,8 @@
         '</section>' +
         '<section class="phf-test-login-form">' +
           '<div class="phf-login-form-title">Thông tin đăng nhập</div><div class="phf-login-form-sub">Sử dụng email và mật khẩu được PHUHOA FRESH cấp.</div>' +
-          '<div class="phf-test-login-field"><label>Email</label><input id="phfTestEmail" type="email" autocomplete="username"></div>' +
-          '<div class="phf-test-login-field"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
+          '<div class="phf-test-login-field phf-test-login-field-email"><label>Email</label><input id="phfTestEmail" type="email" autocomplete="username"></div>' +
+          '<div class="phf-test-login-field phf-test-login-field-pass"><label>Mật khẩu</label><input id="phfTestPass" type="password" autocomplete="current-password"></div>' +
           '<div class="phf-test-login-error" id="phfTestLoginError"></div>' +
           '<div class="phf-test-login-actions"><button type="button" class="primary" id="phfTestSubmit">Đăng nhập</button><button type="button" id="phfTestCancel">Đóng</button></div>' +
           '<div class="phf-login-divider"><span>Hoặc tiếp tục bằng</span></div>' +

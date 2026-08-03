@@ -1,7 +1,7 @@
 {
-  "version": "1.38.56",
-  "fingerprint": "13856-mobile-app-shell-phase2",
+  "version": "1.38.57",
+  "fingerprint": "13857-mobile-login-google-priority-fix",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Mobile App Shell Phase 2: thêm splash app-mode khi mở PWA/standalone (dùng lại đúng boot-cloak/timing hiện có, không đổi auth/session/router); login hiển thị full-screen tự nhiên hơn trên điện thoại, input đủ 16px tránh zoom iPhone, hỗ trợ safe-area, thêm version nhỏ cuối màn hình đăng nhập; Home mobile shell thêm safe-area và giảm khoảng trắng trên màn nhỏ. Không đổi Business Logic/Permission/Workflow/RPC/DB.",
-  "build": "13856-mobile-app-shell-phase2"
+  "notes": "Bug fix + UX: sửa lỗi không cuộn xuống được nút Đăng nhập Google trên mobile/PWA (nguyên nhân: card đăng nhập ở màn ≤480px bị align-items:stretch kết hợp overflow:hidden làm kẹp chiều cao, cắt phần nội dung vượt màn hình thay vì cho cuộn) — đổi lại align-items:flex-start như breakpoint ≤860px đang dùng an toàn; thêm overscroll-behavior:contain + -webkit-overflow-scrolling:touch để tránh cuộn kép/leak ra nền. Sắp xếp lại thứ tự hiển thị mobile bằng CSS order (không đổi DOM/logic): Google hiện ngay đầu màn hình, sau đó Hoặc/Email/Mật khẩu/Đăng nhập nội bộ/Version. Không đổi auth, Google OAuth, session, router, API.",
+  "build": "13857-mobile-login-google-priority-fix"
 }
