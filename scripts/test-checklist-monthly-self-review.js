@@ -228,6 +228,19 @@ async function main() {
     assert.strictEqual(locked.score_summary.persisted,true);
   });
 
+  await record('9) Quá hạn maximum dùng Target và lưu nguồn/formula version', async () => {
+    const form={template_snapshot:baseSnapshot()};
+    const maximum=monthlyLib.overdueSelfAnswers(form,'max')['MAN-C1'];
+    const zero=monthlyLib.overdueSelfAnswers(form,'zero')['MAN-C1'];
+    assert.strictEqual(maximum.value,'10');
+    assert.strictEqual(maximum.effectiveActual,10);
+    assert.strictEqual(maximum.target,10);
+    assert.strictEqual(maximum.source,'overdue_maximum');
+    assert.ok(maximum.formulaVersion);
+    assert.strictEqual(zero.value,'0');
+    assert.strictEqual(zero.source,'overdue_zero');
+  });
+
   console.log('\n=== Kết quả ===');
   const passed = results.filter(r => r.pass).length;
   console.log(passed + '/' + results.length + ' bước PASS.');
