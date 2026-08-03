@@ -172,11 +172,11 @@ async function main() {
     assert.strictEqual(formById('f-self').status, 'waiting_review');
   });
 
-  await record('2) Điểm nhập tay vượt trọng số -> bị chặn CHECKLIST_MONTHLY_SELF_OVER_WEIGHT', async () => {
+  await record('2) Actual vượt Target -> bị backend chặn CHECKLIST_MONTHLY_SELF_OVER_TARGET', async () => {
     const form = { id: 'f-over', period_id: 'p1', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV006', employee_id: 'id-nv006', employee_name: 'Nhân Viên 6', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, updated_at: NOW_ISO };
     store.checklist_monthly_forms.push(form);
     const session = { role: 'learner', employeeCode: 'NV006', employeeId: 'id-nv006', sub: 'id-nv006' };
-    await expectFail(monthlyLib.saveMyMonthly(session, { formId: 'f-over', expectedUpdatedAt: form.updated_at, answers: { 'MAN-C1': { value: '999' } }, submit: false }), 'CHECKLIST_MONTHLY_SELF_OVER_WEIGHT');
+    await expectFail(monthlyLib.saveMyMonthly(session, { formId: 'f-over', expectedUpdatedAt: form.updated_at, answers: { 'MAN-C1': { value: '11' } }, submit: false }), 'CHECKLIST_MONTHLY_SELF_OVER_TARGET');
   });
 
   await record('3) Tiêu chí Checklist tự động (AUTO-C1) không được nhân viên gửi điểm tay', async () => {
