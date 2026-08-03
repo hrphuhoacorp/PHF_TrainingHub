@@ -6,15 +6,17 @@ process.env.SUPABASE_URL='https://mock.invalid';process.env.SUPABASE_SECRET_KEY=
 
 const store={
  checklist_monthly_periods:[{id:'p1',period_month:'2026-07',status:'open'}],
- checklist_monthly_forms:[{id:'f-existing',period_id:'p1',period_month:'2026-07',employee_id:'e1',employee_code:'NV001',employee_name:'Đã có',template_id:'sales',template_version:'1',reviewer_code:'QL1',reviewer_name:'Quản lý',status:'waiting_self',updated_at:'2026-07-01T00:00:00Z'}]
+ checklist_monthly_forms:[{id:'f-existing',period_id:'p1',period_month:'2026-07',employee_id:'e1',employee_code:'NV001',employee_name:'Đã có',template_id:'sales',template_version:'1',reviewer_code:'QL1',reviewer_name:'Quản lý',status:'waiting_self',self_answers:{C1:{value:'8'}},self_total_score:80,updated_at:'2026-07-01T00:00:00Z'}],
+ checklist_monthly_form_history:[{id:'h1',form_id:'f-existing'}],
+ checklist_notifications:[{id:'n1',subject_type:'monthly_form',subject_id:'f-existing'}]
 };
 class Query{
  constructor(table){this.table=table;this.rows=(store[table]||[]).slice();}
- select(){return this;}
+ select(_fields,options={}){this.head=options.head===true;return this;}
  eq(column,value){this.rows=this.rows.filter(row=>String(row[column]||'')===String(value));return this;}
  limit(){return Promise.resolve({data:this.rows,error:null});}
  maybeSingle(){return Promise.resolve({data:this.rows[0]||null,error:null});}
- then(resolve,reject){return Promise.resolve({data:this.rows,error:null}).then(resolve,reject);}
+ then(resolve,reject){return Promise.resolve({data:this.head?null:this.rows,error:null,count:this.head?this.rows.length:null}).then(resolve,reject);}
 }
 const prepared={
  assignmentState:{snapshots:[
@@ -33,13 +35,13 @@ const prepared={
 const originalLoad=Module._load;
 const rpcCalls=[];
 Module._load=function(request,parent,isMain){
- if(request==='@supabase/supabase-js')return {createClient:()=>({from:table=>new Query(table),rpc:async(name,params)=>{rpcCalls.push({name,params});return {data:{ok:true,operationId:'op-1',created:1,skipped:0},error:null};}})};
+ if(request==='@supabase/supabase-js')return {createClient:()=>({from:table=>new Query(table),rpc:async(name,params)=>{rpcCalls.push({name,params});return {data:name==='phf_recovery_delete_monthly_form'?{ok:true,operationId:'op-delete',formId:params.p_form_id,deletedHistory:1,deletedNotifications:1}:{ok:true,operationId:'op-1',created:1,skipped:0},error:null};}})};
  if(request==='./checklist-monthly'&&parent&&/checklist-recovery\.js$/.test(parent.filename))return {buildMonthlyCreationState:async()=>prepared};
  return originalLoad.call(this,request,parent,isMain);
 };
 
 (async()=>{
- const {inspectMonthlyRecovery,createMissingMonthlyForms}=require('../lib/checklist-recovery');
+ const {inspectMonthlyRecovery,createMissingMonthlyForms,getMonthlyDeletePreview,deleteMonthlyFormException}=require('../lib/checklist-recovery');
  const result=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});
  assert.strictEqual(result.counts.existing,1);
  assert.strictEqual(result.counts.readyToCreate,1);
@@ -52,6 +54,12 @@ Module._load=function(request,parent,isMain){
  assert.strictEqual(rpcCalls[0].name,'phf_recovery_create_missing_monthly_forms');
  assert.deepStrictEqual(rpcCalls[0].params.p_forms.map(row=>row.employee_code),['NV002']);
  assert.strictEqual(rpcCalls[0].params.p_forms[0].status,'waiting_self');
+ const preview=await getMonthlyDeletePreview({role:'admin'},{formId:'f-existing'});
+ assert.strictEqual(preview.allowed,true);assert.strictEqual(preview.counts.history,1);assert.strictEqual(preview.counts.notifications,1);
+ assert.deepStrictEqual(preview.form.selfAnswers,{C1:{value:'8'}});
+ const deleted=await deleteMonthlyFormException({role:'admin',account:{id:'admin-1',name:'Admin'}},{formId:'f-existing',expectedUpdatedAt:'2026-07-01T00:00:00Z',reason:'Xóa phiếu Pilot theo yêu cầu kiểm thử',idempotencyKey:'delete-12345678',confirmDelete:true});
+ assert.strictEqual(deleted.operationId,'op-delete');assert.strictEqual(rpcCalls[1].name,'phf_recovery_delete_monthly_form');assert.strictEqual(rpcCalls[1].params.p_confirm_delete,true);
+ await assert.rejects(()=>deleteMonthlyFormException({role:'admin'},{formId:'f-existing',expectedUpdatedAt:'2026-07-01T00:00:00Z',reason:'Xóa phiếu Pilot theo yêu cầu kiểm thử',idempotencyKey:'delete-no-confirm',confirmDelete:false}),error=>error.code==='CHECKLIST_RECOVERY_DELETE_CONFIRM_REQUIRED');
  await assert.rejects(()=>inspectMonthlyRecovery({role:'learner'},{month:'2026-07'}),error=>error.code==='CHECKLIST_RECOVERY_ADMIN_ONLY');
  store.checklist_monthly_periods[0].status='locked';
  const locked=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});

@@ -16,7 +16,7 @@ const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } =
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('../lib/checklist-monthly');
 const { getChecklistMonthlyReport } = require('../lib/checklist-reports');
-const { inspectMonthlyRecovery, createMissingMonthlyForms } = require('../lib/checklist-recovery');
+const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('../lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const {
   assertSameOrigin,
@@ -386,6 +386,8 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='getChecklistMonthlyReport')return res.status(200).json({ok:true,...await getChecklistMonthlyReport(session,payload)});
       if(payload&&payload.action==='inspectChecklistMonthlyRecovery')return res.status(200).json({ok:true,...await inspectMonthlyRecovery(session,payload)});
       if(payload&&payload.action==='createMissingChecklistMonthlyForms')return res.status(200).json({ok:true,...await createMissingMonthlyForms(session,payload)});
+      if(payload&&payload.action==='getChecklistMonthlyDeletePreview')return res.status(200).json({ok:true,...await getMonthlyDeletePreview(session,payload)});
+      if(payload&&payload.action==='deleteChecklistMonthlyFormException')return res.status(200).json({ok:true,...await deleteMonthlyFormException(session,payload)});
       if(payload&&payload.action==='getChecklistLatePointsPolicy')return res.status(200).json({ok:true,...await getChecklistLatePointsPolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistLatePointsPolicy')return res.status(200).json({ok:true,...await saveChecklistLatePointsPolicy(session,payload)});
       if(payload&&payload.action==='getChecklistRepeatViolationPolicy')return res.status(200).json({ok:true,...await getChecklistRepeatViolationPolicy(session,payload)});
