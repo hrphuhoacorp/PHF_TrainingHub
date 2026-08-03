@@ -1,6 +1,12 @@
 {
-  "name": "PHF Training Hub",
-  "short_name": "PHF Hub",
+  "id": "/",
+  "name": "PHF Nhân sự",
+  "short_name": "PHF HR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0b4b39",
+  "background_color": "#f5fbf7",
   "icons": [
     {
       "src": "assets/favicon/favicon-192.png",
@@ -12,8 +18,5 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "theme_color": "#0b4b39",
-  "background_color": "#f5fbf7",
-  "display": "standalone"
+  ]
 }
