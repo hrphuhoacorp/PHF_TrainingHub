@@ -241,6 +241,14 @@ async function main() {
     assert.strictEqual(zero.source,'overdue_zero');
   });
 
+  await record('10) API export giữ nguyên totals/formula của phiếu reviewed', async () => {
+    const payload=await monthlyLib.exportMonthlyData(ADMIN_SESSION,{month:PERIOD});
+    const reviewed=payload.forms.find(item=>item.id==='f-reviewed');
+    assert.ok(reviewed);
+    assert.deepStrictEqual([reviewed.selfTotalScore,reviewed.reviewTotalScore,reviewed.finalScore],[80,90,86.67]);
+    assert.strictEqual(reviewed.formulaVersion,'persisted-test');
+  });
+
   console.log('\n=== Kết quả ===');
   const passed = results.filter(r => r.pass).length;
   console.log(passed + '/' + results.length + ' bước PASS.');
