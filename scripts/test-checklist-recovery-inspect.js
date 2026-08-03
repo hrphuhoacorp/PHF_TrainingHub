@@ -31,14 +31,15 @@ const prepared={
  missing:[],sourceRevision:{current_count:4}
 };
 const originalLoad=Module._load;
+const rpcCalls=[];
 Module._load=function(request,parent,isMain){
- if(request==='@supabase/supabase-js')return {createClient:()=>({from:table=>new Query(table)})};
+ if(request==='@supabase/supabase-js')return {createClient:()=>({from:table=>new Query(table),rpc:async(name,params)=>{rpcCalls.push({name,params});return {data:{ok:true,operationId:'op-1',created:1,skipped:0},error:null};}})};
  if(request==='./checklist-monthly'&&parent&&/checklist-recovery\.js$/.test(parent.filename))return {buildMonthlyCreationState:async()=>prepared};
  return originalLoad.call(this,request,parent,isMain);
 };
 
 (async()=>{
- const {inspectMonthlyRecovery}=require('../lib/checklist-recovery');
+ const {inspectMonthlyRecovery,createMissingMonthlyForms}=require('../lib/checklist-recovery');
  const result=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});
  assert.strictEqual(result.counts.existing,1);
  assert.strictEqual(result.counts.readyToCreate,1);
@@ -46,9 +47,15 @@ Module._load=function(request,parent,isMain){
  assert.strictEqual(result.counts.missingReviewer,1);
  assert.strictEqual(result.counts.missingAssignment,1);
  assert.strictEqual(result.canCreate,true);
+ const created=await createMissingMonthlyForms({role:'admin',account:{id:'admin-1',name:'Admin'}},{month:'2026-07',reason:'Tạo lại phiếu còn thiếu hợp lệ',idempotencyKey:'idem-12345678'});
+ assert.strictEqual(created.created,1);assert.strictEqual(rpcCalls.length,1);
+ assert.strictEqual(rpcCalls[0].name,'phf_recovery_create_missing_monthly_forms');
+ assert.deepStrictEqual(rpcCalls[0].params.p_forms.map(row=>row.employee_code),['NV002']);
+ assert.strictEqual(rpcCalls[0].params.p_forms[0].status,'waiting_self');
  await assert.rejects(()=>inspectMonthlyRecovery({role:'learner'},{month:'2026-07'}),error=>error.code==='CHECKLIST_RECOVERY_ADMIN_ONLY');
  store.checklist_monthly_periods[0].status='locked';
  const locked=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});
  assert.strictEqual(locked.canCreate,false);assert.strictEqual(locked.counts.blockedLocked,1);
+ await assert.rejects(()=>createMissingMonthlyForms({role:'admin',account:{id:'admin-1'}},{month:'2026-07',reason:'Không được tạo trong kỳ khóa',idempotencyKey:'idem-locked-123'}),error=>error.code==='CHECKLIST_RECOVERY_PERIOD_LOCKED');
  console.log('PASS checklist recovery diagnostic preview (mock, không ghi database).');
 })().catch(error=>{console.error(error);process.exitCode=1;});
