@@ -77,6 +77,21 @@ assert(monthly.includes("db.rpc('phf_save_checklist_monthly_review'"),'Thẩm đ
 assert(monthly.includes('p_source_revision:sourceRevision'),'Khởi tạo kỳ phải gửi revision snapshot phân công và thư viện mẫu.');
 assert(monthly.includes("readAllRows('checklist_employee_assignment_history'"),'Lịch sử phân công phải được đọc phân trang đầy đủ.');
 
+const recoveryBackend=read('lib/checklist-recovery.js');
+const recoverySyncSql=read('scripts/PHF_CHECKLIST_RECOVERY_SYNC_1.40.0.sql');
+const recoveryDeleteSql=read('scripts/PHF_CHECKLIST_RECOVERY_DELETE_1.40.1.sql');
+assert(recoveryBackend.includes("db.rpc('phf_recovery_create_missing_monthly_forms'"),'Recovery đồng bộ phải ghi qua RPC transaction riêng.');
+assert(recoveryBackend.includes("db.rpc('phf_recovery_delete_monthly_form'"),'Recovery xóa phải ghi qua RPC transaction riêng.');
+assert(/create trigger phf_checklist_recovery_audit_immutable[\s\S]*before update or delete/i.test(recoverySyncSql),'Recovery audit ledger chưa được bảo vệ bất biến.');
+assert(/admin_create_missing_form/i.test(recoverySyncSql)&&/on conflict\(period_month,employee_code\) do nothing/i.test(recoverySyncSql),'RPC đồng bộ thiếu audit hoặc idempotency theo phiếu.');
+assert(/CHECKLIST_RECOVERY_SOURCE_STALE/i.test(recoverySyncSql)&&/phf_checklist_monthly\|/i.test(recoverySyncSql),'RPC đồng bộ thiếu source revision hoặc advisory lock.');
+assert(/v_period\.status not in\('draft','open'\)/i.test(recoverySyncSql)&&/CHECKLIST_RECOVERY_PERIOD_LOCKED/i.test(recoverySyncSql),'RPC đồng bộ phải chỉ cho kỳ draft/open và chặn locked.');
+assert(/admin_delete_monthly_form/i.test(recoveryDeleteSql)&&/v_form\.status not in\('waiting_self','waiting_review','reviewed'\)/i.test(recoveryDeleteSql),'RPC xóa thiếu audit hoặc whitelist trạng thái.');
+assert(/v_form\.status='reviewed' and not coalesce\(p_confirm_pilot_test,false\)/i.test(recoveryDeleteSql),'Phiếu reviewed thiếu xác nhận Pilot/Test phía database.');
+assert(/delete from public\.checklist_notifications[\s\S]*delete from public\.checklist_monthly_form_history[\s\S]*delete from public\.checklist_monthly_forms/i.test(recoveryDeleteSql),'Thứ tự xóa notification/history/form không an toàn.');
+assert(/exception when others[\s\S]*admin_delete_monthly_form_failed/i.test(recoveryDeleteSql),'RPC xóa thiếu rollback subtransaction và failed audit.');
+assert(!/delete from public\.checklist_violation_records|delete from public\.checklist_violation_tasks/i.test(recoveryDeleteSql),'Recovery xóa không được tác động violation hoặc task.');
+
 const assignmentBackend=read('lib/checklist-assignments.js');
 const templateBackend=read('lib/checklist-templates.js');
 const permissionBackend=read('lib/checklist-permissions.js');
