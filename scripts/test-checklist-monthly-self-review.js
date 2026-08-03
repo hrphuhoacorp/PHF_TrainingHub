@@ -40,7 +40,7 @@ function baseDefinition() {
   return {
     totalRows: [
       ['1', 'AUTO-C1', 'Tuân thủ Checklist', '100', '%', 50, '', 'Checklist'],
-      ['2', 'MAN-C1', 'Thái độ làm việc', 'Đạt', '%', 50, '', 'Nhập đánh giá']
+      ['2', 'MAN-C1', 'Thái độ làm việc', '10', 'điểm', 50, '', 'Nhập đánh giá']
     ]
   };
 }
@@ -52,13 +52,13 @@ const store = {
     // f-self: waiting_self, dùng cho case 1/2/3/5.
     { id: 'f-self', period_id: 'p1', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV001', employee_id: 'id-nv001', employee_name: 'Nhân Viên 1', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, review_answers: {}, updated_at: NOW_ISO, pilot_opened_at: null },
     // f-review: waiting_review, reviewer là admin (assigned) -> case 4.
-    { id: 'f-review', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV002', employee_id: 'id-nv002', employee_name: 'Nhân Viên 2', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '40' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO },
+    { id: 'f-review', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV002', employee_id: 'id-nv002', employee_name: 'Nhân Viên 2', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO },
     // f-reviewed: đã thẩm định xong -> case 6a (chặn tự đánh giá lại).
-    { id: 'f-reviewed', period_id: 'p1', period_month: PERIOD, status: 'reviewed', employee_code: 'NV003', employee_id: 'id-nv003', employee_name: 'Nhân Viên 3', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '40' } }, review_answers: { 'MAN-C1': { value: '45' } }, updated_at: NOW_ISO },
+    { id: 'f-reviewed', period_id: 'p1', period_month: PERIOD, status: 'reviewed', employee_code: 'NV003', employee_id: 'id-nv003', employee_name: 'Nhân Viên 3', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '1' } }, review_answers: { 'MAN-C1': { value: '1' } }, self_total_score:80, review_total_score:90, final_score:86.67, score_formula_version:'persisted-test', updated_at: NOW_ISO },
     // f-locked: đã khóa -> case 6b (chặn thẩm định lại).
-    { id: 'f-locked', period_id: 'p1', period_month: PERIOD, status: 'locked', employee_code: 'NV004', employee_id: 'id-nv004', employee_name: 'Nhân Viên 4', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, review_answers: {}, updated_at: NOW_ISO },
+    { id: 'f-locked', period_id: 'p1', period_month: PERIOD, status: 'locked', employee_code: 'NV004', employee_id: 'id-nv004', employee_name: 'Nhân Viên 4', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, review_answers: {}, self_total_score:70, review_total_score:80, final_score:76.67, score_formula_version:'persisted-test', updated_at: NOW_ISO },
     // f-outscope: waiting_review, reviewer KHÔNG phải người gọi -> case 7.
-    { id: 'f-outscope', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV005', employee_id: 'id-nv005', employee_name: 'Nhân Viên 5', reviewer_id: 'OTHER-ID', reviewer_code: 'OTHER', reviewer_name: 'Người Khác', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '40' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO }
+    { id: 'f-outscope', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV005', employee_id: 'id-nv005', employee_name: 'Nhân Viên 5', reviewer_id: 'OTHER-ID', reviewer_code: 'OTHER', reviewer_name: 'Người Khác', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO }
   ],
   checklist_monthly_periods: [
     { id: 'p1', period_month: PERIOD, status: 'open' }
@@ -166,7 +166,7 @@ async function main() {
   console.log('Kỳ dùng để test: ' + PERIOD + ' (tính động theo ngày chạy, cửa sổ chu kỳ đã ghi đè rộng hết tháng)\n');
 
   await record('1) Phiếu waiting_self: lưu + nộp tự đánh giá hợp lệ -> chuyển waiting_review', async () => {
-    const res = await monthlyLib.saveMyMonthly(LEARNER_SESSION, { formId: 'f-self', expectedUpdatedAt: formById('f-self').updated_at, answers: { 'MAN-C1': { value: '40' } }, submit: true });
+    const res = await monthlyLib.saveMyMonthly(LEARNER_SESSION, { formId: 'f-self', expectedUpdatedAt: formById('f-self').updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: true });
     assert.strictEqual(res.saved, true);
     assert.strictEqual(res.submitted, true);
     assert.strictEqual(formById('f-self').status, 'waiting_review');
@@ -191,7 +191,7 @@ async function main() {
 
   await record('4) Phiếu waiting_review: người thẩm định hợp lệ lưu được, chuyển đúng trạng thái', async () => {
     const before = formById('f-review').updated_at;
-    const res = await monthlyLib.saveMonthlyReview(ADMIN_SESSION, { formId: 'f-review', expectedUpdatedAt: before, answers: { 'MAN-C1': { value: '45' } }, checklistScore: 100, submit: true });
+    const res = await monthlyLib.saveMonthlyReview(ADMIN_SESSION, { formId: 'f-review', expectedUpdatedAt: before, answers: { 'MAN-C1': { value: '9' } }, checklistScore: 100, submit: true });
     assert.strictEqual(res.saved, true);
     assert.strictEqual(formById('f-review').status, 'reviewed');
   });
@@ -217,6 +217,15 @@ async function main() {
     try {
       await expectFail(monthlyLib.saveMonthlyReview(OUTSIDE_MANAGER_SESSION, { formId: 'f-outscope', expectedUpdatedAt: formById('f-outscope').updated_at, answers: { 'MAN-C1': { value: '10' } }, checklistScore: 100, submit: false }), 'CHECKLIST_MONTHLY_REVIEW_SCOPE_REVOKED');
     } finally { reviewAccessOverride = null; }
+  });
+
+  await record('8) reviewed/locked luôn trả totals đã lưu, không tính lại từ answers', async () => {
+    const reviewed=monthlyLib.withScoreSummary(formById('f-reviewed'));
+    const locked=monthlyLib.withScoreSummary(formById('f-locked'));
+    assert.deepStrictEqual([reviewed.self_total_score,reviewed.review_total_score,reviewed.final_score],[80,90,86.67]);
+    assert.deepStrictEqual([locked.self_total_score,locked.review_total_score,locked.final_score],[70,80,76.67]);
+    assert.strictEqual(reviewed.score_summary.persisted,true);
+    assert.strictEqual(locked.score_summary.persisted,true);
   });
 
   console.log('\n=== Kết quả ===');
