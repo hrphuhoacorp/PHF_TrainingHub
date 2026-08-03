@@ -88,9 +88,24 @@ html.phf-auth-boot body::before{
   padding:24px;background:#f4f8f6;color:#07543e;
   font:600 15px/1.5 "Segoe UI",Arial,system-ui,sans-serif;
 }
+/* App-mode (PWA/standalone) splash: cùng lớp cloak/thời điểm gỡ như trên,
+   chỉ đổi diện mạo để có cảm giác "ứng dụng" khi mở từ icon. Chrome thường
+   (không standalone) không bị ảnh hưởng — vẫn dùng cloak mặc định ở trên. */
+html.phf-auth-boot.phf-app-standalone body::before{
+  content:"PHUHOA FRESH\A PHF HR\A Đang khởi động...";
+  white-space:pre-line;
+  background:#0b4b39;color:#fff;
+  font:700 20px/1.9 "Segoe UI",Arial,system-ui,sans-serif;
+  letter-spacing:.01em;text-align:center;
+  padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));
+}
 </style>
 <script id="phf-stage3161g-boot-cloak-js">
 document.documentElement.classList.add('phf-auth-boot');
+try{
+  var __phfStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  if(__phfStandalone) document.documentElement.classList.add('phf-app-standalone');
+}catch(e){}
 /* Chốt an toàn: không để F5 mắc kẹt vô hạn ở màn Đang tải dữ liệu.
    Auth chính vẫn tự gỡ lớp này khi hoàn tất; watchdog chỉ can thiệp khi có lỗi khởi tạo. */
 window.__phfBootGuardTimer=setTimeout(function(){
