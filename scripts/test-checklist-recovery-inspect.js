@@ -68,14 +68,14 @@ Module._load=function(request,parent,isMain){
  store.checklist_monthly_forms[0].status='waiting_self';
  const deleted=await deleteMonthlyFormException({role:'admin',account:{id:'admin-1',name:'Admin'}},{formId:'f-existing',expectedUpdatedAt:'2026-07-01T00:00:00Z',reason:'Xóa phiếu Pilot theo yêu cầu kiểm thử',idempotencyKey:'delete-12345678',confirmDelete:true});
  assert.strictEqual(deleted.operationId,'op-delete');const deleteCall=rpcCalls.find(call=>call.name==='phf_recovery_delete_monthly_form');assert(deleteCall);assert.strictEqual(deleteCall.params.p_confirm_delete,true);
- await assert.rejects(()=>deleteMonthlyFormException({role:'admin'},{formId:'f-existing',expectedUpdatedAt:'2026-07-01T00:00:00Z',reason:'Xóa phiếu Pilot theo yêu cầu kiểm thử',idempotencyKey:'delete-no-confirm',confirmDelete:false}),error=>error.code==='CHECKLIST_RECOVERY_DELETE_CONFIRM_REQUIRED');
- await assert.rejects(()=>createMissingMonthlyForms({role:'admin'},{month:'2026-07',reason:'ngắn',idempotencyKey:'short-reason-key'}),error=>error.code==='CHECKLIST_RECOVERY_REASON_REQUIRED');
- await assert.rejects(()=>deleteMonthlyFormException({role:'learner'},{formId:'f-existing'}),error=>error.code==='CHECKLIST_RECOVERY_ADMIN_ONLY');
+ await assert.rejects(()=>deleteMonthlyFormException({role:'admin'},{formId:'f-existing',expectedUpdatedAt:'2026-07-01T00:00:00Z',reason:'Xóa phiếu Pilot theo yêu cầu kiểm thử',idempotencyKey:'delete-no-confirm',confirmDelete:false}),error=>error.code==='CHECKLIST_RECOVERY_DELETE_CONFIRM_REQUIRED'&&error.statusCode===400);
+ await assert.rejects(()=>createMissingMonthlyForms({role:'admin'},{month:'2026-07',reason:'ngắn',idempotencyKey:'short-reason-key'}),error=>error.code==='CHECKLIST_RECOVERY_REASON_REQUIRED'&&error.statusCode===400);
+ await assert.rejects(()=>deleteMonthlyFormException({role:'learner'},{formId:'f-existing'}),error=>error.code==='CHECKLIST_RECOVERY_ADMIN_ONLY'&&error.statusCode===403);
  await assert.rejects(()=>inspectMonthlyRecovery({role:'learner'},{month:'2026-07'}),error=>error.code==='CHECKLIST_RECOVERY_ADMIN_ONLY');
  store.checklist_monthly_periods[0].status='locked';
  store.checklist_monthly_forms[0].status='locked';const lockedDelete=await getMonthlyDeletePreview({role:'admin'},{formId:'f-existing'});assert.strictEqual(lockedDelete.allowed,false);assert.strictEqual(lockedDelete.blockCode,'CHECKLIST_RECOVERY_DELETE_LOCKED');
  const locked=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});
  assert.strictEqual(locked.canCreate,false);assert.strictEqual(locked.counts.blockedLocked,1);
- await assert.rejects(()=>createMissingMonthlyForms({role:'admin',account:{id:'admin-1'}},{month:'2026-07',reason:'Không được tạo trong kỳ khóa',idempotencyKey:'idem-locked-123'}),error=>error.code==='CHECKLIST_RECOVERY_PERIOD_LOCKED');
+ await assert.rejects(()=>createMissingMonthlyForms({role:'admin',account:{id:'admin-1'}},{month:'2026-07',reason:'Không được tạo trong kỳ khóa',idempotencyKey:'idem-locked-123'}),error=>error.code==='CHECKLIST_RECOVERY_PERIOD_LOCKED'&&error.statusCode===409);
  console.log('PASS checklist recovery diagnostic preview (mock, không ghi database).');
 })().catch(error=>{console.error(error);process.exitCode=1;});
