@@ -1,7 +1,7 @@
 {
-  "version": "1.38.57",
-  "fingerprint": "13857-mobile-login-google-priority-fix",
+  "version": "1.38.58",
+  "fingerprint": "13858-mobile-app-shell-ui-polish-final",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Bug fix + UX: sửa lỗi không cuộn xuống được nút Đăng nhập Google trên mobile/PWA (nguyên nhân: card đăng nhập ở màn ≤480px bị align-items:stretch kết hợp overflow:hidden làm kẹp chiều cao, cắt phần nội dung vượt màn hình thay vì cho cuộn) — đổi lại align-items:flex-start như breakpoint ≤860px đang dùng an toàn; thêm overscroll-behavior:contain + -webkit-overflow-scrolling:touch để tránh cuộn kép/leak ra nền. Sắp xếp lại thứ tự hiển thị mobile bằng CSS order (không đổi DOM/logic): Google hiện ngay đầu màn hình, sau đó Hoặc/Email/Mật khẩu/Đăng nhập nội bộ/Version. Không đổi auth, Google OAuth, session, router, API.",
-  "build": "13857-mobile-login-google-priority-fix"
+  "notes": "UI polish (final) cho Mobile App Shell: chỉ chỉnh hierarchy/spacing/typography, không đổi layout/nghiệp vụ/router/auth/session/API. Login mobile: Google là CTA chính (khoảng cách quanh nút Google/divider/form theo đúng thang 16-24px yêu cầu, thẻ Google gọn hơn ~15-20% chiều cao, ẩn dòng ghi chú phụ để Đăng nhập→Version còn 24px). Home mobile: thêm khoảng cách tên bước→mô tả (chống dính chữ), icon→nội dung, khoảng cách giữa card và nhóm bước→module đầu, tăng padding card theo đúng thang 18-20px. Version hiển thị cho người dùng đổi thành nhãn tĩnh 'Version 1.0' (build-info.json vẫn giữ nguyên version kỹ thuật). Không đổi Business Logic/Checklist/Router/Auth/Session/API/Google OAuth/Permission/Desktop.",
+  "build": "13858-mobile-app-shell-ui-polish-final"
 }

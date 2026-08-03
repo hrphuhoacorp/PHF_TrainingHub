@@ -2283,7 +2283,7 @@ window.phfBuildReady.then(function(){
   document.head.appendChild(link);
 });
 </script>
-  <link rel="stylesheet" href="assets/css/phf-hr-home.css?v=1.7.20_mobile_shell_safe_area">
+  <link rel="stylesheet" href="assets/css/phf-hr-home.css?v=1.7.21_ui_polish_spacing">
   <link rel="stylesheet" href="assets/css/phf-knl.css?v=1.7.15_placeholder">
 
 <!-- PHF BẢN 40.1: chặn lóe màn cũ trước khi router khôi phục route F5 -->
@@ -3683,15 +3683,21 @@ function render(){
   @media(max-width:860px){.phf-test-login-overlay{align-items:flex-start!important;padding:18px 12px!important}.phf-test-login-card{width:min(620px,calc(100vw - 24px))!important;grid-template-columns:1fr!important;border-radius:22px!important}.phf-test-login-brand{padding:28px 24px!important;border-right:0!important;border-bottom:1px solid #dcebe3!important;gap:18px!important}.phf-test-login-form{padding:28px 24px!important}.phf-login-title{font-size:30px!important}.phf-login-subtitle{font-size:15px!important}.phf-login-points{display:none!important}.phf-login-version{display:block!important}
     /* Ưu tiên đăng nhập Google trên mobile/standalone: chỉ đổi thứ tự hiển thị
        (flex order), không đổi DOM/logic — Google hiện ngay trong màn hình đầu. */
-    #phfGoogleLoginWrap{order:1!important}
+    #phfGoogleLoginWrap{order:1!important;margin:0 0 22px!important}
     .phf-login-divider{order:2!important}
     .phf-login-form-title,.phf-login-form-sub{order:3!important;margin-top:22px!important}
-    .phf-test-login-field-email{order:4!important}
+    .phf-test-login-field-email{order:4!important;margin-bottom:16px!important}
     .phf-test-login-field-pass{order:5!important}
-    .phf-test-login-error{order:6!important}
-    .phf-test-login-actions{order:7!important}
-    .phf-login-note{order:8!important}
-    .phf-login-version{order:9!important}
+    .phf-test-login-error{order:6!important;min-height:0!important;margin:0 0 8px!important}
+    .phf-test-login-actions{order:7!important;margin-bottom:12px!important}
+    .phf-login-note{order:8!important;display:none!important}
+    .phf-login-version{order:9!important;margin-top:12px!important}
+    .phf-login-subtitle{margin-top:18px!important}
+    /* Google là CTA chính trên mobile: thẻ gọn hơn (giảm padding/khoảng cách nội bộ) */
+    .phf-google-login-wrap{padding:10px!important;gap:6px!important}
+    .phf-google-login-heading{gap:2px!important}
+    .phf-google-login-heading span{font-size:11.5px!important;line-height:1.35!important}
+    .phf-google-login-status{min-height:14px!important;font-size:12px!important}
   }
   @media(max-width:480px){.phf-test-login-overlay{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;align-items:flex-start!important;background:#0b4b39!important;backdrop-filter:none!important}.phf-test-login-card{width:100%!important;min-height:100%!important;border-radius:20px!important;box-shadow:none!important}.phf-login-logo-line{align-items:flex-start!important;flex-direction:column!important}.phf-login-logo-box{width:170px!important;min-height:50px!important}.phf-login-title{font-size:26px!important}.phf-test-login-actions{flex-direction:column!important;align-items:stretch!important}.phf-test-login-actions button{width:100%!important}.phf-test-login-actions button.primary{min-width:0!important}}
   @media(max-height:760px) and (min-width:861px){.phf-test-login-overlay{align-items:flex-start!important}.phf-test-login-brand,.phf-test-login-form{padding-top:30px!important;padding-bottom:30px!important}.phf-login-title{font-size:32px!important}.phf-login-points{display:none!important}}

@@ -599,8 +599,10 @@
 
     document.body.appendChild(root);
     try{
+      /* Hiển thị cho người dùng cuối chỉ là nhãn tiếp thị cố định, không phải
+         version kỹ thuật thật (build-info.json vẫn giữ nguyên version thật). */
       var versionEl = root.querySelector('#phfLoginVersion');
-      if(versionEl && window.PHF_BUILD_VERSION) versionEl.textContent = 'PHF HR · v' + window.PHF_BUILD_VERSION;
+      if(versionEl) versionEl.textContent = 'Version 1.0';
     }catch(e){}
     var email = root.querySelector('#phfTestEmail');
     var pass = root.querySelector('#phfTestPass');
