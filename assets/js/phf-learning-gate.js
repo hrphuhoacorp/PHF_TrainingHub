@@ -118,6 +118,9 @@
   /* PHF Bản 1.1.0 - Bài chung PHF + chuyên môn theo phòng ban.
      Phòng ban chỉ đọc từ hồ sơ nhân sự thật (window.__phfLocalData.employees),
      không đọc profile tự khai — đúng nghiệp vụ đã chốt. */
+  function trainingHrDataLoaded(){
+    try{ return Array.isArray(window.__phfLocalData && window.__phfLocalData.employees); }catch(e){ return false; }
+  }
   function learnerHrEmployeeRow(){
     try{
       var p = getProfile();
@@ -140,6 +143,14 @@
   }
   function departmentLessonBoundary(lessons){
     if(isAdminSimulation()) return lessons.length - 1;
+    /* Hồ sơ nhân sự (window.__phfLocalData.employees) chưa tải xong (F5/mở link
+       trực tiếp, hoặc luồng đăng nhập bằng SĐT chỉ chờ 180ms) thì KHÔNG được
+       giới hạn nhầm - trả về không giới hạn ở bước này, các gate quiz/tiến độ
+       khác vẫn áp dụng bình thường. Hàm này không cache: lần gọi kế tiếp (mọi
+       thao tác điều hướng/resume sau đó) sẽ tự đọc lại dữ liệu mới nhất ngay
+       khi __phfLocalData sẵn sàng, nên tự cập nhật đúng phòng ban mà không cần
+       thêm cơ chế theo dõi riêng. */
+    if(!trainingHrDataLoaded()) return lessons.length - 1;
     var dept = learnerHrDepartment();
     for(var i = lessons.length - 1; i >= 0; i--){
       if(lessonAllowedForDepartment(lessons[i], dept)) return i;

@@ -171,11 +171,49 @@ function boundaryFor(department) {
   ok('PASS 2b - Marketing/HCNS/Kế toán/Thu mua/CSKH Online: đều chỉ thấy 43 bài chung (chưa có chuyên môn riêng)');
 })();
 
-// PASS 2c: phong ban rong/chua xac dinh (vd chua duoc HR gan) khong duoc loi mo Sales.
+// PASS 2c: phong ban rong/chua xac dinh (du lieu HR DA tai, nhung dong nhan
+// vien khong co department) khong duoc loi mo Sales - fail-closed.
 (function pass2c() {
   const r = boundaryFor('');
-  assert.strictEqual(r.boundary, 42, 'Phòng ban rỗng/không xác định phải fail-closed về 43 bài chung, không được lộ bài Bán hàng');
-  ok('PASS 2c - Phòng ban rỗng/chưa gán trong hồ sơ nhân sự: fail-closed về 43 bài chung (an toàn, không lộ nội dung Bán hàng)');
+  assert.strictEqual(r.boundary, 42, 'Phòng ban rỗng/không xác định (dữ liệu đã tải) phải fail-closed về 43 bài chung, không được lộ bài Bán hàng');
+  ok('PASS 2c - Phòng ban rỗng/chưa gán trong hồ sơ nhân sự (dữ liệu đã tải): fail-closed về 43 bài chung (an toàn, không lộ nội dung Bán hàng)');
+})();
+
+// PASS 2d: F5/mo link truc tiep khi window.__phfLocalData.employees CHUA tai
+// xong (vd luong dang nhap SDT chi cho 180ms) - khong duoc chan nham nhan
+// vien Ban hang that; ranh gioi phai tu cap nhat dung ngay khi co du lieu.
+(function pass2d() {
+  const sandbox = buildSandbox();
+  const w = sandbox.window;
+  w.phfCurrentEmployeeProfile = () => ({ id: 'E-RACE' });
+  w.phfUserRole = () => 'learner';
+  const gate = w.phfB16LearningGate;
+
+  // 1) Chua co __phfLocalData (dung ngay dau F5, truoc khi fetch /api/data xong).
+  w.__phfLocalData = undefined;
+  assert.strictEqual(
+    gate.departmentLessonBoundary(w.PHF_LESSONS),
+    119,
+    'Khi window.__phfLocalData chưa tồn tại (đang tải), KHÔNG được giới hạn ở tầng phòng ban - tránh chặn nhầm nhân viên Bán hàng khi F5'
+  );
+
+  // 2) __phfLocalData ton tai nhung .employees chua phai mang (dang tai dang do).
+  w.__phfLocalData = { employees: null };
+  assert.strictEqual(
+    gate.departmentLessonBoundary(w.PHF_LESSONS),
+    119,
+    'Khi __phfLocalData.employees chưa phải mảng (đang tải), KHÔNG được giới hạn ở tầng phòng ban'
+  );
+
+  // 3) Du lieu vua tai xong, xac nhan la nhan vien Kho -> tu cap nhat dung,
+  //    khong con dung gia tri "mo toan bo" cua buoc truoc.
+  w.__phfLocalData = { employees: [{ id: 'E-RACE', department: 'Kho' }] };
+  assert.strictEqual(
+    gate.departmentLessonBoundary(w.PHF_LESSONS),
+    42,
+    'Ngay khi __phfLocalData.employees sẵn sàng, ranh giới phải tự cập nhật lại đúng theo phòng ban thật (không bị kẹt ở giá trị mở tạm thời)'
+  );
+  ok('PASS 2d - F5/mở link trực tiếp khi dữ liệu HR chưa tải: không chặn nhầm Bán hàng, tự cập nhật đúng ngay khi __phfLocalData.employees sẵn sàng');
 })();
 
 // ---------------------------------------------------------------------------
