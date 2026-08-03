@@ -756,7 +756,11 @@
                 type:'standard',
                 theme:'outline',
                 size:'large',
-                text:'continue_with',
+                /* 'signin_with' giữ nhãn cố định ("Đăng nhập bằng Google"), không
+                   để Google tự giãn ra "Tiếp tục với tên + email" (continue_with)
+                   vốn gây chèn nội dung trên mobile khi tên/email dài. Không đổi
+                   OAuth/logic nhận diện tài khoản - chỉ đổi tham số hiển thị nhãn. */
+                text:'signin_with',
                 shape:'rectangular',
                 logo_alignment:'left',
                 width:googleWidth

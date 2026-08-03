@@ -1,7 +1,7 @@
 {
-  "version": "1.38.59",
-  "fingerprint": "13859-mobile-app-shell-final-polish-v2",
+  "version": "1.38.60",
+  "fingerprint": "13860-google-button-label-fix",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Final polish vòng 2 cho Mobile App Shell (Login + Home), chỉ UI/UX, không đổi nghiệp vụ/Checklist/Router/Auth/Session/API/Google OAuth/Desktop. Login mobile: form Email/Mật khẩu thu gọn thành nút phụ 'Đăng nhập bằng tài khoản nội bộ', chỉ mở khi bấm (Google vẫn là CTA chính, không còn bị kẹp giữa hai khối); thêm 'Ghi nhớ tài khoản' (chỉ lưu email vào localStorage, không lưu mật khẩu, không đổi auth/session). Home mobile: tăng khoảng cách ngang icon-vòng tròn -> nội dung ở 4 bước lên 28px (đúng yêu cầu 24-32px, nguyên nhân chữ dính vào icon), tăng khoảng cách giữa các step card, tăng nhịp mô tả->nhóm 4 bước và nhóm 4 bước->module đầu, chỉnh line-height/letter-spacing tiêu đề cho dễ đọc hơn trên mobile. Giữ nguyên icon/kích thước card/bố cục, giữ nguyên Desktop.",
-  "build": "13859-mobile-app-shell-final-polish-v2"
+  "notes": "Sửa duy nhất khu vực Google returning-user trên màn Login: nút Google renderButton() đổi tham số hiển thị text:'continue_with' -> 'signin_with'. Lý do: nội dung 'Tiếp tục bằng tên + email' do chính Google render bên trong iframe cross-origin (không đọc/restyle được từ trang của mình), trên mobile tên/email dài làm mũi tên + logo Google bị chèn sát. 'signin_with' giữ nhãn cố định 'Đăng nhập bằng Google', không bao giờ giãn theo tên/email -> hết chèn ở mọi độ dài tên/email và mọi chiều rộng màn hình. Không đổi Auth/Google OAuth/Session/logic nhận diện tài khoản, không đổi phần UI nào khác của Login.",
+  "build": "13860-google-button-label-fix"
 }
