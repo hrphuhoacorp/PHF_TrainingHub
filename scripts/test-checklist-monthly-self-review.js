@@ -61,8 +61,10 @@ const store = {
     { id: 'f-outscope', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV005', employee_id: 'id-nv005', employee_name: 'Nhân Viên 5', reviewer_id: 'OTHER-ID', reviewer_code: 'OTHER', reviewer_name: 'Người Khác', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO }
   ],
   checklist_monthly_periods: [
-    { id: 'p1', period_month: PERIOD, status: 'open' }
+    { id: 'p1', period_month: PERIOD, status: 'open' },
+    { id: 'p-expired', period_month: PERIOD, status: 'open', self_due_at: '2020-01-01T00:00:00.000Z' }
   ],
+  checklist_monthly_form_history: [],
   checklist_violation_records: [],
   checklist_system_settings: [],
   // Ghi đè cửa sổ chu kỳ rộng hết tháng để test không phụ thuộc ngày chạy thật.
@@ -75,8 +77,10 @@ const formsBefore = clone(store.checklist_monthly_forms);
 
 // ---------- 2. Fake Supabase query builder ----------
 class FakeQuery {
-  constructor(table) { this.table = table; this.filters = []; this._limit = null; this._single = null; }
+  constructor(table) { this.table = table; this.filters = []; this._limit = null; this._single = null; this._operation = 'read'; this._payload = null; }
   select() { return this; }
+  update(payload) { this._operation = 'update'; this._payload = clone(payload); return this; }
+  insert(payload) { this._operation = 'insert'; this._payload = clone(payload); return this; }
   eq(col, val) { this.filters.push(row => String(row[col]) === String(val)); return this; }
   neq(col, val) { this.filters.push(row => String(row[col]) !== String(val)); return this; }
   in(col, vals) { this.filters.push(row => vals.includes(row[col])); return this; }
@@ -94,6 +98,18 @@ class FakeQuery {
     return rows;
   }
   then(resolve, reject) {
+    if (this._operation === 'insert') {
+      const inserted = (Array.isArray(this._payload) ? this._payload : [this._payload]).map(row => clone(row));
+      store[this.table] = store[this.table] || [];
+      store[this.table].push(...inserted);
+      return Promise.resolve({ data: inserted, error: null }).then(resolve, reject);
+    }
+    if (this._operation === 'update') {
+      const source = store[this.table] || [], updated = [];
+      source.forEach(row => { if (this.filters.every(f => f(row))) { Object.assign(row, clone(this._payload)); updated.push(clone(row)); } });
+      const data = this._single ? (updated[0] || null) : updated;
+      return Promise.resolve({ data, error: null }).then(resolve, reject);
+    }
     const rows = this._rows();
     if (this._single === 'maybe') return Promise.resolve({ data: rows[0] || null, error: null }).then(resolve, reject);
     if (this._single === 'strict') return Promise.resolve(rows.length ? { data: rows[0], error: null } : { data: null, error: { message: 'No rows found' } }).then(resolve, reject);
@@ -166,10 +182,36 @@ async function main() {
   console.log('Kỳ dùng để test: ' + PERIOD + ' (tính động theo ngày chạy, cửa sổ chu kỳ đã ghi đè rộng hết tháng)\n');
 
   await record('1) Phiếu waiting_self: lưu + nộp tự đánh giá hợp lệ -> chuyển waiting_review', async () => {
+    const draft = await monthlyLib.saveMyMonthly(LEARNER_SESSION, { formId: 'f-self', expectedUpdatedAt: formById('f-self').updated_at, answers: { 'MAN-C1': { value: '7' } }, submit: false });
+    assert.strictEqual(draft.form.status, 'waiting_self');
+    assert.strictEqual(draft.form.self_answers['MAN-C1'].value, '7');
     const res = await monthlyLib.saveMyMonthly(LEARNER_SESSION, { formId: 'f-self', expectedUpdatedAt: formById('f-self').updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: true });
     assert.strictEqual(res.saved, true);
     assert.strictEqual(res.submitted, true);
     assert.strictEqual(formById('f-self').status, 'waiting_review');
+    assert.strictEqual(store.checklist_monthly_form_history.slice(-1)[0].action, 'submit_self_review');
+  });
+
+  await record('1b) Phiếu waiting_review còn hạn: nhân viên sửa, lưu và gửi lại được', async () => {
+    const session = { role: 'learner', employeeCode: 'NV002', employeeId: 'id-nv002', account: { id: 'id-nv002', name: 'Nhân Viên 2' }, sub: 'id-nv002' };
+    const beforeSubmittedAt = formById('f-review').self_submitted_at;
+    const saved = await monthlyLib.saveMyMonthly(session, { formId: 'f-review', expectedUpdatedAt: formById('f-review').updated_at, answers: { 'MAN-C1': { value: '7' } }, submit: false });
+    assert.strictEqual(saved.form.status, 'waiting_review');
+    assert.strictEqual(saved.form.self_answers['MAN-C1'].value, '7');
+    assert.notStrictEqual(saved.form.self_submitted_at, beforeSubmittedAt);
+    assert.strictEqual(store.checklist_monthly_form_history.slice(-1)[0].action, 'update_self_review');
+    const resent = await monthlyLib.saveMyMonthly(session, { formId: 'f-review', expectedUpdatedAt: formById('f-review').updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: true });
+    assert.strictEqual(resent.form.status, 'waiting_review');
+    assert.strictEqual(resent.form.self_answers['MAN-C1'].value, '8');
+    assert.strictEqual(store.checklist_monthly_form_history.slice(-1)[0].action, 'resubmit_self_review');
+  });
+
+  await record('1c) waiting_self và waiting_review quá self_due_at: backend chặn mọi lưu/gửi', async () => {
+    const expiredSelf = { id: 'f-expired-self', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV009', employee_id: 'id-nv009', employee_name: 'NV 9', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, updated_at: NOW_ISO };
+    const expiredReview = { id: 'f-expired-review', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV010', employee_id: 'id-nv010', employee_name: 'NV 10', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(expiredSelf, expiredReview);
+    await expectFail(monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV009', employeeId: 'id-nv009' }, { formId: expiredSelf.id, expectedUpdatedAt: expiredSelf.updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: false }), 'CHECKLIST_MONTHLY_SELF_WINDOW_CLOSED');
+    await expectFail(monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV010', employeeId: 'id-nv010' }, { formId: expiredReview.id, expectedUpdatedAt: expiredReview.updated_at, answers: { 'MAN-C1': { value: '9' } }, submit: true }), 'CHECKLIST_MONTHLY_SELF_WINDOW_CLOSED');
   });
 
   await record('2) Actual vượt Target -> bị backend chặn CHECKLIST_MONTHLY_SELF_OVER_TARGET', async () => {
@@ -187,6 +229,22 @@ async function main() {
     const call = rpcCalls.filter(c => c.name === 'phf_save_checklist_monthly_self').pop();
     assert.ok(!Object.prototype.hasOwnProperty.call(call.params.p_patch.self_answers, 'AUTO-C1'), 'Không được cho phép nhân viên tự ghi điểm tiêu chí Checklist tự động.');
     assert.ok(Object.prototype.hasOwnProperty.call(call.params.p_patch.self_answers, 'MAN-C1'), 'Tiêu chí nhập tay hợp lệ vẫn phải được lưu.');
+  });
+
+  await record('3b) Checklist realtime refresh self_total_score cho waiting_self và waiting_review', async () => {
+    const liveSelf = { id: 'f-live-self', period_id: 'p1', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV011', employee_id: 'id-nv011', employee_name: 'NV 11', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '10' } }, review_answers: {}, updated_at: NOW_ISO };
+    const liveReview = { id: 'f-live-review', period_id: 'p1', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV012', employee_id: 'id-nv012', employee_name: 'NV 12', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '10' } }, review_answers: {}, self_submitted_at: NOW_ISO, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(liveSelf, liveReview);
+    store.checklist_violation_records.push(
+      { id: 'v-live-self', employee_code: 'NV011', is_test: false, record_status: 'official', points: 10, occurred_date: PERIOD + '-15' },
+      { id: 'v-live-review', employee_code: 'NV012', is_test: false, record_status: 'official', points: 10, occurred_date: PERIOD + '-15' }
+    );
+    const selfRead = await monthlyLib.myMonthlyForm({ role: 'learner', employeeCode: 'NV011', employeeId: 'id-nv011' }, { month: PERIOD });
+    const reviewRead = await monthlyLib.myMonthlyForm({ role: 'learner', employeeCode: 'NV012', employeeId: 'id-nv012' }, { month: PERIOD });
+    assert.strictEqual(selfRead.form.checklist_score, 90);
+    assert.strictEqual(selfRead.form.self_total_score, 95);
+    assert.strictEqual(reviewRead.form.checklist_score, 90);
+    assert.strictEqual(reviewRead.form.self_total_score, 95);
   });
 
   await record('4) Phiếu waiting_review: người thẩm định hợp lệ lưu được, chuyển đúng trạng thái', async () => {
