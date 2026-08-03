@@ -1,7 +1,7 @@
 {
-  "version": "1.38.53",
-  "fingerprint": "13853-marketing-kpi-state-based-editing",
-  "builtAt": "2026-08-02T22:45:00+07:00",
-  "notes": "Riêng KPI tháng TBP Marketing và Media Marketing: bỏ giới hạn ngày 1-3; TBP Marketing, Trợ lý GĐ và Admin được sửa bất kỳ lúc nào khi chưa phát sinh dữ liệu tự đánh giá. Tự khóa ngay khi có dữ liệu tự đánh giá. Không ảnh hưởng mẫu khác, chu kỳ chung, RPC, DB hoặc snapshot.",
-  "build": "13853-marketing-kpi-state-based-editing"
+  "version": "1.38.55",
+  "fingerprint": "13855-pilot-readiness-batch",
+  "builtAt": "2026-08-03T10:06:00+07:00",
+  "notes": "Pilot Readiness batch: sửa reconcileMissingMonthlyReviewers đồng bộ người thẩm định khi đổi quản lý trực tiếp; ẩn nút dọn cả đợt TEST vi phạm (chưa có action tương ứng); bổ sung regression tự đánh giá/thẩm định tháng; ghi runbook đồng bộ kỳ tháng thủ công (cron chưa gắn trên Vercel) và runbook backup/restore Supabase. Không đổi Business Logic/Permission/Workflow đã chốt, không đổi RPC/DB.",
+  "build": "13855-pilot-readiness-batch"
 }
