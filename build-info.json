@@ -1,7 +1,7 @@
 {
-  "version": "1.38.63",
-  "fingerprint": "13863-mobile-slide-menu",
+  "version": "1.38.64",
+  "fingerprint": "13864-mobile-action-card",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Bước 2 Commit 3: thêm Slide Menu (drawer riêng, độc lập với drawer Hub topbar sẵn có ở phf-hub-mobile-shell.js - không tạo controller thứ ba giẫm chân), mở từ nút Menu của Bottom Nav; đóng khi đổi route/Escape/bấm backdrop. Menu render theo đúng capability thật (Ghi nhận lỗi/Thẩm định/Báo cáo chỉ hiện khi canX tương ứng true), ẩn hẳn từ UI chứ không hiện rồi chặn khi bấm. Thêm popup tài khoản gọn cho nút Cá nhân (độc lập với .phf-hr-account-menu chỉ tồn tại khi render Home) để hoạt động nhất quán trên mọi route. Quyết định thiết kế: gộp 'Mobile Header dùng chung' vào nút Menu của Bottom Nav thay vì thêm 1 thanh header cố định riêng, để tránh chồng với header sẵn có của Home/Hub (báo cáo cuối sẽ nêu rõ). Không thêm mục Phân quyền Checklist trong đợt này vì endpoint getChecklistRoleWorkspace hiện không trả cờ xác nhận web-operator riêng - không suy diễn từ presetCode để tránh sai. Không đổi router/auth/session.",
-  "build": "13863-mobile-slide-menu"
+  "notes": "Bước 2 Commit 4: thêm Action Card 'GHI NHẬN LỖI' nổi bật ở đầu Home, chỉ hiện khi canRecordViolation===true và recordScope.type!=='none' (đọc đúng recordScope, không dùng viewScope/reviewScope thay thế). Nhãn phạm vi lấy từ scopeLabel(recordScope) - Ban Giám sát dùng chung preset TRO_LY_GD nên tự động ra 'Toàn công ty' không cần code riêng. Vùng bấm lớn, full-width, một tay thao tác được. Không đổi backend/permission.",
+  "build": "13864-mobile-action-card"
 }
