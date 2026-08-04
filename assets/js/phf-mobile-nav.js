@@ -80,6 +80,100 @@ function onNavClick(ev){
   }
 }
 
+/* Slide Menu — mở rộng đúng pattern của phf-hub-mobile-shell.js (drawer +
+   backdrop + Escape + đóng khi đổi route) nhưng là controller RIÊNG, độc lập
+   với drawer của Hub topbar (không đụng .phf-mobile-open/.phf-main-nav của
+   Hub) để không có 2 bộ điều khiển giẫm chân nhau. Menu render theo đúng
+   capability thật (lastCaps, cùng dữ liệu đã cache) - không hiện mục nào
+   không có quyền rồi mới chặn khi bấm, ẩn hẳn ngay từ UI. */
+function menuItemsFor(caps,r){
+  var p=prefixFor(r),isAdminRoute=r==='admin';
+  var violationsRoute=isAdminRoute?'/admin/checklist/ghi-nhan-loi':'/ql/checklist?section=violations';
+  var reviewRoute=isAdminRoute?'/admin/checklist/phieu-danh-gia-thang':'/ql/checklist?section=reviews';
+  var reportRoute=isAdminRoute?'/admin/checklist/bao-cao':'/ql/checklist/bao-cao';
+  var items=[{label:'Trang chủ',route:p+'/home',icon:'⌂'}];
+  if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
+  if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
+  if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
+  items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
+  items.push({label:'Training Hub',route:p,icon:'▦'});
+  items.push({label:'Classroom',route:p+'/classroom',icon:'▤'});
+  items.push({label:'Khung năng lực',route:p+'/knl',icon:'◆'});
+  return items;
+}
+var drawerRoot=null;
+function ensureDrawer(){
+  if(drawerRoot)return drawerRoot;
+  drawerRoot=document.createElement('div');
+  drawerRoot.id='phfMobileSlideMenu';
+  drawerRoot.className='phf-mnav-drawer';
+  drawerRoot.hidden=true;
+  drawerRoot.innerHTML=
+    '<div class="phf-mnav-drawer-backdrop" data-phf-mnav-close></div>'+
+    '<nav class="phf-mnav-drawer-panel" role="dialog" aria-modal="true" aria-label="Menu điều hướng">'+
+      '<div class="phf-mnav-drawer-head"><span class="phf-mnav-drawer-avatar"></span><div class="phf-mnav-drawer-who"><strong></strong><small></small></div><button type="button" class="phf-mnav-drawer-close" data-phf-mnav-close aria-label="Đóng menu">✕</button></div>'+
+      '<div class="phf-mnav-drawer-items"></div>'+
+    '</nav>';
+  document.body.appendChild(drawerRoot);
+  drawerRoot.addEventListener('click',function(ev){
+    if(ev.target.closest('[data-phf-mnav-close]')){closeDrawer();return;}
+    var item=ev.target.closest('[data-phf-mnav-item]');
+    if(item){var r=item.getAttribute('data-phf-mnav-item');closeDrawer();if(r)go(r);}
+  });
+  return drawerRoot;
+}
+function renderDrawerContent(){
+  var el=ensureDrawer(),r=sessionRole();
+  el.querySelector('.phf-mnav-drawer-avatar').textContent=initials();
+  el.querySelector('.phf-mnav-drawer-who strong').textContent=userName();
+  el.querySelector('.phf-mnav-drawer-who small').textContent=roleLabel(r);
+  el.querySelector('.phf-mnav-drawer-items').innerHTML=menuItemsFor(lastCaps,r).map(function(it){
+    return '<button type="button" class="phf-mnav-drawer-item" data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
+  }).join('');
+}
+function openDrawer(){
+  renderDrawerContent();
+  var el=ensureDrawer();
+  el.hidden=false;
+  requestAnimationFrame(function(){el.classList.add('is-open');});
+  document.body.classList.add('phf-mnav-drawer-locked');
+}
+function closeDrawer(){
+  if(!drawerRoot||drawerRoot.hidden)return;
+  drawerRoot.classList.remove('is-open');
+  document.body.classList.remove('phf-mnav-drawer-locked');
+  setTimeout(function(){if(drawerRoot)drawerRoot.hidden=true;},220);
+}
+window.phfOpenMobileSlideMenu=openDrawer;
+
+/* Popup tài khoản gọn cho nút "Cá nhân" — độc lập với .phf-hr-account-menu
+   của Home (menu đó chỉ tồn tại khi đang render Home), để nút Cá nhân hoạt
+   động nhất quán trên mọi route (Hub/Classroom/Checklist/KNL). */
+var accountPop=null;
+function ensureAccountPop(){
+  if(accountPop)return accountPop;
+  accountPop=document.createElement('div');
+  accountPop.id='phfMobileAccountPop';
+  accountPop.className='phf-mnav-account-pop';
+  accountPop.hidden=true;
+  accountPop.innerHTML='<div class="phf-mnav-account-pop-head"><strong></strong><small></small></div><button type="button" class="is-danger" data-phf-mnav-logout>Đăng xuất</button>';
+  document.body.appendChild(accountPop);
+  accountPop.addEventListener('click',function(ev){
+    if(ev.target.closest('[data-phf-mnav-logout]')){accountPop.hidden=true;logout();}
+  });
+  document.addEventListener('click',function(ev){
+    if(accountPop&&!accountPop.hidden&&!ev.target.closest('#phfMobileAccountPop')&&!ev.target.closest('[data-phf-mnav="account"]'))accountPop.hidden=true;
+  });
+  return accountPop;
+}
+window.phfToggleMobileAccountMenu=function(){
+  var el=ensureAccountPop();
+  if(!el.hidden){el.hidden=true;return;}
+  el.querySelector('strong').textContent=userName();
+  el.querySelector('small').textContent=roleLabel(sessionRole());
+  el.hidden=false;
+};
+
 function refreshCapabilities(){
   if(typeof window.phfEnsureChecklistWorkspace!=='function')return;
   capsRequested=true;
@@ -95,18 +189,21 @@ function onAuthChanged(){
   if(sessionRole())refreshCapabilities();
 }
 
+function onRouteOrAuthMutation(){closeDrawer();render();}
 function boot(){
   ensureRoot();
   render();
   if(sessionRole()&&!capsRequested)refreshCapabilities();
   /* Body class thay đổi ở mọi lượt render route (PHFAppShell/các module gán
      trực tiếp) — theo dõi bằng MutationObserver thay vì sửa router, để cập
-     nhật hiện/ẩn + trạng thái active mà không đụng logic điều hướng. */
+     nhật hiện/ẩn + trạng thái active mà không đụng logic điều hướng. Đóng
+     Slide Menu mỗi khi route đổi (cùng observer). */
   if(window.MutationObserver){
-    new MutationObserver(render).observe(document.body,{attributes:true,attributeFilter:['class']});
+    new MutationObserver(onRouteOrAuthMutation).observe(document.body,{attributes:true,attributeFilter:['class']});
   }
-  window.addEventListener('popstate',render);
+  window.addEventListener('popstate',onRouteOrAuthMutation);
   window.addEventListener('phf-auth-changed',onAuthChanged);
+  document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeDrawer();});
 }
 
 window.phfRefreshMobileNav=render;
