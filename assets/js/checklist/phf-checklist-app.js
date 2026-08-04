@@ -263,9 +263,9 @@
     {id:'ke-toan-truong',name:'Kế toán trưởng',group:'Kế toán',hasChecklist:true,source:'Nguồn tham chiếu nội bộ: mẫu Thanh',note:'Mẫu quản lý riêng; các công việc dự án/kỳ được gắn tag Thay đổi theo kế hoạch tháng.'},
     {id:'tbp-thu-mua',name:'Trưởng bộ phận Thu mua',group:'Thu mua',hasChecklist:true,source:'THÁNG 7 Tiêu chuẩn PHF _ LINH.xlsx · sheet tổng điểm + checklist',note:'Một mẫu kết hợp: bảng tổng điểm 8 chỉ tiêu, tổng trọng số 100% và Checklist 12 công việc hằng ngày, tổng hệ số 16.'}
   ]);
-  var CHECKLIST_TEMPLATE_OPTIONS=Object.freeze(templateCatalog().map(function(x){return [x.id,x.name+(x.id==='nv-online'?' (chuẩn Quyên)':'')];}));
   var CUSTOM_TEMPLATE_STORAGE_KEY='phfChecklistCustomTemplatesV1';
   var checklistTemplateDbState={ready:false,rows:[],byId:{},hydratedSource:null,suppress:false,seeding:false,lastError:'',queues:{}};
+  var CHECKLIST_TEMPLATE_OPTIONS=Object.freeze(templateCatalog().map(function(x){return [x.id,x.name+(x.id==='nv-online'?' (chuẩn Quyên)':'')];}));
   function loadCustomTemplatesLocal(){try{var rows=JSON.parse(localStorage.getItem(CUSTOM_TEMPLATE_STORAGE_KEY)||'[]');return Array.isArray(rows)?rows:[];}catch(e){return [];}}
   function saveCustomTemplates(rows){try{localStorage.setItem(CUSTOM_TEMPLATE_STORAGE_KEY,JSON.stringify(rows||[]));return true;}catch(e){return false;}}
   function hydrateChecklistTemplatesFromDatabase(data){

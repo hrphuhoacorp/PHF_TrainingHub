@@ -1,7 +1,7 @@
 {
-  "version": "1.38.71",
-  "fingerprint": "13871-evidence-cssescape-hotfix",
-  "builtAt": "2026-08-04T19:05:00+07:00",
-  "notes": "HOTFIX: cssEscape was called at 3 sites in the evidence picker (phf-checklist-app.js) but was never defined anywhere in the project - a genuine ReferenceError inside root.__phfChecklistClickHandler, thrown whenever the quick-entry evidence toggle or the evidence widget refresh/error paths ran, aborting the click handler silently. Added a single small cssEscape(v) helper (CSS.escape wrapper with a minimal fallback) next to esc(); no other project file defines an equivalent helper (grepped for phfCssEscape/escapeSelector - none found). No UI/behavior change beyond fixing the crash.",
-  "build": "13871-evidence-cssescape-hotfix"
+  "version": "1.38.72",
+  "fingerprint": "13872-checklist-template-hydration-race-hotfix",
+  "builtAt": "2026-08-04T21:30:00+07:00",
+  "notes": "HOTFIX: on cold load of /admin/checklist or /ql/checklist, phf-checklist-app.js's top-level CHECKLIST_TEMPLATE_OPTIONS init eagerly called templateCatalog() -> ensureChecklistTemplatesHydrated() -> hydrateChecklistTemplatesFromDatabase(data) BEFORE the module-level var checklistTemplateDbState was initialized (var hoisting: name hoisted, assignment not yet run). If window.__phfLocalData was already populated at that instant (a race against the lazy route-module fetch in phf-url-router.js), this threw TypeError: Cannot read properties of undefined (reading 'hydratedSource'), aborting the whole IIFE before window.phfRenderChecklist could be assigned - so waitForRouteModule's poll in phf-url-router.js timed out with PHF_CHECKLIST_RENDERER_TIMEOUT, shown to the user as 'Chưa thể mở Checklist'. F5 usually avoided it only because the already-cached script executes before the fresh /api/data fetch resolves. Fix: moved the checklistTemplateDbState and CUSTOM_TEMPLATE_STORAGE_KEY declarations above the eager CHECKLIST_TEMPLATE_OPTIONS computation so the state object exists before any consumer can read it - a pure ordering fix, no timeout/optional-chaining/try-catch changes.",
+  "build": "13872-checklist-template-hydration-race-hotfix"
 }
