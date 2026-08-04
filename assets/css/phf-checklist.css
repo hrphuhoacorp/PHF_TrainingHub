@@ -4533,18 +4533,21 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-marketing-kpi-modal input:disabled,.phfck-marketing-kpi-modal textarea:disabled,.phfck-marketing-kpi-modal select:disabled{background:#f1f5f9;color:#64748b;cursor:not-allowed}
 @media(max-width:900px){.phfck-marketing-kpi-row{grid-template-columns:120px 1fr 1fr}.phfck-marketing-kpi-weight{grid-column:3}.phfck-marketing-kpi-context{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* Checklist mobile workspace mode (manager/learner) - thay cho .phfck-topbar
+/* Checklist mobile content header (manager/learner) - thay cho .phfck-topbar
    khi PHF HR App Shell (Bottom Nav + Slide Menu) đã đảm nhiệm back/user.
-   Sticky top để giữ đúng vị trí neo cho .phfck-notification-inbox (top:70px
-   ở @media(max-width:700px) phía trên đã giả định chuông nằm gần đỉnh màn
-   hình) mà không phải sửa lại CSS dropdown thông báo dùng chung.
+   Chiều cao khớp vị trí .phfck-notification-inbox (top:70px ở breakpoint
+   mobile) và không sticky để tránh thêm một lớp neo cuộn cho workspace.
    .phfck-icon-btn mặc định bị .phfck-topbar 760px ẩn thẳng (display:none,
    không scope theo ancestor) và tô màu trắng cho nền xanh đậm của topbar cũ -
    phải override riêng ở đây vì chuông giờ nằm trên nền trắng, ngoài topbar. */
-.phfck-mobile-bell-bar{display:none}
+.phfck-mobile-content-header{display:none}
 @media(max-width:760px){
-  .phfck-mobile-bell-bar{display:flex;justify-content:flex-end;align-items:center;position:sticky;top:0;z-index:20;padding:10px 14px;background:#fff;border-bottom:1px solid var(--phfck-line)}
-  .phfck-mobile-bell-bar .phfck-icon-btn{display:inline-flex!important;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--phfck-line);background:#fff;color:var(--phfck-green);box-shadow:none}
-  .phfck-mobile-bell-bar .phfck-icon-btn:hover{background:var(--phfck-green-soft)}
+  .phfck-mobile-content-header{display:flex;min-height:68px;box-sizing:border-box;align-items:center;justify-content:space-between;gap:14px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--phfck-line)}
+  .phfck-mobile-content-copy{min-width:0}
+  .phfck-mobile-content-copy small{display:block;margin-bottom:3px;color:#75877f;font-size:10px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-transform:uppercase}
+  .phfck-mobile-content-copy h1{margin:0;overflow:hidden;color:var(--phfck-green);font-size:20px;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
+  .phfck-mobile-content-actions{display:flex;align-items:center;flex:0 0 auto}
+  .phfck-mobile-content-header .phfck-icon-btn{display:inline-flex!important;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;border:1px solid var(--phfck-line);background:#fff;color:var(--phfck-green);box-shadow:none}
+  .phfck-mobile-content-header .phfck-icon-btn:hover{background:var(--phfck-green-soft)}
 }
 @media(max-width:640px){.phfck-marketing-kpi-toolbar,.phfck-marketing-kpi-row,.phfck-marketing-kpi-context{grid-template-columns:1fr}.phfck-marketing-kpi-weight{grid-column:auto}.phfck-marketing-kpi-total{align-items:flex-start;flex-direction:column}.phfck-marketing-kpi-modal{width:calc(100vw - 16px)}}

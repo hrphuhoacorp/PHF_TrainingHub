@@ -31,6 +31,11 @@
   var mobileWorkspaceMq=window.matchMedia?window.matchMedia('(max-width:760px)'):null;
   function isMobileWorkspace(){return !!(mobileWorkspaceMq&&mobileWorkspaceMq.matches);}
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
+  function mobileContentHeaderTitle(path){
+    if(routeRole(path)!=='manager')return 'Checklist của tôi';
+    return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền'}[managerSectionFromLocation(path)]||'Tổng quan';
+  }
+  function syncMobileContentHeader(root,path){var heading=root&&root.querySelector('[data-phfck-mobile-content-title]');if(heading)heading.textContent=mobileContentHeaderTitle(path);}
   function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';return r==='admin'?'Tổng quan PHF Checklist':(r==='manager'?'Tổng quan Checklist · Quản lý':'Checklist của tôi');}
   function subtitle(path){var r=routeRole(path);return r==='admin'?'Điều hành phân công, ghi nhận tuân thủ và đánh giá công việc trên một khu vực thống nhất.':(r==='manager'?'Theo dõi Checklist trong phạm vi được Admin phân công.':'Theo dõi điểm, lỗi và các việc cần xử lý của bạn.');}
   function currentTime24(){var d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
@@ -5090,6 +5095,7 @@
     var data=roleWorkspaceState.data||{},content=root&&root.querySelector('[data-phfck-manager-content]');
     if(!content||!data.grant)return false;
     var active=managerSectionFromLocation(path);
+    syncMobileContentHeader(root,path);
     root.querySelectorAll('[data-phfck-manager-section]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-manager-section')===active);});
     content.innerHTML=managerSectionContentHtml(path,data);
     if(active==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
@@ -5104,7 +5110,7 @@
        không dựng lại topbar ứng dụng riêng. Chuông thông báo Checklist là chức
        năng thật (badge + inbox), không phải chrome - giữ lại dạng icon nhỏ. */
     var header=isMobileWorkspace()
-      ?'<div class="phfck-mobile-bell-bar">'+checklistNotificationBellHtml()+'</div>'
+      ?'<header class="phfck-mobile-content-header"><div class="phfck-mobile-content-copy"><small>Checklist</small><h1 data-phfck-mobile-content-title>'+esc(mobileContentHeaderTitle(path))+'</h1></div><div class="phfck-mobile-content-actions">'+checklistNotificationBellHtml()+'</div></header>'
       :'<header class="phfck-topbar"><div class="phfck-top-left"><button class="phfck-back" type="button" data-phfck-hub>←</button></div><div class="phfck-brand-lockup"><div class="phfck-brand-logo"><span class="phfck-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span><strong>PHF Checklist</strong><span>Kiểm soát tuân thủ & đánh giá công việc</span></div></div><div class="phfck-top-actions">'+checklistNotificationBellHtml()+'<div class="phfck-user"><span>Xin chào,</span><strong>'+esc(name)+'</strong></div></div></header>';
     return '<section class="phfck-shell phfck-role-shell" data-checklist-role="'+esc(dashboardRole)+'">'+header+'<div data-phfck-role-workspace>'+roleWorkspaceContentHtml(path)+'</div></section>';
   }
