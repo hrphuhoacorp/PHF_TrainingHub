@@ -22,6 +22,14 @@
     ? '/admin/home'
     : (r==='manager' ? '/ql/home' : '/hv/home');
 }
+  /* Mobile workspace mode (manager/learner) - PHF HR App Shell (Bottom Nav +
+     Slide Menu) đã đảm nhiệm back/menu/account trên mobile, nên topbar +
+     sidebar riêng của Checklist (.phfck-topbar/.phfck-sidebar) không render
+     nữa ở breakpoint này, tránh 2 tầng điều hướng chồng nhau. Cùng breakpoint
+     760px đang dùng xuyên suốt phf-checklist.css. Desktop và Admin dashboard
+     không đổi. */
+  var mobileWorkspaceMq=window.matchMedia?window.matchMedia('(max-width:760px)'):null;
+  function isMobileWorkspace(){return !!(mobileWorkspaceMq&&mobileWorkspaceMq.matches);}
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
   function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';return r==='admin'?'Tổng quan PHF Checklist':(r==='manager'?'Tổng quan Checklist · Quản lý':'Checklist của tôi');}
   function subtitle(path){var r=routeRole(path);return r==='admin'?'Điều hành phân công, ghi nhận tuân thủ và đánh giá công việc trên một khu vực thống nhất.':(r==='manager'?'Theo dõi Checklist trong phạm vi được Admin phân công.':'Theo dõi điểm, lỗi và các việc cần xử lý của bạn.');}
@@ -5067,7 +5075,7 @@
     if(roleWorkspaceState.loading)return '<main class="phfck-role-main"><section class="phfck-role-loading phfck-role-loading-detailed" role="status" aria-live="polite"><span class="phfck-loading-spinner"></span><div><small>ĐANG ĐỒNG BỘ DỮ LIỆU THẬT</small><b>Đang kiểm tra quyền và phạm vi…</b><p>Hệ thống chưa hiển thị số liệu cho đến khi tải xong, tránh hiểu nhầm giá trị 0 là dữ liệu thật.</p><div class="phfck-role-loading-steps"><span>Quyền truy cập</span><span>Danh sách nhân sự</span><span>Phiếu cần thẩm định</span><span>Việc cần xử lý</span></div></div></section></main>';
     if(roleWorkspaceState.error)return '<main class="phfck-role-main"><section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở Checklist</b><p>'+esc(roleWorkspaceState.error)+'</p><button type="button" data-phfck-role-retry>Thử lại</button></div></section></main>';
     var data=roleWorkspaceState.data||{},hasManagementAccess=!!data.grant,people=Array.isArray(data.people)?data.people:[],reviewCount=people.filter(function(x){return x.canReview;}).length,myForm=roleWorkspaceState.monthlyForm;
-    if(hasManagementAccess&&routeRole(path)==='manager')return '<div class="phfck-manager-layout">'+managerSidebarHtml(data)+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'+managerSectionContentHtml(path,data)+'</main></div>';
+    if(hasManagementAccess&&routeRole(path)==='manager')return '<div class="phfck-manager-layout">'+(isMobileWorkspace()?'':managerSidebarHtml(data))+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'+managerSectionContentHtml(path,data)+'</main></div>';
     return '<main class="phfck-role-main"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
@@ -5092,7 +5100,13 @@
   }
   function genericDashboard(path,name){
     var dashboardRole=routeRole(path)==='learner'?'employee':routeRole(path);
-    return '<section class="phfck-shell phfck-role-shell" data-checklist-role="'+esc(dashboardRole)+'"><header class="phfck-topbar"><div class="phfck-top-left"><button class="phfck-back" type="button" data-phfck-hub>←</button></div><div class="phfck-brand-lockup"><div class="phfck-brand-logo"><span class="phfck-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span><strong>PHF Checklist</strong><span>Kiểm soát tuân thủ & đánh giá công việc</span></div></div><div class="phfck-top-actions">'+checklistNotificationBellHtml()+'<div class="phfck-user"><span>Xin chào,</span><strong>'+esc(name)+'</strong></div></div></header><div data-phfck-role-workspace>'+roleWorkspaceContentHtml(path)+'</div></section>';
+    /* Mobile: PHF HR App Shell (Bottom Nav + Slide Menu) đã có back/menu/account -
+       không dựng lại topbar ứng dụng riêng. Chuông thông báo Checklist là chức
+       năng thật (badge + inbox), không phải chrome - giữ lại dạng icon nhỏ. */
+    var header=isMobileWorkspace()
+      ?'<div class="phfck-mobile-bell-bar">'+checklistNotificationBellHtml()+'</div>'
+      :'<header class="phfck-topbar"><div class="phfck-top-left"><button class="phfck-back" type="button" data-phfck-hub>←</button></div><div class="phfck-brand-lockup"><div class="phfck-brand-logo"><span class="phfck-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span><strong>PHF Checklist</strong><span>Kiểm soát tuân thủ & đánh giá công việc</span></div></div><div class="phfck-top-actions">'+checklistNotificationBellHtml()+'<div class="phfck-user"><span>Xin chào,</span><strong>'+esc(name)+'</strong></div></div></header>';
+    return '<section class="phfck-shell phfck-role-shell" data-checklist-role="'+esc(dashboardRole)+'">'+header+'<div data-phfck-role-workspace>'+roleWorkspaceContentHtml(path)+'</div></section>';
   }
   function roleWorkspaceRequest(query,action,fallback,payload){
     return fetch('/api/data?'+query+'=1&t='+Date.now(),{
