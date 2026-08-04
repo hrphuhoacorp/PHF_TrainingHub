@@ -106,4 +106,40 @@ const html=read('index.html');
 const router=read('assets/js/phf-url-router.js');
 assert(html.includes('1.33.1_production_stability')&&router.includes('1.33.1_production_stability'),'Cache version Checklist chưa đồng bộ 1.33.1_production_stability.');
 
-console.log(`CHECK PASS: ${javascriptCount} JS files · API parity · SQL stability gates · no backup artifacts`);
+/* PHF Release Hardening Sprint 1: assets/js|css|data dùng
+   Cache-Control: public, max-age=31536000, immutable (Sprint 1 Commit 2).
+   Nếu sửa các asset này (hoặc runtime loader trong index.html tính URL
+   versioned) mà không bump build-info.json, trình duyệt sẽ giữ mãi bản cache
+   cũ dưới cùng URL -> version skew HTML mới/asset cũ (sự cố Production đã
+   xảy ra sau Sprint 2). Gate này chặn lại tình huống đó trước khi commit. */
+function gitOutput(args){
+  try{return cp.execFileSync('git',args,{cwd:root,encoding:'utf8'});}
+  catch(e){return '';}
+}
+function gitNameList(args){
+  return gitOutput(['diff','--name-only',...args]).split('\n').map(s=>s.trim()).filter(Boolean);
+}
+function releaseGateChangedFiles(){
+  const untracked=gitOutput(['ls-files','--others','--exclude-standard']).split('\n').map(s=>s.trim()).filter(Boolean);
+  let files=[...new Set([...gitNameList(['--cached']),...gitNameList([]),...untracked])];
+  if(!files.length)files=gitNameList(['HEAD~1','HEAD']);
+  return files;
+}
+function indexHtmlLoaderChanged(){
+  let diff=gitOutput(['diff','--cached','--','index.html'])+gitOutput(['diff','--','index.html']);
+  if(!diff.trim())diff=gitOutput(['diff','HEAD~1','HEAD','--','index.html']);
+  if(!diff.trim())return false;
+  const markers=['phf-runtime-loader','phf-build-bootstrap','phfAssetUrl'];
+  return diff.split('\n').some(line=>/^[+-]/.test(line)&&!/^(\+\+\+|---)/.test(line)&&markers.some(m=>line.includes(m)));
+}
+const RELEASE_ASSET_PATTERN=/^assets\/(?:js|css|data)\//;
+const releaseChangedFiles=releaseGateChangedFiles();
+const releaseAssetTouched=releaseChangedFiles.filter(f=>RELEASE_ASSET_PATTERN.test(f));
+const releaseLoaderTouched=releaseChangedFiles.includes('index.html')&&indexHtmlLoaderChanged();
+const releaseBuildInfoTouched=releaseChangedFiles.includes('build-info.json');
+if((releaseAssetTouched.length||releaseLoaderTouched)&&!releaseBuildInfoTouched){
+  const touched=releaseLoaderTouched?[...releaseAssetTouched,'index.html (runtime loader)']:releaseAssetTouched;
+  assert(false,`RELEASE GATE FAILED: đã sửa ${touched.join(', ')} nhưng build-info.json chưa bump version/fingerprint. Static assets dùng Cache-Control immutable 1 năm - phải đổi build-info.json để trình duyệt tải bản mới.`);
+}
+
+console.log(`CHECK PASS: ${javascriptCount} JS files · API parity · SQL stability gates · no backup artifacts · release fingerprint gate`);
