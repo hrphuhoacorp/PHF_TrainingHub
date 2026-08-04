@@ -1,7 +1,7 @@
 {
-  "version": "1.38.69",
-  "fingerprint": "13869-checklist-mobile-ui-polish",
-  "builtAt": "2026-08-04T16:35:00+07:00",
-  "notes": "Checklist UI polish: unify Checklist typography, remove duplicated mobile page titles, stack quick-entry filters on mobile, replace evidence toast with inline state, and stabilize Google login container width. No API, permission, router, SQL or persistence changes.",
-  "build": "13869-checklist-mobile-ui-polish"
+  "version": "1.38.70",
+  "fingerprint": "13870-checklist-evidence-upload",
+  "builtAt": "2026-08-04T18:20:00+07:00",
+  "notes": "Checklist evidence: real photo/PDF upload for violation records via Supabase Storage (phf-checklist-evidence bucket). Replaces the placeholder '+ Minh chung' button/toast in quick, multi-day and detail entry with real camera/library/desktop file pickers, preview, remove, retry and per-file upload status. Evidence is uploaded as an unlinked draft, then attached to the real violation via phf_attach_checklist_evidence after saveChecklistViolations persists it (server resolves violation id from requestId, never trusts a client-supplied id). has_evidence is now server-authoritative. SQL not yet applied to Production - see scripts/PHF_CHECKLIST_EVIDENCE_1.41.0.sql.",
+  "build": "13870-checklist-evidence-upload"
 }
