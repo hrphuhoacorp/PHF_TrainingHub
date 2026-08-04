@@ -15,7 +15,7 @@ const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, li
 const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
-const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence } = require('./lib/checklist-evidence');
+const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence, streamChecklistEvidenceDownload } = require('./lib/checklist-evidence');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('./lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('./lib/checklist-monthly');
@@ -717,6 +717,12 @@ const server = http.createServer(async (req, res) => {
 
     if (!['GET', 'HEAD'].includes(req.method || 'GET')) {
       return sendJson(res, 405, { ok: false, error: 'Phương thức không được hỗ trợ.', code: 'METHOD_NOT_ALLOWED' });
+    }
+
+    const evidenceMatch = pathname.match(/^\/evidence\/([^/]+)$/);
+    if (evidenceMatch) {
+      const session = await requireSession(req, ['learner', 'manager', 'admin']);
+      return streamChecklistEvidenceDownload(req, res, session, decodeURIComponent(evidenceMatch[1]));
     }
 
     let filePath = /^\/print\/commitments\/[^/]+$/.test(pathname)

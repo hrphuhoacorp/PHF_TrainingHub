@@ -5,6 +5,10 @@
       "destination": "/api/:path*"
     },
     {
+      "source": "/evidence/:id",
+      "destination": "/api/evidence/:id"
+    },
+    {
       "source": "/assets/:path*",
       "destination": "/assets/:path*"
     },
