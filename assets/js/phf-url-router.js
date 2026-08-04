@@ -21,6 +21,7 @@
   var pageShowInstalled = false;
   var routeGuardOwnerRunId = 0;
   var routeModuleLoads = Object.create(null);
+  var routeCssLoads = Object.create(null);
   var ROUTE_MODULES = {
     classroom:{
       src:'assets/js/classroom/phf-classroom-app.js?v=1.30.10_lazy_module',
@@ -29,10 +30,45 @@
     },
     checklist:{
       src:(typeof window.phfAssetUrl==='function'?window.phfAssetUrl('/assets/js/checklist/phf-checklist-app.js'):'/assets/js/checklist/phf-checklist-app.js'),
+      css:'/assets/css/phf-checklist.css',
       renderer:'phfRenderChecklist',
       label:'Checklist'
     }
   };
+
+  /* PHF Sprint 2 / Commit 1: phf-checklist.css (459KB) trước đây tải trên mọi
+     route qua #phf-checklist-css-loader trong index.html, không gate theo
+     route. Gate theo route giống hệt cơ chế JS module ở trên: idempotent,
+     concurrent calls dùng chung promise, lỗi không chặn render (chỉ log) vì
+     thiếu style không phá nghiệp vụ như thiếu renderer. */
+  function ensureRouteCss(name){
+    var config=ROUTE_MODULES[name];
+    if(!config||!config.css) return Promise.resolve(true);
+    if(document.querySelector('link[data-phf-route-css="'+name+'"]')) return Promise.resolve(true);
+    if(routeCssLoads[name]) return routeCssLoads[name];
+    var href=typeof window.phfAssetUrl==='function'?window.phfAssetUrl(config.css):config.css;
+    var request=new Promise(function(resolve){
+      var link=document.createElement('link');
+      link.rel='stylesheet';
+      link.href=href;
+      link.setAttribute('data-phf-route-css',name);
+      link.onload=function(){resolve(true);};
+      link.onerror=function(){
+        console.error('[PHF ROUTER] route css load failed',name,href);
+        link.remove();
+        routeCssLoads[name]=null;
+        resolve(false);
+      };
+      document.head.appendChild(link);
+    });
+    routeCssLoads[name]=request;
+    return request;
+  }
+  /* Gate chung JS+CSS: renderer chỉ được gọi sau khi cả hai đã await xong, để
+     root (hidden theo mặc định) không bao giờ lộ nội dung chưa có style. */
+  function ensureRouteReady(name){
+    return Promise.all([ensureRouteModule(name),ensureRouteCss(name)]).then(function(results){return results[0];});
+  }
 
   function routeModuleReady(name){
     var config=ROUTE_MODULES[name];
@@ -940,7 +976,7 @@
           setUrl(checklistHome,true);
           path=checklistHome;
         }
-        try{await ensureRouteModule('checklist');}
+        try{await ensureRouteReady('checklist');}
         catch(checklistLoadError){return renderRouteModuleError('checklist',path,checklistLoadError);}
         if(stale())return false;
         if(typeof window.phfRenderChecklist!=='function')return renderRouteModuleError('checklist',path,new Error('PHF_CHECKLIST_RENDERER_MISSING'));
