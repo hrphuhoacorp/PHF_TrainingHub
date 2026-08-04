@@ -1,7 +1,7 @@
 {
-  "version": "1.38.67",
-  "fingerprint": "13867-mobile-nav-drawer-hotfix",
-  "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "HOTFIX: sửa nguyên nhân gốc đã xác nhận khiến Slide Menu (Bước 2) vỡ trên Production - openDrawer()/closeDrawer() từng mutate class body ('phf-mnav-drawer-locked', vốn chưa có CSS effect) trùng đúng thuộc tính mà MutationObserver của chính file này đang theo dõi để tự đóng menu khi đổi route, khiến mở Menu tự kích hoạt đóng gần như ngay lập tức (đua với hiệu ứng mở), cộng thêm setTimeout ẩn cưỡng bức không được huỷ khi bấm nhanh nhiều lần -> nhiều timeout chồng nhau ẩn/hiện không đoán trước được, có lúc để lại lớp phủ toàn màn hình treo lại chặn thao tác. Đã bỏ hẳn việc mutate class body (không mất chức năng vì class đó chưa có CSS effect) và huỷ timeout cũ trước khi đặt mới. Đồng thời thêm đóng chéo với drawer Hub topbar sẵn có (phfCloseHubMobileDrawer) để không có 2 lớp phủ mở cùng lúc. CHƯA xử lý claim 'top tab desktop vẫn còn/tràn ngang' - không đủ căn cứ xác nhận chắc chắn nguyên nhân qua đọc tĩnh CSS legacy (nhiều bộ rule chồng lấn qua nhiều đợt vá cũ), cần thêm thông tin thiết bị thật trước khi sửa để tránh vá mò làm mất chức năng điều hướng Hub hiện có.",
-  "build": "13867-mobile-nav-drawer-hotfix"
+  "version": "1.38.68",
+  "fingerprint": "13868-performance-sprint2-cache-bust",
+  "builtAt": "2026-08-04T15:10:00+07:00",
+  "notes": "CACHE-BUST: build-info.json chưa được bump fingerprint suốt Perf Sprint 1 (198d6af, 1230dea, 86877d4) và Sprint 2 (b5a381e, f19ed3e), trong khi Sprint 1 Commit 2 đã gắn Cache-Control: public, max-age=31536000, immutable cho /assets/js/* và /assets/css/*. Vì mọi URL versioned qua phfAssetUrl() dùng chung fingerprint không đổi suốt các lần deploy đó, trình duyệt nào đã tải phf-url-router.js/phf-checklist.css/phf-checklist-app.js trước khi Sprint 2 lên Production sẽ giữ nguyên bản cache cũ (chưa có ensureRouteCss) vĩnh viễn dù index.html luôn mới (no-store) - gây version skew: HTML mới không còn tag CSS fallback eager, nhưng router cache cũ không biết gate CSS theo route, nên Checklist/Classroom mất style hoặc treo ở màn 'Chưa thể mở'. Bump fingerprint lần này chỉ để buộc mọi asset versioned lấy URL mới, không đổi logic lazy-load, không rollback Sprint 2.",
+  "build": "13868-performance-sprint2-cache-bust"
 }
