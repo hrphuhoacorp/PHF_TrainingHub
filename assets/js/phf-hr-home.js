@@ -91,8 +91,8 @@ window.phfChecklistScopeLabel=scopeLabel;
 /* Chỉ hiển thị chip khi có capability thật, không làm Home nháy: ẩn cho tới
    khi dữ liệu về, không có state chờ giữa chừng. Lỗi API không phá Home -
    workspace null thì derive trả toàn false/none, tự ẩn (an toàn mặc định).
-   Action Card "GHI NHẬN LỖI" đã bỏ khỏi Home - shortcut ghi nhận lỗi đã đủ
-   nổi bật ở Bottom Navigation, không cần lặp lại bằng banner lớn trên Home. */
+   Action Card "GHI NHẬN LỖI" đã bỏ khỏi Home - shortcut ghi nhận chỉ xuất hiện
+   trong ngữ cảnh Checklist, không làm Home mang cảm giác của module nghiệp vụ. */
 function applyCapabilityChip(main){
   var chip=main.querySelector('[data-phf-hr-scope]');
   window.phfEnsureChecklistWorkspace().then(function(workspace){

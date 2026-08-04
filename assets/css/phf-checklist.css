@@ -4551,3 +4551,52 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
   .phfck-mobile-content-header .phfck-icon-btn:hover{background:var(--phfck-green-soft)}
 }
 @media(max-width:640px){.phfck-marketing-kpi-toolbar,.phfck-marketing-kpi-row,.phfck-marketing-kpi-context{grid-template-columns:1fr}.phfck-marketing-kpi-weight{grid-column:auto}.phfck-marketing-kpi-total{align-items:flex-start;flex-direction:column}.phfck-marketing-kpi-modal{width:calc(100vw - 16px)}}
+
+/* Checklist mobile workspace stabilization: chỉ scope manager/learner,
+   không che overflow toàn trang và không tác động Admin/desktop. */
+@media(max-width:760px){
+  .phfck-role-shell:not([data-checklist-role="admin"]),
+  .phfck-role-shell:not([data-checklist-role="admin"]) [data-phfck-role-workspace],
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-manager-layout,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-main{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-main{margin:0;padding:16px 12px calc(96px + env(safe-area-inset-bottom))}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-main *,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-panel,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading>div{min-width:0;max-width:100%;box-sizing:border-box}
+  .phfck-role-shell:not([data-checklist-role="admin"]) input,
+  .phfck-role-shell:not([data-checklist-role="admin"]) select,
+  .phfck-role-shell:not([data-checklist-role="admin"]) textarea{max-width:100%}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-panel-head{align-items:flex-start;flex-wrap:wrap}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading>div:last-child,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-monthly-head-actions,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-report-head-actions{width:100%;justify-content:flex-start}
+  .phfck-role-shell:not([data-checklist-role="admin"]) button,
+  .phfck-role-shell:not([data-checklist-role="admin"]) select,
+  .phfck-role-shell:not([data-checklist-role="admin"]) input:not([type="checkbox"]):not([type="radio"]){min-height:42px}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-employee-task-summary{grid-template-columns:1fr;overflow:visible;padding-bottom:0}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-employee-task-summary article{min-width:0}
+
+  .phfck-manager-people-table-wrap,
+  .phfck-exec-table .phfck-table-wrap{overflow:visible;border:0;background:transparent}
+  .phfck-manager-people-table,
+  .phfck-exec-table .phfck-table{display:block;width:100%;min-width:0;border:0}
+  .phfck-manager-people-table thead,
+  .phfck-exec-table .phfck-table thead{display:none}
+  .phfck-manager-people-table tbody,
+  .phfck-exec-table .phfck-table tbody{display:grid;gap:10px;width:100%}
+  .phfck-manager-people-table tr,
+  .phfck-exec-table .phfck-table tr{display:grid;width:100%;padding:10px 12px;border:1px solid #dce8e2;border-radius:13px;background:#fff;box-shadow:0 4px 12px rgba(8,76,55,.04)}
+  .phfck-manager-people-table td,
+  .phfck-exec-table .phfck-table td{display:flex!important;min-height:38px;height:auto!important;align-items:flex-start;justify-content:space-between;gap:12px;padding:8px 0!important;border-bottom:1px solid #edf2ef;text-align:right;white-space:normal}
+  .phfck-manager-people-table td:last-child,
+  .phfck-exec-table .phfck-table td:last-child{border-bottom:0}
+  .phfck-manager-people-table td:before,
+  .phfck-exec-table .phfck-table td:before{content:attr(data-label);flex:0 0 38%;color:#71857d;font-size:10px;font-weight:800;line-height:1.4;text-align:left;text-transform:uppercase}
+  .phfck-manager-people-table td>* ,
+  .phfck-exec-table .phfck-table td>*{max-width:60%;text-align:right}
+  .phfck-manager-people-table .phfck-manager-people-name,
+  .phfck-manager-people-table .phfck-manager-people-window{min-width:0!important;text-align:right}
+  .phfck-manager-people-table .phfck-manager-people-action{width:min(100%,180px);min-height:42px}
+  .phfck-manager-people-pagination>div{max-width:100%;flex-wrap:wrap}
+}
