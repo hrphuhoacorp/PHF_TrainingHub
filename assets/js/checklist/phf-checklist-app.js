@@ -15,6 +15,7 @@
   function isAssistantWebOperator(){var grant=currentChecklistGrant();return role()==='manager'&&checklistGrantPresetCode(grant)==='TRO_LY_GD'&&grant.isActive!==false&&grant.is_active!==false;}
   function canManageChecklistPermissions(){return role()==='admin'||isAssistantWebOperator();}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function cssEscape(v){var s=String(v==null?'':v);return typeof CSS!=='undefined'&&CSS.escape?CSS.escape(s):s.replace(/[^a-zA-Z0-9_-]/g,'\\$&');}
   function routeRole(path){path=cleanPath(path||location.pathname);if(/^\/admin(?:\/|$)/.test(path))return 'admin';if(/^\/ql(?:\/|$)/.test(path))return 'manager';if(/^\/hv(?:\/|$)/.test(path))return 'learner';return role();}
   function hubPath(){
   var r=role();

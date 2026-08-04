@@ -1,7 +1,7 @@
 {
-  "version": "1.38.70",
-  "fingerprint": "13870-checklist-evidence-upload",
-  "builtAt": "2026-08-04T18:20:00+07:00",
-  "notes": "Checklist evidence: real photo/PDF upload for violation records via Supabase Storage (phf-checklist-evidence bucket). Replaces the placeholder '+ Minh chung' button/toast in quick, multi-day and detail entry with real camera/library/desktop file pickers, preview, remove, retry and per-file upload status. Evidence is uploaded as an unlinked draft, then attached to the real violation via phf_attach_checklist_evidence after saveChecklistViolations persists it (server resolves violation id from requestId, never trusts a client-supplied id). has_evidence is now server-authoritative. SQL not yet applied to Production - see scripts/PHF_CHECKLIST_EVIDENCE_1.41.0.sql.",
-  "build": "13870-checklist-evidence-upload"
+  "version": "1.38.71",
+  "fingerprint": "13871-evidence-cssescape-hotfix",
+  "builtAt": "2026-08-04T19:05:00+07:00",
+  "notes": "HOTFIX: cssEscape was called at 3 sites in the evidence picker (phf-checklist-app.js) but was never defined anywhere in the project - a genuine ReferenceError inside root.__phfChecklistClickHandler, thrown whenever the quick-entry evidence toggle or the evidence widget refresh/error paths ran, aborting the click handler silently. Added a single small cssEscape(v) helper (CSS.escape wrapper with a minimal fallback) next to esc(); no other project file defines an equivalent helper (grepped for phfCssEscape/escapeSelector - none found). No UI/behavior change beyond fixing the crash.",
+  "build": "13871-evidence-cssescape-hotfix"
 }
