@@ -1,7 +1,7 @@
 {
-  "version": "1.38.61",
-  "fingerprint": "13861-mobile-capability-home",
+  "version": "1.38.62",
+  "fingerprint": "13862-mobile-bottom-nav",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Bước 2 Commit 1: nạp Checklist workspace/capability thật tại Home (getChecklistRoleWorkspace có sẵn, POST /api/data?checklistRoleWorkspace=1, không tạo API mới), cache trong phiên (không gọi lại khi F5/chuyển route/quay lại Home), lỗi API không phá Home (fallback về capability rỗng, chip tự ẩn). Thêm chip phạm vi nhỏ ở header (desktop/tablet, ẩn trên mobile để nhường chỗ Action Card ở Commit 4). Không đổi backend/permission, không hard-code theo role/tên chức danh/tên preset.",
-  "build": "13861-mobile-capability-home"
+  "notes": "Bước 2 Commit 2: thêm Bottom Navigation cố định (assets/js/phf-mobile-nav.js + assets/css/phf-mobile-nav.css), chỉ hiện trên mobile (<=760px), chỉ khi đang ở route đã đăng nhập (dựa theo class body có sẵn của PHFAppShell, không tạo cơ chế phát hiện route mới). Nút giữa render theo capability thật (canRecordViolation) tái dùng dữ liệu đã cache từ Commit 1, không gọi lại API. Dùng đúng phfNavigate() và route còn sống (/admin/checklist/ghi-nhan-loi, /ql/checklist?section=violations) - không dùng phfNavigateToHrHome() (hard reload), không dùng route chết /ql/checklist/ghi-nhan-loi. Không đổi router/auth/session.",
+  "build": "13862-mobile-bottom-nav"
 }

@@ -1,0 +1,12 @@
+.phf-mnav-bottom{display:none}
+@media(max-width:760px){
+  .phf-mnav-bottom{display:flex!important;position:fixed;left:0;right:0;bottom:0;z-index:5000;align-items:stretch;justify-content:space-around;background:#fff;border-top:1px solid #e0ebe3;box-shadow:0 -6px 20px rgba(18,66,43,.08);padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px}
+  .phf-mnav-bottom[hidden]{display:none!important}
+  .phf-mnav-btn{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:#52675e;font:700 11px/1.2 "Segoe UI",Arial,system-ui,sans-serif;border-radius:14px;cursor:pointer}
+  .phf-mnav-btn:active{background:#f0f7f3}
+  .phf-mnav-icon{font-size:20px;line-height:1}
+  .phf-mnav-btn.phf-mnav-main{color:#0b674b}
+  .phf-mnav-btn.phf-mnav-main.is-cta{background:linear-gradient(135deg,#08734e,#075c43);color:#fff}
+  .phf-mnav-btn.phf-mnav-main.is-cta .phf-mnav-icon{transform:scale(1.05)}
+  body.phf-hr-gateway-mode,body.phf-main-shell-mode,body.phf-classroom-mode,body.phf-checklist-mode,body.phf-knl-mode{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+}
