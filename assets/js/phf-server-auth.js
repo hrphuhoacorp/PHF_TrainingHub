@@ -590,8 +590,10 @@
     root.innerHTML =
       '<section class="phf-test-login-card" role="dialog" aria-modal="true">' +
         '<section class="phf-test-login-brand">' +
-          '<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Hệ thống phát triển nhân sự</span></div>' +
-          '<div><div class="phf-login-title">Đăng nhập PHF HR</div><div class="phf-login-subtitle">Đăng nhập để truy cập các hệ thống được phân quyền dành cho bạn tại PHUHOA FRESH.</div></div>' +
+          '<div class="phf-login-hero">' +
+            '<div class="phf-login-logo-line"><div class="phf-login-logo-box"><img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH"></div><span class="phf-login-system-badge">Hệ thống phát triển nhân sự</span></div>' +
+            '<div><div class="phf-login-title">Đăng nhập PHF HR</div><div class="phf-login-subtitle">Đăng nhập để truy cập các hệ thống được phân quyền dành cho bạn tại PHUHOA FRESH.</div></div>' +
+          '</div>' +
         '</section>' +
         '<section class="phf-test-login-form">' +
           '<button type="button" class="phf-login-use-email-toggle" id="phfLoginUseEmailToggle">Đăng nhập bằng tài khoản nội bộ</button>' +
