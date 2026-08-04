@@ -131,18 +131,34 @@ function renderDrawerContent(){
     return '<button type="button" class="phf-mnav-drawer-item" data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
   }).join('');
 }
+/* SỬA LỖI (hotfix): openDrawer()/closeDrawer() trước đây gọi
+   document.body.classList.add/remove('phf-mnav-drawer-locked') - đúng ngay
+   thuộc tính mà MutationObserver bên dưới đang theo dõi (attributeFilter:
+   ['class'] trên document.body) để tự đóng Slide Menu khi đổi route. Kết quả:
+   mở Menu tự kích hoạt observer gọi closeDrawer() gần như ngay lập tức, đua
+   với hiệu ứng mở (rAF) và để lại setTimeout ẩn cưỡng bức không được huỷ -
+   bấm nhanh nhiều lần chồng nhiều timeout ẩn, khiến Menu/backdrop rơi vào
+   trạng thái không đoán trước được (không mở được, hoặc lớp phủ toàn màn
+   hình treo lại chặn thao tác phía trên). Bỏ hẳn việc mutate class body (class
+   phf-mnav-drawer-locked chưa từng có CSS effect nên bỏ không mất chức năng
+   nào) và huỷ timeout ẩn đang chờ trước khi đặt cái mới. */
+var drawerHideTimer=null;
 function openDrawer(){
+  /* Hub topbar có drawer riêng (phf-hub-mobile-shell.js) độc lập với Slide
+     Menu này - đóng drawer đó trước khi mở, để không có 2 lớp phủ/2 drawer
+     cùng hiện chồng nhau nếu người dùng từng mở hamburger của Hub trước đó. */
+  try{if(typeof window.phfCloseHubMobileDrawer==='function')window.phfCloseHubMobileDrawer();}catch(e){}
   renderDrawerContent();
   var el=ensureDrawer();
+  if(drawerHideTimer){clearTimeout(drawerHideTimer);drawerHideTimer=null;}
   el.hidden=false;
   requestAnimationFrame(function(){el.classList.add('is-open');});
-  document.body.classList.add('phf-mnav-drawer-locked');
 }
 function closeDrawer(){
   if(!drawerRoot||drawerRoot.hidden)return;
   drawerRoot.classList.remove('is-open');
-  document.body.classList.remove('phf-mnav-drawer-locked');
-  setTimeout(function(){if(drawerRoot)drawerRoot.hidden=true;},220);
+  if(drawerHideTimer)clearTimeout(drawerHideTimer);
+  drawerHideTimer=setTimeout(function(){drawerHideTimer=null;if(drawerRoot)drawerRoot.hidden=true;},220);
 }
 window.phfOpenMobileSlideMenu=openDrawer;
 
