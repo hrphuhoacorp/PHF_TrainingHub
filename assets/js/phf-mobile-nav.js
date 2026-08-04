@@ -10,6 +10,8 @@
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function sessionRole(){try{return String((window.phfGetSessionRole&&window.phfGetSessionRole())||'').toLowerCase();}catch(e){return '';}}
 function prefixFor(r){return r==='admin'?'/admin':(r==='manager'?'/ql':'/hv');}
+function cleanPath(){return String(location.pathname||'/').replace(/\/{2,}/g,'/').replace(/\/$/,'')||'/';}
+function isChecklistRoute(){return /^\/(admin|ql|hv)\/checklist(?:\/|$)/.test(cleanPath());}
 function currentUser(){try{return (window.phfGetCurrentUser&&window.phfGetCurrentUser())||(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||null;}catch(e){return null;}}
 function userName(){var u=currentUser()||{};return String(u.fullName||u.full_name||u.name||u.displayName||u.display_name||u.email||'Anh/chị').trim();}
 function initials(){var n=userName().replace(/@.*$/,'').trim().split(/\s+/).filter(Boolean);if(!n.length)return 'PH';return (n.length===1?n[0].slice(0,2):n[0].charAt(0)+n[n.length-1].charAt(0)).toUpperCase();}
@@ -45,7 +47,7 @@ function ensureRoot(){
 
 function mainAction(){
   var r=sessionRole(),p=prefixFor(r);
-  if(lastCaps&&lastCaps.canRecordViolation){
+  if(isChecklistRoute()&&lastCaps&&lastCaps.canRecordViolation){
     return {label:'Ghi nhận lỗi',icon:'!',route:r==='admin'?'/admin/checklist/ghi-nhan-loi':'/ql/checklist?section=violations'};
   }
   return {label:'Trang chủ',icon:'⌂',route:p+'/home'};
@@ -62,7 +64,7 @@ function render(){
     mainBtn.querySelector('.phf-mnav-icon').textContent=main.icon;
     mainBtn.querySelector('.phf-mnav-label').textContent=main.label;
     mainBtn.setAttribute('data-phf-mnav-route',main.route);
-    mainBtn.classList.toggle('is-cta',!!(lastCaps&&lastCaps.canRecordViolation));
+    mainBtn.classList.toggle('is-cta',!!(isChecklistRoute()&&lastCaps&&lastCaps.canRecordViolation));
   }
 }
 
@@ -96,16 +98,24 @@ function menuItemsFor(caps,r){
      capability trong sidebar gốc) cần lối vào tương đương ở đây, chỉ cho tài
      khoản quản lý đang có grant thật (caps.experience==='operator'), không áp
      dụng cho Admin (Admin vẫn giữ nguyên sidebar riêng, chưa đổi đợt này). */
+  var inChecklist=isChecklistRoute();
   var isManagerWorkspace=!isAdminRoute&&caps&&caps.experience==='operator';
-  var items=[{label:'Trang chủ',route:p+'/home',icon:'⌂'}];
-  if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
-  if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
-  if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
-  if(isManagerWorkspace)items.push({label:'Nhân sự',route:'/ql/checklist?section=people',icon:'♙'});
-  if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
-  items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
+  var items=[];
+  if(inChecklist){
+    items.push({group:'CHECKLIST'});
+    items.push({label:'Tổng quan',route:p+'/checklist',icon:'⌂'});
+    if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
+    if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
+    if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
+    if(isManagerWorkspace)items.push({label:'Nhân sự',route:'/ql/checklist?section=people',icon:'♙'});
+    if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
+    if(!isManagerWorkspace&&!isAdminRoute)items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
+    items.push({group:'PHF HR'});
+  }else items.push({group:'PHF HR'});
+  items.push({label:'Trang chủ',route:p+'/home',icon:'⌂'});
   items.push({label:'Training Hub',route:p,icon:'▦'});
   items.push({label:'Classroom',route:p+'/classroom',icon:'▤'});
+  if(!inChecklist)items.push({label:'Checklist',route:p+'/checklist',icon:'☰'});
   items.push({label:'Khung năng lực',route:p+'/knl',icon:'◆'});
   return items;
 }
@@ -136,6 +146,7 @@ function renderDrawerContent(){
   el.querySelector('.phf-mnav-drawer-who strong').textContent=userName();
   el.querySelector('.phf-mnav-drawer-who small').textContent=roleLabel(r);
   el.querySelector('.phf-mnav-drawer-items').innerHTML=menuItemsFor(lastCaps,r).map(function(it){
+    if(it.group)return '<div class="phf-mnav-drawer-group">'+esc(it.group)+'</div>';
     return '<button type="button" class="phf-mnav-drawer-item" data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
   }).join('');
 }
