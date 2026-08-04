@@ -6,7 +6,7 @@
     },
     {
       "source": "/evidence/:id",
-      "destination": "/api/evidence/:id"
+      "destination": "/api/evidence?id=:id"
     },
     {
       "source": "/assets/:path*",
