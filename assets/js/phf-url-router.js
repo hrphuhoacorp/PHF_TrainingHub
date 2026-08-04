@@ -25,6 +25,7 @@
   var ROUTE_MODULES = {
     classroom:{
       src:'assets/js/classroom/phf-classroom-app.js?v=1.30.10_lazy_module',
+      css:'/assets/css/phf-classroom.css',
       renderer:'phfRenderClassroom',
       label:'Classroom'
     },
@@ -995,7 +996,7 @@
           setUrl(classroomHome,true);
           path=classroomHome;
         }
-        try{await ensureRouteModule('classroom');}
+        try{await ensureRouteReady('classroom');}
         catch(classroomLoadError){return renderRouteModuleError('classroom',path,classroomLoadError);}
         if(stale())return false;
         if(typeof window.phfRenderClassroom!=='function')return renderRouteModuleError('classroom',path,new Error('PHF_CLASSROOM_RENDERER_MISSING'));
@@ -1010,7 +1011,7 @@
         if(role()==='admin') classroomAllowed=classroomAllowed.concat(['/classroom/reports','/classroom/settings']);
         var classroomHome = role()==='learner' ? '/classroom/my-classes' : '/classroom';
         if(classroomAllowed.indexOf(path)<0){path=classroomHome;setUrl(path,true);}
-        try{await ensureRouteModule('classroom');}
+        try{await ensureRouteReady('classroom');}
         catch(legacyClassroomLoadError){return renderRouteModuleError('classroom',path,legacyClassroomLoadError);}
         if(stale()) return false;
         if(typeof window.phfRenderClassroom!=='function')return renderRouteModuleError('classroom',path,new Error('PHF_CLASSROOM_RENDERER_MISSING'));
