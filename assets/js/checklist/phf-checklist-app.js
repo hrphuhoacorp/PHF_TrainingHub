@@ -4907,13 +4907,28 @@
   }
   function permissionAccessDeniedHtml(){return managerSectionHeading('KHÔNG CÓ QUYỀN','Không thể mở Phân quyền Checklist','Chỉ Admin hệ thống hoặc Trợ lý Giám đốc – Điều hành web được quản lý phân quyền Checklist.','<button type="button" class="phfck-primary" data-phfck-manager-section="overview">Về Tổng quan</button>')+'<section class="phfck-panel phfck-role-error"><span>!</span><div><b>Quyền truy cập không hợp lệ</b><p>Tài khoản hiện tại không được phép xem, cấp, sửa hoặc ngừng quyền Checklist.</p></div></section>';}
   function normalizeManagerPermissionRoute(path,notify){
-    if(routeRole(path)!=='manager'||managerSectionFromLocation(path)!=='permissions')return path;
+    if(routeRole(path)!=='manager')return path;
     if(!roleWorkspaceState.loaded)return path;
-    if(isAssistantWebOperator())return path;
-    var safe=managerRouteForSection('overview');
-    try{history.replaceState(history.state||{},'',safe);}catch(_e){}
-    if(notify&&!roleWorkspaceState.permissionDeniedNotified){roleWorkspaceState.permissionDeniedNotified=true;checklistToast('error','Không có quyền phân quyền','Chỉ Admin hệ thống hoặc Trợ lý Giám đốc – Điều hành web được mở chức năng này.',true);}
-    return safe;
+    var section=managerSectionFromLocation(path);
+    if(section==='permissions'){
+      if(isAssistantWebOperator())return path;
+      var safe=managerRouteForSection('overview');
+      try{history.replaceState(history.state||{},'',safe);}catch(_e){}
+      if(notify&&!roleWorkspaceState.permissionDeniedNotified){roleWorkspaceState.permissionDeniedNotified=true;checklistToast('error','Không có quyền phân quyền','Chỉ Admin hệ thống hoặc Trợ lý Giám đốc – Điều hành web được mở chức năng này.',true);}
+      return safe;
+    }
+    /* Deep-link section=violations không có quyền ghi nhận: điều hướng về
+       Tổng quan Checklist thay vì render màn rỗng gây hiểu nhầm. Chỉ đọc
+       canRecordViolation đã tải sẵn - không gọi thêm API, không đổi backend
+       guard (requireViolationPermission trong lib/checklist-violations.js
+       vẫn là nguồn chặn thật, đây chỉ là UI). */
+    if(section==='violations'&&(roleWorkspaceState.data||{}).canRecordViolation!==true){
+      var safeV=managerRouteForSection('overview');
+      try{history.replaceState(history.state||{},'',safeV);}catch(_e){}
+      if(notify&&!roleWorkspaceState.violationDeniedNotified){roleWorkspaceState.violationDeniedNotified=true;checklistToast('error','Không có quyền ghi nhận lỗi','Tài khoản của bạn chưa được cấp quyền ghi nhận lỗi trong Checklist.',true);}
+      return safeV;
+    }
+    return path;
   }
   function managerSidebarHtml(data){
     var grant=data&&data.grant||{},context=managerPermissionContext(data),scope=roleScopeSummary(data),rawActive=managerSectionFromLocation(currentRouteKey()),active=rawActive==='reviews'?'people':rawActive;

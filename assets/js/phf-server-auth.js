@@ -174,6 +174,7 @@
             .forEach(function(k){ localStorage.removeItem(k); });
           try{ window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(_e){}
           try{ if(typeof window.phfResetLearningRuntimeForAccountSwitch === 'function') window.phfResetLearningRuntimeForAccountSwitch(); }catch(_e){}
+          try{ if(typeof window.phfResetChecklistWorkspaceCache === 'function') window.phfResetChecklistWorkspaceCache(); }catch(_e){}
         }
 
         localStorage.setItem('phfSimpleTestLoginEmail', nextEmail);
@@ -203,11 +204,19 @@
         else if(switchedAccount) localStorage.removeItem('phfStudyStartDate');
         window.currentProfile = profile;
       }else{
-        ['phfSimpleTestLoginEmail','phfActiveLoginEmail','phfLoginEmail','phfLoginName','phfLoginPhone','phfEmployeeProfile','phfEmployeeId','phfStudyStartDate']
+        /* Dọn cache nhạy cảm cục bộ khi mất phiên (logout hoặc session hết hạn):
+           audit log Checklist và cache danh sách tài khoản Admin chỉ nên tồn
+           tại trong phiên đăng nhập, tránh lộ giữa 2 tài khoản dùng chung
+           thiết bị/trình duyệt (quan trọng hơn với PWA cài đặt lâu dài).
+           KHÔNG xoá phfRememberedLoginEmail - đó là lựa chọn của người dùng
+           qua "Ghi nhớ tài khoản" và phải giữ qua các lần đăng xuất. */
+        ['phfSimpleTestLoginEmail','phfActiveLoginEmail','phfLoginEmail','phfLoginName','phfLoginPhone','phfEmployeeProfile','phfEmployeeId','phfStudyStartDate',
+          'phfChecklistAudit','phfAdminAccountsSafeV18','phfAdminAccountsSafeLogsV18','phfAdminAccountsV17F','phfAdminAccountsV17C','phfAdminAccountsV17D','phfAdminAccountsV17B','phfAdminAccountsV1']
           .concat(roleKeys)
           .forEach(function(k){ localStorage.removeItem(k); });
         window.currentProfile = null;
         try{ window.phfCurrentLessonIndex = 0; window.phfCurrentLessonKey = 'lesson:0'; }catch(_e){}
+        try{ if(typeof window.phfResetChecklistWorkspaceCache === 'function') window.phfResetChecklistWorkspaceCache(); }catch(_e){}
       }
     }catch(e){}
   }
