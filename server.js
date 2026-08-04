@@ -14,7 +14,7 @@ const { listNotifications, saveNotification, markNotificationRead, markAllNotifi
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./lib/classroom-settings');
 const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
-const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
+const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
 const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence, streamChecklistEvidenceDownload } = require('./lib/checklist-evidence');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('./lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./lib/checklist-permissions');
@@ -594,6 +594,9 @@ const server = http.createServer(async (req, res) => {
         }
         if (payload && payload.action === 'listChecklistViolationHistory') {
           return sendJson(res, 200, {ok:true,...await listChecklistViolationHistory(session, payload)});
+        }
+        if (payload && payload.action === 'getChecklistViolationTaskStatus') {
+          return sendJson(res, 200, {ok:true,...await getChecklistViolationTaskStatus(session, payload)});
         }
         if (payload && payload.action === 'deleteChecklistTestViolations') {
           return sendJson(res, 200, {ok:true,...await deleteChecklistTestViolations(session, payload)});

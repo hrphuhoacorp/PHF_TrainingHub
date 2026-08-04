@@ -1117,6 +1117,7 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-log-modal .phfck-log-detail-grid{padding:12px 0 0}
 .phfck-log-modal .phfck-log-detail-grid>div{min-width:0;padding:14px;background:#fff}
 .phfck-log-modal .phfck-log-detail-grid b,.phfck-log-modal .phfck-log-detail-grid p{overflow-wrap:anywhere}
+.phfck-log-detail-grid b.is-overdue{color:#a14337}
 .phfck-log-detail-layer~.phfck-toast-host,.phfck-modal-layer[data-phfck-submodal]~.phfck-toast-host{z-index:10040}
 @media(max-width:680px){.phfck-log-detail-layer{padding:8px}.phfck-log-detail-layer>.phfck-log-modal{width:calc(100vw - 16px);max-height:94dvh}.phfck-log-modal .phfck-modal-head,.phfck-log-modal .phfck-modal-body,.phfck-log-modal .phfck-modal-foot{padding-left:16px;padding-right:16px}.phfck-log-modal .phfck-log-detail-grid{grid-template-columns:1fr}.phfck-log-modal .phfck-log-detail-grid .is-wide{grid-column:auto}.phfck-log-modal .phfck-modal-foot{display:grid;grid-template-columns:1fr}.phfck-log-modal .phfck-modal-foot button{width:100%}}
 
