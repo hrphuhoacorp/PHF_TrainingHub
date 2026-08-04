@@ -1,7 +1,7 @@
 {
-  "version": "1.38.65",
-  "fingerprint": "13865-violation-guard-logout-cleanup",
+  "version": "1.38.66",
+  "fingerprint": "13866-remember-account-polish",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Bước 2 Commit 5: (1) UI guard - normalizeManagerPermissionRoute() (đã có sẵn cho section=permissions) mở rộng thêm section=violations: nếu roleWorkspaceState.data.canRecordViolation !== true thì điều hướng về Tổng quan Checklist + toast, thay vì render màn Ghi nhận lỗi rỗng khi deep-link trực tiếp. Chỉ đọc dữ liệu đã tải sẵn, không gọi thêm API, không đổi backend guard (requireViolationPermission vẫn là nguồn chặn thật). (2) Logout cleanup - xoá thêm phfChecklistAudit và cache tài khoản Admin (phfAdminAccountsSafeV18 và các bản cũ) khi mất phiên (logout hoặc chuyển tài khoản), không xoá phfRememberedLoginEmail. Cũng reset cache workspace Checklist (phfResetChecklistWorkspaceCache) khi đổi tài khoản để Bottom Nav/Action Card không giữ capability của tài khoản cũ.",
-  "build": "13865-violation-guard-logout-cleanup"
+  "notes": "Bước 2 Commit 6 (2 note bắt buộc): (1) Google Login - GIỮ NGUYÊN text:'signin_with' đã áp dụng ở đợt trước (nhãn cố định 'Đăng nhập bằng Google'), không đổi sang 'continue_with'/'Tiếp tục với Google' vì đó là đúng tham số từng gây chèn tên/email/avatar trên mobile - đổi lại sẽ có nguy cơ tái phát lỗi vừa sửa; không hack iframe/không đổi OAuth. (2) Ghi nhớ tài khoản - checkbox giờ hiển thị cả Desktop (trước đây ẩn hẳn trên Desktop), toàn vùng label bấm được, căn giữa dọc, tap target lớn hơn (40px cao trên mobile, checkbox 20px), khoảng cách hợp lý với Password/cụm nút. Nghiệp vụ không đổi: vẫn chỉ lưu email, không lưu mật khẩu, bỏ chọn thì xoá email đã nhớ.",
+  "build": "13866-remember-account-polish"
 }
