@@ -88,16 +88,13 @@ function scopeLabel(scopeValue){
   return '';
 }
 window.phfChecklistScopeLabel=scopeLabel;
-/* Chỉ hiển thị chip/Action Card khi có capability thật, không làm Home nháy:
-   cả hai ẩn cho tới khi dữ liệu về, không có state chờ giữa chừng. Lỗi API
-   không phá Home - workspace null thì derive trả toàn false/none, tự ẩn hết
-   (an toàn mặc định). Action Card CHỈ đọc recordScope (không dùng viewScope
-   hay reviewScope thay cho recordScope) và chỉ hiện khi canRecordViolation
-   thật sự true - không suy diễn từ canViewReport/canReview. */
+/* Chỉ hiển thị chip khi có capability thật, không làm Home nháy: ẩn cho tới
+   khi dữ liệu về, không có state chờ giữa chừng. Lỗi API không phá Home -
+   workspace null thì derive trả toàn false/none, tự ẩn (an toàn mặc định).
+   Action Card "GHI NHẬN LỖI" đã bỏ khỏi Home - shortcut ghi nhận lỗi đã đủ
+   nổi bật ở Bottom Navigation, không cần lặp lại bằng banner lớn trên Home. */
 function applyCapabilityChip(main){
   var chip=main.querySelector('[data-phf-hr-scope]');
-  var card=main.querySelector('[data-phf-hr-action]');
-  var cardScope=main.querySelector('[data-phf-hr-action-scope]');
   window.phfEnsureChecklistWorkspace().then(function(workspace){
     if(!document.body.contains(main))return;
     var caps=window.phfDeriveChecklistCapabilities(workspace);
@@ -107,14 +104,6 @@ function applyCapabilityChip(main){
       else if(caps.canReview)label='Thẩm định: '+scopeLabel(caps.reviewScope);
       else if(caps.canViewReport)label='Báo cáo: '+scopeLabel(caps.reportScope);
       if(label){chip.textContent=label;chip.hidden=false;}else chip.hidden=true;
-    }
-    if(card){
-      if(caps.canRecordViolation&&caps.recordScope&&caps.recordScope.type!=='none'){
-        if(cardScope)cardScope.textContent='Phạm vi: '+(scopeLabel(caps.recordScope)||'—');
-        var r=role();
-        card.setAttribute('data-phf-hr-action-route',r==='admin'?'/admin/checklist/ghi-nhan-loi':'/ql/checklist?section=violations');
-        card.hidden=false;
-      }else card.hidden=true;
     }
   });
 }
@@ -144,7 +133,6 @@ window.phfRenderHrGateway=function(requestedPath){
       <div class="phf-hr-header-actions"><span class="phf-hr-scope-chip" data-phf-hr-scope hidden></span><button class="phf-hr-bell" type="button" aria-label="Thông báo">${icon('bell')}<span hidden>0</span></button><div class="phf-hr-account-wrap"><button class="phf-hr-account" type="button" aria-haspopup="menu" aria-expanded="false"><span class="phf-hr-avatar">${avatar}</span><span><small>Xin chào,</small><strong>${name}</strong><em>${roleText}${code?' · '+code:''}</em></span><i aria-hidden="true"></i></button><div class="phf-hr-account-menu" role="menu"><div class="phf-hr-account-summary"><strong>${name}</strong><small>${roleText}${code?' · Mã '+code:''}</small></div><button type="button" class="is-danger" data-hr-account="logout">Đăng xuất</button></div></div></div>
     </header>
     <main class="phf-hr-main">
-      <button type="button" class="phf-hr-action-card" data-phf-hr-action hidden><span class="phf-hr-action-icon" aria-hidden="true">!</span><span class="phf-hr-action-text"><strong>GHI NHẬN LỖI</strong><small data-phf-hr-action-scope></small></span><span class="phf-hr-action-arrow" aria-hidden="true">→</span></button>
       <section class="phf-hr-hero">
         <div class="phf-hr-hero-copy"><span class="phf-hr-kicker">PHF HR <i aria-hidden="true"></i></span><h1>Nền tảng phát triển nhân sự<br>tại PHUHOA FRESH</h1><p>Kết nối hội nhập, đào tạo, checklist và phát triển năng lực<br>trên một hành trình thống nhất.</p></div>
         <div class="phf-hr-journey" aria-label="Hành trình phát triển nhân sự">
@@ -166,8 +154,6 @@ window.phfRenderHrGateway=function(requestedPath){
     <footer class="phf-hr-footer">PHF HR – Hệ sinh thái phát triển nhân sự nội bộ | Phòng Quản trị Tổng hợp phụ trách vận hành.</footer>
   </section>`;
   main.querySelectorAll('[data-phf-hr-module]').forEach(function(btn){btn.addEventListener('click',function(){window.phfOpenHrModule(btn.getAttribute('data-phf-hr-module'));});});
-  var actionCard=main.querySelector('[data-phf-hr-action]');
-  if(actionCard)actionCard.addEventListener('click',function(){var r=actionCard.getAttribute('data-phf-hr-action-route');if(r)go(r);});
   var account=main.querySelector('.phf-hr-account'),menu=main.querySelector('.phf-hr-account-menu');
   if(account&&menu){account.addEventListener('click',function(e){e.stopPropagation();var open=account.getAttribute('aria-expanded')==='true';account.setAttribute('aria-expanded',open?'false':'true');menu.classList.toggle('is-open',!open);});main.addEventListener('click',function(e){if(!e.target.closest('.phf-hr-account-wrap')){account.setAttribute('aria-expanded','false');menu.classList.remove('is-open');}});}
   main.querySelectorAll('[data-hr-account]').forEach(function(btn){btn.addEventListener('click',function(){var act=btn.getAttribute('data-hr-account');if(act==='logout')return logout();});});
