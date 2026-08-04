@@ -1157,7 +1157,8 @@
     if(!items.length)return '<div class="phfck-evidence-view-empty">Bản ghi này chưa có minh chứng.</div>';
     return '<ul class="phfck-evidence-view-list">'+items.map(function(it){
       var isImage=String(it.mimeType||'').indexOf('image/')===0;
-      return '<li>'+(it.url?('<a href="'+esc(it.url)+'" target="_blank" rel="noopener noreferrer">'+(isImage?'<img src="'+esc(it.url)+'" alt="'+esc(it.originalName)+'">':'<span class="phfck-evidence-view-file">📄</span>')+'<b>'+esc(it.originalName||'File')+'</b></a>'):('<span><b>'+esc(it.originalName||'File')+'</b><small>Không thể tạo liên kết xem</small></span>'))+'<small>'+evidenceFormatSize(it.sizeBytes)+' · '+esc(it.createdByName||it.createdBy||'')+'</small></li>';
+      var brandedUrl=it.id?('/evidence/'+encodeURIComponent(it.id)):'';
+      return '<li>'+(brandedUrl?('<a href="'+esc(brandedUrl)+'" target="_blank" rel="noopener noreferrer">'+(isImage?'<img src="'+esc(brandedUrl)+'" alt="'+esc(it.originalName)+'">':'<span class="phfck-evidence-view-file">📄</span>')+'<b>'+esc(it.originalName||'File')+'</b></a>'):('<span><b>'+esc(it.originalName||'File')+'</b><small>Không thể tạo liên kết xem</small></span>'))+'<small>'+evidenceFormatSize(it.sizeBytes)+' · '+esc(it.createdByName||it.createdBy||'')+'</small></li>';
     }).join('')+'</ul>';
   }
   function checklistViolationMode(){var data=window.__phfLocalData||window.localData||{};return String(data.checklistViolationMode||'test').toLowerCase()==='production'?'production':'test';}
