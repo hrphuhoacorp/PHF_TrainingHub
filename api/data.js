@@ -12,6 +12,7 @@ const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, li
 const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('../lib/checklist-templates');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('../lib/checklist-violations');
+const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence } = require('../lib/checklist-evidence');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('../lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle } = require('../lib/checklist-monthly');
@@ -357,6 +358,21 @@ module.exports = async function handler(req, res) {
       }
       if (payload && payload.action === 'deleteChecklistTestViolation') {
         return res.status(200).json({ok:true,...await deleteChecklistTestViolation(session, payload)});
+      }
+      if (payload && payload.action === 'createChecklistEvidenceUpload') {
+        return res.status(200).json({ok:true,...await createChecklistEvidenceUpload(session, payload)});
+      }
+      if (payload && payload.action === 'finalizeChecklistEvidenceUpload') {
+        return res.status(200).json({ok:true,...await finalizeChecklistEvidenceUpload(session, payload)});
+      }
+      if (payload && payload.action === 'attachChecklistEvidence') {
+        return res.status(200).json({ok:true,...await attachChecklistEvidence(session, payload)});
+      }
+      if (payload && payload.action === 'listChecklistEvidence') {
+        return res.status(200).json({ok:true,...await listChecklistEvidence(session, payload)});
+      }
+      if (payload && payload.action === 'deleteChecklistEvidence') {
+        return res.status(200).json({ok:true,...await deleteChecklistEvidence(session, payload)});
       }
       if (payload && payload.action === 'saveChecklistAssignments') {
         const saved = await saveChecklistAssignments(session, payload.assignments || []);
