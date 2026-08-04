@@ -148,8 +148,26 @@ module.exports = async function handler(req, res) {
       // PHF 62.24: Học viên/Báo cáo Hub cần trạng thái phân công thật từ user_accounts.
       // Chỉ công bố các trường tối thiểu để ghép hồ sơ và lọc Hub; không trả dữ liệu mật khẩu.
       if (session.role === 'admin' || session.role === 'manager') {
-        try {
-          const accounts = await listHubAccountSummaries();
+        // Perf Sprint 1 / Commit 1: 5 nguồn dưới đây độc lập với nhau (không nguồn
+        // nào dùng kết quả của nguồn khác) nên chạy song song bằng Promise.allSettled
+        // thay vì await tuần tự. Giữ nguyên từng khối fallback/log lỗi theo đúng
+        // hành vi cũ - một nguồn lỗi không được làm hỏng các nguồn còn lại.
+        const [
+          hubAccountsResult,
+          assignmentResult,
+          templateResult,
+          violationModeResult,
+          permissionResult
+        ] = await Promise.allSettled([
+          listHubAccountSummaries(),
+          listChecklistAssignments(),
+          listChecklistTemplates(),
+          getChecklistViolationMode(),
+          listChecklistPermissionGrants(session)
+        ]);
+
+        if (hubAccountsResult.status === 'fulfilled') {
+          const accounts = hubAccountsResult.value;
           scoped.hubAccounts = (accounts || []).map(account => ({
             id: account.id || '',
             employeeId: account.employeeId || '',
@@ -169,54 +187,61 @@ module.exports = async function handler(req, res) {
           }));
           scoped.hubAccountsReady = true;
           scoped.hubAccountsError = '';
-        } catch (accountError) {
+        } else {
+          const accountError = hubAccountsResult.reason;
           console.warn('[PHF API] hub account summary unavailable', accountError?.message || accountError);
           scoped.hubAccounts = [];
           scoped.hubAccountsReady = false;
           scoped.hubAccountsError = 'HUB_ACCOUNT_SUMMARY_UNAVAILABLE';
         }
-      }
-      if (session.role === 'admin' || session.role === 'manager') {
-        try {
-          const assignmentData = await listChecklistAssignments();
+
+        if (assignmentResult.status === 'fulfilled') {
+          const assignmentData = assignmentResult.value;
           scoped.checklistAssignments = assignmentData.assignments;
           scoped.checklistAssignmentsReady = assignmentData.ready;
           scoped.checklistAssignmentsError = assignmentData.error;
-        } catch (assignmentError) {
+        } else {
+          const assignmentError = assignmentResult.reason;
           console.warn('[PHF Checklist] assignment data unavailable', assignmentError?.message || assignmentError);
           scoped.checklistAssignments = [];
           scoped.checklistAssignmentsReady = false;
           scoped.checklistAssignmentsError = assignmentError?.code || 'CHECKLIST_ASSIGNMENTS_UNAVAILABLE';
         }
-        try {
-          const templateData = await listChecklistTemplates();
+
+        if (templateResult.status === 'fulfilled') {
+          const templateData = templateResult.value;
           scoped.checklistTemplates = templateData.templates;
           scoped.checklistTemplatesReady = templateData.ready;
           scoped.checklistTemplatesError = templateData.error;
-        } catch (templateError) {
+        } else {
+          const templateError = templateResult.reason;
           console.warn('[PHF Checklist] template library unavailable', templateError?.message || templateError);
           scoped.checklistTemplates = [];
           scoped.checklistTemplatesReady = false;
           scoped.checklistTemplatesError = templateError?.code || 'CHECKLIST_TEMPLATES_UNAVAILABLE';
         }
-        try {
-          const violationMode = await getChecklistViolationMode();
+
+        if (violationModeResult.status === 'fulfilled') {
+          const violationMode = violationModeResult.value;
           scoped.checklistViolationMode = violationMode.mode;
           scoped.checklistViolationModeReady = violationMode.ready;
           scoped.checklistViolationModeError = violationMode.error;
-        } catch (modeError) {
+        } else {
+          const modeError = violationModeResult.reason;
           scoped.checklistViolationMode = 'test';
           scoped.checklistViolationModeReady = false;
           scoped.checklistViolationModeError = modeError?.code || 'CHECKLIST_VIOLATION_MODE_UNAVAILABLE';
         }
-        try {
-          const permissionData = await listChecklistPermissionGrants(session);
+
+        if (permissionResult.status === 'fulfilled') {
+          const permissionData = permissionResult.value;
           scoped.checklistPermissionGrants = permissionData.grants;
           scoped.checklistPermissionPresets = permissionData.presets;
           scoped.checklistPermissionScopeTypes = permissionData.scopeTypes;
           scoped.checklistPermissionsReady = true;
           scoped.checklistPermissionsError = '';
-        } catch (permissionError) {
+        } else {
+          const permissionError = permissionResult.reason;
           console.warn('[PHF Checklist] permission data unavailable', permissionError?.message || permissionError);
           scoped.checklistPermissionGrants = [];
           scoped.checklistPermissionPresets = [];
