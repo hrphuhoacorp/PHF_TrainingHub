@@ -1,7 +1,7 @@
 :root{--phfck-green:#0b5a42;--phfck-green-2:#14785a;--phfck-green-soft:#eaf5f0;--phfck-ink:#17352d;--phfck-muted:#667a73;--phfck-line:#dbe7e1;--phfck-bg:#f4f8f6;--phfck-white:#fff;--phfck-shadow:0 14px 36px rgba(25,73,58,.09)}
 html.phf-checklist-route body>.app,body.phf-checklist-mode>.app{display:none!important}
 html.phf-checklist-route #phfChecklistRoot,body.phf-checklist-mode #phfChecklistRoot{display:block!important;min-height:100vh}
-.phf-checklist-root{font-family:Arial,Helvetica,system-ui,sans-serif;background:var(--phfck-bg);color:var(--phfck-ink);min-height:100vh}
+.phf-checklist-root{font-family:"Segoe UI",Arial,Helvetica,sans-serif;background:var(--phfck-bg);color:var(--phfck-ink);min-height:100vh}
 .phfck-shell{min-height:100vh;background:linear-gradient(180deg,#f8fbfa 0,#f3f7f5 100%)}
 .phfck-topbar{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:#fff;border-bottom:1px solid var(--phfck-line);position:sticky;top:0;z-index:30;box-shadow:0 3px 16px rgba(24,71,56,.05)}
 .phfck-brand-lockup,.phfck-top-actions{display:flex;align-items:center;gap:12px}.phfck-brand-lockup strong{display:block;font-size:20px;color:var(--phfck-green);line-height:1.1}.phfck-brand-lockup span{display:block;font-size:12px;color:var(--phfck-muted);margin-top:4px}.phfck-back,.phfck-icon-btn{width:40px;height:40px;border:1px solid var(--phfck-line);border-radius:12px;background:#fff;color:var(--phfck-green);font-weight:800;cursor:pointer}.phfck-back:hover,.phfck-icon-btn:hover{background:var(--phfck-green-soft)}.phfck-mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--phfck-green);color:#fff;font-size:22px;font-weight:900;box-shadow:0 8px 18px rgba(11,90,66,.2)}
@@ -4599,4 +4599,48 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
   .phfck-manager-people-table .phfck-manager-people-window{min-width:0!important;text-align:right}
   .phfck-manager-people-table .phfck-manager-people-action{width:min(100%,180px);min-height:42px}
   .phfck-manager-people-pagination>div{max-width:100%;flex-wrap:wrap}
+}
+
+
+/* PHF Checklist 1.38.69 — Mobile UI polish + typography unification.
+   Scope: presentation only; no API, permission, router or persistence changes. */
+.phf-checklist-root,
+.phf-checklist-root button,
+.phf-checklist-root input,
+.phf-checklist-root select,
+.phf-checklist-root textarea{font-family:"Segoe UI",Arial,Helvetica,sans-serif}
+.phf-checklist-root button,
+.phf-checklist-root input,
+.phf-checklist-root select,
+.phf-checklist-root textarea{font-size:inherit}
+.phfck-quick-evidence-wrap{display:grid;gap:7px;min-width:0}
+.phfck-quick-evidence-note{padding:10px 12px;border:1px solid #d8e7df;border-radius:12px;background:#f6fbf8;color:#5f776d;font-size:11px;line-height:1.45}
+.phfck-quick-evidence-note b{display:block;color:#1b5b43;font-size:11.5px;margin-bottom:2px}
+.phfck-quick-evidence-note[hidden]{display:none!important}
+@media(max-width:760px){
+  .phfck-mobile-content-header{min-height:64px;padding:9px 14px;gap:12px}
+  .phfck-mobile-content-copy small{font-size:10px;letter-spacing:.08em}
+  .phfck-mobile-content-copy h1{font-size:23px;line-height:1.15;letter-spacing:-.025em}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading{margin:0 0 14px;padding:0;gap:10px}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading>div:first-child>small,
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading>div:first-child>h1{display:none!important}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading p{margin:0;font-size:13px;line-height:1.55;color:#60786e}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading .phfck-monthly-head-actions{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
+  .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-heading .phfck-monthly-head-actions>*{width:100%;min-height:46px}
+  .phfck-violations-view .phfck-quick-actions-row{grid-template-columns:minmax(0,1fr)!important;width:100%;gap:12px}
+  .phfck-violations-view .phfck-quick-date-field,
+  .phfck-violations-view .phfck-quick-toolbar,
+  .phfck-violations-view .phfck-quick-actions-row .phfck-search{width:100%;min-width:0;max-width:none}
+  .phfck-violations-view .phfck-quick-actions-row .phfck-search input{width:100%;min-width:0;box-sizing:border-box}
+  .phfck-violations-view .phfck-quick-detail-actions{grid-template-columns:1fr 1fr;align-items:stretch}
+  .phfck-violations-view .phfck-quick-evidence-wrap{grid-column:1/-1}
+  .phfck-violations-view .phfck-quick-detail-actions .phfck-quick-evidence{width:100%;min-height:44px}
+  .phfck-violations-view .phfck-quick-row-submit,
+  .phfck-violations-view .phfck-quick-close{width:100%;min-width:0}
+}
+@media(max-width:420px){
+  .phfck-mobile-content-header{padding-left:12px;padding-right:12px}
+  .phfck-mobile-content-copy h1{font-size:21px}
+  .phfck-violations-view .phfck-quick-detail-actions{grid-template-columns:1fr}
+  .phfck-violations-view .phfck-quick-evidence-wrap{grid-column:auto}
 }

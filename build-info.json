@@ -1,7 +1,7 @@
 {
-  "version": "1.38.68",
-  "fingerprint": "13868-performance-sprint2-cache-bust",
-  "builtAt": "2026-08-04T15:10:00+07:00",
-  "notes": "CACHE-BUST: build-info.json chưa được bump fingerprint suốt Perf Sprint 1 (198d6af, 1230dea, 86877d4) và Sprint 2 (b5a381e, f19ed3e), trong khi Sprint 1 Commit 2 đã gắn Cache-Control: public, max-age=31536000, immutable cho /assets/js/* và /assets/css/*. Vì mọi URL versioned qua phfAssetUrl() dùng chung fingerprint không đổi suốt các lần deploy đó, trình duyệt nào đã tải phf-url-router.js/phf-checklist.css/phf-checklist-app.js trước khi Sprint 2 lên Production sẽ giữ nguyên bản cache cũ (chưa có ensureRouteCss) vĩnh viễn dù index.html luôn mới (no-store) - gây version skew: HTML mới không còn tag CSS fallback eager, nhưng router cache cũ không biết gate CSS theo route, nên Checklist/Classroom mất style hoặc treo ở màn 'Chưa thể mở'. Bump fingerprint lần này chỉ để buộc mọi asset versioned lấy URL mới, không đổi logic lazy-load, không rollback Sprint 2.",
-  "build": "13868-performance-sprint2-cache-bust"
+  "version": "1.38.69",
+  "fingerprint": "13869-checklist-mobile-ui-polish",
+  "builtAt": "2026-08-04T16:35:00+07:00",
+  "notes": "Checklist UI polish: unify Checklist typography, remove duplicated mobile page titles, stack quick-entry filters on mobile, replace evidence toast with inline state, and stabilize Google login container width. No API, permission, router, SQL or persistence changes.",
+  "build": "13869-checklist-mobile-ui-polish"
 }
