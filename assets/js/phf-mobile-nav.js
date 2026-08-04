@@ -91,10 +91,18 @@ function menuItemsFor(caps,r){
   var violationsRoute=isAdminRoute?'/admin/checklist/ghi-nhan-loi':'/ql/checklist?section=violations';
   var reviewRoute=isAdminRoute?'/admin/checklist/phieu-danh-gia-thang':'/ql/checklist?section=reviews';
   var reportRoute=isAdminRoute?'/admin/checklist/bao-cao':'/ql/checklist/bao-cao';
+  /* Sidebar quản lý (managerSidebarHtml trong phf-checklist-app.js) không còn
+     render trên mobile - "Nhân sự"/"Phiếu của tôi" (2 mục không gate theo
+     capability trong sidebar gốc) cần lối vào tương đương ở đây, chỉ cho tài
+     khoản quản lý đang có grant thật (caps.experience==='operator'), không áp
+     dụng cho Admin (Admin vẫn giữ nguyên sidebar riêng, chưa đổi đợt này). */
+  var isManagerWorkspace=!isAdminRoute&&caps&&caps.experience==='operator';
   var items=[{label:'Trang chủ',route:p+'/home',icon:'⌂'}];
   if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
   if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
   if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
+  if(isManagerWorkspace)items.push({label:'Nhân sự',route:'/ql/checklist?section=people',icon:'♙'});
+  if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
   items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
   items.push({label:'Training Hub',route:p,icon:'▦'});
   items.push({label:'Classroom',route:p+'/classroom',icon:'▤'});
