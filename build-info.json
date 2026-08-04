@@ -1,7 +1,7 @@
 {
-  "version": "1.38.60",
-  "fingerprint": "13860-google-button-label-fix",
+  "version": "1.38.61",
+  "fingerprint": "13861-mobile-capability-home",
   "builtAt": "2026-08-03T00:00:00+07:00",
-  "notes": "Sửa duy nhất khu vực Google returning-user trên màn Login: nút Google renderButton() đổi tham số hiển thị text:'continue_with' -> 'signin_with'. Lý do: nội dung 'Tiếp tục bằng tên + email' do chính Google render bên trong iframe cross-origin (không đọc/restyle được từ trang của mình), trên mobile tên/email dài làm mũi tên + logo Google bị chèn sát. 'signin_with' giữ nhãn cố định 'Đăng nhập bằng Google', không bao giờ giãn theo tên/email -> hết chèn ở mọi độ dài tên/email và mọi chiều rộng màn hình. Không đổi Auth/Google OAuth/Session/logic nhận diện tài khoản, không đổi phần UI nào khác của Login.",
-  "build": "13860-google-button-label-fix"
+  "notes": "Bước 2 Commit 1: nạp Checklist workspace/capability thật tại Home (getChecklistRoleWorkspace có sẵn, POST /api/data?checklistRoleWorkspace=1, không tạo API mới), cache trong phiên (không gọi lại khi F5/chuyển route/quay lại Home), lỗi API không phá Home (fallback về capability rỗng, chip tự ẩn). Thêm chip phạm vi nhỏ ở header (desktop/tablet, ẩn trên mobile để nhường chỗ Action Card ở Commit 4). Không đổi backend/permission, không hard-code theo role/tên chức danh/tên preset.",
+  "build": "13861-mobile-capability-home"
 }

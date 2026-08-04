@@ -26,6 +26,84 @@ function icon(type){
 }
 function journeyIcon(type){return '<span class="phf-hr-journey-icon">'+icon(type)+'</span>';}
 window.phfOpenHrModule=function(module){var p=prefix();var map={hub:p,classroom:p+'/classroom',checklist:p+'/checklist',knl:p+'/knl'};return go(map[module]||(p+'/home'));};
+
+/* Checklist workspace/capability — nguồn chuẩn duy nhất cho Home + Bottom Nav +
+   Slide Menu. Chỉ đọc (getChecklistRoleWorkspace có sẵn), cache trong phiên,
+   không gọi lại khi F5/chuyển route/quay lại Home nếu đã có dữ liệu hợp lệ.
+   Không dùng localStorage làm nguồn quyền chuẩn - chỉ giữ trong biến JS. */
+var workspaceCache=null,workspacePromise=null;
+window.phfEnsureChecklistWorkspace=function(force){
+  if(workspaceCache&&!force)return Promise.resolve(workspaceCache);
+  if(workspacePromise&&!force)return workspacePromise;
+  workspacePromise=fetch('/api/data?checklistRoleWorkspace=1&t='+Date.now(),{
+    method:'POST',credentials:'same-origin',cache:'no-store',
+    headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},
+    body:JSON.stringify({action:'getChecklistRoleWorkspace'})
+  }).then(function(res){
+    return res.json().catch(function(){return {};}).then(function(data){
+      if(!res.ok||data.ok===false)throw new Error(data.message||data.error||'Không tải được dữ liệu quyền Checklist.');
+      return data;
+    });
+  }).then(function(data){workspaceCache=data;workspacePromise=null;return data;})
+    .catch(function(err){workspacePromise=null;console.warn('[PHF HR] Không tải được workspace Checklist:',err&&err.message||err);return null;});
+  return workspacePromise;
+};
+window.phfResetChecklistWorkspaceCache=function(){workspaceCache=null;workspacePromise=null;};
+/* Chuẩn hoá capability thật từ server (không suy diễn theo role/tên chức danh/tên preset).
+   Admin bypass hoàn toàn bảng grant (đúng theo lib/checklist-permissions.js), nên tự
+   quy về phạm vi all_company. workspace.role==='learner' bao gồm cả tài khoản manager
+   chưa có grant nào đang hiệu lực - đúng ý "capability-first", không phải role gốc. */
+window.phfDeriveChecklistCapabilities=function(workspace){
+  var allScope={type:'all_company',values:[]},noneScope={type:'none',values:[]};
+  var sessionRole=role();
+  if(sessionRole==='admin'||(workspace&&workspace.role==='admin')){
+    return {experience:'admin',canRecordViolation:true,recordScope:allScope,canReview:true,reviewScope:allScope,
+      canViewReport:true,reportScope:allScope,canExport:true,exportScope:allScope,
+      canManageUsers:true,canManageSystem:true,canViewOwnIssues:true};
+  }
+  var grant=(workspace&&workspace.grant)||null,caps=(grant&&grant.capabilities)||{};
+  return {
+    experience:grant?'operator':'worker',
+    canRecordViolation:!!(workspace&&workspace.canRecordViolation),
+    recordScope:(workspace&&workspace.recordScope)||noneScope,
+    canReview:caps.review_monthly===true,
+    reviewScope:(grant&&grant.reviewScope)||noneScope,
+    canViewReport:caps.view_reports===true,
+    reportScope:(grant&&grant.viewScope)||noneScope,
+    canExport:!!(workspace&&workspace.canExport),
+    exportScope:(workspace&&workspace.exportScope)||noneScope,
+    canManageUsers:false,canManageSystem:false,
+    canViewOwnIssues:!!(workspace&&workspace.ownAssignment)
+  };
+};
+function scopeLabel(scopeValue){
+  if(!scopeValue||scopeValue.type==='none')return '';
+  if(scopeValue.type==='all_company')return 'Toàn công ty';
+  if(scopeValue.type==='direct_reports')return 'Nhân viên quản lý trực tiếp';
+  var values=Array.isArray(scopeValue.values)?scopeValue.values.filter(Boolean):[];
+  if(scopeValue.type==='department')return values.length?('Phòng '+values.join(', ')):'Phòng ban được cấp';
+  if(scopeValue.type==='branch')return values.length?('Chi nhánh '+values.join(', ')):'Chi nhánh được cấp';
+  if(scopeValue.type==='department_branch')return values.length?values.join(', '):'Phạm vi được cấp';
+  if(scopeValue.type==='employees')return 'Danh sách nhân viên được chỉ định';
+  return '';
+}
+window.phfChecklistScopeLabel=scopeLabel;
+/* Chỉ hiển thị 1 chip nhỏ khi có capability thật, không làm Home nháy: chip ẩn
+   cho tới khi dữ liệu về, không có state chờ giữa chỗ. Lỗi API không phá Home -
+   workspace null thì derive trả toàn false/none, chip tự ẩn (an toàn mặc định). */
+function applyCapabilityChip(main){
+  var chip=main.querySelector('[data-phf-hr-scope]');
+  if(!chip)return;
+  window.phfEnsureChecklistWorkspace().then(function(workspace){
+    if(!document.body.contains(chip))return;
+    var caps=window.phfDeriveChecklistCapabilities(workspace);
+    var label='';
+    if(caps.canRecordViolation)label='Ghi nhận: '+scopeLabel(caps.recordScope);
+    else if(caps.canReview)label='Thẩm định: '+scopeLabel(caps.reviewScope);
+    else if(caps.canViewReport)label='Báo cáo: '+scopeLabel(caps.reportScope);
+    if(label){chip.textContent=label;chip.hidden=false;}else chip.hidden=true;
+  });
+}
 window.phfRenderHrGateway=function(requestedPath){
   var actualPath=String((window.location&&window.location.pathname)||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
   if(actualPath.length>1)actualPath=actualPath.replace(/\/$/,'');
@@ -49,7 +127,7 @@ window.phfRenderHrGateway=function(requestedPath){
   main.innerHTML=`<section class="phf-hr-home" aria-label="Trang chủ PHF HR">
     <header class="phf-hr-header">
       <div class="phf-hr-brand"><img src="assets/intro/phf-falogo.png" alt="Phuhoafresh - Tươi mới trọn vẹn từ tâm"><span class="phf-hr-brand-rule" aria-hidden="true"></span><div><strong>PHF HR</strong><small>Hệ thống phát triển nhân sự</small></div></div>
-      <div class="phf-hr-header-actions"><button class="phf-hr-bell" type="button" aria-label="Thông báo">${icon('bell')}<span hidden>0</span></button><div class="phf-hr-account-wrap"><button class="phf-hr-account" type="button" aria-haspopup="menu" aria-expanded="false"><span class="phf-hr-avatar">${avatar}</span><span><small>Xin chào,</small><strong>${name}</strong><em>${roleText}${code?' · '+code:''}</em></span><i aria-hidden="true"></i></button><div class="phf-hr-account-menu" role="menu"><div class="phf-hr-account-summary"><strong>${name}</strong><small>${roleText}${code?' · Mã '+code:''}</small></div><button type="button" class="is-danger" data-hr-account="logout">Đăng xuất</button></div></div></div>
+      <div class="phf-hr-header-actions"><span class="phf-hr-scope-chip" data-phf-hr-scope hidden></span><button class="phf-hr-bell" type="button" aria-label="Thông báo">${icon('bell')}<span hidden>0</span></button><div class="phf-hr-account-wrap"><button class="phf-hr-account" type="button" aria-haspopup="menu" aria-expanded="false"><span class="phf-hr-avatar">${avatar}</span><span><small>Xin chào,</small><strong>${name}</strong><em>${roleText}${code?' · '+code:''}</em></span><i aria-hidden="true"></i></button><div class="phf-hr-account-menu" role="menu"><div class="phf-hr-account-summary"><strong>${name}</strong><small>${roleText}${code?' · Mã '+code:''}</small></div><button type="button" class="is-danger" data-hr-account="logout">Đăng xuất</button></div></div></div>
     </header>
     <main class="phf-hr-main">
       <section class="phf-hr-hero">
@@ -77,6 +155,7 @@ window.phfRenderHrGateway=function(requestedPath){
   if(account&&menu){account.addEventListener('click',function(e){e.stopPropagation();var open=account.getAttribute('aria-expanded')==='true';account.setAttribute('aria-expanded',open?'false':'true');menu.classList.toggle('is-open',!open);});main.addEventListener('click',function(e){if(!e.target.closest('.phf-hr-account-wrap')){account.setAttribute('aria-expanded','false');menu.classList.remove('is-open');}});}
   main.querySelectorAll('[data-hr-account]').forEach(function(btn){btn.addEventListener('click',function(){var act=btn.getAttribute('data-hr-account');if(act==='logout')return logout();});});
   document.title='PHF HR · Hệ thống phát triển nhân sự';
+  applyCapabilityChip(main);
   try{window.scrollTo({top:0,behavior:'instant'});}catch(e){window.scrollTo(0,0);}return true;
 };
 })();
