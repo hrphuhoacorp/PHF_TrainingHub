@@ -201,7 +201,12 @@
      ADMIN_VIEW_ROUTES (2 route chỉ khác query sẽ trùng cleanPath và làm hỏng
      ADMIN_ROUTE_VIEWS - xem trace trong plan). Admin luôn có cả 2 quyền nên cả 2 nút luôn hiện. */
   function adminViolationMenuButtonsHtml(path){
-    var effView=violationEffectiveView(path,true);
+    /* effView mặc định luôn resolve về 'create' khi URL không có view/workflowStatus (đúng
+       thiết kế cho lúc đứng trong route Ghi nhận lỗi) - nhưng KHÔNG được dùng effView một
+       mình để tô active, vì mọi route admin khác (Tổng quan, Báo cáo, Nhân sự...) cũng resolve
+       ra 'create' theo cùng logic đó. Chỉ active khi thật sự đang ở route Ghi nhận lỗi. */
+    var onViolationsRoute=adminViewFromPath(path)==='violations';
+    var effView=onViolationsRoute?violationEffectiveView(path,true):'';
     function btn(view,icon,title,desc){return '<button type="button" class="'+(effView===view?'active':'')+'" data-phfck-view-workflow="'+view+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+'</b><small>'+esc(desc)+'</small></span></button>';}
     return btn('create','✓','Ghi nhận lỗi','Lập lỗi và minh chứng')+btn('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi');
   }
@@ -5096,7 +5101,7 @@
     var view=adminViewFromPath(path),restoreY=pendingScrollRestore;
     if(restoreY==null)restoreY=scrollMemory[cleanPath(path)];
     root.querySelectorAll('[data-phfck-route]').forEach(function(btn){btn.classList.toggle('active',cleanPath(btn.getAttribute('data-phfck-route'))===cleanPath(path));});
-    var adminViolationEffView=violationEffectiveView(path,true);root.querySelectorAll('[data-phfck-view-workflow]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-view-workflow')===adminViolationEffView);});
+    var adminViolationEffView=view==='violations'?violationEffectiveView(path,true):'';root.querySelectorAll('[data-phfck-view-workflow]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-view-workflow')===adminViolationEffView);});
     var workspace=root.querySelector('[data-phfck-workspace]');
     if(workspace){
       var currentName=(user()||{}).fullName||(user()||{}).name||(user()||{}).displayName||(user()||{}).username||'Người dùng';
