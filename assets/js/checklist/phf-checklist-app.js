@@ -16,6 +16,13 @@
   function checklistGrantPresetCode(grant){return String(grant&&(grant.presetCode||grant.preset_code)||'').trim().toUpperCase();}
   function isAssistantWebOperator(){var grant=currentChecklistGrant();return role()==='manager'&&checklistGrantPresetCode(grant)==='TRO_LY_GD'&&grant.isActive!==false&&grant.is_active!==false;}
   function canManageChecklistPermissions(){return role()==='admin'||isAssistantWebOperator();}
+  /* "Quản trị lõi" (Kỳ đánh giá & khóa / Ghi nhận lỗi & điểm / Thông báo) khớp
+     đúng guard backend của chính các API đó - admin() trong
+     lib/checklist-monthly.js, requireAdmin() trong lib/checklist-violations.js
+     và lib/checklist-notifications.js đều CHỈ chấp nhận role==='admin', không
+     có ngoại lệ cho preset TRO_LY_GD. Không phát minh capability mới - tái
+     dùng role() đã có sẵn, đúng 1-1 với guard backend thật. */
+  function canManageChecklistCore(){return role()==='admin';}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function cssEscape(v){var s=String(v==null?'':v);return typeof CSS!=='undefined'&&CSS.escape?CSS.escape(s):s.replace(/[^a-zA-Z0-9_-]/g,'\\$&');}
   function routeRole(path){path=cleanPath(path||location.pathname);if(/^\/admin(?:\/|$)/.test(path))return 'admin';if(/^\/ql(?:\/|$)/.test(path))return 'manager';if(/^\/hv(?:\/|$)/.test(path))return 'learner';return role();}
@@ -4070,8 +4077,32 @@
   }
 
 
+  var SETTINGS_TAB_DEFS=[['permissions','Phân quyền & phạm vi','Ai được làm gì, với ai'],['cycle','Kỳ đánh giá & khóa','Mốc xử lý và phiếu tháng'],['violationRules','Ghi nhận lỗi & điểm','Quy tắc, điểm trừ và cảnh báo'],['notifications','Thông báo','Nhắc đúng người, đúng việc']];
+  /* Tab "Phân quyền & phạm vi" thuộc capability quản lý phân quyền
+     (canManageChecklistPermissions - admin hoặc TRO_LY_GD); 3 tab còn lại
+     thuộc capability quản trị lõi (canManageChecklistCore - chỉ admin, khớp
+     đúng guard backend). Không role-name nào được hardcode ở đây - chỉ dùng
+     2 hàm capability đã có sẵn. */
+  function allowedSettingsTabs(){
+    var tabs=[];
+    if(canManageChecklistPermissions())tabs.push('permissions');
+    if(canManageChecklistCore())tabs.push('cycle','violationRules','notifications');
+    return tabs;
+  }
+  /* Nguồn duy nhất "tab nào đang thực sự hiển thị": nếu settingsUiState.section
+     hiện tại vẫn hợp lệ với quyền của phiên đang render thì giữ nguyên (không
+     nhảy tab khi người dùng đang thao tác); nếu không hợp lệ (tab cấm còn sót
+     từ phiên trước, quyền vừa bị thu hồi...) thì chuyển về "permissions" nếu
+     còn quyền đó, hoặc tab hợp lệ đầu tiên. Không redirect Tổng quan, không
+     dùng localStorage - chỉ đọc capability tức thời. */
+  function resolveSettingsSection(){
+    var allowed=allowedSettingsTabs();
+    if(!allowed.length)return settingsUiState.section;
+    if(allowed.indexOf(settingsUiState.section)>=0)return settingsUiState.section;
+    return allowed.indexOf('permissions')>=0?'permissions':allowed[0];
+  }
   function settingsTabsHtml(){
-    var tabs=[['permissions','Phân quyền & phạm vi','Ai được làm gì, với ai'],['cycle','Kỳ đánh giá & khóa','Mốc xử lý và phiếu tháng'],['violationRules','Ghi nhận lỗi & điểm','Quy tắc, điểm trừ và cảnh báo'],['notifications','Thông báo','Nhắc đúng người, đúng việc']];
+    var allowed=allowedSettingsTabs(),tabs=SETTINGS_TAB_DEFS.filter(function(t){return allowed.indexOf(t[0])>=0;});
     return '<div class="phfck-settings-tabs">'+tabs.map(function(t){return '<button type="button" class="'+(settingsUiState.section===t[0]?'active':'')+'" data-phfck-settings-tab="'+t[0]+'"><b>'+esc(t[1])+'</b><small>'+esc(t[2])+'</small></button>';}).join('')+'</div>';
   }
   var PERMISSION_PRESET_FALLBACK=[
@@ -4155,7 +4186,24 @@
     return rows.filter(function(row){var g=row.grant||{},p=row.person||{},haystack=[p.name,p.code,p.department,p.branch,g.employeeName,g.employeeCode,permissionPresetName(g.presetCode),permissionScopeLabel(g.viewScope),permissionScopeLabel(g.reviewScope),'Nhân viên'].join(' ');return !q||normalizeMatchText(haystack).indexOf(q)>=0;});
   }
   function permissionTableHtml(){
-    var pd=permissionData();if(!pd.ready)return '<div class="phfck-permission-empty"><span class="phfck-loading-spinner" aria-hidden="true"></span><b>'+(pd.error?'Chưa tải được hồ sơ quyền':'Đang tải hồ sơ quyền…')+'</b><p>'+(pd.error?'Hệ thống chưa tải được hồ sơ quyền. Vui lòng thử lại.':'Dữ liệu sẽ tự hiển thị, không cần chuyển tab hoặc tải lại trang.')+'</p></div>';
+    /* pd.ready chỉ phản ánh checklistPermissionGrants đã tải xong - KHÔNG phản
+       ánh nhân sự đã tải hay chưa (2 fetch độc lập, chạy song song trong
+       ensureChecklistPermissionsOnSettings). Nếu chỉ kiểm pd.ready, có
+       khoảng hở khi quyền đã xong nhưng nhân sự chưa xong -> permissionGrantRows()
+       trả rỗng và hiện nhầm "Không có nhân sự phù hợp bộ lọc" (như thể do
+       filter) trong khi thực chất vẫn đang tải. Phải chờ ready cả 2 nguồn. */
+    var pd=permissionData(),peopleReady=checklistPeopleDataReady(),peopleErr=String(peopleDataSyncState.lastError||'');
+    if(!pd.ready||!peopleReady){
+      /* Phân biệt rõ 2 nguồn lỗi (quyền/nhân sự) thay vì gộp chung, và không
+         bao giờ đứng ở trạng thái "đang tải" nếu một trong hai nguồn thực sự
+         đã lỗi (fetchLatestChecklistPeopleData thất bại thì checklistPeopleDataReady()
+         không bao giờ tự thành true - phải phát hiện qua peopleDataSyncState.lastError,
+         không phải chờ mãi). Có nút thử lại gọi đúng lại pipeline chung
+         (ensureChecklistPermissionsOnSettings), không bypass gate nào. */
+      var errMsg=pd.error?'Chưa tải được hồ sơ quyền: '+pd.error:(peopleErr?'Chưa tải được danh sách nhân sự: '+peopleErr:'');
+      if(errMsg)return '<div class="phfck-permission-empty"><b>Chưa tải được dữ liệu</b><p>'+esc(errMsg)+'</p><button type="button" class="phfck-secondary" data-phfck-permission-retry>↻ Thử lại</button></div>';
+      return '<div class="phfck-permission-empty"><span class="phfck-loading-spinner" aria-hidden="true"></span><b>Đang tải hồ sơ quyền…</b><p>Dữ liệu sẽ tự hiển thị, không cần chuyển tab hoặc tải lại trang.</p></div>';
+    }
     var rows=permissionGrantRows();
     if(!rows.length)return '<div class="phfck-permission-empty"><b>Không có nhân sự phù hợp bộ lọc</b><p>Thử đổi trạng thái hoặc từ khóa tìm kiếm.</p></div>';
     return '<div class="phfck-permission-table"><div class="phfck-permission-head"><span>Nhân sự</span><span>Quyền nền</span><span>Quyền mở rộng</span><span>Phạm vi xem</span><span>Phạm vi thẩm định</span><span>Hiệu lực</span><span></span></div>'+rows.map(function(row){var g=row.grant||{},p=row.person||{},name=p.name||g.employeeName||'Chưa có tên',code=p.code||g.employeeCode||g.accountId||'—',hasGrant=!!g.id,inactive=row.kind==='inactive';return '<div class="phfck-permission-row '+(inactive?'is-inactive':'')+'"><span><b>'+esc(name)+'</b><small>'+esc(code)+(p.department?' · '+esc(p.department):'')+'</small></span><span><i class="is-base">Nhân viên</i><small>Quyền nền tự động</small></span><span>'+(hasGrant?'<i>'+esc(permissionPresetName(g.presetCode))+'</i><small>'+(g.isActive?'Đang áp dụng':'Đã ngừng')+'</small>':'<b class="phfck-permission-none">—</b><small>Chưa gán quyền mở rộng</small>')+'</span><span><b>'+esc(hasGrant?permissionScopeLabel(g.viewScope):'Bản thân')+'</b><small>'+(hasGrant?'Theo hồ sơ quyền':'Dữ liệu cá nhân')+'</small></span><span><b>'+esc(hasGrant?permissionScopeLabel(g.reviewScope):'Không có')+'</b><small>'+(hasGrant&&g.capabilities&&g.capabilities.review_monthly?'Được thẩm định trong phạm vi':'Không có quyền thẩm định')+'</small></span><span><b>'+esc(hasGrant?(g.effectiveFrom||'—'):'Tự động')+'</b><small>'+esc(hasGrant?(g.effectiveTo?'Đến '+g.effectiveTo:'Không giới hạn'):'Theo liên kết hồ sơ')+'</small></span><span>'+(hasGrant?'<button type="button" class="phfck-row-action" data-phfck-permission-edit="'+esc(g.id)+'">Sửa</button>':'')+'</span></div>';}).join('')+'</div>';
@@ -4256,20 +4304,50 @@
     function needsValues(scope){return scope&&['department','branch','department_branch','employees'].indexOf(scope.type)>=0&&!(scope.values||[]).length;}
     var errors=[];if(!row.accountId&&!row.employeeCode)errors.push('Chưa chọn nhân sự.');if(!row.presetCode)errors.push('Chưa chọn gói quyền.');if(!row.effectiveFrom)errors.push('Chưa chọn ngày hiệu lực.');if(String(row.reason||'').trim().length<5)errors.push('Lý do thay đổi cần tối thiểu 5 ký tự.');if(row.effectiveTo&&row.effectiveTo<row.effectiveFrom)errors.push('Ngày kết thúc không được trước ngày hiệu lực.');if(row.capabilities.review_monthly&&row.reviewScope.type==='none')errors.push('Đã bật thẩm định nhưng chưa chọn phạm vi thẩm định.');if(row.capabilities.record_violation&&row.recordScope.type==='none')errors.push('Đã bật ghi nhận lỗi nhưng chưa chọn phạm vi ghi lỗi.');if(row.capabilities.export_data&&row.exportScope.type==='none')errors.push('Đã bật xuất dữ liệu nhưng chưa chọn phạm vi xuất.');if(needsValues(row.viewScope))errors.push('Phạm vi xem đã chọn cần có chi tiết.');if(row.capabilities.review_monthly&&needsValues(row.reviewScope))errors.push('Phạm vi thẩm định đã chọn cần có chi tiết.');if(row.capabilities.record_violation&&needsValues(row.recordScope))errors.push('Phạm vi ghi lỗi đã chọn cần có chi tiết.');if(row.capabilities.export_data&&needsValues(row.exportScope))errors.push('Phạm vi xuất dữ liệu đã chọn cần có chi tiết.');return errors;
   }
+  /* Tab "Phân quyền & phạm vi" đang thực sự hiển thị khi: route Admin đang ở
+     /admin/checklist/cai-dat (admin luôn có canManageChecklistPermissions),
+     HOẶC route manager đang ở section=permissions VÀ phiên hiện tại có
+     canManageChecklistPermissions() (admin hoặc TRO_LY_GD). Trước đây các hàm
+     tải/refresh quyền chỉ nhận route Admin nên trên /ql/checklist/phan-quyen
+     danh sách quyền không tự tải khi mở trang lần đầu. */
+  function isChecklistPermissionsRouteActive(){
+    var r=routeRole(location.pathname);
+    if(r==='admin')return adminViewFromPath(location.pathname)==='settings';
+    if(r==='manager')return managerSectionFromLocation(location.pathname)==='permissions'&&canManageChecklistPermissions();
+    return false;
+  }
   async function refreshChecklistPermissions(root){
     if(settingsUiState.permissionLoading)return;
     settingsUiState.permissionLoading=true;
-    try{var response=await fetch('/api/data?checklistPermissions=1&_ts='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'listChecklistPermissionGrants',includeInactive:true})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải phân quyền.');checklistPermissionRuntimeData={checklistPermissionGrants:data.grants||[],checklistPermissionPresets:data.presets||PERMISSION_PRESET_FALLBACK,checklistPermissionsReady:true,checklistPermissionsError:''};var target=window.__phfLocalData||window.localData;if(target){target.checklistPermissionGrants=checklistPermissionRuntimeData.checklistPermissionGrants;target.checklistPermissionPresets=checklistPermissionRuntimeData.checklistPermissionPresets;target.checklistPermissionsReady=true;target.checklistPermissionsError='';}settingsUiState.permissionLoadedAt=Date.now();if(root&&adminViewFromPath(location.pathname)==='settings'){var workspace=root.querySelector('[data-phfck-workspace]');if(workspace)workspace.innerHTML=settingsHtml();}}catch(err){checklistPermissionRuntimeData={checklistPermissionGrants:[],checklistPermissionPresets:PERMISSION_PRESET_FALLBACK,checklistPermissionsReady:false,checklistPermissionsError:err&&err.message||'CHECKLIST_PERMISSIONS_UNAVAILABLE'};if(root&&adminViewFromPath(location.pathname)==='settings'){var errorWorkspace=root.querySelector('[data-phfck-workspace]');if(errorWorkspace)errorWorkspace.innerHTML=settingsHtml();}checklistToast('error','Không thể tải phân quyền',err.message||'Vui lòng thử lại.',true);}finally{settingsUiState.permissionLoading=false;}}
+    try{var response=await fetch('/api/data?checklistPermissions=1&_ts='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'listChecklistPermissionGrants',includeInactive:true})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải phân quyền.');checklistPermissionRuntimeData={checklistPermissionGrants:data.grants||[],checklistPermissionPresets:data.presets||PERMISSION_PRESET_FALLBACK,checklistPermissionsReady:true,checklistPermissionsError:''};var target=window.__phfLocalData||window.localData;if(target){target.checklistPermissionGrants=checklistPermissionRuntimeData.checklistPermissionGrants;target.checklistPermissionPresets=checklistPermissionRuntimeData.checklistPermissionPresets;target.checklistPermissionsReady=true;target.checklistPermissionsError='';}settingsUiState.permissionLoadedAt=Date.now();if(root&&isChecklistPermissionsRouteActive()){var workspace=root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]');if(workspace)workspace.innerHTML=settingsHtml();}}catch(err){checklistPermissionRuntimeData={checklistPermissionGrants:[],checklistPermissionPresets:PERMISSION_PRESET_FALLBACK,checklistPermissionsReady:false,checklistPermissionsError:err&&err.message||'CHECKLIST_PERMISSIONS_UNAVAILABLE'};if(root&&isChecklistPermissionsRouteActive()){var errorWorkspace=root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]');if(errorWorkspace)errorWorkspace.innerHTML=settingsHtml();}checklistToast('error','Không thể tải phân quyền',err.message||'Vui lòng thử lại.',true);}finally{settingsUiState.permissionLoading=false;}}
   function syncChecklistPermissionsOnOpen(root,force){
-    if(!root||adminViewFromPath(location.pathname)!=='settings')return;
+    if(!root||!isChecklistPermissionsRouteActive())return;
     if(!force&&settingsUiState.permissionLoadedAt&&Date.now()-settingsUiState.permissionLoadedAt<3000)return;
     refreshChecklistPermissions(root);
   }
   function ensureChecklistPermissionsOnSettings(root,force){
-    if(!root||routeRole(location.pathname)!=='admin'||adminViewFromPath(location.pathname)!=='settings')return;
-    /* Settings có thể được render khi shell Admin đã tồn tại hoặc trước khi dữ liệu nền hoàn tất.
-       Luôn khởi động tải quyền tại chính route Cài đặt; loading guard bên trong ngăn request trùng. */
+    if(!root||!isChecklistPermissionsRouteActive())return;
+    /* Settings có thể được render khi shell Admin/Manager đã tồn tại hoặc trước khi dữ liệu nền hoàn tất.
+       Luôn khởi động tải quyền tại đúng route Cài đặt/Phân quyền; loading guard bên trong ngăn request trùng. */
     setTimeout(function(){syncChecklistPermissionsOnOpen(root,force===true);},0);
+    /* Danh sách nhân sự cho bảng "Phân quyền & phạm vi" dùng ĐÚNG pipeline
+       checklistEmployees()/fetchLatestChecklistPeopleData() mà trang "Nhân sự"
+       (view==='people') đã dùng - không fork luồng riêng cho manager. Trước
+       đây hàm này chỉ tải quyền (grants), không tải nhân sự, nên trang chỉ có
+       dữ liệu nếu window.__phfLocalData.employees tình cờ đã được nạp từ một
+       lượt điều hướng khác trước đó (vì sao Admin "tự thấy" còn Trợ lý vào
+       thẳng /ql/checklist/phan-quyen thì không). fetchLatestChecklistPeopleData
+       tự dedupe theo peopleDataSyncState (không gọi lại nếu vừa tải <5s hoặc
+       đang có request bay), nên gọi lại ở đây không tạo request thừa. */
+    fetchLatestChecklistPeopleData(root,force===true).then(function(){
+      if(!isChecklistPermissionsRouteActive())return;
+      var workspace=root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]');
+      if(workspace)workspace.innerHTML=settingsHtml();
+    }).catch(function(){
+      if(!isChecklistPermissionsRouteActive())return;
+      var workspace=root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]');
+      if(workspace)workspace.innerHTML=settingsHtml();
+    });
   }
   async function saveChecklistPermission(root,row){
     var errors=permissionValidate(row);if(errors.length){checklistToast('warning','Chưa thể lưu quyền',errors.join(' '),true);return;}
@@ -4469,7 +4547,13 @@
   function cycleSettingsHtml(){return '<div class="phfck-settings-combined">'+deadlinesSettingsHtml()+monthlySettingsHtml()+'</div>';}
   function violationRulesSettingsHtml(){return '<div class="phfck-settings-combined phfck-violation-rules-ui">'+violationsSettingsHtml()+scoringSettingsHtml()+'</div>';}
   function settingsContentHtml(){var map={permissions:permissionsSettingsHtml,cycle:cycleSettingsHtml,violationRules:violationRulesSettingsHtml,notifications:notificationsSettingsHtml};return (map[settingsUiState.section]||permissionsSettingsHtml)();}
-  function settingsHtml(){var assistant=isAssistantWebOperator();return '<div class="phfck-page-head phfck-settings-head"><div><small>PHF CHECKLIST · '+(assistant?'ĐIỀU HÀNH WEB':'ADMIN')+'</small><h1>'+(assistant?'Phân quyền Checklist':'Cài đặt vận hành')+'</h1><p>'+(assistant?'Trợ lý Giám đốc được cấp, sửa và thu hồi quyền cho các vai trò bên dưới; không được cấp quyền Trợ lý hoặc Admin.':'Admin điều hành quyền, kỳ đánh giá, quy tắc ghi nhận và thông báo tại một nơi. Mỗi nhóm cấu hình thật sẽ có nút lưu, ngày hiệu lực và lịch sử riêng.')+'</p></div></div>'+settingsTabsHtml()+'<div data-phfck-settings-content>'+settingsContentHtml()+'</div>';}
+  function settingsHtml(){
+    /* Nguồn duy nhất chỉnh settingsUiState.section trước khi dựng tab/nội
+       dung - đọc capability tức thời của phiên đang render nên tự đúng khi
+       đổi tài khoản/thu hồi quyền, không cần hook riêng cho logout/login và
+       không tạo vòng lặp render (settingsHtml không tự gọi lại chính nó). */
+    settingsUiState.section=resolveSettingsSection();
+    var assistant=isAssistantWebOperator();return '<div class="phfck-page-head phfck-settings-head"><div><small>PHF CHECKLIST · '+(assistant?'ĐIỀU HÀNH WEB':'ADMIN')+'</small><h1>'+(assistant?'Phân quyền Checklist':'Cài đặt vận hành')+'</h1><p>'+(assistant?'Trợ lý Giám đốc được cấp, sửa và thu hồi quyền cho các vai trò bên dưới; không được cấp quyền Trợ lý hoặc Admin.':'Admin điều hành quyền, kỳ đánh giá, quy tắc ghi nhận và thông báo tại một nơi. Mỗi nhóm cấu hình thật sẽ có nút lưu, ngày hiệu lực và lịch sử riêng.')+'</p></div></div>'+settingsTabsHtml()+'<div data-phfck-settings-content>'+settingsContentHtml()+'</div>';}
 
   function placeholderHtml(key){
     var map={people:['Nhân sự & phân công','Lấy Họ tên và Mã nhân viên từ Hub; Admin chủ động gán mẫu, ngày hiệu lực và phạm vi.'],templates:['Mẫu Checklist','Quản lý 19 bộ mẫu, phiên bản tiêu chí và ngày hiệu lực.'],violations:['Ghi nhận lỗi','Chọn nhân viên, tiêu chí, sự việc và minh chứng để ghi nhận lỗi.'],tasks:['Việc cần xử lý','Theo dõi xác nhận, giải trình, phản hồi và các việc báo Admin.'],monthly:['Phiếu đánh giá tháng','Tổng hợp điểm Checklist cùng phần tự đánh giá và thẩm định.'],reports:['Báo cáo','Theo dõi điểm tuân thủ, lỗi lặp lại, quá hạn và xuất dữ liệu.'],history:['Lịch sử thay đổi','Truy vết mọi tác động quan trọng trong PHF Checklist.'],settings:['Cài đặt','Thiết lập quyền, phạm vi, thời hạn và quy tắc vận hành Checklist.']};
@@ -4653,6 +4737,8 @@
       if(reportReload){e.preventDefault();loadChecklistReport(root,true);loadChecklistViolationWorkflowSummary(root,true);return;}
       var reportWorkflowReload=e.target.closest('[data-phfck-report-workflow-reload]');
       if(reportWorkflowReload){e.preventDefault();loadChecklistViolationWorkflowSummary(root,true);return;}
+      var permissionRetry=e.target.closest('[data-phfck-permission-retry]');
+      if(permissionRetry){e.preventDefault();ensureChecklistPermissionsOnSettings(root,true);return;}
       var reportStatusPick=e.target.closest('[data-phfck-report-status-pick]');
       if(reportStatusPick){e.preventDefault();var pickedStatus=reportStatusPick.getAttribute('data-phfck-report-status-pick')||'';reportUiState.status=reportUiState.status===pickedStatus?'':pickedStatus;renderChecklistReportIfCurrent(root);return;}
       var reportBranch=e.target.closest('[data-phfck-report-branch-pick]');
@@ -4809,7 +4895,7 @@
       var repeatPolicyCancel=e.target.closest('[data-phfck-repeat-policy-cancel]');if(repeatPolicyCancel){e.preventDefault();settingsUiState.repeatPolicyEditing=false;settingsUiState.repeatPolicyDraft=null;var repeatCancelWorkspace=root.querySelector('[data-phfck-workspace]');if(repeatCancelWorkspace)repeatCancelWorkspace.innerHTML=settingsHtml();return;}
       var repeatPolicySave=e.target.closest('[data-phfck-repeat-policy-save]');if(repeatPolicySave){e.preventDefault();saveRepeatViolationPolicyUi(root);return;}
       var repeatSuggestionLoad=e.target.closest('[data-phfck-repeat-suggestion-load]');if(repeatSuggestionLoad){e.preventDefault();loadRepeatViolationSuggestions(root);return;}
-      if(settingsTab){e.preventDefault();settingsUiState.deadlineEditing=false;settingsUiState.section=settingsTab.getAttribute('data-phfck-settings-tab')||'permissions';var settingsWorkspace=root.querySelector('[data-phfck-workspace]');if(settingsWorkspace)settingsWorkspace.innerHTML=settingsHtml();if(settingsUiState.section==='notifications')loadChecklistNotificationRules(root,true);if(settingsUiState.section==='cycle'){loadMonthlyCyclePolicy(root,true);loadMonthlyOverduePolicy(root,true);}if(settingsUiState.section==='violationRules'){loadLatePointsPolicy(root,true);loadRepeatViolationPolicy(root,true);loadMonthlyScorePolicy(root,true);}return;}
+      if(settingsTab){e.preventDefault();settingsUiState.deadlineEditing=false;var requestedSettingsTab=settingsTab.getAttribute('data-phfck-settings-tab')||'permissions';settingsUiState.section=allowedSettingsTabs().indexOf(requestedSettingsTab)>=0?requestedSettingsTab:settingsUiState.section;var settingsWorkspace=root.querySelector('[data-phfck-workspace]');if(settingsWorkspace)settingsWorkspace.innerHTML=settingsHtml();if(settingsUiState.section==='notifications')loadChecklistNotificationRules(root,true);if(settingsUiState.section==='cycle'){loadMonthlyCyclePolicy(root,true);loadMonthlyOverduePolicy(root,true);}if(settingsUiState.section==='violationRules'){loadLatePointsPolicy(root,true);loadRepeatViolationPolicy(root,true);loadMonthlyScorePolicy(root,true);}return;}
       var deadlineEdit=e.target.closest('[data-phfck-deadline-edit]');if(deadlineEdit){e.preventDefault();settingsUiState.deadlineEditing=true;var deadlineWorkspace=root.querySelector('[data-phfck-workspace]');if(deadlineWorkspace)deadlineWorkspace.innerHTML=settingsHtml();return;}
       var deadlineCancel=e.target.closest('[data-phfck-deadline-cancel]');if(deadlineCancel){e.preventDefault();settingsUiState.deadlineEditing=false;var deadlineCancelWorkspace=root.querySelector('[data-phfck-workspace]');if(deadlineCancelWorkspace)deadlineCancelWorkspace.innerHTML=settingsHtml();return;}
       var deadlineSave=e.target.closest('[data-phfck-deadline-save]');if(deadlineSave){e.preventDefault();saveDeadlineSettingsUi(root);return;}
@@ -5493,7 +5579,23 @@
     roleWorkspaceState.pendingRender=false;
     var safeRoute=normalizeManagerPermissionRoute(currentRouteKey(),true);
     current.innerHTML=roleWorkspaceContentHtml(safeRoute);
-    if(routeRole(location.pathname)==='manager'&&managerSectionFromLocation(safeRoute)==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
+    /* Cold load thẳng vào /ql/checklist/phan-quyen đi qua refreshRoleWorkspaceView
+       (sau khi loadRoleWorkspace tải xong data.grant lần đầu) - KHÔNG qua
+       updateManagerSectionView (chỉ chạy khi shell manager đã tồn tại từ trước,
+       tức điều hướng trong-trang). Thiếu nhánh 'permissions' ở đây là lý do
+       cold load không tự fetch quyền/nhân sự - phải chờ một lượt điều hướng
+       trong-trang khác (vd bấm lại menu) mới thực sự trigger
+       ensureChecklistPermissionsOnSettings(). Thêm đúng cùng nhánh
+       updateManagerSectionView đã có, không logic mới.
+       force=false (khác updateManagerSectionView's true) vì hàm này còn được
+       gọi lại nhiều lần trong cùng một lượt tải (mỗi background job trong
+       startRoleWorkspaceBackgroundLoads xong đều gọi lại) - để nguyên dedup
+       tự nhiên trong syncChecklistPermissionsOnOpen/fetchLatestChecklistPeopleData
+       (3s/5s) tự tránh gọi API lặp trong cùng một lượt cold load. */
+    if(routeRole(location.pathname)==='manager'){
+      if(managerSectionFromLocation(safeRoute)==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
+      else if(managerSectionFromLocation(safeRoute)==='permissions')requestAnimationFrame(function(){ensureChecklistPermissionsOnSettings(root,false);});
+    }
     return true;
   }
   function startRoleWorkspaceBackgroundLoads(root,ownerKey,force){
