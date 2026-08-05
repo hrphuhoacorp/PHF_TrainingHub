@@ -165,6 +165,20 @@ const GRANTS = [
   { id: 'g-nv-forged', account_id: 'act-nv', employee_code: 'NV001', preset_code: 'TRO_LY_GD',
     capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true },
     view_scope: { type: 'all_company', values: [] }, review_scope: { type: 'all_company', values: [] }, record_scope: { type: 'all_company', values: [] },
+    is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
+  // AR-05 regression: khop CHINH XAC hinh dang 2 grant Production that ma
+  // AR-04 doc thay (TRUONG_CA_BH, view_scope.type=department_branch, values
+  // tagged department::/branch::) - truoc AR-05, assignmentMatchesPermission()
+  // khong parse duoc tag nay nen view_violations/record_violation deu tra
+  // rong (Silent Denial) du grant hop le. Dat ca view_scope LAN record_scope
+  // deu la department_branch tagged (nang hon 2 grant Production that, von
+  // da duoc chinh record_scope sang direct_reports) de kiem tra dung diem
+  // code truoc day bi gay.
+  { id: 'g-tc-tagged', account_id: 'act-tc-tagged', employee_code: 'TC02', preset_code: 'TRUONG_CA_BH',
+    capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true },
+    view_scope: { type: 'department_branch', values: ['department::Bán hàng', 'branch::Phú Lợi', 'branch::Ngô Quyền', 'branch::Lái Thiêu'] },
+    review_scope: { type: 'direct_reports', values: [] },
+    record_scope: { type: 'department_branch', values: ['department::Bán hàng', 'branch::Phú Lợi', 'branch::Ngô Quyền', 'branch::Lái Thiêu'] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' }
 ];
 
@@ -194,7 +208,8 @@ const SESSIONS = {
   tc: { role: 'manager', account: { id: 'act-tc', name: 'Truong ca' }, employeeCode: 'TC01' },
   ql: { role: 'manager', account: { id: 'act-ql', name: 'Quan ly truc tiep' }, employeeCode: 'QL01' },
   cxbc: { role: 'manager', account: { id: 'act-cxbc', name: 'Chi xem bao cao' } },
-  nv: { role: 'learner', account: { id: 'act-nv', name: 'Nhan vien' }, employeeCode: 'NV001' }
+  nv: { role: 'learner', account: { id: 'act-nv', name: 'Nhan vien' }, employeeCode: 'NV001' },
+  tcTagged: { role: 'manager', account: { id: 'act-tc-tagged', name: 'Truong ca (tagged, AR-05)' }, employeeCode: 'TC02' }
 };
 
 let failures = 0;
@@ -239,14 +254,14 @@ async function run() {
   const expectedAll = { total: 8, official: 6, cancelled: 2, waitingEmployee: 2, inExplanation: 3, waitingAdmin: 1, overdue: 1, dueSoon: 1, open: 5 };
   await assertSummaryMatchesList(SESSIONS.admin, 'Admin', expectedAll, ['NV001', 'NV002', 'NV003', 'NV004']);
   const adminPerm = await resolveViolationPermission(SESSIONS.admin, 'view');
-  check(adminPerm.canView === true && adminPerm.canRecord === true && adminPerm.canEditTest === true && adminPerm.canCancel === true && adminPerm.scopeType === 'all', 'Admin: full capabilities + scope=all (source-of-truth, not inferred from role name alone elsewhere)');
+  check(adminPerm.canView === true && adminPerm.canRecord === true && adminPerm.canEditTest === true && adminPerm.canCancel === true && adminPerm.scopeType === 'all_company', 'Admin: full capabilities + scope=all_company (source-of-truth, not inferred from role name alone elsewhere)');
   const adminReview = await getChecklistMonthlyReviewAccess(SESSIONS.admin);
   check(adminReview.canReview === true && adminReview.people.length === 4, 'Admin: Monthly Review sees all 4 employees (toan cong ty)');
 
   console.log('== B. TRO LY GD / BAN GIAM SAT - viewScope toan cong ty ==');
   await assertSummaryMatchesList(SESSIONS.tlgd, 'Tro ly GD', expectedAll, ['NV001', 'NV002', 'NV003', 'NV004']);
   const tlgdPerm = await resolveViolationPermission(SESSIONS.tlgd, 'view');
-  check(tlgdPerm.scopeType === 'all', 'Tro ly GD: viewScope = all_company (khong chi case tu tao/duoc giao - toan bo cong ty)');
+  check(tlgdPerm.scopeType === 'all_company', 'Tro ly GD: viewScope = all_company (khong chi case tu tao/duoc giao - toan bo cong ty)');
   const tlgdAdminAction = await resolveViolationPermission(SESSIONS.tlgd, 'view');
   check(tlgdAdminAction.canEditTest === false && tlgdAdminAction.canCancel === false, 'Tro ly GD: khong tu co quyen loi Admin (canEditTest/canCancel van false)');
 
@@ -265,6 +280,25 @@ async function run() {
   const tcReviewCodes = tcReview.people.map(p => p.employeeCode).sort();
   check(JSON.stringify(tcReviewCodes) === JSON.stringify(['NV001', 'NV004']), 'Truong ca: Monthly Review (reviewScope=direct_reports) CHI thay NV001+NV004 (nguoi quan ly truc tiep), KHONG thay NV002 du NV002 nam trong viewScope KPI - khong nham 2 pham vi, got ' + tcReviewCodes.join(','));
   check(tcReviewCodes.indexOf('NV002') === -1, 'Truong ca: NV002 (trong viewScope nhung khong phai direct report) khong xuat hien trong danh sach tham dinh');
+
+  console.log('== D2. TRUONG CA (TAGGED department_branch, dung HINH DANG Production that - AR-05 regression) ==');
+  // AR-04 doc Production thay 2 grant TRUONG_CA_BH active co view_scope.type=
+  // department_branch voi values dang tagged (department::.../branch::...).
+  // Truoc AR-05, assignmentMatchesPermission() khong parse duoc tag nay ->
+  // view_violations/record_violation deu tra RONG (Silent Denial) du grant
+  // hop le va co view_violations/record_violation=true. Test nay chay dung
+  // qua resolveViolationPermission() -> permissionEmployees() ->
+  // listChecklistViolations()/requireViolationPermission() - dung API that,
+  // khong test rieng ham noi bo - de chung minh duong hong thuc su da het.
+  await assertSummaryMatchesList(SESSIONS.tcTagged, 'Truong ca (tagged)', expectedDept, ['NV001', 'NV002', 'NV004']);
+  let tcTaggedRecordBlockedForInScope = false;
+  try { await requireViolationPermission(SESSIONS.tcTagged, 'record', [{ employee_code: 'NV001' }]); }
+  catch (e) { tcTaggedRecordBlockedForInScope = true; }
+  check(tcTaggedRecordBlockedForInScope === false, 'Truong ca (tagged): NV001 (dung department_branch tagged) KHONG con bi chan nham CHECKLIST_VIOLATION_OUT_OF_SCOPE khi Ghi nhan loi (day chinh la bug AR-04 phat hien tren Production that)');
+  let tcTaggedRecordBlockedForOutOfScope = false;
+  try { await requireViolationPermission(SESSIONS.tcTagged, 'record', [{ employee_code: 'NV003' }]); }
+  catch (e) { tcTaggedRecordBlockedForOutOfScope = e && e.code === 'CHECKLIST_VIOLATION_OUT_OF_SCOPE'; }
+  check(tcTaggedRecordBlockedForOutOfScope === true, 'Truong ca (tagged): NV003 (Kho, ngoai tag department::Ban hang) VAN bi chan dung nhu cu - sua bug khong lam rong pham vi');
 
   console.log('== E. QUAN LY TRUC TIEP - chi xem, khong duoc ghi ==');
   const expectedQl = { total: 4, official: 3, cancelled: 1, waitingEmployee: 0, inExplanation: 2, waitingAdmin: 1, overdue: 1, dueSoon: 0, open: 2 };
@@ -293,7 +327,7 @@ async function run() {
   const expectedNv = { total: 2, official: 2, cancelled: 0, waitingEmployee: 1, inExplanation: 1, waitingAdmin: 0, overdue: 0, dueSoon: 0, open: 2 };
   await assertSummaryMatchesList(SESSIONS.nv, 'Nhan vien', expectedNv, ['NV001']);
   const nvPerm = await resolveViolationPermission(SESSIONS.nv, 'view');
-  check(nvPerm.scopeType === 'employee' && JSON.stringify(nvPerm.scopeValues) === JSON.stringify(['NV001']), 'Nhan vien: scope luon la employee/[chinh minh], bat ke co ban ghi phan quyen "all_company" gia mao trong bang checklist_permission_grants cho cung account_id (role=learner short-circuit truoc khi doc bang quyen) - khong the mo rong qua du lieu quyen con sot/gia mao');
+  check(nvPerm.scopeType === 'employees' && JSON.stringify(nvPerm.scopeValues) === JSON.stringify(['NV001']), 'Nhan vien: scope luon la employees/[chinh minh], bat ke co ban ghi phan quyen "all_company" gia mao trong bang checklist_permission_grants cho cung account_id (role=learner short-circuit truoc khi doc bang quyen) - khong the mo rong qua du lieu quyen con sot/gia mao');
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');

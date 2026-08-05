@@ -138,7 +138,7 @@ async function run() {
   check(result.summary.dueSoon === 1, 'dueSoon = 1 (only v1: due within 3 calendar days, not overdue, not completed), got ' + result.summary.dueSoon);
   check(result.summary.open === 5, 'open = 5 (v1,v2,v3,v4,v6 - task not completed/cancelled; v5 excluded because completed), got ' + result.summary.open);
   check(result.month === '2026-08', 'month echoes requested period');
-  check(result.scope && result.scope.scopeType === 'all' && result.scope.count === null, 'scope reflects resolved viewScope (all_company normalized to all), not a hardcoded value');
+  check(result.scope && result.scope.scopeType === 'all_company' && result.scope.count === null, 'scope reflects resolved viewScope (all_company, canonical type - not renamed/hardcoded)');
 
   // 4. dueSoon must track the CONFIGURED operationTimingPolicy, not a hardcoded 3-day window.
   //    reviewerResponseDays=1 here: a waiting_reviewer task due in 2 days must NOT be dueSoon
