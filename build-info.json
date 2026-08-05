@@ -1,7 +1,7 @@
 {
-  "version": "1.38.80",
-  "fingerprint": "13880-admin-violation-menu-active-fix",
-  "builtAt": "2026-08-05T15:00:00+07:00",
-  "notes": "Hotfix: adminViolationMenuButtonsHtml (and updateAdminView's active-toggle loop, both in assets/js/checklist/phf-checklist-app.js) computed the Ghi nhan loi/Nhat ky loi sidebar active state from violationEffectiveView(path,true) alone, without first checking adminViewFromPath(path)==='violations'. Since violationEffectiveView defaults to 'create' whenever the URL carries no view/workflowStatus param - true on every other admin page - 'Ghi nhan loi' lit up as active on Tong quan, Bao cao, Nhan su, etc. alongside the real active item. Both call sites now only resolve effView (and therefore only allow a match) when the current admin view actually is 'violations'; everywhere else effView is '' so neither button gets the active class. Manager sidebar (violationItem) already had this guard (active==='violations'&&...) and was unaffected. UI-only, no router/permission/workflow/KPI/backend change.",
-  "build": "13880-admin-violation-menu-active-fix"
+  "version": "1.38.81",
+  "fingerprint": "13881-admin-violation-menu-active-query-fix",
+  "builtAt": "2026-08-05T16:00:00+07:00",
+  "notes": "Hotfix 2: after 13880 fixed 'Ghi nhan loi' lighting up on unrelated admin pages, it still stayed active instead of 'Nhat ky loi' while actually viewing .../ghi-nhan-loi?view=log. Root cause: render() passes adminDashboard()/updateAdminView() a query-stripped routePath (cleanPath(routeKey)), so adminViolationMenuButtonsHtml/updateAdminView's active-state resolver could never see ?view=log or ?workflowStatus= and always defaulted violationEffectiveView to 'create'. violationsHtml() (the actual content) was never affected because it already reads currentRouteKey() (the live location, with query) directly instead of the passed-in path - that's why the page content correctly showed Nhat ky loi while the sidebar didn't. Both admin active-state call sites (assets/js/checklist/phf-checklist-app.js: adminViolationMenuButtonsHtml, updateAdminView) now resolve violationEffectiveView from currentRouteKey() instead of the stripped path argument, matching what the content already does. Manager sidebar (violationItem) already used currentRouteKey() and was unaffected. UI-only, no router/permission/workflow/KPI/backend change.",
+  "build": "13881-admin-violation-menu-active-query-fix"
 }

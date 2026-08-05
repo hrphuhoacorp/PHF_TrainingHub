@@ -204,9 +204,13 @@
     /* effView mặc định luôn resolve về 'create' khi URL không có view/workflowStatus (đúng
        thiết kế cho lúc đứng trong route Ghi nhận lỗi) - nhưng KHÔNG được dùng effView một
        mình để tô active, vì mọi route admin khác (Tổng quan, Báo cáo, Nhân sự...) cũng resolve
-       ra 'create' theo cùng logic đó. Chỉ active khi thật sự đang ở route Ghi nhận lỗi. */
-    var onViolationsRoute=adminViewFromPath(path)==='violations';
-    var effView=onViolationsRoute?violationEffectiveView(path,true):'';
+       ra 'create' theo cùng logic đó. Chỉ active khi thật sự đang ở route Ghi nhận lỗi.
+       Dùng currentRouteKey() (có query) chứ không dùng "path" - render() gọi hàm này với
+       routePath đã cleanPath (mất ?view=/?workflowStatus=), nên "path" không bao giờ thấy
+       được view=log; violationsHtml() (vẽ nội dung) đã luôn đọc currentRouteKey(), giờ đồng bộ
+       theo đúng nguồn đó để active-state khớp với nội dung thật sự đang hiển thị. */
+    var onViolationsRoute=adminViewFromPath(currentRouteKey())==='violations';
+    var effView=onViolationsRoute?violationEffectiveView(currentRouteKey(),true):'';
     function btn(view,icon,title,desc){return '<button type="button" class="'+(effView===view?'active':'')+'" data-phfck-view-workflow="'+view+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+'</b><small>'+esc(desc)+'</small></span></button>';}
     return btn('create','✓','Ghi nhận lỗi','Lập lỗi và minh chứng')+btn('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi');
   }
@@ -5101,7 +5105,10 @@
     var view=adminViewFromPath(path),restoreY=pendingScrollRestore;
     if(restoreY==null)restoreY=scrollMemory[cleanPath(path)];
     root.querySelectorAll('[data-phfck-route]').forEach(function(btn){btn.classList.toggle('active',cleanPath(btn.getAttribute('data-phfck-route'))===cleanPath(path));});
-    var adminViolationEffView=view==='violations'?violationEffectiveView(path,true):'';root.querySelectorAll('[data-phfck-view-workflow]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-view-workflow')===adminViolationEffView);});
+    /* "path" ở đây đã bị render() cleanPath (mất ?view=/?workflowStatus=) trước khi truyền vào -
+       phải dùng currentRouteKey() mới thấy được view=log, khớp đúng nguồn violationsHtml() đã
+       dùng để vẽ nội dung, nếu không nút "Ghi nhận lỗi" sẽ luôn sáng dù đang xem Nhật ký lỗi. */
+    var adminViolationEffView=view==='violations'?violationEffectiveView(currentRouteKey(),true):'';root.querySelectorAll('[data-phfck-view-workflow]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-view-workflow')===adminViolationEffView);});
     var workspace=root.querySelector('[data-phfck-workspace]');
     if(workspace){
       var currentName=(user()||{}).fullName||(user()||{}).name||(user()||{}).displayName||(user()||{}).username||'Người dùng';
