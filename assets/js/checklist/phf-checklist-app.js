@@ -84,7 +84,12 @@
   function managerPeopleRoute(view){return '/ql/checklist?section=people&view='+(view==='review'?'review':'scope');}
   function managerProgressFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('progress')||'').trim().toLowerCase();}catch(_e){}return ['self','reviewed'].indexOf(value)>=0?value:'';}
   function managerTaskFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('task')||'').trim().toLowerCase();}catch(_e){}return ['employee','admin'].indexOf(value)>=0?value:'';}
-  function violationWorkflowStatusFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('workflowStatus')||'').trim().toLowerCase();}catch(_e){}return ['all','waiting_employee','in_explanation','overdue','official','cancelled'].indexOf(value)>=0?value:'';}
+  /* Cùng danh sách giá trị mà backend listChecklistViolations()/
+     classifyViolationWorkflowStatus() chấp nhận (lib/checklist-violations.js)
+     - due_soon/open/waiting_admin chỉ phục vụ drill-down từ KPI (Tổng quan/
+     Báo cáo), không phải lựa chọn nghiệp vụ mới. */
+  var VIOLATION_WORKFLOW_STATUS_VALUES=['all','waiting_employee','in_explanation','waiting_admin','overdue','due_soon','open','official','cancelled'];
+  function violationWorkflowStatusFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('workflowStatus')||'').trim().toLowerCase();}catch(_e){}return VIOLATION_WORKFLOW_STATUS_VALUES.indexOf(value)>=0?value:'';}
   /* view=create|log là UI-state con của section=violations (Ghi nhận lỗi và Nhật ký lỗi tách menu
      nhưng dùng chung violationsHtml()) - KHÔNG mở rộng ngoài 2 giá trị này, không phải router
      thứ hai. violationEffectiveView là nguồn xác định duy nhất "đang thực sự hiển thị màn nào",
@@ -108,7 +113,7 @@
   }
   function violationLogRouteFor(key){return violationSectionRouteFor('log',key||'all');}
   function deriveDataStatusFromWorkflow(key){return key==='cancelled'?'cancelled':(key==='all'?'all':'active');}
-  function violationWorkflowStatusLabel(key){return {waiting_employee:'Chờ nhân viên phản hồi',in_explanation:'Đang giải trình',overdue:'Quá hạn phản hồi',official:'Đã chính thức',cancelled:'Đã hủy'}[key]||'Đã chính thức';}
+  function violationWorkflowStatusLabel(key){return {waiting_employee:'Chờ nhân viên phản hồi',in_explanation:'Đang giải trình',waiting_admin:'Báo Admin',overdue:'Quá hạn phản hồi',due_soon:'Sắp quá hạn',open:'Việc đang mở',official:'Đã chính thức',cancelled:'Đã hủy'}[key]||'Đã chính thức';}
   function isChecklistReportPath(path){var p=cleanPath(path||location.pathname);return p===ADMIN_VIEW_ROUTES.reports||(p.indexOf('/ql/checklist')===0&&managerSectionFromLocation(path)==='reports');}
   function isViolationRoute(path){
     path=path||location.pathname;
@@ -3493,7 +3498,7 @@
     if(violationLogState.loading)return '<section class="phfck-panel phfck-log-panel"><div class="phfck-log-loading"><b>Đang tải nhật ký lỗi…</b><p>Hệ thống đang đọc dữ liệu đúng phạm vi quyền.</p></div></section>';
     if(violationLogState.error)return '<section class="phfck-panel phfck-log-panel"><div class="phfck-log-empty is-error"><b>Không thể tải nhật ký lỗi</b><p>'+esc(violationLogState.error)+'</p><button type="button" class="phfck-secondary" data-phfck-log-reload>Tải lại</button></div></section>';
     violationLogState.mode='all';
-    return '<section class="phfck-panel phfck-log-panel"><div class="phfck-panel-head phfck-log-panel-head"><div><small>NHẬT KÝ LỖI</small><h3>Dữ liệu đã ghi nhận</h3></div><div class="phfck-log-head-actions"><span class="phfck-period-chip" title="Kỳ đánh giá đang làm việc">◷ Kỳ đánh giá '+esc(violationEvaluationPeriodValue())+'</span><button type="button" class="phfck-secondary" data-phfck-log-reload>↻ Làm mới</button></div></div><div class="phfck-log-filters phfck-log-filters-simple"><label><span>Tìm nhanh</span><input type="search" value="'+esc(violationLogState.query)+'" placeholder="Tên, mã NV, tiêu chí, nhận xét…" data-phfck-log-query></label><label><span>Nhân sự</span><select data-phfck-log-employee>'+violationLogEmployeeOptions()+'</select></label><label><span>Tình trạng xử lý</span><select data-phfck-log-workflow>'+['all','waiting_employee','in_explanation','overdue','official','cancelled'].map(function(k){return '<option value="'+k+'" '+(violationLogState.workflowStatus===k?'selected':'')+'>'+(k==='all'?'Tất cả':esc(violationWorkflowStatusLabel(k)))+'</option>';}).join('')+'</select></label><label><span>Từ ngày</span><input type="date" value="'+esc(violationLogState.dateFrom)+'" data-phfck-log-from></label><label><span>Đến ngày</span><input type="date" value="'+esc(violationLogState.dateTo)+'" data-phfck-log-to></label><div class="phfck-log-filter-action"><button type="button" class="phfck-primary" data-phfck-log-apply>Áp dụng</button></div></div><div class="phfck-log-count"><b>'+Number(violationLogState.total||0)+' bản ghi</b><span>Dữ liệu được lọc tại máy chủ theo đúng phạm vi quyền.</span></div><div data-phfck-log-rows>'+violationLogRowsHtml()+'</div>'+violationLogPaginationHtml()+'</section>';
+    return '<section class="phfck-panel phfck-log-panel"><div class="phfck-panel-head phfck-log-panel-head"><div><small>NHẬT KÝ LỖI</small><h3>Dữ liệu đã ghi nhận</h3></div><div class="phfck-log-head-actions"><span class="phfck-period-chip" title="Kỳ đánh giá đang làm việc">◷ Kỳ đánh giá '+esc(violationEvaluationPeriodValue())+'</span><button type="button" class="phfck-secondary" data-phfck-log-reload>↻ Làm mới</button></div></div><div class="phfck-log-filters phfck-log-filters-simple"><label><span>Tìm nhanh</span><input type="search" value="'+esc(violationLogState.query)+'" placeholder="Tên, mã NV, tiêu chí, nhận xét…" data-phfck-log-query></label><label><span>Nhân sự</span><select data-phfck-log-employee>'+violationLogEmployeeOptions()+'</select></label><label><span>Tình trạng xử lý</span><select data-phfck-log-workflow>'+VIOLATION_WORKFLOW_STATUS_VALUES.map(function(k){return '<option value="'+k+'" '+(violationLogState.workflowStatus===k?'selected':'')+'>'+(k==='all'?'Tất cả':esc(violationWorkflowStatusLabel(k)))+'</option>';}).join('')+'</select></label><label><span>Từ ngày</span><input type="date" value="'+esc(violationLogState.dateFrom)+'" data-phfck-log-from></label><label><span>Đến ngày</span><input type="date" value="'+esc(violationLogState.dateTo)+'" data-phfck-log-to></label><div class="phfck-log-filter-action"><button type="button" class="phfck-primary" data-phfck-log-apply>Áp dụng</button></div></div><div class="phfck-log-count"><b>'+Number(violationLogState.total||0)+' bản ghi</b><span>Dữ liệu được lọc tại máy chủ theo đúng phạm vi quyền.</span></div><div data-phfck-log-rows>'+violationLogRowsHtml()+'</div>'+violationLogPaginationHtml()+'</section>';
   }
   async function loadViolationLog(root,force){if(violationLogState.loading||(!force&&violationLogState.loaded))return;violationLogState.loading=true;violationLogState.error='';if(violationUiState.mode==='log')renderViolationWorkspace(root,false);try{var payload={action:'listChecklistViolations',query:violationLogState.query||'',employeeCode:violationLogState.employeeCode||'',mode:violationLogState.mode||'all',status:violationLogState.status||'all',workflowStatus:violationLogState.workflowStatus||'all',dateFrom:violationLogState.dateFrom||'',dateTo:violationLogState.dateTo||'',page:violationLogState.page||1,pageSize:violationLogState.pageSize||30};var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể đọc nhật ký lỗi.');violationLogState.records=Array.isArray(data.records)?data.records:[];violationLogState.employees=Array.isArray(data.employees)?data.employees:[];violationLogState.total=Number(data.total||0);violationLogState.page=Number(data.page||violationLogState.page||1);violationLogState.pageSize=Number(data.pageSize||violationLogState.pageSize||30);violationLogState.permission=data.permission||violationLogState.permission;violationLogState.loaded=true;}catch(err){violationLogState.error='Không thể tải dữ liệu.';}finally{violationLogState.loading=false;if(violationUiState.mode==='log')renderViolationWorkspace(root,false);}}
 
@@ -3985,8 +3990,8 @@
     if(reportWorkflowUiState.loading&&!reportWorkflowUiState.data)return '<section class="phfck-panel phfck-report-workflow is-loading"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div></div><div class="phfck-role-loading is-compact"><span class="phfck-loading-spinner" aria-hidden="true"></span><div><b>Đang tải báo cáo...</b></div></div></section>';
     if(reportWorkflowUiState.error&&!reportWorkflowUiState.data)return '<section class="phfck-panel phfck-report-workflow is-error"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div></div><div class="phfck-notice"><b>'+esc(reportWorkflowUiState.error)+'</b><button type="button" class="phfck-secondary" data-phfck-report-workflow-reload>↻ Thử lại</button></div></section>';
     var data=reportWorkflowUiState.data;
-    if(!data||data.canReview!==true)return '';
-    var s=data.summary||{total:0,official:0,cancelled:0,waitingEmployee:0,inExplanation:0,overdue:0};
+    if(!data||data.canView!==true)return '';
+    var s=data.summary||{total:0,official:0,cancelled:0,waitingEmployee:0,inExplanation:0,waitingAdmin:0,overdue:0,dueSoon:0,open:0};
     var cards=[
       ['Tổng ghi nhận',s.total,'','all'],
       ['Chờ nhân viên phản hồi',s.waitingEmployee,'is-warning','waiting_employee'],
@@ -3996,7 +4001,7 @@
       ['Đã hủy',s.cancelled,'','cancelled']
     ];
     var canGoto=canViewViolationsNow();
-    return '<section class="phfck-panel phfck-report-workflow"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div><span>Theo phạm vi thẩm định đang áp dụng</span></div><div class="phfck-exec-kpis">'+cards.map(function(c){var attrs=canGoto?' role="button" tabindex="0" data-phfck-report-workflow-goto="'+esc(c[3])+'"':'';return '<article class="'+c[2]+(canGoto?' is-clickable':'')+'"'+attrs+'><span>'+esc(c[0])+'</span><strong>'+c[1]+'</strong><small>Kỳ '+esc(reportMonthLabel(data.month||reportPeriodValue()).toLowerCase())+'</small></article>';}).join('')+'</div></section>';
+    return '<section class="phfck-panel phfck-report-workflow"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div><span>Theo phạm vi được cấp xem (Nhật ký lỗi)</span></div><div class="phfck-exec-kpis">'+cards.map(function(c){var attrs=canGoto?' role="button" tabindex="0" data-phfck-report-workflow-goto="'+esc(c[3])+'"':'';return '<article class="'+c[2]+(canGoto?' is-clickable':'')+'"'+attrs+'><span>'+esc(c[0])+'</span><strong>'+c[1]+'</strong><small>Kỳ '+esc(reportMonthLabel(data.month||reportPeriodValue()).toLowerCase())+'</small></article>';}).join('')+'</div></section>';
   }
   function reportData(){
     var source=reportUiState.data||{forms:[],violations:[],repeatSuggestions:[],trend:[],trendForms:[],periods:[],scope:{}},month=reportPeriodValue();
@@ -5302,13 +5307,21 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(paths[type]||paths.open)+'</svg>';
   }
   function managerOverviewHtml(data,actions){
-    var people=Array.isArray(data.people)?data.people:[],forms=Array.isArray(roleWorkspaceState.reviews)?roleWorkspaceState.reviews:[],tasks=Array.isArray(roleWorkspaceState.tasks)?roleWorkspaceState.tasks:[],summary=roleWorkspaceState.taskSummary||{};
+    var people=Array.isArray(data.people)?data.people:[],forms=Array.isArray(roleWorkspaceState.reviews)?roleWorkspaceState.reviews:[],tasks=Array.isArray(roleWorkspaceState.tasks)?roleWorkspaceState.tasks:[];
     var waitingReviews=forms.filter(function(f){return f.status==='waiting_review';});
-    var waitingResponses=Number(summary.waitingReviewer||summary.waiting_reviewer||0);
-    var waitingEmployee=Number(summary.waitingEmployee||summary.waiting_employee||0);
-    var waitingAdmin=Number(summary.waitingAdmin||summary.waiting_admin||0);
-    var dueCount=Number(summary.due||0)+Number(summary.overdue||0);
-    var openTaskCount=Number(summary.pending||0)||tasks.filter(function(t){return ['completed','cancelled'].indexOf(t.status)<0;}).length;
+    /* Chờ nhân viên/Ý kiến chờ phản hồi/Sắp quá hạn-quá hạn/Việc đang mở/Báo Admin
+       PHẢI đọc từ reportWorkflowUiState (getChecklistViolationWorkflowSummary) -
+       CÙNG nguồn, CÙNG lần gọi API với Báo cáo "Tình trạng xử lý ghi nhận lỗi".
+       Không tự tính lại từ roleWorkspaceState.tasks (task engine cá nhân) - đó là
+       nguyên nhân gốc của lệch số Tổng quan/Báo cáo. */
+    var wfData=reportWorkflowUiState.data,wf=(wfData&&wfData.summary)||{};
+    var wfPending=reportWorkflowUiState.loading&&!wfData;
+    var wfErrored=!!reportWorkflowUiState.error&&!wfData;
+    var waitingResponses=Number(wf.inExplanation||0);
+    var waitingEmployee=Number(wf.waitingEmployee||0);
+    var waitingAdmin=Number(wf.waitingAdmin||0);
+    var dueCount=Number(wf.dueSoon||0)+Number(wf.overdue||0);
+    var openTaskCount=Number(wf.open||0);
     var currentMonth=(new Date()).toISOString().slice(0,7);
     var monthForms=forms.filter(function(f){return !f.period_month||f.period_month===currentMonth;});
     var uniqueForms=[],seenForms={};
@@ -5326,21 +5339,28 @@
     waitingReviews.forEach(function(f){var a=touch(f.employee_code,f.employee_name,f.branch_name||f.branch);if(a)a.waitingReview=true;});
     var attentionRows=Object.keys(attention).map(function(k){return attention[k];}).sort(function(a,b){return (Number(b.due)*10+b.issues+Number(b.waitingReview))-(Number(a.due)*10+a.issues+Number(a.waitingReview));}).slice(0,6);
     var reviewPending=roleWorkspaceState.reviewLoading,taskPending=roleWorkspaceState.taskLoading;
+    var canGotoLog=canViewViolationsNow();
+    /* c[0]=section (data-phfck-manager-section) hoặc null nếu dùng workflow-goto;
+       c[5]=workflowStatus (data-phfck-report-workflow-goto, đi thẳng Nhật ký lỗi
+       với đúng filter+phạm vi viewScope - xem violationLogRouteFor). Chỉ 2 KPI
+       không có filter workflowStatus 1-1 chính xác (Phiếu chờ thẩm định là phiếu
+       tháng, khác domain; "Sắp quá hạn/quá hạn" gộp 2 số nên trỏ vào tập overdue -
+       tập chính xác duy nhất trong 2 tập con). */
     var actionCards=[
-      ['reviews','Phiếu chờ thẩm định',reviewPending?'…':waitingReviews.length,reviewPending?'Đang tải phiếu được phân công':'Chỉ các phiếu được gán cho anh/chị','review'],
-      ['my-work','Ý kiến chờ phản hồi',taskPending?'…':waitingResponses,taskPending?'Đang tải việc cần xử lý':'Cần phản hồi trong thời hạn quy định','response'],
-      ['my-work','Sắp quá hạn / quá hạn',taskPending?'…':dueCount,taskPending?'Đang kiểm tra thời hạn':'Ưu tiên xử lý để không tồn đọng','due'],
-      ['my-work','Việc đang mở',taskPending?'…':openTaskCount,taskPending?'Đang tải trạng thái việc':'Xác nhận, giải trình và theo dõi kết quả','open']
+      ['reviews','Phiếu chờ thẩm định',reviewPending?'…':waitingReviews.length,reviewPending?'Đang tải phiếu được phân công':'Chỉ các phiếu được gán cho anh/chị','review',null],
+      [null,'Ý kiến chờ phản hồi',wfPending?'…':waitingResponses,wfPending?'Đang tải dữ liệu':'Cần phản hồi trong thời hạn quy định','response','in_explanation'],
+      [null,'Sắp quá hạn / quá hạn',wfPending?'…':dueCount,wfPending?'Đang kiểm tra thời hạn':'Ưu tiên xử lý để không tồn đọng','due','overdue'],
+      [null,'Việc đang mở',wfPending?'…':openTaskCount,wfPending?'Đang tải trạng thái việc':'Xác nhận, giải trình và theo dõi kết quả','open','open']
     ];
     var progressCards=[
-      ['self','Đã tự đánh giá',reviewPending?'…':selfDone,reviewPending?'Đang tải phiếu tháng':'Trên '+uniqueForms.length+' phiếu được mở','self'],
-      ['reviewed','Đã thẩm định',reviewPending?'…':reviewed,reviewPending?'Đang tải kết quả':'Các phiếu đã hoàn tất','reviewed'],
-      ['employee','Chờ nhân viên',taskPending?'…':waitingEmployee,taskPending?'Đang tải trạng thái':'Cần xác nhận hoặc giải trình','employee'],
-      ['admin','Báo Admin',taskPending?'…':waitingAdmin,taskPending?'Đang tải ngoại lệ':'Trường hợp ngoại lệ','admin']
+      ['self','Đã tự đánh giá',reviewPending?'…':selfDone,reviewPending?'Đang tải phiếu tháng':'Trên '+uniqueForms.length+' phiếu được mở','self',null],
+      ['reviewed','Đã thẩm định',reviewPending?'…':reviewed,reviewPending?'Đang tải kết quả':'Các phiếu đã hoàn tất','reviewed',null],
+      ['employee','Chờ nhân viên',wfPending?'…':waitingEmployee,wfPending?'Đang tải trạng thái':'Cần xác nhận hoặc giải trình','employee','waiting_employee'],
+      ['admin','Báo Admin',wfPending?'…':waitingAdmin,wfPending?'Đang tải ngoại lệ':'Trường hợp ngoại lệ','admin','waiting_admin']
     ];
     return managerSectionHeading('PHF CHECKLIST · ĐIỀU HÀNH BÁN HÀNG','Tổng quan','Những việc cần xử lý và tình hình đội Bán hàng trong kỳ hiện tại.',actions)
-      +'<section class="phfck-manager-command"><div class="phfck-manager-command-head"><div><small>ƯU TIÊN HÔM NAY</small><h3>Việc cần xử lý ngay</h3></div><span>'+esc(roleScopeSummary(data))+'</span></div><div class="phfck-manager-action-grid">'+actionCards.map(function(c){return '<button type="button" class="is-'+c[4]+'" data-phfck-manager-section="'+c[0]+'"><span class="phfck-manager-card-icon">'+managerOverviewIconSvg(c[4])+'</span><div class="phfck-manager-card-copy"><b>'+esc(c[1])+'</b><strong>'+c[2]+'</strong><small>'+esc(c[3])+'</small><i>Đi xử lý →</i></div></button>';}).join('')+'</div></section>'
-      +'<section class="phfck-manager-progress"><div class="phfck-panel-head"><div><small>TIẾN ĐỘ ĐỘI BÁN HÀNG · '+esc(currentMonth)+'</small><h3>Theo dõi nhanh theo chi nhánh</h3></div><span class="phfck-status is-live">'+people.length+' nhân sự</span></div><div class="phfck-manager-progress-summary">'+progressCards.map(function(c){return '<button type="button" class="is-'+c[0]+'" data-phfck-manager-progress="'+c[0]+'" aria-label="Xem danh sách '+esc(c[1])+'"><span class="phfck-manager-summary-icon">'+managerOverviewIconSvg(c[4])+'</span><div><b>'+esc(c[1])+'</b><strong>'+c[2]+'</strong><small>'+esc(c[3])+'</small><i>Xem danh sách →</i></div></button>';}).join('')+'</div>'+(branches.length?'<div class="phfck-manager-branch-list">'+branches.map(function(b){var unknown=b.name==='Chưa xác định';return '<button type="button" class="'+(unknown?'is-unknown':'')+'" data-phfck-manager-section="people"><span class="phfck-manager-branch-icon">'+managerOverviewIconSvg(unknown?'unknown':'branch')+'</span><div class="phfck-manager-branch-copy"><b>'+esc(b.name)+'</b><span>'+b.people+' nhân sự</span><small>'+(reviewPending?'Đang tải phiếu':b.totalForms+' phiếu đánh giá')+' · '+(taskPending?'đang tải việc':b.issues+' việc/lỗi mở')+'</small></div><div class="phfck-manager-branch-metric"><strong>'+(reviewPending?'…':b.unfinished)+'</strong><em>'+(reviewPending?'Đang tải':'Chưa hoàn tất')+'</em></div></button>';}).join('')+'</div>':'<div class="phfck-permission-empty"><b>Chưa có dữ liệu chi nhánh</b><p>Danh sách sẽ tự xuất hiện theo phạm vi nhân sự được Admin cấp.</p></div>')+'</section>'
+      +'<section class="phfck-manager-command"><div class="phfck-manager-command-head"><div><small>ƯU TIÊN HÔM NAY</small><h3>Việc cần xử lý ngay</h3></div><span>'+esc(roleScopeSummary(data))+'</span></div>'+(wfErrored?'<div class="phfck-notice"><b>Chưa tải được tình trạng xử lý ghi nhận lỗi</b><p>Ý kiến chờ phản hồi, Chờ nhân viên, Sắp quá hạn/quá hạn, Việc đang mở, Báo Admin đang hiển thị 0 do lỗi tải dữ liệu, không phải không phát sinh.</p><button type="button" class="phfck-secondary" data-phfck-report-workflow-reload>↻ Thử lại</button></div>':'')+'<div class="phfck-manager-action-grid">'+actionCards.map(function(c){var attr=c[5]&&canGotoLog?' data-phfck-report-workflow-goto="'+esc(c[5])+'"':' data-phfck-manager-section="'+(c[0]||'my-work')+'"';return '<button type="button" class="is-'+c[4]+'"'+attr+'><span class="phfck-manager-card-icon">'+managerOverviewIconSvg(c[4])+'</span><div class="phfck-manager-card-copy"><b>'+esc(c[1])+'</b><strong>'+c[2]+'</strong><small>'+esc(c[3])+'</small><i>Đi xử lý →</i></div></button>';}).join('')+'</div></section>'
+      +'<section class="phfck-manager-progress"><div class="phfck-panel-head"><div><small>TIẾN ĐỘ ĐỘI BÁN HÀNG · '+esc(currentMonth)+'</small><h3>Theo dõi nhanh theo chi nhánh</h3></div><span class="phfck-status is-live">'+people.length+' nhân sự</span></div><div class="phfck-manager-progress-summary">'+progressCards.map(function(c){var attr=c[5]&&canGotoLog?' data-phfck-report-workflow-goto="'+esc(c[5])+'"':' data-phfck-manager-progress="'+c[0]+'"';return '<button type="button" class="is-'+c[0]+'"'+attr+' aria-label="Xem danh sách '+esc(c[1])+'"><span class="phfck-manager-summary-icon">'+managerOverviewIconSvg(c[4])+'</span><div><b>'+esc(c[1])+'</b><strong>'+c[2]+'</strong><small>'+esc(c[3])+'</small><i>Xem danh sách →</i></div></button>';}).join('')+'</div>'+(branches.length?'<div class="phfck-manager-branch-list">'+branches.map(function(b){var unknown=b.name==='Chưa xác định';return '<button type="button" class="'+(unknown?'is-unknown':'')+'" data-phfck-manager-section="people"><span class="phfck-manager-branch-icon">'+managerOverviewIconSvg(unknown?'unknown':'branch')+'</span><div class="phfck-manager-branch-copy"><b>'+esc(b.name)+'</b><span>'+b.people+' nhân sự</span><small>'+(reviewPending?'Đang tải phiếu':b.totalForms+' phiếu đánh giá')+' · '+(taskPending?'đang tải việc':b.issues+' việc/lỗi mở')+'</small></div><div class="phfck-manager-branch-metric"><strong>'+(reviewPending?'…':b.unfinished)+'</strong><em>'+(reviewPending?'Đang tải':'Chưa hoàn tất')+'</em></div></button>';}).join('')+'</div>':'<div class="phfck-permission-empty"><b>Chưa có dữ liệu chi nhánh</b><p>Danh sách sẽ tự xuất hiện theo phạm vi nhân sự được Admin cấp.</p></div>')+'</section>'
       +'<section class="phfck-manager-attention"><div class="phfck-panel-head"><div><small>CẦN CHÚ Ý</small><h3>Nhân sự cần hành động</h3></div></div>'+(attentionRows.length?'<div class="phfck-manager-attention-list">'+attentionRows.map(function(a){var notes=[];if(a.issues)notes.push(a.issues+' việc/lỗi đang mở');if(a.waitingReview)notes.push('Phiếu chờ thẩm định');if(a.due)notes.push('Sắp quá hạn hoặc quá hạn');return '<button type="button" data-phfck-manager-section="'+(a.waitingReview?'reviews':'my-work')+'"><span class="phfck-manager-avatar">'+esc((a.name||'?').trim().slice(0,1).toUpperCase())+'</span><div><b>'+esc(a.name)+'</b><small>'+esc([a.code,a.branch].filter(Boolean).join(' · '))+'</small><p>'+esc(notes.join(' · '))+'</p></div><i>→</i></button>';}).join('')+'</div>':'<div class="phfck-manager-all-good"><span>✓</span><div><b>Chưa có trường hợp cần ưu tiên</b><p>Khi có phiếu chờ thẩm định, ý kiến hoặc việc sắp quá hạn, hệ thống sẽ đưa lên đây.</p></div></div>')+'</section>';
   }
   function managerReviewReminderHtml(){
@@ -5479,7 +5499,7 @@
   function startRoleWorkspaceBackgroundLoads(root,ownerKey,force){
     if(roleWorkspaceState.ownerKey!==ownerKey||!roleWorkspaceState.loaded)return Promise.resolve(false);
     if(roleWorkspaceState.backgroundRequest&&!force)return roleWorkspaceState.backgroundRequest;
-    if(force){roleWorkspaceState.monthlyLoaded=false;roleWorkspaceState.reviewLoaded=false;roleWorkspaceState.taskLoaded=false;}
+    if(force){roleWorkspaceState.monthlyLoaded=false;roleWorkspaceState.reviewLoaded=false;roleWorkspaceState.taskLoaded=false;reportWorkflowUiState.data=null;reportWorkflowUiState.loadedMonth='';}
     roleWorkspaceState.monthlyLoading=!roleWorkspaceState.monthlyLoaded;
     roleWorkspaceState.reviewLoading=!roleWorkspaceState.reviewLoaded;
     roleWorkspaceState.taskLoading=!roleWorkspaceState.taskLoaded;
@@ -5556,6 +5576,25 @@
         else scheduleChecklistIdle(runTaskLoad,900);
       });
       jobs.push(taskJob);
+    }
+    if(!reportWorkflowUiState.data){
+      /* "Tình trạng xử lý ghi nhận lỗi" (Chờ nhân viên, Ý kiến chờ phản hồi,
+         Sắp quá hạn/quá hạn, Việc đang mở, Báo Admin trên Tổng quan) PHẢI đọc
+         từ đúng nguồn getChecklistViolationWorkflowSummary mà Báo cáo dùng -
+         gọi lại loadChecklistViolationWorkflowSummary (không tự tính từ
+         roleWorkspaceState.tasks) để Tổng quan và Báo cáo luôn cùng một lần
+         gọi API, cùng một object kết quả, không có bản sao logic. */
+      var workflowJob=new Promise(function(resolve){
+        var currentSection=routeRole(location.pathname)==='manager'?managerSectionFromLocation(currentRouteKey()):'';
+        var runWorkflowLoad=function(){
+          loadChecklistViolationWorkflowSummary(root,false).then(function(){
+            if(isCurrentBackground())refreshRoleWorkspaceView(root,ownerKey);
+          }).finally(function(){resolve(true);});
+        };
+        if(currentSection==='overview'||currentSection==='reports')window.setTimeout(runWorkflowLoad,0);
+        else scheduleChecklistIdle(runWorkflowLoad,900);
+      });
+      jobs.push(workflowJob);
     }
     var background=Promise.allSettled(jobs).then(function(){return true;});
     roleWorkspaceState.backgroundRequest=background;
