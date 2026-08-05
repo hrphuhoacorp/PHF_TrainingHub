@@ -85,7 +85,28 @@
   function managerProgressFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('progress')||'').trim().toLowerCase();}catch(_e){}return ['self','reviewed'].indexOf(value)>=0?value:'';}
   function managerTaskFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('task')||'').trim().toLowerCase();}catch(_e){}return ['employee','admin'].indexOf(value)>=0?value:'';}
   function violationWorkflowStatusFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('workflowStatus')||'').trim().toLowerCase();}catch(_e){}return ['all','waiting_employee','in_explanation','overdue','official','cancelled'].indexOf(value)>=0?value:'';}
-  function violationLogRouteFor(key){return (routeRole(currentRouteKey())==='admin'?ADMIN_VIEW_ROUTES.violations:'/ql/checklist?section=violations')+'?workflowStatus='+encodeURIComponent(key||'all');}
+  /* view=create|log là UI-state con của section=violations (Ghi nhận lỗi và Nhật ký lỗi tách menu
+     nhưng dùng chung violationsHtml()) - KHÔNG mở rộng ngoài 2 giá trị này, không phải router
+     thứ hai. violationEffectiveView là nguồn xác định duy nhất "đang thực sự hiển thị màn nào",
+     dùng chung cho dispatch nội dung, active-state menu và fallback quyền - không suy quyền qua
+     history.replaceState, chỉ resolve tại thời điểm render (an toàn cho back/forward). */
+  function violationViewFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('view')||'').trim().toLowerCase();}catch(_e){}return ['create','log'].indexOf(value)>=0?value:'';}
+  function violationEffectiveView(path,canRecord){
+    if(violationWorkflowStatusFromLocation(path))return 'log';
+    var v=violationViewFromLocation(path);
+    if(v==='log')return 'log';
+    if(v==='create')return canRecord?'create':'log';
+    return canRecord?'create':'log';
+  }
+  function violationSectionRouteFor(view,workflowStatus){
+    var params=new URLSearchParams();
+    params.set('view',view==='log'?'log':'create');
+    if(workflowStatus)params.set('workflowStatus',workflowStatus);
+    if(routeRole(currentRouteKey())==='admin')return ADMIN_VIEW_ROUTES.violations+'?'+params.toString();
+    params.set('section','violations');
+    return '/ql/checklist?'+params.toString();
+  }
+  function violationLogRouteFor(key){return violationSectionRouteFor('log',key||'all');}
   function deriveDataStatusFromWorkflow(key){return key==='cancelled'?'cancelled':(key==='all'?'all':'active');}
   function violationWorkflowStatusLabel(key){return {waiting_employee:'Chờ nhân viên phản hồi',in_explanation:'Đang giải trình',overdue:'Quá hạn phản hồi',official:'Đã chính thức',cancelled:'Đã hủy'}[key]||'Đã chính thức';}
   function isChecklistReportPath(path){var p=cleanPath(path||location.pathname);return p===ADMIN_VIEW_ROUTES.reports||(p.indexOf('/ql/checklist')===0&&managerSectionFromLocation(path)==='reports');}
@@ -175,6 +196,15 @@
       ['settings','⚙','Cài đặt','Quyền và thời hạn']
     ];
   }
+  /* Ghi nhận lỗi (tạo mới) và Nhật ký lỗi (tra cứu) dùng chung path admin
+     ADMIN_VIEW_ROUTES.violations, tách bằng ?view=create|log - KHÔNG thêm entry mới vào
+     ADMIN_VIEW_ROUTES (2 route chỉ khác query sẽ trùng cleanPath và làm hỏng
+     ADMIN_ROUTE_VIEWS - xem trace trong plan). Admin luôn có cả 2 quyền nên cả 2 nút luôn hiện. */
+  function adminViolationMenuButtonsHtml(path){
+    var effView=violationEffectiveView(path,true);
+    function btn(view,icon,title,desc){return '<button type="button" class="'+(effView===view?'active':'')+'" data-phfck-view-workflow="'+view+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+'</b><small>'+esc(desc)+'</small></span></button>';}
+    return btn('create','✓','Ghi nhận lỗi','Lập lỗi và minh chứng')+btn('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi');
+  }
   function adminDashboard(name,path){
     var menu=adminMenu();
     var activeView=adminViewFromPath(path);
@@ -186,7 +216,7 @@
       +'<div class="phfck-layout">'
         +'<aside class="phfck-sidebar">'
           +'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN TRỊ</small><strong>Điều hành Checklist</strong></div>'
-          +'<nav class="phfck-nav" aria-label="Menu PHF Checklist">'+menu.map(function(m){var route=adminRouteForView(m[0]);return '<button type="button" class="'+(m[0]===activeView?'active':'')+'" data-phfck-view="'+m[0]+'" data-phfck-route="'+route+'"><span class="phfck-nav-icon" aria-hidden="true">'+m[1]+'</span><span><b>'+esc(m[2])+'</b><small>'+esc(m[3])+'</small></span></button>';}).join('')+'</nav>'
+          +'<nav class="phfck-nav" aria-label="Menu PHF Checklist">'+menu.map(function(m){if(m[0]==='violations')return adminViolationMenuButtonsHtml(path);var route=adminRouteForView(m[0]);return '<button type="button" class="'+(m[0]===activeView?'active':'')+'" data-phfck-view="'+m[0]+'" data-phfck-route="'+route+'"><span class="phfck-nav-icon" aria-hidden="true">'+m[1]+'</span><span><b>'+esc(m[2])+'</b><small>'+esc(m[3])+'</small></span></button>';}).join('')+'</nav>'
           +'<div class="phfck-sidebar-foot"><span>Phiên bản Checklist</span><strong>'+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||window.PHF_BUILD_VERSION||'1.37.6')+'</strong><small data-phfck-build>Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||window.PHF_BUILD_FINGERPRINT||'1376-version-single-source-hot-refresh')+'</small><small>Menu theo nghiệp vụ: Phiếu của tôi · Tôi cần thẩm định · Ghi nhận lỗi · Báo cáo</small></div>'
         +'</aside>'
         +'<main class="phfck-main" data-phfck-workspace>'
@@ -3213,18 +3243,15 @@
     var steps=[['1','Chọn nhân sự','Xác định người và mẫu đang áp dụng'],['2','Chọn tiêu chí','Lấy đúng phiên bản tại ngày xảy ra'],['3','Ghi nhận sự việc','Mô tả, thời gian và minh chứng'],['4','Kiểm tra & gửi','Nháp hoặc ghi nhận chính thức']];
     return '<ol class="phfck-violation-steps">'+steps.map(function(item,index){var n=index+1;return '<li class="'+(n===violationUiState.step?'is-active':(n<violationUiState.step?'is-done':''))+'"><span>'+item[0]+'</span><div><b>'+item[1]+'</b><small>'+item[2]+'</small></div></li>';}).join('')+'</ol>';
   }
+  /* Nhật ký lỗi không còn là 1 tab bên trong Ghi nhận lỗi (PHẦN 2) - đã có menu riêng
+     (data-phfck-manager-violation-view/data-phfck-view-workflow). Tab bar này chỉ còn phụ trách
+     các chế độ tạo mới, luôn hiển thị khi effView==='create' (chỉ gọi khi canRecordViolationNow()). */
   function violationTabsHtml(){
-    if(!canRecordViolationNow()){
-      return '<div class="phfck-violation-tabs" role="tablist" aria-label="Chế độ ghi nhận lỗi">'
-        +'<button type="button" class="active" data-phfck-violation-tab="log"><span>☷</span><div><b>Nhật ký lỗi</b><small>Xem, lọc và rà các bản ghi đã lưu</small></div></button>'
-      +'</div>';
-    }
     return '<div class="phfck-violation-tabs" role="tablist" aria-label="Chế độ ghi nhận lỗi">'
       +'<button type="button" class="'+(violationUiState.mode==='quick'?'active':'')+'" data-phfck-violation-tab="quick"><span>⚡</span><div><b>Nhập nhanh</b><small>Chọn Không đạt và nhận xét ngay tại dòng</small></div></button>'
       +'<button type="button" class="'+(violationUiState.mode==='detail'?'active':'')+'" data-phfck-violation-tab="detail"><span>▤</span><div><b>Ghi nhận chi tiết</b><small>Dùng cho lỗi riêng lẻ hoặc cần nhiều minh chứng</small></div></button>'
       +'<button type="button" class="'+(violationUiState.mode==='multi'?'active':'')+'" data-phfck-violation-tab="multi"><span>▦</span><div><b>Ghi nhận nhiều ngày</b><small>Nhập bù nhiều sự việc cho cùng một nhân viên</small></div></button>'
       +(canUseLateViolation()?'<button type="button" class="'+(violationUiState.mode==='late'?'active':'')+'" data-phfck-violation-tab="late"><span>◷</span><div><b>Đi trễ</b><small>Admin nhập dồn theo tuần hoặc cuối tháng</small></div></button>':'')
-      +'<button type="button" class="'+(violationUiState.mode==='log'?'active':'')+'" data-phfck-violation-tab="log"><span>☷</span><div><b>Nhật ký lỗi</b><small>Xem, lọc và rà các bản ghi đã lưu</small></div></button>'
     +'</div>';
   }
   function violationExcelToolbarHtml(){
@@ -3538,31 +3565,34 @@
   function violationDetailHtml(){var ctx=violationAssignmentContext(),criterion=detailSelectedCriterion();return '<div class="phfck-detail-workspace">'+detailDraftBannerHtml()+'<section class="phfck-panel phfck-detail-context">'+violationEmployeeSelectorHtml()+violationAssignmentCardHtml()+'</section><section class="phfck-panel phfck-detail-form"><div class="phfck-panel-head"><div><small>GHI NHẬN CHI TIẾT</small><h3>Một sự việc · đầy đủ bối cảnh</h3></div><span class="phfck-status">'+(ctx.ok?'Dữ liệu thật':'Chờ dữ liệu')+'</span></div><div class="phfck-detail-grid"><label><span>Ngày xảy ra <em>*</em></span><input type="date" value="'+esc(violationUiState.date||todayIso())+'" data-phfck-detail-date></label><label><span>Thời gian <em>*</em></span>'+timePickerButtonHtml(violationUiState.detailTime||currentTime24(),'data-phfck-detail-time')+'</label><label><span>Địa điểm <em>*</em></span><select data-phfck-detail-location>'+violationLocationOptions()+'</select></label><label class="is-wide"><span>Tiêu chí vi phạm <em>*</em></span><select data-phfck-detail-criterion '+(ctx.ok?'':'disabled')+'>'+detailCriterionOptions()+'</select><small>'+(criterion?esc(criterion.group)+' · '+esc(criterion.code)+' · Trừ '+esc(criterion.points)+' điểm':'Chỉ hiển thị tiêu chí thuộc đúng mẫu và phiên bản đang hiệu lực.')+'</small></label><label class="is-wide"><span>Nội dung sự việc <em>*</em></span><textarea rows="5" data-phfck-detail-note placeholder="Mô tả rõ sự việc, bối cảnh, hành vi và căn cứ phân biệt nếu phát sinh nhiều lần">'+esc(violationUiState.detailNote||'')+'</textarea><small>Tối thiểu 10 ký tự; tránh ghi chung chung như “sai” hoặc “không đạt”.</small></label><label class="is-wide"><span>Ghi chú bổ sung</span><textarea rows="2" data-phfck-detail-evidence placeholder="Thông tin liên quan (không thay cho file minh chứng)">'+esc(violationUiState.detailEvidenceNote||'')+'</textarea></label><div class="is-wide"><span class="phfck-detail-evidence-label">Minh chứng'+(criterion&&criterion.evidence==="required"?" <em>*</em>":"")+'</span>'+evidencePickerHtml("detail")+'</div></div><div class="phfck-detail-summary"><div><small>NHÂN SỰ</small><b>'+esc((ctx.person&&ctx.person.name)||'Chưa chọn')+'</b></div><div><small>TIÊU CHÍ</small><b>'+esc((criterion&&criterion.code)||'Chưa chọn')+'</b></div><div><small>ĐIỂM DỰ KIẾN</small><b>'+(criterion?'-'+esc(criterion.points)+' điểm':'—')+'</b></div></div><div class="phfck-detail-actions"><span>'+(violationUiState.detailDraftSavedAt?'Đã lưu nháp lúc '+esc(draftSavedLabel(violationUiState.detailDraftSavedAt)):'Dữ liệu chỉ được ghi nhận chính thức sau bước Xem lại.')+'</span><div><button type="button" class="phfck-secondary" data-phfck-detail-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-detail-review>Xem lại</button><button type="button" class="phfck-primary" data-phfck-detail-submit>Ghi nhận lỗi</button></div></div></section></div>';}
   function violationsHtml(){
     if(violationUiState.mode==='late'&&!canUseLateViolation())violationUiState.mode='quick';
-    /* Bấm KPI Dashboard "Tình trạng xử lý" hoặc mở lại đường dẫn có
-       ?workflowStatus=... phải tự chuyển sang tab Nhật ký lỗi và áp đúng
-       filter - đọc thẳng từ URL hiện tại (điểm tự đồng bộ duy nhất, mọi nơi
-       điều hướng vào màn này đều đi qua đây trước khi dựng HTML). */
+    var canRecord=canRecordViolationNow();
+    /* violationEffectiveView là nguồn duy nhất xác định create/log (PHẦN 1+2) - đọc thẳng từ URL
+       hiện tại, mọi nơi điều hướng vào màn này đều đi qua đây trước khi dựng HTML. Không
+       history.replaceState ở đây: nếu URL xin view=create trái quyền, effView đã tự hạ xuống
+       'log' cho phần RENDER, địa chỉ URL có thể vẫn còn view=create - an toàn cho back/forward,
+       không lộ thao tác tạo mới vì nội dung thật sự hiển thị luôn là log. */
     if(isViolationRoute(currentRouteKey())){
       var urlWorkflowStatus=violationWorkflowStatusFromLocation(currentRouteKey());
-      if(urlWorkflowStatus){
-        violationUiState.mode='log';
-        if(violationLogState.workflowStatus!==urlWorkflowStatus){
-          violationLogState.workflowStatus=urlWorkflowStatus;
-          violationLogState.status=deriveDataStatusFromWorkflow(urlWorkflowStatus);
-          violationLogState.page=1;
-          violationLogState.loaded=false;
-        }
+      if(urlWorkflowStatus&&violationLogState.workflowStatus!==urlWorkflowStatus){
+        violationLogState.workflowStatus=urlWorkflowStatus;
+        violationLogState.status=deriveDataStatusFromWorkflow(urlWorkflowStatus);
+        violationLogState.page=1;
+        violationLogState.loaded=false;
       }
+      var effView=violationEffectiveView(currentRouteKey(),canRecord);
+      if(effView==='log')violationUiState.mode='log';
+      else if(violationUiState.mode==='log')violationUiState.mode='quick';
     }
-    if(!canRecordViolationNow())violationUiState.mode='log';
-    var embeddedManager=role()==='manager';
+    if(!canRecord)violationUiState.mode='log';
+    var isLogView=violationUiState.mode==='log';
+    var embeddedManager=routeRole(currentRouteKey())==='manager';
     return '<div class="phfck-violations-view" data-phfck-violation-workspace>'
-      +(embeddedManager?'':'<div class="phfck-page-head phfck-violation-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Ghi nhận lỗi</h1><p>Chọn nhân viên, tiêu chí có lỗi và ghi nhận ngắn gọn.</p></div><button class="phfck-secondary" type="button" data-phfck-view="tasks">Xem việc cần xử lý</button></div>')
+      +(embeddedManager?'':'<div class="phfck-page-head phfck-violation-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>'+(isLogView?'Nhật ký lỗi':'Ghi nhận lỗi')+'</h1><p>'+(isLogView?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi.':'Chọn nhân viên, tiêu chí có lỗi và ghi nhận ngắn gọn.')+'</p></div>'+(isLogView?'':'<button class="phfck-secondary" type="button" data-phfck-view="tasks">Xem việc cần xử lý</button>')+'</div>')
       +checklistViolationModeBanner()
-      +violationTabsHtml()
-      +(canRecordViolationNow()?violationExcelToolbarHtml():'')
-      +(violationUiState.mode==='quick'?violationQuickHtml():(violationUiState.mode==='multi'?violationMultiHtml():(violationUiState.mode==='late'?violationLateHtml():(violationUiState.mode==='log'?violationLogHtml():violationDetailHtml()))))
-      +'<section class="phfck-panel phfck-violation-policy" style="display:none"><div class="phfck-panel-head"><div><small>NGUYÊN TẮC ĐÃ CHỐT</small><h3>Điều kiện vận hành bắt buộc</h3></div></div><div class="phfck-policy-grid"><article><span>01</span><div><b>Nháp chưa trừ điểm</b><p>Chỉ khi ghi nhận chính thức mới tạo lỗi và trừ điểm tạm.</p></div></article><article><span>02</span><div><b>Không sửa âm thầm</b><p>Sau khi nhân viên đã xem, mọi thay đổi phải có lý do và lịch sử trước–sau.</p></div></article><article><span>03</span><div><b>Lỗi lặp lại không tự tăng hệ số</b><p>Chỉ cảnh báo, thống kê và đưa vào gợi ý đào tạo theo ngưỡng cấu hình.</p></div></article><article><span>04</span><div><b>Khóa dữ liệu tháng</b><p>Dữ liệu tháng trước nhập đến 23:59 ngày 4; sau đó chỉ Admin xử lý ngoại lệ.</p></div></article></div></section></div>';
+      +(isLogView?'':violationTabsHtml())
+      +(isLogView||!canRecord?'':violationExcelToolbarHtml())
+      +(isLogView?violationLogHtml():(violationUiState.mode==='quick'?violationQuickHtml():(violationUiState.mode==='multi'?violationMultiHtml():(violationUiState.mode==='late'?violationLateHtml():violationDetailHtml()))))
+      +(isLogView?'':'<section class="phfck-panel phfck-violation-policy" style="display:none"><div class="phfck-panel-head"><div><small>NGUYÊN TẮC ĐÃ CHỐT</small><h3>Điều kiện vận hành bắt buộc</h3></div></div><div class="phfck-policy-grid"><article><span>01</span><div><b>Nháp chưa trừ điểm</b><p>Chỉ khi ghi nhận chính thức mới tạo lỗi và trừ điểm tạm.</p></div></article><article><span>02</span><div><b>Không sửa âm thầm</b><p>Sau khi nhân viên đã xem, mọi thay đổi phải có lý do và lịch sử trước–sau.</p></div></article><article><span>03</span><div><b>Lỗi lặp lại không tự tăng hệ số</b><p>Chỉ cảnh báo, thống kê và đưa vào gợi ý đào tạo theo ngưỡng cấu hình.</p></div></article><article><span>04</span><div><b>Khóa dữ liệu tháng</b><p>Dữ liệu tháng trước nhập đến 23:59 ngày 4; sau đó chỉ Admin xử lý ngoại lệ.</p></div></article></div></section>')+'</div>';
   }
 
   function taskScopeTabsHtml(){
@@ -4719,6 +4749,7 @@
       var detailSubmit=e.target.closest('[data-phfck-detail-submit]');if(detailSubmit){e.preventDefault();var ds=detailValidation(true);if(!ds.ok){checklistToast('warning','Chưa thể ghi nhận lỗi',ds.errors.join(' '),true);return;}appendSubmodal(root,detailReviewModalHtml());return;}
       var detailConfirm=e.target.closest('[data-phfck-detail-confirm-official]');if(detailConfirm&&!detailConfirm.disabled){e.preventDefault();saveDetailOfficial(root);return;}
       var peopleView=e.target.closest('[data-phfck-people-view]');if(peopleView){e.preventDefault();var peopleMode=peopleView.getAttribute('data-phfck-people-view')||'scope',peopleNext=managerPeopleRoute(peopleMode);if(currentRouteKey()===peopleNext)return;history.pushState({phfChecklistSection:'people',phfChecklistPeopleView:peopleMode},'',peopleNext);render(peopleNext);return;}
+      var managerViolationView=e.target.closest('[data-phfck-manager-violation-view]');if(managerViolationView){e.preventDefault();var mvView=managerViolationView.getAttribute('data-phfck-manager-violation-view')==='create'?'create':'log';var mvData=roleWorkspaceState.data||{};if(managerSectionFromLocation(currentRouteKey())==='violations'&&violationEffectiveView(currentRouteKey(),mvData.canRecordViolation===true)===mvView)return;var mvNext=violationSectionRouteFor(mvView,'');history.pushState({phfChecklistSection:'violations',phfChecklistViolationView:mvView},'',mvNext);render(mvNext);return;}
       var managerProgress=e.target.closest('[data-phfck-manager-progress]');if(managerProgress){e.preventDefault();var progress=managerProgress.getAttribute('data-phfck-manager-progress')||'',nextProgress=(progress==='self'||progress==='reviewed')?('/ql/checklist?section=people&view=review&progress='+encodeURIComponent(progress)):('/ql/checklist?section=my-work&task='+encodeURIComponent(progress));history.pushState({phfChecklistProgress:progress},'',nextProgress);render(nextProgress);return;}
       var workflowGoto=e.target.closest('[data-phfck-report-workflow-goto]');if(workflowGoto){e.preventDefault();var wgKey=workflowGoto.getAttribute('data-phfck-report-workflow-goto')||'all',wgTarget=violationLogRouteFor(wgKey);history.pushState({phfChecklistWorkflowStatus:wgKey},'',wgTarget);render(wgTarget);return;}
       var managerDepartmentToggle=e.target.closest('[data-phfck-manager-department-toggle]');if(managerDepartmentToggle){e.preventDefault();var departmentWrap=managerDepartmentToggle.closest('[data-phfck-manager-department-wrap]'),departmentMenu=departmentWrap&&departmentWrap.querySelector('.phfck-manager-department-menu'),willOpen=!!(departmentMenu&&departmentMenu.hidden);if(departmentMenu)departmentMenu.hidden=!willOpen;managerDepartmentToggle.setAttribute('aria-expanded',willOpen?'true':'false');return;}
@@ -4782,6 +4813,17 @@
       var managerReportBack=e.target.closest('[data-phfck-manager-report-back]');if(managerReportBack){e.preventDefault();var managerChecklistTarget='/ql/checklist';if(window.phfNavigate)window.phfNavigate(managerChecklistTarget);else{history.pushState({},'',managerChecklistTarget);render(managerChecklistTarget);}return;}
       var taskJump=e.target.closest('[data-phfck-task-jump]');
       if(taskJump){e.preventDefault();taskUiState.scope='all';taskUiState.status=taskJump.getAttribute('data-phfck-task-jump')||'all';taskUiState.loaded=false;var taskTarget=adminRouteForView('tasks');if(window.phfNavigate)window.phfNavigate(taskTarget);else{history.pushState({},'',taskTarget);render(taskTarget);}return;}
+      var adminViolationBtn=e.target.closest('[data-phfck-view-workflow]');
+      if(adminViolationBtn){
+        e.preventDefault();
+        var avwView=adminViolationBtn.getAttribute('data-phfck-view-workflow')==='log'?'log':'create';
+        if(adminViewFromPath(currentRouteKey())==='violations'&&violationEffectiveView(currentRouteKey(),true)===avwView)return;
+        var avwTarget=violationSectionRouteFor(avwView,'');
+        pendingScrollRestore=currentScrollY();rememberScroll(cleanPath(location.pathname));
+        history.pushState({phfChecklistView:'violations',phfChecklistViolationView:avwView},'',avwTarget);
+        render(avwTarget);
+        return;
+      }
       var btn=e.target.closest('[data-phfck-view]');
       if(!btn)return;
       e.preventDefault();
@@ -4981,15 +5023,20 @@
     if(violationInitState.routeKey&&violationInitState.routeKey!==currentRouteKey())return false;
     return renderViolationWorkspace(root,!!keepScroll);
   }
-  function violationLoadingHtml(isSlow){
-    return '<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Ghi nhận lỗi</h1><p>Ghi nhận đúng nhân sự, mẫu Checklist và phiên bản đang hiệu lực tại ngày xảy ra.</p></div></div>'
+  /* embeddedManager phải khớp đúng điều kiện violationsHtml() dùng để quyết định có tự vẽ
+     page-head hay không (PHẦN 3) - trước đây hàm này luôn vẽ page-head "PHF CHECKLIST · ADMIN"
+     bất kể đang nhúng trong section Quản lý, tạo ra 2 cụm heading chồng nhau khi
+     showViolationLoading thay innerHTML của [data-phfck-violation-workspace] trong lúc
+     managerSectionHeading bên ngoài vẫn còn nguyên. */
+  function violationLoadingHtml(isSlow,embeddedManager){
+    return (embeddedManager?'':'<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Ghi nhận lỗi</h1><p>Ghi nhận đúng nhân sự, mẫu Checklist và phiên bản đang hiệu lực tại ngày xảy ra.</p></div></div>')
       +checklistViolationModeBanner()
       +'<section class="phfck-panel phfck-people-loading" data-phfck-violation-loading><div class="phfck-loading-message"><span class="phfck-loading-spinner" aria-hidden="true"></span><div><small>ĐỒNG BỘ DỮ LIỆU GHI NHẬN</small><b>'+(isSlow?'Chưa tải được danh sách nhân sự':'Đang tải danh sách nhân sự…')+'</b><p>'+(isSlow?'Hệ thống chưa nhận được dữ liệu mới nhất. Anh có thể thử lại mà không cần F5 trang.':'Đang đối soát nhân sự đang làm việc, phân công mẫu và phiên bản Checklist hiệu lực.')+'</p></div>'+(isSlow?'<button type="button" class="phfck-secondary" data-phfck-violation-retry>Thử lại</button>':'')+'</div></section>';
   }
   function showViolationLoading(root,isSlow){
     if(!root||!isViolationRoute(currentRouteKey()))return;
     var workspace=violationWorkspaceElement(root);
-    if(workspace)workspace.innerHTML=violationLoadingHtml(!!isSlow);
+    if(workspace)workspace.innerHTML=violationLoadingHtml(!!isSlow,routeRole(currentRouteKey())==='manager');
   }
   function ensureViolationPeopleData(root,force){
     return fetchLatestChecklistPeopleData(root,!!force).then(function(data){
@@ -5003,7 +5050,13 @@
   }
   function initializeViolationsView(root,force,expectedSelectionToken){
     if(!root||!isViolationRoute(currentRouteKey()))return Promise.resolve(false);
-    if(violationUiState.mode==='log')requestAnimationFrame(function(){loadViolationLog(root,false);});
+    /* Nhật ký lỗi không cần snapshot nhân sự/mẫu của luồng tạo mới (PHẦN 3) - chạy fetch đó
+       trong lúc xem log vừa thừa request vừa gây showViolationLoading đè nhầm màn hình. */
+    if(violationUiState.mode==='log'){
+      stopViolationRefresh();
+      requestAnimationFrame(function(){loadViolationLog(root,false);});
+      return Promise.resolve(true);
+    }
     stopViolationRefresh();
     var token=beginViolationLifecycle(root);
     var selectionToken=expectedSelectionToken==null?violationUiState.employeeSelectionToken:expectedSelectionToken;
@@ -5043,6 +5096,7 @@
     var view=adminViewFromPath(path),restoreY=pendingScrollRestore;
     if(restoreY==null)restoreY=scrollMemory[cleanPath(path)];
     root.querySelectorAll('[data-phfck-route]').forEach(function(btn){btn.classList.toggle('active',cleanPath(btn.getAttribute('data-phfck-route'))===cleanPath(path));});
+    var adminViolationEffView=violationEffectiveView(path,true);root.querySelectorAll('[data-phfck-view-workflow]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-view-workflow')===adminViolationEffView);});
     var workspace=root.querySelector('[data-phfck-workspace]');
     if(workspace){
       var currentName=(user()||{}).fullName||(user()||{}).name||(user()||{}).displayName||(user()||{}).username||'Người dùng';
@@ -5202,13 +5256,18 @@
     var people=Array.isArray(data&&data.people)?data.people:[],reviewForms=Array.isArray(roleWorkspaceState.reviews)?roleWorkspaceState.reviews:[],waitingReviews=reviewForms.filter(function(f){return f.status==='waiting_review';}).length,reviewBadge=roleWorkspaceState.reviewLoading?'…':(waitingReviews||people.length);
     if(!grant)return '';
     function item(section,icon,title,description,visible,badge){if(visible===false)return '';return '<button type="button" class="'+(active===section?'active':'')+'" data-phfck-manager-section="'+section+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+(badge!==''&&badge!=null?'<i class="phfck-nav-badge">'+esc(badge)+'</i>':'')+'</b><small>'+esc(description)+'</small></span></button>';}
+    /* Ghi nhận lỗi (tạo mới) và Nhật ký lỗi (tra cứu) là 2 mục menu riêng nhưng cùng
+       section=violations - active-state dùng violationEffectiveView (nguồn duy nhất "đang xem
+       màn nào"), không phải section suông, để không bao giờ sáng cả hai cùng lúc. */
+    function violationItem(view,icon,title,description,visible){if(visible!==true)return '';var isActive=active==='violations'&&violationEffectiveView(currentRouteKey(),data.canRecordViolation===true)===view;return '<button type="button" class="'+(isActive?'active':'')+'" data-phfck-manager-violation-view="'+view+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+'</b><small>'+esc(description)+'</small></span></button>';}
     return '<aside class="phfck-sidebar phfck-manager-sidebar" data-phfck-manager-sidebar>'
       +'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN LÝ</small><strong>'+esc(context.areaTitle)+'</strong></div>'
       +'<nav class="phfck-nav" aria-label="Menu quản lý Checklist">'
       +item('overview','⌂','Tổng quan','Việc cần ưu tiên hôm nay')
       +item('people','♙','Nhân sự','Danh sách được xem · Cần thẩm định',true,reviewBadge)
       +item('my-work','▦','Phiếu của tôi','Tự đánh giá và việc cá nhân')
-      +item('violations','!',data.canRecordViolation?'Ghi nhận lỗi':'Nhật ký lỗi',data.canRecordViolation?'Lập và theo dõi lỗi trong phạm vi':'Xem và rà bản ghi trong phạm vi',data.canRecordViolation===true||data.canViewViolations===true)
+      +violationItem('create','!','Ghi nhận lỗi','Lập và theo dõi lỗi trong phạm vi',data.canRecordViolation===true)
+      +violationItem('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi trong phạm vi',data.canRecordViolation===true||data.canViewViolations===true)
       +item('reports','▥','Báo cáo','Theo dõi kết quả và xuất dữ liệu',grant.capabilities&&grant.capabilities.view_reports===true)
       +(isAssistantWebOperator()?'<style>.phfck-nav-admin-link{display:flex;align-items:center;gap:12px;margin:8px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#fff!important;text-decoration:none!important;background:rgba(255,255,255,.06);transition:.16s ease}.phfck-nav-admin-link:hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}.phfck-nav-admin-link .phfck-nav-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.12);font-size:18px;flex:0 0 38px}.phfck-nav-admin-link span:last-child{display:flex;flex-direction:column;min-width:0}.phfck-nav-admin-link b{font-size:15px;line-height:1.25}.phfck-nav-admin-link small{margin-top:4px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.35}</style><a class="phfck-nav-admin-link" href="/ql/checklist/phan-quyen"><span class="phfck-nav-icon">⌘</span><span><b>Phân quyền Checklist</b><small>Cấp quyền vận hành cho thành viên</small></span></a>':'')
       +'</nav>'
@@ -5324,7 +5383,7 @@
     var section=managerSectionFromLocation(path);
     if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('CÁ NHÂN','Phiếu của tôi','Tự đánh giá phiếu tháng, xử lý phản hồi cá nhân và xem Checklist đang áp dụng.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
     if(section==='people'||section==='reviews')return managerPeopleHtml(path,data);
-    if(section==='violations'){var context=managerPermissionContext(data);return managerSectionHeading(context.violationKicker,'Ghi nhận lỗi',context.violationDescription)+violationsHtml();}
+    if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc)+violationsHtml();}
     if(section==='reports')return reportsHtml();
     if(section==='permissions')return isAssistantWebOperator()?settingsHtml():permissionAccessDeniedHtml();
     var actions=marketingKpiButtonHtml(marketingKpiPeriodValue(),data)+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_reports===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="reports">▥ Xem báo cáo</button>':'')+(data.canExport?'<button type="button" class="phfck-primary" data-phfck-role-export '+(monthlyUiState.exporting?'disabled':'')+'>'+(monthlyUiState.exporting?'Đang tạo Excel…':'⇩ Xuất Excel')+'</button>':'');
