@@ -137,10 +137,12 @@ const GRANTS = [
   { id: 'g-tlgd', account_id: 'act-tlgd', employee_code: '', preset_code: 'TRO_LY_GD',
     capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true, view_monthly: true, export_data: true },
     view_scope: { type: 'all_company', values: [] }, review_scope: { type: 'all_company', values: [] }, record_scope: { type: 'all_company', values: [] },
+    export_scope: { type: 'all_company', values: [] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
   { id: 'g-tbp', account_id: 'act-tbp', employee_code: '', preset_code: 'TRUONG_BO_PHAN',
-    capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true },
+    capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true, export_data: true },
     view_scope: { type: 'department', values: ['Bán hàng'] }, review_scope: { type: 'department', values: ['Bán hàng'] }, record_scope: { type: 'department', values: ['Bán hàng'] },
+    export_scope: { type: 'department', values: ['Bán hàng'] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
   { id: 'g-tc', account_id: 'act-tc', employee_code: 'TC01', preset_code: 'TRUONG_CA_BH',
     capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true },
@@ -148,9 +150,17 @@ const GRANTS = [
     review_scope: { type: 'direct_reports', values: [] },
     record_scope: { type: 'department_branch', values: ['Bán hàng', 'Phú Lợi', 'Ngô Quyền', 'Lái Thiêu'] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
+  // Luu y: preset QUAN_LY_TRUC_TIEP mac dinh co export_data:false/exportScope
+  // 'none' (xem PRESETS trong lib/checklist-permissions.js) - grant fixture o
+  // day CO CHU Y bat export_data:true + export_scope=direct_reports de mo
+  // phong mot grant da duoc Admin tuy chinh rong hon mac dinh preset (hop le
+  // vi grant luu doc lap voi preset), phuc vu AR-05 kiem tra engine co ho tro
+  // dung direct_reports cho export khong. KHONG suy ra day la hanh vi mac
+  // dinh cua QUAN_LY_TRUC_TIEP.
   { id: 'g-ql', account_id: 'act-ql', employee_code: 'QL01', preset_code: 'QUAN_LY_TRUC_TIEP',
-    capabilities: { view_violations: true, record_violation: false, review_monthly: true, view_reports: true },
+    capabilities: { view_violations: true, record_violation: false, review_monthly: true, view_reports: true, export_data: true },
     view_scope: { type: 'direct_reports', values: [] }, review_scope: { type: 'direct_reports', values: [] }, record_scope: { type: 'none', values: [] },
+    export_scope: { type: 'direct_reports', values: [] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
   { id: 'g-cxbc', account_id: 'act-cxbc', employee_code: '', preset_code: 'CHI_XEM_BAO_CAO',
     capabilities: { view_violations: false, record_violation: false, review_monthly: false, view_reports: true },
@@ -175,10 +185,35 @@ const GRANTS = [
   // da duoc chinh record_scope sang direct_reports) de kiem tra dung diem
   // code truoc day bi gay.
   { id: 'g-tc-tagged', account_id: 'act-tc-tagged', employee_code: 'TC02', preset_code: 'TRUONG_CA_BH',
-    capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true },
+    capabilities: { view_violations: true, record_violation: true, review_monthly: true, view_reports: true, export_data: true },
     view_scope: { type: 'department_branch', values: ['department::Bán hàng', 'branch::Phú Lợi', 'branch::Ngô Quyền', 'branch::Lái Thiêu'] },
     review_scope: { type: 'direct_reports', values: [] },
     record_scope: { type: 'department_branch', values: ['department::Bán hàng', 'branch::Phú Lợi', 'branch::Ngô Quyền', 'branch::Lái Thiêu'] },
+    // exportScope dung CUNG mot bo tag department::/branch:: nhu view/record
+    // scope o tren (khong phai tinh cong tu view_scope - day la truong rieng
+    // export_scope, chi trung gia tri vi cung mot nghiep vu Truong ca).
+    export_scope: { type: 'department_branch', values: ['department::Bán hàng', 'branch::Phú Lợi', 'branch::Ngô Quyền', 'branch::Lái Thiêu'] },
+    is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
+  // AR-05 FINAL: grant rieng cho exportScope.type='employees' - preset
+  // TUY_CHINH (khong preset mac dinh nao dung 'employees' cho export, day la
+  // cau hinh Admin tuy chinh qua UI, dung path that). values chi gom
+  // NV002+NV004 - loai han NV001 (du cung phong ban Ban hang) de chung minh
+  // dung dung 2 nguoi duoc chon, khong phai ca phong ban.
+  { id: 'g-export-employees', account_id: 'act-export-emp', employee_code: 'EXPEMP', preset_code: 'TUY_CHINH',
+    capabilities: { view_violations: false, record_violation: false, review_monthly: false, view_reports: false, export_data: true },
+    view_scope: { type: 'none', values: [] }, review_scope: { type: 'none', values: [] }, record_scope: { type: 'none', values: [] },
+    export_scope: { type: 'employees', values: ['NV002', 'NV004'] },
+    is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' },
+  // AR-05 FINAL: grant CO CHU Y dat view_scope va export_scope KHAC LOAI VA
+  // KHAC GIA TRI nhau tren cung 1 row (view_scope=department rong hon,
+  // export_scope=branch hep hon) - day la phep thu doc lap manh nhat: neu
+  // getChecklistExportAccess() vo tinh dung nham view_scope thay vi
+  // export_scope, ket qua se la 3 nguoi (ca phong Ban hang) thay vi dung 1
+  // nguoi (Ngo Quyen) - sai lech se lo ngay, khong the trung hop ngau nhien.
+  { id: 'g-export-divergent', account_id: 'act-export-divergent', employee_code: '', preset_code: 'TUY_CHINH',
+    capabilities: { view_violations: false, record_violation: false, review_monthly: false, view_reports: true, export_data: true },
+    view_scope: { type: 'department', values: ['Bán hàng'] }, review_scope: { type: 'none', values: [] }, record_scope: { type: 'none', values: [] },
+    export_scope: { type: 'branch', values: ['Ngô Quyền'] },
     is_active: true, effective_from: '2020-01-01', effective_to: null, updated_at: '2026-01-01' }
 ];
 
@@ -199,7 +234,7 @@ require.cache[supabasePath] = {
 
 const { listChecklistViolations, resolveViolationPermission, requireViolationPermission } = require(violationsPath);
 const { getChecklistViolationWorkflowSummary } = require(reportsPath);
-const { getChecklistMonthlyReviewAccess } = require(permissionsPath);
+const { getChecklistMonthlyReviewAccess, getChecklistExportAccess } = require(permissionsPath);
 
 const SESSIONS = {
   admin: { role: 'admin', account: { id: 'act-admin', name: 'Admin' } },
@@ -209,7 +244,9 @@ const SESSIONS = {
   ql: { role: 'manager', account: { id: 'act-ql', name: 'Quan ly truc tiep' }, employeeCode: 'QL01' },
   cxbc: { role: 'manager', account: { id: 'act-cxbc', name: 'Chi xem bao cao' } },
   nv: { role: 'learner', account: { id: 'act-nv', name: 'Nhan vien' }, employeeCode: 'NV001' },
-  tcTagged: { role: 'manager', account: { id: 'act-tc-tagged', name: 'Truong ca (tagged, AR-05)' }, employeeCode: 'TC02' }
+  tcTagged: { role: 'manager', account: { id: 'act-tc-tagged', name: 'Truong ca (tagged, AR-05)' }, employeeCode: 'TC02' },
+  exportEmployees: { role: 'manager', account: { id: 'act-export-emp', name: 'Export employees (AR-05 FINAL)' }, employeeCode: 'EXPEMP' },
+  exportDivergent: { role: 'manager', account: { id: 'act-export-divergent', name: 'Export divergent (AR-05 FINAL)' } }
 };
 
 let failures = 0;
@@ -328,6 +365,45 @@ async function run() {
   await assertSummaryMatchesList(SESSIONS.nv, 'Nhan vien', expectedNv, ['NV001']);
   const nvPerm = await resolveViolationPermission(SESSIONS.nv, 'view');
   check(nvPerm.scopeType === 'employees' && JSON.stringify(nvPerm.scopeValues) === JSON.stringify(['NV001']), 'Nhan vien: scope luon la employees/[chinh minh], bat ke co ban ghi phan quyen "all_company" gia mao trong bang checklist_permission_grants cho cung account_id (role=learner short-circuit truoc khi doc bang quyen) - khong the mo rong qua du lieu quyen con sot/gia mao');
+
+  console.log('== H. EXPORT_DATA / exportScope - AR-05 FINAL EXPORT REGRESSION ==');
+  // getChecklistExportAccess() dung CHUNG subjectMatchesScope() (lib/checklist-scope.js)
+  // qua truong export_scope rieng - KHONG di qua resolveViolationPermission/
+  // assignmentMatchesPermission cua checklist-violations.js. Test nay goi
+  // THANG getChecklistExportAccess() that, khong mock rieng ham noi bo.
+  function exportCodes(result) { return result.people.map(p => p.employeeCode).sort(); }
+
+  const adminExport = await getChecklistExportAccess(SESSIONS.admin);
+  check(adminExport.role === 'admin' && adminExport.grant === null, 'Admin: export khong qua grant/scope, role=admin truc tiep');
+  check(JSON.stringify(exportCodes(adminExport)) === JSON.stringify(['NV001', 'NV002', 'NV003', 'NV004']), 'Admin: export toan bo 4 nhan su (toan cong ty), got ' + exportCodes(adminExport).join(','));
+
+  const tlgdExport = await getChecklistExportAccess(SESSIONS.tlgd);
+  check(tlgdExport.grant.exportScope.type === 'all_company', 'Tro ly GD: exportScope.type = all_company, khong bi thu hep sai');
+  check(JSON.stringify(exportCodes(tlgdExport)) === JSON.stringify(['NV001', 'NV002', 'NV003', 'NV004']), 'Tro ly GD: export toan bo 4 nhan su (all_company), got ' + exportCodes(tlgdExport).join(','));
+
+  const tbpExport = await getChecklistExportAccess(SESSIONS.tbp);
+  check(JSON.stringify(exportCodes(tbpExport)) === JSON.stringify(['NV001', 'NV002', 'NV004']), 'Truong bo phan: export dung 3 nguoi phong Ban hang (NV001/NV002/NV004), KHONG lo NV003 (Kho), got ' + exportCodes(tbpExport).join(','));
+
+  const tcTaggedExport = await getChecklistExportAccess(SESSIONS.tcTagged);
+  check(tcTaggedExport.grant.exportScope.type === 'department_branch', 'Truong ca (tagged): exportScope.type = department_branch (dung tag department::/branch::, dung hinh dang Production that)');
+  check(JSON.stringify(exportCodes(tcTaggedExport)) === JSON.stringify(['NV001', 'NV002', 'NV004']), 'Truong ca (tagged): export dung department_branch TAGGED khop dung 3 nguoi (Ban hang x Phu Loi/Ngo Quyen/Lai Thieu), KHONG rong, KHONG lo NV003 (Kho), got ' + exportCodes(tcTaggedExport).join(','));
+
+  const empExport = await getChecklistExportAccess(SESSIONS.exportEmployees);
+  check(empExport.grant.exportScope.type === 'employees', 'Grant employees: exportScope.type = employees');
+  check(JSON.stringify(exportCodes(empExport)) === JSON.stringify(['NV002', 'NV004']), 'Grant employees: export DUNG DUNG 2 nguoi duoc chon (NV002, NV004), KHONG phai ca phong ban Ban hang (se co ca NV001), got ' + exportCodes(empExport).join(','));
+
+  const qlExport = await getChecklistExportAccess(SESSIONS.ql);
+  check(qlExport.grant.exportScope.type === 'direct_reports', 'Quan ly truc tiep: engine ho tro direct_reports cho export_scope (khong rieng view/record/review)');
+  check(JSON.stringify(exportCodes(qlExport)) === JSON.stringify(['NV002', 'NV003']), 'Quan ly truc tiep: export dung nguoi bao cao truc tiep QL01 (NV002, NV003), got ' + exportCodes(qlExport).join(','));
+
+  const divergentExport = await getChecklistExportAccess(SESSIONS.exportDivergent);
+  check(divergentExport.grant.viewScope.type === 'department' && divergentExport.grant.exportScope.type === 'branch', 'Grant divergent: viewScope (department) va exportScope (branch) la 2 truong doc lap, khac loai nhau tren cung 1 grant');
+  check(JSON.stringify(exportCodes(divergentExport)) === JSON.stringify(['NV002']), 'Grant divergent: export CHI dung branch Ngo Quyen (NV002) - neu code nham dung view_scope=department se ra 3 nguoi (NV001/NV002/NV004), sai lech se lo ngay, got ' + exportCodes(divergentExport).join(','));
+
+  let cxbcExportBlocked = false, cxbcExportCode = '';
+  try { await getChecklistExportAccess(SESSIONS.cxbc); }
+  catch (e) { cxbcExportBlocked = true; cxbcExportCode = e && e.code; }
+  check(cxbcExportBlocked === true && cxbcExportCode === 'CHECKLIST_EXPORT_FORBIDDEN', 'Chi xem bao cao: khong co export_data -> backend CHAN THAT (403 CHECKLIST_EXPORT_FORBIDDEN), khong phai chi an nut frontend, got code=' + cxbcExportCode);
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
