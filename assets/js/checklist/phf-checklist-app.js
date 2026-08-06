@@ -1295,7 +1295,7 @@
   function syncChecklistModalScrollLock(){syncChecklistModalStack();if(hasChecklistModal())lockChecklistBackgroundScroll();else unlockChecklistBackgroundScroll();}
   function currentScrollY(){return Math.max(0,window.scrollY||document.documentElement.scrollTop||0);}
   function rememberScroll(key){scrollMemory[key||cleanPath(location.pathname)]=currentScrollY();return currentScrollY();}
-  function restoreScroll(y){if(y==null)return;requestAnimationFrame(function(){requestAnimationFrame(function(){try{window.scrollTo({top:Math.max(0,Number(y)||0),left:0,behavior:'auto'});}catch(_e){}});});}
+  function restoreScroll(y){if(y==null)return;requestAnimationFrame(function(){requestAnimationFrame(function(){try{var maxY=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);window.scrollTo({top:Math.min(Math.max(0,Number(y)||0),maxY),left:0,behavior:'auto'});}catch(_e){}});});}
   function rerenderKeepingScroll(workspace,html){var y=currentScrollY();if(workspace)workspace.innerHTML=html;restoreScroll(y);}
   function todayIso(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function ensureViolationDefaults(){if(!violationUiState.date)violationUiState.date=todayIso();if(!Array.isArray(violationUiState.multiRows))violationUiState.multiRows=[];}
@@ -4895,7 +4895,7 @@
       var managerPeopleReset=e.target.closest('[data-phfck-manager-people-reset]');if(managerPeopleReset){e.preventDefault();managerPeopleUiState.query='';managerPeopleUiState.department='';managerPeopleUiState.page=1;var resetSearch=root.querySelector('[data-phfck-manager-people-search]');if(resetSearch)resetSearch.value='';var resetDepartmentLabel=root.querySelector('[data-phfck-manager-department-label]');if(resetDepartmentLabel)resetDepartmentLabel.textContent='Tất cả phòng ban';var resetDepartmentMenu=root.querySelector('.phfck-manager-department-menu');if(resetDepartmentMenu)resetDepartmentMenu.hidden=true;managerPeopleRenderList();return;}
       var managerPeoplePage=e.target.closest('[data-phfck-manager-people-page]');if(managerPeoplePage){e.preventDefault();var pageValue=managerPeoplePage.getAttribute('data-phfck-manager-people-page'),pageModel=managerPeopleFilteredRows(currentRouteKey(),roleWorkspaceState.data||{}),pageMax=Math.max(1,Math.ceil(pageModel.rows.length/(Number(managerPeopleUiState.pageSize)||10)));if(pageValue==='prev')managerPeopleUiState.page=Math.max(1,managerPeopleUiState.page-1);else if(pageValue==='next')managerPeopleUiState.page=Math.min(pageMax,managerPeopleUiState.page+1);else managerPeopleUiState.page=Math.max(1,Math.min(pageMax,Number(pageValue)||1));managerPeopleRenderList({resetPage:false});return;}
       var clearManagerPeopleSearch=e.target.closest('[data-phfck-manager-people-search-clear]');if(clearManagerPeopleSearch){e.preventDefault();managerPeopleUiState.query='';managerPeopleUiState.page=1;if(managerPeopleUiState.searchTimer){clearTimeout(managerPeopleUiState.searchTimer);managerPeopleUiState.searchTimer=null;}var peopleSearchInput=root.querySelector('[data-phfck-manager-people-search]');if(peopleSearchInput){peopleSearchInput.value='';peopleSearchInput.focus();}clearManagerPeopleSearch.hidden=true;managerPeopleRenderList();return;}
-      var managerSection=e.target.closest('[data-phfck-manager-section]');if(managerSection){e.preventDefault();var section=managerSection.getAttribute('data-phfck-manager-section')||'overview',next=managerRouteForSection(section);if(cleanPath(location.pathname)==='/ql/checklist'&&managerSectionFromLocation(currentRouteKey())===section)return;history.pushState({phfChecklistSection:section},'',next);render(next);return;}
+      var managerSection=e.target.closest('[data-phfck-manager-section]');if(managerSection){e.preventDefault();var section=managerSection.getAttribute('data-phfck-manager-section')||'overview',next=managerRouteForSection(section);if(cleanPath(location.pathname)==='/ql/checklist'&&managerSectionFromLocation(currentRouteKey())===section)return;pendingScrollRestore=currentScrollY();history.pushState({phfChecklistSection:section},'',next);render(next);return;}
       var employeeInputClick=e.target.closest('[data-phfck-employee-combobox]');if(employeeInputClick){var selectedEmployeeForClick=violationSelectedEmployee();if(selectedEmployeeForClick&&!violationUiState.employeeChanging){violationUiState.employeeChanging=true;violationUiState.employeeQuery='';var clickCombo=employeeInputClick.closest('[data-phfck-employee-combo]'),clickMenu=clickCombo&&clickCombo.querySelector('[data-phfck-employee-menu]');if(clickMenu){clickMenu.innerHTML=violationEmployeeSuggestionListHtml('');clickMenu.hidden=false;}if(clickCombo)clickCombo.classList.add('is-open');employeeInputClick.setAttribute('aria-expanded','true');requestAnimationFrame(function(){try{employeeInputClick.select();}catch(_e){}});}return;}
       var employeeToggle=e.target.closest('[data-phfck-employee-toggle]');if(employeeToggle){e.preventDefault();var toggleCombo=employeeToggle.closest('[data-phfck-employee-combo]'),toggleInput=toggleCombo&&toggleCombo.querySelector('[data-phfck-employee-combobox]'),toggleMenu=toggleCombo&&toggleCombo.querySelector('[data-phfck-employee-menu]');if(toggleMenu&&toggleInput){var willOpen=toggleMenu.hidden;toggleMenu.hidden=!willOpen;toggleMenu.innerHTML=violationEmployeeSuggestionListHtml(willOpen?'':'');toggleInput.setAttribute('aria-expanded',willOpen?'true':'false');toggleCombo.classList.toggle('is-open',willOpen);if(willOpen){var selectedEmployeeForToggle=violationSelectedEmployee();if(selectedEmployeeForToggle){violationUiState.employeeChanging=true;violationUiState.employeeQuery='';toggleMenu.innerHTML=violationEmployeeSuggestionListHtml('');}toggleInput.focus();requestAnimationFrame(function(){try{toggleInput.select();}catch(_e){}});}}return;}
       var employeeOption=e.target.closest('[data-phfck-employee-option]');if(employeeOption){e.preventDefault();commitViolationEmployee(root,employeeOption.getAttribute('data-phfck-employee-option')||'');return;}
@@ -5853,13 +5853,19 @@
     var data=roleWorkspaceState.data||{},content=root&&root.querySelector('[data-phfck-manager-content]');
     if(!content||!data.grant)return false;
     var active=managerSectionFromLocation(path);
+    /* pendingScrollRestore chỉ được set bởi click menu sidebar (data-phfck-manager-section) -
+       F5/deep-link lần đầu và Back/Forward (popstate) không set biến này nên vẫn giữ hành vi
+       cũ (về đầu trang), chỉ chuyển section trong cùng workspace bằng click menu mới giữ vị
+       trí cuộn gần nhất. Không lưu theo từng path (scrollMemory) - chỉ giữ đúng 1 lần chuyển
+       hiện tại, theo đúng yêu cầu nghiệp vụ. */
+    var restoreY=pendingScrollRestore;pendingScrollRestore=null;
     syncMobileContentHeader(root,path);
     root.querySelectorAll('[data-phfck-manager-section]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-manager-section')===active);});
     content.innerHTML=managerSectionContentHtml(path,data);
     if(active==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
     else if(active==='permissions')requestAnimationFrame(function(){ensureChecklistPermissionsOnSettings(root,true);});
     else leaveViolationLifecycle();
-    try{content.scrollTop=0;window.scrollTo(0,0);}catch(_e){}
+    if(restoreY==null){try{content.scrollTop=0;window.scrollTo(0,0);}catch(_e){}}else restoreScroll(restoreY);
     return true;
   }
   function genericDashboard(path,name){
