@@ -1073,7 +1073,7 @@
   function phfckPrompt(options){options=options||{};options.mode='prompt';return phfckDecisionModal(options);}
 
   var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{},quickPersonMode:'single',quickMultiPersonRows:[],quickMultiPersonReviewOpen:false};
-  var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{}};
+  var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{},taskHistory:{},taskHistoryLoading:{},taskHistoryError:{}};
   function invalidateViolationLog(){violationLogState.loaded=false;violationLogState.page=1;violationLogState.history={};}
 
   /* PHF Checklist Evidence 1.41.0: upload ảnh/PDF minh chứng thật lên Supabase
@@ -4063,13 +4063,60 @@
   async function loadViolationLog(root,force){if(violationLogState.loading||(!force&&violationLogState.loaded))return;violationLogState.loading=true;violationLogState.error='';if(violationUiState.mode==='log')renderViolationWorkspace(root,false);try{var payload={action:'listChecklistViolations',query:violationLogState.query||'',employeeCode:violationLogState.employeeCode||'',mode:violationLogState.mode||'all',status:violationLogState.status||'all',workflowStatus:violationLogState.workflowStatus||'all',dateFrom:violationLogState.dateFrom||'',dateTo:violationLogState.dateTo||'',page:violationLogState.page||1,pageSize:violationLogState.pageSize||30};var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể đọc nhật ký lỗi.');violationLogState.records=Array.isArray(data.records)?data.records:[];violationLogState.employees=Array.isArray(data.employees)?data.employees:[];violationLogState.total=Number(data.total||0);violationLogState.page=Number(data.page||violationLogState.page||1);violationLogState.pageSize=Number(data.pageSize||violationLogState.pageSize||30);violationLogState.permission=data.permission||violationLogState.permission;violationLogState.loaded=true;}catch(err){violationLogState.error='Không thể tải dữ liệu.';}finally{violationLogState.loading=false;if(violationUiState.mode==='log')renderViolationWorkspace(root,false);}}
 
   function violationHistoryActionLabel(action){var map={create:'Tạo bản ghi',edit:'Chỉnh sửa',cancel:'Hủy bản ghi',delete_test:'Xóa bản ghi TEST',delete_test_batch:'Dọn đợt TEST'};return map[String(action||'')]||String(action||'Thay đổi');}
-  function violationHistoryHtml(id){var rows=violationLogState.history[String(id)]||[];if(violationLogState.historyLoading[String(id)])return '<div class="phfck-log-history-empty">Đang tải lịch sử thay đổi...</div>';if(!rows.length)return '<div class="phfck-log-history-empty">Bản ghi chưa có lịch sử hoạt động.</div>';return '<div class="phfck-log-history-list">'+rows.map(function(h){return '<article><span>↺</span><div><b>'+esc(violationHistoryActionLabel(h.action))+'</b><small>'+esc(h.changed_by_name||h.changed_by||'Hệ thống')+' · '+esc(String(h.changed_at||'').replace('T',' ').slice(0,16))+'</small><p>'+esc(h.reason||'Không ghi lý do')+'</p></div></article>';}).join('')+'</div>';}
+  /* Timeline "LỊCH SỬ HOẠT ĐỘNG" hợp nhất 2 nguồn - KHÔNG được gộp mù rồi sắp
+     theo text: (A) checklist_violation_record_history (tạo/sửa/hủy bản ghi -
+     violationLogState.history) và (B) checklist_violation_task_history (xác
+     nhận/giải trình/xử lý/hoàn tất/hủy trực tiếp của workflow task -
+     violationLogState.taskHistory, trước đây chỉ hiển thị trong modal "Việc
+     cần xử lý" chứ KHÔNG hiển thị ở đây - đây chính là gap khiến "Tình trạng
+     xử lý: Hoàn tất" không có diễn biến giải thích). Sự kiện tạo bản ghi (A:
+     action='create') và sự kiện tạo task tự động cùng lúc (B: action=
+     'created', cùng transaction nên timestamp gần như trùng khớp) được gộp
+     thành đúng 1 dòng "Tạo bản ghi" - không hiện 2 dòng gần giống nhau. */
+  function violationHistoryHtml(id){
+    var key=String(id),recordRows=violationLogState.history[key]||[],taskRows=violationLogState.taskHistory[key]||[];
+    if((violationLogState.historyLoading[key]||violationLogState.taskHistoryLoading[key])&&!recordRows.length&&!taskRows.length)return '<div class="phfck-log-history-empty">Đang tải lịch sử thay đổi...</div>';
+    var items=[],usedTaskCreatedIdx=-1;
+    recordRows.forEach(function(h){
+      if(h.action==='create'){
+        var matchIdx=taskRows.findIndex(function(tr,i){return i!==usedTaskCreatedIdx&&tr.action==='created'&&Math.abs((Date.parse(tr.created_at||'')||0)-(Date.parse(h.changed_at||'')||0))<=2000;});
+        if(matchIdx>=0)usedTaskCreatedIdx=matchIdx;
+      }
+      items.push({label:violationHistoryActionLabel(h.action),actor:h.changed_by_name||h.changed_by||'Hệ thống',at:h.changed_at,note:h.reason||'',order:0});
+    });
+    taskRows.forEach(function(h,i){
+      if(i===usedTaskCreatedIdx)return;
+      items.push({label:taskHistoryLabel(h.action),actor:h.actor_name||'Hệ thống',at:h.created_at,note:h.note||'',order:1});
+    });
+    items.sort(function(a,b){var ta=Date.parse(a.at||'')||0,tb=Date.parse(b.at||'')||0;return ta!==tb?ta-tb:a.order-b.order;});
+    var notice=violationLogState.taskHistoryError[key]?'<div class="phfck-log-history-empty">Không thể tải đầy đủ diễn biến xử lý (ngoài phạm vi quyền của bạn). Lịch sử bản ghi vẫn hiển thị đầy đủ bên dưới.</div>':'';
+    if(!items.length)return notice+'<div class="phfck-log-history-empty">Bản ghi chưa có lịch sử hoạt động.</div>';
+    return notice+'<div class="phfck-log-history-list">'+items.map(function(x){return '<article><span>↺</span><div><b>'+esc(x.label)+'</b><small>'+esc(x.actor)+' · '+esc(String(x.at||'').replace('T',' ').slice(0,16))+'</small><p>'+esc(x.note||'Không ghi lý do')+'</p></div></article>';}).join('')+'</div>';
+  }
   async function loadViolationHistory(root,id){var key=String(id||'');if(!key||violationLogState.historyLoading[key])return;violationLogState.historyLoading[key]=true;try{var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'listChecklistViolationHistory',id:key})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải lịch sử.');violationLogState.history[key]=Array.isArray(data.history)?data.history:[];}catch(err){violationLogState.history[key]=[];checklistToast('error','Không thể tải lịch sử',err&&err.message?err.message:'Vui lòng thử lại.',true);}finally{violationLogState.historyLoading[key]=false;}}
   /* Trạng thái xử lý (chờ nhân viên phản hồi/đang giải trình/quá hạn/hoàn tất)
      hiển thị trong modal Chi tiết bản ghi - dùng lại đúng quyền 'view' của
      bản ghi (getChecklistViolationTaskStatus), không suy từ worklist cá nhân. */
   async function loadViolationTaskStatus(root,id){var key=String(id||'');if(!key||violationLogState.taskStatusLoading[key])return;violationLogState.taskStatusLoading[key]=true;try{var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'getChecklistViolationTaskStatus',id:key})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải trạng thái xử lý.');violationLogState.taskStatus[key]=data.task||null;}catch(err){violationLogState.taskStatus[key]=null;}finally{violationLogState.taskStatusLoading[key]=false;}}
-  async function openViolationLogDetail(root,id){await Promise.all([loadViolationHistory(root,id),loadEvidenceForViolation(id),loadViolationTaskStatus(root,id)]);appendSubmodal(root,violationLogDetailHtml(id));}
+  /* Diễn biến workflow (xác nhận/giải trình/xử lý/hủy trực tiếp) - đọc từ
+     checklist_violation_task_history qua action getChecklistTaskHistory ĐÃ
+     CÓ SẴN (dùng chung với modal "Việc cần xử lý" - taskDetailModalHtml),
+     không tạo action mới. Cần task.id (không phải violation id) nên phải chờ
+     loadViolationTaskStatus() resolve trước để lấy đúng id. Nếu bản ghi
+     không có task (dữ liệu cũ/is_test) hoặc tài khoản không đủ quyền xem chi
+     tiết task (getChecklistTaskHistory dùng quyền hẹp hơn theo actor - xem
+     ghi chú permission ở lib/checklist-tasks.js) thì fail-soft: không throw,
+     không xóa mất phần lịch sử bản ghi đã tải được. */
+  async function loadViolationTaskHistoryForRecord(root,id){
+    var key=String(id||'');if(!key||violationLogState.taskHistoryLoading[key])return;
+    var task=violationLogState.taskStatus[key],taskId=task&&task.id?String(task.id):'';
+    if(!taskId){violationLogState.taskHistory[key]=[];violationLogState.taskHistoryError[key]='';return;}
+    violationLogState.taskHistoryLoading[key]=true;violationLogState.taskHistoryError[key]='';
+    try{var response=await fetch('/api/data?checklistTasks=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'getChecklistTaskHistory',id:taskId})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải diễn biến xử lý.');violationLogState.taskHistory[key]=Array.isArray(data.history)?data.history:[];}
+    catch(err){violationLogState.taskHistory[key]=[];violationLogState.taskHistoryError[key]=err&&err.message?err.message:'Không thể tải diễn biến xử lý.';}
+    finally{violationLogState.taskHistoryLoading[key]=false;}
+  }
+  async function openViolationLogDetail(root,id){await Promise.all([loadViolationHistory(root,id),loadEvidenceForViolation(id),loadViolationTaskStatus(root,id)]);await loadViolationTaskHistoryForRecord(root,id);appendSubmodal(root,violationLogDetailHtml(id));}
 
   function violationTaskStatusCellHtml(id){
     var key=String(id||''),task=violationLogState.taskStatus[key];
@@ -4234,7 +4281,7 @@
     if(task.status==='waiting_admin'&&isAdmin)return '<button type="button" class="phfck-danger-soft" data-phfck-task-action="admin_cancel">Hủy lỗi</button><button type="button" class="phfck-primary" data-phfck-task-action="admin_uphold">Giữ nguyên lỗi</button>';
     return '';
   }
-  function taskHistoryLabel(action){return {created:'Tạo việc',employee_confirm:'Nhân viên đồng ý',employee_explain:'Nhân viên gửi ý kiến',employee_accept_result:'Nhân viên đồng ý kết luận',employee_escalate:'Nhân viên báo Admin',reviewer_accept:'Người ghi chấp nhận ý kiến',reviewer_uphold:'Người ghi giữ nguyên lỗi',admin_uphold:'Admin giữ nguyên lỗi',admin_cancel:'Admin hủy lỗi'}[action]||action;}
+  function taskHistoryLabel(action){return {created:'Tạo việc',employee_confirm:'Nhân viên đồng ý',employee_explain:'Nhân viên gửi ý kiến',employee_accept_result:'Nhân viên đồng ý kết luận',employee_escalate:'Nhân viên báo Admin',reviewer_accept:'Người ghi chấp nhận ý kiến',reviewer_uphold:'Người ghi giữ nguyên lỗi',admin_uphold:'Admin giữ nguyên lỗi',admin_cancel:'Admin hủy lỗi',cancel_violation_direct:'Hủy trực tiếp'}[action]||action;}
   function taskDueText(task){if(!task||!task.due_at)return '—';var d=new Date(task.due_at),date=d.toLocaleDateString('vi-VN');if(taskIsOverdue(task))return 'Đã quá hạn từ '+date;var today=new Date(),same=today.toLocaleDateString('vi-VN')===date;return same?'Hôm nay là ngày cuối':'Phản hồi trước: '+date;}
   function taskGuidanceHtml(task){var subject=isTaskSubject(task),overdue=taskIsOverdue(task);if(task.status==='waiting_employee'&&subject)return '<div class="phfck-employee-next-step"><b>Bạn có đồng ý với ghi nhận này không?</b><span>Chọn “Đồng ý” hoặc “Tôi có ý kiến”.</span></div>';if(task.status==='waiting_reviewer'&&subject)return '<div class="phfck-employee-next-step"><b>'+ (overdue?'Người ghi đã quá hạn phản hồi.':'Ý kiến của bạn đã được gửi.') +'</b><span>'+ (overdue?'Bạn có thể báo Admin để được xem xét.':'Đang chờ người ghi phản hồi trước '+esc(new Date(task.due_at).toLocaleDateString('vi-VN'))+'.') +'</span></div>';if(task.status==='waiting_employee_result'&&subject)return '<div class="phfck-employee-next-step"><b>Người ghi đã giữ nguyên lỗi.</b><span>Bạn có thể đồng ý kết luận hoặc báo Admin nếu vẫn chưa thống nhất.</span></div>';if(task.status==='waiting_admin'&&subject)return '<div class="phfck-employee-next-step is-waiting"><b>Đã báo Admin</b><span>Trường hợp đang được Admin xem xét. Bạn không cần thao tác thêm.</span></div>';return '';}
   function taskDetailModalHtml(task){
