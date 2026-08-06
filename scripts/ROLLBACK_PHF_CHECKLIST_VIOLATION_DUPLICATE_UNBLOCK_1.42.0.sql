@@ -1,10 +1,25 @@
 -- Rollback cho PHF_CHECKLIST_VIOLATION_DUPLICATE_UNBLOCK_1.42.0.sql
--- Tao lai unique index theo fingerprint - CHI khi tai thoi diem rollback khong co du lieu
--- dang trung active (dung dung logic dieu kien nhu ban goc PHF_CHECKLIST_VIOLATION_SAFETY_1.14.sql).
--- Neu sau khi go chan (1.42.0) he thong da thuc su tao ra cac ban ghi trung noi dung hop le
--- (Case 3/4/6 - dung y muon), rollback nay se KHONG tu tao lai unique index (vi lam vay se
--- lam mat du lieu that hop le hoac gay loi insert cho cac ban ghi hop le da ton tai) - script
--- se rai NOTICE va dung, cho phuong an cleanup/rollback nghiep vu rieng, khong tu quyet.
+--
+-- Day la "rollback SCHEMA" (tao lai unique index) - KHONG phai "rollback nghiep vu"
+-- va tuyet doi khong lam "rollback du lieu":
+--   - rollback CODE  = git revert/redeploy ban code cu (nam ngoai script nay).
+--   - rollback SCHEMA = script nay - CHI tao lai uq_checklist_violation_active_fingerprint,
+--     khong dong gi den bat ky dong du lieu nao.
+--   - rollback NGHIEP VU = quyet dinh lam gi voi cac record hop le (theo nghiep vu moi Batch D1)
+--     da duoc tao SAU khi go chan - day la quyet dinh nghiep vu con nguoi, KHONG duoc tu dong
+--     hoa trong script SQL nay duoi bat ky hinh thuc nao.
+--
+-- Script nay TUYET DOI KHONG duoc:
+--   - xoa record;
+--   - tu dong cancelled record;
+--   - sua duplicate_fingerprint;
+--   - gop 2 record thanh 1;
+--   - giu 1 record roi bo record kia;
+--   - lam mat history hoac diem cua bat ky record nao.
+-- => Neu preflight duoi day thay du lieu KHONG tuong thich voi unique index cu, script se
+--    RAISE EXCEPTION va toan bo transaction se bi Postgres tu dong ROLLBACK (khong co gi duoc
+--    ghi, khong co COMMIT "thanh cong" gay hieu lam) - KHONG tu ha cap thanh canh bao roi van
+--    commit binh thuong.
 
 begin;
 
@@ -22,17 +37,23 @@ begin
     having count(*) > 1
   ) g;
 
-  if dup_groups = 0 then
-    execute 'create unique index if not exists uq_checklist_violation_active_fingerprint
-             on public.checklist_violation_records(duplicate_fingerprint)
-             where duplicate_fingerprint is not null and record_status <> ''cancelled''';
-  else
-    raise notice 'KHONG tao lai uq_checklist_violation_active_fingerprint: co % nhom duplicate_fingerprint dang active (co the la ban ghi hop le theo nghiep vu moi Batch D1). Rollback dung o day - can phuong an cleanup/quyet dinh nghiep vu rieng truoc khi tao lai unique constraint nay.', dup_groups;
+  if dup_groups > 0 then
+    raise exception
+      'ROLLBACK SCHEMA DUNG: co % nhom duplicate_fingerprint dang active - day rat co the la cac ban ghi HOP LE theo nghiep vu moi Batch D1 (hai ghi nhan doc lap trung noi dung), khong phai du lieu ban. Tao lai unique index se lam INSERT loi cho du lieu hop le nay, hoac buoc phai xoa/gop/cancelled du lieu hop le de "don duong" - CA HAI deu bi cam trong script nay. Day khong con la loi rollback schema don thuan: schema cu (uq_checklist_violation_active_fingerprint) khong con TUONG THICH voi nghiep vu/du lieu hien tai. Can quyet dinh nghiep vu rieng (rollback nghiep vu) truoc, KHONG chay lai script nay cho toi khi co quyet dinh do.',
+      dup_groups;
   end if;
+
+  create unique index if not exists uq_checklist_violation_active_fingerprint
+    on public.checklist_violation_records(duplicate_fingerprint)
+    where duplicate_fingerprint is not null and record_status <> 'cancelled';
 end $$;
 
 commit;
 
--- Verification (chay sau khi apply rollback):
+-- Verification (chay sau khi apply rollback THANH CONG - tuc la khong RAISE EXCEPTION):
 -- select indexname from pg_indexes where schemaname='public'
---   and tablename='checklist_violation_records' and indexname like '%fingerprint%';
+--   and tablename='checklist_violation_records' and indexname='uq_checklist_violation_active_fingerprint';
+-- -> ky vong 1 dong (da tao lai).
+-- Neu script vua chay bao loi (EXCEPTION) - dung nguyen, KHONG co gi thay doi trong DB (Postgres
+-- tu rollback ca transaction), code van dang chay ban 1.39.5 (khong con phu thuoc unique index
+-- nay de hoat dong dung - xem lib/checklist-violations.js), chi la unique index CHUA duoc tao lai.
