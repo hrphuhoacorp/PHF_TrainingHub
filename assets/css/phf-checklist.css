@@ -4786,3 +4786,51 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
   .phfck-assessment-standard-row>span:before{content:attr(data-label)" ";color:var(--phfck-muted);font-size:8.8px;text-transform:uppercase;display:block}
   .phfck-assessment-history-stats{grid-template-columns:1fr}
 }
+
+/* ===========================================================================
+   UX-QMP: "Ghi nhận nhanh nhiều nhân viên" - toggle bên trong tab Nhập nhanh.
+   Class riêng, không sửa .phfck-multi-row/.phfck-multi-row-live để không ảnh
+   hưởng chế độ "multi" (Ghi nhận nhiều ngày) hiện có.
+   =========================================================================== */
+.phfck-quick-person-toggle{display:inline-flex;gap:6px;padding:4px;margin-bottom:14px;border:1px solid #dce8e2;border-radius:12px;background:#f6faf8}
+.phfck-quick-person-toggle button{appearance:none;border:0;border-radius:9px;padding:8px 14px;font:inherit;font-size:11.5px;font-weight:700;color:#5c766c;background:transparent;cursor:pointer;transition:.15s ease}
+.phfck-quick-person-toggle button.active{background:var(--phfck-green);color:#fff;box-shadow:0 6px 16px rgba(35,91,69,.18)}
+.phfck-qmp-workspace{display:flex;flex-direction:column;gap:12px}
+.phfck-qmp-list{display:flex;flex-direction:column;gap:8px}
+.phfck-qmp-list.is-locked{pointer-events:none;opacity:.6}
+.phfck-quick-multi-person-row{grid-template-columns:34px 190px 92px 140px minmax(230px,1.1fr) minmax(230px,1fr) 42px;align-items:start;padding:13px;row-gap:10px}
+.phfck-quick-multi-person-row label>span{margin-bottom:7px;line-height:1.35}
+.phfck-quick-multi-person-row textarea{width:100%;min-height:58px;resize:vertical;border:1px solid #d9e5df;border-radius:10px;background:#fff;color:#2c4c42;font:inherit;font-size:11px;padding:9px 10px;box-sizing:border-box;outline:0}
+.phfck-qmp-employee-code input{background:#f3f6f4;color:#5c766c;cursor:default}
+.phfck-quick-multi-person-row .phfck-multi-criterion small{display:block;margin-top:6px;font-size:9.5px;line-height:1.4;color:#73887e}
+.phfck-quick-multi-person-row.is-warning{border-color:#e5c77f;background:#fffaf0}
+.phfck-quick-multi-person-row.is-qmp-invalid{border-color:#d5a9a2;box-shadow:inset 3px 0 0 #b75e50}
+.phfck-qmp-evidence-warning{grid-column:1/-1;background:#fff3f0;border:1px solid #eac4bc;color:#a34a3c;border-radius:9px;padding:8px 10px;font-size:10.5px;line-height:1.4}
+.phfck-qmp-row-errors{grid-column:1/-1;display:flex;flex-direction:column;gap:2px}
+.phfck-qmp-row-errors small{color:#a34a3c;font-size:9.8px}
+.phfck-qmp-limit-note{margin:0 0 8px;color:#a34a3c;font-size:10.5px;font-weight:700}
+.phfck-notice.is-success{background:#f0f8f4;border-color:#bfe0cc}
+.phfck-notice.is-success b{color:#1c6b47}
+.phfck-qmp-result-summary div{margin-top:8px;padding-top:8px;border-top:1px dashed #d7e6de}
+.phfck-qmp-result-summary div:first-of-type{margin-top:6px;border-top:0;padding-top:0}
+.phfck-qmp-result-summary div.is-danger{border-top-color:#eac4bc}
+.phfck-qmp-result-summary div b{display:block;font-size:11px;color:#2c4c42}
+.phfck-qmp-result-summary div.is-danger b{color:#a34a3c}
+.phfck-qmp-result-summary div span{display:block;color:#5f766d;font-size:10.5px;margin-top:2px}
+@media(max-width:1100px){
+  .phfck-quick-multi-person-row{grid-template-columns:32px 170px 84px 128px minmax(210px,1fr) 42px}
+  .phfck-quick-multi-person-row .phfck-multi-note{grid-column:2/6}
+  .phfck-quick-multi-person-row [data-phfck-evidence-scope]{grid-column:2/7}
+}
+@media(max-width:760px){
+  .phfck-quick-multi-person-row{grid-template-columns:30px 1fr 1fr 34px}
+  .phfck-quick-multi-person-row .phfck-qmp-employee,
+  .phfck-quick-multi-person-row .phfck-qmp-employee-code,
+  .phfck-quick-multi-person-row .phfck-multi-criterion,
+  .phfck-quick-multi-person-row .phfck-multi-note,
+  .phfck-quick-multi-person-row [data-phfck-evidence-scope],
+  .phfck-quick-multi-person-row .phfck-qmp-evidence-warning,
+  .phfck-quick-multi-person-row .phfck-qmp-row-errors{grid-column:1/-1}
+  .phfck-quick-person-toggle{width:100%}
+  .phfck-quick-person-toggle button{flex:1;text-align:center}
+}

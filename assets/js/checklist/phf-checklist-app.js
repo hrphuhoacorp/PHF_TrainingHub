@@ -1072,7 +1072,7 @@
   function phfckConfirm(options){options=options||{};options.mode='confirm';return phfckDecisionModal(options);}
   function phfckPrompt(options){options=options||{};options.mode='prompt';return phfckDecisionModal(options);}
 
-  var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{}};
+  var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{},quickPersonMode:'single',quickMultiPersonRows:[],quickMultiPersonReviewOpen:false};
   var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{}};
   function invalidateViolationLog(){violationLogState.loaded=false;violationLogState.page=1;violationLogState.history={};}
 
@@ -3437,8 +3437,20 @@
   function quickFooterHtml(){var count=quickSelectedCount(),points=quickSelectedPoints(),hasSelection=count>0,drafts=quickDraftCount();return '<div class="phfck-quick-footer"><button type="button" class="phfck-quick-summary" data-phfck-selected-panel><strong data-phfck-quick-count>'+count+' lỗi đã chọn · Dự kiến trừ '+points+' điểm</strong><small>Bấm để rà nhanh các lỗi đã chọn</small></button><div><button type="button" class="phfck-secondary" data-phfck-draft-list>Bản nháp'+(drafts?' ('+drafts+')':'')+'</button><button type="button" class="phfck-secondary" data-phfck-quick-draft '+(hasSelection?'':'disabled')+'>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-quick-review '+(hasSelection?'':'disabled')+'>Xem lại</button><button type="button" class="phfck-primary" data-phfck-quick-submit '+(hasSelection?'':'disabled')+'>Ghi nhận lỗi</button></div></div>'; }
   function violationQuickHtml(){
     ensureViolationDefaults();var dateValue=violationUiState.date;
+    /* UX-QMP: toggle "Một nhân viên / Nhiều nhân viên" bên trong CHÍNH tab
+       "Nhập nhanh" hiện có (không thêm tab/mục điều hướng mới). "Một nhân
+       viên" bên dưới là NGUYÊN VẸN UI/luồng cũ, không đổi gì. */
+    if(violationUiState.quickPersonMode==='multi'){
+      ensureQuickMultiPersonRows();
+      return '<section class="phfck-panel phfck-quick-entry phfck-quick-entry-multi-person">'
+        +'<div class="phfck-panel-head"><div><small>NHẬP NHANH</small><h3>Ghi nhận nhanh nhiều nhân viên</h3></div><span class="phfck-status">Dữ liệu thật</span></div>'
+        +quickPersonModeToggleHtml()
+        +quickMultiPersonHtml()
+      +'</section>';
+    }
     return '<section class="phfck-panel phfck-quick-entry">'
       +'<div class="phfck-panel-head"><div><small>NHẬP NHANH</small><h3>Chỉ chọn tiêu chí có lỗi</h3></div><span class="phfck-status">Mặc định</span></div>'
+      +quickPersonModeToggleHtml()
       +violationEmployeeSelectorHtml()+violationCompactContextHtml()+quickDraftBannerHtml()+'<div class="phfck-quick-actions-row"><label class="phfck-quick-date-field"><b>Ngày ghi nhận</b><input type="date" value="'+dateValue+'" data-phfck-quick-date></label><div class="phfck-quick-toolbar"><div class="phfck-search"><span>⌕</span><input type="search" data-phfck-quick-search placeholder="Tìm tiêu chí..." value="'+esc(violationUiState.query)+'"></div></div></div>'
       +quickGroupChipsHtml()
       +'<div class="phfck-quick-list" data-phfck-quick-list>'+quickCriteriaRowsHtml()+'</div>'
@@ -3468,6 +3480,488 @@
   async function saveMultiOfficial(root){if(multiOfficialSaving)return;var check=multiValidation(true),person=check.person||{};if(!check.ok){checklistToast('warning','Chưa thể ghi nhận',check.errors.join(' '),true);return;}if(!canWriteViolationInCurrentMode()){checklistToast('warning','Hệ thống đang ở chế độ kiểm thử','Chỉ Lê Vĩnh Thắng – PHF012 được phép ghi nhận trong chế độ TEST.',true);return;}if(evidenceAnyPending()){checklistToast('warning','Minh chứng đang tải lên','Vui lòng đợi minh chứng tải xong trước khi ghi nhận.',true);return;}multiOfficialSaving=true;var btn=root&&root.querySelector('[data-phfck-multi-confirm-official]');if(btn){btn.disabled=true;btn.textContent='Đang lưu...';}try{var payload=multiOfficialPayload(),evidenceLinks=payload.__evidenceLinks||[];delete payload.__evidenceLinks;var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể lưu các sự việc.');var savedRows=Array.isArray(data.savedRows)?data.savedRows:[],requestIds=savedRows.map(function(row){return String(row.requestId||row.request_id||'').trim();}).filter(Boolean);if(requestIds.length){var verifyResponse=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'listChecklistViolations',requestIds:requestIds})}),verifyData=await verifyResponse.json().catch(function(){return {};});if(!verifyResponse.ok||verifyData.ok===false)throw new Error('Đã ghi dữ liệu nhưng chưa đọc lại được từ máy chủ. Vui lòng mở Nhật ký lỗi để kiểm tra.');var confirmed=new Set((verifyData.records||[]).map(function(row){return String(row.request_id||row.requestId||'').trim();}).filter(Boolean)),missing=requestIds.filter(function(id){return !confirmed.has(id);});if(missing.length)throw new Error('Máy chủ chưa xác nhận đủ '+missing.length+' sự việc vừa lưu. Không xóa bản nháp để tránh mất dữ liệu.');}var attachResult=await attachEvidenceAfterSave(evidenceLinks);deleteMultiDraft();violationUiState.multiRows.forEach(function(row){evidenceClearScope(row.id);});violationUiState.multiRows=[multiDayRowDefault()];var modal=root&&root.querySelector('[data-phfck-submodal]');if(modal)modal.remove();syncChecklistModalScrollLock();invalidateViolationLog();renderViolationWorkspace(root,false);var duplicateRows=Array.isArray(data.duplicateRows)?data.duplicateRows:[];if(!attachResult.ok){checklistToast('error','Đã lưu nhưng chưa đính kèm được minh chứng','Đã lưu '+Number(data.saved||0)+' sự việc nhưng '+(attachResult.error||'không đính kèm được minh chứng')+'. Vui lòng mở Nhật ký lỗi để đính kèm lại.',true);}else if(attachResult.autoCancelledViolationIds.length){checklistToast('warning','Một số sự việc đã tự huỷ do thiếu minh chứng bắt buộc','Có '+attachResult.autoCancelledViolationIds.length+' sự việc yêu cầu minh chứng bắt buộc nhưng đính kèm thất bại nên đã tự huỷ. Vui lòng ghi nhận lại kèm minh chứng.',true);}else{checklistToast('success',data.isTest!==false?'Đã lưu dữ liệu thử nghiệm':'Đã ghi nhận chính thức','Đã lưu và đọc lại '+Number(data.saved||0)+' sự việc.'+(duplicateRows.length?' Đã bỏ qua '+duplicateRows.length+' sự việc trùng.':''),true);}}catch(err){checklistToast('error','Không thể hoàn tất ghi nhận',err&&err.message?err.message:'Vui lòng thử lại.',true);}finally{multiOfficialSaving=false;if(btn){btn.disabled=false;btn.textContent='Ghi nhận chính thức';}}}
   function multiDraftBannerHtml(){var d=currentMultiDraft();if(!d)return '';return '<section class="phfck-draft-banner"><div><small>BẢN NHÁP NHIỀU NGÀY</small><b>'+esc((d.multiRows||[]).length)+' sự việc · Lưu lúc '+esc(draftSavedLabel(d.savedAt))+'</b><span>Nháp chưa được lưu chính thức.</span></div><div><button type="button" class="phfck-secondary" data-phfck-multi-draft-restore>Tiếp tục</button><button type="button" class="phfck-danger-soft" data-phfck-multi-draft-delete>Xóa nháp</button></div></section>';}
   function violationMultiHtml(){ensureMultiRows();var days={};violationUiState.multiRows.forEach(function(r){if(r.date)days[r.date]=1;});var person=violationSelectedEmployee();if(person&&person.branch&&!violationUiState.location)violationUiState.location=person.branch;return '<div class="phfck-multi-workspace">'+multiDraftBannerHtml()+'<section class="phfck-panel phfck-detail-context">'+violationEmployeeSelectorHtml()+violationAssignmentCardHtml()+'</section><section class="phfck-panel phfck-multi-entry"><div class="phfck-panel-head"><div><small>GHI NHẬN NHIỀU NGÀY</small><h3>Một nhân viên · nhiều sự việc độc lập</h3></div><span class="phfck-status">Dữ liệu thật</span></div><div class="phfck-multi-shared"><label><span>Địa điểm dùng chung <em>*</em></span><select data-phfck-multi-location>'+violationLocationOptions()+'</select></label><div><b>Quy tắc phiên bản</b><small>Mỗi dòng tự lấy đúng mẫu và phiên bản theo ngày xảy ra.</small></div></div><div class="phfck-multi-head"><div><b>Danh sách sự việc</b><small>Mỗi dòng là một lỗi riêng; nhận xét tối thiểu 10 ký tự.</small></div><button type="button" class="phfck-secondary" data-phfck-multi-add>＋ Thêm sự việc</button></div><div class="phfck-multi-list" data-phfck-multi-list>'+multiDayRowsHtml()+'</div><div class="phfck-multi-footer is-sticky"><div><strong>'+violationUiState.multiRows.length+' sự việc · '+Object.keys(days).length+' ngày</strong><small>Mỗi dòng được lưu thành một bản ghi riêng trong Nhật ký lỗi.</small></div><div><button type="button" class="phfck-secondary" data-phfck-multi-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-multi-review>Xem lại</button><button type="button" class="phfck-primary" data-phfck-multi-submit>Ghi nhận lỗi</button></div></div></section></div>';}
+  /* ===========================================================================
+     UX-QMP: "Ghi nhận nhanh nhiều nhân viên" - toggle bên trong tab "Nhập nhanh"
+     hiện có (KHÔNG phải tab mới). Mỗi dòng = 1 nhân viên/1 lỗi độc lập, tự chọn
+     nhân viên + ngày + tiêu chí riêng (khác "multi" - 1 nhân viên/nhiều ngày -
+     và khác "late" - Admin-only, không có minh chứng). Dùng LẠI evidenceScope/
+     evidencePickerHtml/evidenceUploadFile/evidenceRemoveFile/attachEvidenceAfterSave
+     và violationEligibleEmployees()/violationAssignmentContextForEmployee()/
+     violationCriteriaForContext() sẵn có - không tự viết lại logic nghiệp vụ
+     nào trong số đó. Action backend vẫn là 'saveChecklistViolations' +
+     'attachChecklistEvidence' hiện có (không có API mới).
+     violationAssignmentContextForEmployee()/violationCriteriaForContext() ở
+     trên (dòng ~3181-3267) hoàn toàn ĐỒNG BỘ (đọc từ loadFormAssignments()/
+     checklistTemplateVersions() đã hydrate sẵn trong bộ nhớ, không gọi mạng) -
+     nên KHÔNG cần race-token kiểu employeeSelectionToken cho việc chọn tiêu chí
+     theo dòng (không có async nào có thể "đến sau" và ghi đè kết quả mới hơn).
+     =========================================================================== */
+  var QUICK_MULTI_PERSON_DRAFT_STORE='phfChecklistQuickMultiPersonDraft:v1';
+  var QUICK_MULTI_PERSON_MAX_ROWS=20;
+  var quickMultiPersonSaving=false;
+  /* request_id state machine cho cả BATCH (không phải từng dòng):
+     'idle'     - chưa gửi, hoặc lần gửi trước THẤT BẠI RÕ RÀNG (validation/permission...)
+                  -> nội dung + request_id giữ nguyên, sửa và gửi lại tự nhiên.
+     'inflight' - đang chờ phản hồi fetch.
+     'uncertain'- fetch lỗi KHÔNG RÕ server đã xử lý insert hay chưa (mất mạng/
+                  timeout/JSON hỏng) -> khoá nội dung, chỉ cho "Thử lại" (gửi lại
+                  NGUYÊN request_id cũ - an toàn nhờ upsert onConflict request_id
+                  phía backend) hoặc "Sửa nội dung" (sinh lại request_id MỚI).
+     'done'     - đã có phản hồi thành công (mới hoặc idempotent-retry đều tính
+                  là thành công) -> khoá, chỉ "Bắt đầu lượt mới" mới mở lại. */
+  var quickMultiPersonSubmitState='idle';
+  var quickMultiPersonLastResult=null;
+  function quickMultiPersonNewRequestId(){
+    return 'QMP-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+  }
+  function quickMultiPersonRowDefault(){
+    return {
+      rowId:'r'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),
+      requestId:quickMultiPersonNewRequestId(),
+      employeeId:'',employeeCode:'',employeeName:'',
+      occurredDate:violationUiState.date||todayIso(),
+      criterionCode:'',
+      note:'',
+      validationErrors:{}
+    };
+  }
+  function ensureQuickMultiPersonRows(){
+    ensureViolationDefaults();
+    if(!Array.isArray(violationUiState.quickMultiPersonRows))violationUiState.quickMultiPersonRows=[];
+    if(!violationUiState.quickMultiPersonRows.length)violationUiState.quickMultiPersonRows=[quickMultiPersonRowDefault()];
+  }
+  function quickMultiPersonRowById(rowId){
+    return (violationUiState.quickMultiPersonRows||[]).find(function(r){return r.rowId===rowId;})||null;
+  }
+  function quickMultiPersonScopeKey(rowId){return 'qmp-'+rowId;}
+  function quickMultiPersonRowIdFromScopeKey(scopeKey){
+    return String(scopeKey||'').indexOf('qmp-')===0?String(scopeKey).slice(4):'';
+  }
+  function quickMultiPersonEmployeeById(id){
+    if(!id)return null;
+    return violationEligibleEmployees().find(function(p){return String(p.id)===String(id);})||null;
+  }
+  function quickMultiPersonEmployeeOptions(selectedId){
+    var rows=violationEligibleEmployees();
+    return '<option value="">Chọn nhân viên</option>'+rows.map(function(p){
+      return '<option value="'+esc(p.id)+'" '+(String(selectedId)===String(p.id)?'selected':'')+'>'+esc(p.name)+(p.code?' · '+esc(p.code):'')+(p.branch?' · '+esc(p.branch):'')+'</option>';
+    }).join('');
+  }
+  function quickMultiPersonContextForRow(row){
+    var person=quickMultiPersonEmployeeById(row&&row.employeeId);
+    if(!person)return {ok:false,message:'Chưa chọn nhân viên.'};
+    return violationAssignmentContextForEmployee(person,(row&&row.occurredDate)||todayIso());
+  }
+  function quickMultiPersonCriteriaForRow(row){
+    return violationCriteriaForContext(quickMultiPersonContextForRow(row));
+  }
+  function quickMultiPersonCriterionForRow(row){
+    var id=normalizeText(row&&row.criterionCode);
+    if(!id)return null;
+    return quickMultiPersonCriteriaForRow(row).find(function(x){return normalizeText(x.id)===id;})||null;
+  }
+  function quickMultiPersonCriterionOptions(row){
+    var ctx=quickMultiPersonContextForRow(row),rows=ctx.ok?violationCriteriaForContext(ctx):[];
+    return '<option value="">'+(ctx.ok?(rows.length?'Chọn tiêu chí lỗi':'Phiên bản chưa có tiêu chí'):(row.employeeId?'Chưa có phiên bản hiệu lực':'Chọn nhân viên trước'))+'</option>'+rows.map(function(item){
+      return '<option value="'+esc(item.id)+'" '+(normalizeText(row.criterionCode)===normalizeText(item.id)?'selected':'')+'>'+esc(item.code)+' · '+esc(item.text)+'</option>';
+    }).join('');
+  }
+  function quickMultiPersonDistinctEmployeeCount(rows){
+    var seen={};(rows||[]).forEach(function(row){if(row.employeeCode)seen[row.employeeCode]=true;});
+    return Object.keys(seen).length;
+  }
+  /* Validation FRONTEND - backend (normalizeCanonical, lib/checklist-violations.js)
+     vẫn là nguồn xác thực cuối cùng. Quy ước "nhận xét tối thiểu 10 ký tự" lấy
+     ĐÚNG theo multiValidation()/detailValidation() (không phải quy ước "không
+     rỗng" của quickValidation) - đây là quyết định đã chốt trong đặc tả tính
+     năng này. Không kiểm tra "ngày không được ở tương lai" vì KHÔNG có quy ước
+     nào như vậy ở multiValidation()/quickValidation()/detailValidation() hiện
+     có để noi theo - không tự đặt luật nghiệp vụ mới ở đây. */
+  function quickMultiPersonValidation(){
+    ensureQuickMultiPersonRows();
+    var errors=[],eligibleIds={};
+    violationEligibleEmployees().forEach(function(p){eligibleIds[String(p.id)]=true;});
+    var seenRequestIds={};
+    violationUiState.quickMultiPersonRows.forEach(function(row,index){
+      var n=index+1,rowErrors={};
+      if(!row.employeeId||!eligibleIds[String(row.employeeId)]){
+        rowErrors.employee='Dòng '+n+': vui lòng chọn nhân viên hợp lệ trong phạm vi được cấp.';
+        errors.push(rowErrors.employee);
+      }
+      if(!row.occurredDate){
+        rowErrors.date='Dòng '+n+': thiếu ngày xảy ra.';
+        errors.push(rowErrors.date);
+      }
+      if(row.employeeId){
+        var ctx=quickMultiPersonContextForRow(row);
+        if(!ctx.ok){
+          rowErrors.criterion='Dòng '+n+': '+(ctx.message||'chưa xác định mẫu hiệu lực.');
+          errors.push(rowErrors.criterion);
+        }else if(!quickMultiPersonCriterionForRow(row)){
+          rowErrors.criterion='Dòng '+n+': chưa chọn tiêu chí vi phạm hợp lệ.';
+          errors.push(rowErrors.criterion);
+        }
+      }
+      if(String(row.note||'').trim().length<10){
+        rowErrors.note='Dòng '+n+': nội dung sự việc phải có ít nhất 10 ký tự.';
+        errors.push(rowErrors.note);
+      }
+      // Trung request_id trong CUNG 1 batch phai la BUG cau truc (sinh id sai
+      // quy uoc) - kiem tra day PHONG THU truoc khi dung payload, khong am
+      // tham gop lai (fail loud, giong yeu cau cua dac ta).
+      if(row.requestId){
+        if(seenRequestIds[row.requestId]){
+          rowErrors.requestId='Dòng '+n+': trùng mã yêu cầu nội bộ - lỗi hệ thống, vui lòng tải lại trang.';
+          errors.push(rowErrors.requestId);
+        }
+        seenRequestIds[row.requestId]=true;
+      }
+      row.validationErrors=rowErrors;
+    });
+    return {ok:errors.length===0,errors:errors};
+  }
+  function quickMultiPersonFocusFirstInvalid(root){
+    requestAnimationFrame(function(){
+      var errEl=root&&root.querySelector('[data-phfck-qmp-list] .is-qmp-invalid');
+      if(!errEl)return;
+      var focusable=errEl.querySelector('select:not([disabled]),input:not([disabled]),textarea:not([disabled])');
+      if(focusable){try{focusable.focus({preventScroll:false});}catch(_e){try{focusable.focus();}catch(_e2){}}}
+      else{try{errEl.scrollIntoView({behavior:'smooth',block:'center'});}catch(_e3){}}
+    });
+  }
+  function quickMultiPersonRowHtml(row,index){
+    var ctx=quickMultiPersonContextForRow(row);
+    var criterion=quickMultiPersonCriterionForRow(row);
+    var canRemove=violationUiState.quickMultiPersonRows.length>1;
+    var hasErrors=row.validationErrors&&Object.keys(row.validationErrors).length>0;
+    var evidenceDoneCount=evidenceDoneDraftIds(quickMultiPersonScopeKey(row.rowId)).length;
+    var needsEvidenceWarning=!!(criterion&&criterion.evidence==='required'&&!evidenceDoneCount);
+    return '<article class="phfck-multi-row phfck-multi-row-live phfck-quick-multi-person-row'+(ctx.ok?'':' is-warning')+(hasErrors?' is-qmp-invalid':'')+'" data-phfck-qmp-row="'+esc(row.rowId)+'">'
+      +'<div class="phfck-multi-no">'+String(index+1).padStart(2,'0')+'</div>'
+      +'<label class="phfck-qmp-employee"><span>Nhân viên</span><select data-phfck-qmp-field="employee">'+quickMultiPersonEmployeeOptions(row.employeeId)+'</select></label>'
+      +'<label class="phfck-qmp-employee-code"><span>Mã NV</span><input type="text" value="'+esc(row.employeeCode||'')+'" readonly tabindex="-1" placeholder="—"></label>'
+      +'<label><span>Ngày xảy ra</span><input type="date" value="'+esc(row.occurredDate||'')+'" data-phfck-qmp-field="date"></label>'
+      +'<label class="phfck-multi-criterion"><span>Tiêu chí vi phạm</span><select data-phfck-qmp-field="criterion" '+(ctx.ok?'':'disabled')+'>'+quickMultiPersonCriterionOptions(row)+'</select><small>'+(ctx.ok?('Mẫu '+esc(ctx.version)+(criterion?' · Trừ '+esc(criterion.points)+' điểm · '+(criterion.evidence==='required'?'Bắt buộc minh chứng':'Khuyến khích minh chứng'):'')):(row.employeeId?esc(ctx.message||'Chưa xác định phiên bản'):'Chọn nhân viên trước'))+'</small></label>'
+      +'<label class="phfck-multi-note"><span>Nội dung sự việc *</span><textarea rows="2" placeholder="Mô tả rõ tối thiểu 10 ký tự" data-phfck-qmp-field="note">'+esc(row.note||'')+'</textarea></label>'
+      +evidencePickerHtml(quickMultiPersonScopeKey(row.rowId))
+      +(needsEvidenceWarning?'<div class="phfck-qmp-evidence-warning">⚠ Tiêu chí này BẮT BUỘC minh chứng - chưa có file nào đính kèm. Bản ghi có thể tự huỷ sau khi lưu nếu vẫn thiếu.</div>':'')
+      +'<button type="button" class="phfck-multi-remove" data-phfck-qmp-remove '+(canRemove?'':'disabled')+' aria-label="Xóa dòng">×</button>'
+      +(hasErrors?'<div class="phfck-qmp-row-errors">'+Object.keys(row.validationErrors).map(function(k){return '<small>'+esc(row.validationErrors[k])+'</small>';}).join('')+'</div>':'')
+    +'</article>';
+  }
+  function quickMultiPersonFooterActionsHtml(){
+    var state=quickMultiPersonSubmitState;
+    if(state==='inflight')return '<button type="button" class="phfck-primary" disabled>Đang lưu...</button>';
+    if(state==='uncertain')return '<button type="button" class="phfck-secondary" data-phfck-qmp-edit-content>Sửa nội dung</button><button type="button" class="phfck-primary" data-phfck-qmp-retry>Thử lại</button>';
+    if(state==='done')return '<button type="button" class="phfck-primary" data-phfck-qmp-new-batch>Bắt đầu lượt mới</button>';
+    return '<button type="button" class="phfck-secondary" data-phfck-qmp-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-qmp-review>Xem lại</button>';
+  }
+  function quickMultiPersonUncertainBannerHtml(){
+    if(quickMultiPersonSubmitState!=='uncertain')return '';
+    return '<section class="phfck-notice is-warning phfck-qmp-uncertain-banner"><b>Không chắc máy chủ đã nhận được yêu cầu trước đó</b><p>Mạng bị gián đoạn khi đang lưu. Nội dung đã được khoá để đảm bảo an toàn. Bấm "Thử lại" để gửi lại (an toàn, không tạo bản ghi trùng) hoặc "Sửa nội dung" nếu muốn thay đổi thông tin trước khi gửi lại.</p></section>';
+  }
+  function quickMultiPersonDoneSummaryHtml(){
+    if(quickMultiPersonSubmitState!=='done'||!quickMultiPersonLastResult)return '';
+    var s=quickMultiPersonLastResult,lines=[];
+    if(s.fresh.length)lines.push('<div><b>'+s.fresh.length+' lỗi mới đã ghi nhận</b><span>'+esc(s.fresh.join(', '))+'</span></div>');
+    if(s.retried.length)lines.push('<div><b>'+s.retried.length+' lỗi đã tồn tại từ trước (gửi lại an toàn, không tạo trùng)</b><span>'+esc(s.retried.join(', '))+'</span></div>');
+    if(s.cancelled.length)lines.push('<div class="is-danger"><b>'+s.cancelled.length+' lỗi đã TỰ HUỶ do thiếu minh chứng bắt buộc</b><span>'+esc(s.cancelled.join(', '))+'</span></div>');
+    return '<section class="phfck-notice is-success phfck-qmp-result-summary"><b>Kết quả lượt ghi nhận vừa xong</b>'+(lines.length?lines.join(''):'<div><span>Đã lưu thành công.</span></div>')+'</section>';
+  }
+  function quickMultiPersonDraftKey(){
+    /* Cùng mẫu với multiDraftKey(): prefix bằng danh tính TÀI KHOẢN đang ghi
+       (không phải nhân viên được ghi, vì 1 batch có NHIỀU nhân viên khác nhau)
+       - dùng currentSessionEmployeeCode() giống hệt multiDraftKey(), CHỦ Ý
+       KHÔNG theo mẫu quickDraftKey() (đã xác nhận là thiếu prefix tài khoản -
+       lỗi biết trước, không sửa trong batch này, chỉ không lặp lại ở tính
+       năng mới). */
+    return [currentSessionEmployeeCode()||'anonymous','quickMultiPerson',violationEvaluationPeriodValue()].join('::');
+  }
+  function readQuickMultiPersonDrafts(){
+    try{var x=JSON.parse(localStorage.getItem(QUICK_MULTI_PERSON_DRAFT_STORE)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{};}catch(_){return {};}
+  }
+  function currentQuickMultiPersonDraft(){return readQuickMultiPersonDrafts()[quickMultiPersonDraftKey()]||null;}
+  function saveQuickMultiPersonDraft(){
+    if(quickMultiPersonSubmitState!=='idle'){checklistToast('warning','Chưa thể lưu nháp','Không thể lưu nháp khi đang chờ kết quả của lượt gửi trước đó.',true);return false;}
+    ensureQuickMultiPersonRows();
+    try{
+      var rows=readQuickMultiPersonDrafts();
+      rows[quickMultiPersonDraftKey()]={savedAt:new Date().toISOString(),quickMultiPersonRows:violationUiState.quickMultiPersonRows};
+      localStorage.setItem(QUICK_MULTI_PERSON_DRAFT_STORE,JSON.stringify(rows));
+      checklistToast('success','Đã lưu nháp','Đã lưu '+violationUiState.quickMultiPersonRows.length+' dòng.');
+      return true;
+    }catch(_){checklistToast('error','Không lưu được bản nháp','Trình duyệt không cho phép lưu dữ liệu cục bộ.',true);return false;}
+  }
+  function restoreQuickMultiPersonDraft(){
+    var d=currentQuickMultiPersonDraft();
+    if(!d)return false;
+    violationUiState.quickMultiPersonRows=Array.isArray(d.quickMultiPersonRows)?d.quickMultiPersonRows:[];
+    ensureQuickMultiPersonRows();
+    return true;
+  }
+  function deleteQuickMultiPersonDraft(){
+    try{var rows=readQuickMultiPersonDrafts();delete rows[quickMultiPersonDraftKey()];localStorage.setItem(QUICK_MULTI_PERSON_DRAFT_STORE,JSON.stringify(rows));return true;}catch(_){return false;}
+  }
+  function quickMultiPersonDraftBannerHtml(){
+    // KHONG bao gio auto-khoi phuc/auto-gui khi F5 - chi hien banner voi nut
+    // "Khôi phục nháp" tuong tu multiDraftBannerHtml()/quickDraftBannerHtml(),
+    // nguoi dung phai bam moi ap dung. Cung KHONG hien banner khi dang
+    // inflight/uncertain/done (khong lam roi trang thai dang xu ly).
+    if(quickMultiPersonSubmitState!=='idle')return '';
+    var d=currentQuickMultiPersonDraft();
+    if(!d)return '';
+    return '<section class="phfck-draft-banner"><div><small>BẢN NHÁP NHIỀU NHÂN VIÊN</small><b>'+esc((d.quickMultiPersonRows||[]).length)+' dòng · Lưu lúc '+esc(draftSavedLabel(d.savedAt))+'</b><span>Nháp chưa được lưu chính thức.</span></div><div><button type="button" class="phfck-secondary" data-phfck-qmp-draft-restore>Khôi phục nháp</button><button type="button" class="phfck-danger-soft" data-phfck-qmp-draft-delete>Xóa nháp</button></div></section>';
+  }
+  function quickMultiPersonTestBatchId(){
+    return 'QMP-'+(currentSessionEmployeeCode()||'ANON')+'-'+Date.now().toString(36);
+  }
+  /* Payload builder RIÊNG (không gọi multiOfficialPayload()/quickOfficialPayload()).
+     requestId LẤY TRỰC TIẾP từ row.requestId (sinh 1 LẦN lúc tạo dòng, xem
+     quickMultiPersonRowDefault()) - CHỦ Ý khác quy ước batch+index của
+     multiOfficialPayload()/quickOfficialPayload(), vì request_id ở tính năng
+     này phải sống lâu hơn 1 lần gọi fetch (dùng lại y nguyên khi "Thử lại"
+     sau trạng thái 'uncertain'). Field khác giữ ĐÚNG tên như multiOfficialPayload()
+     để normalizeCanonical() (lib/checklist-violations.js) nhận diện y hệt. */
+  function quickMultiPersonPayload(){
+    ensureQuickMultiPersonRows();
+    var rows=violationUiState.quickMultiPersonRows,batch=quickMultiPersonTestBatchId();
+    var evidenceLinks=rows.map(function(row){return {requestId:row.requestId,evidenceDraftIds:evidenceDoneDraftIds(quickMultiPersonScopeKey(row.rowId))};});
+    return {
+      action:'saveChecklistViolations',
+      violations:rows.map(function(row){
+        var ctx=quickMultiPersonContextForRow(row),item=quickMultiPersonCriterionForRow(row)||{},meta=ctx.meta||{},person=quickMultiPersonEmployeeById(row.employeeId)||{};
+        return {
+          employeeId:row.employeeId||'',
+          employeeCode:row.employeeCode||'',
+          employeeName:row.employeeName||person.name||'',
+          templateId:ctx.templateId||'',
+          templateVersion:ctx.version||'',
+          templateName:meta.name||'',
+          criterionId:item.id||row.criterionCode||'',
+          criterionCode:item.code||row.criterionCode||'',
+          criterionName:item.text||'',
+          criterionGroup:item.group||'',
+          factor:Number(item.factor||1),
+          points:Number(item.points||0),
+          occurredDate:row.occurredDate||todayIso(),
+          occurredTime:currentTime24(),
+          location:person.branch||'',
+          note:String(row.note||'').trim(),
+          evidenceRequired:item.evidence==='required',
+          hasEvidence:false,
+          status:'official',
+          isTest:true,
+          testBatchId:batch,
+          requestId:row.requestId
+        };
+      }),
+      __evidenceLinks:evidenceLinks
+    };
+  }
+  function quickMultiPersonBuildResultSummary(savedRows,attachResult){
+    var rows=violationUiState.quickMultiPersonRows||[],byRequestId={};
+    (savedRows||[]).forEach(function(r){byRequestId[String(r.requestId||'').trim()]=r;});
+    var autoCancelled={};
+    ((attachResult&&attachResult.autoCancelledViolationIds)||[]).forEach(function(id){autoCancelled[String(id)]=true;});
+    var fresh=[],retried=[],cancelled=[];
+    rows.forEach(function(row){
+      var saved=byRequestId[row.requestId];
+      if(!saved)return;
+      var label=(row.employeeName||row.employeeCode||'Nhân viên')+' · '+(row.occurredDate||'');
+      if(autoCancelled[saved.id])cancelled.push(label);
+      else if(saved.isNew===true)fresh.push(label);
+      else retried.push(label);
+    });
+    return {fresh:fresh,retried:retried,cancelled:cancelled};
+  }
+  function quickMultiPersonToastResult(summary,attachResult){
+    if(!attachResult.ok){
+      checklistToast('error','Đã lưu lỗi nhưng chưa đính kèm được minh chứng','Đã lưu '+(summary.fresh.length+summary.retried.length)+' lỗi nhưng '+(attachResult.error||'không đính kèm được minh chứng')+'. Vui lòng mở Nhật ký lỗi để đính kèm lại.',true);
+      return;
+    }
+    if(summary.cancelled.length||summary.retried.length){
+      var parts=[];
+      if(summary.fresh.length)parts.push(summary.fresh.length+' lỗi mới: '+summary.fresh.join(', '));
+      if(summary.retried.length)parts.push(summary.retried.length+' lỗi đã tồn tại từ trước (gửi lại an toàn, không tạo trùng): '+summary.retried.join(', '));
+      if(summary.cancelled.length)parts.push(summary.cancelled.length+' lỗi đã TỰ HUỶ do thiếu minh chứng bắt buộc: '+summary.cancelled.join(', '));
+      checklistToast('warning','Đã hoàn tất - có chi tiết cần lưu ý',parts.join('. ')+'.',true);
+      return;
+    }
+    checklistToast('success','Đã ghi nhận chính thức','Đã lưu '+summary.fresh.length+' lỗi cho '+quickMultiPersonDistinctEmployeeCount(violationUiState.quickMultiPersonRows)+' nhân viên.',true);
+  }
+  async function saveQuickMultiPersonOfficial(root){
+    if(quickMultiPersonSaving)return;
+    var check=quickMultiPersonValidation();
+    if(!check.ok){checklistToast('warning','Chưa thể ghi nhận',check.errors[0]||'Vui lòng kiểm tra lại thông tin.',true);renderViolationWorkspace(root,true);quickMultiPersonFocusFirstInvalid(root);return;}
+    if(!canWriteViolationInCurrentMode()){checklistToast('warning','Hệ thống đang ở chế độ kiểm thử','Chỉ Lê Vĩnh Thắng – PHF012 được phép ghi nhận trong chế độ TEST.',true);return;}
+    if(evidenceAnyPending()){checklistToast('warning','Minh chứng đang tải lên','Vui lòng đợi minh chứng tải xong trước khi ghi nhận.',true);return;}
+    quickMultiPersonSaving=true;
+    quickMultiPersonSubmitState='inflight';
+    var btn=root&&root.querySelector('[data-phfck-qmp-confirm-official]');
+    if(btn){btn.disabled=true;btn.textContent='Đang lưu...';}
+    var ambiguous=false;
+    try{
+      var payload=quickMultiPersonPayload(),evidenceLinks=payload.__evidenceLinks||[];
+      delete payload.__evidenceLinks;
+      var response;
+      try{
+        response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+      }catch(networkErr){
+        // Khong nhan duoc response (mat mang/timeout/CORS...) - KHONG the biet
+        // chac server da xu ly insert hay chua -> 'uncertain', KHONG duoc tu
+        // sinh lai request_id (se pha idempotency neu server thuc ra da luu).
+        ambiguous=true;
+        throw networkErr;
+      }
+      var parseFailed=false;
+      var data=await response.json().catch(function(){parseFailed=true;return {};});
+      if(parseFailed){ambiguous=true;throw new Error('Phản hồi từ máy chủ không hợp lệ.');}
+      if(!response.ok||data.ok===false){
+        // Loi RO RANG tu server (co body hop le, HTTP da hoan tat) - AN TOAN
+        // quay ve 'idle', giu nguyen request_id de sua va gui lai.
+        throw new Error(data.message||data.error||'Không thể lưu ghi nhận lỗi.');
+      }
+      var savedRows=Array.isArray(data.savedRows)?data.savedRows:[];
+      var requestIds=savedRows.map(function(row){return String(row.requestId||row.request_id||'').trim();}).filter(Boolean);
+      if(requestIds.length){
+        try{
+          var verifyResponse=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'listChecklistViolations',requestIds:requestIds})});
+          var verifyData=await verifyResponse.json().catch(function(){return {};});
+          if(!verifyResponse.ok||verifyData.ok===false)throw new Error('chưa đọc lại được từ máy chủ');
+          var confirmed=new Set((verifyData.records||[]).map(function(row){return String(row.request_id||row.requestId||'').trim();}).filter(Boolean));
+          var missing=requestIds.filter(function(id){return !confirmed.has(id);});
+          if(missing.length)throw new Error('máy chủ chưa xác nhận đủ '+missing.length+' ghi nhận vừa lưu');
+        }catch(verifyErr){
+          // Loi o buoc DOC LAI (khong phai buoc GHI, buoc ghi da co response 'ok')
+          // -> KHONG coi la ambiguous/uncertain, chi canh bao rieng, van tinh la
+          // 'done' (du lieu that su da duoc server chap nhan o buoc luu).
+          checklistToast('error','Đã lưu nhưng chưa xác nhận lại được đầy đủ','Vui lòng mở Nhật ký lỗi để kiểm tra. ('+(verifyErr&&verifyErr.message?verifyErr.message:'')+')',true);
+        }
+      }
+      var attachResult=await attachEvidenceAfterSave(evidenceLinks);
+      quickMultiPersonLastResult=quickMultiPersonBuildResultSummary(savedRows,attachResult);
+      quickMultiPersonSubmitState='done';
+      violationUiState.quickMultiPersonReviewOpen=false;
+      violationUiState.quickMultiPersonRows.forEach(function(row){evidenceClearScope(quickMultiPersonScopeKey(row.rowId));});
+      deleteQuickMultiPersonDraft();
+      var modal=root&&root.querySelector('[data-phfck-submodal]');if(modal)modal.remove();
+      syncChecklistModalScrollLock();
+      invalidateViolationLog();
+      renderViolationWorkspace(root,false);
+      quickMultiPersonToastResult(quickMultiPersonLastResult,attachResult);
+    }catch(err){
+      console.error('[PHF Checklist] save quick multi-person violations',err);
+      if(ambiguous){
+        quickMultiPersonSubmitState='uncertain';
+        checklistToast('warning','Không chắc máy chủ đã nhận được yêu cầu','Mạng bị gián đoạn khi đang lưu. Nội dung đã được khoá để đảm bảo an toàn - bấm "Thử lại" để gửi lại (không tạo trùng), hoặc "Sửa nội dung" nếu muốn thay đổi.',true);
+      }else{
+        quickMultiPersonSubmitState='idle';
+        checklistToast('error','Không thể ghi nhận lỗi',err&&err.message?err.message:'Vui lòng thử lại.',true);
+      }
+      renderViolationWorkspace(root,true);
+    }finally{
+      quickMultiPersonSaving=false;
+    }
+  }
+  function quickMultiPersonRetry(root){
+    if(quickMultiPersonSubmitState!=='uncertain')return;
+    quickMultiPersonSubmitState='idle';
+    saveQuickMultiPersonOfficial(root);
+  }
+  function quickMultiPersonEditContent(){
+    if(quickMultiPersonSubmitState!=='uncertain')return;
+    /* Don gian hoa CO CHU Y (ghi ro trong dac ta): sinh lai TOAN BO request_id
+       cho MOI dong (khong chi dong nguoi dung sua) khi chon "Sua noi dung" tu
+       trang thai 'uncertain', de loai rui ro noi dung MOI cua 1 dong bi gui di
+       duoi request_id CU dang mo ho ket qua (neu server thuc ra DA luu batch cu
+       o lan truoc, request_id cu phai duoc "bo lai" cho ban ghi cu, khong dung
+       lai cho noi dung khac). */
+    (violationUiState.quickMultiPersonRows||[]).forEach(function(row){row.requestId=quickMultiPersonNewRequestId();});
+    quickMultiPersonSubmitState='idle';
+  }
+  function quickMultiPersonStartNewBatch(){
+    violationUiState.quickMultiPersonRows=[quickMultiPersonRowDefault()];
+    quickMultiPersonSubmitState='idle';
+    quickMultiPersonLastResult=null;
+  }
+  /* Hai handler nay la ban RIÊNG cho từng dòng của evidenceHandleFileInput()/
+     evidenceRetryFile() (dòng ~1156/~1190) - KHÔNG gọi violationSelectedEmployee()
+     (biến dùng chung 1 nhân viên cho cả form quick/detail/multi), mà tự giải mã
+     employeeCode từ scopeKey ('qmp-'+rowId) để tra ĐÚNG dòng, rồi gọi lại CHÍNH
+     các hàm lõi evidenceScope/evidenceUploadFile/evidenceValidateFile/
+     evidenceNewLocalId/evidenceShowError/refreshEvidenceWidget hiện có - không
+     viết lại logic upload/validate nào trong số đó. */
+  function quickMultiPersonHandleFileInput(root,inputEl){
+    var scopeKey=inputEl.getAttribute('data-phfck-evidence-input')||'';
+    var files=Array.prototype.slice.call(inputEl.files||[]);
+    inputEl.value='';
+    if(!scopeKey||!files.length)return;
+    var row=quickMultiPersonRowById(quickMultiPersonRowIdFromScopeKey(scopeKey));
+    var employeeCode=row&&row.employeeCode||'';
+    if(!employeeCode){evidenceShowError(root,scopeKey,'Vui lòng chọn nhân viên cho dòng này trước khi tải minh chứng.');return;}
+    var scope=evidenceScope(scopeKey);
+    var remaining=EVIDENCE_MAX_FILES-scope.files.length;
+    if(remaining<=0){evidenceShowError(root,scopeKey,'Đã đạt tối đa '+EVIDENCE_MAX_FILES+' file cho một lỗi.');return;}
+    var accepted=files.slice(0,remaining);
+    if(files.length>remaining)evidenceShowError(root,scopeKey,'Chỉ nhận thêm '+remaining+' file (tối đa '+EVIDENCE_MAX_FILES+'/lỗi). Các file dư đã được bỏ qua.');
+    else evidenceShowError(root,scopeKey,'');
+    accepted.forEach(function(file){
+      var err=evidenceValidateFile(file);
+      if(err){
+        evidenceScope(scopeKey).files.push({localId:evidenceNewLocalId(),name:file.name||'file',size:file.size||0,mimeType:file.type||'',status:'error',evidenceDraftId:'',error:err});
+        refreshEvidenceWidget(root,scopeKey);
+        return;
+      }
+      evidenceUploadFile(root,scopeKey,employeeCode,file);
+    });
+  }
+  function quickMultiPersonRetryFile(root,scopeKey,localId){
+    var scope=evidenceScope(scopeKey);
+    var entry=scope.files.find(function(f){return f.localId===localId;});
+    if(!entry||!entry.file)return;
+    var row=quickMultiPersonRowById(quickMultiPersonRowIdFromScopeKey(scopeKey));
+    var employeeCode=row&&row.employeeCode||'';
+    scope.files=scope.files.filter(function(f){return f.localId!==localId;});
+    if(!employeeCode){evidenceShowError(root,scopeKey,'Vui lòng chọn nhân viên cho dòng này trước khi tải minh chứng.');refreshEvidenceWidget(root,scopeKey);return;}
+    evidenceUploadFile(root,scopeKey,employeeCode,entry.file);
+  }
+  function quickMultiPersonReviewModalHtml(){
+    ensureQuickMultiPersonRows();
+    var rows=violationUiState.quickMultiPersonRows;
+    var totalPoints=rows.reduce(function(sum,row){var item=quickMultiPersonCriterionForRow(row);return sum+Number(item&&item.points||0);},0);
+    var itemsHtml=rows.map(function(row){
+      var item=quickMultiPersonCriterionForRow(row)||{};
+      var evidenceCount=evidenceScope(quickMultiPersonScopeKey(row.rowId)).files.filter(function(f){return f.status==='done';}).length;
+      return '<article class="phfck-quick-review-item"><div><small>'+esc(row.employeeName||'Chưa chọn')+' · '+esc(row.employeeCode||'—')+' · '+esc(row.occurredDate||'')+'</small><b>'+esc(item.code||'—')+' · '+esc(item.text||'Chưa chọn tiêu chí')+'</b><p>'+esc(row.note||'Chưa nhập nhận xét')+'</p></div><span>Trừ '+esc(Number(item.points||0))+' điểm'+(evidenceCount?' · '+evidenceCount+' minh chứng':'')+'</span></article>';
+    }).join('');
+    var distinct=quickMultiPersonDistinctEmployeeCount(rows);
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal data-phfck-qmp-review-modal><div class="phfck-modal phfck-quick-review-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>XÁC NHẬN GHI NHẬN NHIỀU NHÂN VIÊN</small><h2>'+rows.length+' lỗi · '+distinct+' nhân viên</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body"><div class="phfck-quick-review-list">'+itemsHtml+'</div><div class="phfck-review-warning is-info"><b>Dữ liệu chính thức</b><p>Mỗi dòng sẽ được lưu thành một bản ghi độc lập trong Nhật ký lỗi, tổng dự kiến trừ '+totalPoints+' điểm.</p></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Quay lại</button><button type="button" class="phfck-primary" data-phfck-qmp-confirm-official>Lưu chính thức</button></div></div></div>';
+  }
+  function quickPersonModeToggleHtml(){
+    var mode=violationUiState.quickPersonMode==='multi'?'multi':'single';
+    return '<div class="phfck-quick-person-toggle" role="tablist" aria-label="Chọn số lượng nhân viên">'
+      +'<button type="button" class="'+(mode==='single'?'active':'')+'" data-phfck-quick-person-mode="single" role="tab" aria-selected="'+(mode==='single'?'true':'false')+'">Một nhân viên</button>'
+      +'<button type="button" class="'+(mode==='multi'?'active':'')+'" data-phfck-quick-person-mode="multi" role="tab" aria-selected="'+(mode==='multi'?'true':'false')+'">Nhiều nhân viên</button>'
+    +'</div>';
+  }
+  function quickMultiPersonHtml(){
+    ensureQuickMultiPersonRows();
+    var rows=violationUiState.quickMultiPersonRows;
+    var distinct=quickMultiPersonDistinctEmployeeCount(rows);
+    var state=quickMultiPersonSubmitState;
+    var locked=(state==='uncertain'||state==='done');
+    var atMax=rows.length>=QUICK_MULTI_PERSON_MAX_ROWS;
+    var addDisabled=atMax||locked;
+    return '<div class="phfck-qmp-workspace">'
+      +quickMultiPersonDraftBannerHtml()
+      +quickMultiPersonUncertainBannerHtml()
+      +quickMultiPersonDoneSummaryHtml()
+      +'<div class="phfck-multi-head"><div><b>Danh sách nhân viên</b><small>Mỗi dòng là một nhân viên/lỗi độc lập; nhận xét tối thiểu 10 ký tự.</small></div><button type="button" class="phfck-secondary" data-phfck-qmp-add '+(addDisabled?'disabled':'')+'>＋ Thêm nhân viên</button></div>'
+      +(atMax?'<p class="phfck-qmp-limit-note">Tối đa 20 ghi nhận mỗi lượt.</p>':'')
+      +'<div class="phfck-qmp-list'+(locked?' is-locked':'')+'" data-phfck-qmp-list>'+rows.map(function(row,index){return quickMultiPersonRowHtml(row,index);}).join('')+'</div>'
+      +'<div class="phfck-multi-footer is-sticky"><div><strong>Sẽ ghi nhận '+rows.length+' lỗi cho '+distinct+' nhân viên</strong><small>Mỗi dòng được lưu thành một bản ghi riêng trong Nhật ký lỗi.</small></div><div>'+quickMultiPersonFooterActionsHtml()+'</div></div>'
+    +'</div>';
+  }
   var LATE_DRAFT_STORE='phfChecklistLateDraft:v1';
   var lateOfficialSaving=false;
   function lateRowDefault(){return {id:'late-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),employee:'',date:todayIso(),shift:'Theo lịch',minutes:1,level:'Mức 1',levelKey:'level1',suggested:1,points:1,note:'',adjustReason:''};}
@@ -4687,7 +5181,7 @@
       var chooseBulk=e.target.closest('[data-phfck-choose-bulk-file]');if(chooseBulk){e.preventDefault();var fi2=root.querySelector('[data-phfck-sales-file]');if(fi2)fi2.click();return;}
       var downloadView=e.target.closest('[data-phfck-download-view]');if(downloadView){e.preventDefault();downloadView.disabled=true;downloadViewWorkbook().then(function(ok){downloadView.disabled=false;if(ok){addAudit({action:'Tải xuống để xem',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===templateUiState.selectedId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Không thay đổi dữ liệu',version:'Bản hiện tại',reason:'Xuất file Excel trình bày chuẩn để xem, lưu hồ sơ hoặc đối chiếu.'});if(window.phfNotice)window.phfNotice('Đã tải file Excel trình bày chuẩn, gồm đủ 3 sheet.');}});return;}
       var versionHistory=e.target.closest('[data-phfck-version-history]');if(versionHistory){e.preventDefault();appendSubmodal(root,versionHistoryModalHtml());return;}
-      var closeSub=e.target.closest('[data-phfck-close-submodal],[data-phfck-submodal-close]');if(closeSub){e.preventDefault();var sm=closeSub.closest('[data-phfck-submodal]');if(sm)sm.remove();syncChecklistModalScrollLock();return;}
+      var closeSub=e.target.closest('[data-phfck-close-submodal],[data-phfck-submodal-close]');if(closeSub){e.preventDefault();var sm=closeSub.closest('[data-phfck-submodal]');if(sm&&sm.hasAttribute('data-phfck-qmp-review-modal'))violationUiState.quickMultiPersonReviewOpen=false;if(sm)sm.remove();syncChecklistModalScrollLock();return;}
       var createTemplate=e.target.closest('[data-phfck-create-template]');if(createTemplate){e.preventDefault();newTemplateDraft={type:'checklist_detail',criteria:[{code:'',content:'',factor:1}],summaryRows:[{code:'',content:'',target:100,unit:'điểm',weight:100,source:'Nhập đánh giá'}]};appendSubmodal(root,createTemplateModalHtml());return;}
       var createDownload=e.target.closest('[data-phfck-create-download]');if(createDownload){e.preventDefault();var cdm=createDownload.closest('[data-phfck-submodal]');if(cdm){syncCreateRows(cdm);createBlankTemplateWorkbook(newTemplateDraft.type||'checklist_detail');}return;}
       var createUpload=e.target.closest('[data-phfck-create-upload]');if(createUpload){e.preventDefault();var cum=createUpload.closest('[data-phfck-submodal]');var cfi=cum&&cum.querySelector('[data-phfck-create-file]');if(cfi)cfi.click();return;}
@@ -4818,6 +5312,28 @@
       if(multiRemove){e.preventDefault();var mr=multiRemove.closest('[data-phfck-multi-row]');var mid=mr&&mr.getAttribute('data-phfck-multi-row');evidenceClearScope(mid);if(violationUiState.multiRows.length<=1){violationUiState.multiRows=[multiDayRowDefault()];checklistToast('info','Đã làm trống dòng','Luôn giữ lại tối thiểu một dòng để tiếp tục nhập.');}else{violationUiState.multiRows=violationUiState.multiRows.filter(function(r){return String(r.id)!==String(mid);});checklistToast('success','Đã xóa sự việc','Dòng đã chọn đã được xóa khỏi danh sách.');}renderViolationWorkspace(root,true);return;}
       var multiEvidence=e.target.closest('[data-phfck-multi-evidence]');
       if(multiEvidence){e.preventDefault();var mer=multiEvidence.closest('[data-phfck-multi-row]');var meid=mer&&mer.getAttribute('data-phfck-multi-row');var merow=violationUiState.multiRows.find(function(r){return r.id===meid;});if(merow){merow.evidenceOpen=!merow.evidenceOpen;if(!merow.evidenceOpen)merow.evidenceNote='';}var ml3=root.querySelector('[data-phfck-multi-list]');if(ml3)ml3.innerHTML=multiDayRowsHtml();return;}
+      var qmpModeToggle=e.target.closest('[data-phfck-quick-person-mode]');
+      if(qmpModeToggle){e.preventDefault();var qmpNextMode=qmpModeToggle.getAttribute('data-phfck-quick-person-mode')==='multi'?'multi':'single';if(violationUiState.quickPersonMode===qmpNextMode)return;violationUiState.quickPersonMode=qmpNextMode;if(qmpNextMode==='multi')ensureQuickMultiPersonRows();renderViolationWorkspace(root,true);return;}
+      var qmpAdd=e.target.closest('[data-phfck-qmp-add]');
+      if(qmpAdd){e.preventDefault();if(qmpAdd.disabled)return;ensureQuickMultiPersonRows();if(violationUiState.quickMultiPersonRows.length>=QUICK_MULTI_PERSON_MAX_ROWS){checklistToast('warning','Đã đạt giới hạn','Tối đa 20 ghi nhận mỗi lượt.',true);return;}violationUiState.quickMultiPersonRows.push(quickMultiPersonRowDefault());renderViolationWorkspace(root,true);return;}
+      var qmpRemove=e.target.closest('[data-phfck-qmp-remove]');
+      if(qmpRemove){e.preventDefault();if(qmpRemove.disabled)return;var qmpRemoveRowEl=qmpRemove.closest('[data-phfck-qmp-row]'),qmpRemoveRowId=qmpRemoveRowEl&&qmpRemoveRowEl.getAttribute('data-phfck-qmp-row');if(!qmpRemoveRowId||violationUiState.quickMultiPersonRows.length<=1)return;evidenceClearScope(quickMultiPersonScopeKey(qmpRemoveRowId));violationUiState.quickMultiPersonRows=violationUiState.quickMultiPersonRows.filter(function(r){return r.rowId!==qmpRemoveRowId;});renderViolationWorkspace(root,true);return;}
+      var qmpDraft=e.target.closest('[data-phfck-qmp-draft]');
+      if(qmpDraft){e.preventDefault();saveQuickMultiPersonDraft();return;}
+      var qmpDraftRestore=e.target.closest('[data-phfck-qmp-draft-restore]');
+      if(qmpDraftRestore){e.preventDefault();restoreQuickMultiPersonDraft();renderViolationWorkspace(root,true);checklistToast('success','Đã khôi phục bản nháp','Có thể tiếp tục chỉnh sửa trước khi ghi nhận.');return;}
+      var qmpDraftDelete=e.target.closest('[data-phfck-qmp-draft-delete]');
+      if(qmpDraftDelete){e.preventDefault();deleteQuickMultiPersonDraft();renderViolationWorkspace(root,true);checklistToast('success','Đã xóa bản nháp','Bản nháp nhiều nhân viên đã được xóa khỏi trình duyệt.');return;}
+      var qmpReview=e.target.closest('[data-phfck-qmp-review]');
+      if(qmpReview){e.preventDefault();var qmpReviewCheck=quickMultiPersonValidation();if(!qmpReviewCheck.ok){renderViolationWorkspace(root,true);checklistToast('warning','Chưa thể xem lại',qmpReviewCheck.errors[0]||'Vui lòng kiểm tra lại thông tin.',true);quickMultiPersonFocusFirstInvalid(root);return;}violationUiState.quickMultiPersonReviewOpen=true;appendSubmodal(root,quickMultiPersonReviewModalHtml());return;}
+      var qmpConfirm=e.target.closest('[data-phfck-qmp-confirm-official]');
+      if(qmpConfirm&&!qmpConfirm.disabled){e.preventDefault();saveQuickMultiPersonOfficial(root);return;}
+      var qmpRetryBtn=e.target.closest('[data-phfck-qmp-retry]');
+      if(qmpRetryBtn){e.preventDefault();quickMultiPersonRetry(root);return;}
+      var qmpEditContent=e.target.closest('[data-phfck-qmp-edit-content]');
+      if(qmpEditContent){e.preventDefault();quickMultiPersonEditContent();renderViolationWorkspace(root,true);checklistToast('info','Đã mở lại để chỉnh sửa','Toàn bộ mã yêu cầu nội bộ của lượt này đã được cấp lại để đảm bảo an toàn.',true);return;}
+      var qmpNewBatch=e.target.closest('[data-phfck-qmp-new-batch]');
+      if(qmpNewBatch){e.preventDefault();quickMultiPersonStartNewBatch();renderViolationWorkspace(root,true);return;}
       var addPrivate=e.target.closest('[data-phfck-add-private]');
       if(addPrivate){e.preventDefault();if(window.phfNotice)window.phfNotice('Thêm tiêu chí riêng: chọn nhóm cha, nhóm con, tên tiêu chí, hệ số và tạo phiên bản mới trước khi phát hành.');return;}
       var attachCommon=e.target.closest('[data-phfck-attach-common]');
@@ -4868,7 +5384,7 @@
       var evidenceRemoveBtn=e.target.closest('[data-phfck-evidence-remove]');
       if(evidenceRemoveBtn){e.preventDefault();var evRemoveParts=(evidenceRemoveBtn.getAttribute('data-phfck-evidence-remove')||'').split('|');evidenceRemoveFile(root,evRemoveParts[0],evRemoveParts[1]);return;}
       var evidenceRetryBtn=e.target.closest('[data-phfck-evidence-retry]');
-      if(evidenceRetryBtn){e.preventDefault();var evRetryParts=(evidenceRetryBtn.getAttribute('data-phfck-evidence-retry')||'').split('|');evidenceRetryFile(root,evRetryParts[0],evRetryParts[1]);return;}
+      if(evidenceRetryBtn){e.preventDefault();var evRetryParts=(evidenceRetryBtn.getAttribute('data-phfck-evidence-retry')||'').split('|');if(String(evRetryParts[0]||'').indexOf('qmp-')===0)quickMultiPersonRetryFile(root,evRetryParts[0],evRetryParts[1]);else evidenceRetryFile(root,evRetryParts[0],evRetryParts[1]);return;}
       var quickRowSubmit=e.target.closest('[data-phfck-quick-row-submit]');
       if(quickRowSubmit){e.preventDefault();var quickRowId=quickRowSubmit.getAttribute('data-phfck-quick-row-submit')||'',quickRowCheck=quickOneValidation(quickRowId);if(!quickRowCheck.ok){checklistToast('warning','Chưa thể ghi nhận lỗi này',quickRowCheck.errors.join(' '),true);return;}appendSubmodal(root,quickReviewModalHtml('official',quickRowId));return;}
       var quickDraft=e.target.closest('[data-phfck-quick-draft]');
@@ -5030,6 +5546,7 @@
       if(e.target&&e.target.matches('[data-phfck-late-field]')){var lre=e.target.closest('[data-phfck-late-row]');var lrid=lre&&lre.getAttribute('data-phfck-late-row');var lrow=violationUiState.lateRows.find(function(r){return r.id===lrid;});if(lrow){var lf=e.target.getAttribute('data-phfck-late-field');lrow[lf]=e.target.value||'';e.target.classList.remove('is-validation-error');var lateLabel=e.target.closest('label');if(lateLabel)lateLabel.classList.remove('is-validation-error');if(lf==='minutes')recalcLateRow(lrow,true);}return;}
       if(e.target&&e.target.matches('[data-phfck-multi-location]')){violationUiState.location=e.target.value||'';return;}
       if(e.target&&e.target.matches('[data-phfck-multi-field]')){var rowEl=e.target.closest('[data-phfck-multi-row]');var rid=rowEl&&rowEl.getAttribute('data-phfck-multi-row');var row=violationUiState.multiRows.find(function(r){return r.id===rid;});if(row){var f=e.target.getAttribute('data-phfck-multi-field');row[f]=e.target.value||'';if(f==='date'){row.criterion='';var ml4=root.querySelector('[data-phfck-multi-list]');if(ml4)ml4.innerHTML=multiDayRowsHtml();}}}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="date"],[data-phfck-qmp-field="note"]')){var qmpInRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpInRowId=qmpInRowEl&&qmpInRowEl.getAttribute('data-phfck-qmp-row'),qmpInRow=quickMultiPersonRowById(qmpInRowId);if(qmpInRow){var qmpInField=e.target.getAttribute('data-phfck-qmp-field');qmpInRow.validationErrors={};if(qmpInField==='date'){qmpInRow.occurredDate=e.target.value||'';qmpInRow.criterionCode='';var qmpInList=root.querySelector('[data-phfck-qmp-list]');if(qmpInList)qmpInList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}else{qmpInRow.note=e.target.value||'';}}return;}
 
       if(e.target&&e.target.matches('[data-phfck-employee-combobox]')){
         var employeeInputValue=e.target.value||'';
@@ -5078,7 +5595,9 @@
 
       if(e.target&&e.target.matches('[data-phfck-quick-date]')){violationUiState.date=e.target.value||todayIso();violationUiState.selected={};violationUiState.group='all';violationUiState.expandedGroups={};renderViolationWorkspace(root,true);}
       if(e.target&&e.target.matches('[data-phfck-shared-evidence]')){violationUiState.sharedEvidence=!!e.target.checked;renderViolationWorkspace(root,true);return;}
-      if(e.target&&e.target.matches('[data-phfck-evidence-input]')){evidenceHandleFileInput(root,e.target);return;}
+      if(e.target&&e.target.matches('[data-phfck-evidence-input]')){var qmpEvScope=e.target.getAttribute('data-phfck-evidence-input')||'';if(qmpEvScope.indexOf('qmp-')===0)quickMultiPersonHandleFileInput(root,e.target);else evidenceHandleFileInput(root,e.target);return;}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="employee"]')){var qmpEmpRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpEmpRowId=qmpEmpRowEl&&qmpEmpRowEl.getAttribute('data-phfck-qmp-row'),qmpEmpRow=quickMultiPersonRowById(qmpEmpRowId);if(qmpEmpRow){var qmpPerson=quickMultiPersonEmployeeById(e.target.value);qmpEmpRow.employeeId=e.target.value||'';qmpEmpRow.employeeCode=qmpPerson&&qmpPerson.code||'';qmpEmpRow.employeeName=qmpPerson&&qmpPerson.name||'';qmpEmpRow.criterionCode='';qmpEmpRow.validationErrors={};var qmpEmpList=root.querySelector('[data-phfck-qmp-list]');if(qmpEmpList)qmpEmpList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}return;}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="criterion"]')){var qmpCritRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpCritRowId=qmpCritRowEl&&qmpCritRowEl.getAttribute('data-phfck-qmp-row'),qmpCritRow=quickMultiPersonRowById(qmpCritRowId);if(qmpCritRow){qmpCritRow.criterionCode=e.target.value||'';qmpCritRow.validationErrors={};}return;}
       if(e.target&&e.target.matches('[data-phfck-multi-field="time"]')){var mrel=e.target.closest('[data-phfck-multi-row]');var mrid=mrel&&mrel.getAttribute('data-phfck-multi-row');var mrow=violationUiState.multiRows.find(function(r){return r.id===mrid;});if(mrow){mrow.time=normalizeTime24(e.target.value,mrow.time||currentTime24());e.target.value=mrow.time;}}
       if(e.target&&e.target.matches('[data-phfck-late-file]')){var lateFile=e.target.files&&e.target.files[0];if(lateFile)importLateCsv(lateFile,root);e.target.value='';}
       if(e.target&&e.target.matches('[data-phfck-sales-file]')){var file=e.target.files&&e.target.files[0];if(file){if(!window.XLSX||!/\.xlsx?$/i.test(file.name)){pendingBulkImport={fileName:file.name,errors:['Chỉ chấp nhận file Excel .xlsx được tải từ chức năng Cập nhật hàng loạt.'],warnings:[]};appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}else{var reader=new FileReader();reader.onload=function(){try{var wb=XLSX.read(reader.result,{type:'array'});pendingBulkImport=parseBulkWorkbook(wb,file.name);appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}catch(err){console.error('[PHF Checklist] bulk import',err);pendingBulkImport={fileName:file.name,errors:['Không đọc được file Excel. Vui lòng tải lại file cập nhật từ đúng mẫu và không đổi tên sheet/cột.'],warnings:[]};appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}};reader.readAsArrayBuffer(file);}}e.target.value='';}
