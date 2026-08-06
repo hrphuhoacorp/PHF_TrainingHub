@@ -3511,6 +3511,15 @@
                   là thành công) -> khoá, chỉ "Bắt đầu lượt mới" mới mở lại. */
   var quickMultiPersonSubmitState='idle';
   var quickMultiPersonLastResult=null;
+  /* Chan sua noi dung tung field bang JS (khong chi dua vao CSS pointer-events,
+     vi pointer-events:none KHONG chan duoc mot field dang giu focus ban phim tu
+     truoc khi khoa duoc bat, cung khong chan Tab-navigation) - neu khong co gate
+     nay, noi dung sua trong luc 'uncertain'/'done' se lot vao state va bi gui di
+     duoi request_id CU khi bam "Thu lai", co the bi backend am tham bo qua neu
+     lan goi truoc server thuc ra da luu. */
+  function quickMultiPersonLocked(){
+    return quickMultiPersonSubmitState==='uncertain'||quickMultiPersonSubmitState==='done';
+  }
   function quickMultiPersonNewRequestId(){
     return 'QMP-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
   }
@@ -3632,7 +3641,7 @@
   function quickMultiPersonRowHtml(row,index){
     var ctx=quickMultiPersonContextForRow(row);
     var criterion=quickMultiPersonCriterionForRow(row);
-    var canRemove=violationUiState.quickMultiPersonRows.length>1;
+    var canRemove=violationUiState.quickMultiPersonRows.length>1&&!quickMultiPersonLocked();
     var hasErrors=row.validationErrors&&Object.keys(row.validationErrors).length>0;
     var evidenceDoneCount=evidenceDoneDraftIds(quickMultiPersonScopeKey(row.rowId)).length;
     var needsEvidenceWarning=!!(criterion&&criterion.evidence==='required'&&!evidenceDoneCount);
@@ -3959,7 +3968,7 @@
     var rows=violationUiState.quickMultiPersonRows;
     var distinct=quickMultiPersonDistinctEmployeeCount(rows);
     var state=quickMultiPersonSubmitState;
-    var locked=(state==='uncertain'||state==='done');
+    var locked=quickMultiPersonLocked();
     var atMax=rows.length>=QUICK_MULTI_PERSON_MAX_ROWS;
     var addDisabled=atMax||locked;
     return '<div class="phfck-qmp-workspace">'
@@ -5556,7 +5565,7 @@
       if(e.target&&e.target.matches('[data-phfck-late-field]')){var lre=e.target.closest('[data-phfck-late-row]');var lrid=lre&&lre.getAttribute('data-phfck-late-row');var lrow=violationUiState.lateRows.find(function(r){return r.id===lrid;});if(lrow){var lf=e.target.getAttribute('data-phfck-late-field');lrow[lf]=e.target.value||'';e.target.classList.remove('is-validation-error');var lateLabel=e.target.closest('label');if(lateLabel)lateLabel.classList.remove('is-validation-error');if(lf==='minutes')recalcLateRow(lrow,true);}return;}
       if(e.target&&e.target.matches('[data-phfck-multi-location]')){violationUiState.location=e.target.value||'';return;}
       if(e.target&&e.target.matches('[data-phfck-multi-field]')){var rowEl=e.target.closest('[data-phfck-multi-row]');var rid=rowEl&&rowEl.getAttribute('data-phfck-multi-row');var row=violationUiState.multiRows.find(function(r){return r.id===rid;});if(row){var f=e.target.getAttribute('data-phfck-multi-field');row[f]=e.target.value||'';if(f==='date'){row.criterion='';var ml4=root.querySelector('[data-phfck-multi-list]');if(ml4)ml4.innerHTML=multiDayRowsHtml();}}}
-      if(e.target&&e.target.matches('[data-phfck-qmp-field="date"],[data-phfck-qmp-field="note"]')){var qmpInRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpInRowId=qmpInRowEl&&qmpInRowEl.getAttribute('data-phfck-qmp-row'),qmpInRow=quickMultiPersonRowById(qmpInRowId);if(qmpInRow){var qmpInField=e.target.getAttribute('data-phfck-qmp-field');qmpInRow.validationErrors={};if(qmpInField==='date'){qmpInRow.occurredDate=e.target.value||'';qmpInRow.criterionCode='';var qmpInList=root.querySelector('[data-phfck-qmp-list]');if(qmpInList)qmpInList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}else{qmpInRow.note=e.target.value||'';}}return;}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="date"],[data-phfck-qmp-field="note"]')){if(quickMultiPersonLocked())return;var qmpInRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpInRowId=qmpInRowEl&&qmpInRowEl.getAttribute('data-phfck-qmp-row'),qmpInRow=quickMultiPersonRowById(qmpInRowId);if(qmpInRow){var qmpInField=e.target.getAttribute('data-phfck-qmp-field');qmpInRow.validationErrors={};if(qmpInField==='date'){qmpInRow.occurredDate=e.target.value||'';qmpInRow.criterionCode='';var qmpInList=root.querySelector('[data-phfck-qmp-list]');if(qmpInList)qmpInList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}else{qmpInRow.note=e.target.value||'';}}return;}
 
       if(e.target&&e.target.matches('[data-phfck-employee-combobox]')){
         var employeeInputValue=e.target.value||'';
@@ -5606,8 +5615,8 @@
       if(e.target&&e.target.matches('[data-phfck-quick-date]')){violationUiState.date=e.target.value||todayIso();violationUiState.selected={};violationUiState.group='all';violationUiState.expandedGroups={};renderViolationWorkspace(root,true);}
       if(e.target&&e.target.matches('[data-phfck-shared-evidence]')){violationUiState.sharedEvidence=!!e.target.checked;renderViolationWorkspace(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-evidence-input]')){var qmpEvScope=e.target.getAttribute('data-phfck-evidence-input')||'';if(qmpEvScope.indexOf('qmp-')===0)quickMultiPersonHandleFileInput(root,e.target);else evidenceHandleFileInput(root,e.target);return;}
-      if(e.target&&e.target.matches('[data-phfck-qmp-field="employee"]')){var qmpEmpRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpEmpRowId=qmpEmpRowEl&&qmpEmpRowEl.getAttribute('data-phfck-qmp-row'),qmpEmpRow=quickMultiPersonRowById(qmpEmpRowId);if(qmpEmpRow){var qmpPerson=quickMultiPersonEmployeeById(e.target.value);qmpEmpRow.employeeId=e.target.value||'';qmpEmpRow.employeeCode=qmpPerson&&qmpPerson.code||'';qmpEmpRow.employeeName=qmpPerson&&qmpPerson.name||'';qmpEmpRow.criterionCode='';qmpEmpRow.validationErrors={};var qmpEmpList=root.querySelector('[data-phfck-qmp-list]');if(qmpEmpList)qmpEmpList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}return;}
-      if(e.target&&e.target.matches('[data-phfck-qmp-field="criterion"]')){var qmpCritRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpCritRowId=qmpCritRowEl&&qmpCritRowEl.getAttribute('data-phfck-qmp-row'),qmpCritRow=quickMultiPersonRowById(qmpCritRowId);if(qmpCritRow){qmpCritRow.criterionCode=e.target.value||'';qmpCritRow.validationErrors={};}return;}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="employee"]')){if(quickMultiPersonLocked())return;var qmpEmpRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpEmpRowId=qmpEmpRowEl&&qmpEmpRowEl.getAttribute('data-phfck-qmp-row'),qmpEmpRow=quickMultiPersonRowById(qmpEmpRowId);if(qmpEmpRow){var qmpPerson=quickMultiPersonEmployeeById(e.target.value);qmpEmpRow.employeeId=e.target.value||'';qmpEmpRow.employeeCode=qmpPerson&&qmpPerson.code||'';qmpEmpRow.employeeName=qmpPerson&&qmpPerson.name||'';qmpEmpRow.criterionCode='';qmpEmpRow.validationErrors={};var qmpEmpList=root.querySelector('[data-phfck-qmp-list]');if(qmpEmpList)qmpEmpList.innerHTML=violationUiState.quickMultiPersonRows.map(function(r,i){return quickMultiPersonRowHtml(r,i);}).join('');}return;}
+      if(e.target&&e.target.matches('[data-phfck-qmp-field="criterion"]')){if(quickMultiPersonLocked())return;var qmpCritRowEl=e.target.closest('[data-phfck-qmp-row]'),qmpCritRowId=qmpCritRowEl&&qmpCritRowEl.getAttribute('data-phfck-qmp-row'),qmpCritRow=quickMultiPersonRowById(qmpCritRowId);if(qmpCritRow){qmpCritRow.criterionCode=e.target.value||'';qmpCritRow.validationErrors={};}return;}
       if(e.target&&e.target.matches('[data-phfck-multi-field="time"]')){var mrel=e.target.closest('[data-phfck-multi-row]');var mrid=mrel&&mrel.getAttribute('data-phfck-multi-row');var mrow=violationUiState.multiRows.find(function(r){return r.id===mrid;});if(mrow){mrow.time=normalizeTime24(e.target.value,mrow.time||currentTime24());e.target.value=mrow.time;}}
       if(e.target&&e.target.matches('[data-phfck-late-file]')){var lateFile=e.target.files&&e.target.files[0];if(lateFile)importLateCsv(lateFile,root);e.target.value='';}
       if(e.target&&e.target.matches('[data-phfck-sales-file]')){var file=e.target.files&&e.target.files[0];if(file){if(!window.XLSX||!/\.xlsx?$/i.test(file.name)){pendingBulkImport={fileName:file.name,errors:['Chỉ chấp nhận file Excel .xlsx được tải từ chức năng Cập nhật hàng loạt.'],warnings:[]};appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}else{var reader=new FileReader();reader.onload=function(){try{var wb=XLSX.read(reader.result,{type:'array'});pendingBulkImport=parseBulkWorkbook(wb,file.name);appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}catch(err){console.error('[PHF Checklist] bulk import',err);pendingBulkImport={fileName:file.name,errors:['Không đọc được file Excel. Vui lòng tải lại file cập nhật từ đúng mẫu và không đổi tên sheet/cột.'],warnings:[]};appendSubmodal(root,bulkPreviewHtml(pendingBulkImport));}};reader.readAsArrayBuffer(file);}}e.target.value='';}
