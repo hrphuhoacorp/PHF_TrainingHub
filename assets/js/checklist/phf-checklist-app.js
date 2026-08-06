@@ -26,6 +26,19 @@
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function cssEscape(v){var s=String(v==null?'':v);return typeof CSS!=='undefined'&&CSS.escape?CSS.escape(s):s.replace(/[^a-zA-Z0-9_-]/g,'\\$&');}
   function routeRole(path){path=cleanPath(path||location.pathname);if(/^\/admin(?:\/|$)/.test(path))return 'admin';if(/^\/ql(?:\/|$)/.test(path))return 'manager';if(/^\/hv(?:\/|$)/.test(path))return 'learner';return role();}
+  /* UX-01 Batch 3 hotfix 2 - "manager không có Checklist grant vẫn phải xem
+     được Checklist/Hồ sơ đánh giá của chính mình" (đã chốt nghiệp vụ, không
+     còn là open question). routeRole(path)==='manager' một mình KHÔNG đủ để
+     biết một tài khoản có đang dùng manager workspace (sidebar/section quản
+     lý) hay không - phải luôn cộng thêm việc tài khoản có Checklist grant
+     (roleWorkspaceState.data.grant) thật hay không. Hai helper dưới đây là
+     NGUỒN DUY NHẤT cho khái niệm này; assessmentProfileHtml/Body/loadAssessmentProfile/
+     title()/mobileContentHeaderTitle()/roleWorkspaceContentHtml() đều phải gọi
+     qua đây, không tự suy routeRole(...)==='manager' riêng lẻ nữa. */
+  function checklistHasManagementAccess(){return !!(roleWorkspaceState.data&&roleWorkspaceState.data.grant);}
+  function checklistManagerWorkspaceActive(path){return routeRole(path)==='manager'&&checklistHasManagementAccess();}
+  function isChecklistPersonalExperience(path){if(routeRole(path)==='admin')return false;return !checklistManagerWorkspaceActive(path);}
+  function checklistPersonalBasePath(path){return routeRole(path)==='manager'?'/ql/checklist':'/hv/checklist';}
   function hubPath(){
   var r=role();
   return r==='admin'
@@ -42,11 +55,11 @@
   function isMobileWorkspace(){return !!(mobileWorkspaceMq&&mobileWorkspaceMq.matches);}
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
   function mobileContentHeaderTitle(path){
-    if(routeRole(path)!=='manager')return cleanPath(path)==='/hv/checklist/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';
+    if(isChecklistPersonalExperience(path))return cleanPath(path)===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';
     return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền','assessment-profile':'Hồ sơ đánh giá'}[managerSectionFromLocation(path)]||'Tổng quan';
   }
   function syncMobileContentHeader(root,path){var heading=root&&root.querySelector('[data-phfck-mobile-content-title]');if(heading)heading.textContent=mobileContentHeaderTitle(path);}
-  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';if(r==='manager'&&managerSectionFromLocation(path)==='assessment-profile')return 'Hồ sơ đánh giá · Quản lý';if(r==='learner'&&p==='/hv/checklist/ho-so-danh-gia')return 'Hồ sơ đánh giá';return r==='admin'?'Tổng quan PHF Checklist':(r==='manager'?'Tổng quan Checklist · Quản lý':'Checklist của tôi');}
+  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';if(checklistManagerWorkspaceActive(path)&&managerSectionFromLocation(path)==='assessment-profile')return 'Hồ sơ đánh giá · Quản lý';if(isChecklistPersonalExperience(path))return p===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';return r==='admin'?'Tổng quan PHF Checklist':'Tổng quan Checklist · Quản lý';}
   function subtitle(path){var r=routeRole(path);return r==='admin'?'Điều hành phân công, ghi nhận tuân thủ và đánh giá công việc trên một khu vực thống nhất.':(r==='manager'?'Theo dõi Checklist trong phạm vi được Admin phân công.':'Theo dõi điểm, lỗi và các việc cần xử lý của bạn.');}
   function currentTime24(){var d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
   function normalizeTime24(value,fallback){var raw=String(value||'').replace(/\D/g,'').slice(0,4);if(raw.length<3)return fallback||currentTime24();var h=Number(raw.slice(0,2)),m=Number(raw.slice(2,4));if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>23||m<0||m>59)return fallback||currentTime24();return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
@@ -5579,7 +5592,11 @@
     options=options||{};
     var ownerKey=currentRoleWorkspaceOwnerKey();
     if(assessmentProfileUiState.ownerKey!==ownerKey)resetAssessmentProfileForOwner(ownerKey);
-    var isManager=routeRole(currentRouteKey())==='manager';
+    /* isManager ở đây nghĩa là "đang dùng manager workspace thật" (có Checklist
+       grant), KHÔNG phải suy từ tiền tố URL - một manager không có grant vẫn ở
+       /ql/checklist/ho-so-danh-gia nhưng phải luôn là self-view, không target
+       picker, không gửi targetEmployeeCode. */
+    var isManager=checklistManagerWorkspaceActive(currentRouteKey());
     var month=options.month||assessmentProfileUiState.selectedMonth||assessmentProfileDefaultMonth();
     var year=options.year||assessmentProfileUiState.selectedYear||month.slice(0,4);
     var targetCode=isManager?(options.targetEmployeeCode!=null?String(options.targetEmployeeCode).toUpperCase():assessmentProfileUiState.selectedTargetCode):'';
@@ -5704,36 +5721,37 @@
       if(assessmentProfileUiState.error)return assessmentProfileErrorHtml();
       return assessmentProfileLoadingHtml();
     }
-    var data=assessmentProfileUiState.data,isManager=routeRole(currentRouteKey())==='manager',stale=assessmentProfileUiState.loading;
+    var data=assessmentProfileUiState.data,isManager=checklistManagerWorkspaceActive(currentRouteKey()),stale=assessmentProfileUiState.loading;
     return assessmentProfileIdentityHtml(data,isManager)
       +assessmentProfilePeriodBarHtml(data,isManager)
       +(stale?'<div class="phfck-role-note is-loading"><b>Đang tải lại theo lựa chọn mới…</b><p>Dữ liệu bên dưới là của lựa chọn trước, sẽ tự cập nhật ngay khi tải xong.</p></div>':'')
       +'<div class="phfck-assessment-profile-body'+(stale?' is-refreshing':'')+'"><div class="phfck-assessment-profile-grid">'+assessmentProfileStandardHtml(data.standard)+assessmentProfileScoreHtml(data.currentScore)+'</div>'+assessmentProfileHistoryHtml(data.history)+'</div>';
   }
+  /* isManager ở đây = checklistManagerWorkspaceActive (có grant thật), KHÔNG
+     phải routeRole(path)==='manager' đơn thuần - một manager không grant vẫn ở
+     /ql/checklist/ho-so-danh-gia nhưng phải nhận đúng khung "cá nhân" (kicker
+     NHÂN VIÊN, không có nút "← Tổng quan" vì họ không có Tổng quan quản lý để
+     quay về - quay lại dùng tab điều hướng phía trên component này). */
   function assessmentProfileHtml(path){
-    var isManager=routeRole(path)==='manager';
+    var isManager=checklistManagerWorkspaceActive(path);
     return '<div class="phfck-assessment-profile" data-checklist-assessment-role="'+(isManager?'manager':'learner')+'"><section class="phfck-role-heading phfck-assessment-profile-heading"><div><small>PHF CHECKLIST'+(isManager?' · QUẢN LÝ':' · NHÂN VIÊN')+'</small><h1>Hồ sơ đánh giá</h1><p>Tiêu chuẩn áp dụng, điểm kỳ hiện tại và lịch sử điểm theo tài khoản.</p></div><div class="phfck-monthly-head-actions">'+(isManager?'<button type="button" class="phfck-secondary" data-phfck-manager-section="overview">← Tổng quan</button>':'')+'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>↻ Làm mới</button></div></section><div data-phfck-assessment-profile>'+assessmentProfileBodyHtml()+'</div></div>';
   }
-  /* UX-01 Batch 3 hotfix - route learner wiring. Root cause của bug "bấm Hồ sơ
-     đánh giá ra /ql/..." KHÔNG phải lỗi tính path: nút cũ tự suy target bằng
-     routeRole(currentRouteKey()) tại thời điểm click - route learner ('/hv/hoc..')
-     luôn cho đúng '/hv/checklist/ho-so-danh-gia'. Tài khoản test thực tế đã ở sẵn
-     '/ql/checklist' (routeRole() theo path chỉ đọc tiền tố URL; requireRoles(['manager'])
-     trong phf-url-router.js đã tự chặn nếu session role không phải 'manager' -
-     nên vào được /ql/checklist nghĩa là session role THẬT là manager) và không có
-     Checklist grant (hasManagementAccess=false) - rơi vào ĐÚNG nhánh fallback
-     "Checklist của tôi" mà learner cũng dùng, nơi nút cũ vô tình được gắn vào.
-     Sửa: tab điều hướng 2 khu vực chỉ render khi routeRole(path)==='learner' -
-     một điều kiện tường minh, không suy diễn theo "không có grant". Nhánh
-     fallback của tài khoản manager-không-grant quay lại đúng như trước Batch 3
-     (không tab, không nút Hồ sơ đánh giá) - không tự quyết định nghiệp vụ cho
-     trường hợp đó. Tab luôn điều hướng bằng đường dẫn cố định (không suy theo
-     route hiện tại), qua window.phfNavigate (Router thật, giữ back/forward). */
-  function learnerChecklistTabsHtml(path){
-    var active=cleanPath(path)==='/hv/checklist/ho-so-danh-gia'?'assessment-profile':'my-checklist';
+  /* UX-01 Batch 3 hotfix 2 - "Hồ sơ đánh giá áp dụng cho mọi tài khoản trừ
+     Admin" (đã chốt nghiệp vụ). Trước đó tab chỉ render khi
+     routeRole(path)==='learner', bỏ sót manager không có Checklist grant -
+     tài khoản đó vẫn ở /ql/checklist (routeRole='manager') nên không có tab,
+     dù backend đã hỗ trợ self-view cho họ. Sửa: dùng isChecklistPersonalExperience()
+     (learner HOẶC manager không grant = true) thay vì so sánh routeRole thô, và
+     route base theo checklistPersonalBasePath() (đọc từ role nền thật, /hv cho
+     learner, /ql cho manager) - không hard-code /hv, không rewrite manager
+     sang /hv. Tab luôn điều hướng bằng đường dẫn cố định theo base đã tính
+     (không suy theo route hiện tại), qua window.phfNavigate (Router thật, giữ
+     back/forward). */
+  function personalChecklistTabsHtml(path){
+    var base=checklistPersonalBasePath(path),active=cleanPath(path)===base+'/ho-so-danh-gia'?'assessment-profile':'my-checklist';
     return '<nav class="phfck-learner-tabs phfck-people-scope-tabs phfck-people-scope-chips" aria-label="Khu vực Checklist của tôi">'
-      +'<button type="button" class="'+(active==='my-checklist'?'active':'')+'" data-phfck-learner-tab="/hv/checklist"><span>Checklist của tôi</span></button>'
-      +'<button type="button" class="'+(active==='assessment-profile'?'active':'')+'" data-phfck-learner-tab="/hv/checklist/ho-so-danh-gia"><span>Hồ sơ đánh giá</span></button>'
+      +'<button type="button" class="'+(active==='my-checklist'?'active':'')+'" data-phfck-learner-tab="'+esc(base)+'"><span>Checklist của tôi</span></button>'
+      +'<button type="button" class="'+(active==='assessment-profile'?'active':'')+'" data-phfck-learner-tab="'+esc(base+'/ho-so-danh-gia')+'"><span>Hồ sơ đánh giá</span></button>'
       +'</nav>';
   }
   /* ===== hết Hồ sơ đánh giá ===== */
@@ -5742,9 +5760,15 @@
     if(roleWorkspaceState.error)return '<main class="phfck-role-main"><section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở Checklist</b><p>'+esc(roleWorkspaceState.error)+'</p><button type="button" data-phfck-role-retry>Thử lại</button></div></section></main>';
     var data=roleWorkspaceState.data||{},hasManagementAccess=!!data.grant,people=Array.isArray(data.people)?data.people:[],reviewCount=people.filter(function(x){return x.canReview;}).length,myForm=roleWorkspaceState.monthlyForm;
     if(hasManagementAccess&&routeRole(path)==='manager')return '<div class="phfck-manager-layout">'+(isMobileWorkspace()?'':managerSidebarHtml(data))+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'+managerSectionContentHtml(path,data)+'</main></div>';
-    var isLearnerRoute=routeRole(path)==='learner';
-    if(isLearnerRoute&&cleanPath(path)==='/hv/checklist/ho-so-danh-gia')return '<main class="phfck-role-main">'+learnerChecklistTabsHtml(path)+assessmentProfileHtml(path)+'</main>';
-    return '<main class="phfck-role-main">'+(isLearnerRoute?learnerChecklistTabsHtml(path):'')+'<section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
+    /* Sau nhánh trên, tài khoản chỉ còn 2 khả năng: learner thật, hoặc manager
+       không có Checklist grant (routeRole='manager' nhưng hasManagementAccess
+       false) - CẢ HAI đều là "trải nghiệm cá nhân" theo nghiệp vụ đã chốt
+       ("Hồ sơ đánh giá áp dụng cho tất cả tài khoản trừ Admin"), chỉ khác base
+       route (/hv vs /ql). isChecklistPersonalExperience()/checklistPersonalBasePath()
+       đọc trực tiếp routeRole(path)+grant hiện tại, không hard-code learner. */
+    var isPersonalExperience=isChecklistPersonalExperience(path),personalBase=checklistPersonalBasePath(path);
+    if(isPersonalExperience&&cleanPath(path)===personalBase+'/ho-so-danh-gia')return '<main class="phfck-role-main">'+personalChecklistTabsHtml(path)+assessmentProfileHtml(path)+'</main>';
+    return '<main class="phfck-role-main">'+(isPersonalExperience?personalChecklistTabsHtml(path):'')+'<section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()

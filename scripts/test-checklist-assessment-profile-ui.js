@@ -60,36 +60,54 @@ check(/\/\^\\\/\(\?:admin\|ql\|hv\)\\\/checklist\(\?:\\\/\|\$\)\/\.test\(path\)/
 check(/path === '\/ql\/checklist\/ho-so-danh-gia' \|\| path === '\/hv\/checklist\/ho-so-danh-gia'/.test(learnerApp),
   'phfChecklistRoleWorkspaceIsActive() includes both new routes (avoids an unnecessary Training Hub scope=staff load)');
 
-// ---------- D/E/F. Menu wiring per role ----------
-// Hotfix (post-4369349): the original single action button computed its target via
+// ---------- D/E/F. Menu wiring across the 4 account classes ----------
+// Hotfix 1 (post-4369349): the original single action button computed its target via
 // routeRole(currentRouteKey()) - correct in isolation, but it was reachable from the
 // SAME fallback branch a manager-role account with no Checklist grant also renders
 // (hasManagementAccess=false at /ql/checklist), sending that account to
-// /ql/checklist/ho-so-danh-gia where assessmentProfileHtml() is never reached
-// (managerSectionContentHtml requires hasManagementAccess). Root cause was therefore
-// not a wrong path computation but an ambiguous mount point. Fixed by gating the new
-// nav strictly on routeRole(path)==='learner' and using literal, hardcoded target
-// paths instead of recomputing routeRole at click time.
-const learnerTabsBody = fnBody(app, 'learnerChecklistTabsHtml', '\\s*path\\s*');
-check(!!learnerTabsBody, 'D0. learnerChecklistTabsHtml() found');
-if (learnerTabsBody) {
-  check(/data-phfck-learner-tab="\/hv\/checklist"/.test(learnerTabsBody) && /data-phfck-learner-tab="\/hv\/checklist\/ho-so-danh-gia"/.test(learnerTabsBody),
-    'D. Learner tab bar renders both "Checklist của tôi" and "Hồ sơ đánh giá" with literal, hardcoded target paths (not computed from the current route)');
+// /ql/checklist/ho-so-danh-gia where assessmentProfileHtml() was never reached.
+// Hotfix 2 (post-5fcfe4b): business call confirmed "Hồ sơ đánh giá applies to every
+// non-Admin account" - a manager with no Checklist grant must ALSO get the personal
+// tabs + a working self-view Assessment Profile at /ql/checklist/ho-so-danh-gia (no
+// picker, no manager sidebar), not just "no dead end" like hotfix 1 left it. Gating
+// must therefore key off routeRole(path) + whether a real Checklist grant is present
+// (checklistManagerWorkspaceActive/isChecklistPersonalExperience), never routeRole
+// alone - and the personal base path must follow the account's own role namespace
+// (/hv for learner, /ql for manager) rather than a hardcoded /hv.
+check(/function checklistHasManagementAccess\(\)\{return !!\(roleWorkspaceState\.data&&roleWorkspaceState\.data\.grant\);\}/.test(app),
+  'D0. checklistHasManagementAccess() is the single source for "does this account have a real Checklist grant"');
+check(/function checklistManagerWorkspaceActive\(path\)\{return routeRole\(path\)==='manager'&&checklistHasManagementAccess\(\);\}/.test(app),
+  'D0. checklistManagerWorkspaceActive(path) = routeRole==='+"'manager'"+' AND a real grant - not routeRole alone');
+check(/function isChecklistPersonalExperience\(path\)\{if\(routeRole\(path\)==='admin'\)return false;return !checklistManagerWorkspaceActive\(path\);\}/.test(app),
+  'D0. isChecklistPersonalExperience(path): learner=true, manager-no-grant=true, manager-with-grant=false, admin=false (matches the confirmed business matrix)');
+check(/function checklistPersonalBasePath\(path\)\{return routeRole\(path\)==='manager'\?'\/ql\/checklist':'\/hv\/checklist';\}/.test(app),
+  'D0. checklistPersonalBasePath(path) follows the account\'s own role namespace (/ql for manager, /hv for learner) - never rewrites manager to /hv');
+const personalTabsBody = fnBody(app, 'personalChecklistTabsHtml', '\\s*path\\s*');
+check(!!personalTabsBody, 'D1. personalChecklistTabsHtml() found');
+if (personalTabsBody) {
+  check(/var base=checklistPersonalBasePath\(path\)/.test(personalTabsBody),
+    'D. Tab bar computes its base path from checklistPersonalBasePath(path) - /hv for a learner session, /ql for a manager-no-grant session');
+  check(personalTabsBody.includes("data-phfck-learner-tab=\"'+esc(base)+'\"") && personalTabsBody.includes("data-phfck-learner-tab=\"'+esc(base+'/ho-so-danh-gia')+'\""),
+    'D. Tab targets are the computed, literal base path (+ /ho-so-danh-gia) - not recomputed at click time');
 }
 const roleWorkspaceBody = fnBody(app, 'roleWorkspaceContentHtml', '\\s*path\\s*');
-check(!!roleWorkspaceBody, 'D1. roleWorkspaceContentHtml() found');
+check(!!roleWorkspaceBody, 'D2. roleWorkspaceContentHtml() found');
 if (roleWorkspaceBody) {
-  check(/var isLearnerRoute=routeRole\(path\)==='learner';/.test(roleWorkspaceBody),
-    'D. isLearnerRoute is derived directly from routeRole(path)==='+"'learner'"+' - an explicit, unambiguous condition');
-  check(/\(isLearnerRoute\?learnerChecklistTabsHtml\(path\):''\)/.test(roleWorkspaceBody),
-    'D. The personal-Checklist fallback only renders the tab nav when isLearnerRoute is true - a manager-role account with no Checklist grant (same fallback branch, routeRole==='+"'manager'"+') gets NO tabs and NO dead-end button, matching pre-Batch-3 behavior for that account class');
-  check(/isLearnerRoute&&cleanPath\(path\)==='\/hv\/checklist\/ho-so-danh-gia'\)return '<main class="phfck-role-main">'\+learnerChecklistTabsHtml\(path\)\+assessmentProfileHtml\(path\)\+'<\/main>';/.test(roleWorkspaceBody),
-    'G. Learner assessment-profile route is also gated on isLearnerRoute (not reachable by a /ql/* session)');
+  check(/var isPersonalExperience=isChecklistPersonalExperience\(path\),personalBase=checklistPersonalBasePath\(path\);/.test(roleWorkspaceBody),
+    'D. isPersonalExperience/personalBase are computed once via the shared helpers right after the manager-with-grant early return');
+  check(/isPersonalExperience&&cleanPath\(path\)===personalBase\+'\/ho-so-danh-gia'\)return '<main class="phfck-role-main">'\+personalChecklistTabsHtml\(path\)\+assessmentProfileHtml\(path\)\+'<\/main>';/.test(roleWorkspaceBody),
+    'B/G. A manager with no grant at /ql/checklist/ho-so-danh-gia now reaches assessmentProfileHtml() directly - the exact gap this hotfix closes (was previously stuck on the personal fallback)');
+  check(/\(isPersonalExperience\?personalChecklistTabsHtml\(path\):''\)/.test(roleWorkspaceBody),
+    'D. The base personal-Checklist fallback also renders tabs for both learner and manager-no-grant (isPersonalExperience covers both)');
 }
-check(!/data-phfck-open-assessment-profile/.test(app), 'D2. The old single action button/handler (root cause of the ambiguous mount) is fully removed, not just unused');
-check(!/data-phfck-assessment-profile-back/.test(app), 'D3. The old redundant "back to Checklist của tôi" button/handler is removed (superseded by the tab bar)');
+check(/isManager=checklistManagerWorkspaceActive\(currentRouteKey\(\)\)/.test(app),
+  'B. loadAssessmentProfile() derives isManager from checklistManagerWorkspaceActive(), not a bare routeRole check - a manager-no-grant account can never trigger the manager-only payload/picker branches');
+check(/isManager=checklistManagerWorkspaceActive\(path\)/.test(app),
+  'B. assessmentProfileHtml() derives its isManager framing (kicker text, "← Tổng quan" button) the same way - a manager-no-grant account gets the NHÂN VIÊN framing, not a "← Tổng quan" button pointing at a workspace they don\'t have');
+check(!/data-phfck-open-assessment-profile/.test(app), 'D3. The old single action button/handler (root cause of hotfix 1\'s ambiguous mount) is fully removed, not just unused');
+check(!/data-phfck-assessment-profile-back/.test(app), 'D4. The old redundant "back to Checklist của tôi" button/handler is removed (superseded by the tab bar)');
 const learnerTabHandlerMatch = app.match(/var learnerTab=e\.target\.closest\('\[data-phfck-learner-tab\]'\);\s*\n\s*if\(learnerTab\)\{([^}]*)\}/);
-check(!!learnerTabHandlerMatch, 'D4. data-phfck-learner-tab click handler found');
+check(!!learnerTabHandlerMatch, 'D5. data-phfck-learner-tab click handler found');
 if (learnerTabHandlerMatch) {
   check(/learnerTab\.getAttribute\('data-phfck-learner-tab'\)/.test(learnerTabHandlerMatch[1]),
     'D. Tab click handler navigates using the button\'s own literal path attribute, not a recomputed routeRole()-based guess');
@@ -98,6 +116,18 @@ if (learnerTabHandlerMatch) {
 }
 check(/item\('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant\.capabilities&&grant\.capabilities\.view_monthly===true\)/.test(app),
   'E. managerSidebarHtml() renders the "Hồ sơ đánh giá" item gated on grant.capabilities.view_monthly (backend still re-checks)');
+// Caught during this hotfix's own QA pass: naively simplifying title() to a single
+// isChecklistPersonalExperience branch silently dropped the "Hồ sơ đánh giá · Quản lý"
+// tab title for a manager WITH a real grant, because managerSectionFromLocation(path)
+// matches 'assessment-profile' purely from the path string regardless of grant status.
+// The manager-with-grant case must be checked (via checklistManagerWorkspaceActive)
+// BEFORE the personal-experience branch, not folded into it.
+const titleBody = fnBody(app, 'title', '\\s*path\\s*');
+check(!!titleBody, 'D6. title() found');
+if (titleBody) {
+  check(/checklistManagerWorkspaceActive\(path\)&&managerSectionFromLocation\(path\)==='assessment-profile'\)return 'Hồ sơ đánh giá · Quản lý';/.test(titleBody),
+    'D. title() keeps a dedicated "Hồ sơ đánh giá · Quản lý" case for a manager WITH a real grant, checked before the shared personal-experience branch');
+}
 // managerSidebarHtml() is hidden entirely on mobile (isMobileWorkspace()?''.:managerSidebarHtml(data),
 // see roleWorkspaceContentHtml) - the sidebar item alone is unreachable on phones. There must
 // also be an in-content entry point (same pattern already used for "Xem báo cáo") that survives
