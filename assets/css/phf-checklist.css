@@ -4796,17 +4796,27 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-quick-person-toggle button{appearance:none;border:0;border-radius:9px;padding:8px 14px;font:inherit;font-size:11.5px;font-weight:700;color:#5c766c;background:transparent;cursor:pointer;transition:.15s ease}
 .phfck-quick-person-toggle button.active{background:var(--phfck-green);color:#fff;box-shadow:0 6px 16px rgba(35,91,69,.18)}
 .phfck-qmp-workspace{display:flex;flex-direction:column;gap:12px}
-.phfck-qmp-list{display:flex;flex-direction:column;gap:8px}
+.phfck-qmp-list{display:flex;flex-direction:column;gap:10px}
 .phfck-qmp-list.is-locked{pointer-events:none;opacity:.6}
-.phfck-quick-multi-person-row{grid-template-columns:34px 190px 92px 140px minmax(230px,1.1fr) minmax(230px,1fr) 42px;align-items:start;padding:13px;row-gap:10px}
-.phfck-quick-multi-person-row label>span{margin-bottom:7px;line-height:1.35}
-.phfck-quick-multi-person-row textarea{width:100%;min-height:58px;resize:vertical;border:1px solid #d9e5df;border-radius:10px;background:#fff;color:#2c4c42;font:inherit;font-size:11px;padding:9px 10px;box-sizing:border-box;outline:0}
+/* UI hotfix: the 2 tang thay cho luoi 7-cot cu (qua chat cho form nhieu-nhan-vien) */
+.phfck-qmp-card{border:1px solid #e0eae2;border-radius:13px;background:#fff;padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+.phfck-qmp-card.is-warning{border-color:#e5c77f;background:#fffaf0}
+.phfck-qmp-card.is-qmp-invalid{border-color:#d5a9a2;box-shadow:inset 3px 0 0 #b75e50}
+.phfck-qmp-card-head{display:grid;grid-template-columns:28px minmax(150px,1fr) 96px 148px 34px;gap:10px;align-items:end}
+.phfck-qmp-no{width:26px;height:26px;border-radius:8px;background:#eef6ed;color:#407254;display:grid;place-items:center;font-size:9.5px;font-weight:700;align-self:center}
+.phfck-qmp-card-head label,.phfck-qmp-card-body label{display:flex;flex-direction:column;gap:5px;min-width:0}
+.phfck-qmp-card-head label>span,.phfck-qmp-card-body label>span{font-size:9px;font-weight:700;color:#71877d}
+.phfck-qmp-card-head input,.phfck-qmp-card-head select,.phfck-qmp-card-body select{width:100%;height:38px;border:1px solid #d9e5df;border-radius:9px;background:#fff;color:#2c4c42;font:inherit;font-size:11px;padding:0 9px;box-sizing:border-box;outline:0}
+.phfck-qmp-card-body select:disabled{background:#f4f6f5;color:#98a6a0}
 .phfck-qmp-employee-code input{background:#f3f6f4;color:#5c766c;cursor:default}
-.phfck-quick-multi-person-row .phfck-multi-criterion small{display:block;margin-top:6px;font-size:9.5px;line-height:1.4;color:#73887e}
-.phfck-quick-multi-person-row.is-warning{border-color:#e5c77f;background:#fffaf0}
-.phfck-quick-multi-person-row.is-qmp-invalid{border-color:#d5a9a2;box-shadow:inset 3px 0 0 #b75e50}
-.phfck-qmp-evidence-warning{grid-column:1/-1;background:#fff3f0;border:1px solid #eac4bc;color:#a34a3c;border-radius:9px;padding:8px 10px;font-size:10.5px;line-height:1.4}
-.phfck-qmp-row-errors{grid-column:1/-1;display:flex;flex-direction:column;gap:2px}
+.phfck-qmp-remove-btn{align-self:center;width:32px;height:32px;border:0;border-radius:9px;background:#f4e8e5;color:#a54f43;font-size:17px;line-height:1;cursor:pointer}
+.phfck-qmp-remove-btn:disabled{opacity:.4;cursor:not-allowed}
+.phfck-qmp-card-body{display:grid;grid-template-columns:55fr 45fr;gap:12px}
+.phfck-qmp-criterion small{display:block;margin-top:2px;font-size:9.5px;line-height:1.4;color:#73887e}
+.phfck-qmp-note textarea{width:100%;min-height:68px;resize:vertical;border:1px solid #d9e5df;border-radius:9px;background:#fff;color:#2c4c42;font:inherit;font-size:11px;padding:9px 10px;box-sizing:border-box;outline:0}
+.phfck-qmp-card-evidence{width:100%}
+.phfck-qmp-evidence-warning{background:#fff3f0;border:1px solid #eac4bc;color:#a34a3c;border-radius:9px;padding:8px 10px;font-size:10.5px;line-height:1.4}
+.phfck-qmp-row-errors{display:flex;flex-direction:column;gap:2px}
 .phfck-qmp-row-errors small{color:#a34a3c;font-size:9.8px}
 .phfck-qmp-limit-note{margin:0 0 8px;color:#a34a3c;font-size:10.5px;font-weight:700}
 .phfck-notice.is-success{background:#f0f8f4;border-color:#bfe0cc}
@@ -4817,20 +4827,16 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-qmp-result-summary div b{display:block;font-size:11px;color:#2c4c42}
 .phfck-qmp-result-summary div.is-danger b{color:#a34a3c}
 .phfck-qmp-result-summary div span{display:block;color:#5f766d;font-size:10.5px;margin-top:2px}
-@media(max-width:1100px){
-  .phfck-quick-multi-person-row{grid-template-columns:32px 170px 84px 128px minmax(210px,1fr) 42px}
-  .phfck-quick-multi-person-row .phfck-multi-note{grid-column:2/6}
-  .phfck-quick-multi-person-row [data-phfck-evidence-scope]{grid-column:2/7}
+@media(max-width:900px){
+  .phfck-qmp-card-body{grid-template-columns:1fr}
 }
 @media(max-width:760px){
-  .phfck-quick-multi-person-row{grid-template-columns:30px 1fr 1fr 34px}
-  .phfck-quick-multi-person-row .phfck-qmp-employee,
-  .phfck-quick-multi-person-row .phfck-qmp-employee-code,
-  .phfck-quick-multi-person-row .phfck-multi-criterion,
-  .phfck-quick-multi-person-row .phfck-multi-note,
-  .phfck-quick-multi-person-row [data-phfck-evidence-scope],
-  .phfck-quick-multi-person-row .phfck-qmp-evidence-warning,
-  .phfck-quick-multi-person-row .phfck-qmp-row-errors{grid-column:1/-1}
+  .phfck-qmp-card-head{grid-template-columns:26px 1fr 32px;grid-template-areas:"no employee remove" "code code remove" "date date remove"}
+  .phfck-qmp-no{grid-area:no}
+  .phfck-qmp-employee{grid-area:employee}
+  .phfck-qmp-employee-code{grid-area:code}
+  .phfck-qmp-date{grid-area:date}
+  .phfck-qmp-remove-btn{grid-area:remove;align-self:start}
   .phfck-quick-person-toggle{width:100%}
   .phfck-quick-person-toggle button{flex:1;text-align:center}
 }

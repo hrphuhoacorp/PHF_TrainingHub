@@ -3636,16 +3636,26 @@
     var hasErrors=row.validationErrors&&Object.keys(row.validationErrors).length>0;
     var evidenceDoneCount=evidenceDoneDraftIds(quickMultiPersonScopeKey(row.rowId)).length;
     var needsEvidenceWarning=!!(criterion&&criterion.evidence==='required'&&!evidenceDoneCount);
-    return '<article class="phfck-multi-row phfck-multi-row-live phfck-quick-multi-person-row'+(ctx.ok?'':' is-warning')+(hasErrors?' is-qmp-invalid':'')+'" data-phfck-qmp-row="'+esc(row.rowId)+'">'
-      +'<div class="phfck-multi-no">'+String(index+1).padStart(2,'0')+'</div>'
-      +'<label class="phfck-qmp-employee"><span>Nhân viên</span><select data-phfck-qmp-field="employee">'+quickMultiPersonEmployeeOptions(row.employeeId)+'</select></label>'
-      +'<label class="phfck-qmp-employee-code"><span>Mã NV</span><input type="text" value="'+esc(row.employeeCode||'')+'" readonly tabindex="-1" placeholder="—"></label>'
-      +'<label><span>Ngày xảy ra</span><input type="date" value="'+esc(row.occurredDate||'')+'" data-phfck-qmp-field="date"></label>'
-      +'<label class="phfck-multi-criterion"><span>Tiêu chí vi phạm</span><select data-phfck-qmp-field="criterion" '+(ctx.ok?'':'disabled')+'>'+quickMultiPersonCriterionOptions(row)+'</select><small>'+(ctx.ok?('Mẫu '+esc(ctx.version)+(criterion?' · Trừ '+esc(criterion.points)+' điểm · '+(criterion.evidence==='required'?'Bắt buộc minh chứng':'Khuyến khích minh chứng'):'')):(row.employeeId?esc(ctx.message||'Chưa xác định phiên bản'):'Chọn nhân viên trước'))+'</small></label>'
-      +'<label class="phfck-multi-note"><span>Nội dung sự việc *</span><textarea rows="2" placeholder="Mô tả rõ tối thiểu 10 ký tự" data-phfck-qmp-field="note">'+esc(row.note||'')+'</textarea></label>'
-      +evidencePickerHtml(quickMultiPersonScopeKey(row.rowId))
+    /* UI FIX (hotfix sau D2B): the o cu (7-cot .phfck-multi-row-live) khong
+       du rong cho form nhieu-nhan-vien - doi han sang the 2 TANG rieng
+       (.phfck-qmp-card), KHONG con dung .phfck-multi-row/.phfck-multi-row-live
+       nua. Moi data-phfck-qmp-* giu NGUYEN VEN (khong doi ten/gia tri) de
+       khong dong den event delegation/state/validation/save - CHI doi cau
+       truc HTML bao quanh + CSS. evidencePickerHtml() dung nguyen, khong sua. */
+    return '<article class="phfck-qmp-card'+(ctx.ok?'':' is-warning')+(hasErrors?' is-qmp-invalid':'')+'" data-phfck-qmp-row="'+esc(row.rowId)+'">'
+      +'<div class="phfck-qmp-card-head">'
+        +'<span class="phfck-qmp-no">'+String(index+1).padStart(2,'0')+'</span>'
+        +'<label class="phfck-qmp-employee"><span>Nhân viên</span><select data-phfck-qmp-field="employee">'+quickMultiPersonEmployeeOptions(row.employeeId)+'</select></label>'
+        +'<label class="phfck-qmp-employee-code"><span>Mã NV</span><input type="text" value="'+esc(row.employeeCode||'')+'" readonly tabindex="-1" placeholder="—"></label>'
+        +'<label class="phfck-qmp-date"><span>Ngày xảy ra</span><input type="date" value="'+esc(row.occurredDate||'')+'" data-phfck-qmp-field="date"></label>'
+        +'<button type="button" class="phfck-qmp-remove-btn" data-phfck-qmp-remove '+(canRemove?'':'disabled')+' aria-label="Xóa dòng">×</button>'
+      +'</div>'
+      +'<div class="phfck-qmp-card-body">'
+        +'<label class="phfck-qmp-criterion"><span>Tiêu chí vi phạm</span><select data-phfck-qmp-field="criterion" '+(ctx.ok?'':'disabled')+'>'+quickMultiPersonCriterionOptions(row)+'</select><small>'+(ctx.ok?('Mẫu '+esc(ctx.version)+(criterion?' · Trừ '+esc(criterion.points)+' điểm · '+(criterion.evidence==='required'?'Bắt buộc minh chứng':'Khuyến khích minh chứng'):'')):(row.employeeId?esc(ctx.message||'Chưa xác định phiên bản'):'Chọn nhân viên trước'))+'</small></label>'
+        +'<label class="phfck-qmp-note"><span>Nội dung sự việc *</span><textarea rows="2" placeholder="Mô tả rõ tối thiểu 10 ký tự" data-phfck-qmp-field="note">'+esc(row.note||'')+'</textarea></label>'
+      +'</div>'
+      +'<div class="phfck-qmp-card-evidence">'+evidencePickerHtml(quickMultiPersonScopeKey(row.rowId))+'</div>'
       +(needsEvidenceWarning?'<div class="phfck-qmp-evidence-warning">⚠ Tiêu chí này BẮT BUỘC minh chứng - chưa có file nào đính kèm. Bản ghi có thể tự huỷ sau khi lưu nếu vẫn thiếu.</div>':'')
-      +'<button type="button" class="phfck-multi-remove" data-phfck-qmp-remove '+(canRemove?'':'disabled')+' aria-label="Xóa dòng">×</button>'
       +(hasErrors?'<div class="phfck-qmp-row-errors">'+Object.keys(row.validationErrors).map(function(k){return '<small>'+esc(row.validationErrors[k])+'</small>';}).join('')+'</div>':'')
     +'</article>';
   }
