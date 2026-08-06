@@ -4888,10 +4888,8 @@
       var employeeOption=e.target.closest('[data-phfck-employee-option]');if(employeeOption){e.preventDefault();commitViolationEmployee(root,employeeOption.getAttribute('data-phfck-employee-option')||'');return;}
       var employeeReselect=e.target.closest('[data-phfck-employee-reselect]');if(employeeReselect){e.preventDefault();violationUiState.employeeChanging=true;violationUiState.employeeQuery='';var reselectControls=employeeReselect.closest('.phfck-employee-search-controls'),reselectCombo=reselectControls&&reselectControls.querySelector('[data-phfck-employee-combo]'),reselectInput=reselectCombo&&reselectCombo.querySelector('[data-phfck-employee-combobox]'),reselectMenu=reselectCombo&&reselectCombo.querySelector('[data-phfck-employee-menu]');if(reselectInput){reselectInput.value='';reselectInput.placeholder='Tìm nhân viên khác...';reselectInput.setAttribute('aria-expanded','true');}if(reselectMenu){reselectMenu.innerHTML=violationEmployeeSuggestionListHtml('');reselectMenu.hidden=false;}if(reselectCombo)reselectCombo.classList.add('is-open');requestAnimationFrame(function(){if(reselectInput)reselectInput.focus();});return;}
       var roleRetry=e.target.closest('[data-phfck-role-retry]');if(roleRetry){e.preventDefault();roleWorkspaceState.loaded=false;loadRoleWorkspace(root,location.pathname,true);return;}
-      var openAssessmentProfile=e.target.closest('[data-phfck-open-assessment-profile]');
-      if(openAssessmentProfile){e.preventDefault();var apOpenTarget=routeRole(currentRouteKey())==='manager'?'/ql/checklist/ho-so-danh-gia':'/hv/checklist/ho-so-danh-gia';if(window.phfNavigate)window.phfNavigate(apOpenTarget);return;}
-      var backAssessmentProfile=e.target.closest('[data-phfck-assessment-profile-back]');
-      if(backAssessmentProfile){e.preventDefault();if(window.phfNavigate)window.phfNavigate('/hv/checklist');return;}
+      var learnerTab=e.target.closest('[data-phfck-learner-tab]');
+      if(learnerTab){e.preventDefault();var learnerTabTarget=learnerTab.getAttribute('data-phfck-learner-tab')||'/hv/checklist';if(cleanPath(location.pathname)===learnerTabTarget)return;if(window.phfNavigate)window.phfNavigate(learnerTabTarget);return;}
       var retryAssessmentProfile=e.target.closest('[data-phfck-assessment-profile-retry]');
       if(retryAssessmentProfile){e.preventDefault();loadAssessmentProfile(root,{});return;}
       var toggleAssessmentTarget=e.target.closest('[data-phfck-assessment-profile-target-toggle]');
@@ -5714,7 +5712,29 @@
   }
   function assessmentProfileHtml(path){
     var isManager=routeRole(path)==='manager';
-    return '<div class="phfck-assessment-profile" data-checklist-assessment-role="'+(isManager?'manager':'learner')+'"><section class="phfck-role-heading phfck-assessment-profile-heading"><div><small>PHF CHECKLIST'+(isManager?' · QUẢN LÝ':' · NHÂN VIÊN')+'</small><h1>Hồ sơ đánh giá</h1><p>Tiêu chuẩn áp dụng, điểm kỳ hiện tại và lịch sử điểm theo tài khoản.</p></div><div class="phfck-monthly-head-actions">'+(isManager?'<button type="button" class="phfck-secondary" data-phfck-manager-section="overview">← Tổng quan</button>':'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-back>← Checklist của tôi</button>')+'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>↻ Làm mới</button></div></section><div data-phfck-assessment-profile>'+assessmentProfileBodyHtml()+'</div></div>';
+    return '<div class="phfck-assessment-profile" data-checklist-assessment-role="'+(isManager?'manager':'learner')+'"><section class="phfck-role-heading phfck-assessment-profile-heading"><div><small>PHF CHECKLIST'+(isManager?' · QUẢN LÝ':' · NHÂN VIÊN')+'</small><h1>Hồ sơ đánh giá</h1><p>Tiêu chuẩn áp dụng, điểm kỳ hiện tại và lịch sử điểm theo tài khoản.</p></div><div class="phfck-monthly-head-actions">'+(isManager?'<button type="button" class="phfck-secondary" data-phfck-manager-section="overview">← Tổng quan</button>':'')+'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>↻ Làm mới</button></div></section><div data-phfck-assessment-profile>'+assessmentProfileBodyHtml()+'</div></div>';
+  }
+  /* UX-01 Batch 3 hotfix - route learner wiring. Root cause của bug "bấm Hồ sơ
+     đánh giá ra /ql/..." KHÔNG phải lỗi tính path: nút cũ tự suy target bằng
+     routeRole(currentRouteKey()) tại thời điểm click - route learner ('/hv/hoc..')
+     luôn cho đúng '/hv/checklist/ho-so-danh-gia'. Tài khoản test thực tế đã ở sẵn
+     '/ql/checklist' (routeRole() theo path chỉ đọc tiền tố URL; requireRoles(['manager'])
+     trong phf-url-router.js đã tự chặn nếu session role không phải 'manager' -
+     nên vào được /ql/checklist nghĩa là session role THẬT là manager) và không có
+     Checklist grant (hasManagementAccess=false) - rơi vào ĐÚNG nhánh fallback
+     "Checklist của tôi" mà learner cũng dùng, nơi nút cũ vô tình được gắn vào.
+     Sửa: tab điều hướng 2 khu vực chỉ render khi routeRole(path)==='learner' -
+     một điều kiện tường minh, không suy diễn theo "không có grant". Nhánh
+     fallback của tài khoản manager-không-grant quay lại đúng như trước Batch 3
+     (không tab, không nút Hồ sơ đánh giá) - không tự quyết định nghiệp vụ cho
+     trường hợp đó. Tab luôn điều hướng bằng đường dẫn cố định (không suy theo
+     route hiện tại), qua window.phfNavigate (Router thật, giữ back/forward). */
+  function learnerChecklistTabsHtml(path){
+    var active=cleanPath(path)==='/hv/checklist/ho-so-danh-gia'?'assessment-profile':'my-checklist';
+    return '<nav class="phfck-learner-tabs phfck-people-scope-tabs phfck-people-scope-chips" aria-label="Khu vực Checklist của tôi">'
+      +'<button type="button" class="'+(active==='my-checklist'?'active':'')+'" data-phfck-learner-tab="/hv/checklist"><span>Checklist của tôi</span></button>'
+      +'<button type="button" class="'+(active==='assessment-profile'?'active':'')+'" data-phfck-learner-tab="/hv/checklist/ho-so-danh-gia"><span>Hồ sơ đánh giá</span></button>'
+      +'</nav>';
   }
   /* ===== hết Hồ sơ đánh giá ===== */
   function roleWorkspaceContentHtml(path){
@@ -5722,8 +5742,9 @@
     if(roleWorkspaceState.error)return '<main class="phfck-role-main"><section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở Checklist</b><p>'+esc(roleWorkspaceState.error)+'</p><button type="button" data-phfck-role-retry>Thử lại</button></div></section></main>';
     var data=roleWorkspaceState.data||{},hasManagementAccess=!!data.grant,people=Array.isArray(data.people)?data.people:[],reviewCount=people.filter(function(x){return x.canReview;}).length,myForm=roleWorkspaceState.monthlyForm;
     if(hasManagementAccess&&routeRole(path)==='manager')return '<div class="phfck-manager-layout">'+(isMobileWorkspace()?'':managerSidebarHtml(data))+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'+managerSectionContentHtml(path,data)+'</main></div>';
-    if(cleanPath(path)==='/hv/checklist/ho-so-danh-gia')return '<main class="phfck-role-main">'+assessmentProfileHtml(path)+'</main>';
-    return '<main class="phfck-role-main"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-primary" data-phfck-open-assessment-profile>🗎 Hồ sơ đánh giá</button><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
+    var isLearnerRoute=routeRole(path)==='learner';
+    if(isLearnerRoute&&cleanPath(path)==='/hv/checklist/ho-so-danh-gia')return '<main class="phfck-role-main">'+learnerChecklistTabsHtml(path)+assessmentProfileHtml(path)+'</main>';
+    return '<main class="phfck-role-main">'+(isLearnerRoute?learnerChecklistTabsHtml(path):'')+'<section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()

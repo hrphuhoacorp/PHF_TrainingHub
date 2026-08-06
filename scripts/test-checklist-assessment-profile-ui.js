@@ -61,8 +61,41 @@ check(/path === '\/ql\/checklist\/ho-so-danh-gia' \|\| path === '\/hv\/checklist
   'phfChecklistRoleWorkspaceIsActive() includes both new routes (avoids an unnecessary Training Hub scope=staff load)');
 
 // ---------- D/E/F. Menu wiring per role ----------
-check(/data-phfck-open-assessment-profile>🗎 Hồ sơ đánh giá<\/button>/.test(app),
-  'D. Learner personal page renders a single "Hồ sơ đánh giá" entry-point button (no scattered menus)');
+// Hotfix (post-4369349): the original single action button computed its target via
+// routeRole(currentRouteKey()) - correct in isolation, but it was reachable from the
+// SAME fallback branch a manager-role account with no Checklist grant also renders
+// (hasManagementAccess=false at /ql/checklist), sending that account to
+// /ql/checklist/ho-so-danh-gia where assessmentProfileHtml() is never reached
+// (managerSectionContentHtml requires hasManagementAccess). Root cause was therefore
+// not a wrong path computation but an ambiguous mount point. Fixed by gating the new
+// nav strictly on routeRole(path)==='learner' and using literal, hardcoded target
+// paths instead of recomputing routeRole at click time.
+const learnerTabsBody = fnBody(app, 'learnerChecklistTabsHtml', '\\s*path\\s*');
+check(!!learnerTabsBody, 'D0. learnerChecklistTabsHtml() found');
+if (learnerTabsBody) {
+  check(/data-phfck-learner-tab="\/hv\/checklist"/.test(learnerTabsBody) && /data-phfck-learner-tab="\/hv\/checklist\/ho-so-danh-gia"/.test(learnerTabsBody),
+    'D. Learner tab bar renders both "Checklist của tôi" and "Hồ sơ đánh giá" with literal, hardcoded target paths (not computed from the current route)');
+}
+const roleWorkspaceBody = fnBody(app, 'roleWorkspaceContentHtml', '\\s*path\\s*');
+check(!!roleWorkspaceBody, 'D1. roleWorkspaceContentHtml() found');
+if (roleWorkspaceBody) {
+  check(/var isLearnerRoute=routeRole\(path\)==='learner';/.test(roleWorkspaceBody),
+    'D. isLearnerRoute is derived directly from routeRole(path)==='+"'learner'"+' - an explicit, unambiguous condition');
+  check(/\(isLearnerRoute\?learnerChecklistTabsHtml\(path\):''\)/.test(roleWorkspaceBody),
+    'D. The personal-Checklist fallback only renders the tab nav when isLearnerRoute is true - a manager-role account with no Checklist grant (same fallback branch, routeRole==='+"'manager'"+') gets NO tabs and NO dead-end button, matching pre-Batch-3 behavior for that account class');
+  check(/isLearnerRoute&&cleanPath\(path\)==='\/hv\/checklist\/ho-so-danh-gia'\)return '<main class="phfck-role-main">'\+learnerChecklistTabsHtml\(path\)\+assessmentProfileHtml\(path\)\+'<\/main>';/.test(roleWorkspaceBody),
+    'G. Learner assessment-profile route is also gated on isLearnerRoute (not reachable by a /ql/* session)');
+}
+check(!/data-phfck-open-assessment-profile/.test(app), 'D2. The old single action button/handler (root cause of the ambiguous mount) is fully removed, not just unused');
+check(!/data-phfck-assessment-profile-back/.test(app), 'D3. The old redundant "back to Checklist của tôi" button/handler is removed (superseded by the tab bar)');
+const learnerTabHandlerMatch = app.match(/var learnerTab=e\.target\.closest\('\[data-phfck-learner-tab\]'\);\s*\n\s*if\(learnerTab\)\{([^}]*)\}/);
+check(!!learnerTabHandlerMatch, 'D4. data-phfck-learner-tab click handler found');
+if (learnerTabHandlerMatch) {
+  check(/learnerTab\.getAttribute\('data-phfck-learner-tab'\)/.test(learnerTabHandlerMatch[1]),
+    'D. Tab click handler navigates using the button\'s own literal path attribute, not a recomputed routeRole()-based guess');
+  check(/window\.phfNavigate\(learnerTabTarget\)/.test(learnerTabHandlerMatch[1]),
+    'D. Tab click handler uses window.phfNavigate() (the real router), not a local pushState+render shortcut');
+}
 check(/item\('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant\.capabilities&&grant\.capabilities\.view_monthly===true\)/.test(app),
   'E. managerSidebarHtml() renders the "Hồ sơ đánh giá" item gated on grant.capabilities.view_monthly (backend still re-checks)');
 // managerSidebarHtml() is hidden entirely on mobile (isMobileWorkspace()?''.:managerSidebarHtml(data),
@@ -83,8 +116,6 @@ const periodBarBody = fnBody(app, 'assessmentProfilePeriodBarHtml', '\\s*data,is
 check(!!periodBarBody, 'G0. assessmentProfilePeriodBarHtml() found');
 if (periodBarBody) check(/\(isManager\?assessmentProfileTargetPickerHtml\(data\):''\)/.test(periodBarBody),
   'G. Target picker is only rendered when isManager is true - learner branch never mounts it');
-check(/roleWorkspaceContentHtml[\s\S]{0,2000}cleanPath\(path\)==='\/hv\/checklist\/ho-so-danh-gia'\)return '<main class="phfck-role-main">'\+assessmentProfileHtml\(path\)\+'<\/main>'/.test(app),
-  'G. Learner route renders assessmentProfileHtml(path) directly (routeRole is always learner for /hv/*, so isManager is structurally false there)');
 const targetListBody = fnBody(app, 'assessmentProfileTargetListHtml', '\\s*data\\s*');
 check(!!targetListBody && /data\.allowedTargets/.test(targetListBody), 'H. Target list is built from data.allowedTargets (server-scoped), not a separately fetched company-wide list');
 check(!!targetListBody && !/getChecklistRoleWorkspace|fetchLatestChecklistPeopleData|checklistEmployees\(\)/.test(targetListBody),

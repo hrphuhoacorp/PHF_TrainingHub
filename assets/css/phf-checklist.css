@@ -4698,6 +4698,8 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 }
 
 /* PHF Checklist UX-01 Batch 3 — Hồ sơ đánh giá (shared learner/manager) */
+.phfck-learner-tabs.phfck-people-scope-chips{margin:0 0 18px!important}
+@media(max-width:680px){.phfck-learner-tabs.phfck-people-scope-chips{overflow-x:auto;padding-bottom:3px}.phfck-learner-tabs.phfck-people-scope-chips button{flex:0 0 auto}}
 .phfck-assessment-profile{display:flex;flex-direction:column;gap:16px}
 .phfck-assessment-profile-identity-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 18px 16px}
 .phfck-assessment-profile-identity-meta span{display:block}
