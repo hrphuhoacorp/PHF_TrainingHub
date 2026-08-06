@@ -576,9 +576,13 @@ function phfChecklistRoleWorkspaceIsActive(){
   var path = String((window.location && window.location.pathname) || '/').toLowerCase().replace(/\/+$/,'');
   /* 62.33 / PHF 1.30.12: Hai màn Checklist theo vai trò dùng API chuyên biệt
      (phạm vi, phiếu cá nhân, phiếu thẩm định), không cần payload Training Hub
-     scope=staff. Chỉ bỏ tải ở đúng hai route này; các màn Admin Checklist vẫn
-     giữ dữ liệu nhân sự chung cho phân công, mẫu và cấu hình. */
-  return path === '/ql/checklist' || path === '/hv/checklist';
+     scope=staff. Chỉ bỏ tải ở đúng các route này; các màn Admin Checklist vẫn
+     giữ dữ liệu nhân sự chung cho phân công, mẫu và cấu hình.
+     UX-01 Batch 3: /hv|ql/checklist/ho-so-danh-gia dùng cùng
+     getChecklistAssessmentProfile chuyên biệt (không phải Training Hub
+     scope=staff) nên phải nằm trong cùng danh sách bỏ tải, giống 2 route gốc. */
+  return path === '/ql/checklist' || path === '/hv/checklist'
+    || path === '/ql/checklist/ho-so-danh-gia' || path === '/hv/checklist/ho-so-danh-gia';
 }
 window.phfChecklistRoleWorkspaceIsActive = phfChecklistRoleWorkspaceIsActive;
 

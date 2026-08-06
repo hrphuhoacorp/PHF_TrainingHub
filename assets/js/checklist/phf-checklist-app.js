@@ -42,11 +42,11 @@
   function isMobileWorkspace(){return !!(mobileWorkspaceMq&&mobileWorkspaceMq.matches);}
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
   function mobileContentHeaderTitle(path){
-    if(routeRole(path)!=='manager')return 'Checklist của tôi';
-    return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền'}[managerSectionFromLocation(path)]||'Tổng quan';
+    if(routeRole(path)!=='manager')return cleanPath(path)==='/hv/checklist/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';
+    return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền','assessment-profile':'Hồ sơ đánh giá'}[managerSectionFromLocation(path)]||'Tổng quan';
   }
   function syncMobileContentHeader(root,path){var heading=root&&root.querySelector('[data-phfck-mobile-content-title]');if(heading)heading.textContent=mobileContentHeaderTitle(path);}
-  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';return r==='admin'?'Tổng quan PHF Checklist':(r==='manager'?'Tổng quan Checklist · Quản lý':'Checklist của tôi');}
+  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';if(r==='manager'&&managerSectionFromLocation(path)==='assessment-profile')return 'Hồ sơ đánh giá · Quản lý';if(r==='learner'&&p==='/hv/checklist/ho-so-danh-gia')return 'Hồ sơ đánh giá';return r==='admin'?'Tổng quan PHF Checklist':(r==='manager'?'Tổng quan Checklist · Quản lý':'Checklist của tôi');}
   function subtitle(path){var r=routeRole(path);return r==='admin'?'Điều hành phân công, ghi nhận tuân thủ và đánh giá công việc trên một khu vực thống nhất.':(r==='manager'?'Theo dõi Checklist trong phạm vi được Admin phân công.':'Theo dõi điểm, lỗi và các việc cần xử lý của bạn.');}
   function currentTime24(){var d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
   function normalizeTime24(value,fallback){var raw=String(value||'').replace(/\D/g,'').slice(0,4);if(raw.length<3)return fallback||currentTime24();var h=Number(raw.slice(0,2)),m=Number(raw.slice(2,4));if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>23||m<0||m>59)return fallback||currentTime24();return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
@@ -74,11 +74,12 @@
     else if(p==='/ql/checklist/nhan-su')section='people';
     else if(p==='/ql/checklist/phieu-danh-gia')section='reviews';
     else if(p==='/ql/checklist/viec-cua-toi')section='my-work';
-    var allowed=['overview','my-work','people','violations','reviews','reports','permissions'];
+    else if(p==='/ql/checklist/ho-so-danh-gia')section='assessment-profile';
+    var allowed=['overview','my-work','people','violations','reviews','reports','permissions','assessment-profile'];
     return allowed.indexOf(section)>=0?section:'overview';
   }
   function managerRouteForSection(section){
-    var allowed=['overview','my-work','people','violations','reviews','reports'];
+    var allowed=['overview','my-work','people','violations','reviews','reports','assessment-profile'];
     section=allowed.indexOf(section)>=0?section:'overview';
     return '/ql/checklist?section='+encodeURIComponent(section);
   }
@@ -1466,6 +1467,29 @@
   var checklistPermissionRuntimeData=null;
   var roleWorkspaceState={loading:false,loaded:false,error:'',data:null,monthlyLoading:false,monthlyLoaded:false,monthlyError:'',monthlyForm:null,monthlyPeriod:null,savingMonthly:false,reviewLoading:false,reviewLoaded:false,reviews:[],reviewError:'',selectedReviewId:'',reviewDetails:{},reviewDetailLoading:false,reviewDetailError:'',savingReview:false,taskLoading:false,taskLoaded:false,tasks:[],taskSummary:{},taskError:'',request:null,backgroundRequest:null,backgroundToken:0,pendingRender:false,managerTool:'',ownerKey:'',workspaceLoadedAt:0,permissionDeniedNotified:false};
   var ROLE_WORKSPACE_CACHE_TTL=10*60*1000;
+  /* UX-01 Batch 3 - "Hồ sơ đánh giá". State dùng chung learner/manager, tách
+     riêng khỏi roleWorkspaceState (dữ liệu grant/people/reviews/tasks) vì
+     nguồn API khác hẳn (getChecklistAssessmentProfile) và vòng đời tải theo
+     kỳ+target riêng, không theo section chuyển đổi tức thời như manager
+     sidebar. Reset đồng bộ với roleWorkspaceState qua resetAssessmentProfileForOwner()
+     được gọi trong chính resetRoleWorkspaceForOwner() - cùng một ranh giới
+     danh tính (đổi tài khoản/đổi vai trò learner<->manager/logout-login),
+     không tạo hook lifecycle thứ hai. */
+  var assessmentProfileUiState={loading:false,loaded:false,error:'',errorCode:'',requestToken:0,ownerKey:'',selectedMonth:'',selectedYear:'',selectedTargetCode:'',targetQuery:'',pickerOpen:false,data:null};
+  function resetAssessmentProfileForOwner(ownerKey){
+    assessmentProfileUiState.loading=false;
+    assessmentProfileUiState.loaded=false;
+    assessmentProfileUiState.error='';
+    assessmentProfileUiState.errorCode='';
+    assessmentProfileUiState.requestToken=(assessmentProfileUiState.requestToken||0)+1;
+    assessmentProfileUiState.selectedMonth='';
+    assessmentProfileUiState.selectedYear='';
+    assessmentProfileUiState.selectedTargetCode='';
+    assessmentProfileUiState.targetQuery='';
+    assessmentProfileUiState.pickerOpen=false;
+    assessmentProfileUiState.data=null;
+    assessmentProfileUiState.ownerKey=ownerKey||'';
+  }
   function scheduleChecklistIdle(callback,timeout){
     timeout=Math.max(100,Number(timeout)||700);
     if(typeof window.requestIdleCallback==='function')return window.requestIdleCallback(function(){callback();},{timeout:timeout});
@@ -1524,6 +1548,7 @@
        chủ trước - evidenceDraftId của người khác không còn hợp lệ để attach. */
     evidenceClearAll();
     evidenceViewCache={};
+    resetAssessmentProfileForOwner(ownerKey);
   }
   var managerPeopleUiState={query:'',department:'',departmentOpen:false,searchTimer:null,renderFrame:0,page:1,pageSize:10};
   var managerPeopleSearchCache=typeof WeakMap==='function'?new WeakMap():null;
@@ -4863,6 +4888,16 @@
       var employeeOption=e.target.closest('[data-phfck-employee-option]');if(employeeOption){e.preventDefault();commitViolationEmployee(root,employeeOption.getAttribute('data-phfck-employee-option')||'');return;}
       var employeeReselect=e.target.closest('[data-phfck-employee-reselect]');if(employeeReselect){e.preventDefault();violationUiState.employeeChanging=true;violationUiState.employeeQuery='';var reselectControls=employeeReselect.closest('.phfck-employee-search-controls'),reselectCombo=reselectControls&&reselectControls.querySelector('[data-phfck-employee-combo]'),reselectInput=reselectCombo&&reselectCombo.querySelector('[data-phfck-employee-combobox]'),reselectMenu=reselectCombo&&reselectCombo.querySelector('[data-phfck-employee-menu]');if(reselectInput){reselectInput.value='';reselectInput.placeholder='Tìm nhân viên khác...';reselectInput.setAttribute('aria-expanded','true');}if(reselectMenu){reselectMenu.innerHTML=violationEmployeeSuggestionListHtml('');reselectMenu.hidden=false;}if(reselectCombo)reselectCombo.classList.add('is-open');requestAnimationFrame(function(){if(reselectInput)reselectInput.focus();});return;}
       var roleRetry=e.target.closest('[data-phfck-role-retry]');if(roleRetry){e.preventDefault();roleWorkspaceState.loaded=false;loadRoleWorkspace(root,location.pathname,true);return;}
+      var openAssessmentProfile=e.target.closest('[data-phfck-open-assessment-profile]');
+      if(openAssessmentProfile){e.preventDefault();var apOpenTarget=routeRole(currentRouteKey())==='manager'?'/ql/checklist/ho-so-danh-gia':'/hv/checklist/ho-so-danh-gia';if(window.phfNavigate)window.phfNavigate(apOpenTarget);return;}
+      var backAssessmentProfile=e.target.closest('[data-phfck-assessment-profile-back]');
+      if(backAssessmentProfile){e.preventDefault();if(window.phfNavigate)window.phfNavigate('/hv/checklist');return;}
+      var retryAssessmentProfile=e.target.closest('[data-phfck-assessment-profile-retry]');
+      if(retryAssessmentProfile){e.preventDefault();loadAssessmentProfile(root,{});return;}
+      var toggleAssessmentTarget=e.target.closest('[data-phfck-assessment-profile-target-toggle]');
+      if(toggleAssessmentTarget){e.preventDefault();assessmentProfileUiState.pickerOpen=!assessmentProfileUiState.pickerOpen;renderAssessmentProfileContainer(root);if(assessmentProfileUiState.pickerOpen)requestAnimationFrame(function(){var apSearch=root.querySelector('[data-phfck-assessment-profile-target-search]');if(apSearch)apSearch.focus();});return;}
+      var pickAssessmentTarget=e.target.closest('[data-phfck-assessment-profile-target]');
+      if(pickAssessmentTarget){e.preventDefault();var apCode=pickAssessmentTarget.getAttribute('data-phfck-assessment-profile-target')||'';assessmentProfileUiState.pickerOpen=false;assessmentProfileUiState.targetQuery='';loadAssessmentProfile(root,{targetEmployeeCode:apCode});return;}
       var selfSave=e.target.closest('[data-phfck-self-save]');if(selfSave){e.preventDefault();saveRoleMonthly(root,false);return;}
       var selfSubmit=e.target.closest('[data-phfck-self-submit]');if(selfSubmit){e.preventDefault();saveRoleMonthly(root,true);return;}
       var reviewOpen=e.target.closest('[data-phfck-review-open]');if(reviewOpen){e.preventDefault();loadRoleMonthlyReviewDetail(root,reviewOpen.getAttribute('data-phfck-review-open')||'');return;}
@@ -4942,6 +4977,7 @@
       if(e.target&&e.target.matches('[data-phfck-late-policy-field],[data-phfck-late-policy-level]')){var lateDraftInput=latePolicyDraftValue();if(e.target.matches('[data-phfck-late-policy-field="period"]'))lateDraftInput.effectiveFromPeriod=e.target.value||'';else if(e.target.matches('[data-phfck-late-policy-field="reason"]'))lateDraftInput.reason=e.target.value||'';else{var levelRow=e.target.closest('[data-phfck-late-policy-row]'),levelIndex=Number(levelRow&&levelRow.getAttribute('data-phfck-late-policy-row')),level=lateDraftInput.levels[levelIndex];if(level){var levelField=e.target.getAttribute('data-phfck-late-policy-level');if(levelField==='min')level.minMinutes=e.target.value;else if(levelField==='max')level.maxMinutes=e.target.value===''?null:e.target.value;else if(levelField==='points')level.points=e.target.value;}}return;}
       if(e.target&&e.target.matches('[data-phfck-permission-search]')){settingsUiState.permissionQuery=e.target.value||'';var pt=root.querySelector('[data-phfck-permission-table]');if(pt)pt.innerHTML=permissionTableHtml();return;}
       if(e.target&&e.target.matches('[data-phfck-notification-search]')){notificationUiState.query=e.target.value||'';var notificationRules=root.querySelector('[data-phfck-notification-rules]');if(notificationRules)notificationRules.innerHTML=notificationRulesHtml();return;}
+      if(e.target&&e.target.matches('[data-phfck-assessment-profile-target-search]')){assessmentProfileUiState.targetQuery=e.target.value||'';var apTargetList=root.querySelector('[data-phfck-assessment-profile-target-list]');if(apTargetList&&assessmentProfileUiState.data)apTargetList.innerHTML=assessmentProfileTargetListHtml(assessmentProfileUiState.data);return;}
       if(e.target&&e.target.matches('[data-phfck-scope-search]')){var scopeSearchPanel=e.target.closest('[data-phfck-permission-values-panel]'),scopeNeedle=normalizeMatchText(e.target.value||'');if(scopeSearchPanel)scopeSearchPanel.querySelectorAll('[data-phfck-scope-choice]').forEach(function(choice){choice.hidden=Boolean(scopeNeedle&&String(choice.getAttribute('data-phfck-scope-choice')||'').indexOf(scopeNeedle)<0);});return;}
       if(e.target&&e.target.matches('[data-phfck-manager-search]')){var picker=e.target.closest('[data-phfck-manager-picker]'),q=normalizeText(e.target.value).toLowerCase(),active=(picker.querySelector('[data-phfck-manager-tab].is-active')||{}).getAttribute&&picker.querySelector('[data-phfck-manager-tab].is-active').getAttribute('data-phfck-manager-tab')||'suggested';picker.querySelectorAll('[data-phfck-manager-option]').forEach(function(o){var match=(o.getAttribute('data-phfck-manager-search')||'').indexOf(q)>=0;var group=active==='all'||o.getAttribute('data-phfck-manager-group')==='suggested';o.hidden=!(match&&group);});return;}
       if(e.target&&e.target.matches('[data-phfck-quick-person-field]')){
@@ -5063,6 +5099,12 @@
       if(e.target&&e.target.matches('[data-phfck-report-status]')){reportUiState.status=e.target.value||'';reportUiState.scoreBand='';reportUiState.issue='';renderChecklistReportIfCurrent(root);return;}
       if(e.target&&e.target.matches('[data-phfck-report-department]')){reportUiState.department=e.target.value||'';reportUiState.scoreBand='';reportUiState.issue='';renderChecklistReportIfCurrent(root);return;}
       if(e.target&&e.target.matches('[data-phfck-task-priority]')){taskUiState.priority=e.target.value||'all';var taskPriorityWorkspace=root.querySelector('[data-phfck-workspace]');if(taskPriorityWorkspace)taskPriorityWorkspace.innerHTML=tasksHtml();}
+      if(e.target&&e.target.matches('[data-phfck-assessment-profile-period]')){
+        var apMonth=e.target.value||'';
+        if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(apMonth)){e.target.value=assessmentProfileUiState.selectedMonth||assessmentProfileDefaultMonth();return;}
+        loadAssessmentProfile(root,{month:apMonth,year:apMonth.slice(0,4)});
+        return;
+      }
     };
     root.addEventListener('change',root.__phfChecklistChangeHandler);
   }
@@ -5372,6 +5414,7 @@
       +violationItem('create','!','Ghi nhận lỗi','Lập và theo dõi lỗi trong phạm vi',data.canRecordViolation===true)
       +violationItem('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi trong phạm vi',data.canRecordViolation===true||data.canViewViolations===true)
       +item('reports','▥','Báo cáo','Theo dõi kết quả và xuất dữ liệu',grant.capabilities&&grant.capabilities.view_reports===true)
+      +item('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant.capabilities&&grant.capabilities.view_monthly===true)
       +(isAssistantWebOperator()?'<style>.phfck-nav-admin-link{display:flex;align-items:center;gap:12px;margin:8px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#fff!important;text-decoration:none!important;background:rgba(255,255,255,.06);transition:.16s ease}.phfck-nav-admin-link:hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}.phfck-nav-admin-link .phfck-nav-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.12);font-size:18px;flex:0 0 38px}.phfck-nav-admin-link span:last-child{display:flex;flex-direction:column;min-width:0}.phfck-nav-admin-link b{font-size:15px;line-height:1.25}.phfck-nav-admin-link small{margin-top:4px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.35}</style><a class="phfck-nav-admin-link" href="/ql/checklist/phan-quyen"><span class="phfck-nav-icon">⌘</span><span><b>Phân quyền Checklist</b><small>Cấp quyền vận hành cho thành viên</small></span></a>':'')
       +'</nav>'
       +'<div class="phfck-sidebar-foot phfck-manager-scope-card"><span>Phạm vi được cấp</span><strong>'+esc(scope)+'</strong><small>Xem theo phạm vi · '+esc(context.reviewRule)+'</small><small data-phfck-build style="display:block;margin-top:6px;opacity:.72">Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||'1.38.0')+' · '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||'1380-role-session-lifecycle')+'</small></div></aside>';
@@ -5501,18 +5544,186 @@
     var section=managerSectionFromLocation(path);
     if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('CÁ NHÂN','Phiếu của tôi','Tự đánh giá phiếu tháng, xử lý phản hồi cá nhân và xem Checklist đang áp dụng.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
     if(section==='people'||section==='reviews')return managerPeopleHtml(path,data);
+    if(section==='assessment-profile')return assessmentProfileHtml(path);
     if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc)+violationsHtml();}
     if(section==='reports')return reportsHtml();
     if(section==='permissions')return isAssistantWebOperator()?settingsHtml():permissionAccessDeniedHtml();
-    var actions=marketingKpiButtonHtml(marketingKpiPeriodValue(),data)+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_reports===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="reports">▥ Xem báo cáo</button>':'')+(data.canExport?'<button type="button" class="phfck-primary" data-phfck-role-export '+(monthlyUiState.exporting?'disabled':'')+'>'+(monthlyUiState.exporting?'Đang tạo Excel…':'⇩ Xuất Excel')+'</button>':'');
+    var actions=marketingKpiButtonHtml(marketingKpiPeriodValue(),data)+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_reports===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="reports">▥ Xem báo cáo</button>':'')+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_monthly===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="assessment-profile">🗎 Hồ sơ đánh giá</button>':'')+(data.canExport?'<button type="button" class="phfck-primary" data-phfck-role-export '+(monthlyUiState.exporting?'disabled':'')+'>'+(monthlyUiState.exporting?'Đang tạo Excel…':'⇩ Xuất Excel')+'</button>':'');
     return managerOverviewHtml(data,actions);
   }
+  /* ===== UX-01 Batch 3 - Hồ sơ đánh giá (shared learner/manager) ===== */
+  function assessmentProfileDefaultMonth(){return todayIso().slice(0,7);}
+  function assessmentProfileRequest(action,fallback,payload){
+    return fetch('/api/data?checklistAssessmentProfile=1&t='+Date.now(),{
+      method:'POST',credentials:'same-origin',cache:'no-store',
+      headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},
+      body:JSON.stringify(Object.assign({action:action},payload||{}))
+    }).then(async function(response){
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false){var err=new Error(data.message||data.error||fallback);err.code=String(data.code||'');err.status=response.status;throw err;}
+      return data;
+    });
+  }
+  function assessmentProfileTargetLabel(row){if(!row)return '';return row.employeeName?row.employeeName+' · '+row.employeeCode:row.employeeCode;}
+  function renderAssessmentProfileContainer(root){
+    root=root||document.getElementById('phfChecklistRoot');
+    if(!root)return false;
+    var box=root.querySelector('[data-phfck-assessment-profile]');
+    if(!box||!box.isConnected)return false;
+    box.innerHTML=assessmentProfileBodyHtml();
+    return true;
+  }
+  /* Race guard: requestToken tăng ở mọi lượt gọi (đổi kỳ/target/retry). Response
+     cũ về sau vẫn bị bỏ qua bằng so sánh ownerKey+token tại isCurrent(), đúng
+     pattern roleWorkspaceState đã dùng (không dùng AbortController vì codebase
+     hiện tại không có tiền lệ đó). */
+  async function loadAssessmentProfile(root,options){
+    options=options||{};
+    var ownerKey=currentRoleWorkspaceOwnerKey();
+    if(assessmentProfileUiState.ownerKey!==ownerKey)resetAssessmentProfileForOwner(ownerKey);
+    var isManager=routeRole(currentRouteKey())==='manager';
+    var month=options.month||assessmentProfileUiState.selectedMonth||assessmentProfileDefaultMonth();
+    var year=options.year||assessmentProfileUiState.selectedYear||month.slice(0,4);
+    var targetCode=isManager?(options.targetEmployeeCode!=null?String(options.targetEmployeeCode).toUpperCase():assessmentProfileUiState.selectedTargetCode):'';
+    var token=(assessmentProfileUiState.requestToken||0)+1;
+    assessmentProfileUiState.requestToken=token;
+    assessmentProfileUiState.ownerKey=ownerKey;
+    assessmentProfileUiState.loading=true;
+    assessmentProfileUiState.error='';
+    assessmentProfileUiState.errorCode='';
+    function isCurrent(){return assessmentProfileUiState.ownerKey===ownerKey&&assessmentProfileUiState.requestToken===token;}
+    renderAssessmentProfileContainer(root);
+    var payload={month:month,year:year};
+    if(isManager&&targetCode)payload.targetEmployeeCode=targetCode;
+    try{
+      var data=await assessmentProfileRequest('getChecklistAssessmentProfile','Không thể tải hồ sơ đánh giá.',payload);
+      if(!isCurrent())return false;
+      assessmentProfileUiState.data=data;
+      assessmentProfileUiState.loaded=true;
+      assessmentProfileUiState.loading=false;
+      assessmentProfileUiState.error='';
+      assessmentProfileUiState.errorCode='';
+      assessmentProfileUiState.selectedMonth=data.selectedMonth||month;
+      assessmentProfileUiState.selectedYear=year;
+      assessmentProfileUiState.selectedTargetCode=data.isSelf===false?targetCode:'';
+      renderAssessmentProfileContainer(root);
+      return true;
+    }catch(error){
+      if(!isCurrent())return false;
+      var status=error&&error.status;
+      /* Target ngoài phạm vi (403) hoặc không còn tồn tại (404): không được để
+         màn trắng hay giữ dữ liệu người cũ - quay về self (luôn hợp lệ) và tải
+         lại danh sách allowedTargets mới nhất kèm thông báo rõ ràng. */
+      if(isManager&&targetCode&&(status===403||status===404)){
+        assessmentProfileUiState.loading=false;
+        checklistToast('error','Không thể mở hồ sơ nhân viên này',error&&error.message?error.message:'Nhân viên này không còn thuộc phạm vi được cấp quyền xem.',true);
+        return loadAssessmentProfile(root,{month:month,year:year,targetEmployeeCode:''});
+      }
+      assessmentProfileUiState.loading=false;
+      assessmentProfileUiState.data=null;
+      assessmentProfileUiState.loaded=false;
+      assessmentProfileUiState.error=error&&error.message?error.message:'Không thể tải hồ sơ đánh giá.';
+      assessmentProfileUiState.errorCode=error&&error.code||'';
+      renderAssessmentProfileContainer(root);
+      return false;
+    }
+  }
+  function assessmentProfileLoadingHtml(){return '<section class="phfck-role-loading phfck-role-loading-detailed" role="status" aria-live="polite"><span class="phfck-loading-spinner"></span><div><small>ĐANG TẢI HỒ SƠ ĐÁNH GIÁ</small><b>Đang kiểm tra quyền và tải dữ liệu…</b><p>Hệ thống chưa hiển thị điểm hoặc tiêu chuẩn cho đến khi tải xong.</p></div></section>';}
+  function assessmentProfileErrorHtml(){return '<section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở hồ sơ đánh giá</b><p>'+esc(assessmentProfileUiState.error||'Vui lòng thử lại.')+'</p><button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>Thử lại</button></div></section>';}
+  function assessmentProfileIdentityHtml(data,isManager){
+    var t=data.target||{};
+    return '<section class="phfck-panel phfck-assessment-profile-identity"><div class="phfck-panel-head"><div><small>NHÂN SỰ ĐANG XEM</small><h3>'+esc(t.employeeName||'Chưa có tên')+'</h3></div>'+(isManager&&data.isSelf===false?'<span class="phfck-status is-active">Đang xem người khác</span>':'')+'</div><div class="phfck-assessment-profile-identity-meta"><span><small>Mã nhân viên</small><b>'+esc(t.employeeCode||'—')+'</b></span><span><small>Phòng ban</small><b>'+esc(t.department||'—')+'</b></span><span><small>Chức danh</small><b>'+esc(t.title||'—')+'</b></span><span><small>Chi nhánh</small><b>'+esc(t.branch||'—')+'</b></span></div></section>';
+  }
+  function assessmentProfileTargetListHtml(data){
+    var targets=Array.isArray(data.allowedTargets)?data.allowedTargets:[],selfCode=normalizeText(targets[0]&&targets[0].employeeCode).toUpperCase();
+    var query=normalizeMatchText(assessmentProfileUiState.targetQuery||'');
+    var rows=query?targets.filter(function(row){return normalizeMatchText([row.employeeName,row.employeeCode,row.department,row.branch].filter(Boolean).join(' ')).indexOf(query)>=0;}):targets;
+    var truncated=!query&&rows.length>50,visible=truncated?rows.slice(0,50):rows;
+    if(!visible.length)return '<div class="phfck-manager-people-empty-state"><span aria-hidden="true">⌕</span><div><b>Không tìm thấy nhân sự phù hợp</b></div></div>';
+    return visible.map(function(row){
+      var code=normalizeText(row.employeeCode).toUpperCase(),isSelfRow=code===selfCode;
+      var active=isSelfRow?data.isSelf!==false:(data.isSelf===false&&code===normalizeText(data.target&&data.target.employeeCode).toUpperCase());
+      return '<button type="button" class="'+(active?'is-active':'')+'" data-phfck-assessment-profile-target="'+esc(isSelfRow?'':row.employeeCode)+'"><b>'+esc(isSelfRow?'Chính tôi':(row.employeeName||'Chưa có tên'))+'</b><small>'+esc([row.employeeCode,row.department,row.branch].filter(Boolean).join(' · ')||'—')+'</small></button>';
+    }).join('')+(truncated?'<div class="phfck-assessment-profile-target-hint">Đang hiển thị 50/'+rows.length+' nhân sự · nhập từ khóa để tìm chính xác hơn.</div>':'');
+  }
+  function assessmentProfileTargetPickerHtml(data){
+    var currentLabel=data.isSelf===false?assessmentProfileTargetLabel(data.target):'Chính tôi';
+    return '<div class="phfck-assessment-profile-target" data-phfck-assessment-profile-target-wrap>'
+      +'<button type="button" data-phfck-assessment-profile-target-toggle aria-haspopup="listbox" aria-expanded="'+(assessmentProfileUiState.pickerOpen?'true':'false')+'"><span>Đang xem</span><b>'+esc(currentLabel)+'</b><i aria-hidden="true">▾</i></button>'
+      +(assessmentProfileUiState.pickerOpen?('<div class="phfck-assessment-profile-target-menu" role="listbox"><input type="search" autocomplete="off" spellcheck="false" placeholder="Tìm theo tên hoặc mã nhân viên…" value="'+esc(assessmentProfileUiState.targetQuery||'')+'" data-phfck-assessment-profile-target-search><div class="phfck-assessment-profile-target-list" data-phfck-assessment-profile-target-list>'+assessmentProfileTargetListHtml(data)+'</div></div>'):'')
+      +'</div>';
+  }
+  function assessmentProfilePeriodBarHtml(data,isManager){
+    var month=assessmentProfileUiState.selectedMonth||data.selectedMonth||assessmentProfileDefaultMonth();
+    return '<section class="phfck-panel phfck-assessment-profile-toolbar"><div class="phfck-assessment-profile-period"><label><span>Kỳ xem</span><input type="month" data-phfck-assessment-profile-period value="'+esc(month)+'"></label></div>'+(isManager?assessmentProfileTargetPickerHtml(data):'')+'</section>';
+  }
+  function assessmentProfileStandardHtml(standard){
+    standard=standard||{};
+    var status=standard.status,data=standard.data,body='';
+    function criteriaTableHtml(d){
+      return '<div class="phfck-assessment-standard-meta"><span><small>Mẫu áp dụng</small><b>'+esc(d.templateName||d.templateCode||'—')+'</b></span><span><small>Phiên bản</small><b>'+esc(d.templateVersion||'—')+'</b></span><span><small>Kỳ</small><b>'+esc(d.periodMonth||'—')+'</b></span>'+(d.formStatus?'<span><small>Trạng thái phiếu</small><b><span class="phfck-monthly-state '+esc(d.formStatus)+'">'+esc(monthlyExportStatusLabel(d.formStatus))+'</span></b></span>':'')+(d.reviewerName?'<span><small>Người thẩm định</small><b>'+esc(d.reviewerName)+'</b></span>':'')+'<span><small>Tổng số tiêu chí</small><b>'+(d.criteriaCount==null?'—':d.criteriaCount)+'</b></span><span><small>Tổng trọng số</small><b>'+(d.totalWeight==null?'—':d.totalWeight+'%')+'</b></span><span><small>Điểm tối đa</small><b>'+(d.maxScore==null?'—':d.maxScore)+'</b></span></div>'
+        +'<div class="phfck-assessment-standard-table"><div class="phfck-assessment-standard-row is-head"><span>Chỉ tiêu</span><span>Mục tiêu</span><span>Trọng số</span><span>Đơn vị</span></div>'
+        +(Array.isArray(d.criteria)?d.criteria:[]).map(function(c){return '<div class="phfck-assessment-standard-row"><div><small>'+esc(c.code||'')+' · '+esc(c.source||'')+'</small><b>'+esc(c.name||'')+'</b></div><span data-label="Mục tiêu">'+esc(c.target==null?'—':c.target)+'</span><span data-label="Trọng số">'+esc(c.weight==null?'—':c.weight+'%')+'</span><span data-label="Đơn vị">'+esc(c.unit||'—')+'</span></div>';}).join('')
+        +'</div>';
+    }
+    if(status==='ok'&&data)body=criteriaTableHtml(data);
+    else if(status==='expected'&&data)body='<div class="phfck-role-note is-warning"><b>Dự kiến áp dụng</b><p>Tiêu chuẩn có thể thay đổi trước khi phiếu được tạo.</p></div>'+criteriaTableHtml(data);
+    else if(status==='unassigned')body='<div class="phfck-permission-empty"><b>Chưa được phân công tiêu chuẩn cho kỳ này</b><p>Khi Admin phân công mẫu và phiên bản áp dụng, tiêu chuẩn sẽ tự hiển thị tại đây.</p></div>';
+    else body='<div class="phfck-role-error"><span>!</span><div><b>Chưa tải được tiêu chuẩn áp dụng</b><p>'+esc(standard.message||'Vui lòng thử lại.')+'</p><button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>Thử lại</button></div></div>';
+    return '<section class="phfck-panel phfck-assessment-profile-standard"><div class="phfck-panel-head"><div><small>TIÊU CHUẨN ÁP DỤNG</small><h3>Tiêu chuẩn áp dụng</h3></div></div>'+body+'</section>';
+  }
+  function assessmentProfileScoreCardsHtml(data,showReview){
+    data=data||{};
+    var cards=[['Tự đánh giá',data.selfTotalScore]];
+    if(showReview&&data.reviewTotalScore!=null)cards.push(['Thẩm định',data.reviewTotalScore]);
+    cards.push(['Kết quả'+(showReview?' cuối':''),data.finalScore]);
+    return '<div class="phfck-final-score-cards">'+cards.map(function(c,i){return '<article'+(i===cards.length-1?' class="is-final"':'')+'><span>'+esc(c[0])+'</span><strong>'+(c[1]==null?'—':Number(c[1]).toFixed(2))+'</strong><small>'+esc(data.label||'')+'</small></article>';}).join('')+'</div>';
+  }
+  function assessmentProfileScoreHtml(currentScore){
+    currentScore=currentScore||{};
+    var status=currentScore.status,data=currentScore.data,body='';
+    if(status==='not_started')body='<div class="phfck-permission-empty"><b>Chưa bắt đầu tự đánh giá</b><p>Điểm sẽ hiển thị khi bắt đầu nhập tự đánh giá cho kỳ này.</p></div>';
+    else if(status==='available')body='<div class="phfck-role-note is-warning"><b>Điểm tạm thời</b><p>Chưa hoàn tất tự đánh giá - điểm có thể thay đổi cho đến khi gửi phiếu.</p></div>'+assessmentProfileScoreCardsHtml(data,false);
+    else if(status==='pending')body='<div class="phfck-role-note is-warning"><b>Điểm tạm thời</b><p>Đã gửi tự đánh giá, đang chờ thẩm định.</p></div>'+assessmentProfileScoreCardsHtml(data,false);
+    else if(status==='official')body=assessmentProfileScoreCardsHtml(data,true);
+    else if(status==='locked')body='<div class="phfck-assessment-score-lock"><span class="phfck-monthly-state locked">Đã khóa</span></div>'+assessmentProfileScoreCardsHtml(data,true);
+    else body='<div class="phfck-permission-empty"><b>Chưa có điểm để hiển thị</b><p>Kỳ này chưa phát sinh dữ liệu điểm.</p></div>';
+    return '<section class="phfck-panel phfck-assessment-profile-score"><div class="phfck-panel-head"><div><small>ĐIỂM KỲ HIỆN TẠI</small><h3>Điểm kỳ hiện tại</h3></div></div>'+body+'</section>';
+  }
+  function assessmentProfileHistoryHtml(history){
+    history=history||{};
+    if(history.status==='error')return '<section class="phfck-panel phfck-assessment-profile-history"><div class="phfck-panel-head"><div><small>LỊCH SỬ ĐIỂM</small><h3>Lịch sử điểm '+esc(history.year||'')+'</h3></div></div><div class="phfck-role-error"><span>!</span><div><b>Chưa tải được lịch sử điểm</b><p>'+esc(history.message||'Vui lòng thử lại.')+'</p><button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>Thử lại</button></div></div></section>';
+    var stats=history.statistics||{},records=Array.isArray(history.records)?history.records:[],statCards=[['Điểm trung bình',stats.average],['Cao nhất',stats.maximum],['Thấp nhất',stats.minimum]];
+    return '<section class="phfck-panel phfck-assessment-profile-history"><div class="phfck-panel-head"><div><small>LỊCH SỬ ĐIỂM</small><h3>Lịch sử điểm '+esc(history.year||'')+'</h3></div><span class="phfck-status is-active">'+(stats.countedPeriods||0)+' kỳ chính thức</span></div>'
+      +(stats.countedPeriods?'<div class="phfck-assessment-history-stats">'+statCards.map(function(c){return '<article><span>'+esc(c[0])+'</span><strong>'+(c[1]==null?'—':Number(c[1]).toFixed(2))+'</strong></article>';}).join('')+'<article><span>Số kỳ được tính</span><strong>'+stats.countedPeriods+'</strong></article></div>':'<div class="phfck-permission-empty"><b>Chưa có kỳ chính thức để thống kê</b><p>Thống kê sẽ tự hiển thị khi có kỳ đã thẩm định hoặc đã khóa.</p></div>')
+      +(records.length?('<div class="phfck-manager-people-table-wrap"><table class="phfck-manager-people-table phfck-assessment-history-table"><thead><tr><th>Kỳ</th><th>Trạng thái</th><th>Điểm</th><th>Mẫu</th><th>Phiên bản</th></tr></thead><tbody>'
+        +records.map(function(r){var counted=['reviewed','locked'].indexOf(r.status)>=0,label=monthlyExportStatusLabel(r.status);return '<tr><td data-label="Kỳ"><b>'+esc(r.periodMonth||'—')+'</b></td><td data-label="Trạng thái"><span class="phfck-monthly-state '+esc(r.status||'')+'">'+esc(label)+'</span></td><td data-label="Điểm">'+(counted&&r.finalScore!=null?'<b>'+Number(r.finalScore).toFixed(2)+'</b>':(r.finalScore!=null?'<span class="phfck-assessment-history-pending">'+Number(r.finalScore).toFixed(2)+' (chưa chính thức)</span>':'<span class="phfck-assessment-history-pending">Chưa có điểm</span>'))+'</td><td data-label="Mẫu">'+esc(r.templateName||r.templateCode||'—')+'</td><td data-label="Phiên bản">'+esc(r.templateVersion||'—')+'</td></tr>';}).join('')
+        +'</tbody></table></div>'):'<div class="phfck-permission-empty"><b>Chưa có kỳ nào trong năm này</b><p>Danh sách sẽ tự hiển thị khi có phiếu được mở.</p></div>')
+      +'</section>';
+  }
+  function assessmentProfileBodyHtml(){
+    if(!assessmentProfileUiState.data){
+      if(assessmentProfileUiState.error)return assessmentProfileErrorHtml();
+      return assessmentProfileLoadingHtml();
+    }
+    var data=assessmentProfileUiState.data,isManager=routeRole(currentRouteKey())==='manager',stale=assessmentProfileUiState.loading;
+    return assessmentProfileIdentityHtml(data,isManager)
+      +assessmentProfilePeriodBarHtml(data,isManager)
+      +(stale?'<div class="phfck-role-note is-loading"><b>Đang tải lại theo lựa chọn mới…</b><p>Dữ liệu bên dưới là của lựa chọn trước, sẽ tự cập nhật ngay khi tải xong.</p></div>':'')
+      +'<div class="phfck-assessment-profile-body'+(stale?' is-refreshing':'')+'"><div class="phfck-assessment-profile-grid">'+assessmentProfileStandardHtml(data.standard)+assessmentProfileScoreHtml(data.currentScore)+'</div>'+assessmentProfileHistoryHtml(data.history)+'</div>';
+  }
+  function assessmentProfileHtml(path){
+    var isManager=routeRole(path)==='manager';
+    return '<div class="phfck-assessment-profile" data-checklist-assessment-role="'+(isManager?'manager':'learner')+'"><section class="phfck-role-heading phfck-assessment-profile-heading"><div><small>PHF CHECKLIST'+(isManager?' · QUẢN LÝ':' · NHÂN VIÊN')+'</small><h1>Hồ sơ đánh giá</h1><p>Tiêu chuẩn áp dụng, điểm kỳ hiện tại và lịch sử điểm theo tài khoản.</p></div><div class="phfck-monthly-head-actions">'+(isManager?'<button type="button" class="phfck-secondary" data-phfck-manager-section="overview">← Tổng quan</button>':'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-back>← Checklist của tôi</button>')+'<button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>↻ Làm mới</button></div></section><div data-phfck-assessment-profile>'+assessmentProfileBodyHtml()+'</div></div>';
+  }
+  /* ===== hết Hồ sơ đánh giá ===== */
   function roleWorkspaceContentHtml(path){
     if(roleWorkspaceState.loading)return '<main class="phfck-role-main"><section class="phfck-role-loading phfck-role-loading-detailed" role="status" aria-live="polite"><span class="phfck-loading-spinner"></span><div><small>ĐANG ĐỒNG BỘ DỮ LIỆU THẬT</small><b>Đang kiểm tra quyền và phạm vi…</b><p>Hệ thống chưa hiển thị số liệu cho đến khi tải xong, tránh hiểu nhầm giá trị 0 là dữ liệu thật.</p><div class="phfck-role-loading-steps"><span>Quyền truy cập</span><span>Danh sách nhân sự</span><span>Phiếu cần thẩm định</span><span>Việc cần xử lý</span></div></div></section></main>';
     if(roleWorkspaceState.error)return '<main class="phfck-role-main"><section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở Checklist</b><p>'+esc(roleWorkspaceState.error)+'</p><button type="button" data-phfck-role-retry>Thử lại</button></div></section></main>';
     var data=roleWorkspaceState.data||{},hasManagementAccess=!!data.grant,people=Array.isArray(data.people)?data.people:[],reviewCount=people.filter(function(x){return x.canReview;}).length,myForm=roleWorkspaceState.monthlyForm;
     if(hasManagementAccess&&routeRole(path)==='manager')return '<div class="phfck-manager-layout">'+(isMobileWorkspace()?'':managerSidebarHtml(data))+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'+managerSectionContentHtml(path,data)+'</main></div>';
-    return '<main class="phfck-role-main"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
+    if(cleanPath(path)==='/hv/checklist/ho-so-danh-gia')return '<main class="phfck-role-main">'+assessmentProfileHtml(path)+'</main>';
+    return '<main class="phfck-role-main"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-primary" data-phfck-open-assessment-profile>🗎 Hồ sơ đánh giá</button><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
@@ -5830,6 +6041,8 @@
         if(currentRole==='manager'&&managerSectionFromLocation(currentRouteKey())==='violations')return initializeViolationsView(root,false);
         if(currentRole==='manager'&&managerSectionFromLocation(currentRouteKey())==='reports'){loadChecklistReport(root,!reportUiState.data);loadChecklistViolationWorkflowSummary(root,!reportWorkflowUiState.data);}
         if(currentRole==='manager'&&managerSectionFromLocation(currentRouteKey())==='permissions')ensureChecklistPermissionsOnSettings(root,true);
+        var onAssessmentProfileRoute=(currentRole==='manager'&&managerSectionFromLocation(currentRouteKey())==='assessment-profile')||(currentRole==='learner'&&cleanPath(currentRouteKey())==='/hv/checklist/ho-so-danh-gia');
+        if(onAssessmentProfileRoute&&(!assessmentProfileUiState.loaded||assessmentProfileUiState.ownerKey!==currentRoleWorkspaceOwnerKey()))loadAssessmentProfile(root,{});
       }).catch(function(error){console.error('[PHF Checklist] role workspace load failed',error);});
     }
     if(window.PHFAppShell&&typeof window.PHFAppShell.activateChecklist==='function')window.PHFAppShell.activateChecklist(routePath);
@@ -5867,6 +6080,12 @@
   },true);
   console.info('[PHF Checklist] version 1.38.2_admin_settings_route_render loaded');
   window.phfRenderChecklist=render;setTimeout(function(){ensureChecklistModalObserver();syncChecklistModalScrollLock();},0);
+
+  document.addEventListener('click',function(e){
+    if(!assessmentProfileUiState.pickerOpen)return;
+    var apWrap=document.querySelector('[data-phfck-assessment-profile-target-wrap]');
+    if(apWrap&&!apWrap.contains(e.target)){assessmentProfileUiState.pickerOpen=false;renderAssessmentProfileContainer(document.getElementById('phfChecklistRoot'));}
+  },true);
 
   document.addEventListener('click',function(e){
     document.querySelectorAll('[data-phfck-employee-combo].is-open').forEach(function(combo){

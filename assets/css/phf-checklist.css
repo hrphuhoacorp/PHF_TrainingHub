@@ -4696,3 +4696,60 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
   .phfck-evidence-btn{flex:1 1 auto;justify-content:center}
   .phfck-evidence-item-meta b{max-width:100%}
 }
+
+/* PHF Checklist UX-01 Batch 3 — Hồ sơ đánh giá (shared learner/manager) */
+.phfck-assessment-profile{display:flex;flex-direction:column;gap:16px}
+.phfck-assessment-profile-identity-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 18px 16px}
+.phfck-assessment-profile-identity-meta span{display:block}
+.phfck-assessment-profile-identity-meta small{display:block;color:var(--phfck-muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.phfck-assessment-profile-identity-meta b{display:block;margin-top:4px;color:var(--phfck-ink);font-size:12.5px}
+.phfck-assessment-profile-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;padding:16px 18px}
+.phfck-assessment-profile-period label{display:block}
+.phfck-assessment-profile-period label>span{display:block;margin-bottom:6px;color:#48665b;font-size:10px;font-weight:700}
+.phfck-assessment-profile-period input{height:42px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 12px;font:inherit;font-size:12px}
+.phfck-assessment-profile-target{position:relative}
+.phfck-assessment-profile-target>button{display:flex;align-items:center;gap:10px;height:42px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 14px;cursor:pointer;font:inherit}
+.phfck-assessment-profile-target>button span{color:var(--phfck-muted);font-size:10px}
+.phfck-assessment-profile-target>button b{font-size:12.5px}
+.phfck-assessment-profile-target>button i{margin-left:4px;color:var(--phfck-muted);font-style:normal}
+.phfck-assessment-profile-target-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(340px,90vw);border:1px solid var(--phfck-line);border-radius:14px;background:#fff;box-shadow:var(--phfck-shadow);padding:10px;display:flex;flex-direction:column;gap:8px}
+.phfck-assessment-profile-target-menu input[type="search"]{height:38px;border:1px solid var(--phfck-line);border-radius:9px;background:#f7faf8;color:var(--phfck-ink);padding:0 11px;font:inherit;font-size:11.5px}
+.phfck-assessment-profile-target-list{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.phfck-assessment-profile-target-list button{display:block;width:100%;border:0;border-radius:9px;background:transparent;padding:8px 10px;text-align:left;cursor:pointer}
+.phfck-assessment-profile-target-list button:hover{background:var(--phfck-green-soft)}
+.phfck-assessment-profile-target-list button.is-active{background:var(--phfck-green-soft)}
+.phfck-assessment-profile-target-list button b{display:block;color:var(--phfck-ink);font-size:11.5px}
+.phfck-assessment-profile-target-list button small{display:block;margin-top:2px;color:var(--phfck-muted);font-size:9.5px}
+.phfck-assessment-profile-target-hint{padding:8px 10px;color:var(--phfck-muted);font-size:9.5px;line-height:1.4}
+.phfck-assessment-profile-body{transition:opacity .15s ease}
+.phfck-assessment-profile-body.is-refreshing{opacity:.55;pointer-events:none}
+.phfck-assessment-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;margin-bottom:16px}
+.phfck-assessment-standard-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 18px 14px}
+.phfck-assessment-standard-meta span{display:block}
+.phfck-assessment-standard-meta small{display:block;color:var(--phfck-muted);font-size:9px;text-transform:uppercase}
+.phfck-assessment-standard-meta b{display:block;margin-top:3px;color:var(--phfck-ink);font-size:11.5px}
+.phfck-assessment-standard-table{margin:0 18px 16px;border:1px solid var(--phfck-line);border-radius:12px;background:#fff;overflow:hidden}
+.phfck-assessment-standard-row{display:grid;grid-template-columns:minmax(160px,1.6fr) 90px 80px 80px;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid #eef3f0}
+.phfck-assessment-standard-row:last-child{border-bottom:0}
+.phfck-assessment-standard-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:700;text-transform:uppercase}
+.phfck-assessment-standard-row small{display:block;color:var(--phfck-muted);font-size:8.8px}
+.phfck-assessment-standard-row b{display:block;margin-top:2px;color:var(--phfck-ink);font-size:11px}
+.phfck-assessment-score-lock{padding:0 18px 10px}
+.phfck-assessment-history-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 18px 14px}
+.phfck-assessment-history-stats article{border:1px solid var(--phfck-line);border-radius:11px;background:#fff;padding:11px 12px}
+.phfck-assessment-history-stats span{display:block;color:var(--phfck-muted);font-size:9px;text-transform:uppercase}
+.phfck-assessment-history-stats strong{display:block;margin-top:4px;color:var(--phfck-green);font-size:18px}
+.phfck-assessment-history-table{margin:0 18px 18px}
+.phfck-assessment-history-pending{color:var(--phfck-muted);font-size:10.5px}
+@media(max-width:900px){
+  .phfck-assessment-profile-grid{grid-template-columns:1fr}
+  .phfck-assessment-profile-identity-meta,.phfck-assessment-standard-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phfck-assessment-history-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .phfck-assessment-profile-toolbar{flex-direction:column;align-items:stretch}
+  .phfck-assessment-standard-row{grid-template-columns:1fr;gap:4px}
+  .phfck-assessment-standard-row.is-head{display:none}
+  .phfck-assessment-standard-row>span:before{content:attr(data-label)" ";color:var(--phfck-muted);font-size:8.8px;text-transform:uppercase;display:block}
+  .phfck-assessment-history-stats{grid-template-columns:1fr}
+}
