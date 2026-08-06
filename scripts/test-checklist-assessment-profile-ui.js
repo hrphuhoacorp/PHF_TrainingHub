@@ -22,9 +22,11 @@ const path = require('path');
 const appPath = path.resolve(__dirname, '..', 'assets/js/checklist/phf-checklist-app.js');
 const routerPath = path.resolve(__dirname, '..', 'assets/js/phf-url-router.js');
 const learnerAppPath = path.resolve(__dirname, '..', 'assets/js/phf-learner-app.js');
+const cssPath = path.resolve(__dirname, '..', 'assets/css/phf-checklist.css');
 const app = fs.readFileSync(appPath, 'utf8');
 const router = fs.readFileSync(routerPath, 'utf8');
 const learnerApp = fs.readFileSync(learnerAppPath, 'utf8');
+const css = fs.readFileSync(cssPath, 'utf8');
 
 let failures = 0;
 function check(condition, message) {
@@ -82,23 +84,42 @@ check(/function isChecklistPersonalExperience\(path\)\{if\(routeRole\(path\)==='
   'D0. isChecklistPersonalExperience(path): learner=true, manager-no-grant=true, manager-with-grant=false, admin=false (matches the confirmed business matrix)');
 check(/function checklistPersonalBasePath\(path\)\{return routeRole\(path\)==='manager'\?'\/ql\/checklist':'\/hv\/checklist';\}/.test(app),
   'D0. checklistPersonalBasePath(path) follows the account\'s own role namespace (/ql for manager, /hv for learner) - never rewrites manager to /hv');
+// UX-01 Batch 4A (UI polish only): pill-filter markup (.phfck-people-scope-chips)
+// replaced with a dedicated .phfck-personal-nav (icon+title+description, mirrors
+// managerSidebarHtml's nav language without reusing its literal .phfck-nav class,
+// wrapped in a .phfck-personal-layout two-column shell). No route/state/loader
+// change - the click handler, data-phfck-learner-tab attribute, and target paths
+// are byte-identical to before.
 const personalTabsBody = fnBody(app, 'personalChecklistTabsHtml', '\\s*path\\s*');
 check(!!personalTabsBody, 'D1. personalChecklistTabsHtml() found');
 if (personalTabsBody) {
   check(/var base=checklistPersonalBasePath\(path\)/.test(personalTabsBody),
     'D. Tab bar computes its base path from checklistPersonalBasePath(path) - /hv for a learner session, /ql for a manager-no-grant session');
-  check(personalTabsBody.includes("data-phfck-learner-tab=\"'+esc(base)+'\"") && personalTabsBody.includes("data-phfck-learner-tab=\"'+esc(base+'/ho-so-danh-gia')+'\""),
-    'D. Tab targets are the computed, literal base path (+ /ho-so-danh-gia) - not recomputed at click time');
+  check(!/phfck-people-scope-chips|phfck-people-scope-tabs/.test(personalTabsBody),
+    'D. Personal nav no longer reuses .phfck-people-scope-chips/.phfck-people-scope-tabs (the pill-filter look flagged as "trông như 2 pill filter nhỏ")');
+  check(/class="phfck-personal-nav"/.test(personalTabsBody) && /class="phfck-personal-nav-list"/.test(personalTabsBody) && /class="phfck-personal-nav-icon"/.test(personalTabsBody),
+    'D. Personal nav renders as an aside/nav with icon+title+description items (.phfck-personal-nav/-list/-icon), not inline pill buttons');
+  check(/data-phfck-learner-tab="'\+esc\(target\)\+'"/.test(personalTabsBody) && personalTabsBody.includes("item('my-checklist',base,") && personalTabsBody.includes("item('assessment-profile',base+'/ho-so-danh-gia',"),
+    'D. Tab targets are still the computed, literal base path (+ /ho-so-danh-gia) passed into item() - not recomputed at click time');
+  check(/aria-current="page"/.test(personalTabsBody),
+    'D. Active nav item gets aria-current="page" (Part 13 accessibility - active state not color-only)');
+  check(/'Bảng điểm hiện tại'/.test(personalTabsBody) && !/'Checklist của tôi'/.test(personalTabsBody),
+    'D. Nav item is relabelled "Bảng điểm hiện tại" (was "Checklist của tôi")');
 }
+check(!/Checklist của tôi/.test(app), 'D1b. The literal string "Checklist của tôi" no longer appears anywhere in the file (QA concern: stale title left where it would confuse) - renamed to "Bảng điểm hiện tại" everywhere in scope');
 const roleWorkspaceBody = fnBody(app, 'roleWorkspaceContentHtml', '\\s*path\\s*');
 check(!!roleWorkspaceBody, 'D2. roleWorkspaceContentHtml() found');
 if (roleWorkspaceBody) {
   check(/var isPersonalExperience=isChecklistPersonalExperience\(path\),personalBase=checklistPersonalBasePath\(path\);/.test(roleWorkspaceBody),
     'D. isPersonalExperience/personalBase are computed once via the shared helpers right after the manager-with-grant early return');
-  check(/isPersonalExperience&&cleanPath\(path\)===personalBase\+'\/ho-so-danh-gia'\)return '<main class="phfck-role-main">'\+personalChecklistTabsHtml\(path\)\+assessmentProfileHtml\(path\)\+'<\/main>';/.test(roleWorkspaceBody),
-    'B/G. A manager with no grant at /ql/checklist/ho-so-danh-gia now reaches assessmentProfileHtml() directly - the exact gap this hotfix closes (was previously stuck on the personal fallback)');
-  check(/\(isPersonalExperience\?personalChecklistTabsHtml\(path\):''\)/.test(roleWorkspaceBody),
-    'D. The base personal-Checklist fallback also renders tabs for both learner and manager-no-grant (isPersonalExperience covers both)');
+  check(/if\(isPersonalExperience\)\{/.test(roleWorkspaceBody),
+    'D. Personal-experience branch is now an explicit if-block (learner OR manager-no-grant), not folded into a single ternary-laden return');
+  check(/cleanPath\(path\)===personalBase\+'\/ho-so-danh-gia'\)return '<div class="phfck-personal-layout">'\+personalNavHtml\+'<main class="phfck-role-main phfck-personal-screen">'\+assessmentProfileHtml\(path\)\+'<\/main><\/div>';/.test(roleWorkspaceBody),
+    'B/G. A manager with no grant at /ql/checklist/ho-so-danh-gia still reaches assessmentProfileHtml() directly, now wrapped in the two-column .phfck-personal-layout shell alongside the nav');
+  check(/return '<div class="phfck-personal-layout">'\+personalNavHtml\+'<main class="phfck-role-main phfck-personal-screen"><section class="phfck-role-heading">/.test(roleWorkspaceBody),
+    'D. The base personal-Checklist (renamed "Bảng điểm hiện tại") page is also wrapped with the nav in the same two-column shell for both learner and manager-no-grant');
+  check((roleWorkspaceBody.match(/personalNavHtml/g) || []).length >= 2,
+    'D. personalChecklistTabsHtml(path) is computed once (personalNavHtml) and reused for both personal-experience pages, not recomputed per branch');
 }
 check(/isManager=checklistManagerWorkspaceActive\(currentRouteKey\(\)\)/.test(app),
   'B. loadAssessmentProfile() derives isManager from checklistManagerWorkspaceActive(), not a bare routeRole check - a manager-no-grant account can never trigger the manager-only payload/picker branches');
@@ -142,10 +163,19 @@ check(!!adminDashboardMatch, 'F1. adminDashboard() found');
 if (adminDashboardMatch) check(!/assessmentProfileHtml|assessment-profile/.test(adminDashboardMatch[1]), 'F. adminDashboard() never calls into the assessment profile renderer');
 
 // ---------- G/H. Target selector only for manager, sourced from allowedTargets ----------
-const periodBarBody = fnBody(app, 'assessmentProfilePeriodBarHtml', '\\s*data,isManager\\s*');
-check(!!periodBarBody, 'G0. assessmentProfilePeriodBarHtml() found');
-if (periodBarBody) check(/\(isManager\?assessmentProfileTargetPickerHtml\(data\):''\)/.test(periodBarBody),
-  'G. Target picker is only rendered when isManager is true - learner branch never mounts it');
+// UX-01 Batch 4A: standalone "Kỳ xem" toolbar card (previously a full-width panel
+// holding just one month input) removed - period input + target picker now render
+// inside assessmentProfileIdentityHtml()'s panel-head, per the polish spec's
+// "ghép vào card thông tin nhân sự" option. Same input, same data-phfck-assessment-profile-period
+// attribute, same change handler - only the wrapping markup moved.
+check(!/function assessmentProfilePeriodBarHtml/.test(app), 'G0. The standalone assessmentProfilePeriodBarHtml() toolbar function is removed (period/target controls merged into the identity card)');
+const identityBody = fnBody(app, 'assessmentProfileIdentityHtml', '\\s*data,isManager\\s*');
+check(!!identityBody, 'G0b. assessmentProfileIdentityHtml() found');
+if (identityBody) {
+  check(/data-phfck-assessment-profile-period/.test(identityBody), 'G. Period <input type="month"> now renders inside the identity card header (same data-phfck-assessment-profile-period attribute, unchanged)');
+  check(/\(isManager\?assessmentProfileTargetPickerHtml\(data\):''\)/.test(identityBody),
+    'G. Target picker is only rendered when isManager is true - learner/manager-no-grant branch never mounts it');
+}
 const targetListBody = fnBody(app, 'assessmentProfileTargetListHtml', '\\s*data\\s*');
 check(!!targetListBody && /data\.allowedTargets/.test(targetListBody), 'H. Target list is built from data.allowedTargets (server-scoped), not a separately fetched company-wide list');
 check(!!targetListBody && !/getChecklistRoleWorkspace|fetchLatestChecklistPeopleData|checklistEmployees\(\)/.test(targetListBody),
@@ -229,6 +259,46 @@ check(/var allowed=\['overview','my-work','people','violations','reviews','repor
   'S. managerSectionFromLocation() keeps all previously-allowed sections plus the new one (no section silently dropped)');
 check(/if\(section==='reports'\)return reportsHtml\(\);/.test(app), 'S. Existing reports section dispatch untouched');
 check(/if\(section==='permissions'\)return isAssistantWebOperator\(\)\?settingsHtml\(\):permissionAccessDeniedHtml\(\);/.test(app), 'S. Existing permissions section dispatch/guard untouched');
+// Manager-WITH-grant pipeline must be byte-identical to before this UI-polish batch -
+// it never touches managerSidebarHtml/managerSectionContentHtml/.phfck-manager-layout.
+check(/if\(hasManagementAccess&&routeRole\(path\)==='manager'\)return '<div class="phfck-manager-layout">'\+\(isMobileWorkspace\(\)\?'':managerSidebarHtml\(data\)\)\+'<main class="phfck-role-main phfck-manager-screen" data-phfck-manager-content>'\+managerSectionContentHtml\(path,data\)\+'<\/main><\/div>';/.test(app),
+  'C. Manager-with-grant early return in roleWorkspaceContentHtml() is untouched - still the very first check, still renders managerSidebarHtml() unchanged');
+
+// ---------- T. UI-polish specific: empty state, and CSS isolation ----------
+const scoreHtmlBodyForEmpty = fnBody(app, 'assessmentProfileScoreHtml', '\\s*currentScore\\s*');
+check(/function assessmentProfileEmptyHtml\(icon,titleText,text\)\{/.test(app), 'T0. assessmentProfileEmptyHtml() compact icon empty-state helper exists');
+if (scoreHtmlBodyForEmpty) {
+  check(/status==='not_started'\)body=assessmentProfileEmptyHtml\(/.test(scoreHtmlBodyForEmpty), 'T. not_started uses the compact icon empty state (Part 8: "không để khoảng trắng lớn")');
+  check(/else body=assessmentProfileEmptyHtml\(/.test(scoreHtmlBodyForEmpty), 'T. none/default status also uses the compact icon empty state');
+  check(!/phfck-permission-empty/.test(scoreHtmlBodyForEmpty), 'T. Score empty states no longer reuse the shared .phfck-permission-empty class (kept isolated from Nhân sự/Phân quyền styling)');
+}
+// CSS isolation: the new personal-nav/layout rules must not redefine shared,
+// widely-used selectors also relied on by other modules (manager sidebar, the
+// generic app .phfck-nav, or the people-scope filter chips) - only add new,
+// uniquely-prefixed classes.
+// .phfck-nav{...} and .phfck-people-scope-chips{...} both pre-date this batch
+// (shared app-wide sidebar nav, and the manager people-page filter chips) with
+// their own pre-existing occurrence counts (base rule + scoped overrides
+// elsewhere in the file) - the isolation requirement is that Batch 4A adds NO
+// additional occurrence of either, not that they appear zero/one times overall.
+const navBraceCount = (css.match(/\.phfck-nav\{/g) || []).length;
+const chipsBraceCount = (css.match(/\.phfck-people-scope-chips\{/g) || []).length;
+check(navBraceCount === 2, 'T. .phfck-nav{...} occurrence count unchanged from before this batch (2 - Batch 4A added no new .phfck-nav override)');
+check(chipsBraceCount === 3, 'T. .phfck-people-scope-chips{...} occurrence count unchanged from before this batch (3 - Batch 4A added no new override, personal nav uses its own class instead)');
+check(/\.phfck-personal-layout\{/.test(css) && /\.phfck-personal-nav-list button\{/.test(css) && /\.phfck-personal-nav-icon\{/.test(css),
+  'T. New .phfck-personal-layout/.phfck-personal-nav-list/.phfck-personal-nav-icon rules exist in phf-checklist.css');
+check(/\.phfck-manager-layout\{display:grid;grid-template-columns:260px minmax\(0,1fr\);/.test(css), 'T. .phfck-manager-layout (manager workspace two-column shell) CSS is untouched');
+check(!/\.phfck-learner-tabs\.phfck-people-scope-chips/.test(css), 'T. Dead .phfck-learner-tabs.phfck-people-scope-chips rule (pill-tab look) removed, not left as unused CSS');
+check(!/\.phfck-assessment-profile-toolbar\{/.test(css), 'T. Dead .phfck-assessment-profile-toolbar rule (near-empty full-width "Kỳ xem" card) removed after the control moved into the identity card');
+// Caught during this batch's own QA pass: .phfck-role-main's base rule
+// (width:min(1420px,...);margin:0 auto - meant for a standalone, self-centering
+// page) is still active inside the new flex row and conflicts with flex:1 unless
+// explicitly overridden, exactly like .phfck-manager-layout>.phfck-role-main
+// already does for the manager workspace - without this, the personal-experience
+// content column could fail to fill/could overflow depending on browser flex-basis
+// resolution (Part 12: "không tạo horizontal overflow toàn trang").
+check(/\.phfck-personal-layout>\.phfck-role-main\{flex:1;min-width:0;width:auto;max-width:none;margin:0;/.test(css),
+  'T. .phfck-personal-layout>.phfck-role-main explicitly resets width/margin (mirrors the manager-layout fix for the same width:min(1420px,...)+margin:0 auto conflict)');
 
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL PASS'));
 process.exit(failures ? 1 : 0);

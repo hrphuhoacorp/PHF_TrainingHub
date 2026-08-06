@@ -4698,19 +4698,50 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 }
 
 /* PHF Checklist UX-01 Batch 3 — Hồ sơ đánh giá (shared learner/manager) */
-.phfck-learner-tabs.phfck-people-scope-chips{margin:0 0 18px!important}
-@media(max-width:680px){.phfck-learner-tabs.phfck-people-scope-chips{overflow-x:auto;padding-bottom:3px}.phfck-learner-tabs.phfck-people-scope-chips button{flex:0 0 auto}}
-.phfck-assessment-profile{display:flex;flex-direction:column;gap:16px}
-.phfck-assessment-profile-identity-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 18px 16px}
-.phfck-assessment-profile-identity-meta span{display:block}
+/* UX-01 Batch 4A — UI polish. Menu cá nhân (Bảng điểm hiện tại / Hồ sơ đánh
+   giá) không còn dùng .phfck-people-scope-chips (pill lọc nhỏ) - đổi sang
+   .phfck-personal-nav/.phfck-personal-layout riêng, mô phỏng ngôn ngữ icon +
+   tiêu đề + mô tả + active-state của .phfck-nav (managerSidebarHtml) nhưng
+   nhẹ hơn, không dùng lại chính class .phfck-nav để không ảnh hưởng sidebar
+   thật của module khác đang dùng chung class đó. */
+.phfck-personal-layout{display:flex;gap:20px;align-items:flex-start}
+/* .phfck-role-main mặc định width:min(1420px,...)+margin:0 auto (trang đứng
+   riêng, tự canh giữa) - xung đột với flex:1 khi nằm trong hàng flex 2 cột.
+   Override tường minh giống hệt cách .phfck-manager-layout>.phfck-role-main
+   đã xử lý cùng vấn đề này, không để mặc định rò rỉ vào layout mới. */
+.phfck-personal-layout>.phfck-role-main{flex:1;min-width:0;width:auto;max-width:none;margin:0;padding:28px 24px 48px}
+@media(max-width:1100px){.phfck-personal-layout>.phfck-role-main{padding:24px 18px 40px}}
+/* Dưới 760px, .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-main
+   (mobile app shell, specificity cao hơn) đã tự đặt lại width/margin/padding -
+   không override thêm ở đây để tránh 2 quy tắc giành nhau. */
+.phfck-personal-nav{flex:0 0 216px}
+.phfck-personal-nav-list{display:flex;flex-direction:column;gap:8px;position:sticky;top:20px}
+.phfck-personal-nav-list button{display:flex;align-items:center;gap:11px;width:100%;border:1px solid var(--phfck-line);border-radius:14px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer;color:var(--phfck-ink);transition:border-color .15s ease,background .15s ease}
+.phfck-personal-nav-list button:hover{border-color:#9fc5b3;background:#f8fcfa}
+.phfck-personal-nav-list button.active{border-color:#4ca36f;background:var(--phfck-green-soft);box-shadow:inset 0 0 0 1px #4ca36f}
+.phfck-personal-nav-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:var(--phfck-green-soft);color:var(--phfck-green);font-size:16px}
+.phfck-personal-nav-list button.active .phfck-personal-nav-icon{background:#fff}
+.phfck-personal-nav-list button b{display:block;font-size:12.5px;color:var(--phfck-ink)}
+.phfck-personal-nav-list button small{display:block;margin-top:2px;color:var(--phfck-muted);font-size:10px;line-height:1.35}
+@media(max-width:1100px){.phfck-personal-nav{flex:0 0 188px}}
+@media(max-width:900px){
+  .phfck-personal-layout{flex-direction:column;gap:14px}
+  .phfck-personal-nav{flex:0 0 auto;width:100%}
+  .phfck-personal-nav-list{position:static;flex-direction:row}
+  .phfck-personal-nav-list button{flex:1 1 0;min-width:0}
+}
+@media(max-width:520px){.phfck-personal-nav-list button small{display:none}.phfck-personal-nav-list button{padding:10px}}
+.phfck-assessment-profile{display:flex;flex-direction:column;gap:14px}
+.phfck-assessment-profile-head-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.phfck-assessment-profile-identity-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 18px 15px}
+.phfck-assessment-profile-identity-meta span{display:block;min-width:0}
 .phfck-assessment-profile-identity-meta small{display:block;color:var(--phfck-muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
-.phfck-assessment-profile-identity-meta b{display:block;margin-top:4px;color:var(--phfck-ink);font-size:12.5px}
-.phfck-assessment-profile-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;padding:16px 18px}
-.phfck-assessment-profile-period label{display:block}
-.phfck-assessment-profile-period label>span{display:block;margin-bottom:6px;color:#48665b;font-size:10px;font-weight:700}
-.phfck-assessment-profile-period input{height:42px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 12px;font:inherit;font-size:12px}
+.phfck-assessment-profile-identity-meta b{display:block;margin-top:4px;color:var(--phfck-ink);font-size:12.5px;word-break:break-word}
+.phfck-assessment-profile-period label{display:flex;align-items:center;gap:8px}
+.phfck-assessment-profile-period label>span{color:#48665b;font-size:10px;font-weight:700;white-space:nowrap}
+.phfck-assessment-profile-period input{height:36px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 10px;font:inherit;font-size:12px}
 .phfck-assessment-profile-target{position:relative}
-.phfck-assessment-profile-target>button{display:flex;align-items:center;gap:10px;height:42px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 14px;cursor:pointer;font:inherit}
+.phfck-assessment-profile-target>button{display:flex;align-items:center;gap:10px;height:36px;border:1px solid var(--phfck-line);border-radius:10px;background:#fff;color:var(--phfck-ink);padding:0 12px;cursor:pointer;font:inherit}
 .phfck-assessment-profile-target>button span{color:var(--phfck-muted);font-size:10px}
 .phfck-assessment-profile-target>button b{font-size:12.5px}
 .phfck-assessment-profile-target>button i{margin-left:4px;color:var(--phfck-muted);font-style:normal}
@@ -4743,13 +4774,22 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-assessment-history-stats strong{display:block;margin-top:4px;color:var(--phfck-green);font-size:18px}
 .phfck-assessment-history-table{margin:0 18px 18px}
 .phfck-assessment-history-pending{color:var(--phfck-muted);font-size:10.5px}
+/* Empty state gọn có icon cho Điểm kỳ hiện tại (not_started/none) - class
+   riêng, không đụng .phfck-permission-empty dùng chung ở Nhân sự/Phân quyền. */
+.phfck-assessment-profile-empty{display:flex;align-items:flex-start;gap:12px;padding:16px 18px}
+.phfck-assessment-profile-empty>span{flex:0 0 auto;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--phfck-green-soft);color:var(--phfck-green);font-size:16px}
+.phfck-assessment-profile-empty b{display:block;color:var(--phfck-ink);font-size:12.5px}
+.phfck-assessment-profile-empty p{margin:3px 0 0;color:var(--phfck-muted);font-size:11px;line-height:1.5}
 @media(max-width:900px){
   .phfck-assessment-profile-grid{grid-template-columns:1fr}
   .phfck-assessment-profile-identity-meta,.phfck-assessment-standard-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
   .phfck-assessment-history-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
-  .phfck-assessment-profile-toolbar{flex-direction:column;align-items:stretch}
+  .phfck-assessment-profile-head-controls{width:100%}
+  .phfck-assessment-profile-period{width:100%}
+  .phfck-assessment-profile-period label{width:100%}
+  .phfck-assessment-profile-period input{flex:1}
   .phfck-assessment-standard-row{grid-template-columns:1fr;gap:4px}
   .phfck-assessment-standard-row.is-head{display:none}
   .phfck-assessment-standard-row>span:before{content:attr(data-label)" ";color:var(--phfck-muted);font-size:8.8px;text-transform:uppercase;display:block}

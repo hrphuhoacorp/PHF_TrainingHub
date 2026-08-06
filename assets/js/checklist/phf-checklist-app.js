@@ -55,11 +55,11 @@
   function isMobileWorkspace(){return !!(mobileWorkspaceMq&&mobileWorkspaceMq.matches);}
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
   function mobileContentHeaderTitle(path){
-    if(isChecklistPersonalExperience(path))return cleanPath(path)===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';
+    if(isChecklistPersonalExperience(path))return cleanPath(path)===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Bảng điểm hiện tại';
     return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền','assessment-profile':'Hồ sơ đánh giá'}[managerSectionFromLocation(path)]||'Tổng quan';
   }
   function syncMobileContentHeader(root,path){var heading=root&&root.querySelector('[data-phfck-mobile-content-title]');if(heading)heading.textContent=mobileContentHeaderTitle(path);}
-  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';if(checklistManagerWorkspaceActive(path)&&managerSectionFromLocation(path)==='assessment-profile')return 'Hồ sơ đánh giá · Quản lý';if(isChecklistPersonalExperience(path))return p===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Checklist của tôi';return r==='admin'?'Tổng quan PHF Checklist':'Tổng quan Checklist · Quản lý';}
+  function title(path){var r=routeRole(path),p=cleanPath(path);if(r==='manager'&&managerSectionFromLocation(path)==='reports')return 'Báo cáo Checklist · Quản lý';if(checklistManagerWorkspaceActive(path)&&managerSectionFromLocation(path)==='assessment-profile')return 'Hồ sơ đánh giá · Quản lý';if(isChecklistPersonalExperience(path))return p===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Bảng điểm hiện tại';return r==='admin'?'Tổng quan PHF Checklist':'Tổng quan Checklist · Quản lý';}
   function subtitle(path){var r=routeRole(path);return r==='admin'?'Điều hành phân công, ghi nhận tuân thủ và đánh giá công việc trên một khu vực thống nhất.':(r==='manager'?'Theo dõi Checklist trong phạm vi được Admin phân công.':'Theo dõi điểm, lỗi và các việc cần xử lý của bạn.');}
   function currentTime24(){var d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
   function normalizeTime24(value,fallback){var raw=String(value||'').replace(/\D/g,'').slice(0,4);if(raw.length<3)return fallback||currentTime24();var h=Number(raw.slice(0,2)),m=Number(raw.slice(2,4));if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>23||m<0||m>59)return fallback||currentTime24();return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
@@ -5645,9 +5645,14 @@
   }
   function assessmentProfileLoadingHtml(){return '<section class="phfck-role-loading phfck-role-loading-detailed" role="status" aria-live="polite"><span class="phfck-loading-spinner"></span><div><small>ĐANG TẢI HỒ SƠ ĐÁNH GIÁ</small><b>Đang kiểm tra quyền và tải dữ liệu…</b><p>Hệ thống chưa hiển thị điểm hoặc tiêu chuẩn cho đến khi tải xong.</p></div></section>';}
   function assessmentProfileErrorHtml(){return '<section class="phfck-role-error"><span>!</span><div><b>Chưa thể mở hồ sơ đánh giá</b><p>'+esc(assessmentProfileUiState.error||'Vui lòng thử lại.')+'</p><button type="button" class="phfck-secondary" data-phfck-assessment-profile-retry>Thử lại</button></div></section>';}
+  /* UX-01 Batch 4A - "Kỳ xem" gộp vào header của card nhân sự (không còn
+     assessmentProfileToolbarHtml/panel riêng chỉ chứa 1 input) - đúng option
+     "ghép vào card thông tin nhân sự" trong yêu cầu polish. Input type="month",
+     data-phfck-assessment-profile-period và change handler giữ nguyên 100% -
+     chỉ đổi nơi input này được render ra, không đổi hành vi. */
   function assessmentProfileIdentityHtml(data,isManager){
-    var t=data.target||{};
-    return '<section class="phfck-panel phfck-assessment-profile-identity"><div class="phfck-panel-head"><div><small>NHÂN SỰ ĐANG XEM</small><h3>'+esc(t.employeeName||'Chưa có tên')+'</h3></div>'+(isManager&&data.isSelf===false?'<span class="phfck-status is-active">Đang xem người khác</span>':'')+'</div><div class="phfck-assessment-profile-identity-meta"><span><small>Mã nhân viên</small><b>'+esc(t.employeeCode||'—')+'</b></span><span><small>Phòng ban</small><b>'+esc(t.department||'—')+'</b></span><span><small>Chức danh</small><b>'+esc(t.title||'—')+'</b></span><span><small>Chi nhánh</small><b>'+esc(t.branch||'—')+'</b></span></div></section>';
+    var t=data.target||{},month=assessmentProfileUiState.selectedMonth||data.selectedMonth||assessmentProfileDefaultMonth();
+    return '<section class="phfck-panel phfck-assessment-profile-identity"><div class="phfck-panel-head"><div><small>NHÂN SỰ ĐANG XEM</small><h3>'+esc(t.employeeName||'Chưa có tên')+'</h3></div><div class="phfck-assessment-profile-head-controls">'+(isManager&&data.isSelf===false?'<span class="phfck-status is-active">Đang xem người khác</span>':'')+'<label class="phfck-assessment-profile-period"><span>Kỳ xem</span><input type="month" data-phfck-assessment-profile-period value="'+esc(month)+'"></label>'+(isManager?assessmentProfileTargetPickerHtml(data):'')+'</div></div><div class="phfck-assessment-profile-identity-meta"><span><small>Mã nhân viên</small><b>'+esc(t.employeeCode||'—')+'</b></span><span><small>Phòng ban</small><b>'+esc(t.department||'—')+'</b></span><span><small>Chức danh</small><b>'+esc(t.title||'—')+'</b></span><span><small>Chi nhánh</small><b>'+esc(t.branch||'—')+'</b></span></div></section>';
   }
   function assessmentProfileTargetListHtml(data){
     var targets=Array.isArray(data.allowedTargets)?data.allowedTargets:[],selfCode=normalizeText(targets[0]&&targets[0].employeeCode).toUpperCase();
@@ -5667,10 +5672,6 @@
       +'<button type="button" data-phfck-assessment-profile-target-toggle aria-haspopup="listbox" aria-expanded="'+(assessmentProfileUiState.pickerOpen?'true':'false')+'"><span>Đang xem</span><b>'+esc(currentLabel)+'</b><i aria-hidden="true">▾</i></button>'
       +(assessmentProfileUiState.pickerOpen?('<div class="phfck-assessment-profile-target-menu" role="listbox"><input type="search" autocomplete="off" spellcheck="false" placeholder="Tìm theo tên hoặc mã nhân viên…" value="'+esc(assessmentProfileUiState.targetQuery||'')+'" data-phfck-assessment-profile-target-search><div class="phfck-assessment-profile-target-list" data-phfck-assessment-profile-target-list>'+assessmentProfileTargetListHtml(data)+'</div></div>'):'')
       +'</div>';
-  }
-  function assessmentProfilePeriodBarHtml(data,isManager){
-    var month=assessmentProfileUiState.selectedMonth||data.selectedMonth||assessmentProfileDefaultMonth();
-    return '<section class="phfck-panel phfck-assessment-profile-toolbar"><div class="phfck-assessment-profile-period"><label><span>Kỳ xem</span><input type="month" data-phfck-assessment-profile-period value="'+esc(month)+'"></label></div>'+(isManager?assessmentProfileTargetPickerHtml(data):'')+'</section>';
   }
   function assessmentProfileStandardHtml(standard){
     standard=standard||{};
@@ -5694,15 +5695,23 @@
     cards.push(['Kết quả'+(showReview?' cuối':''),data.finalScore]);
     return '<div class="phfck-final-score-cards">'+cards.map(function(c,i){return '<article'+(i===cards.length-1?' class="is-final"':'')+'><span>'+esc(c[0])+'</span><strong>'+(c[1]==null?'—':Number(c[1]).toFixed(2))+'</strong><small>'+esc(data.label||'')+'</small></article>';}).join('')+'</div>';
   }
+  /* UX-01 Batch 4A - empty state gọn, có icon, cho not_started/none. Dùng class
+     riêng .phfck-assessment-profile-empty (không đụng .phfck-permission-empty
+     dùng chung ở trang Nhân sự/Phân quyền) để tránh CSS lan ra module khác.
+     Không đổi status/logic - chỉ đổi markup hiển thị của đúng 2 trạng thái
+     not_started/none, giữ nguyên text hiện có. */
+  function assessmentProfileEmptyHtml(icon,titleText,text){
+    return '<div class="phfck-assessment-profile-empty"><span aria-hidden="true">'+esc(icon)+'</span><div><b>'+esc(titleText)+'</b><p>'+esc(text)+'</p></div></div>';
+  }
   function assessmentProfileScoreHtml(currentScore){
     currentScore=currentScore||{};
     var status=currentScore.status,data=currentScore.data,body='';
-    if(status==='not_started')body='<div class="phfck-permission-empty"><b>Chưa bắt đầu tự đánh giá</b><p>Điểm sẽ hiển thị khi bắt đầu nhập tự đánh giá cho kỳ này.</p></div>';
+    if(status==='not_started')body=assessmentProfileEmptyHtml('◷','Chưa bắt đầu tự đánh giá','Điểm sẽ hiển thị khi bắt đầu nhập tự đánh giá cho kỳ này.');
     else if(status==='available')body='<div class="phfck-role-note is-warning"><b>Điểm tạm thời</b><p>Chưa hoàn tất tự đánh giá - điểm có thể thay đổi cho đến khi gửi phiếu.</p></div>'+assessmentProfileScoreCardsHtml(data,false);
     else if(status==='pending')body='<div class="phfck-role-note is-warning"><b>Điểm tạm thời</b><p>Đã gửi tự đánh giá, đang chờ thẩm định.</p></div>'+assessmentProfileScoreCardsHtml(data,false);
     else if(status==='official')body=assessmentProfileScoreCardsHtml(data,true);
     else if(status==='locked')body='<div class="phfck-assessment-score-lock"><span class="phfck-monthly-state locked">Đã khóa</span></div>'+assessmentProfileScoreCardsHtml(data,true);
-    else body='<div class="phfck-permission-empty"><b>Chưa có điểm để hiển thị</b><p>Kỳ này chưa phát sinh dữ liệu điểm.</p></div>';
+    else body=assessmentProfileEmptyHtml('—','Chưa có điểm để hiển thị','Kỳ này chưa phát sinh dữ liệu điểm.');
     return '<section class="phfck-panel phfck-assessment-profile-score"><div class="phfck-panel-head"><div><small>ĐIỂM KỲ HIỆN TẠI</small><h3>Điểm kỳ hiện tại</h3></div></div>'+body+'</section>';
   }
   function assessmentProfileHistoryHtml(history){
@@ -5723,7 +5732,6 @@
     }
     var data=assessmentProfileUiState.data,isManager=checklistManagerWorkspaceActive(currentRouteKey()),stale=assessmentProfileUiState.loading;
     return assessmentProfileIdentityHtml(data,isManager)
-      +assessmentProfilePeriodBarHtml(data,isManager)
       +(stale?'<div class="phfck-role-note is-loading"><b>Đang tải lại theo lựa chọn mới…</b><p>Dữ liệu bên dưới là của lựa chọn trước, sẽ tự cập nhật ngay khi tải xong.</p></div>':'')
       +'<div class="phfck-assessment-profile-body'+(stale?' is-refreshing':'')+'"><div class="phfck-assessment-profile-grid">'+assessmentProfileStandardHtml(data.standard)+assessmentProfileScoreHtml(data.currentScore)+'</div>'+assessmentProfileHistoryHtml(data.history)+'</div>';
   }
@@ -5747,12 +5755,25 @@
      sang /hv. Tab luôn điều hướng bằng đường dẫn cố định theo base đã tính
      (không suy theo route hiện tại), qua window.phfNavigate (Router thật, giữ
      back/forward). */
+  /* UX-01 Batch 4A - UI polish only, không đổi target/route/logic. Trước đó
+     tái dùng .phfck-people-scope-chips (pill filter nhỏ, thiết kế cho bộ lọc
+     Tất cả nhân sự/Phiếu thẩm định trong trang Nhân sự) khiến 2 khu vực chức
+     năng chính trông như tag lọc phụ. Đổi sang markup/CSS riêng
+     (.phfck-personal-nav, không đụng .phfck-people-scope-*) mô phỏng đúng
+     ngôn ngữ icon+tiêu đề+mô tả+active-state của managerSidebarHtml() nhưng
+     nhẹ hơn (không nền xanh đậm, không sidebar cố định), giản lược còn 2 mục.
+     Giữ nguyên hoàn toàn: data-phfck-learner-tab (attribute + giá trị path),
+     click handler, checklistPersonalBasePath(). */
   function personalChecklistTabsHtml(path){
     var base=checklistPersonalBasePath(path),active=cleanPath(path)===base+'/ho-so-danh-gia'?'assessment-profile':'my-checklist';
-    return '<nav class="phfck-learner-tabs phfck-people-scope-tabs phfck-people-scope-chips" aria-label="Khu vực Checklist của tôi">'
-      +'<button type="button" class="'+(active==='my-checklist'?'active':'')+'" data-phfck-learner-tab="'+esc(base)+'"><span>Checklist của tôi</span></button>'
-      +'<button type="button" class="'+(active==='assessment-profile'?'active':'')+'" data-phfck-learner-tab="'+esc(base+'/ho-so-danh-gia')+'"><span>Hồ sơ đánh giá</span></button>'
-      +'</nav>';
+    function item(key,target,icon,label,desc){
+      var isActive=active===key;
+      return '<button type="button" class="'+(isActive?'active':'')+'"'+(isActive?' aria-current="page"':'')+' data-phfck-learner-tab="'+esc(target)+'"><span class="phfck-personal-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(label)+'</b><small>'+esc(desc)+'</small></span></button>';
+    }
+    return '<aside class="phfck-personal-nav" aria-label="Khu vực cá nhân"><nav class="phfck-personal-nav-list">'
+      +item('my-checklist',base,'▦','Bảng điểm hiện tại','Điểm, phiếu và việc cần xử lý')
+      +item('assessment-profile',base+'/ho-so-danh-gia','🗎','Hồ sơ đánh giá','Tiêu chuẩn áp dụng và lịch sử điểm')
+      +'</nav></aside>';
   }
   /* ===== hết Hồ sơ đánh giá ===== */
   function roleWorkspaceContentHtml(path){
@@ -5767,8 +5788,28 @@
        route (/hv vs /ql). isChecklistPersonalExperience()/checklistPersonalBasePath()
        đọc trực tiếp routeRole(path)+grant hiện tại, không hard-code learner. */
     var isPersonalExperience=isChecklistPersonalExperience(path),personalBase=checklistPersonalBasePath(path);
-    if(isPersonalExperience&&cleanPath(path)===personalBase+'/ho-so-danh-gia')return '<main class="phfck-role-main">'+personalChecklistTabsHtml(path)+assessmentProfileHtml(path)+'</main>';
-    return '<main class="phfck-role-main">'+(isPersonalExperience?personalChecklistTabsHtml(path):'')+'<section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Checklist của tôi</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
+    /* UX-01 Batch 4A - UI polish only. Bọc 2 khu vực cá nhân trong
+       .phfck-personal-layout (menu gọn bên trái, nội dung bên phải trên
+       desktop; menu chuyển hàng ngang trên mobile qua CSS, không JS/isMobileWorkspace
+       rẽ nhánh - khác managerSidebarHtml() vì menu cá nhân luôn phải hiện, không
+       ẩn trên mobile). Không đổi route/state/loader - chỉ đổi khung HTML bọc
+       ngoài + đổi tên tiêu đề trang sang "Bảng điểm hiện tại" (tên cũ đã bỏ). */
+    if(isPersonalExperience){
+      var personalNavHtml=personalChecklistTabsHtml(path);
+      if(cleanPath(path)===personalBase+'/ho-so-danh-gia')return '<div class="phfck-personal-layout">'+personalNavHtml+'<main class="phfck-role-main phfck-personal-screen">'+assessmentProfileHtml(path)+'</main></div>';
+      return '<div class="phfck-personal-layout">'+personalNavHtml+'<main class="phfck-role-main phfck-personal-screen"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Bảng điểm hiện tại</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
+        +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
+        +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
+        +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
+        +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
+        +(hasManagementAccess?'<div class="phfck-role-section-label"><b>Công việc quản lý</b><span>Chỉ hiển thị theo quyền mở rộng đang hiệu lực</span></div>'+monthlyReviewListHtml()+monthlyReviewDetailHtml():'')
+        +'<section class="phfck-role-note"><b>Dữ liệu đang dùng</b><p>Checklist cá nhân, việc cần xử lý và phiếu tháng được đọc theo tài khoản đăng nhập.</p></section></main></div>';
+    }
+    /* Nhánh dự phòng - theo thiết kế hiện tại isPersonalExperience luôn true
+       tới đây (routeRole còn lại chỉ là learner hoặc manager không grant),
+       giữ lại để không phá vỡ nếu logic phía trên đổi trong tương lai. Không
+       có menu cá nhân vì không xác định được đây là trải nghiệm cá nhân. */
+    return '<main class="phfck-role-main"><section class="phfck-role-heading"><div><small>PHF CHECKLIST · NHÂN VIÊN</small><h1>Bảng điểm hiện tại</h1><p>Xem Checklist, điểm tuân thủ và phiếu đánh giá của chính bạn.</p></div><div class="phfck-monthly-head-actions"><button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>'
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
