@@ -5460,7 +5460,7 @@
       footHtml:footHtml
     });
   }
-  function managerSectionHeading(kicker,titleText,description,actions){return '<section class="phfck-role-heading"><div><small>'+esc(kicker)+'</small><h1>'+esc(titleText)+'</h1><p>'+esc(description)+'</p></div><div class="phfck-monthly-head-actions">'+(actions||'')+'<button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>';}
+  function managerSectionHeading(kicker,titleText,description,actions,hideRetry){return '<section class="phfck-role-heading"><div><small>'+esc(kicker)+'</small><h1>'+esc(titleText)+'</h1><p>'+esc(description)+'</p></div><div class="phfck-monthly-head-actions">'+(actions||'')+(hideRetry?'':'<button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button>')+'</div></section>';}
   function managerOverviewIconSvg(type){
     var paths={
       review:'<path d="M7 3h10a2 2 0 0 1 2 2v14H5V5a2 2 0 0 1 2-2Z"/><path d="M9 3.5h6V7H9z"/><path d="m9 13 2 2 4-4"/>',
@@ -5586,7 +5586,7 @@
     if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('CÁ NHÂN','Phiếu của tôi','Tự đánh giá phiếu tháng, xử lý phản hồi cá nhân và xem Checklist đang áp dụng.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
     if(section==='people'||section==='reviews')return managerPeopleHtml(path,data);
     if(section==='assessment-profile')return assessmentProfileHtml(path);
-    if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc)+violationsHtml();}
+    if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc,'',effView==='log')+violationsHtml();}
     if(section==='reports')return reportsHtml();
     if(section==='permissions')return isAssistantWebOperator()?settingsHtml():permissionAccessDeniedHtml();
     var actions=marketingKpiButtonHtml(marketingKpiPeriodValue(),data)+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_reports===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="reports">▥ Xem báo cáo</button>':'')+(data.grant&&data.grant.capabilities&&data.grant.capabilities.view_monthly===true?'<button type="button" class="phfck-secondary" data-phfck-manager-section="assessment-profile">🗎 Hồ sơ đánh giá</button>':'')+(data.canExport?'<button type="button" class="phfck-primary" data-phfck-role-export '+(monthlyUiState.exporting?'disabled':'')+'>'+(monthlyUiState.exporting?'Đang tạo Excel…':'⇩ Xuất Excel')+'</button>':'');
