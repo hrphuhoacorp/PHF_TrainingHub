@@ -137,11 +137,29 @@ check(/violationUiState\.quickMultiPersonRows\.length>=QUICK_MULTI_PERSON_MAX_RO
 check(/rows\.length>=QUICK_MULTI_PERSON_MAX_ROWS/.test(app), '6d. Renderer computes atMax the same way, to disable/relabel the add button before 20 is even reached via a stale click');
 
 // ---------- 7. Remove-row disabled/blocked at exactly 1 row ----------
-check(/var canRemove=violationUiState\.quickMultiPersonRows\.length>1;/.test(app),
-  '7a. Row renderer computes canRemove = rows.length>1 (remove control disabled when exactly 1 row remains)');
+check(/var canRemove=violationUiState\.quickMultiPersonRows\.length>1&&!quickMultiPersonLocked\(\);/.test(app),
+  '7a. Row renderer computes canRemove = rows.length>1 AND NOT locked (remove control disabled when exactly 1 row remains, and also hard-disabled during uncertain/done lock, not just CSS pointer-events)');
 check(/data-phfck-qmp-remove '\+\(canRemove\?'':'disabled'\)/.test(app), '7b. Remove-row button gets the disabled attribute when canRemove is false');
 check(/if\(!qmpRemoveRowId\|\|violationUiState\.quickMultiPersonRows\.length<=1\)return;/.test(app),
   '7c. Remove-row click handler ALSO guards in JS (defense in depth beyond the disabled attribute) - never drops to 0 rows');
+
+// ---------- 7d-7h. Field edits hard-gated during uncertain/done, not just CSS pointer-events ----------
+// pointer-events:none on .phfck-qmp-list does not block a field that already holds
+// keyboard focus when the lock is applied, nor Tab-navigation into it - so the
+// input/change handlers themselves must refuse to mutate row state while locked,
+// otherwise edited content can be resent under the STALE request_id on "Thử lại"
+// and get silently dropped by the backend's request_id dedupe if the ambiguous
+// first attempt had actually already been saved server-side.
+check(/function quickMultiPersonLocked\(\)\{\s*return quickMultiPersonSubmitState==='uncertain'\|\|quickMultiPersonSubmitState==='done';\s*\}/.test(app),
+  "7d. quickMultiPersonLocked() helper exists (true for 'uncertain' or 'done')");
+check(/data-phfck-qmp-field="date"\],\[data-phfck-qmp-field="note"\]'\)\)\{if\(quickMultiPersonLocked\(\)\)return;/.test(app),
+  '7e. date/note input handler bails out via quickMultiPersonLocked() before mutating row state');
+check(/data-phfck-qmp-field="employee"\]'\)\)\{if\(quickMultiPersonLocked\(\)\)return;/.test(app),
+  '7f. employee change handler bails out via quickMultiPersonLocked() before mutating row state');
+check(/data-phfck-qmp-field="criterion"\]'\)\)\{if\(quickMultiPersonLocked\(\)\)return;/.test(app),
+  '7g. criterion change handler bails out via quickMultiPersonLocked() before mutating row state');
+check(/var locked=quickMultiPersonLocked\(\);/.test(app),
+  '7h. quickMultiPersonHtml() renderer reuses the same quickMultiPersonLocked() helper for the is-locked CSS class (single source of truth, not a duplicated condition)');
 
 // ---------- 8. request_id lifecycle: generated at row creation, not at submit time ----------
 const rowDefaultSrc = extractFnSource(app, 'quickMultiPersonRowDefault');
