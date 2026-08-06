@@ -575,7 +575,7 @@ const server = http.createServer(async (req, res) => {
         if (payload && (payload.action === 'saveChecklistViolations' || payload.action === 'saveChecklistTestViolations')) {
           const saved=await saveChecklistViolations(session, payload.violations || []);
           if(saved.isTest!==true){
-            const recipients=[...new Set((payload.violations||[]).map(row=>String(row.employeeCode||row.employee_code||'').trim().toUpperCase()).filter(Boolean))];
+            const recipients=[...new Set((saved.savedRows||[]).filter(row=>row.isNew===true).map(row=>String(row.employeeCode||'').trim().toUpperCase()).filter(Boolean))];
             for(const employeeCode of recipients)await emitChecklistNotificationSafe('VIOLATION_CREATED',{recipient:{employeeCode},title:'Có lỗi Checklist mới',message:'Bạn có lỗi mới cần xác nhận hoặc giải trình.',targetPath:'/hv/checklist/viec-can-xu-ly',subjectType:'violation_batch',subjectId:saved.testBatchId||'',dedupeKey:'violation|'+employeeCode+'|'+Date.now()});
           }
           return sendJson(res, 200, {ok:true,...saved});
