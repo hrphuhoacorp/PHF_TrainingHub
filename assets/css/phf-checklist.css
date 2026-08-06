@@ -2354,13 +2354,18 @@ body > .phfck-data-loading-layer .phfck-data-loading-card { width: min(520px, ca
 @media (max-width:760px){.phfck-role-section-label{align-items:flex-start;flex-direction:column;gap:2px}.phfck-role-section-label span{text-align:left}}
 
 /* PHF Checklist 1.34.20 · Trưởng ca dùng chung hệ giao diện Admin */
-.phfck-manager-layout{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:calc(100vh - 104px);align-items:start;background:transparent}
+/* UX-01 Batch 4B: .phfck-personal-layout/.phfck-personal-sidebar (learner,
+   manager không grant) gộp vào ĐÚNG các rule layout này thay vì tự nhân bản
+   (Batch 4A đã tự dựng .phfck-personal-layout riêng với cùng ý nghĩa - gộp
+   lại để chỉ còn một nơi định nghĩa "sidebar trái, content phải"). Manager
+   không đổi: các thuộc tính/giá trị giữ nguyên 100%, chỉ thêm selector. */
+.phfck-manager-layout,.phfck-personal-layout{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:calc(100vh - 104px);align-items:start;background:transparent}
 .phfck-manager-sidebar{z-index:4}
-.phfck-manager-layout>.phfck-role-main{width:auto;max-width:none;margin:0;padding:28px 30px 48px;min-width:0}
+.phfck-manager-layout>.phfck-role-main,.phfck-personal-layout>.phfck-role-main{width:auto;max-width:none;margin:0;padding:28px 30px 48px;min-width:0}
 .phfck-manager-tool-main>.phfck-violations{margin-top:18px}
 .phfck-manager-scope-card strong{font-size:12px;line-height:1.45}
-@media(max-width:1100px){.phfck-manager-layout{grid-template-columns:220px minmax(0,1fr)}.phfck-manager-layout>.phfck-role-main{padding:24px 20px 40px}}
-@media(max-width:760px){.phfck-manager-layout{display:block;min-height:0}.phfck-manager-layout>.phfck-role-main{padding:18px 12px 36px}.phfck-manager-sidebar{position:static;height:auto}.phfck-manager-scope-card{display:none}}
+@media(max-width:1100px){.phfck-manager-layout,.phfck-personal-layout{grid-template-columns:220px minmax(0,1fr)}.phfck-manager-layout>.phfck-role-main,.phfck-personal-layout>.phfck-role-main{padding:24px 20px 40px}}
+@media(max-width:760px){.phfck-manager-layout,.phfck-personal-layout{display:block;min-height:0}.phfck-manager-layout>.phfck-role-main,.phfck-personal-layout>.phfck-role-main{padding:18px 12px 36px}.phfck-manager-sidebar,.phfck-personal-sidebar{position:static;height:auto}.phfck-manager-scope-card{display:none}}
 
 /* PHF Checklist 1.34.24 — Tổng quan điều hành Trưởng ca */
 .phfck-manager-command,.phfck-manager-progress,.phfck-manager-attention{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
@@ -4698,39 +4703,25 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 }
 
 /* PHF Checklist UX-01 Batch 3 — Hồ sơ đánh giá (shared learner/manager) */
-/* UX-01 Batch 4A — UI polish. Menu cá nhân (Bảng điểm hiện tại / Hồ sơ đánh
-   giá) không còn dùng .phfck-people-scope-chips (pill lọc nhỏ) - đổi sang
-   .phfck-personal-nav/.phfck-personal-layout riêng, mô phỏng ngôn ngữ icon +
-   tiêu đề + mô tả + active-state của .phfck-nav (managerSidebarHtml) nhưng
-   nhẹ hơn, không dùng lại chính class .phfck-nav để không ảnh hưởng sidebar
-   thật của module khác đang dùng chung class đó. */
-.phfck-personal-layout{display:flex;gap:20px;align-items:flex-start}
-/* .phfck-role-main mặc định width:min(1420px,...)+margin:0 auto (trang đứng
-   riêng, tự canh giữa) - xung đột với flex:1 khi nằm trong hàng flex 2 cột.
-   Override tường minh giống hệt cách .phfck-manager-layout>.phfck-role-main
-   đã xử lý cùng vấn đề này, không để mặc định rò rỉ vào layout mới. */
-.phfck-personal-layout>.phfck-role-main{flex:1;min-width:0;width:auto;max-width:none;margin:0;padding:28px 24px 48px}
-@media(max-width:1100px){.phfck-personal-layout>.phfck-role-main{padding:24px 18px 40px}}
-/* Dưới 760px, .phfck-role-shell:not([data-checklist-role="admin"]) .phfck-role-main
-   (mobile app shell, specificity cao hơn) đã tự đặt lại width/margin/padding -
-   không override thêm ở đây để tránh 2 quy tắc giành nhau. */
-.phfck-personal-nav{flex:0 0 216px}
-.phfck-personal-nav-list{display:flex;flex-direction:column;gap:8px;position:sticky;top:20px}
-.phfck-personal-nav-list button{display:flex;align-items:center;gap:11px;width:100%;border:1px solid var(--phfck-line);border-radius:14px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer;color:var(--phfck-ink);transition:border-color .15s ease,background .15s ease}
-.phfck-personal-nav-list button:hover{border-color:#9fc5b3;background:#f8fcfa}
-.phfck-personal-nav-list button.active{border-color:#4ca36f;background:var(--phfck-green-soft);box-shadow:inset 0 0 0 1px #4ca36f}
-.phfck-personal-nav-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:var(--phfck-green-soft);color:var(--phfck-green);font-size:16px}
-.phfck-personal-nav-list button.active .phfck-personal-nav-icon{background:#fff}
-.phfck-personal-nav-list button b{display:block;font-size:12.5px;color:var(--phfck-ink)}
-.phfck-personal-nav-list button small{display:block;margin-top:2px;color:var(--phfck-muted);font-size:10px;line-height:1.35}
-@media(max-width:1100px){.phfck-personal-nav{flex:0 0 188px}}
+/* UX-01 Batch 4B — thay thế toàn bộ .phfck-personal-nav (Batch 4A, hệ CSS
+   light-card riêng, không khớp giao diện manager đã chốt) bằng ĐÚNG
+   .phfck-sidebar/.phfck-nav mà managerSidebarHtml() dùng (xem
+   checklistNavItemHtml()/checklistSidebarShellHtml() trong JS) - personal
+   sidebar giờ thừa hưởng background/border-radius/padding/icon-box/active-
+   state/hover byte-identical với manager, không cần CSS riêng cho phần đó.
+   .phfck-personal-layout (sidebar trái/content phải) đã gộp vào chung rule
+   với .phfck-manager-layout ở trên - không định nghĩa lại ở đây. Phần dưới
+   đây CHỈ còn đúng 1 việc CSS riêng: chuyển 2 item từ cột dọc sang hàng
+   ngang trên mobile (Phần 6 - "mobileMode:'horizontal'"), vì manager sidebar
+   trên mobile bị ẩn hẳn bằng JS (isMobileWorkspace()) nên không có tiền lệ
+   CSS nào để tái dùng cho việc này; markup/token của item vẫn dùng chung. */
 @media(max-width:900px){
-  .phfck-personal-layout{flex-direction:column;gap:14px}
-  .phfck-personal-nav{flex:0 0 auto;width:100%}
-  .phfck-personal-nav-list{position:static;flex-direction:row}
-  .phfck-personal-nav-list button{flex:1 1 0;min-width:0}
+  .phfck-personal-sidebar{position:static;height:auto;min-height:0}
+  .phfck-personal-sidebar .phfck-sidebar-head{display:none}
+  .phfck-personal-sidebar .phfck-nav{flex-direction:row;gap:8px}
+  .phfck-personal-sidebar .phfck-nav button{flex:1 1 0;min-width:0}
 }
-@media(max-width:520px){.phfck-personal-nav-list button small{display:none}.phfck-personal-nav-list button{padding:10px}}
+@media(max-width:520px){.phfck-personal-sidebar .phfck-nav button small{display:none}}
 .phfck-assessment-profile{display:flex;flex-direction:column;gap:14px}
 .phfck-assessment-profile-head-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .phfck-assessment-profile-identity-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 18px 15px}

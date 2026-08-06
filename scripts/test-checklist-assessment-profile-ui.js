@@ -84,27 +84,77 @@ check(/function isChecklistPersonalExperience\(path\)\{if\(routeRole\(path\)==='
   'D0. isChecklistPersonalExperience(path): learner=true, manager-no-grant=true, manager-with-grant=false, admin=false (matches the confirmed business matrix)');
 check(/function checklistPersonalBasePath\(path\)\{return routeRole\(path\)==='manager'\?'\/ql\/checklist':'\/hv\/checklist';\}/.test(app),
   'D0. checklistPersonalBasePath(path) follows the account\'s own role namespace (/ql for manager, /hv for learner) - never rewrites manager to /hv');
-// UX-01 Batch 4A (UI polish only): pill-filter markup (.phfck-people-scope-chips)
-// replaced with a dedicated .phfck-personal-nav (icon+title+description, mirrors
-// managerSidebarHtml's nav language without reusing its literal .phfck-nav class,
-// wrapped in a .phfck-personal-layout two-column shell). No route/state/loader
-// change - the click handler, data-phfck-learner-tab attribute, and target paths
-// are byte-identical to before.
+// UX-01 Batch 4B: Batch 4A's separate .phfck-personal-nav (light-card CSS that
+// never matched the manager sidebar's actual dark/sticky/full-height look, per
+// visual QA) is gone. Manager sidebar and personal nav now share ONE item
+// renderer (checklistNavItemHtml) and ONE shell renderer (checklistSidebarShellHtml)
+// - personal only supplies different config (2 items, no head-scope/foot/admin-link).
+// No route/state/loader change - click handler, data-phfck-learner-tab attribute,
+// and target paths are byte-identical to before.
+check(/function checklistNavItemHtml\(opts\)\{/.test(app), 'D1a. checklistNavItemHtml() shared item renderer exists');
+check(/function checklistSidebarShellHtml\(opts\)\{/.test(app), 'D1b. checklistSidebarShellHtml() shared shell renderer exists');
 const personalTabsBody = fnBody(app, 'personalChecklistTabsHtml', '\\s*path\\s*');
 check(!!personalTabsBody, 'D1. personalChecklistTabsHtml() found');
 if (personalTabsBody) {
   check(/var base=checklistPersonalBasePath\(path\)/.test(personalTabsBody),
     'D. Tab bar computes its base path from checklistPersonalBasePath(path) - /hv for a learner session, /ql for a manager-no-grant session');
-  check(!/phfck-people-scope-chips|phfck-people-scope-tabs/.test(personalTabsBody),
-    'D. Personal nav no longer reuses .phfck-people-scope-chips/.phfck-people-scope-tabs (the pill-filter look flagged as "trông như 2 pill filter nhỏ")');
-  check(/class="phfck-personal-nav"/.test(personalTabsBody) && /class="phfck-personal-nav-list"/.test(personalTabsBody) && /class="phfck-personal-nav-icon"/.test(personalTabsBody),
-    'D. Personal nav renders as an aside/nav with icon+title+description items (.phfck-personal-nav/-list/-icon), not inline pill buttons');
-  check(/data-phfck-learner-tab="'\+esc\(target\)\+'"/.test(personalTabsBody) && personalTabsBody.includes("item('my-checklist',base,") && personalTabsBody.includes("item('assessment-profile',base+'/ho-so-danh-gia',"),
-    'D. Tab targets are still the computed, literal base path (+ /ho-so-danh-gia) passed into item() - not recomputed at click time');
-  check(/aria-current="page"/.test(personalTabsBody),
-    'D. Active nav item gets aria-current="page" (Part 13 accessibility - active state not color-only)');
+  check(!/phfck-people-scope-chips|phfck-people-scope-tabs|phfck-personal-nav-list|phfck-personal-nav-icon/.test(personalTabsBody),
+    'D. Personal nav reuses neither the old pill-filter classes NOR its own Batch 4A .phfck-personal-nav-list/-icon classes anymore');
+  check(/checklistNavItemHtml\(\{active:active==='my-checklist',navAttr:'data-phfck-learner-tab',navValue:base,/.test(personalTabsBody) && /checklistNavItemHtml\(\{active:active==='assessment-profile',navAttr:'data-phfck-learner-tab',navValue:base\+'\/ho-so-danh-gia',/.test(personalTabsBody),
+    'D. Both nav items are built via checklistNavItemHtml() - the SAME renderer managerSidebarHtml() uses - with the same literal, precomputed target paths (not recomputed at click time)');
+  check(/checklistSidebarShellHtml\(\{/.test(personalTabsBody) && /modifierClass:'phfck-personal-sidebar'/.test(personalTabsBody),
+    'D. Personal nav is wrapped via checklistSidebarShellHtml() - the SAME shell renderer managerSidebarHtml() uses - not a separate <aside> markup');
+  check(/ariaCurrent:true/.test(personalTabsBody),
+    'D. Personal items opt into aria-current="page" via the shared renderer\'s ariaCurrent flag (Part 13 - active state not color-only); manager items don\'t pass it, so manager DOM is unaffected');
   check(/'Bảng điểm hiện tại'/.test(personalTabsBody) && !/'Checklist của tôi'/.test(personalTabsBody),
     'D. Nav item is relabelled "Bảng điểm hiện tại" (was "Checklist của tôi")');
+}
+// ---------- U. Executable byte-equivalence proof: shared renderer output for
+// manager-shaped input must match the exact pre-Batch-4B item()/violationItem()/
+// sidebar-assembly template, character for character. This is a REAL execution
+// (Node vm sandbox), not a source-pattern guess - the strongest evidence available
+// in this project's no-jsdom testing convention that "manager sidebar không đổi".
+const vm = require('vm');
+function extractFnSource(source, name) {
+  const re = new RegExp('function ' + name + '\\([^)]*\\)\\{[\\s\\S]*?\\n  \\}');
+  const m = source.match(re);
+  return m ? m[0] : null;
+}
+const navItemSrc = extractFnSource(app, 'checklistNavItemHtml');
+const shellSrc = extractFnSource(app, 'checklistSidebarShellHtml');
+check(!!navItemSrc, 'U0. checklistNavItemHtml() source extracted for sandbox execution');
+check(!!shellSrc, 'U0. checklistSidebarShellHtml() source extracted for sandbox execution');
+if (navItemSrc && shellSrc) {
+  const escSrc = "function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c];});}";
+  const sandbox = {};
+  vm.createContext(sandbox);
+  try {
+    vm.runInContext(escSrc + '\n' + navItemSrc + '\n' + shellSrc, sandbox);
+    const itemActiveWithBadge = sandbox.checklistNavItemHtml({active: true, navAttr: 'data-phfck-manager-section', navValue: 'people', icon: '♙', label: 'Nhân sự', description: 'Danh sách được xem · Cần thẩm định', badge: 5});
+    const expectedItemActiveWithBadge = '<button type="button" class="active" data-phfck-manager-section="people"><span class="phfck-nav-icon" aria-hidden="true">♙</span><span><b>Nhân sự<i class="phfck-nav-badge">5</i></b><small>Danh sách được xem · Cần thẩm định</small></span></button>';
+    check(itemActiveWithBadge === expectedItemActiveWithBadge, 'U. checklistNavItemHtml() output for an active, badged manager item is byte-identical to the pre-Batch-4B item() template');
+
+    const itemInactiveNoBadge = sandbox.checklistNavItemHtml({active: false, navAttr: 'data-phfck-manager-violation-view', navValue: 'log', icon: '☷', label: 'Nhật ký lỗi', description: 'Xem, lọc và rà bản ghi trong phạm vi'});
+    const expectedItemInactiveNoBadge = '<button type="button" class="" data-phfck-manager-violation-view="log"><span class="phfck-nav-icon" aria-hidden="true">☷</span><span><b>Nhật ký lỗi</b><small>Xem, lọc và rà bản ghi trong phạm vi</small></span></button>';
+    check(itemInactiveNoBadge === expectedItemInactiveNoBadge, 'U. checklistNavItemHtml() output for an inactive violationItem() (no badge, no ariaCurrent) is byte-identical to the pre-Batch-4B violationItem() template');
+
+    const itemVisibleFalse = sandbox.checklistNavItemHtml({visible: false, navAttr: 'data-phfck-manager-section', navValue: 'reports', icon: '▥', label: 'Báo cáo', description: 'x'});
+    check(itemVisibleFalse === '', 'U. checklistNavItemHtml() still returns \'\' when visible:false (capability-gated items disappear exactly as before)');
+
+    const personalActiveItem = sandbox.checklistNavItemHtml({active: true, navAttr: 'data-phfck-learner-tab', navValue: '/hv/checklist', icon: '▦', label: 'Bảng điểm hiện tại', description: 'Điểm, phiếu và việc cần xử lý', ariaCurrent: true});
+    const expectedPersonalActiveItem = '<button type="button" class="active" aria-current="page" data-phfck-learner-tab="/hv/checklist"><span class="phfck-nav-icon" aria-hidden="true">▦</span><span><b>Bảng điểm hiện tại</b><small>Điểm, phiếu và việc cần xử lý</small></span></button>';
+    check(personalActiveItem === expectedPersonalActiveItem, 'U. checklistNavItemHtml() correctly adds aria-current="page" ONLY when the caller opts in (personal items) - proves manager (which never opts in) cannot get this attribute added');
+
+    const shellOutput = sandbox.checklistSidebarShellHtml({modifierClass: 'phfck-manager-sidebar', dataAttr: 'data-phfck-manager-sidebar', headHtml: '<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN LÝ</small><strong>Khu Test</strong></div>', navAriaLabel: 'Menu quản lý Checklist', itemsHtml: 'ITEMS', extraHtml: 'EXTRA', footHtml: '<div class="phfck-sidebar-foot phfck-manager-scope-card">FOOT</div>'});
+    const expectedShellOutput = '<aside class="phfck-sidebar phfck-manager-sidebar" data-phfck-manager-sidebar><div class="phfck-sidebar-head"><small>KHU VỰC QUẢN LÝ</small><strong>Khu Test</strong></div><nav class="phfck-nav" aria-label="Menu quản lý Checklist">ITEMSEXTRA</nav><div class="phfck-sidebar-foot phfck-manager-scope-card">FOOT</div></aside>';
+    check(shellOutput === expectedShellOutput, 'U. checklistSidebarShellHtml() output with manager-shaped config is byte-identical to the pre-Batch-4B manager <aside>...</aside> assembly (same class list, same boolean data-attr syntax, same head/nav/extra/foot order)');
+
+    const personalShellOutput = sandbox.checklistSidebarShellHtml({modifierClass: 'phfck-personal-sidebar', dataAttr: 'data-phfck-personal-sidebar', headHtml: '<div class="phfck-sidebar-head"><small>KHU VỰC CÁ NHÂN</small><strong>Checklist</strong></div>', navAriaLabel: 'Khu vực cá nhân', itemsHtml: 'ITEMS'});
+    check(personalShellOutput === '<aside class="phfck-sidebar phfck-personal-sidebar" data-phfck-personal-sidebar><div class="phfck-sidebar-head"><small>KHU VỰC CÁ NHÂN</small><strong>Checklist</strong></div><nav class="phfck-nav" aria-label="Khu vực cá nhân">ITEMS</nav></aside>',
+      'U. checklistSidebarShellHtml() with personal config (no extra/foot) omits them cleanly and uses the SAME .phfck-sidebar base class as manager - not a separate container');
+  } catch (err) {
+    check(false, 'U. Sandbox execution of the extracted renderer functions did not throw: ' + (err && err.message));
+  }
 }
 check(!/Checklist của tôi/.test(app), 'D1b. The literal string "Checklist của tôi" no longer appears anywhere in the file (QA concern: stale title left where it would confuse) - renamed to "Bảng điểm hiện tại" everywhere in scope');
 const roleWorkspaceBody = fnBody(app, 'roleWorkspaceContentHtml', '\\s*path\\s*');
@@ -272,33 +322,42 @@ if (scoreHtmlBodyForEmpty) {
   check(/else body=assessmentProfileEmptyHtml\(/.test(scoreHtmlBodyForEmpty), 'T. none/default status also uses the compact icon empty state');
   check(!/phfck-permission-empty/.test(scoreHtmlBodyForEmpty), 'T. Score empty states no longer reuse the shared .phfck-permission-empty class (kept isolated from Nhân sự/Phân quyền styling)');
 }
-// CSS isolation: the new personal-nav/layout rules must not redefine shared,
-// widely-used selectors also relied on by other modules (manager sidebar, the
-// generic app .phfck-nav, or the people-scope filter chips) - only add new,
-// uniquely-prefixed classes.
+// ---------- V. UX-01 Batch 4B - shared sidebar CSS, dead Batch 4A CSS removed ----------
+// CSS isolation: the shared item/shell renderer must not redefine widely-used
+// selectors also relied on by other modules - it EXTENDS existing manager rules
+// (adding .phfck-personal-layout/.phfck-personal-sidebar to the same selector
+// list) rather than duplicating their declarations a second time.
 // .phfck-nav{...} and .phfck-people-scope-chips{...} both pre-date this batch
-// (shared app-wide sidebar nav, and the manager people-page filter chips) with
-// their own pre-existing occurrence counts (base rule + scoped overrides
-// elsewhere in the file) - the isolation requirement is that Batch 4A adds NO
-// additional occurrence of either, not that they appear zero/one times overall.
-const navBraceCount = (css.match(/\.phfck-nav\{/g) || []).length;
+// with their own pre-existing occurrence counts (base rule + scoped overrides
+// elsewhere in the file) - personal now DELIBERATELY reuses .phfck-nav (that is
+// the whole point of Batch 4B), so the requirement is simply that no NEW,
+// separate .phfck-nav{...} declaration block was added - the class is consumed,
+// not redefined.
+// Bare top-level ".phfck-nav{...}" definitions only (not compound descendant
+// selectors like ".phfck-personal-sidebar .phfck-nav{...}", which are legitimate
+// scoped overrides, not redefinitions of the base rule).
+const bareNavBraceCount = (css.match(/(?:^|[};])\s*\.phfck-nav\{/g) || []).length;
 const chipsBraceCount = (css.match(/\.phfck-people-scope-chips\{/g) || []).length;
-check(navBraceCount === 2, 'T. .phfck-nav{...} occurrence count unchanged from before this batch (2 - Batch 4A added no new .phfck-nav override)');
-check(chipsBraceCount === 3, 'T. .phfck-people-scope-chips{...} occurrence count unchanged from before this batch (3 - Batch 4A added no new override, personal nav uses its own class instead)');
-check(/\.phfck-personal-layout\{/.test(css) && /\.phfck-personal-nav-list button\{/.test(css) && /\.phfck-personal-nav-icon\{/.test(css),
-  'T. New .phfck-personal-layout/.phfck-personal-nav-list/.phfck-personal-nav-icon rules exist in phf-checklist.css');
-check(/\.phfck-manager-layout\{display:grid;grid-template-columns:260px minmax\(0,1fr\);/.test(css), 'T. .phfck-manager-layout (manager workspace two-column shell) CSS is untouched');
-check(!/\.phfck-learner-tabs\.phfck-people-scope-chips/.test(css), 'T. Dead .phfck-learner-tabs.phfck-people-scope-chips rule (pill-tab look) removed, not left as unused CSS');
-check(!/\.phfck-assessment-profile-toolbar\{/.test(css), 'T. Dead .phfck-assessment-profile-toolbar rule (near-empty full-width "Kỳ xem" card) removed after the control moved into the identity card');
-// Caught during this batch's own QA pass: .phfck-role-main's base rule
-// (width:min(1420px,...);margin:0 auto - meant for a standalone, self-centering
-// page) is still active inside the new flex row and conflicts with flex:1 unless
-// explicitly overridden, exactly like .phfck-manager-layout>.phfck-role-main
-// already does for the manager workspace - without this, the personal-experience
-// content column could fail to fill/could overflow depending on browser flex-basis
-// resolution (Part 12: "không tạo horizontal overflow toàn trang").
-check(/\.phfck-personal-layout>\.phfck-role-main\{flex:1;min-width:0;width:auto;max-width:none;margin:0;/.test(css),
-  'T. .phfck-personal-layout>.phfck-role-main explicitly resets width/margin (mirrors the manager-layout fix for the same width:min(1420px,...)+margin:0 auto conflict)');
+check(bareNavBraceCount === 2, 'V. Bare .phfck-nav{...} base-rule definitions unchanged from before this batch (2) - personal nav consumes the existing rule via a scoped compound selector, does not redefine the base rule itself');
+check(chipsBraceCount === 3, 'V. .phfck-people-scope-chips{...} occurrence count unchanged (3) - not touched by this batch either');
+check(!/\.phfck-personal-nav\{|\.phfck-personal-nav-list\{|\.phfck-personal-nav-icon\{/.test(css),
+  'V. Batch 4A\'s separate .phfck-personal-nav/-list/-icon rules are fully deleted, not left as dead CSS (Part 7)');
+check(!/\.phfck-personal-nav-list|\.phfck-personal-nav-icon/.test(app),
+  'V. No JS markup references the old .phfck-personal-nav-list/-icon classes anymore');
+check(/\.phfck-manager-layout,\.phfck-personal-layout\{display:grid;grid-template-columns:260px minmax\(0,1fr\);min-height:calc\(100vh - 104px\);align-items:start;background:transparent\}/.test(css),
+  'V. .phfck-personal-layout is merged into the SAME grid rule as .phfck-manager-layout (one declaration block, two selectors) - not a cloned rule with identical CSS (Part 5 explicitly forbids that)');
+check(/\.phfck-manager-layout>\.phfck-role-main,\.phfck-personal-layout>\.phfck-role-main\{width:auto;max-width:none;margin:0;padding:28px 30px 48px;min-width:0\}/.test(css),
+  'V. The role-main width/margin reset (fixes the width:min(1420px,...)+margin:0 auto conflict) is shared via the same merged selector, not duplicated with different values');
+check(/@media\(max-width:1100px\)\{\.phfck-manager-layout,\.phfck-personal-layout\{grid-template-columns:220px minmax\(0,1fr\)\}/.test(css),
+  'V. The 1100px breakpoint column-width override is shared between manager and personal (same 220px, not a separate personal value)');
+check(/\.phfck-manager-sidebar,\.phfck-personal-sidebar\{position:static;height:auto\}/.test(css),
+  'V. Mobile position:static override is shared between manager and personal sidebars (personal sidebar cannot end up sticky and cover footer content on mobile)');
+check(/\.phfck-manager-sidebar\{z-index:4\}/.test(css) && !/\.phfck-personal-sidebar\{z-index/.test(css),
+  'V. Manager\'s z-index:4 modifier is untouched and NOT applied to personal (manager keeps its own distinct modifier, proving the merge only shares what both need)');
+check(!/\.phfck-learner-tabs\.phfck-people-scope-chips/.test(css), 'V. Dead .phfck-learner-tabs.phfck-people-scope-chips rule (Batch 4A pill-tab look) removed, not left as unused CSS');
+check(!/\.phfck-assessment-profile-toolbar\{/.test(css), 'V. Dead .phfck-assessment-profile-toolbar rule (near-empty full-width "Kỳ xem" card) removed after the control moved into the identity card');
+check(/\.phfck-personal-sidebar \.phfck-nav\{flex-direction:row/.test(css),
+  'V. Mobile-only override converts the personal nav to a horizontal row (Part 6 mobileMode) - scoped to .phfck-personal-sidebar .phfck-nav so manager (JS-hidden on mobile anyway) is unaffected');
 
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL PASS'));
 process.exit(failures ? 1 : 0);

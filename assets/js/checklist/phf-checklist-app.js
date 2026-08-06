@@ -5407,28 +5407,57 @@
     }
     return path;
   }
+  /* UX-01 Batch 4B - renderer nav-item DÙNG CHUNG cho manager sidebar và
+     personal nav (learner/manager-không-grant). Output cho manager PHẢI byte-
+     identical với item()/violationItem() cũ (xem test T.manager-byte-equivalent):
+     class="active"/"", rồi (chỉ khi ariaCurrent truyền true) aria-current, rồi
+     đúng 1 khoảng trắng, rồi navAttr="navValue" - đúng thứ tự chuỗi cũ. Manager
+     không truyền ariaCurrent nên DOM không có gì mới so với trước. */
+  function checklistNavItemHtml(opts){
+    if(opts.visible===false)return '';
+    var badgeHtml=opts.badge!==''&&opts.badge!=null?'<i class="phfck-nav-badge">'+esc(opts.badge)+'</i>':'';
+    return '<button type="button" class="'+(opts.active?'active':'')+'"'+(opts.ariaCurrent&&opts.active?' aria-current="page"':'')+' '+opts.navAttr+'="'+esc(opts.navValue)+'"><span class="phfck-nav-icon" aria-hidden="true">'+opts.icon+'</span><span><b>'+esc(opts.label)+badgeHtml+'</b><small>'+esc(opts.description)+'</small></span></button>';
+  }
+  /* Khung sidebar DÙNG CHUNG - cùng .phfck-sidebar/.phfck-nav nên personal thừa
+     hưởng ĐÚNG background/border-radius/padding/active-state/hover đã chốt của
+     manager, không phải tự dựng lại (đây là lỗi Batch 4A: .phfck-personal-nav
+     là hệ CSS riêng, không bao giờ khớp .phfck-sidebar thật). Manager truyền đủ
+     head/extra/foot để giữ nguyên output; personal chỉ truyền head gọn, bỏ
+     extra/foot (không có "toàn bộ phần scope/build của manager" để hiện). */
+  function checklistSidebarShellHtml(opts){
+    return '<aside class="phfck-sidebar'+(opts.modifierClass?' '+opts.modifierClass:'')+'"'+(opts.dataAttr?' '+opts.dataAttr:'')+'>'
+      +(opts.headHtml||'')
+      +'<nav class="phfck-nav" aria-label="'+esc(opts.navAriaLabel)+'">'+(opts.itemsHtml||'')+(opts.extraHtml||'')+'</nav>'
+      +(opts.footHtml||'')
+      +'</aside>';
+  }
   function managerSidebarHtml(data){
     var grant=data&&data.grant||{},context=managerPermissionContext(data),scope=roleScopeSummary(data),rawActive=managerSectionFromLocation(currentRouteKey()),active=rawActive==='reviews'?'people':rawActive;
     var people=Array.isArray(data&&data.people)?data.people:[],reviewForms=Array.isArray(roleWorkspaceState.reviews)?roleWorkspaceState.reviews:[],waitingReviews=reviewForms.filter(function(f){return f.status==='waiting_review';}).length,reviewBadge=roleWorkspaceState.reviewLoading?'…':(waitingReviews||people.length);
     if(!grant)return '';
-    function item(section,icon,title,description,visible,badge){if(visible===false)return '';return '<button type="button" class="'+(active===section?'active':'')+'" data-phfck-manager-section="'+section+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+(badge!==''&&badge!=null?'<i class="phfck-nav-badge">'+esc(badge)+'</i>':'')+'</b><small>'+esc(description)+'</small></span></button>';}
+    function item(section,icon,title,description,visible,badge){return checklistNavItemHtml({active:active===section,navAttr:'data-phfck-manager-section',navValue:section,icon:icon,label:title,description:description,visible:visible,badge:badge});}
     /* Ghi nhận lỗi (tạo mới) và Nhật ký lỗi (tra cứu) là 2 mục menu riêng nhưng cùng
        section=violations - active-state dùng violationEffectiveView (nguồn duy nhất "đang xem
        màn nào"), không phải section suông, để không bao giờ sáng cả hai cùng lúc. */
-    function violationItem(view,icon,title,description,visible){if(visible!==true)return '';var isActive=active==='violations'&&violationEffectiveView(currentRouteKey(),data.canRecordViolation===true)===view;return '<button type="button" class="'+(isActive?'active':'')+'" data-phfck-manager-violation-view="'+view+'"><span class="phfck-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(title)+'</b><small>'+esc(description)+'</small></span></button>';}
-    return '<aside class="phfck-sidebar phfck-manager-sidebar" data-phfck-manager-sidebar>'
-      +'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN LÝ</small><strong>'+esc(context.areaTitle)+'</strong></div>'
-      +'<nav class="phfck-nav" aria-label="Menu quản lý Checklist">'
-      +item('overview','⌂','Tổng quan','Việc cần ưu tiên hôm nay')
+    function violationItem(view,icon,title,description,visible){if(visible!==true)return '';var isActive=active==='violations'&&violationEffectiveView(currentRouteKey(),data.canRecordViolation===true)===view;return checklistNavItemHtml({active:isActive,navAttr:'data-phfck-manager-violation-view',navValue:view,icon:icon,label:title,description:description});}
+    var itemsHtml=item('overview','⌂','Tổng quan','Việc cần ưu tiên hôm nay')
       +item('people','♙','Nhân sự','Danh sách được xem · Cần thẩm định',true,reviewBadge)
       +item('my-work','▦','Phiếu của tôi','Tự đánh giá và việc cá nhân')
       +violationItem('create','!','Ghi nhận lỗi','Lập và theo dõi lỗi trong phạm vi',data.canRecordViolation===true)
       +violationItem('log','☷','Nhật ký lỗi','Xem, lọc và rà bản ghi trong phạm vi',data.canRecordViolation===true||data.canViewViolations===true)
       +item('reports','▥','Báo cáo','Theo dõi kết quả và xuất dữ liệu',grant.capabilities&&grant.capabilities.view_reports===true)
-      +item('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant.capabilities&&grant.capabilities.view_monthly===true)
-      +(isAssistantWebOperator()?'<style>.phfck-nav-admin-link{display:flex;align-items:center;gap:12px;margin:8px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#fff!important;text-decoration:none!important;background:rgba(255,255,255,.06);transition:.16s ease}.phfck-nav-admin-link:hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}.phfck-nav-admin-link .phfck-nav-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.12);font-size:18px;flex:0 0 38px}.phfck-nav-admin-link span:last-child{display:flex;flex-direction:column;min-width:0}.phfck-nav-admin-link b{font-size:15px;line-height:1.25}.phfck-nav-admin-link small{margin-top:4px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.35}</style><a class="phfck-nav-admin-link" href="/ql/checklist/phan-quyen"><span class="phfck-nav-icon">⌘</span><span><b>Phân quyền Checklist</b><small>Cấp quyền vận hành cho thành viên</small></span></a>':'')
-      +'</nav>'
-      +'<div class="phfck-sidebar-foot phfck-manager-scope-card"><span>Phạm vi được cấp</span><strong>'+esc(scope)+'</strong><small>Xem theo phạm vi · '+esc(context.reviewRule)+'</small><small data-phfck-build style="display:block;margin-top:6px;opacity:.72">Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||'1.38.0')+' · '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||'1380-role-session-lifecycle')+'</small></div></aside>';
+      +item('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant.capabilities&&grant.capabilities.view_monthly===true);
+    var adminLinkHtml=isAssistantWebOperator()?'<style>.phfck-nav-admin-link{display:flex;align-items:center;gap:12px;margin:8px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#fff!important;text-decoration:none!important;background:rgba(255,255,255,.06);transition:.16s ease}.phfck-nav-admin-link:hover{background:rgba(255,255,255,.13);transform:translateY(-1px)}.phfck-nav-admin-link .phfck-nav-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.12);font-size:18px;flex:0 0 38px}.phfck-nav-admin-link span:last-child{display:flex;flex-direction:column;min-width:0}.phfck-nav-admin-link b{font-size:15px;line-height:1.25}.phfck-nav-admin-link small{margin-top:4px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.35}</style><a class="phfck-nav-admin-link" href="/ql/checklist/phan-quyen"><span class="phfck-nav-icon">⌘</span><span><b>Phân quyền Checklist</b><small>Cấp quyền vận hành cho thành viên</small></span></a>':'';
+    var footHtml='<div class="phfck-sidebar-foot phfck-manager-scope-card"><span>Phạm vi được cấp</span><strong>'+esc(scope)+'</strong><small>Xem theo phạm vi · '+esc(context.reviewRule)+'</small><small data-phfck-build style="display:block;margin-top:6px;opacity:.72">Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||'1.38.0')+' · '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||'1380-role-session-lifecycle')+'</small></div>';
+    return checklistSidebarShellHtml({
+      modifierClass:'phfck-manager-sidebar',
+      dataAttr:'data-phfck-manager-sidebar',
+      headHtml:'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN LÝ</small><strong>'+esc(context.areaTitle)+'</strong></div>',
+      navAriaLabel:'Menu quản lý Checklist',
+      itemsHtml:itemsHtml,
+      extraHtml:adminLinkHtml,
+      footHtml:footHtml
+    });
   }
   function managerSectionHeading(kicker,titleText,description,actions){return '<section class="phfck-role-heading"><div><small>'+esc(kicker)+'</small><h1>'+esc(titleText)+'</h1><p>'+esc(description)+'</p></div><div class="phfck-monthly-head-actions">'+(actions||'')+'<button type="button" class="phfck-secondary" data-phfck-role-retry>↻ Làm mới</button></div></section>';}
   function managerOverviewIconSvg(type){
@@ -5755,25 +5784,26 @@
      sang /hv. Tab luôn điều hướng bằng đường dẫn cố định theo base đã tính
      (không suy theo route hiện tại), qua window.phfNavigate (Router thật, giữ
      back/forward). */
-  /* UX-01 Batch 4A - UI polish only, không đổi target/route/logic. Trước đó
-     tái dùng .phfck-people-scope-chips (pill filter nhỏ, thiết kế cho bộ lọc
-     Tất cả nhân sự/Phiếu thẩm định trong trang Nhân sự) khiến 2 khu vực chức
-     năng chính trông như tag lọc phụ. Đổi sang markup/CSS riêng
-     (.phfck-personal-nav, không đụng .phfck-people-scope-*) mô phỏng đúng
-     ngôn ngữ icon+tiêu đề+mô tả+active-state của managerSidebarHtml() nhưng
-     nhẹ hơn (không nền xanh đậm, không sidebar cố định), giản lược còn 2 mục.
-     Giữ nguyên hoàn toàn: data-phfck-learner-tab (attribute + giá trị path),
-     click handler, checklistPersonalBasePath(). */
+  /* UX-01 Batch 4B - trước đó (Batch 4A) personal nav dựng bằng markup/CSS
+     riêng (.phfck-personal-nav), một hệ light-card KHÔNG dùng .phfck-sidebar/
+     .phfck-nav thật của manager - đó là lý do nó "nhìn như component gắn
+     thêm" (khác nền, khác icon box, khác active-state, khác padding...). Sửa
+     triệt để: dùng ĐÚNG checklistNavItemHtml()/checklistSidebarShellHtml() mà
+     managerSidebarHtml() dùng - personal chỉ khác DỮ LIỆU cấu hình (2 item,
+     không head-scope/foot/admin-link), không phải khác hệ renderer/CSS. Giữ
+     nguyên hoàn toàn: data-phfck-learner-tab (attribute + giá trị path), click
+     handler, checklistPersonalBasePath(). Không đổi route/state/loader. */
   function personalChecklistTabsHtml(path){
     var base=checklistPersonalBasePath(path),active=cleanPath(path)===base+'/ho-so-danh-gia'?'assessment-profile':'my-checklist';
-    function item(key,target,icon,label,desc){
-      var isActive=active===key;
-      return '<button type="button" class="'+(isActive?'active':'')+'"'+(isActive?' aria-current="page"':'')+' data-phfck-learner-tab="'+esc(target)+'"><span class="phfck-personal-nav-icon" aria-hidden="true">'+icon+'</span><span><b>'+esc(label)+'</b><small>'+esc(desc)+'</small></span></button>';
-    }
-    return '<aside class="phfck-personal-nav" aria-label="Khu vực cá nhân"><nav class="phfck-personal-nav-list">'
-      +item('my-checklist',base,'▦','Bảng điểm hiện tại','Điểm, phiếu và việc cần xử lý')
-      +item('assessment-profile',base+'/ho-so-danh-gia','🗎','Hồ sơ đánh giá','Tiêu chuẩn áp dụng và lịch sử điểm')
-      +'</nav></aside>';
+    var itemsHtml=checklistNavItemHtml({active:active==='my-checklist',navAttr:'data-phfck-learner-tab',navValue:base,icon:'▦',label:'Bảng điểm hiện tại',description:'Điểm, phiếu và việc cần xử lý',ariaCurrent:true})
+      +checklistNavItemHtml({active:active==='assessment-profile',navAttr:'data-phfck-learner-tab',navValue:base+'/ho-so-danh-gia',icon:'🗎',label:'Hồ sơ đánh giá',description:'Tiêu chuẩn áp dụng và lịch sử điểm',ariaCurrent:true});
+    return checklistSidebarShellHtml({
+      modifierClass:'phfck-personal-sidebar',
+      dataAttr:'data-phfck-personal-sidebar',
+      headHtml:'<div class="phfck-sidebar-head"><small>KHU VỰC CÁ NHÂN</small><strong>Checklist</strong></div>',
+      navAriaLabel:'Khu vực cá nhân',
+      itemsHtml:itemsHtml
+    });
   }
   /* ===== hết Hồ sơ đánh giá ===== */
   function roleWorkspaceContentHtml(path){
