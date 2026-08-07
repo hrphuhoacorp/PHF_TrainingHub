@@ -62,18 +62,29 @@ function scopeText(scope){
   return label;
 }
 
-function header(activeTab, capabilities, isAdmin){
-  var canPeople = isAdmin || (capabilities && capabilities.access_knl);
-  var canPermissions = isAdmin || (capabilities && capabilities.manage_permissions);
-  var tabs = '';
-  if(canPeople) tabs += '<button type="button" class="phfk-tab'+(activeTab==='nhan-su'?' active':'')+'" data-knl-tab="nhan-su">Nhân sự</button>';
-  if(canPermissions) tabs += '<button type="button" class="phfk-tab'+(activeTab==='phan-quyen'?' active':'')+'" data-knl-tab="phan-quyen">Phân quyền</button>';
+/* Layout: topbar (nhận diện KNL) + sidebar trái (menu dọc) + content phải.
+   Cấu trúc THAM KHẢO khung quản trị Checklist (header/sidebar/content), màu và
+   nội dung hoàn toàn riêng của KNL — không copy nghiệp vụ/CSS Checklist. */
+var SIDEBAR_ITEMS = [
+  { key:'nhan-su', label:'Nhân sự', icon:'◍', needs:'access_knl' },
+  { key:'phan-quyen', label:'Phân quyền', icon:'⚙', needs:'manage_permissions' }
+];
+
+function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
+  var items = SIDEBAR_ITEMS.filter(function(item){ return isAdmin || (capabilities && capabilities[item.needs]); });
+  var navHtml = items.map(function(item){
+    return '<button type="button" class="phfk-nav-item'+(activeTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
+      '<span class="phfk-nav-icon" aria-hidden="true">'+item.icon+'</span><span>'+item.label+'</span></button>';
+  }).join('');
   return '' +
-    '<header class="phfk-header">' +
-      '<button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">⌂</span><span>PHF HR</span></button>' +
-      '<div class="phfk-title"><strong>PHF Khung năng lực</strong><small>Nhân sự &amp; phân quyền</small></div>' +
+    '<header class="phfk-topbar">' +
+      '<button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">⌂</span><span>PHF HR / Home</span></button>' +
+      '<div class="phfk-brand"><strong>PHF Khung năng lực</strong><small>Nhân sự &amp; phân quyền</small></div>' +
     '</header>' +
-    (tabs ? '<nav class="phfk-tabs">' + tabs + '</nav>' : '');
+    '<div class="phfk-layout">' +
+      (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head">Menu KNL</div><nav class="phfk-nav">'+navHtml+'</nav></aside>' : '') +
+      '<main class="phfk-main" data-knl-body>' + (bodyHtml || '') + '</main>' +
+    '</div>';
 }
 
 function bindShell(root){
@@ -365,17 +376,17 @@ window.phfRenderKnl = async function(path){
   var canPermissions = isAdmin || capabilities.manage_permissions;
 
   if(tab === 'phan-quyen' && !canPermissions){
-    root.innerHTML = '<div class="phf-knl-root-shell">' + header(tab, capabilities, isAdmin) + noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".') + '</div>';
+    root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame(tab, capabilities, isAdmin, noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".')) + '</div>';
     bindShell(root);
     return true;
   }
   if(tab === 'nhan-su' && !canPeople){
-    root.innerHTML = '<div class="phf-knl-root-shell">' + header('nhan-su', capabilities, isAdmin) + noAccessSection('Tài khoản chưa được cấp quyền truy cập KNL. Vui lòng liên hệ Admin.') + '</div>';
+    root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame('nhan-su', capabilities, isAdmin, noAccessSection('Tài khoản chưa được cấp quyền truy cập KNL. Vui lòng liên hệ Admin.')) + '</div>';
     bindShell(root);
     return true;
   }
 
-  root.innerHTML = '<div class="phf-knl-root-shell">' + header(tab, capabilities, isAdmin) + '<div class="phfk-body" data-knl-body></div></div>';
+  root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame(tab, capabilities, isAdmin, '') + '</div>';
   bindShell(root);
 
   if(tab === 'phan-quyen'){

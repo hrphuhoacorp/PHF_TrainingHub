@@ -72,13 +72,27 @@ function makeTableFactory(rows) {
   };
 }
 
-const STATE = { grants: [], history: [], employees: [] };
+const STATE = { grants: [], history: [], employees: [], simulateSchemaMissing: false };
+
+function missingTableQuery(table) {
+  // Mô phỏng đúng lỗi Postgrest thật khi bảng chưa tồn tại (PGRST205), để kiểm
+  // chứng throwDb() dịch đúng thành KNL_SCHEMA_MISSING thay vì lộ lỗi 500 chung
+  // chung — đây chính là bug mà PATCH này sửa (root cause: SQL chưa được chạy).
+  const q = {
+    select() { return q; }, eq() { return q; }, neq() { return q; }, in() { return q; },
+    order() { return q; }, limit() { return q; }, maybeSingle() { return q; }, single() { return q; },
+    insert() { return q; }, update() { return q; },
+    then(resolve) { resolve({ data: null, error: { code: 'PGRST205', message: `Could not find the table 'public.${table}' in the schema cache` } }); }
+  };
+  return q;
+}
 
 function buildSupabaseMock() {
   return {
     createClient() {
       return {
         from(table) {
+          if (STATE.simulateSchemaMissing && (table === 'knl_permission_grants' || table === 'knl_permission_grant_history')) return missingTableQuery(table);
           if (table === 'knl_permission_grants') return makeTableFactory(STATE.grants)();
           if (table === 'knl_permission_grant_history') return makeTableFactory(STATE.history)();
           if (table === 'checklist_employee_assignments') return makeTableFactory(STATE.employees)();
@@ -217,6 +231,14 @@ async function run() {
 
   // ---------- CASE 10: Regression — namespace KNL độc lập, không tạo/sửa bảng checklist_* ----------
   check(STATE.employees.length === 8 && STATE.employees.every(row => Object.prototype.hasOwnProperty.call(row, 'employee_code')), 'CASE 10. KNL People Adapter chỉ ĐỌC checklist_employee_assignments (8 dòng fixture nguyên vẹn), không insert/update/delete bảng này ở bất kỳ bước nào trong toàn bộ test');
+
+  // ---------- PATCH UI SHELL + FIX PHÂN QUYỀN — regression cho throwDb(): bảng KNL chưa tồn tại (PGRST205) phải dịch thành lỗi rõ ràng, không phải 500 chung chung ----------
+  STATE.simulateSchemaMissing = true;
+  threw = null;
+  try { await listKnlPermissionGrants(session('admin', { id: 'u-admin' })); }
+  catch (err) { threw = err; }
+  check(!!threw && threw.code === 'KNL_SCHEMA_MISSING' && threw.statusCode === 503 && /PHF_KNL_PERMISSIONS_1\.0\.sql/.test(threw.message), 'CASE EXTRA. Khi bảng knl_permission_grants chưa tồn tại (PGRST205 thật từ Postgrest), throwDb() dịch thành lỗi 503 KNL_SCHEMA_MISSING trỏ đúng file SQL cần chạy — không rơi vào 500 "Hệ thống chưa thể xử lý yêu cầu" chung chung như trước patch này');
+  STATE.simulateSchemaMissing = false;
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
