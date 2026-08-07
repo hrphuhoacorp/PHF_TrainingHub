@@ -19,6 +19,8 @@ const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly
 const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport } = require('../lib/checklist-reports');
 const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('../lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
+const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('../lib/knl-permissions');
+const { listKnlPeople } = require('../lib/knl-people');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -463,6 +465,15 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='getChecklistMonthlyOverduePolicy')return res.status(200).json({ok:true,...await getMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyOverduePolicy')return res.status(200).json({ok:true,...await saveMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='processChecklistMonthlyOverdue')return res.status(200).json({ok:true,...await processMonthlySelfOverdue(session,payload)});
+      if(payload&&payload.action==='getKnlCapabilities')return res.status(200).json({ok:true,...await getKnlCapabilities(session)});
+      if(payload&&payload.action==='listKnlPeople')return res.status(200).json({ok:true,...await listKnlPeople(session,payload)});
+      if(payload&&payload.action==='listKnlPermissionGrants')return res.status(200).json({ok:true,...await listKnlPermissionGrants(session)});
+      if(payload&&payload.action==='upsertKnlPermissionGrant')return res.status(200).json({ok:true,...await upsertKnlPermissionGrant(session,payload.grant||{})});
+      if(payload&&payload.action==='listKnlAccountsForPermission'){
+        await requireManagePermissionsForSession(session);
+        const accounts=(await listHubAccountSummaries()).map(a=>({id:a.id||'',name:a.name||'',email:a.email||'',employeeCode:a.employeeCode||'',role:a.role||'',department:a.department||'',branch:a.branch||'',position:a.position||''}));
+        return res.status(200).json({ok:true,accounts});
+      }
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
       payload.actorRole = session.role;

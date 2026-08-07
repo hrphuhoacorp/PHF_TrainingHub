@@ -321,6 +321,7 @@
     '/hv':Object.freeze({area:'learner',screen:'hub-home',roles:['learner']}),
     '/hv/home':Object.freeze({area:'learner',screen:'hr-home',roles:['learner']}),
     '/hv/knl':Object.freeze({area:'learner',screen:'knl-home',roles:['learner']}),
+    '/hv/knl/nhan-su':Object.freeze({area:'learner',screen:'knl-people',roles:['learner']}),
     '/hv/bai-hoc':Object.freeze({area:'learner',screen:'learning',roles:['learner']}),
     '/hv/ho-so':Object.freeze({area:'learner',screen:'profile',roles:['learner']}),
     '/hv/checklist':Object.freeze({area:'learner',screen:'checklist-home',roles:['learner']}),
@@ -335,6 +336,8 @@
     '/ql':Object.freeze({area:'manager',screen:'hub-home',roles:['manager']}),
     '/ql/home':Object.freeze({area:'manager',screen:'hr-home',roles:['manager']}),
     '/ql/knl':Object.freeze({area:'manager',screen:'knl-home',roles:['manager']}),
+    '/ql/knl/nhan-su':Object.freeze({area:'manager',screen:'knl-people',roles:['manager']}),
+    '/ql/knl/phan-quyen':Object.freeze({area:'manager',screen:'knl-permissions',roles:['manager']}),
     '/ql/quan-ly':Object.freeze({area:'manager',screen:'workspace',roles:['manager']}),
     '/ql/hoc-vien':Object.freeze({area:'manager',screen:'learners',roles:['manager']}),
     '/ql/noi-dung':Object.freeze({area:'manager',screen:'content',roles:['manager']}),
@@ -360,6 +363,8 @@
     '/admin':Object.freeze({area:'admin',screen:'hub-home',roles:['admin']}),
     '/admin/home':Object.freeze({area:'admin',screen:'hr-home',roles:['admin']}),
     '/admin/knl':Object.freeze({area:'admin',screen:'knl-home',roles:['admin']}),
+    '/admin/knl/nhan-su':Object.freeze({area:'admin',screen:'knl-people',roles:['admin']}),
+    '/admin/knl/phan-quyen':Object.freeze({area:'admin',screen:'knl-permissions',roles:['admin']}),
     '/admin/quan-tri':Object.freeze({area:'admin',screen:'workspace',roles:['admin']}),
     '/admin/quan-tri/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
     '/admin/quan-tri/danh-muc':Object.freeze({area:'admin',screen:'catalogs',roles:['admin']}),
@@ -394,11 +399,11 @@
   window.PHF_ROUTE_REGISTRY=ROUTE_REGISTRY;
   window.PHF_ROUTE_MAP=Object.freeze({
     public:['/','/login'],
-    learner:['/hv','/hv/home','/hv/knl','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/checklist/ho-so-danh-gia','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
-    management:['/ql','/ql/home','/ql/knl','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
-    admin:['/admin','/admin/home','/admin/knl','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
+    learner:['/hv','/hv/home','/hv/knl','/hv/knl/nhan-su','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/checklist/ho-so-danh-gia','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
+    management:['/ql','/ql/home','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
+    admin:['/admin','/admin/home','/admin/knl','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
-    knl:['/hv/knl','/ql/knl','/admin/knl'],
+    knl:['/hv/knl','/hv/knl/nhan-su','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/admin/knl','/admin/knl/nhan-su','/admin/knl/phan-quyen'],
     hr:['/hv/home','/ql/home','/admin/home'],
     hub:['/hv','/ql','/admin'],
     checklist:['/hv/checklist','/hv/checklist/ho-so-danh-gia','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
@@ -788,7 +793,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/hv/knl'){
+      if(path==='/hv/knl'||path==='/hv/knl/nhan-su'){
         if(!requireRoles(['learner']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
@@ -861,7 +866,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/ql/knl'){
+      if(path==='/ql/knl'||path==='/ql/knl/nhan-su'||path==='/ql/knl/phan-quyen'){
         if(!requireRoles(['manager']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
@@ -1035,7 +1040,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'){
+      if(path==='/admin/knl'||path==='/admin/knl/nhan-su'||path==='/admin/knl/phan-quyen'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;

@@ -22,6 +22,8 @@ const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly
 const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport } = require('./lib/checklist-reports');
 const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('./lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
+const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
+const { listKnlPeople } = require('./lib/knl-people');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -711,6 +713,15 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='getChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await getMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='saveChecklistMonthlyOverduePolicy')return sendJson(res,200,{ok:true,...await saveMonthlyOverduePolicy(session,payload)});
       if(payload&&payload.action==='processChecklistMonthlyOverdue')return sendJson(res,200,{ok:true,...await processMonthlySelfOverdue(session,payload)});
+      if(payload&&payload.action==='getKnlCapabilities')return sendJson(res,200,{ok:true,...await getKnlCapabilities(session)});
+      if(payload&&payload.action==='listKnlPeople')return sendJson(res,200,{ok:true,...await listKnlPeople(session,payload)});
+      if(payload&&payload.action==='listKnlPermissionGrants')return sendJson(res,200,{ok:true,...await listKnlPermissionGrants(session)});
+      if(payload&&payload.action==='upsertKnlPermissionGrant')return sendJson(res,200,{ok:true,...await upsertKnlPermissionGrant(session,payload.grant||{})});
+      if(payload&&payload.action==='listKnlAccountsForPermission'){
+        await requireManagePermissionsForSession(session);
+        const accounts=(await listHubAccountSummaries()).map(a=>({id:a.id||'',name:a.name||'',email:a.email||'',employeeCode:a.employeeCode||'',role:a.role||'',department:a.department||'',branch:a.branch||'',position:a.position||''}));
+        return sendJson(res,200,{ok:true,accounts});
+      }
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;
