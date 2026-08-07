@@ -1415,7 +1415,8 @@
   var monthlyUiState={status:'all',month:'',department:'',branch:'',selectedId:'',loading:false,loadedMonth:'',error:'',period:null,forms:[],reviewerCandidates:[],query:'',creating:false,opening:false,locking:false,openingException:false,pilotOpening:false,pilotCode:'PHF012',changingReviewer:false,savingReview:false,exporting:false,recoveryLoading:false,recoverySyncing:false,recoveryPreview:null,recoveryIdempotencyKey:'',deletePreview:null,deleteLoading:false,deleteIdempotencyKey:''};
   var marketingKpiUiState={open:false,loading:false,saving:false,error:'',period:'',templateId:'tbp-mkt-1.0',data:null,rows:[],reason:''};
   var reportUiState={view:'summary',month:'',branch:'',department:'',status:'',scoreBand:'',issue:'',showAllDepartments:false,loading:false,loadedMonth:'',error:'',data:null,request:null};
-  var checklistScoreUiState={mode:'current',month:'',department:'',branch:'',managerCode:'',query:'',loading:false,loadedKey:'',error:'',data:null};
+  var checklistScoreUiState={mode:'current',month:'',department:'',branch:'',managerCode:'',query:'',loading:false,loadedKey:'',error:'',data:null,periodFromMonth:'',periodToMonth:'',periodDepartment:'',periodBranch:'',periodQuery:'',periodLoading:false,periodLoadedKey:'',periodError:'',periodData:null,periodFullView:false,periodDetail:null};
+  var checklistScoreSearchTimer=null,checklistScorePeriodSearchTimer=null;
   var reportWorkflowUiState={loading:false,loadedMonth:'',error:'',data:null,request:null};
   var settingsUiState={section:'permissions',permissionQuery:'',permissionStatus:'all',permissionBusy:false,permissionLoading:false,permissionLoadedAt:0,permissionPeopleConfirmedAt:0,permissionPeopleAudit:null,permissionPeopleSyncing:false,pendingImport:null,monthlyPolicy:null,monthlyPolicyLoading:false,monthlyPolicySaving:false,monthlyCycle:null,monthlyCycleLoading:false,monthlyCycleSaving:false,monthlyCycleSyncing:false,deadlineEditing:false,deadlineSaving:false,latePolicy:null,latePolicies:[],latePolicyHistory:[],latePolicyLoading:false,latePolicySaving:false,latePolicyEditing:false,latePolicyDraft:null,repeatPolicy:null,repeatPolicies:[],repeatPolicyHistory:[],repeatPolicyLoading:false,repeatPolicySaving:false,repeatPolicyEditing:false,repeatPolicyDraft:null,repeatSuggestionPeriod:todayIso().slice(0,7),repeatSuggestions:null,repeatSuggestionLoading:false,scorePolicy:null,scorePolicies:[],scorePolicyHistory:[],scorePolicyLoading:false,scorePolicySaving:false,scorePolicyEditing:false,scorePolicyDraft:null};
   var notificationUiState={query:'',category:'all',rules:null,ready:false,loadingRules:false,loadingInbox:false,error:'',inboxError:'',inbox:[],unreadCount:0,inboxOpen:false};
@@ -4692,6 +4693,11 @@
    *   hợp") và chỉ đổi cách hiển thị thành bảng theo cột yêu cầu Phần F2.
    */
   function checklistScorePeriodValue(){return checklistScoreUiState.month||todayIso().slice(0,7);}
+  function checklistScoreValueHtml(v){return v==null?'—':Number(v).toFixed(2);}
+  function checklistScoreCellClass(v){var n=Number(v);if(v==null||!Number.isFinite(n)||n>=100)return '';return n<70?'is-danger':'is-warning';}
+  function checklistScoreViolationCellHtml(count){var n=Number(count||0);return n>0?'<strong class="is-danger">'+n+'</strong>':'<span class="phfck-score-dash">—</span>';}
+  function checklistScorePeriodStatusLabel(cell){return cell&&cell.hasForm?(reportStatusLabel(cell.status)||cell.status):'Không có phiếu';}
+  function scoreShiftMonth(value,delta){var parts=String(value||'').split('-').map(Number);if(parts.length!==2||!parts[0]||!parts[1])return value;var d=new Date(Date.UTC(parts[0],parts[1]-1+Number(delta||0),1));return String(d.getUTCFullYear()).padStart(4,'0')+'-'+String(d.getUTCMonth()+1).padStart(2,'0');}
   async function loadChecklistCurrentScore(root,force){
     var m=checklistScorePeriodValue(),key=[m,checklistScoreUiState.department,checklistScoreUiState.branch,checklistScoreUiState.managerCode,checklistScoreUiState.query].join('|');
     if(checklistScoreUiState.loading||(!force&&checklistScoreUiState.loadedKey===key))return;
@@ -4705,6 +4711,28 @@
     }catch(err){checklistScoreUiState.data=null;checklistScoreUiState.error=err&&err.message?err.message:'Không thể kết nối dữ liệu.';}
     finally{checklistScoreUiState.loading=false;var ws=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(ws)ws.innerHTML=reportsHtml();}
   }
+  function checklistScorePeriodRangeError(from,to){
+    if(!from||!to)return '';
+    if(from>to)return 'Từ kỳ phải nhỏ hơn hoặc bằng Đến kỳ.';
+    if(scoreShiftMonth(from,12)<=to)return 'Khoảng kỳ tối đa 12 tháng.';
+    return '';
+  }
+  async function loadChecklistScorePeriod(root,force){
+    var from=checklistScoreUiState.periodFromMonth||todayIso().slice(0,7),to=checklistScoreUiState.periodToMonth||from;
+    var rangeError=checklistScorePeriodRangeError(from,to);
+    if(rangeError){checklistScoreUiState.periodError=rangeError;checklistScoreUiState.periodData=null;var errWs=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(errWs)errWs.innerHTML=reportsHtml();return;}
+    var key=[from,to,checklistScoreUiState.periodDepartment,checklistScoreUiState.periodBranch,checklistScoreUiState.periodQuery].join('|');
+    if(checklistScoreUiState.periodLoading||(!force&&checklistScoreUiState.periodLoadedKey===key))return;
+    checklistScoreUiState.periodLoading=true;checklistScoreUiState.periodError='';
+    var workspace=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(workspace)workspace.innerHTML=reportsHtml();
+    try{
+      var response=await fetch('/api/data?checklistScorePeriod=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'getChecklistScorePeriodReport',fromMonth:from,toMonth:to,department:checklistScoreUiState.periodDepartment,branch:checklistScoreUiState.periodBranch,query:checklistScoreUiState.periodQuery})});
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải Điểm Checklist theo kỳ.');
+      checklistScoreUiState.periodData=data;checklistScoreUiState.periodLoadedKey=key;checklistScoreUiState.periodDetail=null;
+    }catch(err){checklistScoreUiState.periodData=null;checklistScoreUiState.periodError=err&&err.message?err.message:'Không thể kết nối dữ liệu.';}
+    finally{checklistScoreUiState.periodLoading=false;var ws=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(ws)ws.innerHTML=reportsHtml();}
+  }
   function checklistScoreModeTabsHtml(){
     return '<div class="phfck-monthly-tabs phfck-score-mode-tabs">'
       +'<button type="button" class="'+(checklistScoreUiState.mode==='current'?'active':'')+'" data-phfck-score-mode="current"><span>Hiện tại</span></button>'
@@ -4713,7 +4741,8 @@
   }
   function checklistScoreCurrentFiltersHtml(){
     var d=checklistScoreUiState.data,people=(d&&d.employees)||[],departments=[...new Set(people.map(function(x){return x.department;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,'vi');}),branches=[...new Set(people.map(function(x){return x.branch;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,'vi');});
-    return '<div class="phfck-monthly-toolbar"><label><span>Tháng</span><input type="month" value="'+esc(checklistScorePeriodValue())+'" data-phfck-score-month></label>'
+    return '<div class="phfck-score-period-note"><span class="phfck-dot"></span><b>Kỳ hiện tại: '+esc(reportMonthLabel(checklistScorePeriodValue()))+'</b><small>Vận hành realtime tháng đang chạy — không dùng để xem lịch sử</small></div>'
+      +'<div class="phfck-monthly-toolbar phfck-score-toolbar">'
       +'<label><span>Phòng ban</span><select data-phfck-score-department><option value="">Tất cả phòng ban</option>'+departments.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.department===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
       +'<label><span>Chi nhánh</span><select data-phfck-score-branch><option value="">Tất cả chi nhánh</option>'+branches.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.branch===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
       +'<div class="phfck-search"><span>⌕</span><input type="search" placeholder="Tìm theo họ tên hoặc mã nhân viên" value="'+esc(checklistScoreUiState.query)+'" data-phfck-score-search></div>'
@@ -4724,21 +4753,93 @@
     if(checklistScoreUiState.error&&!checklistScoreUiState.data)return checklistScoreCurrentFiltersHtml()+'<section class="phfck-panel">'+reportEmptyHtml('Chưa tải được Điểm Checklist hiện tại',checklistScoreUiState.error)+'</section>';
     var d=checklistScoreUiState.data||{employees:[],summary:{total:0,averageScore:0,belowThresholdCount:0,cleanCount:0}},rows=d.employees||[],s=d.summary||{};
     var table=rows.length?('<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Phòng ban</th><th>Chi nhánh</th><th>Điểm hiện tại</th><th>Tổng lỗi</th><th>Người quản lý</th><th>Trạng thái phiếu tháng</th></tr></thead><tbody>'
-      +rows.map(function(x){return '<tr><td>'+esc(x.employeeCode)+'</td><td>'+esc(x.employeeName)+'</td><td>'+esc(x.department)+'</td><td>'+esc(x.branch)+'</td><td><strong>'+Number(x.currentScore||0).toFixed(2)+'</strong></td><td>'+Number(x.violationCount||0)+'</td><td>'+esc(x.managerName||'—')+'</td><td>'+(x.hasMonthlyForm?esc({draft:'Phiếu nháp',waiting_self:'Chờ tự đánh giá',waiting_review:'Chờ thẩm định',reviewed:'Đã thẩm định',locked:'Đã khóa'}[x.monthlyFormStatus]||x.monthlyFormStatus):'Chưa có phiếu')+'</td></tr>';}).join('')
+      +rows.map(function(x){var scoreClass=checklistScoreCellClass(x.currentScore);return '<tr><td>'+esc(x.employeeCode)+'</td><td>'+esc(x.employeeName)+'</td><td>'+esc(x.department)+'</td><td>'+esc(x.branch)+'</td><td><strong class="phfck-score-cell'+(scoreClass?' '+scoreClass:'')+'">'+Number(x.currentScore||0).toFixed(2)+'</strong></td><td>'+checklistScoreViolationCellHtml(x.violationCount)+'</td><td>'+esc(x.managerName||'—')+'</td><td>'+(x.hasMonthlyForm?esc(reportStatusLabel(x.monthlyFormStatus)):'Chưa có phiếu')+'</td></tr>';}).join('')
       +'</tbody></table></div>'):('<section class="phfck-panel">'+reportEmptyHtml('Chưa có nhân sự trong phạm vi đang xem','Kiểm tra lại bộ lọc hoặc phạm vi quyền được cấp.')+'</section>');
     return checklistScoreCurrentFiltersHtml()
       +'<section class="phfck-exec-kpis"><article><span>Tổng nhân viên</span><strong>'+Number(s.total||0)+'</strong><small>Trong phạm vi đang xem</small></article><article><span>Điểm trung bình</span><strong>'+Number(s.averageScore||0).toFixed(2)+'</strong><small>Trên thang 100</small></article><article class="is-danger"><span>Dưới ngưỡng (&lt;70)</span><strong>'+Number(s.belowThresholdCount||0)+'</strong><small>Cần theo dõi</small></article><article><span>Chưa phát sinh lỗi</span><strong>'+Number(s.cleanCount||0)+'</strong><small>Điểm 100 trong kỳ</small></article></section>'
       +table;
   }
-  function checklistScorePeriodHtml(){
-    if(reportUiState.loading&&!reportUiState.data)return '<section class="phfck-panel phfck-report-loading"><span class="phfck-loading-spinner"></span><b>Đang tải dữ liệu theo kỳ…</b></section>';
-    if(!reportUiState.data)return '<section class="phfck-panel">'+reportEmptyHtml('Chưa có dữ liệu','Bấm "↻ Làm mới" để tải lại báo cáo theo kỳ.')+'</section>';
-    var forms=reportData().forms||[];
-    if(!forms.length)return '<section class="phfck-panel">'+reportEmptyHtml('Chưa có phiếu trong kỳ đang xem','Đổi kỳ hoặc xóa bộ lọc ở tab Tổng hợp.')+'</section>';
-    var statusLabel={draft:'Phiếu nháp',waiting_self:'Chờ tự đánh giá',waiting_review:'Chờ thẩm định',reviewed:'Đã thẩm định',locked:'Đã khóa'};
-    return '<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Phòng ban trên phiếu</th><th>Chi nhánh trên phiếu</th><th>Điểm Checklist</th><th>Điểm tự đánh</th><th>Điểm thẩm định</th><th>Điểm cuối</th><th>Người thẩm định</th><th>Trạng thái</th><th>Ngày khóa/thẩm định</th></tr></thead><tbody>'
-      +forms.map(function(x){var lockedAt=x.reviewSubmittedAt||'';return '<tr><td>'+esc(x.employeeCode)+'</td><td>'+esc(x.employeeName)+'</td><td>'+esc(x.department)+'</td><td>'+esc(x.branch)+'</td><td>'+Number(x.checklistScore||0).toFixed(2)+'</td><td>'+Number(x.selfTotalScore||0).toFixed(2)+'</td><td>'+Number(x.reviewTotalScore||0).toFixed(2)+'</td><td>'+(x.finalScore==null?'—':Number(x.finalScore).toFixed(2))+'</td><td>'+esc(x.reviewerName||'Chưa phân công')+'</td><td>'+esc(statusLabel[x.status]||x.status)+'</td><td>'+esc(lockedAt?new Date(lockedAt).toLocaleDateString('vi-VN'):'—')+'</td></tr>';}).join('')
+  function checklistScorePeriodFiltersHtml(){
+    var d=checklistScoreUiState.periodData,deptSet={},branchSet={};
+    ((d&&d.employees)||[]).forEach(function(emp){Object.keys(emp.periods||{}).forEach(function(m){var cell=emp.periods[m];if(cell.department)deptSet[cell.department]=1;if(cell.branch)branchSet[cell.branch]=1;});});
+    var departments=Object.keys(deptSet).sort(function(a,b){return a.localeCompare(b,'vi');}),branches=Object.keys(branchSet).sort(function(a,b){return a.localeCompare(b,'vi');});
+    return '<div class="phfck-monthly-toolbar phfck-score-toolbar phfck-score-period-toolbar">'
+      +'<label><span>Từ kỳ</span><input type="month" value="'+esc(checklistScoreUiState.periodFromMonth||todayIso().slice(0,7))+'" data-phfck-score-period-from></label>'
+      +'<label><span>Đến kỳ</span><input type="month" value="'+esc(checklistScoreUiState.periodToMonth||checklistScoreUiState.periodFromMonth||todayIso().slice(0,7))+'" data-phfck-score-period-to></label>'
+      +'<label><span>Phòng ban</span><select data-phfck-score-period-department><option value="">Tất cả phòng ban</option>'+departments.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.periodDepartment===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
+      +'<label><span>Chi nhánh</span><select data-phfck-score-period-branch><option value="">Tất cả chi nhánh</option>'+branches.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.periodBranch===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
+      +'<div class="phfck-search"><span>⌕</span><input type="search" placeholder="Tìm theo họ tên hoặc mã nhân viên" value="'+esc(checklistScoreUiState.periodQuery)+'" data-phfck-score-period-search></div>'
+      +'<button type="button" class="phfck-secondary" data-phfck-score-period-reload>↻ Làm mới</button>'
+      +'</div>'
+      +'<div class="phfck-score-period-shortcuts">'+[['3','3 tháng'],['6','6 tháng'],['12','12 tháng']].map(function(s){return '<button type="button" class="phfck-chip-btn" data-phfck-score-period-shortcut="'+s[0]+'">'+s[1]+'</button>';}).join('')+'</div>';
+  }
+  function checklistScorePeriodSummaryHtml(data){
+    if(!data.periods||data.periods.length!==1)return '';
+    var m=data.periods[0],cells=data.employees.map(function(emp){return emp.periods[m]||{};});
+    function avg(getter){var vals=cells.map(getter).filter(function(v){return v!=null;});return {value:vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:null,count:vals.length};}
+    var checklistAvg=avg(function(c){return c.checklistScore;}),selfAvg=avg(function(c){return c.selfTotalScore;}),reviewAvg=avg(function(c){return c.reviewTotalScore;}),doneCount=cells.filter(function(c){return c.finalScore!=null;}).length;
+    return '<section class="phfck-exec-kpis"><article><span>Tổng nhân viên</span><strong>'+cells.length+'</strong><small>Trong kỳ đang xem</small></article>'
+      +'<article><span>Checklist TB</span><strong>'+checklistScoreValueHtml(checklistAvg.value)+'</strong><small>Trung bình '+checklistAvg.count+'/'+cells.length+'</small></article>'
+      +'<article><span>Tự đánh giá TB</span><strong>'+checklistScoreValueHtml(selfAvg.value)+'</strong><small>Trung bình '+selfAvg.count+'/'+cells.length+'</small></article>'
+      +'<article><span>Thẩm định TB</span><strong>'+checklistScoreValueHtml(reviewAvg.value)+'</strong><small>Trung bình '+reviewAvg.count+'/'+cells.length+'</small></article>'
+      +'<article><span>Hoàn tất</span><strong>'+doneCount+'/'+cells.length+'</strong><small>Đã có điểm cuối</small></article></section>';
+  }
+  function checklistScorePeriodSingleTableHtml(data){
+    var m=data.periods[0],rows=data.employees;
+    return '<div class="phfck-table-wrap"><table class="phfck-table phfck-score-period-table"><thead>'
+      +'<tr><th colspan="4">Nhân sự</th><th colspan="4">Kết quả đánh giá kỳ</th><th rowspan="2">Trạng thái</th><th rowspan="2">Thao tác</th></tr>'
+      +'<tr><th>Mã NV</th><th>Họ tên</th><th>Phòng ban</th><th>Chi nhánh</th><th>Checklist</th><th>Tự đánh giá</th><th>Thẩm định</th><th>Điểm cuối</th></tr>'
+      +'</thead><tbody>'
+      +rows.map(function(emp){var cell=emp.periods[m]||{};return '<tr><td>'+esc(emp.employeeCode)+'</td><td>'+esc(emp.employeeName)+'</td><td>'+esc(cell.department||'—')+'</td><td>'+esc(cell.branch||'—')+'</td>'
+        +'<td>'+checklistScoreValueHtml(cell.checklistScore)+'</td><td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></td>'
+        +'<td>'+esc(checklistScorePeriodStatusLabel(cell))+'</td>'
+        +'<td><button type="button" class="phfck-secondary" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'">Xem chi tiết</button></td></tr>';}).join('')
       +'</tbody></table></div>';
+  }
+  function checklistScorePeriodColsPerPeriod(periods){return periods.length<=4?3:(checklistScoreUiState.periodFullView?3:1);}
+  function checklistScorePeriodMultiTableHtml(data){
+    var periods=data.periods,rows=data.employees,cols=checklistScorePeriodColsPerPeriod(periods),many=periods.length>4;
+    var headTop='<tr><th rowspan="2">Mã NV</th><th rowspan="2">Họ tên</th>'+periods.map(function(m){return '<th colspan="'+cols+'">'+esc(reportMonthLabel(m))+'</th>';}).join('')+'</tr>';
+    var headSub='<tr>'+periods.map(function(){return cols===3?'<th>Tự đánh</th><th>Thẩm định</th><th>Điểm cuối</th>':'<th>Điểm cuối</th>';}).join('')+'</tr>';
+    var body=rows.map(function(emp){
+      var cells=periods.map(function(m){var cell=emp.periods[m]||{};return cols===3
+        ?('<td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></button></td>')
+        :('<td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></button></td>');
+      }).join('');
+      return '<tr><td>'+esc(emp.employeeCode)+'</td><td>'+esc(emp.employeeName)+'</td>'+cells+'</tr>';
+    }).join('');
+    var toggle=many?('<div class="phfck-score-period-view-toggle"><button type="button" class="'+(checklistScoreUiState.periodFullView?'':'active')+'" data-phfck-score-period-view="final">Chỉ điểm cuối</button><button type="button" class="'+(checklistScoreUiState.periodFullView?'active':'')+'" data-phfck-score-period-view="full">Đầy đủ</button></div>'):'';
+    return toggle+'<div class="phfck-table-wrap phfck-score-period-scroll"><table class="phfck-table phfck-score-period-table"><thead>'+headTop+headSub+'</thead><tbody>'+body+'</tbody></table></div>';
+  }
+  function checklistScoreDetailModalHtml(){
+    var sel=checklistScoreUiState.periodDetail;if(!sel)return '';
+    var d=checklistScoreUiState.periodData;if(!d)return '';
+    var emp=(d.employees||[]).find(function(e){return e.employeeCode===sel.employeeCode;});if(!emp)return '';
+    var cell=(emp.periods||{})[sel.month];if(!cell)return '';
+    return '<div class="phfck-modal-layer" data-phfck-score-detail-layer><div class="phfck-modal phfck-score-detail-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CHI TIẾT KỲ</small><h2>'+esc(emp.employeeName)+' · '+esc(emp.employeeCode)+'</h2></div><button type="button" data-phfck-score-detail-close aria-label="Đóng">×</button></div>'
+      +'<div class="phfck-modal-body"><div class="phfck-monthly-person">'
+      +'<div><span>Kỳ</span><b>'+esc(reportMonthLabel(sel.month))+'</b></div>'
+      +'<div><span>Phòng ban</span><b>'+esc(cell.department||'—')+'</b></div>'
+      +'<div><span>Chi nhánh</span><b>'+esc(cell.branch||'—')+'</b></div>'
+      +'<div><span>Trạng thái</span><b>'+esc(checklistScorePeriodStatusLabel(cell))+'</b></div>'
+      +'<div><span>Điểm Checklist</span><b>'+checklistScoreValueHtml(cell.checklistScore)+'</b></div>'
+      +'<div><span>Tự đánh giá</span><b>'+checklistScoreValueHtml(cell.selfTotalScore)+'</b></div>'
+      +'<div><span>Thẩm định</span><b>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</b></div>'
+      +'<div><span>Điểm cuối</span><b>'+checklistScoreValueHtml(cell.finalScore)+'</b></div>'
+      +'<div><span>Người thẩm định</span><b>'+esc(cell.reviewerName||'Chưa phân công')+'</b></div>'
+      +'<div><span>Ngày thẩm định/khóa</span><b>'+esc(cell.reviewSubmittedAt?new Date(cell.reviewSubmittedAt).toLocaleDateString('vi-VN'):'—')+'</b></div>'
+      +'<div><span>Mẫu áp dụng</span><b>'+esc(cell.templateId||'—')+'</b></div>'
+      +'<div><span>Phiên bản</span><b>'+esc(cell.templateVersion||'chưa xác định')+'</b></div>'
+      +'</div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-score-detail-close>Đóng</button></div></div></div>';
+  }
+  function checklistScorePeriodHtml(){
+    var filters=checklistScorePeriodFiltersHtml(),d=checklistScoreUiState.periodData;
+    if(checklistScoreUiState.periodLoading&&!d)return filters+'<section class="phfck-panel phfck-report-loading"><span class="phfck-loading-spinner"></span><b>Đang tải Điểm Checklist theo kỳ…</b></section>';
+    if(checklistScoreUiState.periodError&&!d)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa tải được dữ liệu theo kỳ',checklistScoreUiState.periodError)+'</section>';
+    if(!d)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa có dữ liệu','Chọn kỳ rồi bấm "↻ Làm mới" để tải báo cáo theo kỳ.')+'</section>';
+    if(!d.employees||!d.employees.length)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa có nhân sự trong phạm vi đang xem','Kiểm tra lại bộ lọc hoặc phạm vi quyền được cấp.')+'</section>';
+    var body=d.periods.length===1?checklistScorePeriodSingleTableHtml(d):checklistScorePeriodMultiTableHtml(d);
+    return filters+checklistScorePeriodSummaryHtml(d)+body+checklistScoreDetailModalHtml();
   }
   function checklistScoreDashboardHtml(){
     return '<div class="phfck-page-head phfck-report-head"><div><small>PHF CHECKLIST · ĐIỂM CHECKLIST</small><h1>Điểm Checklist</h1><p>Xem điểm vận hành hiện tại hoặc kết quả đã hình thành theo từng kỳ đánh giá.</p></div></div>'
@@ -5420,9 +5521,21 @@
       var reportView=e.target.closest('[data-phfck-report-view]');
       if(reportView){e.preventDefault();reportUiState.view=reportView.getAttribute('data-phfck-report-view')||'summary';if(reportUiState.view==='checklist-score'&&checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}renderChecklistReportIfCurrent(root);return;}
       var scoreMode=e.target.closest('[data-phfck-score-mode]');
-      if(scoreMode){e.preventDefault();checklistScoreUiState.mode=scoreMode.getAttribute('data-phfck-score-mode')||'current';if(checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}renderChecklistReportIfCurrent(root);return;}
+      if(scoreMode){e.preventDefault();checklistScoreUiState.mode=scoreMode.getAttribute('data-phfck-score-mode')||'current';if(checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}if(checklistScoreUiState.mode==='period'&&!checklistScoreUiState.periodData){loadChecklistScorePeriod(root);return;}renderChecklistReportIfCurrent(root);return;}
       var scoreReload=e.target.closest('[data-phfck-score-reload]');
       if(scoreReload){e.preventDefault();loadChecklistCurrentScore(root,true);return;}
+      var scorePeriodReload=e.target.closest('[data-phfck-score-period-reload]');
+      if(scorePeriodReload){e.preventDefault();loadChecklistScorePeriod(root,true);return;}
+      var scorePeriodShortcut=e.target.closest('[data-phfck-score-period-shortcut]');
+      if(scorePeriodShortcut){e.preventDefault();var shortcutMonths=Number(scorePeriodShortcut.getAttribute('data-phfck-score-period-shortcut'))||3,shortcutTo=checklistScoreUiState.periodToMonth||todayIso().slice(0,7);checklistScoreUiState.periodToMonth=shortcutTo;checklistScoreUiState.periodFromMonth=scoreShiftMonth(shortcutTo,-(shortcutMonths-1));loadChecklistScorePeriod(root,true);return;}
+      var scorePeriodView=e.target.closest('[data-phfck-score-period-view]');
+      if(scorePeriodView){e.preventDefault();checklistScoreUiState.periodFullView=scorePeriodView.getAttribute('data-phfck-score-period-view')==='full';renderChecklistReportIfCurrent(root);return;}
+      var scorePeriodDetail=e.target.closest('[data-phfck-score-period-detail]');
+      if(scorePeriodDetail){e.preventDefault();var detailParts=String(scorePeriodDetail.getAttribute('data-phfck-score-period-detail')||'').split('|');checklistScoreUiState.periodDetail={employeeCode:detailParts[0]||'',month:detailParts[1]||''};renderChecklistReportIfCurrent(root);return;}
+      var scoreDetailClose=e.target.closest('[data-phfck-score-detail-close]');
+      if(scoreDetailClose){e.preventDefault();checklistScoreUiState.periodDetail=null;renderChecklistReportIfCurrent(root);return;}
+      var scoreDetailLayer=e.target.closest('[data-phfck-score-detail-layer]');
+      if(scoreDetailLayer&&e.target===scoreDetailLayer){checklistScoreUiState.periodDetail=null;renderChecklistReportIfCurrent(root);return;}
       var reportExport=e.target.closest('[data-phfck-report-export]');
       if(reportExport&&!reportExport.disabled){e.preventDefault();exportMonthlyWorkbook({buttonSelector:'[data-phfck-report-export]',month:reportPeriodValue(),status:reportUiState.status||'all',branch:reportUiState.branch||'',query:reportUiState.department||''});return;}
       var reportReset=e.target.closest('[data-phfck-report-reset]');
@@ -5703,10 +5816,14 @@
       if(e.target&&e.target.matches('[data-phfck-marketing-kpi-period]')){marketingKpiUiState.period=e.target.value||todayIso().slice(0,7);marketingKpiUiState.reason='';loadMarketingKpi(root);return;}
       if(e.target&&e.target.matches('[data-phfck-monthly-branch]')){monthlyUiState.branch=e.target.value||'';monthlyRefreshTabsAndTable(e.target.closest('.phfck-monthly-panel'));return;}
       if(e.target&&e.target.matches('[data-phfck-monthly-department]')){monthlyUiState.department=e.target.value||'';var deptValidBranches=monthlyBranchOptionsForDepartment(monthlyUiState.department);if(monthlyUiState.branch&&deptValidBranches.indexOf(normalizeText(monthlyUiState.branch))===-1)monthlyUiState.branch='';var deptPanel=e.target.closest('.phfck-monthly-panel');var deptBranchSelect=deptPanel&&deptPanel.querySelector('[data-phfck-monthly-branch]');if(deptBranchSelect)deptBranchSelect.outerHTML=monthlyBranchSelectHtml();monthlyRefreshTabsAndTable(deptPanel);return;}
-      if(e.target&&e.target.matches('[data-phfck-score-month]')){checklistScoreUiState.month=e.target.value||'';loadChecklistCurrentScore(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-score-department]')){checklistScoreUiState.department=e.target.value||'';loadChecklistCurrentScore(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-score-branch]')){checklistScoreUiState.branch=e.target.value||'';loadChecklistCurrentScore(root,true);return;}
-      if(e.target&&e.target.matches('[data-phfck-score-search]')){checklistScoreUiState.query=e.target.value||'';return;}
+      if(e.target&&e.target.matches('[data-phfck-score-search]')){checklistScoreUiState.query=e.target.value||'';if(checklistScoreSearchTimer)clearTimeout(checklistScoreSearchTimer);checklistScoreSearchTimer=setTimeout(function(){loadChecklistCurrentScore(root,true);},400);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-period-from]')){checklistScoreUiState.periodFromMonth=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-period-to]')){checklistScoreUiState.periodToMonth=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-period-department]')){checklistScoreUiState.periodDepartment=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-period-branch]')){checklistScoreUiState.periodBranch=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-period-search]')){checklistScoreUiState.periodQuery=e.target.value||'';if(checklistScorePeriodSearchTimer)clearTimeout(checklistScorePeriodSearchTimer);checklistScorePeriodSearchTimer=setTimeout(function(){loadChecklistScorePeriod(root,true);},400);return;}
       if(e.target&&e.target.matches('[data-phfck-quick-location]')) violationUiState.location=e.target.value||'';
       if(e.target&&e.target.matches('[data-phfck-score-policy-field="self"],[data-phfck-score-policy-field="review"]')){var scoreSelf=Number((root.querySelector('[data-phfck-score-policy-field="self"]')||{}).value),scoreReview=Number((root.querySelector('[data-phfck-score-policy-field="review"]')||{}).value),scoreLive={selfWeight:Number.isFinite(scoreSelf)?Math.max(0,scoreSelf):0,reviewWeight:Number.isFinite(scoreReview)?Math.max(0,scoreReview):0},scoreFormula=root.querySelector('[data-phfck-score-policy-formula]'),scoreTotal=root.querySelector('[data-phfck-score-policy-total]');if(scoreFormula)scoreFormula.textContent=monthlyScoreFormulaText(scoreLive);if(scoreTotal)scoreTotal.value=Math.round((scoreLive.selfWeight+scoreLive.reviewWeight)*100)/100;return;}
       if(e.target&&e.target.matches('[data-phfck-late-field]')){var lre=e.target.closest('[data-phfck-late-row]');var lrid=lre&&lre.getAttribute('data-phfck-late-row');var lrow=violationUiState.lateRows.find(function(r){return r.id===lrid;});if(lrow){var lf=e.target.getAttribute('data-phfck-late-field');lrow[lf]=e.target.value||'';e.target.classList.remove('is-validation-error');var lateLabel=e.target.closest('label');if(lateLabel)lateLabel.classList.remove('is-validation-error');if(lf==='minutes')recalcLateRow(lrow,true);}return;}
@@ -6939,6 +7056,7 @@
   },true);
 
   document.addEventListener('click',function(e){var picker=e.target.closest('.phfck-time-picker');if(!picker){if(!e.target.closest('[data-phfck-time-trigger]'))document.querySelectorAll('.phfck-time-picker').forEach(function(x){x.remove();});return;}var target=picker.__target;if(!target)return;var direct=picker.querySelector('[data-phfck-time-direct]');if(e.target.closest('[data-phfck-time-now]')){var now=currentTime24();if(direct)direct.value=now;picker.querySelector('[data-phfck-time-preview]').textContent=now;}var hb=e.target.closest('[data-phfck-hour]');if(hb){picker.querySelectorAll('[data-phfck-hour]').forEach(function(x){x.classList.remove('active');});hb.classList.add('active');}var mb=e.target.closest('[data-phfck-minute]');if(mb){picker.querySelectorAll('[data-phfck-minute]').forEach(function(x){x.classList.remove('active');});mb.classList.add('active');}var h=(picker.querySelector('[data-phfck-hour].active')||{}).getAttribute?picker.querySelector('[data-phfck-hour].active').getAttribute('data-phfck-hour'):currentTime24().slice(0,2);var m=(picker.querySelector('[data-phfck-minute].active')||{}).getAttribute?picker.querySelector('[data-phfck-minute].active').getAttribute('data-phfck-minute'):'00';if(hb||mb){var combined=h+':'+m;if(direct)direct.value=combined;var pv=picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=combined;}if(e.target.closest('[data-phfck-time-apply]')){var chosen=normalizeTime24(direct&&direct.value?direct.value:h+':'+m,currentTime24());target.value=chosen;target.dispatchEvent(new Event('change',{bubbles:true}));picker.remove();}},true);document.addEventListener('input',function(e){if(!e.target.matches('[data-phfck-time-direct]'))return;var picker=e.target.closest('.phfck-time-picker');e.target.value=formatTime24Typing(e.target.value);var valid=normalizeTime24(e.target.value,'');if(valid){var pv=picker&&picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=valid;}},true);document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-time-direct]')||e.key!=='Enter')return;e.preventDefault();var picker=e.target.closest('.phfck-time-picker');var apply=picker&&picker.querySelector('[data-phfck-time-apply]');if(apply)apply.click();},true);
-  document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-search]')||e.key!=='Enter')return;e.preventDefault();loadChecklistCurrentScore(document.getElementById('phfChecklistRoot'),true);},true);
+  document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScoreSearchTimer)clearTimeout(checklistScoreSearchTimer);loadChecklistCurrentScore(document.getElementById('phfChecklistRoot'),true);},true);
+  document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-period-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScorePeriodSearchTimer)clearTimeout(checklistScorePeriodSearchTimer);loadChecklistScorePeriod(document.getElementById('phfChecklistRoot'),true);},true);
 
 })();
