@@ -1485,14 +1485,26 @@
      và chớp nhẹ 1 lần - CHỈ đọc lại từ danh sách đã render (đã qua đúng bộ lọc
      quyền của API), không tự mở modal/đổi trạng thái. appliedKey chặn lặp lại
      mỗi lần re-render nền (background task load) khi cùng một deep-link. */
-  var checklistNotificationFocusState={appliedKey:''};
+  var checklistNotificationFocusState={appliedKey:'',reloadedKey:''};
   function checklistNotificationFocusKeyFromLocation(path){var ids=checklistNotificationFocusViolationIds(path);if(ids.length)return 'v:'+ids.join(',');var taskId=checklistNotificationFocusTaskId(path);return taskId?'t:'+taskId:'';}
   function applyChecklistNotificationFocusScroll(root){
     if(!root)return;
     var key=checklistNotificationFocusKeyFromLocation(currentRouteKey());
     if(!key||checklistNotificationFocusState.appliedKey===key)return;
     var target=root.querySelector('[data-phfck-focus-violation="1"]');
-    if(!target)return;
+    if(!target){
+      /* roleWorkspaceState.taskLoaded/monthlyLoaded chỉ nạp 1 lần/phiên - nếu
+         lỗi vừa phát sinh SAU lần nạp gần nhất trong phiên hiện tại (vd tài
+         khoản đã mở sẵn Checklist ở tab khác trước khi lỗi mới được ghi), danh
+         sách đang có trong bộ nhớ sẽ không chứa đúng lỗi. Ép nạp lại đúng 1
+         lần cho mỗi deep-link key mới (không lặp lại mỗi re-render) để dữ
+         liệu luôn tươi khi tới từ thông báo. */
+      if(checklistNotificationFocusState.reloadedKey!==key&&roleWorkspaceState.loaded){
+        checklistNotificationFocusState.reloadedKey=key;
+        startRoleWorkspaceBackgroundLoads(root,currentRoleWorkspaceOwnerKey(),true);
+      }
+      return;
+    }
     checklistNotificationFocusState.appliedKey=key;
     try{target.scrollIntoView({behavior:'smooth',block:'center'});}catch(_e){}
     target.classList.add('phfck-notification-focus-flash');
@@ -1517,7 +1529,7 @@
     finally{notificationUiState.loadingRules=false;var workspace=root&&root.querySelector('[data-phfck-workspace]');if(workspace&&settingsUiState.section==='notifications')workspace.innerHTML=settingsHtml();}
   }
   var checklistPermissionRuntimeData=null;
-  var roleWorkspaceState={loading:false,loaded:false,error:'',data:null,monthlyLoading:false,monthlyLoaded:false,monthlyError:'',monthlyForm:null,monthlyPeriod:null,savingMonthly:false,reviewLoading:false,reviewLoaded:false,reviews:[],reviewError:'',selectedReviewId:'',reviewDetails:{},reviewDetailLoading:false,reviewDetailError:'',savingReview:false,taskLoading:false,taskLoaded:false,tasks:[],taskSummary:{},taskError:'',request:null,backgroundRequest:null,backgroundToken:0,pendingRender:false,managerTool:'',ownerKey:'',workspaceLoadedAt:0,permissionDeniedNotified:false};
+  var roleWorkspaceState={loading:false,loaded:false,error:'',data:null,monthlyLoading:false,monthlyLoaded:false,monthlyError:'',monthlyForm:null,monthlyPeriod:null,savingMonthly:false,reviewLoading:false,reviewLoaded:false,reviews:[],reviewError:'',selectedReviewId:'',reviewDetails:{},reviewDetailLoading:false,reviewDetailError:'',savingReview:false,taskLoading:false,taskLoaded:false,tasks:[],taskSummary:{},taskError:'',ownChecklistLoading:false,ownChecklistLoaded:false,ownChecklistError:'',request:null,backgroundRequest:null,backgroundToken:0,pendingRender:false,managerTool:'',ownerKey:'',workspaceLoadedAt:0,permissionDeniedNotified:false};
   var ROLE_WORKSPACE_CACHE_TTL=10*60*1000;
   /* UX-01 Batch 3 - "Hồ sơ đánh giá". State dùng chung learner/manager, tách
      riêng khỏi roleWorkspaceState (dữ liệu grant/people/reviews/tasks) vì
@@ -1588,6 +1600,9 @@
     roleWorkspaceState.tasks=[];
     roleWorkspaceState.taskSummary={};
     roleWorkspaceState.taskError='';
+    roleWorkspaceState.ownChecklistLoading=false;
+    roleWorkspaceState.ownChecklistLoaded=false;
+    roleWorkspaceState.ownChecklistError='';
     roleWorkspaceState.request=null;
     roleWorkspaceState.backgroundRequest=null;
     roleWorkspaceState.backgroundToken=(roleWorkspaceState.backgroundToken||0)+1;
@@ -6137,6 +6152,32 @@
     if(!person)return '<article class="phfck-role-empty-card"><b>Chưa liên kết hồ sơ Checklist</b><p>Admin cần kiểm tra Mã nhân viên và phân công mẫu trước khi sử dụng.</p></article>';
     return '<article class="phfck-role-person-card '+(own?'is-own':'')+'"><div class="phfck-role-person-main"><span>'+esc(person.employeeCode||'—')+'</span><div><b>'+esc(person.employeeName||'Chưa có tên')+'</b><small>'+esc([person.department,person.title,person.branch].filter(Boolean).join(' · ')||'Chưa đủ thông tin tổ chức')+'</small></div></div><div class="phfck-role-person-meta"><span><small>Mẫu áp dụng</small><b>'+esc(person.templateVersion||person.templateId||'Chưa phân công')+'</b></span><span><small>Quản lý trực tiếp</small><b>'+esc(person.managerName||'Chưa phân công')+'</b></span><span><small>Phiếu tháng</small><b>Chưa tạo phiếu</b></span></div>'+(own?'':'<div class="phfck-role-person-action"><span class="'+(person.canReview?'can-review':'view-only')+'">'+(person.canReview?'Được thẩm định':'Chỉ xem')+'</span><button type="button" disabled title="Mở khi dữ liệu Phiếu tháng được đấu nối">Xem phiếu</button></div>')+'</article>';
   }
+  /* Batch 1.43.4 hotfix - "Checklist đang áp dụng" phải là ĐÚNG Checklist
+     assignment hằng ngày (checklist_employee_assignments -> checklist_templates,
+     vd "TBP-QTTH"), KHÔNG phải dòng CT-03 tự động trong Phiếu đánh giá tháng
+     (2 nghiệp vụ độc lập, khác nguồn dữ liệu hoàn toàn). Reuse thẳng
+     checklistTemplateDatabaseRow()/violationCriteriaFromDefinition() đã có sẵn
+     cho luồng Ghi nhận lỗi - không tạo Checklist engine thứ hai. Dữ liệu được
+     nạp qua fetchViolationWorkspaceSnapshot() (xem startRoleWorkspaceBackgroundLoads),
+     KHÔNG tự tính lại N+1 hiệu lực ở đây - tin thẳng assignment.templateId/
+     effectiveDate đã được nguồn phân công resolve sẵn. */
+  function ownChecklistCriteriaGroupsHtml(criteria){
+    var order=[],groups={};
+    criteria.forEach(function(c){var g=c.group||'Tiêu chuẩn công việc';if(!groups[g]){groups[g]=[];order.push(g);}groups[g].push(c);});
+    return order.map(function(g){return '<div class="phfck-own-checklist-group"><b>'+esc(g)+'</b><ul>'+groups[g].map(function(c){return '<li><span>'+esc(c.code)+'</span>'+esc(c.text)+'</li>';}).join('')+'</ul></div>';}).join('');
+  }
+  function ownChecklistDetailBodyHtml(assignment){
+    if(!assignment||!assignment.templateId)return '<article class="phfck-role-empty-card"><b>Chưa liên kết hồ sơ Checklist</b><p>Admin cần kiểm tra Mã nhân viên và phân công mẫu trước khi sử dụng.</p></article>';
+    if(!checklistTemplateDbState.ready){
+      if(roleWorkspaceState.ownChecklistError)return '<div class="phfck-role-note is-warning"><b>Chưa tải được Checklist đang áp dụng</b><p>'+esc(roleWorkspaceState.ownChecklistError)+'</p></div>';
+      return '<div class="phfck-role-loading is-compact"><span class="phfck-loading-spinner"></span><div><b>Đang tải Checklist đang áp dụng…</b><p>Hệ thống đang đọc đúng mẫu và tiêu chí hiện hành.</p></div></div>';
+    }
+    var row=checklistTemplateDatabaseRow(assignment.templateId);
+    if(!row)return '<div class="phfck-role-note"><b>Chưa tìm thấy mẫu Checklist tương ứng</b><p>Mã mẫu đang phân công: '+esc(assignment.templateVersion||assignment.templateId)+'. Vui lòng báo Admin kiểm tra thư viện mẫu Checklist.</p></div>';
+    var criteria=violationCriteriaFromDefinition(row.definition);
+    return '<div class="phfck-own-checklist-summary"><article><span>Checklist đang áp dụng</span><b>'+esc(row.name||assignment.templateVersion||assignment.templateId)+'</b><small>'+esc(row.code||assignment.templateId)+(row.version?' · phiên bản '+esc(row.version):'')+'</small></article><article><span>Hiệu lực từ</span><b>'+(assignment.effectiveDate?esc(new Date(assignment.effectiveDate).toLocaleDateString('vi-VN')):'—')+'</b><small>Theo phân công hiện hành</small></article><article><span>Số tiêu chí</span><b>'+criteria.length+'</b><small>Áp dụng ghi nhận lỗi hằng ngày</small></article></div>'
+      +'<details class="phfck-own-checklist-detail"><summary><span>Xem chi tiết</span><i>'+(criteria.length?criteria.length+' tiêu chí':'Chưa có tiêu chí')+'</i></summary><div class="phfck-own-checklist-body">'+(criteria.length?ownChecklistCriteriaGroupsHtml(criteria):'<p>Mẫu chưa có tiêu chí nào được cấu hình.</p>')+'</div></details>';
+  }
   function roleMonthlyRows(form){
     var d=form&&form.template_snapshot&&form.template_snapshot.version&&form.template_snapshot.version.definition||{},rows=Array.isArray(d.totalRows)?d.totalRows:[];
     return rows.map(function(r,i){var item=Array.isArray(r)?{code:String(r[1]||'ROW-'+(i+1)),name:String(r[2]||'Chỉ tiêu '+(i+1)),target:r[3],unit:r[4]||'điểm',weight:r[5],source:r[7]||'Nhập đánh giá'}:{code:String(r.code||'ROW-'+(i+1)),name:String(r.content||r.name||'Chỉ tiêu '+(i+1)),target:r.target,unit:r.unit||'điểm',weight:r.weight,source:r.source||'Nhập đánh giá'};if(normalizeMatchText(item.name).indexOf('tuan thu tieu chuan cong viec')>=0)item.source='Checklist';return item;});
@@ -6146,8 +6187,18 @@
   function monthlyTarget(value){return monthlyWeight(value);}
   function roleMonthlyChecklistBreakdownHtml(form){
     var b=form&&form.checklist_breakdown||{},items=Array.isArray(b.violations)?b.violations:[],base=Number(b.baseScore==null?100:b.baseScore),deduct=Number(b.totalPoints||0),score=Number(form&&form.checklist_score||b.score||0);
-    return '<details class="phfck-checklist-breakdown"><summary><div><small>ĐIỂM CHECKLIST TỰ ĐỘNG</small><b>'+base.toFixed(2)+' − '+deduct.toFixed(2)+' = '+score.toFixed(2)+' điểm</b><span>'+(items.length?items.length+' lỗi chính thức trong kỳ':'Không có lỗi chính thức trong kỳ')+'</span></div><strong>'+(items.length?'Xem '+items.length+' lỗi':'Đã đối chiếu')+'</strong></summary>'
-      +'<div class="phfck-checklist-breakdown-body">'+(items.length?items.map(function(x){return '<article><div><small>'+esc(x.occurredDate||'')+(x.occurredTime?' · '+esc(x.occurredTime):'')+(x.criterionCode?' · '+esc(x.criterionCode):'')+'</small><b>'+esc(x.criterionName||'Lỗi Checklist')+'</b><p>'+esc(x.note||'Không có mô tả')+'</p></div><strong>−'+Number(x.points||0).toFixed(2)+'</strong></article>';}).join(''):'<div class="phfck-checklist-no-error">Điểm giữ nguyên 100 vì không phát sinh lỗi chính thức.</div>')+'<p class="phfck-checklist-rule">Đây là điểm tự động và bị khóa trong phần nhân viên tự đánh giá. Người thẩm định được chấm một điểm riêng; nếu khác điểm này phải nhập lý do và không làm thay đổi dữ liệu lỗi gốc.</p></div></details>';
+    /* Batch 1.43.4 hotfix - đây chính là chỗ người dùng thật sự nhìn vào khi
+       cần biết "lỗi nào" (theo evidence UAT Production), KHÔNG phải
+       employeeTaskInboxHtml() - vì mục này luôn hiển thị đủ lỗi chính thức
+       trong kỳ bất kể workflow task đã completed/cancelled hay chưa. Deep-link
+       từ thông báo (?focus=violation&violation_id=) phải tự mở <details> này
+       và đánh dấu đúng dòng, dùng lại đúng data-phfck-focus-violation="1" +
+       CSS .phfck-notification-focus đã có cho employeeTaskInboxHtml - không
+       tạo cơ chế highlight thứ hai. */
+    var focusIds=checklistNotificationFocusViolationIds(currentRouteKey());
+    var hasFocus=!!(focusIds.length&&items.some(function(x){return focusIds.indexOf(String(x.id||''))>=0;}));
+    return '<details class="phfck-checklist-breakdown"'+(hasFocus?' open':'')+'><summary><div><small>ĐIỂM CHECKLIST TỰ ĐỘNG</small><b>'+base.toFixed(2)+' − '+deduct.toFixed(2)+' = '+score.toFixed(2)+' điểm</b><span>'+(items.length?items.length+' lỗi chính thức trong kỳ':'Không có lỗi chính thức trong kỳ')+'</span></div><strong>'+(items.length?'Xem '+items.length+' lỗi':'Đã đối chiếu')+'</strong></summary>'
+      +'<div class="phfck-checklist-breakdown-body">'+(items.length?items.map(function(x){var isFocus=focusIds.length>0&&focusIds.indexOf(String(x.id||''))>=0;return '<article'+(isFocus?' class="phfck-notification-focus" data-phfck-focus-violation="1"':'')+'><div><small>'+esc(x.occurredDate||'')+(x.occurredTime?' · '+esc(x.occurredTime):'')+(x.criterionCode?' · '+esc(x.criterionCode):'')+'</small><b>'+esc(x.criterionName||'Lỗi Checklist')+(isFocus?' <em class="phfck-notification-focus-tag">Từ thông báo</em>':'')+'</b><p>'+esc(x.note||'Không có mô tả')+'</p></div><strong>−'+Number(x.points||0).toFixed(2)+'</strong></article>';}).join(''):'<div class="phfck-checklist-no-error">Điểm giữ nguyên 100 vì không phát sinh lỗi chính thức.</div>')+'<p class="phfck-checklist-rule">Đây là điểm tự động và bị khóa trong phần nhân viên tự đánh giá. Người thẩm định được chấm một điểm riêng; nếu khác điểm này phải nhập lý do và không làm thay đổi dữ liệu lỗi gốc.</p></div></details>';
   }
   function employeeMonthlyReviewResultHtml(f){
     if(['reviewed','locked'].indexOf(f.status)<0)return '';
@@ -6424,7 +6475,7 @@
   }
   function managerSectionContentHtml(path,data){
     var section=managerSectionFromLocation(path);
-    if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('PHF CHECKLIST · CÁ NHÂN','Phiếu của tôi','Tự đánh giá, theo dõi kết quả và các nội dung liên quan đến phiếu đánh giá của bạn.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
+    if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('PHF CHECKLIST · CÁ NHÂN','Phiếu của tôi','Tự đánh giá, theo dõi kết quả và các nội dung liên quan đến phiếu đánh giá của bạn.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+ownChecklistDetailBodyHtml(data.ownAssignment)+'</section></div>';
     if(section==='people'||section==='reviews')return managerPeopleHtml(path,data);
     if(section==='assessment-profile')return assessmentProfileHtml(path);
     if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc,'',effView==='log')+violationsHtml();}
@@ -6673,7 +6724,7 @@
         +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
         +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
         +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
-        +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
+        +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+ownChecklistDetailBodyHtml(data.ownAssignment)+'</section>'+roleMonthlyHtml()
         +(hasManagementAccess?'<div class="phfck-role-section-label"><b>Công việc quản lý</b><span>Chỉ hiển thị theo quyền mở rộng đang hiệu lực</span></div>'+monthlyReviewListHtml()+monthlyReviewDetailHtml():'')
         +'<section class="phfck-role-note"><b>Dữ liệu đang dùng</b><p>Checklist cá nhân, việc cần xử lý và phiếu tháng được đọc theo tài khoản đăng nhập.</p></section></main></div>';
     }
@@ -6685,7 +6736,7 @@
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
-      +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
+      +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+ownChecklistDetailBodyHtml(data.ownAssignment)+'</section>'+roleMonthlyHtml()
       +(hasManagementAccess?'<div class="phfck-role-section-label"><b>Công việc quản lý</b><span>Chỉ hiển thị theo quyền mở rộng đang hiệu lực</span></div>'+monthlyReviewListHtml()+monthlyReviewDetailHtml():'')
       +'<section class="phfck-role-note"><b>Dữ liệu đang dùng</b><p>Checklist cá nhân, việc cần xử lý và phiếu tháng được đọc theo tài khoản đăng nhập.</p></section></main>';
   }
@@ -6782,6 +6833,7 @@
     roleWorkspaceState.monthlyLoading=!roleWorkspaceState.monthlyLoaded;
     roleWorkspaceState.reviewLoading=!roleWorkspaceState.reviewLoaded;
     roleWorkspaceState.taskLoading=!roleWorkspaceState.taskLoaded;
+    roleWorkspaceState.ownChecklistLoading=!roleWorkspaceState.ownChecklistLoaded;
     var backgroundToken=(roleWorkspaceState.backgroundToken||0)+1;
     roleWorkspaceState.backgroundToken=backgroundToken;
     function isCurrentBackground(){return roleWorkspaceState.ownerKey===ownerKey&&roleWorkspaceState.backgroundToken===backgroundToken;}
@@ -6855,6 +6907,39 @@
         else scheduleChecklistIdle(runTaskLoad,900);
       });
       jobs.push(taskJob);
+    }
+    if(!roleWorkspaceState.ownChecklistLoaded){
+      /* "Checklist đang áp dụng" trong Phiếu của tôi cần đúng mẫu+tiêu chí thật
+         của chính tài khoản (checklist_employee_assignments.template_id đã
+         resolve N+1 sẵn ở nguồn - KHÔNG tự tính lại ở đây), không phải suy ra
+         từ dòng CT-03 trong phiếu tháng (khác nghiệp vụ hoàn toàn). Reuse thẳng
+         fetchViolationWorkspaceSnapshot() (đã cấp cho mọi role qua
+         GET ?checklistWorkspace=1 - learner/manager/admin đều gọi được, chỉ trả
+         đúng own assignment theo session) để nạp checklistTemplateDbState -
+         không tạo API/engine tiêu chí mới. */
+      var ownChecklistJob=new Promise(function(resolve){
+        var currentSection=routeRole(location.pathname)==='manager'?managerSectionFromLocation(currentRouteKey()):'';
+        var runOwnChecklistLoad=function(){
+          fetchViolationWorkspaceSnapshot(root,false).then(function(){
+            if(!isCurrentBackground())return;
+            roleWorkspaceState.ownChecklistError='';
+            roleWorkspaceState.ownChecklistLoaded=true;
+          }).catch(function(error){
+            if(!isCurrentBackground())return;
+            roleWorkspaceState.ownChecklistError=error&&error.message?error.message:'Không thể tải Checklist đang áp dụng.';
+            roleWorkspaceState.ownChecklistLoaded=true;
+          }).finally(function(){
+            if(isCurrentBackground()){
+              roleWorkspaceState.ownChecklistLoading=false;
+              refreshRoleWorkspaceView(root,ownerKey);
+            }
+            resolve(true);
+          });
+        };
+        if(currentSection==='my-work'||currentSection==='overview')window.setTimeout(runOwnChecklistLoad,0);
+        else scheduleChecklistIdle(runOwnChecklistLoad,900);
+      });
+      jobs.push(ownChecklistJob);
     }
     if(!reportWorkflowUiState.data){
       /* "Tình trạng xử lý ghi nhận lỗi" (Chờ nhân viên, Ý kiến chờ phản hồi,

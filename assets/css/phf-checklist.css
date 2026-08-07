@@ -1613,6 +1613,23 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-role-person-main{display:flex;align-items:center;gap:10px;min-width:0}.phfck-role-person-main>span{display:grid;place-items:center;width:48px;height:42px;border-radius:10px;background:#eaf5ed;color:#176348;font-size:10px;font-weight:700}.phfck-role-person-main div{min-width:0}.phfck-role-person-main b{display:block;overflow:hidden;text-overflow:ellipsis;color:#1d4b3b;font-size:12px}.phfck-role-person-main small{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#788c84;font-size:9.5px;white-space:nowrap}
 .phfck-role-person-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.phfck-role-person-meta span{min-width:0;border-left:1px solid #e2ebe6;padding-left:9px}.phfck-role-person-meta small{display:block;color:#84948e;font-size:8.5px;text-transform:uppercase}.phfck-role-person-meta b{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#345c4e;font-size:10px;white-space:nowrap}
 .phfck-role-person-action{display:flex;align-items:center;gap:7px}.phfck-role-person-action>span{border-radius:999px;padding:5px 8px;font-size:9px;font-weight:700;white-space:nowrap}.phfck-role-person-action .can-review{background:#e7f5eb;color:#24704d}.phfck-role-person-action .view-only{background:#f2f5f3;color:#718078}.phfck-role-person-action button{border:1px solid #d8e4de;border-radius:9px;background:#f7faf8;color:#87958f;padding:7px 9px;font-size:9.5px}
+.phfck-own-checklist-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.phfck-own-checklist-summary article{border:1px solid #dfe9e3;border-radius:12px;padding:10px 12px;background:#fbfdfc;min-width:0}
+.phfck-own-checklist-summary article span{display:block;color:#7c8f86;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.phfck-own-checklist-summary article b{display:block;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#164f3a;font-size:12.5px}
+.phfck-own-checklist-summary article small{display:block;margin-top:2px;color:#87978f;font-size:9.5px}
+.phfck-own-checklist-detail{margin-top:10px;border:1px solid #c9e2d4;border-left:4px solid #2d9a67;border-radius:12px;background:#f5fbf7;overflow:hidden}
+.phfck-own-checklist-detail summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;cursor:pointer;list-style:none;font-weight:700;color:#155b42;font-size:12px}
+.phfck-own-checklist-detail summary::-webkit-details-marker{display:none}
+.phfck-own-checklist-detail summary i{font-style:normal;flex:none;border:1px solid #c8dfd3;border-radius:999px;background:#fff;color:#267052;padding:5px 9px;font-size:10px}
+.phfck-own-checklist-body{border-top:1px solid #dcebe3;padding:10px 14px 13px;background:#fff}
+.phfck-own-checklist-group{margin-bottom:10px}
+.phfck-own-checklist-group:last-child{margin-bottom:0}
+.phfck-own-checklist-group>b{display:block;margin-bottom:6px;color:#284f41;font-size:11px}
+.phfck-own-checklist-group ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.phfck-own-checklist-group li{display:flex;gap:8px;align-items:baseline;padding:7px 9px;border:1px solid #e8efeb;border-radius:9px;background:#fafcfb;color:#3a5148;font-size:11px;line-height:1.4}
+.phfck-own-checklist-group li span{flex:none;border-radius:999px;background:#eef6f1;color:#267052;padding:2px 7px;font-size:9.5px;font-weight:700}
+@media(max-width:760px){.phfck-own-checklist-summary{grid-template-columns:1fr}}
 .phfck-role-team-list{display:flex;flex-direction:column;gap:8px}
 .phfck-role-note{margin-top:13px;border:1px solid #e5d7a8;border-radius:12px;background:#fffaf0;padding:12px 14px}.phfck-role-note b{display:block;color:#705d20;font-size:11px}.phfck-role-note p{margin:3px 0 0;color:#85764b;font-size:10px;line-height:1.45}
 .phfck-role-loading,.phfck-role-error{display:flex;align-items:center;justify-content:center;gap:13px;min-height:320px;border:1px solid #dce8e2;border-radius:16px;background:#fff;text-align:left}.phfck-role-loading b,.phfck-role-error b{display:block;color:#244e3f;font-size:14px}.phfck-role-loading p,.phfck-role-error p{margin:4px 0 0;color:#758981;font-size:11px}.phfck-role-error>span{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fae9e5;color:#a6493d;font-size:20px;font-weight:700}.phfck-role-error button{margin-top:10px;border:0;border-radius:9px;background:#1e805c;color:#fff;padding:8px 12px;font-weight:700;cursor:pointer}
