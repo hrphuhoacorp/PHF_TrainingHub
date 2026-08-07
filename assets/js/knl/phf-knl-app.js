@@ -62,27 +62,31 @@ function scopeText(scope){
   return label;
 }
 
-/* Layout: topbar (nhận diện KNL) + sidebar trái (menu dọc) + content phải.
-   Cấu trúc THAM KHẢO khung quản trị Checklist (header/sidebar/content), màu và
-   nội dung hoàn toàn riêng của KNL — không copy nghiệp vụ/CSS Checklist. */
+/* Layout: topbar 3 cột (back trái / brand giữa / spacer phải) + sidebar trái
+   (menu dọc) + content phải. Cấu trúc, spacing, kích thước sidebar, hành vi
+   active/hover COPY đúng khung quản trị Checklist (.phfck-topbar/.phfck-layout/
+   .phfck-sidebar/.phfck-nav) — class/màu/nội dung hoàn toàn riêng của KNL,
+   không đụng file/CSS Checklist, không kéo nghiệp vụ Checklist sang đây. */
 var SIDEBAR_ITEMS = [
-  { key:'nhan-su', label:'Nhân sự', icon:'◍', needs:'access_knl' },
-  { key:'phan-quyen', label:'Phân quyền', icon:'⚙', needs:'manage_permissions' }
+  { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
+  { key:'phan-quyen', label:'Phân quyền', desc:'Quản lý quyền truy cập KNL', icon:'⚙', needs:'manage_permissions' }
 ];
 
 function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
   var items = SIDEBAR_ITEMS.filter(function(item){ return isAdmin || (capabilities && capabilities[item.needs]); });
   var navHtml = items.map(function(item){
     return '<button type="button" class="phfk-nav-item'+(activeTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
-      '<span class="phfk-nav-icon" aria-hidden="true">'+item.icon+'</span><span>'+item.label+'</span></button>';
+      '<span class="phfk-nav-icon" aria-hidden="true">'+item.icon+'</span>' +
+      '<span><b>'+item.label+'</b><small>'+item.desc+'</small></span></button>';
   }).join('');
   return '' +
     '<header class="phfk-topbar">' +
-      '<button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">⌂</span><span>PHF HR / Home</span></button>' +
-      '<div class="phfk-brand"><strong>PHF Khung năng lực</strong><small>Nhân sự &amp; phân quyền</small></div>' +
+      '<div class="phfk-top-left"><button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">⌂</span><span>PHF HR / Home</span></button></div>' +
+      '<div class="phfk-brand-lockup"><strong>PHF Khung năng lực</strong><span>Nhân sự &amp; phân quyền</span></div>' +
+      '<div class="phfk-top-actions"></div>' +
     '</header>' +
     '<div class="phfk-layout">' +
-      (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head">Menu KNL</div><nav class="phfk-nav">'+navHtml+'</nav></aside>' : '') +
+      (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head"><small>MENU KNL</small><strong>Khung năng lực</strong></div><nav class="phfk-nav">'+navHtml+'</nav></aside>' : '') +
       '<main class="phfk-main" data-knl-body>' + (bodyHtml || '') + '</main>' +
     '</div>';
 }
@@ -133,7 +137,7 @@ function peopleTable(){
 function renderPeopleBody(root){
   var body = root.querySelector('[data-knl-body]');
   if(!body) return;
-  body.innerHTML = '<h1 class="phfk-h1">Nhân sự thuộc phạm vi</h1>' + peopleFilterBar() + peopleTable();
+  body.innerHTML = '<div class="phfk-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + peopleFilterBar() + peopleTable();
   bindPeopleFilters(root);
 }
 
@@ -161,7 +165,7 @@ async function loadPeople(root){
   }catch(e){
     peopleState.rows = [];
     var body = root.querySelector('[data-knl-body]');
-    if(body) body.innerHTML = '<h1 class="phfk-h1">Nhân sự thuộc phạm vi</h1>' + noAccessSection(e.message);
+    if(body) body.innerHTML = '<div class="phfk-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + noAccessSection(e.message);
     peopleState.loading = false;
     return;
   }
@@ -241,7 +245,7 @@ function renderPermissionsBody(root){
   if(!body) return;
   var addButton = permState.editing ? '' : '<button type="button" class="phfk-btn-primary" data-knl-add-grant>+ Cấp quyền mới</button>';
   body.innerHTML = '' +
-    '<div class="phfk-page-head"><h1 class="phfk-h1">Phân quyền KNL</h1>' + addButton + '</div>' +
+    '<div class="phfk-page-head"><div><small>KNL &middot; PHÂN QUYỀN</small><h1>Phân quyền KNL</h1></div>' + addButton + '</div>' +
     (permState.loading ? '<div class="phfk-loading">Đang tải…</div>' : permGrantsTable()) +
     (permState.editing ? permEditForm() : '');
   bindPermissionsForm(root);
@@ -345,7 +349,7 @@ async function loadPermissions(root){
   }catch(e){
     permState.loading = false;
     var body = root.querySelector('[data-knl-body]');
-    if(body) body.innerHTML = '<h1 class="phfk-h1">Phân quyền KNL</h1>' + noAccessSection(e.message);
+    if(body) body.innerHTML = '<div class="phfk-page-head"><div><small>KNL &middot; PHÂN QUYỀN</small><h1>Phân quyền KNL</h1></div></div>' + noAccessSection(e.message);
     return;
   }
   permState.loading = false;
