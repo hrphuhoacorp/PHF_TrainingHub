@@ -3058,3 +3058,15 @@ body.phf-classroom-mode,
 .phfc-settings [data-settings-form]:not(.phfc-settings-loading)>.phfc-settings-grid{
   width:100%!important;
 }
+
+
+/* PHF Classroom 1.33.6 - đồng bộ tông màu khối "PHF HR" (header + sidebar) với ngôn ngữ thiết kế PHF Checklist.
+   Chỉ đổi màu/border, giữ nguyên vị trí, kích thước, cấu trúc và hành vi click. */
+.phfc-hub-back,.phfc-sidebar-hub-back{border-color:#b7d0bf;background:#fff}
+.phfc-hub-back:hover,.phfc-hub-back:focus-visible,
+.phfc-sidebar-hub-back:hover,.phfc-sidebar-hub-back:focus-visible{border-color:#8fbf9e;background:#f7fbf5}
+.phfc-hub-back-icon{background:#edf7e9!important;color:#005642!important;border-color:#b7d0bf!important}
+.phfc-hub-back-copy strong{color:#005642}
+.phfc-sidebar-hub-back{color:#005642}
+.phfc-sidebar-hub-back>span:first-child{background:#edf7e9;color:#005642}
+.phfc-sidebar-hub-back strong{color:#005642}
