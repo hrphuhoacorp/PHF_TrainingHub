@@ -327,8 +327,20 @@ module.exports = async function handler(req, res) {
       if (payload && (payload.action === 'saveChecklistViolations' || payload.action === 'saveChecklistTestViolations')) {
         const saved=await saveChecklistViolations(session, payload.violations || []);
         if(saved.isTest!==true){
-          const recipients=[...new Set((saved.savedRows||[]).filter(row=>row.isNew===true).map(row=>String(row.employeeCode||'').trim().toUpperCase()).filter(Boolean))];
-          for(const employeeCode of recipients)await emitChecklistNotificationSafe('VIOLATION_CREATED',{recipient:{employeeCode},title:'Có lỗi Checklist mới',message:'Bạn có lỗi mới cần xác nhận hoặc giải trình.',targetPath:'/hv/checklist/viec-can-xu-ly',subjectType:'violation_batch',subjectId:saved.testBatchId||'',dedupeKey:'violation|'+employeeCode+'|'+Date.now()});
+          const rowsByEmployee=new Map();
+          for(const row of (saved.savedRows||[]).filter(row=>row.isNew===true)){
+            const code=String(row.employeeCode||'').trim().toUpperCase();
+            if(!code)continue;
+            if(!rowsByEmployee.has(code))rowsByEmployee.set(code,[]);
+            rowsByEmployee.get(code).push(row);
+          }
+          for(const [employeeCode,rows] of rowsByEmployee){
+            const violationIds=rows.map(row=>String(row.id||'')).filter(Boolean);
+            const period=(rows.map(row=>String(row.occurredDate||'')).filter(Boolean).sort().pop()||'').slice(0,7);
+            const periodLabel=period?('Checklist tháng '+period.slice(5,7)+'/'+period.slice(0,4)+' · '+violationIds.length+' lỗi cần xác nhận.'):'';
+            const targetPath='/hv/checklist?focus=violation&violation_id='+encodeURIComponent(violationIds.join(','))+(period?'&period='+period:'');
+            await emitChecklistNotificationSafe('VIOLATION_CREATED',{recipient:{employeeCode},title:'Có lỗi Checklist mới',message:'Bạn có lỗi mới cần xác nhận hoặc giải trình.'+(periodLabel?' '+periodLabel:''),targetPath,subjectType:'violation',subjectId:violationIds.join(','),dedupeKey:'violation|'+employeeCode+'|'+Date.now()});
+          }
         }
         return res.status(200).json({ok:true,...saved});
       }

@@ -105,6 +105,13 @@
   function managerPeopleRoute(view){return '/ql/checklist?section=people&view='+(view==='review'?'review':'scope');}
   function managerProgressFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('progress')||'').trim().toLowerCase();}catch(_e){}return ['self','reviewed'].indexOf(value)>=0?value:'';}
   function managerTaskFilterFromLocation(path){var raw=String(path||currentRouteKey()),value='';try{value=String(new URL(raw,location.origin).searchParams.get('task')||'').trim().toLowerCase();}catch(_e){}return ['employee','admin'].indexOf(value)>=0?value:'';}
+  /* Deep-link từ thông báo Checklist ("Có lỗi Checklist mới" -> "Xem lỗi") -
+     đọc violation_id/task_id ngay trên URL (query param cộng thêm, không phá
+     route hiện hành) để biết đúng bản ghi cần cuộn tới/đánh dấu. Chỉ đọc -
+     không tự suy ra quyền, dữ liệu vẫn luôn lấy từ danh sách đã được API lọc
+     theo phạm vi tài khoản (roleWorkspaceState.tasks/taskUiState.records). */
+  function checklistNotificationFocusViolationIds(path){var raw=String(path||currentRouteKey()),ids=[];try{var u=new URL(raw,location.origin);if(String(u.searchParams.get('focus')||'').trim().toLowerCase()!=='violation')return [];ids=String(u.searchParams.get('violation_id')||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}catch(_e){}return ids;}
+  function checklistNotificationFocusTaskId(path){var raw=String(path||currentRouteKey()),id='';try{var u=new URL(raw,location.origin);if(String(u.searchParams.get('focus')||'').trim().toLowerCase()!=='task')return '';id=String(u.searchParams.get('task_id')||'').trim();}catch(_e){}return id;}
   /* Cùng danh sách giá trị mà backend listChecklistViolations()/
      classifyViolationWorkflowStatus() chấp nhận (lib/checklist-violations.js)
      - due_soon/open/waiting_admin chỉ phục vụ drill-down từ KPI (Tổng quan/
@@ -1445,12 +1452,24 @@
   }
   function checklistNotificationAction(row){
     row=row||{};
-    var event=normalizeText(row.eventCode||'').toUpperCase(),subject=normalizeText(row.subjectType||'').toLowerCase(),path=normalizeText(row.targetPath||''),type='OPEN_DETAIL',label='Xem chi tiết';
+    var event=normalizeText(row.eventCode||'').toUpperCase(),subject=normalizeText(row.subjectType||'').toLowerCase(),subjectId=normalizeText(row.subjectId||''),path=normalizeText(row.targetPath||''),type='OPEN_DETAIL',label='Xem chi tiết';
     if(event.indexOf('PERMISSION_')===0||event.indexOf('SYSTEM_')===0||subject.indexOf('permission')>=0)return {type:'NONE',label:'',path:''};
-    if(event.indexOf('VIOLATION_')===0||event.indexOf('EXPLANATION_')===0||subject.indexOf('violation')>=0){type='OPEN_CHECKLIST_TASK';label='Xem việc';}
+    if(event==='EXPLANATION_SUBMITTED'){type='OPEN_CHECKLIST_TASK';label='Xử lý';}
+    else if(event.indexOf('VIOLATION_')===0||subject.indexOf('violation')>=0){type='OPEN_CHECKLIST_TASK';label='Xem lỗi';}
+    else if(event.indexOf('EXPLANATION_')===0){type='OPEN_CHECKLIST_TASK';label='Xem việc';}
     else if(event==='SELF_REVIEW_SUBMITTED'){type='OPEN_REVIEW';label='Thẩm định';}
     else if(event.indexOf('MONTHLY_')===0||subject.indexOf('monthly')>=0){type='OPEN_MONTHLY';label='Xem phiếu';}
     path=checklistNotificationCanonicalPath(type,path);
+    /* Deep-link additive: chỉ APPEND query param an toàn (đọc dữ liệu đã thuộc
+       phạm vi quyền của chính người nhận, không phải điều hướng theo URL lưu
+       sẵn) lên trên path đã tính theo role hiện tại - không bao giờ tin thẳng
+       row.targetPath cho việc điều hướng, giữ đúng cơ chế bảo mật đã có sẵn
+       của checklistNotificationCanonicalPath(). Thông báo cũ thiếu subjectId
+       (vd subjectType='violation_batch' rỗng) sẽ rơi về path gốc, không lỗi. */
+    if(type==='OPEN_CHECKLIST_TASK'&&subjectId){
+      if(event==='EXPLANATION_SUBMITTED')path+=(path.indexOf('?')>=0?'&':'?')+'focus=task&task_id='+encodeURIComponent(subjectId);
+      else if(subject.indexOf('violation')>=0)path+=(path.indexOf('?')>=0?'&':'?')+'focus=violation&violation_id='+encodeURIComponent(subjectId);
+    }
     return path?{type:type,label:label,path:path}:{type:'NONE',label:'',path:''};
   }
   function checklistNotificationTone(row){
@@ -1461,6 +1480,24 @@
     return 'info';
   }
   function checklistNotificationGlyph(tone){return tone==='danger'?'!':(tone==='warning'?'!':(tone==='success'?'✓':'i'));}
+  /* Sau khi điều hướng theo deep-link (focus=violation|task trên URL), cuộn tới
+     đúng thẻ đã được đánh dấu data-phfck-focus-violation trong DOM vừa render
+     và chớp nhẹ 1 lần - CHỈ đọc lại từ danh sách đã render (đã qua đúng bộ lọc
+     quyền của API), không tự mở modal/đổi trạng thái. appliedKey chặn lặp lại
+     mỗi lần re-render nền (background task load) khi cùng một deep-link. */
+  var checklistNotificationFocusState={appliedKey:''};
+  function checklistNotificationFocusKeyFromLocation(path){var ids=checklistNotificationFocusViolationIds(path);if(ids.length)return 'v:'+ids.join(',');var taskId=checklistNotificationFocusTaskId(path);return taskId?'t:'+taskId:'';}
+  function applyChecklistNotificationFocusScroll(root){
+    if(!root)return;
+    var key=checklistNotificationFocusKeyFromLocation(currentRouteKey());
+    if(!key||checklistNotificationFocusState.appliedKey===key)return;
+    var target=root.querySelector('[data-phfck-focus-violation="1"]');
+    if(!target)return;
+    checklistNotificationFocusState.appliedKey=key;
+    try{target.scrollIntoView({behavior:'smooth',block:'center'});}catch(_e){}
+    target.classList.add('phfck-notification-focus-flash');
+    setTimeout(function(){target.classList.remove('phfck-notification-focus-flash');},2600);
+  }
   function checklistNotificationInboxHtml(){
     var rows=notificationUiState.inbox||[];
     return '<div class="phfck-notification-inbox"><div class="phfck-notification-inbox-head"><div><b>Thông báo Checklist</b><small>Chỉ việc có thể xử lý mới hiển thị đường dẫn</small></div><button type="button" data-phfck-notification-read-all '+(notificationUiState.unreadCount?'':'disabled')+'>Đọc tất cả</button></div><div class="phfck-notification-inbox-list">'+(notificationUiState.loadingInbox?'<div class="phfck-notification-inbox-empty">Đang tải thông báo…</div>':(notificationUiState.inboxError?'<div class="phfck-notification-inbox-empty is-error">'+esc(notificationUiState.inboxError)+'</div>':(rows.length?rows.map(function(row){var action=checklistNotificationAction(row),tone=checklistNotificationTone(row),actionable=action.type!=='NONE';return '<button type="button" class="phfck-notification-item is-'+tone+' '+(row.readAt?'':'is-unread')+' '+(actionable?'is-actionable':'is-information')+'" data-phfck-notification-open="'+esc(row.id)+'" data-phfck-notification-path="'+esc(action.path)+'" data-phfck-notification-action="'+esc(action.type)+'"><span class="phfck-notification-item-icon" aria-hidden="true">'+checklistNotificationGlyph(tone)+'</span><div class="phfck-notification-item-content"><b>'+esc(row.title)+'</b><p>'+esc(row.message)+'</p><div class="phfck-notification-item-meta"><small>'+esc(row.createdAt?new Date(row.createdAt).toLocaleString('vi-VN'):'')+'</small>'+(actionable?'<strong>'+esc(action.label)+' →</strong>':'<em>Thông tin</em>')+'</div></div></button>';}).join(''):'<div class="phfck-notification-inbox-empty">Hiện chưa có thông báo Checklist.</div>')))+'</div></div>';
@@ -4299,11 +4336,12 @@
     if(taskUiState.loading)return '<div class="phfck-task-empty"><div>◷</div><b>Đang tải việc cần xử lý</b><p>Hệ thống đang đọc các lỗi chính thức và người đang chịu trách nhiệm.</p></div>';
     if(taskUiState.error)return '<div class="phfck-task-empty"><div>!</div><b>Chưa tải được dữ liệu</b><p>'+esc(taskUiState.error)+'</p><button type="button" class="phfck-secondary" data-phfck-task-reload>Thử lại</button></div>';
     var rows=taskFilteredRows();if(!rows.length){var empty=taskEmptyCopy();return '<div class="phfck-task-empty"><div>◷</div><b>'+empty[0]+'</b><p>'+empty[1]+'</p><button type="button" class="phfck-secondary" data-phfck-view="violations">Đi đến Ghi nhận lỗi</button></div>';}
-    return '<div class="phfck-task-list">'+rows.map(function(r){var v=r.violation||{},due=Date.parse(r.due_at||''),overdue=!Number.isNaN(due)&&due<Date.now()&&!['completed','cancelled'].includes(r.status);return '<article class="phfck-task-card '+(overdue?'is-overdue':'')+'"><div class="phfck-task-card-main"><small>'+esc(v.criterion_code||'—')+' · '+esc(v.criterion_group||'Checklist')+'</small><b>'+esc(v.criterion_name||'Lỗi Checklist')+'</b><p>'+esc(v.note||'Chưa có nội dung')+'</p><span>'+esc(r.employee_name||'—')+' · '+esc(r.employee_code||'—')+' · '+esc(v.location||'—')+'</span></div><div class="phfck-task-card-side"><i class="is-'+esc(r.status)+'">'+esc(taskStatusLabel(r.status))+'</i><strong>'+(overdue?'Quá hạn ':'Hạn ')+esc(r.due_at?new Date(r.due_at).toLocaleString('vi-VN',{hour12:false}):'—')+'</strong><small>Người ghi: '+esc(r.created_by_name||'—')+'</small><button type="button" data-phfck-task-open="'+esc(r.id)+'">Xem và xử lý</button></div></article>';}).join('')+'</div>';
+    var focusTaskId=checklistNotificationFocusTaskId(currentRouteKey());
+    return '<div class="phfck-task-list">'+rows.map(function(r){var v=r.violation||{},due=Date.parse(r.due_at||''),overdue=!Number.isNaN(due)&&due<Date.now()&&!['completed','cancelled'].includes(r.status),isFocus=!!focusTaskId&&String(r.id||'')===focusTaskId;return '<article class="phfck-task-card '+(overdue?'is-overdue':'')+(isFocus?' phfck-notification-focus':'')+'"'+(isFocus?' data-phfck-focus-violation="1"':'')+'><div class="phfck-task-card-main"><small>'+esc(v.criterion_code||'—')+' · '+esc(v.criterion_group||'Checklist')+'</small><b>'+esc(v.criterion_name||'Lỗi Checklist')+(isFocus?' <em class="phfck-notification-focus-tag">Từ thông báo</em>':'')+'</b><p>'+esc(v.note||'Chưa có nội dung')+'</p><span>'+esc(r.employee_name||'—')+' · '+esc(r.employee_code||'—')+' · '+esc(v.location||'—')+'</span></div><div class="phfck-task-card-side"><i class="is-'+esc(r.status)+'">'+esc(taskStatusLabel(r.status))+'</i><strong>'+(overdue?'Quá hạn ':'Hạn ')+esc(r.due_at?new Date(r.due_at).toLocaleString('vi-VN',{hour12:false}):'—')+'</strong><small>Người ghi: '+esc(r.created_by_name||'—')+'</small><button type="button" data-phfck-task-open="'+esc(r.id)+'">Xem và xử lý</button></div></article>';}).join('')+'</div>';
   }
   async function loadChecklistTasks(root){
     if(taskUiState.loading)return;taskUiState.loading=true;taskUiState.error='';var workspace=root&&root.querySelector('[data-phfck-workspace]');if(workspace)workspace.innerHTML=tasksHtml();
-    try{var response=await fetch('/api/data?checklistTasks=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'listChecklistTasks',scope:taskUiState.scope,status:'all'})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải danh sách công việc.');taskUiState.records=Array.isArray(data.tasks)?data.tasks:[];taskUiState.summary=data.summary||{};taskUiState.scopeSummary=data.scopeSummary||{};taskUiState.timingPolicy=data.timingPolicy||taskUiState.timingPolicy;taskUiState.loaded=true;}catch(err){taskUiState.records=[];taskUiState.summary={};taskUiState.scopeSummary={};taskUiState.error=err&&err.message?err.message:'Không thể kết nối dữ liệu công việc.';}finally{taskUiState.loading=false;if(workspace)workspace.innerHTML=tasksHtml();}}
+    try{var response=await fetch('/api/data?checklistTasks=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'listChecklistTasks',scope:taskUiState.scope,status:'all'})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải danh sách công việc.');taskUiState.records=Array.isArray(data.tasks)?data.tasks:[];taskUiState.summary=data.summary||{};taskUiState.scopeSummary=data.scopeSummary||{};taskUiState.timingPolicy=data.timingPolicy||taskUiState.timingPolicy;taskUiState.loaded=true;}catch(err){taskUiState.records=[];taskUiState.summary={};taskUiState.scopeSummary={};taskUiState.error=err&&err.message?err.message:'Không thể kết nối dữ liệu công việc.';}finally{taskUiState.loading=false;if(workspace){workspace.innerHTML=tasksHtml();applyChecklistNotificationFocusScroll(root);}}}
   function taskQueueHtml(){
     return '<section class="phfck-panel phfck-task-queue">'
       +taskScopeTabsHtml()
@@ -6172,7 +6210,8 @@
   function employeeTaskInboxHtml(){
     if(roleWorkspaceState.taskLoading)return '<section class="phfck-panel phfck-employee-inbox phfck-mywork-dashboard"><div class="phfck-panel-head phfck-mywork-head"><div><small>VIỆC CẦN TÔI XỬ LÝ</small><h3>Xác nhận và giải trình lỗi Checklist</h3><p>Dữ liệu việc đang được tải nền, không chặn phần còn lại của màn hình.</p></div><div class="phfck-employee-inbox-count"><strong>…</strong><span>đang tải</span></div></div><div class="phfck-role-loading is-compact"><span class="phfck-loading-spinner"></span><div><b>Đang tải việc cần xử lý…</b><p>Bạn có thể tiếp tục xem các phần khác trong lúc chờ.</p></div></div></section>';
     var taskFilter=managerTaskFilterFromLocation(currentRouteKey()),rows=Array.isArray(roleWorkspaceState.tasks)?roleWorkspaceState.tasks:[];if(taskFilter==='employee')rows=rows.filter(function(x){return x.status==='waiting_employee'||x.status==='waiting_employee_result';});if(taskFilter==='admin')rows=rows.filter(function(x){return x.status==='waiting_admin';});var openRows=rows.filter(function(x){return !['completed','cancelled'].includes(x.status);}),doneRows=rows.filter(function(x){return ['completed','cancelled'].includes(x.status);}),waiting=openRows.filter(function(x){return x.status==='waiting_employee'||x.status==='waiting_employee_result';}).length,explaining=openRows.filter(function(x){return x.status==='waiting_reviewer'||x.status==='waiting_admin';}).length,filterTitle=taskFilter==='employee'?'Chờ nhân viên':(taskFilter==='admin'?'Báo Admin':''),filterCount=rows.length;
-    function card(r){var v=r.violation||{},due=Date.parse(r.due_at||''),overdue=!Number.isNaN(due)&&due<Date.now()&&!['completed','cancelled'].includes(r.status),canAct=r.status==='waiting_employee'||r.status==='waiting_employee_result'||(r.status==='waiting_reviewer'&&taskIsOverdue(r)),tone=overdue?'is-overdue':(canAct?'is-actionable':(['waiting_reviewer','waiting_admin'].includes(r.status)?'is-waiting':'is-neutral'));return '<article class="phfck-employee-task-card '+tone+'"><div class="phfck-employee-task-icon">'+(canAct?'!':(r.status==='completed'?'✓':'◷'))+'</div><div class="phfck-employee-task-main"><div class="phfck-employee-task-kicker"><span>'+esc(v.criterion_group||'Checklist')+'</span><i class="is-'+esc(r.status)+'">'+esc(employeeTaskStatusLabel(r.status))+'</i></div><b>'+esc(v.criterion_name||'Lỗi Checklist')+'</b><p>'+esc(v.note||'Chưa có nội dung mô tả')+'</p><small>'+esc([v.occurred_date,v.occurred_time,v.location].filter(Boolean).join(' · ')||'Chưa có thời gian, địa điểm')+' · Người ghi: '+esc(r.created_by_name||'—')+'</small></div><div class="phfck-employee-task-side"><strong>'+(overdue?'Đã quá hạn':(r.due_at?'Hạn '+new Date(r.due_at).toLocaleString('vi-VN',{hour12:false}):'Không có hạn'))+'</strong><button type="button" class="'+(canAct?'phfck-primary':'phfck-secondary')+'" data-phfck-task-open="'+esc(r.id)+'">'+(canAct?'Xem và phản hồi':'Xem chi tiết')+'</button></div></article>';}
+    var focusViolationIds=checklistNotificationFocusViolationIds(currentRouteKey());
+    function card(r){var v=r.violation||{},due=Date.parse(r.due_at||''),overdue=!Number.isNaN(due)&&due<Date.now()&&!['completed','cancelled'].includes(r.status),canAct=r.status==='waiting_employee'||r.status==='waiting_employee_result'||(r.status==='waiting_reviewer'&&taskIsOverdue(r)),tone=overdue?'is-overdue':(canAct?'is-actionable':(['waiting_reviewer','waiting_admin'].includes(r.status)?'is-waiting':'is-neutral')),isFocus=focusViolationIds.length>0&&focusViolationIds.indexOf(String(v.id||r.violation_id||''))>=0;return '<article class="phfck-employee-task-card '+tone+(isFocus?' phfck-notification-focus':'')+'"'+(isFocus?' data-phfck-focus-violation="1"':'')+'><div class="phfck-employee-task-icon">'+(canAct?'!':(r.status==='completed'?'✓':'◷'))+'</div><div class="phfck-employee-task-main"><div class="phfck-employee-task-kicker"><span>'+esc(v.criterion_group||'Checklist')+'</span><i class="is-'+esc(r.status)+'">'+esc(employeeTaskStatusLabel(r.status))+'</i>'+(isFocus?'<em class="phfck-notification-focus-tag">Từ thông báo</em>':'')+'</div><b>'+esc(v.criterion_name||'Lỗi Checklist')+'</b><p>'+esc(v.note||'Chưa có nội dung mô tả')+'</p><small>'+esc([v.occurred_date,v.occurred_time,v.location].filter(Boolean).join(' · ')||'Chưa có thời gian, địa điểm')+' · Người ghi: '+esc(r.created_by_name||'—')+'</small></div><div class="phfck-employee-task-side"><strong>'+(overdue?'Đã quá hạn':(r.due_at?'Hạn '+new Date(r.due_at).toLocaleString('vi-VN',{hour12:false}):'Không có hạn'))+'</strong><button type="button" class="'+(canAct?'phfck-primary':'phfck-secondary')+'" data-phfck-task-open="'+esc(r.id)+'">'+(canAct?'Xem và phản hồi':'Xem chi tiết')+'</button></div></article>';}
     return '<section class="phfck-panel phfck-employee-inbox phfck-mywork-dashboard"><div class="phfck-panel-head phfck-mywork-head"><div><small>'+(filterTitle?'DANH SÁCH THEO TRẠNG THÁI':'VIỆC CẦN TÔI XỬ LÝ')+'</small><h3>'+(filterTitle||'Xác nhận và giải trình lỗi Checklist')+'</h3><p>'+(filterTitle?('Đang hiển thị '+filterCount+' việc thuộc trạng thái '+filterTitle.toLowerCase()+'.'):'Ưu tiên các việc cần phản hồi; thông báo chỉ có chức năng nhắc việc.')+'</p></div><div class="phfck-employee-inbox-count"><strong>'+(filterTitle?filterCount:waiting)+'</strong><span>'+(filterTitle?'việc':'cần thao tác')+'</span></div></div>'
       +'<details class="phfck-employee-guide"><summary><span>ℹ</span><b>Quy trình xử lý lỗi trong 3 ngày</b><i></i></summary><div class="phfck-employee-guide-body"><p>Trong vòng <strong>3 ngày dương lịch</strong> kể từ khi nhận thông báo, bạn hãy chọn <b>Đồng ý</b> hoặc <b>Tôi có ý kiến</b>.</p><p>Người ghi nhận có <strong>3 ngày dương lịch</strong> để phản hồi. Nếu quá hạn hoặc kết quả vẫn chưa thống nhất, hệ thống sẽ hiển thị nút <b>Báo Admin</b>.</p><small>Nút Báo Admin chỉ xuất hiện khi hồ sơ đủ điều kiện theo quy trình.</small></div></details>'
       +(roleWorkspaceState.taskError?'<div class="phfck-role-note is-warning"><b>Chưa tải được việc cần xử lý</b><p>'+esc(roleWorkspaceState.taskError)+'</p></div>':'')
@@ -6385,7 +6424,7 @@
   }
   function managerSectionContentHtml(path,data){
     var section=managerSectionFromLocation(path);
-    if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('CÁ NHÂN','Phiếu của tôi','Tự đánh giá phiếu tháng, xử lý phản hồi cá nhân và xem Checklist đang áp dụng.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
+    if(section==='my-work')return '<div class="phfck-manager-my-work">'+managerSectionHeading('PHF CHECKLIST · CÁ NHÂN','Phiếu của tôi','Tự đánh giá, theo dõi kết quả và các nội dung liên quan đến phiếu đánh giá của bạn.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>CHECKLIST CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section></div>';
     if(section==='people'||section==='reviews')return managerPeopleHtml(path,data);
     if(section==='assessment-profile')return assessmentProfileHtml(path);
     if(section==='violations'){var context=managerPermissionContext(data),effView=violationEffectiveView(path,data.canRecordViolation===true),violationTitle=effView==='log'?'Nhật ký lỗi':'Ghi nhận lỗi',violationDesc=effView==='log'?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi được cấp.':context.violationDescription;return managerSectionHeading(context.violationKicker,violationTitle,violationDesc,'',effView==='log')+violationsHtml();}
@@ -6634,7 +6673,7 @@
         +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
         +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
         +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
-        +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
+        +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
         +(hasManagementAccess?'<div class="phfck-role-section-label"><b>Công việc quản lý</b><span>Chỉ hiển thị theo quyền mở rộng đang hiệu lực</span></div>'+monthlyReviewListHtml()+monthlyReviewDetailHtml():'')
         +'<section class="phfck-role-note"><b>Dữ liệu đang dùng</b><p>Checklist cá nhân, việc cần xử lý và phiếu tháng được đọc theo tài khoản đăng nhập.</p></section></main></div>';
     }
@@ -6646,7 +6685,7 @@
       +'<section class="phfck-role-scope"><div><small>PHẠM VI ĐANG ÁP DỤNG</small><b>'+esc(roleScopeSummary(data))+'</b><span>Dữ liệu cá nhân được bảo vệ theo tài khoản đăng nhập</span></div><i>'+(data.grant?'Đã kiểm tra quyền':'Quyền mặc định')+'</i></section>'
       +'<section class="phfck-role-stats phfck-employee-role-stats"><article class="is-scope"><span>Nhân sự được xem</span><strong>'+people.length+'</strong><small>Theo phạm vi hiện hành</small></article><article class="is-review"><span>Được thẩm định</span><strong>'+reviewCount+'</strong><small>Không suy từ quyền xem</small></article><article class="is-form"><span>Phiếu của tôi</span><strong>'+(myForm?1:0)+'</strong><small>'+(myForm?(myForm.status==='waiting_review'?'Đã gửi · chờ thẩm định':'Đang chờ tự đánh giá'):'Chưa được mở phiếu')+'</small></article><article class="is-warning"><span>Cảnh báo quyền</span><strong>0</strong><small>API đã lọc server-side</small></article></section>'
       +'<div class="phfck-role-section-label"><b>Việc của tôi</b><span>Quyền nền cá nhân luôn được áp dụng</span></div>'+employeeTaskInboxHtml()
-      +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
+      +'<section class="phfck-panel phfck-role-own"><div class="phfck-panel-head"><div><small>HỒ SƠ CỦA TÔI</small><h3>Checklist đang áp dụng</h3><p>Xem tiêu chuẩn, tiêu chí và Checklist hiện đang được áp dụng cho bạn.</p></div></div>'+rolePersonCardHtml(data.ownAssignment,true)+'</section>'+roleMonthlyHtml()
       +(hasManagementAccess?'<div class="phfck-role-section-label"><b>Công việc quản lý</b><span>Chỉ hiển thị theo quyền mở rộng đang hiệu lực</span></div>'+monthlyReviewListHtml()+monthlyReviewDetailHtml():'')
       +'<section class="phfck-role-note"><b>Dữ liệu đang dùng</b><p>Checklist cá nhân, việc cần xử lý và phiếu tháng được đọc theo tài khoản đăng nhập.</p></section></main>';
   }
@@ -6665,6 +6704,7 @@
     syncMobileContentHeader(root,path);
     root.querySelectorAll('[data-phfck-manager-section]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-phfck-manager-section')===active);});
     content.innerHTML=managerSectionContentHtml(path,data);
+    if(active==='my-work')applyChecklistNotificationFocusScroll(root);
     if(active==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
     else if(active==='permissions')requestAnimationFrame(function(){ensureChecklistPermissionsOnSettings(root,true);});
     else leaveViolationLifecycle();
@@ -6715,6 +6755,7 @@
     roleWorkspaceState.pendingRender=false;
     var safeRoute=normalizeManagerPermissionRoute(currentRouteKey(),true);
     current.innerHTML=roleWorkspaceContentHtml(safeRoute);
+    applyChecklistNotificationFocusScroll(root);
     /* Cold load thẳng vào /ql/checklist/phan-quyen đi qua refreshRoleWorkspaceView
        (sau khi loadRoleWorkspace tải xong data.grant lần đầu) - KHÔNG qua
        updateManagerSectionView (chỉ chạy khi shell manager đã tồn tại từ trước,
