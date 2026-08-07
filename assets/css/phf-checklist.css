@@ -1630,6 +1630,16 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-own-checklist-group li{display:flex;gap:8px;align-items:baseline;padding:7px 9px;border:1px solid #e8efeb;border-radius:9px;background:#fafcfb;color:#3a5148;font-size:11px;line-height:1.4}
 .phfck-own-checklist-group li span{flex:none;border-radius:999px;background:#eef6f1;color:#267052;padding:2px 7px;font-size:9.5px;font-weight:700}
 @media(max-width:760px){.phfck-own-checklist-summary{grid-template-columns:1fr}}
+.phfck-violation-notification-modal{width:min(720px,calc(100vw - 30px))}
+.phfck-violation-notification-count{margin-bottom:12px;color:#536e62;font-size:11.5px;font-weight:700}
+.phfck-violation-notification-list{display:flex;flex-direction:column;gap:10px}
+.phfck-violation-notification-item{border:1px solid #c9e2d4;border-left:4px solid #2d9a67;border-radius:12px;background:#f5fbf7;overflow:hidden}
+.phfck-violation-notification-item summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;cursor:pointer;list-style:none}
+.phfck-violation-notification-item summary::-webkit-details-marker{display:none}
+.phfck-violation-notification-item summary small{display:block;color:#718a80;font-size:9px;font-weight:700;letter-spacing:.06em}
+.phfck-violation-notification-item summary b{display:block;margin-top:3px;color:#155b42;font-size:12.5px}
+.phfck-violation-notification-item summary strong{flex:none;color:#b14e40;font-size:11.5px}
+.phfck-violation-notification-item .phfck-task-detail-summary{margin:0;padding:12px 14px 14px;border-top:1px solid #dcebe3;background:#fff;border-radius:0}
 .phfck-role-team-list{display:flex;flex-direction:column;gap:8px}
 .phfck-role-note{margin-top:13px;border:1px solid #e5d7a8;border-radius:12px;background:#fffaf0;padding:12px 14px}.phfck-role-note b{display:block;color:#705d20;font-size:11px}.phfck-role-note p{margin:3px 0 0;color:#85764b;font-size:10px;line-height:1.45}
 .phfck-role-loading,.phfck-role-error{display:flex;align-items:center;justify-content:center;gap:13px;min-height:320px;border:1px solid #dce8e2;border-radius:16px;background:#fff;text-align:left}.phfck-role-loading b,.phfck-role-error b{display:block;color:#244e3f;font-size:14px}.phfck-role-loading p,.phfck-role-error p{margin:4px 0 0;color:#758981;font-size:11px}.phfck-role-error>span{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fae9e5;color:#a6493d;font-size:20px;font-weight:700}.phfck-role-error button{margin-top:10px;border:0;border-radius:9px;background:#1e805c;color:#fff;padding:8px 12px;font-weight:700;cursor:pointer}

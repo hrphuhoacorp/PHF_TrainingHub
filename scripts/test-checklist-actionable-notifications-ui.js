@@ -88,7 +88,25 @@ for (const [label, source] of [['api/data.js', apiData], ['server.js', serverJs]
     `B4. ${label}: đã bỏ route cũ không tồn tại "/hv/checklist/viec-can-xu-ly"`);
   check(source.indexOf('rowsByEmployee') >= 0,
     `B5. ${label}: gom theo employeeCode trước khi emit (1 notification/nhân viên, nhưng mang đủ id mọi lỗi mới của người đó trong batch)`);
+  check(source.indexOf("subjectType:'violation',subjectId:task.violation_id") >= 0,
+    `B6. ${label}: EXPLANATION_SUBMITTED đổi sang subjectId=task.violation_id (trước là task.id) - thống nhất contract subject_id luôn là violation id cho mọi event liên quan violation`);
+  check(source.indexOf("getChecklistViolationDetail") >= 0,
+    `B7. ${label}: đã wire action getChecklistViolationDetail (modal chi tiết đọc lại đúng state hiện tại của violation)`);
 }
+
+// ================================================================
+// Batch "notification-violation-detail-modal" - reuse getChecklistTaskHistory
+// pattern (đã có sẵn) thay vì tạo permission/API engine mới.
+// ================================================================
+const tasksLib = fs.readFileSync(path.join(root, 'lib/checklist-tasks.js'), 'utf8');
+check(tasksLib.indexOf('async function getChecklistViolationDetail(session,input={})') >= 0,
+  'C1. lib/checklist-tasks.js có getChecklistViolationDetail() - đặt cùng file với getChecklistTaskHistory() để tái dùng actor/isSubject/isCreator/sameActor, không tạo permission engine riêng');
+check(/allowed=a\.role==='admin'\|\|isSubject\(violation,a\)\|\|isCreator\(violation,a\)\|\|\(task&&sameActor\(task,a\)\)/.test(tasksLib),
+  'C2. Permission dùng đúng quan hệ actor<->record đã có (isSubject/isCreator/sameActor) - nhân viên luôn xem được lỗi của chính mình dù không có Checklist permission grant nào (quyền nền cá nhân)');
+check(/if\(!allowed\)\{deniedCount\+\+;continue;\}/.test(tasksLib),
+  'C3. Bản ghi không đủ quyền bị loại thẳng khỏi items (không throw riêng lẻ) - notification gộp nhiều lỗi vẫn trả về phần đủ quyền, không leak phần còn lại');
+check(tasksLib.indexOf("module.exports={listChecklistTasks,transitionChecklistTask,getChecklistTaskHistory,getChecklistViolationDetail,operationTimingPolicy};") >= 0,
+  'C4. getChecklistViolationDetail được export');
 
 // ================================================================
 // B (frontend). vm sandbox thật cho checklistNotificationAction/highlight
@@ -99,7 +117,7 @@ function buildTestSource() {
   if (idx === -1 || idx < app.length - 20) {
     throw new Error('Không tìm thấy dấu đóng IIFE cuối file - cấu trúc file đã đổi, cần cập nhật test.');
   }
-  const expose = "\n  window.__phfckNotifTest={checklistNotificationAction:checklistNotificationAction,checklistNotificationTone:checklistNotificationTone,checklistNotificationFocusViolationIds:checklistNotificationFocusViolationIds,checklistNotificationFocusTaskId:checklistNotificationFocusTaskId,checklistNotificationFocusKeyFromLocation:checklistNotificationFocusKeyFromLocation,employeeTaskInboxHtml:employeeTaskInboxHtml,roleWorkspaceState:roleWorkspaceState,notificationUiState:notificationUiState,checklistNotificationInboxHtml:checklistNotificationInboxHtml,ownChecklistDetailBodyHtml:ownChecklistDetailBodyHtml,roleMonthlyChecklistBreakdownHtml:roleMonthlyChecklistBreakdownHtml,checklistTemplateDbState:checklistTemplateDbState,checklistNotificationFocusState:checklistNotificationFocusState};\n";
+  const expose = "\n  window.__phfckNotifTest={checklistNotificationAction:checklistNotificationAction,checklistNotificationTone:checklistNotificationTone,checklistNotificationFocusViolationIds:checklistNotificationFocusViolationIds,checklistNotificationFocusTaskId:checklistNotificationFocusTaskId,checklistNotificationFocusKeyFromLocation:checklistNotificationFocusKeyFromLocation,employeeTaskInboxHtml:employeeTaskInboxHtml,roleWorkspaceState:roleWorkspaceState,notificationUiState:notificationUiState,checklistNotificationInboxHtml:checklistNotificationInboxHtml,ownChecklistDetailBodyHtml:ownChecklistDetailBodyHtml,roleMonthlyChecklistBreakdownHtml:roleMonthlyChecklistBreakdownHtml,checklistTemplateDbState:checklistTemplateDbState,checklistNotificationFocusState:checklistNotificationFocusState,violationNotificationModalState:violationNotificationModalState,violationNotificationModalHtml:violationNotificationModalHtml,violationNotificationDestination:violationNotificationDestination,violationNotificationDestinationPath:violationNotificationDestinationPath,violationLogState:violationLogState};\n";
   return app.slice(0, idx) + expose + app.slice(idx);
 }
 
@@ -129,11 +147,14 @@ function buildSandbox() {
   sandbox.MutationObserver = function () { return { observe: noop, disconnect: noop }; };
   sandbox.fetch = function () { return Promise.resolve({ ok: true, json: function () { return Promise.resolve({}); } }); };
   sandbox.URL = URL;
+  sandbox.URLSearchParams = URLSearchParams;
   sandbox.setTimeout = setTimeout;
   sandbox.clearTimeout = clearTimeout;
   sandbox.requestAnimationFrame = function (fn) { return setTimeout(fn, 0); };
   sandbox.CSS = { escape: function (v) { return String(v); } };
   sandbox.__phfLocalData = null;
+  sandbox.__testRole = '';
+  sandbox.phfGetSessionRole = function () { return sandbox.__testRole; };
   return vm.createContext(sandbox);
 }
 
@@ -141,18 +162,16 @@ const ctx = buildSandbox();
 new vm.Script(buildTestSource(), { filename: appRelPath }).runInContext(ctx);
 const api = ctx.window.__phfckNotifTest;
 
-// ---------- 1. CTA label + deep-link theo đúng loại thông báo ----------
+// ---------- 1. CTA "Xem lỗi" -> OPEN_VIOLATION_DETAIL (mở modal, không tự điều hướng) ----------
 ctx.window.location.pathname = '/hv/checklist';
 ctx.window.location.search = '';
 let action = api.checklistNotificationAction({ eventCode: 'VIOLATION_CREATED', subjectType: 'violation', subjectId: 'v1,v2', targetPath: '/hv/checklist' });
-check(action.type === 'OPEN_CHECKLIST_TASK' && action.label === 'Xem lỗi', '1a. VIOLATION_CREATED -> CTA "Xem lỗi" (không còn "Xem việc" chung chung)');
-check(action.path.indexOf('/hv/checklist?task=employee') === 0, '1b. VIOLATION_CREATED (role learner) -> vẫn dùng base path role-based đã có (/hv/checklist?task=employee) - không tin thẳng targetPath lưu sẵn');
-check(action.path.indexOf('focus=violation&violation_id=v1%2Cv2') >= 0, '1c. Query bổ sung mang đúng violation_id (đã encode) để deep-link tới đúng lỗi');
+check(action.type === 'OPEN_VIOLATION_DETAIL' && action.label === 'Xem lỗi', '1a. VIOLATION_CREATED có subjectId hợp lệ -> type OPEN_VIOLATION_DETAIL (mở modal), CTA "Xem lỗi"');
+check(Array.isArray(action.violationIds) && action.violationIds.join(',') === 'v1,v2', '1b. violationIds được parse đúng từ subjectId (comma-joined) để truyền cho getChecklistViolationDetail');
+check(action.path === '', '1c. Không tự tính path điều hướng ngay - kiến trúc mới không tự chuyển trang khi có subjectId hợp lệ');
 
-ctx.window.location.pathname = '/admin/checklist';
-action = api.checklistNotificationAction({ eventCode: 'EXPLANATION_SUBMITTED', subjectType: 'violation_task', subjectId: 'task-9', targetPath: '/admin/checklist/viec-can-xu-ly' });
-check(action.label === 'Xử lý', '2a. EXPLANATION_SUBMITTED -> CTA "Xử lý" (khác "Xem lỗi", đúng nghiệp vụ "cần xử lý")');
-check(action.path === '/admin/checklist/viec-can-xu-ly?focus=task&task_id=task-9', '2b. EXPLANATION_SUBMITTED mang đúng focus=task&task_id= trên route admin đã có sẵn (route này vốn đã hợp lệ, chỉ thêm deep-link)');
+action = api.checklistNotificationAction({ eventCode: 'EXPLANATION_SUBMITTED', subjectType: 'violation', subjectId: 'v9', targetPath: '/admin/checklist/viec-can-xu-ly?focus=violation&violation_id=v9' });
+check(action.type === 'OPEN_VIOLATION_DETAIL' && action.label === 'Xem lỗi' && action.violationIds.join(',') === 'v9', '2a. EXPLANATION_SUBMITTED (đã đổi sang subjectId=violation_id thay vì task_id) cũng mở modal chi tiết cùng cơ chế, không tách CTA riêng nữa');
 
 action = api.checklistNotificationAction({ eventCode: 'PERMISSION_CHANGED', subjectType: 'permission_grant', subjectId: 'g1', targetPath: '/ql/checklist' });
 check(action.type === 'NONE' && action.label === '', '3a. PERMISSION_CHANGED (thông báo hệ thống) vẫn KHÔNG có CTA - giữ nguyên "nhẹ" như trước, không nâng thành actionable');
@@ -258,6 +277,92 @@ check(!/<details class="phfck-checklist-breakdown" open>/.test(breakdownHtmlNoFo
 // ---------- Nạp lại dữ liệu 1 lần khi deep-link tới nhưng chưa tìm thấy record (tránh cache "đã nạp trong phiên" làm mất lỗi mới) ----------
 check(app.indexOf('checklistNotificationFocusState.reloadedKey!==key&&roleWorkspaceState.loaded') >= 0,
   'UAT-12. applyChecklistNotificationFocusScroll() ép nạp lại dữ liệu (startRoleWorkspaceBackgroundLoads force=true) đúng 1 lần khi chưa thấy đúng bản ghi - tránh trường hợp roleWorkspaceState.taskLoaded/monthlyLoaded đã nạp TRƯỚC KHI lỗi mới phát sinh trong cùng phiên');
+
+// ================================================================
+// Batch "notification-violation-detail-modal" - modal state/render
+// ================================================================
+function makeItem(overrides) {
+  return Object.assign({
+    violation: { id: 'v1', employee_name: 'Nguyễn Văn A', employee_code: 'PHF001', occurred_date: '2026-08-05', occurred_time: '09:00', criterion_group: 'Tác phong', criterion_code: 'CT-01', criterion_name: 'Đồng phục', points: 5, created_by_name: 'Giám sát B', department: 'Bán hàng', branch: 'Ngô Quyền', note: 'Thiếu bảng tên', record_status: 'official' },
+    task: { status: 'waiting_employee', due_at: '2099-01-01T00:00:00Z' },
+    history: []
+  }, overrides || {});
+}
+
+// api.violationNotificationModalState là REFERENCE tới biến trong closure vm -
+// gán đè "api.violationNotificationModalState = {...}" chỉ đổi property trên
+// object export, KHÔNG đổi biến thật bên trong (violationNotificationModalHtml()
+// vẫn đọc biến gốc) - phải mutate đúng object đã export bằng setModalState().
+function setModalState(next) {
+  const target = api.violationNotificationModalState;
+  Object.keys(target).forEach(function (k) { delete target[k]; });
+  Object.assign(target, next);
+}
+
+// ---------- D. Modal: loading / error / denied(empty) / single / multi ----------
+setModalState({ loading: true, error: '', items: [], deniedCount: 0, requestedCount: 1 });
+check(api.violationNotificationModalHtml().indexOf('Đang tải chi tiết lỗi') >= 0, 'D1. Trạng thái loading hiển thị rõ, không hiện rỗng/sai dữ liệu');
+
+setModalState({ loading: false, error: 'Mất kết nối.', items: [], deniedCount: 0, requestedCount: 1 });
+check(api.violationNotificationModalHtml().indexOf('Mất kết nối.') >= 0, 'D2. Fetch fail -> hiển thị lỗi rõ trong modal, không treo popup');
+
+setModalState({ loading: false, error: '', items: [], deniedCount: 1, requestedCount: 1 });
+let modalHtml = api.violationNotificationModalHtml();
+check(modalHtml.indexOf('Bạn không còn quyền xem nội dung này.') >= 0, 'D3. Không còn item nào đủ quyền (denied hết) -> hiện đúng thông báo "không còn quyền", không leak/giả vờ có dữ liệu');
+check(modalHtml.indexOf('data-phfck-violation-notification-goto') < 0, 'D4. Không có dữ liệu hợp lệ -> KHÔNG hiện CTA điều hướng ở footer');
+
+setModalState({ loading: false, error: '', items: [makeItem()], deniedCount: 0, requestedCount: 1 });
+modalHtml = api.violationNotificationModalHtml();
+check(modalHtml.indexOf('Nguyễn Văn A') >= 0 && modalHtml.indexOf('PHF001') >= 0, 'D5. 1 lỗi -> render trực tiếp chi tiết (không cần danh sách bọc ngoài), đúng nhân sự');
+check(modalHtml.indexOf('Đồng phục') >= 0 && modalHtml.indexOf('CT-01') >= 0 && modalHtml.indexOf('−5.00') >= 0, 'D6. Hiển thị đúng tiêu chí và điểm trừ');
+check(modalHtml.indexOf('Thiếu bảng tên') >= 0, 'D7. Hiển thị đúng nội dung/ghi chú');
+check(!/data-phfck-task-note|data-phfck-log-cancel|data-phfck-log-edit|taskAction/.test(modalHtml), 'D8. Modal KHÔNG có bất kỳ control workflow nào (xác nhận/giải trình/hủy/sửa) - đúng yêu cầu READ-ONLY, tránh duplicate workflow engine');
+
+setModalState({ loading: false, error: '', items: [makeItem(), makeItem({ violation: Object.assign({}, makeItem().violation, { id: 'v2', criterion_name: 'Vệ sinh quầy', points: 3 }) })], deniedCount: 1, requestedCount: 3 });
+modalHtml = api.violationNotificationModalHtml();
+check(modalHtml.indexOf('2 lỗi Checklist') >= 0, 'D9. Nhiều lỗi -> hiển thị đúng số lượng "N lỗi Checklist"');
+check(modalHtml.indexOf('1 lỗi bạn không còn quyền xem') >= 0, 'D10. Có báo rõ số lỗi bị từ chối quyền (deniedCount) - không âm thầm bỏ qua');
+check(modalHtml.indexOf('Đồng phục') >= 0 && modalHtml.indexOf('Vệ sinh quầy') >= 0, 'D11. Cả 2 lỗi đủ quyền đều hiển thị đầy đủ trong danh sách - không silently drop');
+
+// ---------- E. Destination theo quyền thật (canViewViolations/canRecordViolation), không hard-code role label ----------
+ctx.window.__testRole = 'admin';
+ctx.window.location.pathname = '/admin/checklist';
+api.roleWorkspaceState.data = {};
+let dest = api.violationNotificationDestination();
+check(dest.type === 'log' && dest.label === 'Đi tới Nhật ký lỗi', 'E1. Admin -> luôn có quyền Nhật ký lỗi -> CTA "Đi tới Nhật ký lỗi"');
+
+ctx.window.__testRole = 'manager';
+ctx.window.location.pathname = '/ql/checklist';
+api.roleWorkspaceState.data = { grant: { id: 'g1' }, canViewViolations: true, canRecordViolation: false };
+dest = api.violationNotificationDestination();
+check(dest.type === 'log', 'E2. Manager có canViewViolations=true (capability thật, không phải role label) -> "Đi tới Nhật ký lỗi"');
+
+api.roleWorkspaceState.data = { grant: { id: 'g1' }, canViewViolations: false, canRecordViolation: false };
+dest = api.violationNotificationDestination();
+check(dest.type === 'personal' && dest.label === 'Đi tới xử lý', 'E3. Manager có grant nhưng KHÔNG có canViewViolations/canRecordViolation -> vẫn là "Đi tới xử lý" (không suy diễn quyền Nhật ký lỗi từ việc có grant khác)');
+let destPath = api.violationNotificationDestinationPath('personal', ['v1']);
+check(destPath === '/ql/checklist?section=my-work&focus=violation&violation_id=v1', 'E4. Manager CÓ management access -> "Đi tới xử lý" trỏ về đúng /ql/checklist?section=my-work (không phải route cá nhân trần trụi)');
+
+ctx.window.__testRole = 'learner';
+ctx.window.location.pathname = '/hv/checklist';
+api.roleWorkspaceState.data = {};
+dest = api.violationNotificationDestination();
+check(dest.type === 'personal', 'E5. Learner -> "Đi tới xử lý"');
+destPath = api.violationNotificationDestinationPath('personal', ['v1', 'v2']);
+check(destPath === '/hv/checklist?focus=violation&violation_id=v1%2Cv2', 'E6. Learner -> route cá nhân /hv/checklist, mang đủ nhiều violation_id (đã encode)');
+
+destPath = api.violationNotificationDestinationPath('log', ['v9']);
+check(destPath.indexOf('view=log') >= 0 && destPath.indexOf('focus=violation&violation_id=v9') >= 0, 'E7. "Đi tới Nhật ký lỗi" dùng đúng route sẵn có (view=log) + additive focus=violation&violation_id=, không tạo router mới');
+
+// ---------- F. Nhật ký lỗi tự mở đúng detail đã có sẵn khi tới từ deep-link ----------
+check(app.indexOf('function applyViolationLogNotificationFocus(root)') >= 0,
+  'F1. Có hàm applyViolationLogNotificationFocus() gọi sau khi Nhật ký lỗi tải xong đúng phạm vi quyền');
+check(/violationLogState\.autoOpenedFocusKey===key\)return;/.test(app),
+  'F2. Có guard autoOpenedFocusKey - không mở lặp lại modal mỗi lần Nhật ký lỗi re-render');
+check(/openViolationLogDetail\(root,match\.id\);/.test(app),
+  'F3. Reuse ĐÚNG modal chi tiết đã có sẵn của Nhật ký lỗi (openViolationLogDetail/violationLogDetailHtml - có lịch sử/minh chứng) thay vì tạo modal chi tiết thứ hai cho màn này');
+check(/if\(violationUiState\.mode==='log'\)\{renderViolationWorkspace\(root,false\);applyViolationLogNotificationFocus\(root\);\}/.test(app),
+  'F4. Hook được gọi đúng sau khi loadViolationLog() hoàn tất (không phải trước khi có dữ liệu)');
 
 if (failures) {
   console.error('\n' + failures + ' check(s) failed.');

@@ -1080,7 +1080,7 @@
   function phfckPrompt(options){options=options||{};options.mode='prompt';return phfckDecisionModal(options);}
 
   var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{},quickPersonMode:'single',quickMultiPersonRows:[],quickMultiPersonReviewOpen:false};
-  var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{},taskHistory:{},taskHistoryLoading:{},taskHistoryError:{}};
+  var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{},taskHistory:{},taskHistoryLoading:{},taskHistoryError:{},autoOpenedFocusKey:''};
   function invalidateViolationLog(){violationLogState.loaded=false;violationLogState.page=1;violationLogState.history={};}
 
   /* PHF Checklist Evidence 1.41.0: upload ảnh/PDF minh chứng thật lên Supabase
@@ -1450,26 +1450,29 @@
     }
     return normalizeText(fallbackPath||'');
   }
+  /* Kiến trúc mới (batch notification-violation-detail-modal) - notification
+     liên quan violation KHÔNG còn tự điều hướng "Xem lỗi" -> router -> Phiếu
+     của tôi -> tự cuộn/mở/highlight nữa (mục tiêu cũ của 1.43.4/1.43.5, không
+     đạt UX mong muốn dù runtime đúng). Thay bằng: "Xem lỗi" mở modal chi tiết
+     (đọc lại đúng state hiện tại qua API, không tin nội dung cũ trong
+     notification), người dùng đã hiểu lỗi trước khi bấm CTA điều hướng ở cuối
+     modal. subjectId (violation id, có thể nhiều id comma-joined) là điều
+     kiện DUY NHẤT để dùng type mới OPEN_VIOLATION_DETAIL - thiếu subjectId
+     (notification cũ trước 1.43.4, hoặc trước batch này với EXPLANATION_SUBMITTED
+     còn lưu task id kiểu cũ) rơi về đúng hành vi điều hướng cũ, không crash. */
   function checklistNotificationAction(row){
     row=row||{};
     var event=normalizeText(row.eventCode||'').toUpperCase(),subject=normalizeText(row.subjectType||'').toLowerCase(),subjectId=normalizeText(row.subjectId||''),path=normalizeText(row.targetPath||''),type='OPEN_DETAIL',label='Xem chi tiết';
     if(event.indexOf('PERMISSION_')===0||event.indexOf('SYSTEM_')===0||subject.indexOf('permission')>=0)return {type:'NONE',label:'',path:''};
-    if(event==='EXPLANATION_SUBMITTED'){type='OPEN_CHECKLIST_TASK';label='Xử lý';}
-    else if(event.indexOf('VIOLATION_')===0||subject.indexOf('violation')>=0){type='OPEN_CHECKLIST_TASK';label='Xem lỗi';}
-    else if(event.indexOf('EXPLANATION_')===0){type='OPEN_CHECKLIST_TASK';label='Xem việc';}
+    var isViolationEvent=event.indexOf('VIOLATION_')===0||event==='EXPLANATION_SUBMITTED'||subject.indexOf('violation')>=0;
+    if(isViolationEvent){
+      var violationIds=subjectId?subjectId.split(',').map(function(x){return x.trim();}).filter(Boolean):[];
+      if(violationIds.length)return {type:'OPEN_VIOLATION_DETAIL',label:'Xem lỗi',violationIds:violationIds,path:''};
+      type='OPEN_CHECKLIST_TASK';label='Xem lỗi';
+    }
     else if(event==='SELF_REVIEW_SUBMITTED'){type='OPEN_REVIEW';label='Thẩm định';}
     else if(event.indexOf('MONTHLY_')===0||subject.indexOf('monthly')>=0){type='OPEN_MONTHLY';label='Xem phiếu';}
     path=checklistNotificationCanonicalPath(type,path);
-    /* Deep-link additive: chỉ APPEND query param an toàn (đọc dữ liệu đã thuộc
-       phạm vi quyền của chính người nhận, không phải điều hướng theo URL lưu
-       sẵn) lên trên path đã tính theo role hiện tại - không bao giờ tin thẳng
-       row.targetPath cho việc điều hướng, giữ đúng cơ chế bảo mật đã có sẵn
-       của checklistNotificationCanonicalPath(). Thông báo cũ thiếu subjectId
-       (vd subjectType='violation_batch' rỗng) sẽ rơi về path gốc, không lỗi. */
-    if(type==='OPEN_CHECKLIST_TASK'&&subjectId){
-      if(event==='EXPLANATION_SUBMITTED')path+=(path.indexOf('?')>=0?'&':'?')+'focus=task&task_id='+encodeURIComponent(subjectId);
-      else if(subject.indexOf('violation')>=0)path+=(path.indexOf('?')>=0?'&':'?')+'focus=violation&violation_id='+encodeURIComponent(subjectId);
-    }
     return path?{type:type,label:label,path:path}:{type:'NONE',label:'',path:''};
   }
   function checklistNotificationTone(row){
@@ -1509,6 +1512,74 @@
     try{target.scrollIntoView({behavior:'smooth',block:'center'});}catch(_e){}
     target.classList.add('phfck-notification-focus-flash');
     setTimeout(function(){target.classList.remove('phfck-notification-focus-flash');},2600);
+  }
+  /* ===== Batch "notification-violation-detail-modal" =====
+     Modal chi tiết lỗi mở TỪ notification (không tự điều hướng ngay). Đọc
+     lại state hiện tại qua getChecklistViolationDetail() (lib/checklist-tasks.js)
+     - KHÔNG dùng dữ liệu snapshot cũ trong notification làm nguồn sự thật.
+     READ-ONLY: không có nút xác nhận/giải trình/hủy trong modal này (đó là
+     việc của "Đi tới xử lý"/"Đi tới Nhật ký lỗi" - 2 màn hiện có, không tạo
+     workflow engine thứ hai ở đây). */
+  var violationNotificationModalState={loading:false,error:'',items:[],deniedCount:0,requestedCount:0};
+  function violationNotificationDestination(){
+    var hasLogAccess=role()==='admin'||(role()==='manager'&&((roleWorkspaceState.data||{}).canViewViolations===true||(roleWorkspaceState.data||{}).canRecordViolation===true));
+    return hasLogAccess?{type:'log',label:'Đi tới Nhật ký lỗi'}:{type:'personal',label:'Đi tới xử lý'};
+  }
+  function violationNotificationPersonalPath(){
+    if(routeRole(currentRouteKey())==='manager'&&checklistHasManagementAccess())return managerRouteForSection('my-work');
+    return checklistPersonalBasePath(currentRouteKey());
+  }
+  function violationNotificationDestinationPath(destType,violationIds){
+    var ids=(violationIds||[]).join(','),basePath=destType==='log'?violationSectionRouteFor('log','all'):violationNotificationPersonalPath();
+    return basePath+(basePath.indexOf('?')>=0?'&':'?')+'focus=violation&violation_id='+encodeURIComponent(ids);
+  }
+  function violationNotificationItemFieldsHtml(item){
+    var v=item.violation||{},task=item.task||null,history=Array.isArray(item.history)?item.history:[];
+    var lastEmployeeResponse=history.slice().reverse().find(function(h){return h.action==='employee_confirm'||h.action==='employee_explain';});
+    var lastReviewerResponse=history.slice().reverse().find(function(h){return ['reviewer_accept','reviewer_uphold','admin_uphold','admin_cancel'].indexOf(h.action)>=0;});
+    var rows=[
+      ['Nhân sự',esc(v.employee_name||'—')+' · '+esc(v.employee_code||'—'),false],
+      ['Ngày phát sinh',esc([v.occurred_date,v.occurred_time].filter(Boolean).join(' · ')||'—'),false],
+      (v.template_name||v.template_version)?['Checklist / mẫu áp dụng',esc(v.template_name||v.template_version),false]:null,
+      ['Nhóm tiêu chí',esc(v.criterion_group||'—'),false],
+      ['Tiêu chí vi phạm',(v.criterion_code?esc(v.criterion_code)+' · ':'')+esc(v.criterion_name||'—'),false],
+      ['Điểm trừ','−'+Number(v.points||0).toFixed(2),false],
+      ['Người ghi nhận',esc(v.created_by_name||'—'),false],
+      (v.department||v.branch)?['Bộ phận / Chi nhánh',esc([v.department,v.branch].filter(Boolean).join(' · ')),false]:null,
+      ['Trạng thái hiện tại',v.record_status==='cancelled'?'Đã hủy':(task?esc(taskStatusLabel(task.status)):'Chưa có quy trình xử lý'),false],
+      (task&&task.due_at&&['completed','cancelled'].indexOf(task.status)<0)?['Thời hạn phản hồi',esc(taskDueText(task)),false]:null,
+      ['Nội dung / ghi chú',esc(v.note||'—'),true],
+      v.record_status==='cancelled'?['Lý do hủy',esc(v.cancel_reason||'—'),true]:null,
+      lastEmployeeResponse?[esc(taskHistoryLabel(lastEmployeeResponse.action)),esc(lastEmployeeResponse.note||'—'),true]:null,
+      lastReviewerResponse?[esc(taskHistoryLabel(lastReviewerResponse.action)),esc(lastReviewerResponse.note||'—'),true]:null
+    ].filter(Boolean);
+    return '<div class="phfck-task-detail-summary phfck-violation-notification-fields">'+rows.map(function(r){return '<div'+(r[2]?' class="is-wide"':'')+'><small>'+r[0]+'</small>'+(r[2]?'<p>'+r[1]+'</p>':'<b>'+r[1]+'</b>')+'</div>';}).join('')+'</div>';
+  }
+  function violationNotificationModalHtml(){
+    var s=violationNotificationModalState,dest=violationNotificationDestination(),body,footerCta='';
+    if(s.loading)body='<div class="phfck-role-loading is-compact"><span class="phfck-loading-spinner"></span><div><b>Đang tải chi tiết lỗi…</b><p>Vui lòng chờ trong giây lát.</p></div></div>';
+    else if(s.error)body='<div class="phfck-role-note is-warning"><b>Chưa tải được chi tiết</b><p>'+esc(s.error)+'</p></div>';
+    else if(!s.items.length)body='<div class="phfck-role-note"><b>Bạn không còn quyền xem nội dung này.</b><p>Nội dung có thể đã ngoài phạm vi hoặc không còn tồn tại.</p></div>';
+    else if(s.items.length===1)body=violationNotificationItemFieldsHtml(s.items[0]);
+    else body='<div class="phfck-violation-notification-count">'+s.items.length+' lỗi Checklist'+(s.deniedCount?' · '+s.deniedCount+' lỗi bạn không còn quyền xem':'')+'</div><div class="phfck-violation-notification-list">'+s.items.map(function(item,i){var v=item.violation||{};return '<details class="phfck-violation-notification-item"'+(i===0?' open':'')+'><summary><div><small>'+esc(v.occurred_date||'')+'</small><b>'+esc(v.criterion_name||'Lỗi Checklist')+'</b></div><strong>−'+Number(v.points||0).toFixed(2)+'</strong></summary>'+violationNotificationItemFieldsHtml(item)+'</details>';}).join('')+'</div>';
+    if(!s.loading&&!s.error&&s.items.length){var ids=s.items.map(function(x){return (x.violation||{}).id;}).filter(Boolean);footerCta='<button type="button" class="phfck-primary" data-phfck-violation-notification-goto="'+esc(dest.type)+'" data-phfck-violation-notification-ids="'+esc(ids.join(','))+'">'+esc(dest.label)+'</button>';}
+    return '<div class="phfck-modal-layer" data-phfck-submodal><div class="phfck-modal phfck-violation-notification-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>THÔNG BÁO CHECKLIST</small><h2>'+(s.items.length>1?'Chi tiết các lỗi':'Chi tiết lỗi Checklist')+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'+body+'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button>'+footerCta+'</div></div></div>';
+  }
+  async function openChecklistViolationNotificationModal(root,violationIds){
+    violationNotificationModalState={loading:true,error:'',items:[],deniedCount:0,requestedCount:(violationIds||[]).length};
+    appendSubmodal(root,violationNotificationModalHtml());
+    try{
+      var response=await fetch('/api/data?checklistTasks=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'getChecklistViolationDetail',violationIds:violationIds})});
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải chi tiết lỗi.');
+      violationNotificationModalState.items=Array.isArray(data.items)?data.items:[];
+      violationNotificationModalState.deniedCount=Number(data.deniedCount)||0;
+    }catch(error){
+      violationNotificationModalState.error=error&&error.message||'Không thể tải chi tiết lỗi.';
+    }finally{
+      violationNotificationModalState.loading=false;
+      if(root&&root.querySelector('[data-phfck-submodal]'))appendSubmodal(root,violationNotificationModalHtml());
+    }
   }
   function checklistNotificationInboxHtml(){
     var rows=notificationUiState.inbox||[];
@@ -4113,7 +4184,26 @@
     violationLogState.mode='all';
     return '<section class="phfck-panel phfck-log-panel"><div class="phfck-panel-head phfck-log-panel-head"><div><small>NHẬT KÝ LỖI</small><h3>Dữ liệu đã ghi nhận</h3></div><div class="phfck-log-head-actions"><span class="phfck-period-chip" title="Kỳ đánh giá đang làm việc">◷ Kỳ đánh giá '+esc(violationEvaluationPeriodValue())+'</span><button type="button" class="phfck-secondary" data-phfck-log-reload>↻ Làm mới</button></div></div><div class="phfck-log-filters phfck-log-filters-simple"><label><span>Tìm nhanh</span><input type="search" value="'+esc(violationLogState.query)+'" placeholder="Tên, mã NV, tiêu chí, nhận xét…" data-phfck-log-query></label><label><span>Nhân sự</span><select data-phfck-log-employee>'+violationLogEmployeeOptions()+'</select></label><label><span>Tình trạng xử lý</span><select data-phfck-log-workflow>'+VIOLATION_WORKFLOW_STATUS_VALUES.map(function(k){return '<option value="'+k+'" '+(violationLogState.workflowStatus===k?'selected':'')+'>'+(k==='all'?'Tất cả':esc(violationWorkflowStatusLabel(k)))+'</option>';}).join('')+'</select></label><label><span>Từ ngày</span><input type="date" value="'+esc(violationLogState.dateFrom)+'" data-phfck-log-from></label><label><span>Đến ngày</span><input type="date" value="'+esc(violationLogState.dateTo)+'" data-phfck-log-to></label><div class="phfck-log-filter-action"><button type="button" class="phfck-primary" data-phfck-log-apply>Áp dụng</button></div></div><div class="phfck-log-count"><b>'+Number(violationLogState.total||0)+' bản ghi</b><span>Dữ liệu được lọc tại máy chủ theo đúng phạm vi quyền.</span></div><div data-phfck-log-rows>'+violationLogRowsHtml()+'</div>'+violationLogPaginationHtml()+'</section>';
   }
-  async function loadViolationLog(root,force){if(violationLogState.loading||(!force&&violationLogState.loaded))return;violationLogState.loading=true;violationLogState.error='';if(violationUiState.mode==='log')renderViolationWorkspace(root,false);try{var payload={action:'listChecklistViolations',query:violationLogState.query||'',employeeCode:violationLogState.employeeCode||'',mode:violationLogState.mode||'all',status:violationLogState.status||'all',workflowStatus:violationLogState.workflowStatus||'all',dateFrom:violationLogState.dateFrom||'',dateTo:violationLogState.dateTo||'',page:violationLogState.page||1,pageSize:violationLogState.pageSize||30};var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể đọc nhật ký lỗi.');violationLogState.records=Array.isArray(data.records)?data.records:[];violationLogState.employees=Array.isArray(data.employees)?data.employees:[];violationLogState.total=Number(data.total||0);violationLogState.page=Number(data.page||violationLogState.page||1);violationLogState.pageSize=Number(data.pageSize||violationLogState.pageSize||30);violationLogState.permission=data.permission||violationLogState.permission;violationLogState.loaded=true;}catch(err){violationLogState.error='Không thể tải dữ liệu.';}finally{violationLogState.loading=false;if(violationUiState.mode==='log')renderViolationWorkspace(root,false);}}
+  async function loadViolationLog(root,force){if(violationLogState.loading||(!force&&violationLogState.loaded))return;violationLogState.loading=true;violationLogState.error='';if(violationUiState.mode==='log')renderViolationWorkspace(root,false);try{var payload={action:'listChecklistViolations',query:violationLogState.query||'',employeeCode:violationLogState.employeeCode||'',mode:violationLogState.mode||'all',status:violationLogState.status||'all',workflowStatus:violationLogState.workflowStatus||'all',dateFrom:violationLogState.dateFrom||'',dateTo:violationLogState.dateTo||'',page:violationLogState.page||1,pageSize:violationLogState.pageSize||30};var response=await fetch('/api/data?checklistViolations=1',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể đọc nhật ký lỗi.');violationLogState.records=Array.isArray(data.records)?data.records:[];violationLogState.employees=Array.isArray(data.employees)?data.employees:[];violationLogState.total=Number(data.total||0);violationLogState.page=Number(data.page||violationLogState.page||1);violationLogState.pageSize=Number(data.pageSize||violationLogState.pageSize||30);violationLogState.permission=data.permission||violationLogState.permission;violationLogState.loaded=true;}catch(err){violationLogState.error='Không thể tải dữ liệu.';}finally{violationLogState.loading=false;if(violationUiState.mode==='log'){renderViolationWorkspace(root,false);applyViolationLogNotificationFocus(root);}}}
+  /* CTA "Đi tới Nhật ký lỗi" (từ modal chi tiết thông báo) mang theo
+     ?focus=violation&violation_id= (đúng convention đã dùng cho Phiếu của
+     tôi) - sau khi Nhật ký lỗi tải xong đúng phạm vi quyền, nếu bản ghi nằm
+     trong trang hiện tại thì mở thẳng đúng modal chi tiết đã có sẵn
+     (openViolationLogDetail/violationLogDetailHtml - đầy đủ lịch sử/minh
+     chứng, không tạo modal thứ hai). Nếu bản ghi không nằm trong bộ lọc mặc
+     định (vd đã hủy, khác trang) thì không ép mở - người dùng vẫn đang ở
+     đúng Nhật ký lỗi, có thể tự tìm bằng bộ lọc, không throw/không crash.
+     autoOpenedFocusKey chặn mở lặp lại mỗi lần Nhật ký lỗi re-render. */
+  function applyViolationLogNotificationFocus(root){
+    var ids=checklistNotificationFocusViolationIds(currentRouteKey());
+    if(!ids.length)return;
+    var key=ids.join(',');
+    if(violationLogState.autoOpenedFocusKey===key)return;
+    var match=(violationLogState.records||[]).find(function(r){return ids.indexOf(String(r.id))>=0;});
+    if(!match)return;
+    violationLogState.autoOpenedFocusKey=key;
+    openViolationLogDetail(root,match.id);
+  }
 
   function violationHistoryActionLabel(action){var map={create:'Tạo bản ghi',edit:'Chỉnh sửa',cancel:'Hủy bản ghi',delete_test:'Xóa bản ghi TEST',delete_test_batch:'Dọn đợt TEST'};return map[String(action||'')]||String(action||'Thay đổi');}
   /* Timeline "LỊCH SỬ HOẠT ĐỘNG" hợp nhất 2 nguồn - KHÔNG được gộp mù rồi sắp
@@ -5795,7 +5885,47 @@
       var monthlyPolicySave=e.target.closest('[data-phfck-monthly-policy-save]');if(monthlyPolicySave){e.preventDefault();saveMonthlyOverduePolicyUi(root);return;}
       var monthlyPolicyProcess=e.target.closest('[data-phfck-monthly-policy-process]');if(monthlyPolicyProcess){e.preventDefault();processMonthlyOverdueUi(root);return;}
       var notificationToggle=e.target.closest('[data-phfck-notification-toggle]');if(notificationToggle){e.preventDefault();notificationUiState.inboxOpen=!notificationUiState.inboxOpen;notificationToggle.setAttribute('aria-expanded',notificationUiState.inboxOpen?'true':'false');var notificationInbox=root.querySelector('[data-phfck-notification-inbox]');if(notificationInbox)notificationInbox.innerHTML=notificationUiState.inboxOpen?checklistNotificationInboxHtml():'';if(notificationUiState.inboxOpen)loadMyChecklistNotifications(root);return;}
-      var notificationOpen=e.target.closest('[data-phfck-notification-open]');if(notificationOpen){e.preventDefault();var notificationId=notificationOpen.getAttribute('data-phfck-notification-open'),notificationPath=notificationOpen.getAttribute('data-phfck-notification-path'),notificationAction=notificationOpen.getAttribute('data-phfck-notification-action')||'NONE';checklistNotificationRequest('markChecklistNotificationRead',{ids:[notificationId]}).then(function(){var row=notificationUiState.inbox.find(function(x){return x.id===notificationId;});if(row&&!row.readAt){row.readAt=new Date().toISOString();notificationUiState.unreadCount=Math.max(0,notificationUiState.unreadCount-1);}refreshChecklistNotificationBadges(root);if(notificationAction!=='NONE'&&notificationPath&&window.phfNavigate){notificationUiState.inboxOpen=false;var box=root.querySelector('[data-phfck-notification-inbox]');if(box)box.innerHTML='';window.phfNavigate(notificationPath);}else{var box=root.querySelector('[data-phfck-notification-inbox]');if(box)box.innerHTML=checklistNotificationInboxHtml();}});return;}
+      var notificationOpen=e.target.closest('[data-phfck-notification-open]');
+      if(notificationOpen){
+        e.preventDefault();
+        var notificationId=notificationOpen.getAttribute('data-phfck-notification-open');
+        var notificationRow=notificationUiState.inbox.find(function(x){return x.id===notificationId;})||null;
+        /* Tính lại action ngay từ row (không đọc data-attribute cũ) - kiến trúc
+           mới (modal chi tiết) cần violationIds, một mảng không phù hợp để lưu
+           trong data-attribute DOM. */
+        var notificationActionInfo=checklistNotificationAction(notificationRow||{});
+        checklistNotificationRequest('markChecklistNotificationRead',{ids:[notificationId]}).then(function(){
+          if(notificationRow&&!notificationRow.readAt){notificationRow.readAt=new Date().toISOString();notificationUiState.unreadCount=Math.max(0,notificationUiState.unreadCount-1);}
+          refreshChecklistNotificationBadges(root);
+          if(notificationActionInfo.type==='OPEN_VIOLATION_DETAIL'){
+            notificationUiState.inboxOpen=false;
+            var violationBox=root.querySelector('[data-phfck-notification-inbox]');
+            if(violationBox)violationBox.innerHTML='';
+            openChecklistViolationNotificationModal(root,notificationActionInfo.violationIds);
+          }else if(notificationActionInfo.type!=='NONE'&&notificationActionInfo.path&&window.phfNavigate){
+            notificationUiState.inboxOpen=false;
+            var box=root.querySelector('[data-phfck-notification-inbox]');
+            if(box)box.innerHTML='';
+            window.phfNavigate(notificationActionInfo.path);
+          }else{
+            var infoBox=root.querySelector('[data-phfck-notification-inbox]');
+            if(infoBox)infoBox.innerHTML=checklistNotificationInboxHtml();
+          }
+        });
+        return;
+      }
+      var violationNotificationGoto=e.target.closest('[data-phfck-violation-notification-goto]');
+      if(violationNotificationGoto){
+        e.preventDefault();
+        var gotoType=violationNotificationGoto.getAttribute('data-phfck-violation-notification-goto')||'personal';
+        var gotoIds=(violationNotificationGoto.getAttribute('data-phfck-violation-notification-ids')||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+        var gotoPath=violationNotificationDestinationPath(gotoType,gotoIds);
+        var gotoModal=violationNotificationGoto.closest('[data-phfck-submodal]');
+        if(gotoModal)gotoModal.remove();
+        syncChecklistModalScrollLock();
+        if(window.phfNavigate)window.phfNavigate(gotoPath);
+        return;
+      }
       var notificationReadAll=e.target.closest('[data-phfck-notification-read-all]');if(notificationReadAll){e.preventDefault();checklistNotificationRequest('markAllChecklistNotificationsRead').then(function(){notificationUiState.inbox.forEach(function(x){x.readAt=x.readAt||new Date().toISOString();});notificationUiState.unreadCount=0;refreshChecklistNotificationBadges(root);var box=root.querySelector('[data-phfck-notification-inbox]');if(box)box.innerHTML=checklistNotificationInboxHtml();});return;}
       var cancelTitle=e.target.closest('[data-phfck-cancel-title-change]');if(cancelTitle){e.preventDefault();cancelTitleChange(root);return;}
       var confirmTitle=e.target.closest('[data-phfck-confirm-title-change]');if(confirmTitle){e.preventDefault();confirmTitleChange(root);return;}

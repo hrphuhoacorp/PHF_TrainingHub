@@ -13,7 +13,7 @@ const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/c
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('../lib/checklist-templates');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('../lib/checklist-violations');
 const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence } = require('../lib/checklist-evidence');
-const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory } = require('../lib/checklist-tasks');
+const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('../lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle, getChecklistAssessmentProfile } = require('../lib/checklist-monthly');
 const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport } = require('../lib/checklist-reports');
@@ -351,9 +351,10 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ok:true,...await listChecklistTasks(session, payload)});
       }
       if(payload&&payload.action==='getChecklistTaskHistory')return res.status(200).json({ok:true,...await getChecklistTaskHistory(session,payload)});
+      if(payload&&payload.action==='getChecklistViolationDetail')return res.status(200).json({ok:true,...await getChecklistViolationDetail(session,payload)});
       if(payload&&payload.action==='transitionChecklistTask'){
         const result=await transitionChecklistTask(session,payload),task=result.task||{};
-        if(payload.taskAction==='employee_explain')await emitChecklistNotificationSafe('EXPLANATION_SUBMITTED',{recipient:{accountId:task.current_assignee_id,employeeCode:task.current_assignee_code},title:'Có giải trình lỗi cần phản hồi',message:'Nhân viên đã gửi giải trình; vui lòng phản hồi.',targetPath:'/admin/checklist/viec-can-xu-ly',subjectType:'violation_task',subjectId:task.id,dedupeKey:'task|'+task.id+'|'+task.status+'|'+task.updated_at});
+        if(payload.taskAction==='employee_explain')await emitChecklistNotificationSafe('EXPLANATION_SUBMITTED',{recipient:{accountId:task.current_assignee_id,employeeCode:task.current_assignee_code},title:'Có giải trình lỗi cần phản hồi',message:'Nhân viên đã gửi giải trình; vui lòng phản hồi.',targetPath:'/admin/checklist/viec-can-xu-ly?focus=violation&violation_id='+encodeURIComponent(task.violation_id||''),subjectType:'violation',subjectId:task.violation_id||'',dedupeKey:'task|'+task.id+'|'+task.status+'|'+task.updated_at});
         return res.status(200).json({ok:true,...result});
       }
       if (payload && payload.action === 'listChecklistViolationHistory') {
