@@ -1,7 +1,7 @@
 {
-  "version": "1.44.2",
-  "fingerprint": "1442-knl-step1-ui-shell-checklist-layout",
-  "builtAt": "2026-08-07T00:00:00+07:00",
-  "notes": "PRODUCTION RELEASE cua toan bo batch KNL (Khung nang luc) Step 1 local checkpoint 1.44.0-1.44.2, user da tu chay scripts/PHF_KNL_PERMISSIONS_1.0.sql tren Supabase va xac nhan UAT local OK truoc khi yeu cau deploy. Gom: (1) 1.44.0 - foundation Nhan su (doc-only qua lib/knl-people.js tren checklist_employee_assignments) + Phan quyen KNL doc lap hoan toan (bang moi knl_permission_grants/knl_permission_grant_history, scope self/sales_all_branches/department/all_company rieng khong reuse Checklist, admin recovery access, audit day du); (2) 1.44.1 - fix loi PGRST205 (bang chua duoc tao) bang throwDb() dich thanh loi 503 KNL_SCHEMA_MISSING ro rang thay vi 500 chung chung; (3) 1.44.2 - UI shell KNL copy dung cau truc/spacing/mau Checklist (topbar/sidebar/nav/table/button), dung class rieng phfk-* khong dung Checklist. Test: scripts/test-knl-permissions-scope.js 21/21 PASS, toan bo 38 file scripts/test-*.js PASS (khong regression Checklist/Hub/Classroom), npm run check PASS, git diff --check PASS. Nhac lai cho lan sau: mau KNL rieng (khac Checklist) la batch tiep theo, chua lam trong release nay.",
-  "build": "1442-knl-step1-ui-shell-checklist-layout"
+  "version": "1.44.6",
+  "fingerprint": "1.44.6-phf-hr-home-scientific-wrap",
+  "builtAt": "2026-08-07T23:24:00+07:00",
+  "notes": "KNL sidebar role label is dynamic by resolved KNL capability/user title: Admin/KNL permission admin -> Quản trị hệ thống; Trợ lý GĐ -> Quản trị Khung năng lực; TBP/Trưởng ca/Cửa hàng trưởng/Quản lý -> Quản lý năng lực; others -> Khung năng lực cá nhân. UI label only; authorization remains backend/API permission and scope.",
+  "build": "1.44.6"
 }

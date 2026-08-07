@@ -20,6 +20,23 @@ function knlPath(suffix){
 }
 function goHub(){ if(typeof window.phfNavigate==='function') window.phfNavigate(roleHome() + '/home'); }
 function goTab(suffix){ if(typeof window.phfNavigate==='function') window.phfNavigate(knlPath(suffix)); }
+function currentUser(){ try{ return (window.phfGetCurrentUser&&window.phfGetCurrentUser())||(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||{}; }catch(e){ return {}; } }
+function currentUserName(){ var u=currentUser(); return String(u.fullName||u.full_name||u.name||u.displayName||u.display_name||u.email||'Người dùng').trim(); }
+function currentUserTitle(){ var u=currentUser(); return String(u.title||u.position||u.roleName||u.role_name||(roleHome()==='/admin'?'Quản trị hệ thống':(roleHome()==='/ql'?'Quản lý':'Nhân viên'))).trim(); }
+function sidebarRoleLabel(capabilities, isAdmin){
+  /* UI label only. Permission/scope enforcement remains backend/API-driven. */
+  if(isAdmin === true) return 'Quản trị hệ thống';
+  var caps = capabilities || {};
+  if(caps.manage_permissions === true) return 'Quản trị hệ thống';
+
+  var title = currentUserTitle().toLowerCase();
+  if(title.indexOf('trợ lý giám đốc') !== -1 || title.indexOf('tro ly giam doc') !== -1) return 'Quản trị Khung năng lực';
+  if(title.indexOf('trưởng bộ phận') !== -1 || title.indexOf('truong bo phan') !== -1 ||
+     title.indexOf('trưởng ca') !== -1 || title.indexOf('truong ca') !== -1 ||
+     title.indexOf('cửa hàng trưởng') !== -1 || title.indexOf('cua hang truong') !== -1 ||
+     title.indexOf('quản lý') !== -1 || title.indexOf('quan ly') !== -1) return 'Quản lý năng lực';
+  return 'Khung năng lực cá nhân';
+}
 
 async function apiPost(action, extra){
   var response = await fetch('/api/data', {
@@ -74,23 +91,27 @@ var SIDEBAR_ITEMS = [
 
 function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
   var items = SIDEBAR_ITEMS.filter(function(item){ return isAdmin || (capabilities && capabilities[item.needs]); });
+  var icons = {
+    'nhan-su':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>',
+    'phan-quyen':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>'
+  };
   var navHtml = items.map(function(item){
+    var desc=item.key==='nhan-su'?'Danh sách & phạm vi':'Quyền thao tác & scope';
     return '<button type="button" class="phfk-nav-item'+(activeTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
-      '<span class="phfk-nav-icon" aria-hidden="true">'+item.icon+'</span>' +
-      '<span><b>'+item.label+'</b><small>'+item.desc+'</small></span></button>';
+      '<span class="phfk-nav-icon">'+(icons[item.key]||'')+'</span>' +
+      '<span><b>'+item.label+'</b><small>'+desc+'</small></span></button>';
   }).join('');
   return '' +
     '<header class="phfk-topbar">' +
-      '<div class="phfk-top-left"><button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">⌂</span><span>PHF HR / Home</span></button></div>' +
-      '<div class="phfk-brand-lockup"><strong>PHF Khung năng lực</strong><span>Nhân sự &amp; phân quyền</span></div>' +
-      '<div class="phfk-top-actions"></div>' +
+      '<div class="phfk-top-left"><button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">←</span><span>PHF HR / Home</span></button></div>' +
+      '<div class="phfk-brand-lockup"><strong>PHF HR - KHUNG NĂNG LỰC</strong></div>' +
+      '<div class="phfk-top-actions"><span class="phfk-user-avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="phfk-user-copy"><b>'+esc(currentUserName())+'</b><small>'+esc(currentUserTitle())+'</small></span></div>' +
     '</header>' +
     '<div class="phfk-layout">' +
-      (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head"><small>MENU KNL</small><strong>Khung năng lực</strong></div><nav class="phfk-nav">'+navHtml+'</nav></aside>' : '') +
+      (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head"><img src="assets/logo/phf-logo.png" alt="PHUHOA fresh"><strong>'+esc(sidebarRoleLabel(capabilities, isAdmin))+'</strong></div><nav class="phfk-nav">'+navHtml+'</nav><section class="phfk-guide"><b>Hướng dẫn</b><p>Quản lý danh sách nhân sự và phân quyền truy cập Khung năng lực.</p><button type="button" disabled>Xem hướng dẫn</button></section></aside>' : '') +
       '<main class="phfk-main" data-knl-body>' + (bodyHtml || '') + '</main>' +
     '</div>';
 }
-
 function bindShell(root){
   root.querySelectorAll('[data-knl-back]').forEach(function(el){ el.addEventListener('click', goHub); });
   root.querySelectorAll('[data-knl-tab]').forEach(function(el){ el.addEventListener('click', function(){ goTab(el.getAttribute('data-knl-tab')); }); });
