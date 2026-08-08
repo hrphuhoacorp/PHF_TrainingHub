@@ -27,18 +27,23 @@
 @media(max-width:520px){.phfk-filters{grid-template-columns:1fr}}
 
 /* PHF KNL — Phân quyền: master-detail 2 cột (Chọn nhân sự trái / Cấu hình
-   quyền phải), "KNL PERMISSION ADMIN UX + WIRING" batch. Không đụng
-   .phfk-layout (grid shell topbar/sidebar/main chung) — đây chỉ là bố cục
-   NỘI DUNG bên trong <main data-knl-body> của tab Phân quyền. */
-.phfk-perm-workspace{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
-.phfk-perm-account-picker{margin-top:0;padding:14px;display:flex;flex-direction:column;gap:10px;position:sticky;top:88px;max-height:calc(100vh - 104px);overflow:auto}
-.phfk-perm-picker-head small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
+   quyền phải). "KNL PERMISSION UX POLISH + INCOME SCOPE" batch: spacing đều
+   qua 1 gap duy nhất trên .phfk-perm-config (không dùng margin rải rác ở
+   từng section), hierarchy rõ hơn qua thang chữ nhãn/nội dung, role selector
+   4 nút cùng kích thước (grid đều cột). Không đụng .phfk-layout (grid shell
+   topbar/sidebar/main chung) — đây chỉ là bố cục NỘI DUNG bên trong
+   <main data-knl-body> của tab Phân quyền. */
+.phfk-perm-workspace{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start}
+
+.phfk-perm-account-picker{margin-top:0;padding:16px;display:flex;flex-direction:column;gap:12px;position:sticky;top:88px;max-height:calc(100vh - 104px);overflow:auto}
+.phfk-perm-picker-head small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em}
 .phfk-perm-account-list{display:flex;flex-direction:column;gap:6px}
-.phfk-perm-account-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:1px solid var(--phfk-line);background:#fff;border-radius:11px;padding:10px 12px;text-align:left;cursor:pointer}
-.phfk-perm-account-row:hover{background:#f8fbf9}
-.phfk-perm-account-row.is-selected{border-color:var(--phfk-green);background:var(--phfk-green-soft);box-shadow:inset 3px 0 0 var(--phfk-green)}
+.phfk-perm-account-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:1px solid var(--phfk-line);background:#fff;border-radius:11px;padding:10px 12px;text-align:left;cursor:pointer;transition:border-color .12s ease,background .12s ease}
+.phfk-perm-account-row:hover{background:#f8fbf9;border-color:#cfe0d8}
+.phfk-perm-account-row.is-selected{border-color:var(--phfk-green);background:var(--phfk-green-soft)}
+.phfk-perm-account-row.is-selected .phfk-perm-account-main b{color:var(--phfk-green-deep)}
 .phfk-perm-account-main{display:flex;flex-direction:column;gap:2px;min-width:0}
-.phfk-perm-account-main b{font-size:12.5px;color:var(--phfk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfk-perm-account-main b{font-size:12.5px;font-weight:700;color:var(--phfk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .phfk-perm-account-main small{font-size:10.5px;color:var(--phfk-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .phfk-perm-account-empty{padding:18px 4px;color:var(--phfk-muted);font-size:11.5px;text-align:center}
 .phfk-perm-account-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--phfk-muted)}
@@ -47,25 +52,36 @@
 .phfk-badge-role{flex:0 0 auto;background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
 .phfk-badge-role.is-admin{background:#eef4ff;color:#2b5aa8}
 
-.phfk-perm-config{margin-top:0}
+/* Toàn bộ section con (head/role/subordinate/income/active/reason/error/
+   actions/advanced) đều là CON TRỰC TIẾP của .phfk-perm-config — spacing
+   đồng đều nhờ 1 gap duy nhất, không set margin riêng ở từng section nữa. */
+.phfk-perm-config{margin-top:0;display:flex;flex-direction:column;gap:20px}
 .phfk-perm-config-empty{display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--phfk-muted);font-size:12.5px;text-align:center}
-.phfk-perm-config-head{margin-bottom:14px}
-.phfk-perm-config-head small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
-.phfk-perm-config-head h2{margin:6px 0 2px;font-size:18px;color:var(--phfk-green-deep)}
+.phfk-perm-config-head{display:flex;flex-direction:column;gap:4px;padding-bottom:16px;border-bottom:1px solid var(--phfk-line)}
+.phfk-perm-config-head small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em}
+.phfk-perm-config-head h2{margin:0;font-size:19px;color:var(--phfk-green-deep);font-weight:800;letter-spacing:-.01em}
 .phfk-perm-config-head p{margin:0;font-size:11.5px;color:var(--phfk-muted)}
-.phfk-perm-role-options{display:flex;flex-wrap:wrap;gap:8px}
-.phfk-perm-role-btn{border:1px solid var(--phfk-line);background:#fff;color:#456158;border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer}
-.phfk-perm-role-btn:hover{background:#f8fbf9}
-.phfk-perm-role-btn.active{border-color:var(--phfk-green);background:var(--phfk-green);color:#fff}
-.phfk-perm-role-btn.is-disabled{opacity:.45;cursor:not-allowed;background:#fbfcfb}
-.phfk-perm-role-hint{margin:8px 0 0;font-size:11px;color:#8b6a24;background:#fff8e6;border:1px solid #f0dfa8;border-radius:9px;padding:8px 10px}
-.phfk-perm-role-readonly{border:1px solid var(--phfk-line);border-radius:12px;padding:12px 14px;background:#f8fbf9}
-.phfk-perm-role-readonly small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
-.phfk-perm-role-readonly strong{display:block;margin:5px 0 4px;font-size:15px;color:var(--phfk-green-deep)}
-.phfk-perm-role-readonly p{margin:0;font-size:11.5px;color:var(--phfk-muted)}
 
-.phfk-perm-subordinate{border:1px solid var(--phfk-line);border-radius:12px;padding:12px;background:#fbfdfc}
-.phfk-perm-subordinate-list{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:2px;margin-top:8px;border:1px solid #eef2f0;border-radius:9px;background:#fff}
+/* Nhãn cấp section (Vai trò KNL/Nhân viên cấp dưới/Quyền bổ sung/Lý do...) -
+   nổi bật hơn label cấp field bên trong 1 bậc, tạo hierarchy rõ ràng. */
+.phfk-perm-config > .phfk-field > span:first-child{display:block;font-size:12.5px;font-weight:800;color:var(--phfk-green-deep);margin-bottom:9px;letter-spacing:-.005em}
+.phfk-perm-role-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.phfk-perm-role-btn{height:44px;border:1px solid var(--phfk-line);background:#fff;color:#456158;border-radius:10px;padding:0 10px;font-size:12.5px;font-weight:700;cursor:pointer;transition:border-color .12s ease,background .12s ease,color .12s ease}
+.phfk-perm-role-btn:hover{background:#f8fbf9;border-color:#cfe0d8}
+.phfk-perm-role-btn.active{border-color:var(--phfk-green);background:var(--phfk-green);color:#fff;box-shadow:0 4px 12px rgba(99,173,48,.25)}
+.phfk-perm-role-btn.is-disabled{opacity:.4;cursor:not-allowed;background:#fbfcfb}
+.phfk-perm-role-hint{margin-top:10px;font-size:11px;line-height:1.5;color:#8b6a24;background:#fff8e6;border:1px solid #f0dfa8;border-radius:9px;padding:9px 11px}
+.phfk-perm-role-readonly{border:1px solid var(--phfk-line);border-radius:12px;padding:14px 16px;background:#f8fbf9}
+.phfk-perm-role-readonly small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em}
+.phfk-perm-role-readonly strong{display:block;margin:6px 0 4px;font-size:16px;color:var(--phfk-green-deep)}
+.phfk-perm-role-readonly p{margin:0;font-size:11.5px;line-height:1.5;color:var(--phfk-muted)}
+
+.phfk-perm-picker-filters{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.phfk-perm-picker-filters .phfk-input{height:38px;font-size:11px}
+
+.phfk-perm-subordinate{border:1px solid var(--phfk-line);border-radius:12px;padding:14px}
+.phfk-perm-subordinate > span:first-child{display:block;font-size:12.5px;font-weight:800;color:var(--phfk-green-deep);margin-bottom:10px}
+.phfk-perm-subordinate-list{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:2px;border:1px solid #eef2f0;border-radius:9px;background:#fff}
 .phfk-perm-subordinate-row{display:grid;grid-template-columns:20px auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;font-size:11.5px;cursor:pointer;border-bottom:1px solid #f1f5f2}
 .phfk-perm-subordinate-row:last-child{border-bottom:0}
 .phfk-perm-subordinate-row:hover{background:#f8fbf9}
@@ -73,11 +89,24 @@
 .phfk-perm-subordinate-code{font-weight:700;color:var(--phfk-green-deep);white-space:nowrap}
 .phfk-perm-subordinate-name{color:var(--phfk-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .phfk-perm-subordinate-dept{color:var(--phfk-muted);font-size:10.5px;white-space:nowrap}
-.phfk-perm-subordinate-empty{padding:16px;text-align:center;color:var(--phfk-muted);font-size:11.5px;margin:8px 0 0;border:1px solid #eef2f0;border-radius:9px;background:#fff}
-.phfk-perm-subordinate-count{margin:8px 2px 0;font-size:11px;font-weight:700;color:var(--phfk-green-deep)}
-.phfk-perm-active-toggle{margin-top:2px}
+.phfk-perm-subordinate-empty{padding:16px;text-align:center;color:var(--phfk-muted);font-size:11.5px;border:1px solid #eef2f0;border-radius:9px;background:#fff}
+.phfk-perm-subordinate-count{margin:9px 2px 0;font-size:11px;font-weight:700;color:var(--phfk-green-deep)}
+.phfk-perm-active-toggle{margin-top:0}
 
-.phfk-perm-advanced{margin-top:16px;border-top:1px dashed var(--phfk-line);padding-top:12px}
+/* Thu nhập: checkbox -> link "Thiết lập phạm vi" -> khối radio (viền phân
+   tách rõ với checkbox chính) -> picker nhân sự khi chọn "Chọn nhân sự cụ
+   thể". Không có state ngầm định - cả 2 radio để trống là hợp lệ về UI,
+   chỉ chặn ở Lưu (client + backend), không tự tô sẵn 1 lựa chọn nào. */
+.phfk-perm-income-toggle{margin-top:10px;font-size:11.5px}
+.phfk-perm-income-config{margin-top:12px;border:1px solid var(--phfk-line);border-radius:12px;padding:14px;background:#fbfdfc}
+.phfk-perm-income-config > small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em;margin-bottom:10px}
+.phfk-radio{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--phfk-ink);padding:9px 2px;cursor:pointer}
+.phfk-radio input[type="radio"]{width:17px;height:17px;accent-color:var(--phfk-green);cursor:pointer}
+.phfk-perm-income-emp{margin-top:12px;padding-top:12px;border-top:1px dashed var(--phfk-line)}
+
+.phfk-perm-reason .phfk-input{min-height:0;height:auto;padding:9px 11px;line-height:1.5;resize:vertical}
+
+.phfk-perm-advanced{border-top:1px dashed var(--phfk-line);padding-top:14px}
 .phfk-perm-advanced summary{cursor:pointer;font-size:11.5px;font-weight:700;color:#456c5c;list-style:none}
 .phfk-perm-advanced summary::-webkit-details-marker{display:none}
 .phfk-perm-advanced summary::before{content:"▸ ";display:inline-block}
@@ -87,10 +116,11 @@
 @media(max-width:1100px){.phfk-perm-workspace{grid-template-columns:290px minmax(0,1fr)}}
 @media(max-width:760px){
   .phfk-perm-workspace{display:block}
-  .phfk-perm-account-picker{position:static;max-height:none;margin-bottom:14px}
+  .phfk-perm-account-picker{position:static;max-height:none;margin-bottom:16px}
+  .phfk-perm-picker-filters{grid-template-columns:1fr}
   .phfk-perm-subordinate-row{grid-template-columns:18px auto 1fr;gap:8px}
   .phfk-perm-subordinate-dept{display:none}
-  .phfk-perm-role-btn{flex:1 1 auto;text-align:center}
+  .phfk-perm-role-options{grid-template-columns:repeat(2,1fr)}
   .phfk-form-actions{position:sticky;bottom:0;background:#fff;padding:10px 0;margin:0 -1px;box-shadow:0 -6px 14px rgba(20,60,45,.06)}
   .phfk-form-actions .phfk-btn-primary{width:100%}
 }

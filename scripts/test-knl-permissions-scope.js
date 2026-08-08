@@ -311,9 +311,42 @@ async function run() {
   await grant('acc-tlgd-noincome', 'TRO_LY_GD', { access_knl: true, view_people: true }, { type: 'all_company', values: [] }, 'Trợ lý GĐ mặc định không có income_view');
   caps = await getCaps(session('manager', { id: 'acc-tlgd-noincome' }));
   check(caps.capabilities.income_view === false, 'CASE 19a. Trợ lý GĐ theo preset mặc định KHÔNG có income_view (không tự động mặc định true như Admin)');
-  await grant('acc-tlgd-income', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true }, { type: 'all_company', values: [] }, 'Cấp ngoại lệ Xem thu nhập cho Trợ lý GĐ này');
+  await grant('acc-tlgd-income', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'all_company', values: [] } }, { type: 'all_company', values: [] }, 'Cấp ngoại lệ Xem thu nhập cho Trợ lý GĐ này');
   caps = await getCaps(session('manager', { id: 'acc-tlgd-income' }));
   check(caps.capabilities.income_view === true, 'CASE 19b. Trợ lý GĐ được Admin cấp ngoại lệ income_view=true thật qua đúng cơ chế capabilities chung (không phải logic hard-code riêng)');
+
+  // ---------- KNL PERMISSION UX POLISH + INCOME SCOPE ----------
+  // CASE 20: income_view=true bắt buộc phải có incomeScope hợp lệ - không suy diễn "rỗng = tất cả"
+  threw = null;
+  try { await grant('acc-income-noscope', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true }, { type: 'all_company', values: [] }, 'Bật income_view nhưng không chọn phạm vi'); }
+  catch (err) { threw = err; }
+  check(!!threw && threw.code === 'KNL_INCOME_SCOPE_REQUIRED', 'CASE 20. income_view=true mà không kèm incomeScope -> bị reject KNL_INCOME_SCOPE_REQUIRED, không tự suy "chưa chọn = xem tất cả"');
+
+  // CASE 21: income_view=true + incomeScope type=all_company -> lưu/đọc lại đúng
+  await grant('acc-income-all', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'all_company', values: [] } }, { type: 'all_company', values: [] }, 'Cấp Thu nhập phạm vi Tất cả nhân sự');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-income-all').capabilities.income_view === true && grantOf(snap, 'acc-income-all').capabilities.incomeScope.type === 'all_company', 'CASE 21. income_view=true + incomeScope.type=all_company lưu/đọc lại đúng qua listKnlPermissionGrants');
+
+  // CASE 22: income_view=true + incomeScope type=employees + values rỗng -> reject (đúng invariant giống people_scope employees)
+  threw = null;
+  try { await grant('acc-income-empty-emp', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'employees', values: [] } }, { type: 'all_company', values: [] }, 'Chọn nhân sự cụ thể nhưng không tick ai'); }
+  catch (err) { threw = err; }
+  check(!!threw && threw.code === 'KNL_INCOME_SCOPE_VALUES_REQUIRED', 'CASE 22. incomeScope.type=employees nhưng values rỗng -> reject KNL_INCOME_SCOPE_VALUES_REQUIRED');
+
+  // CASE 23: income_view=true + incomeScope type=employees + values thật -> lưu/đọc lại đúng danh sách employee_code
+  await grant('acc-income-specific', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'employees', values: ['TBP-E1', 'TBP-E3'] } }, { type: 'all_company', values: [] }, 'Cấp Thu nhập cho đúng E1,E3');
+  snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-income-specific').capabilities.incomeScope.values.slice().sort()) === JSON.stringify(['TBP-E1', 'TBP-E3']), 'CASE 23. incomeScope.type=employees lưu/đọc lại đúng values=[TBP-E1,TBP-E3] bằng employee_code thật');
+
+  // CASE 24: đổi specific -> all - danh sách specific cũ phải biến mất hẳn khỏi capabilities đã lưu (không sót lại để lỡ tham gia enforcement)
+  await grant('acc-income-specific', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'all_company', values: [] } }, { type: 'all_company', values: [] }, 'Đổi Thu nhập sang phạm vi Tất cả nhân sự');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-income-specific').capabilities.incomeScope.type === 'all_company' && grantOf(snap, 'acc-income-specific').capabilities.incomeScope.values.length === 0, 'CASE 24. Đổi specific -> all: incomeScope ghi đè hoàn toàn thành {type:all_company,values:[]} - danh sách E1,E3 cũ không còn tồn tại trong capabilities đã lưu');
+
+  // CASE 25: tắt income_view -> incomeScope không còn được lưu (không rác/mồ côi cho lần bật lại sau)
+  await grant('acc-income-specific', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: false }, { type: 'all_company', values: [] }, 'Tắt income_view');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-income-specific').capabilities.income_view === false && !grantOf(snap, 'acc-income-specific').capabilities.incomeScope, 'CASE 25. Tắt income_view -> incomeScope không còn trong capabilities đã lưu (full replace, không merge, không rác)');
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
