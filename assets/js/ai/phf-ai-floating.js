@@ -1,19 +1,22 @@
 (function(){
   'use strict';
 
-  /* PHF AI - Floating Assistant. Hien tren MOI trang cho Admin, khong doi
-     route khi mo/dong. Dung CHUNG endpoint/orchestration/renderer voi
-     /admin/ai-sandbox qua window.PHFAiEngine.mount() - khong co AI
-     implementation rieng. An/hien CHI la UX: backend van tu enforce
-     requireSession(['admin']) doc lap, khong coi day la security. */
+  /* PHF AI - Floating Assistant. Hien tren MOI trang cho ca 3 role da dang
+     nhap (admin/manager/learner), khong doi route khi mo/dong. Dung CHUNG
+     endpoint/orchestration/renderer voi /admin/ai-sandbox qua
+     window.PHFAiEngine.mount() - khong co AI implementation rieng. An/hien
+     CHI la UX: backend van tu enforce requireSession(['admin','manager',
+     'learner']) doc lap, tung tool tu derive quyen tu session - khong coi
+     day la security. */
 
   var mounted = false;
   var controller = null;
   var open = false;
   var root, iconBtn, panel;
+  var ALLOWED_ROLES = { admin: true, manager: true, learner: true };
 
-  function isAdmin(){
-    try { return !!(window.phfGetSessionRole && window.phfGetSessionRole() === 'admin'); }
+  function isAllowedRole(){
+    try { return !!(window.phfGetSessionRole && ALLOWED_ROLES[String(window.phfGetSessionRole() || '').toLowerCase()]); }
     catch (e) { return false; }
   }
 
@@ -66,7 +69,7 @@
   }
 
   function updateVisibility(){
-    if (isAdmin()) {
+    if (isAllowedRole()) {
       build();
       root.hidden = false;
     } else if (root) {

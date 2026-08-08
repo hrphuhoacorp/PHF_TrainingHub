@@ -351,12 +351,12 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/ai/chat' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session = await requireSession(req, ['admin']);
+      const session = await requireSession(req, ['admin', 'manager', 'learner']);
       const raw = await readBody(req); let body = {};
       try { body = JSON.parse(raw || '{}'); }
       catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
       const outcome = await runChatSandbox(session, body.messages);
-      return sendJson(res, 200, {ok:true,reply:outcome.reply,result:outcome.result || null});
+      return sendJson(res, 200, {ok:true,reply:outcome.reply,result:outcome.result || null,actions:outcome.actions || null});
     }
 
     if (pathname === '/api/data') {

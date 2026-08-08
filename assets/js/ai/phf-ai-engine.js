@@ -168,6 +168,38 @@
     '</div>';
   }
 
+  // ---- Dieu huong thong minh (result.actions -> nut bam) ----
+  // Backend (lib/ai-tool-registry.js#NAV_TARGETS) chi tra ve 1 "route-key"
+  // trong whitelist co dinh, KHONG phai URL. O day tu resolve key -> path
+  // that theo role hien tai, ROI doi chieu lai voi window.PHF_ROUTE_REGISTRY
+  // that (assets/js/phf-url-router.js) - route khong ton tai hoac role
+  // khong co quyen thi KHONG hien nut, khong bao gio goi phfNavigate voi
+  // path chua kiem tra. Doi 5 khoa nay phai doi dong bo voi NAV_TARGETS.
+  var NAV_MODULE_SEGMENT = { hub_home: '', training_hub: 'home', classroom: 'classroom', checklist: 'checklist', knl: 'knl' };
+  function resolveNavTarget(target){
+    if (!Object.prototype.hasOwnProperty.call(NAV_MODULE_SEGMENT, target)) return null;
+    var seg = NAV_MODULE_SEGMENT[target];
+    var role = '';
+    try { role = String((window.phfGetSessionRole && window.phfGetSessionRole()) || '').toLowerCase(); } catch (e) {}
+    var prefix = role === 'admin' ? '/admin' : (role === 'manager' ? '/ql' : '/hv');
+    var path = seg ? (prefix + '/' + seg) : prefix;
+    var registry = window.PHF_ROUTE_REGISTRY;
+    var entry = registry && registry[path];
+    if (!entry) return null;
+    if (Array.isArray(entry.roles) && entry.roles.length && entry.roles.indexOf(role) === -1) return null;
+    return path;
+  }
+  function renderActions(actions){
+    if (!Array.isArray(actions) || !actions.length) return '';
+    var buttons = actions.map(function(a){
+      if (!a || a.type !== 'navigate') return '';
+      var path = resolveNavTarget(a.target);
+      if (!path) return '';
+      return '<button type="button" class="phf-ai-action-btn" data-ai-nav="' + escapeHtml(path) + '">' + escapeHtml(a.label || 'Đi tới') + '</button>';
+    }).filter(Boolean).join('');
+    return buttons ? '<div class="phf-ai-actions">' + buttons + '</div>' : '';
+  }
+
   // ---- Chat controller factory ----
 
   function mount(root, options){
@@ -204,9 +236,11 @@
         var who = msg.role === 'user' ? 'Bạn' : 'PHF AI';
         var cls = msg.role === 'user' ? 'phf-ai-msg phf-ai-msg-user' : 'phf-ai-msg phf-ai-msg-assistant';
         var card = msg.role === 'assistant' && msg.result ? renderStructuredCard(msg.result) : '';
+        var actions = msg.role === 'assistant' ? renderActions(msg.actions) : '';
         return '<div class="' + cls + '"><div class="phf-ai-msg-role">' + escapeHtml(who) + '</div>' +
           (card ? card : '') +
-          '<div class="phf-ai-msg-body">' + renderMessageContent(msg.content) + '</div></div>';
+          '<div class="phf-ai-msg-body">' + renderMessageContent(msg.content) + '</div>' +
+          actions + '</div>';
       }).join('');
       if (pending) {
         html += '<div class="phf-ai-msg phf-ai-msg-assistant phf-ai-msg-loading"><div class="phf-ai-msg-role">PHF AI</div><div class="phf-ai-msg-body"><span class="phf-ai-typing"><span></span><span></span><span></span></span></div></div>';
@@ -250,7 +284,7 @@
           err.code = json.code || '';
           throw err;
         }
-        history = nextHistory.concat([{ role: 'assistant', content: String(json.reply || ''), result: json.result || null }]);
+        history = nextHistory.concat([{ role: 'assistant', content: String(json.reply || ''), result: json.result || null, actions: json.actions || null }]);
       }).catch(function(error){
         history = history.slice(0, -1);
         input.value = trimmed;
@@ -274,6 +308,12 @@
       if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); sendMessage(input.value); }
     });
     newBtn.addEventListener('click', newConversation);
+    thread.addEventListener('click', function(evt){
+      var btn = evt.target && evt.target.closest ? evt.target.closest('[data-ai-nav]') : null;
+      if (!btn) return;
+      var path = btn.getAttribute('data-ai-nav');
+      if (path && window.phfNavigate) window.phfNavigate(path);
+    });
 
     renderThread();
 
