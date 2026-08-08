@@ -97,7 +97,12 @@ function menuItemsFor(caps,r){
      render trên mobile - "Nhân sự"/"Phiếu của tôi" (2 mục không gate theo
      capability trong sidebar gốc) cần lối vào tương đương ở đây, chỉ cho tài
      khoản quản lý đang có grant thật (caps.experience==='operator'), không áp
-     dụng cho Admin (Admin vẫn giữ nguyên sidebar riêng, chưa đổi đợt này). */
+     dụng cho Admin - Admin có mục quản trị RIÊNG ngay bên dưới (Nhân sự &
+     phân công/Cài đặt), gate đúng theo caps.canManageUsers/canManageSystem
+     (phfDeriveChecklistCapabilities trong phf-hr-home.js: luôn true cho
+     admin, luôn false cho manager/learner) - không hard-code theo chức danh.
+     "Phiếu của tôi" không có route thật cho Admin (Admin không có Checklist
+     cá nhân) nên không thêm. */
   var inChecklist=isChecklistRoute();
   var isManagerWorkspace=!isAdminRoute&&caps&&caps.experience==='operator';
   var items=[];
@@ -105,11 +110,13 @@ function menuItemsFor(caps,r){
     items.push({group:'CHECKLIST'});
     items.push({label:'Tổng quan',route:p+'/checklist',icon:'⌂'});
     if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
+    if(isAdminRoute&&caps&&caps.canManageUsers)items.push({label:'Nhân sự & phân công',route:'/admin/checklist/nhan-su',icon:'♙'});
     if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
     if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
     if(isManagerWorkspace)items.push({label:'Nhân sự',route:'/ql/checklist?section=people',icon:'♙'});
     if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
     if(!isManagerWorkspace&&!isAdminRoute)items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
+    if(isAdminRoute&&caps&&caps.canManageSystem)items.push({label:'Cài đặt',route:'/admin/checklist/cai-dat',icon:'⚙'});
     items.push({group:'PHF HR'});
   }else items.push({group:'PHF HR'});
   items.push({label:'Trang chủ',route:p+'/home',icon:'⌂'});

@@ -1,7 +1,7 @@
 {
-  "version": "1.44.6",
-  "fingerprint": "1.44.6-phf-hr-home-scientific-wrap",
-  "builtAt": "2026-08-07T23:24:00+07:00",
-  "notes": "KNL sidebar role label is dynamic by resolved KNL capability/user title: Admin/KNL permission admin -> Quản trị hệ thống; Trợ lý GĐ -> Quản trị Khung năng lực; TBP/Trưởng ca/Cửa hàng trưởng/Quản lý -> Quản lý năng lực; others -> Khung năng lực cá nhân. UI label only; authorization remains backend/API permission and scope.",
-  "build": "1.44.6"
+  "version": "1.44.7",
+  "fingerprint": "1.44.7-checklist-admin-mobile-app-shell",
+  "builtAt": "2026-08-08T00:00:00+07:00",
+  "notes": "PHF Checklist Admin mobile: adminDashboard() now branches on isMobileWorkspace() same as genericDashboard() (Manager/Learner) - swaps desktop .phfck-topbar/.phfck-sidebar for the existing Mobile Content Header and drops the sidebar from the DOM entirely on mobile, so the legacy horizontal-scroll nav bar can no longer render alongside the global Bottom Nav (2-nav-layer bug). Slide Menu (phf-mobile-nav.js menuItemsFor) now also lists 'Nhân sự & phân công' and 'Cài đặt' for Admin, gated on real caps.canManageUsers/canManageSystem (already true only for admin via phfDeriveChecklistCapabilities) - no hard-coded role/title check. phfck-people-card-table (Admin-only Nhân sự table) gets one more responsive tier at max-width:760px, same technique as the existing 900px tier. Desktop Admin HTML/CSS unchanged (else-branch is byte-identical to prior markup); Manager/Learner mobile unchanged (separate classes/capability flags).",
+  "build": "1.44.7"
 }

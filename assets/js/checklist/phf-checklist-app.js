@@ -56,6 +56,7 @@
   function roleLabel(path){var r=routeRole(path);return r==='admin'?'Admin':(r==='manager'?'Quản lý':'Nhân viên');}
   function mobileContentHeaderTitle(path){
     if(isChecklistPersonalExperience(path))return cleanPath(path)===checklistPersonalBasePath(path)+'/ho-so-danh-gia'?'Hồ sơ đánh giá':'Bảng điểm hiện tại';
+    if(routeRole(path)==='admin')return {overview:'Tổng quan',people:'Nhân sự & phân công',templates:'Mẫu Checklist',violations:'Ghi nhận lỗi',tasks:'Việc cần xử lý',monthly:'Phiếu đánh giá tháng',reports:'Báo cáo',history:'Lịch sử thay đổi',settings:'Cài đặt'}[adminViewFromPath(path)]||'Tổng quan';
     return {overview:'Tổng quan','my-work':'Phiếu của tôi',people:'Nhân sự',violations:'Ghi nhận lỗi',reviews:'Thẩm định',reports:'Báo cáo',permissions:'Phân quyền','assessment-profile':'Hồ sơ đánh giá'}[managerSectionFromLocation(path)]||'Tổng quan';
   }
   function syncMobileContentHeader(root,path){var heading=root&&root.querySelector('[data-phfck-mobile-content-title]');if(heading)heading.textContent=mobileContentHeaderTitle(path);}
@@ -250,17 +251,27 @@
   function adminDashboard(name,path){
     var menu=adminMenu();
     var activeView=adminViewFromPath(path);
+    /* Mobile: PHF HR App Shell (Bottom Nav + Slide Menu) đã đảm nhiệm back/
+       menu/account trên mobile - Admin trước đây là ngoại lệ duy nhất còn
+       dựng topbar/sidebar desktop trên mobile (xem isMobileWorkspace()), gây
+       2 tầng điều hướng cùng Bottom Nav. Áp dụng đúng cùng pattern
+       genericDashboard() (manager/learner) đã dùng: swap topbar lấy Mobile
+       Content Header, bỏ hẳn sidebar khỏi DOM (không chỉ ẩn CSS). Desktop
+       (else) giữ nguyên 100% HTML topbar/sidebar hiện có, không đổi. */
+    var header=isMobileWorkspace()
+      ?'<header class="phfck-mobile-content-header"><div class="phfck-mobile-content-copy"><small>Checklist</small><h1 data-phfck-mobile-content-title>'+esc(mobileContentHeaderTitle(path))+'</h1></div><div class="phfck-mobile-content-actions">'+checklistNotificationBellHtml()+'</div></header>'
+      :'<header class="phfck-topbar"><div class="phfck-top-left"><button class="phfck-back" type="button" data-phfck-hub aria-label="Quay lại Trang chủ PHF HR">←</button></div><div class="phfck-brand-lockup"><div class="phfck-brand-logo"><span class="phfck-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span><strong>PHF Checklist</strong><span>Kiểm soát tuân thủ & đánh giá công việc</span></div></div><div class="phfck-top-actions">'+checklistNotificationBellHtml()+'<div class="phfck-user"><span>Xin chào,</span><strong>'+esc(name)+'</strong></div></div></header>';
+    var sidebar=isMobileWorkspace()?'':(
+      '<aside class="phfck-sidebar">'
+        +'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN TRỊ</small><strong>Điều hành Checklist</strong></div>'
+        +'<nav class="phfck-nav" aria-label="Menu PHF Checklist">'+menu.map(function(m){if(m[0]==='violations')return adminViolationMenuButtonsHtml(path);var route=adminRouteForView(m[0]);return '<button type="button" class="'+(m[0]===activeView?'active':'')+'" data-phfck-view="'+m[0]+'" data-phfck-route="'+route+'"><span class="phfck-nav-icon" aria-hidden="true">'+m[1]+'</span><span><b>'+esc(m[2])+'</b><small>'+esc(m[3])+'</small></span></button>';}).join('')+'</nav>'
+        +'<div class="phfck-sidebar-foot"><span>Phiên bản Checklist</span><strong>'+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||window.PHF_BUILD_VERSION||'1.37.6')+'</strong><small data-phfck-build>Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||window.PHF_BUILD_FINGERPRINT||'1376-version-single-source-hot-refresh')+'</small><small>Menu theo nghiệp vụ: Phiếu của tôi · Tôi cần thẩm định · Ghi nhận lỗi · Báo cáo</small></div>'
+      +'</aside>'
+    );
     return '<section class="phfck-shell phfck-admin-shell" data-checklist-role="admin">'
-      +'<header class="phfck-topbar">'
-        +'<div class="phfck-top-left"><button class="phfck-back" type="button" data-phfck-hub aria-label="Quay lại Trang chủ PHF HR">←</button></div><div class="phfck-brand-lockup"><div class="phfck-brand-logo"><span class="phfck-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span><strong>PHF Checklist</strong><span>Kiểm soát tuân thủ & đánh giá công việc</span></div></div>'
-        +'<div class="phfck-top-actions">'+checklistNotificationBellHtml()+'<div class="phfck-user"><span>Xin chào,</span><strong>'+esc(name)+'</strong></div></div>'
-      +'</header>'
+      +header
       +'<div class="phfck-layout">'
-        +'<aside class="phfck-sidebar">'
-          +'<div class="phfck-sidebar-head"><small>KHU VỰC QUẢN TRỊ</small><strong>Điều hành Checklist</strong></div>'
-          +'<nav class="phfck-nav" aria-label="Menu PHF Checklist">'+menu.map(function(m){if(m[0]==='violations')return adminViolationMenuButtonsHtml(path);var route=adminRouteForView(m[0]);return '<button type="button" class="'+(m[0]===activeView?'active':'')+'" data-phfck-view="'+m[0]+'" data-phfck-route="'+route+'"><span class="phfck-nav-icon" aria-hidden="true">'+m[1]+'</span><span><b>'+esc(m[2])+'</b><small>'+esc(m[3])+'</small></span></button>';}).join('')+'</nav>'
-          +'<div class="phfck-sidebar-foot"><span>Phiên bản Checklist</span><strong>'+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.version)||window.PHF_BUILD_VERSION||'1.37.6')+'</strong><small data-phfck-build>Build '+esc((window.PHF_BUILD_INFO&&window.PHF_BUILD_INFO.fingerprint)||window.PHF_BUILD_FINGERPRINT||'1376-version-single-source-hot-refresh')+'</small><small>Menu theo nghiệp vụ: Phiếu của tôi · Tôi cần thẩm định · Ghi nhận lỗi · Báo cáo</small></div>'
-        +'</aside>'
+        +sidebar
         +'<main class="phfck-main" data-phfck-workspace>'
           +(activeView==='overview'?adminOverviewHtml(name):(activeView==='people'?peopleHtml():(activeView==='templates'?templatesHtml():(activeView==='violations'?violationsHtml():(activeView==='tasks'?tasksHtml():(activeView==='monthly'?monthlyHtml():(activeView==='reports'?reportsHtml():(activeView==='history'?historyHtml():(activeView==='settings'?settingsHtml():placeholderHtml(activeView))))))))))
         +'</main>'
@@ -6240,6 +6251,7 @@
   function updateAdminView(root,path){
     var view=adminViewFromPath(path),restoreY=pendingScrollRestore;
     if(restoreY==null)restoreY=scrollMemory[cleanPath(path)];
+    syncMobileContentHeader(root,path);
     root.querySelectorAll('[data-phfck-route]').forEach(function(btn){btn.classList.toggle('active',cleanPath(btn.getAttribute('data-phfck-route'))===cleanPath(path));});
     /* "path" ở đây đã bị render() cleanPath (mất ?view=/?workflowStatus=) trước khi truyền vào -
        phải dùng currentRouteKey() mới thấy được view=log, khớp đúng nguồn violationsHtml() đã

@@ -636,6 +636,21 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-person-edit-grid label>small{color:#71827b;font-size:10.5px;line-height:1.4}
 @media(max-width:900px){.phfck-person-info-stack{grid-template-columns:1fr;min-width:260px}.phfck-people-card-table{min-width:1100px}}
 @media(max-width:680px){.phfck-person-edit-grid{grid-template-columns:1fr}.phfck-person-edit-grid .phfck-span-2{grid-column:auto}.phfck-person-actions{justify-content:flex-start}.phfck-person-edit-modal{width:100%}}
+/* PHF Checklist — Admin mobile shell (Bottom Nav + Slide Menu): bảng
+   "Nhân sự & phân công" (.phfck-people-card-table, chỉ dùng cho Admin) vẫn
+   cần đủ chỗ hiển thị dữ liệu, tiếp tục đúng kỹ thuật đã dùng ở tier 900px
+   phía trên (giảm min-width theo tỉ lệ) thay vì thiết kế lại bảng - cuộn
+   ngang vẫn nằm trong .phfck-table-wrap{overflow:auto}, không tràn shell. */
+@media(max-width:760px){
+  .phfck-people-card-table{min-width:760px}
+  .phfck-people-card-table th:nth-child(2){min-width:130px}
+  .phfck-people-card-table th:nth-child(3){min-width:95px}
+  .phfck-people-card-table th:nth-child(4){min-width:230px}
+  .phfck-people-card-table th:nth-child(5){min-width:110px}
+  .phfck-people-card-table th:nth-child(6){min-width:130px}
+  .phfck-people-card-table th:nth-child(8){min-width:130px}
+  .phfck-person-info-stack{min-width:200px}
+}
 
 /* PHF Checklist 1.7.68 — tinh gọn card nhân sự, chip trực quan, nút thao tác đồng bộ */
 .phfck-people-card-table tbody td{vertical-align:middle}
