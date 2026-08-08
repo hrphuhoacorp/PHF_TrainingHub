@@ -25,3 +25,72 @@
 @media(max-width:1100px){.phfk-layout{grid-template-columns:220px minmax(0,1fr)}.phfk-main{padding:22px 20px}.phfk-topbar{grid-template-columns:minmax(190px,1fr) auto minmax(190px,1fr)}}
 @media(max-width:760px){.phfk-topbar{height:64px;grid-template-columns:48px minmax(0,1fr) auto;padding:0 12px;gap:8px}.phfk-brand-lockup strong{font-size:11px}.phfk-back span:not([aria-hidden]),.phfk-user-copy{display:none}.phfk-layout{display:block;min-height:calc(100vh - 64px)}.phfk-sidebar{position:static;height:auto;min-height:0;border-right:0;border-bottom:1px solid var(--phfk-line);padding:10px 12px}.phfk-sidebar-head,.phfk-guide{display:none}.phfk-nav{flex-direction:row;width:max-content}.phfk-nav-item{grid-template-columns:28px auto;padding:9px 11px;white-space:nowrap}.phfk-nav-item small{display:none}.phfk-nav-icon{width:28px;height:28px}.phfk-main{padding:18px 12px 32px}.phfk-page-head{align-items:flex-start;flex-direction:column}.phfk-page-head h1{font-size:23px}.phfk-filters{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.phfk-filters{grid-template-columns:1fr}}
+
+/* PHF KNL — Phân quyền: master-detail 2 cột (Chọn nhân sự trái / Cấu hình
+   quyền phải), "KNL PERMISSION ADMIN UX + WIRING" batch. Không đụng
+   .phfk-layout (grid shell topbar/sidebar/main chung) — đây chỉ là bố cục
+   NỘI DUNG bên trong <main data-knl-body> của tab Phân quyền. */
+.phfk-perm-workspace{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.phfk-perm-account-picker{margin-top:0;padding:14px;display:flex;flex-direction:column;gap:10px;position:sticky;top:88px;max-height:calc(100vh - 104px);overflow:auto}
+.phfk-perm-picker-head small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
+.phfk-perm-account-list{display:flex;flex-direction:column;gap:6px}
+.phfk-perm-account-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:1px solid var(--phfk-line);background:#fff;border-radius:11px;padding:10px 12px;text-align:left;cursor:pointer}
+.phfk-perm-account-row:hover{background:#f8fbf9}
+.phfk-perm-account-row.is-selected{border-color:var(--phfk-green);background:var(--phfk-green-soft);box-shadow:inset 3px 0 0 var(--phfk-green)}
+.phfk-perm-account-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.phfk-perm-account-main b{font-size:12.5px;color:var(--phfk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfk-perm-account-main small{font-size:10.5px;color:var(--phfk-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phfk-perm-account-empty{padding:18px 4px;color:var(--phfk-muted);font-size:11.5px;text-align:center}
+.phfk-perm-account-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--phfk-muted)}
+.phfk-perm-account-pagination button{border:1px solid var(--phfk-line);background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;color:var(--phfk-green-deep);cursor:pointer}
+.phfk-perm-account-pagination button:disabled{opacity:.4;cursor:default}
+.phfk-badge-role{flex:0 0 auto;background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
+.phfk-badge-role.is-admin{background:#eef4ff;color:#2b5aa8}
+
+.phfk-perm-config{margin-top:0}
+.phfk-perm-config-empty{display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--phfk-muted);font-size:12.5px;text-align:center}
+.phfk-perm-config-head{margin-bottom:14px}
+.phfk-perm-config-head small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
+.phfk-perm-config-head h2{margin:6px 0 2px;font-size:18px;color:var(--phfk-green-deep)}
+.phfk-perm-config-head p{margin:0;font-size:11.5px;color:var(--phfk-muted)}
+.phfk-perm-role-options{display:flex;flex-wrap:wrap;gap:8px}
+.phfk-perm-role-btn{border:1px solid var(--phfk-line);background:#fff;color:#456158;border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer}
+.phfk-perm-role-btn:hover{background:#f8fbf9}
+.phfk-perm-role-btn.active{border-color:var(--phfk-green);background:var(--phfk-green);color:#fff}
+.phfk-perm-role-btn.is-disabled{opacity:.45;cursor:not-allowed;background:#fbfcfb}
+.phfk-perm-role-hint{margin:8px 0 0;font-size:11px;color:#8b6a24;background:#fff8e6;border:1px solid #f0dfa8;border-radius:9px;padding:8px 10px}
+.phfk-perm-role-readonly{border:1px solid var(--phfk-line);border-radius:12px;padding:12px 14px;background:#f8fbf9}
+.phfk-perm-role-readonly small{display:block;color:#789087;font-weight:700;font-size:10px;letter-spacing:.06em}
+.phfk-perm-role-readonly strong{display:block;margin:5px 0 4px;font-size:15px;color:var(--phfk-green-deep)}
+.phfk-perm-role-readonly p{margin:0;font-size:11.5px;color:var(--phfk-muted)}
+
+.phfk-perm-subordinate{border:1px solid var(--phfk-line);border-radius:12px;padding:12px;background:#fbfdfc}
+.phfk-perm-subordinate-list{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:2px;margin-top:8px;border:1px solid #eef2f0;border-radius:9px;background:#fff}
+.phfk-perm-subordinate-row{display:grid;grid-template-columns:20px auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;font-size:11.5px;cursor:pointer;border-bottom:1px solid #f1f5f2}
+.phfk-perm-subordinate-row:last-child{border-bottom:0}
+.phfk-perm-subordinate-row:hover{background:#f8fbf9}
+.phfk-perm-subordinate-row input[type="checkbox"]{width:17px;height:17px;accent-color:var(--phfk-green);cursor:pointer}
+.phfk-perm-subordinate-code{font-weight:700;color:var(--phfk-green-deep);white-space:nowrap}
+.phfk-perm-subordinate-name{color:var(--phfk-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.phfk-perm-subordinate-dept{color:var(--phfk-muted);font-size:10.5px;white-space:nowrap}
+.phfk-perm-subordinate-empty{padding:16px;text-align:center;color:var(--phfk-muted);font-size:11.5px;margin:8px 0 0;border:1px solid #eef2f0;border-radius:9px;background:#fff}
+.phfk-perm-subordinate-count{margin:8px 2px 0;font-size:11px;font-weight:700;color:var(--phfk-green-deep)}
+.phfk-perm-active-toggle{margin-top:2px}
+
+.phfk-perm-advanced{margin-top:16px;border-top:1px dashed var(--phfk-line);padding-top:12px}
+.phfk-perm-advanced summary{cursor:pointer;font-size:11.5px;font-weight:700;color:#456c5c;list-style:none}
+.phfk-perm-advanced summary::-webkit-details-marker{display:none}
+.phfk-perm-advanced summary::before{content:"▸ ";display:inline-block}
+.phfk-perm-advanced[open] summary::before{content:"▾ "}
+.phfk-perm-advanced-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+
+@media(max-width:1100px){.phfk-perm-workspace{grid-template-columns:290px minmax(0,1fr)}}
+@media(max-width:760px){
+  .phfk-perm-workspace{display:block}
+  .phfk-perm-account-picker{position:static;max-height:none;margin-bottom:14px}
+  .phfk-perm-subordinate-row{grid-template-columns:18px auto 1fr;gap:8px}
+  .phfk-perm-subordinate-dept{display:none}
+  .phfk-perm-role-btn{flex:1 1 auto;text-align:center}
+  .phfk-form-actions{position:sticky;bottom:0;background:#fff;padding:10px 0;margin:0 -1px;box-shadow:0 -6px 14px rgba(20,60,45,.06)}
+  .phfk-form-actions .phfk-btn-primary{width:100%}
+}
