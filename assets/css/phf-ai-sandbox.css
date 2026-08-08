@@ -41,8 +41,15 @@
 
 /* ---- Structured result cards (result.type -> UI) ---- */
 .phf-ai-card{width:100%;box-sizing:border-box;margin-bottom:8px;padding:14px 16px;border:1px solid #dce9e3;border-radius:16px;background:#fff;box-shadow:0 4px 16px rgba(7,84,62,.06)}
-.phf-ai-card-title{font-size:13.5px;font-weight:750;color:#17382d;margin-bottom:10px}
+.phf-ai-card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.phf-ai-card-title{font-size:13.5px;font-weight:750;color:#17382d}
 .phf-ai-card-foot{margin-top:10px;font-size:11.5px;color:#8a9a93}
+.phf-ai-card-evidence-note{margin-top:8px;padding:7px 10px;border-radius:10px;background:#f5f9fb;font-size:11.5px;line-height:1.5;color:#5c7268}
+.phf-ai-evidence-badge{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.phf-ai-evidence-verified{background:#e7f5ee;color:#0a6b45}
+.phf-ai-evidence-incomplete{background:#fff3e0;color:#8a5a00}
+.phf-ai-evidence-conflicted{background:#fdeeee;color:#a3241f}
+.phf-ai-opinion-tag{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:999px;background:#eef0ff;color:#3d3a9e;font-size:11px;font-weight:700}
 .phf-ai-only-mobile{display:none}
 .phf-ai-only-desktop{display:block}
 

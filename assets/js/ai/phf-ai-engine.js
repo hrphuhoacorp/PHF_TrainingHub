@@ -14,7 +14,20 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  function renderMessageContent(text){ return escapeHtml(text).replace(/\n/g,'<br>'); }
+  // "Nhận định AI:"/"Gợi ý AI:" o dau cau tra loi -> gan tag rieng, tach
+  // ro suy luan cua model khoi du kien tool tra ve (EVIDENCE STATUS GATE).
+  var OPINION_PREFIXES = ['Nhận định AI:', 'Gợi ý AI:'];
+  function renderMessageContent(text){
+    var raw = String(text == null ? '' : text);
+    for (var i = 0; i < OPINION_PREFIXES.length; i++) {
+      var prefix = OPINION_PREFIXES[i];
+      if (raw.indexOf(prefix) === 0) {
+        var rest = raw.slice(prefix.length);
+        return '<span class="phf-ai-opinion-tag">✦ ' + escapeHtml(prefix.slice(0, -1)) + '</span>' + escapeHtml(rest).replace(/\n/g,'<br>');
+      }
+    }
+    return escapeHtml(raw).replace(/\n/g,'<br>');
+  }
   function formatAsOf(value){
     var d = new Date(value);
     if (isNaN(d.getTime())) return '';
@@ -125,14 +138,32 @@
     summary: renderSummary
   };
 
+  // EVIDENCE STATUS GATE - badge hien thi dung 3 trang thai backend gan san
+  // (result.evidence.status). Khong dung % confidence gia tao.
+  var EVIDENCE_BADGES = {
+    VERIFIED: { icon: '✓', label: 'Dữ liệu PHF đã xác nhận', cls: 'verified' },
+    INCOMPLETE: { icon: '△', label: 'Dữ liệu chưa đủ', cls: 'incomplete' },
+    CONFLICTED: { icon: '!', label: 'Dữ liệu cần đối chiếu', cls: 'conflicted' }
+  };
+  function renderEvidenceBadge(evidence){
+    if (!evidence || !EVIDENCE_BADGES[evidence.status]) return '';
+    var b = EVIDENCE_BADGES[evidence.status];
+    return '<span class="phf-ai-evidence-badge phf-ai-evidence-' + b.cls + '">' + b.icon + ' ' + escapeHtml(b.label) + '</span>';
+  }
+
   function renderStructuredCard(result){
     if (!result || !result.type || !RENDERERS[result.type]) return '';
     var body = RENDERERS[result.type](result);
     if (!body) return '';
     var asOfText = formatAsOf(result.asOf);
-    return '<div class="phf-ai-card" data-phf-ai-card-type="' + escapeHtml(result.type) + '">' +
-      (result.title ? '<div class="phf-ai-card-title">' + escapeHtml(result.title) + '</div>' : '') +
+    var evidence = result.evidence || null;
+    return '<div class="phf-ai-card" data-phf-ai-card-type="' + escapeHtml(result.type) + '" data-phf-ai-evidence="' + escapeHtml(evidence ? evidence.status : '') + '">' +
+      '<div class="phf-ai-card-head">' +
+        (result.title ? '<div class="phf-ai-card-title">' + escapeHtml(result.title) + '</div>' : '') +
+        renderEvidenceBadge(evidence) +
+      '</div>' +
       body +
+      (evidence && evidence.note ? '<div class="phf-ai-card-evidence-note">' + escapeHtml(evidence.note) + '</div>' : '') +
       (asOfText ? '<div class="phf-ai-card-foot">Dữ liệu lúc ' + escapeHtml(asOfText) + '</div>' : '') +
     '</div>';
   }
@@ -263,5 +294,14 @@
     '<path d="M18 8h4M20 12h5M18 16h4" stroke="currentColor" stroke-width="1.2"/>' +
   '</svg>';
 
-  window.PHFAiEngine = { mount: mount, markSvg: MARK_SVG };
+  window.PHFAiEngine = {
+    mount: mount,
+    markSvg: MARK_SVG,
+    // Expose de test truc tiep (khong can dung DOM day du) - xem test PATCH
+    // Evidence Status Gate.
+    renderStructuredCard: renderStructuredCard,
+    renderEvidenceBadge: renderEvidenceBadge,
+    renderMessageContent: renderMessageContent,
+    evidenceBadges: EVIDENCE_BADGES
+  };
 })();
