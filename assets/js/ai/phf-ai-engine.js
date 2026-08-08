@@ -202,28 +202,71 @@
 
   // ---- Chat controller factory ----
 
+  // Lich su hoi thoai (Batch C) - format ngay/gio gon cho item danh sach,
+  // khac formatAsOf (day du gio+ngay) dung cho card du lieu.
+  function formatHistoryMeta(value){
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    function p(n){ return String(n).padStart(2,'0'); }
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth()+1);
+  }
+  function groupConversationsByRecency(list){
+    var todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    var todayStartMs = todayStart.getTime();
+    var sevenDaysAgoMs = Date.now() - 7*24*60*60*1000;
+    var groups = { today: [], week: [], older: [] };
+    (list || []).forEach(function(c){
+      var t = new Date(c.updatedAt).getTime();
+      if (isNaN(t)) { groups.older.push(c); return; }
+      if (t >= todayStartMs) groups.today.push(c);
+      else if (t >= sevenDaysAgoMs) groups.week.push(c);
+      else groups.older.push(c);
+    });
+    return groups;
+  }
+
   function mount(root, options){
     var opts = options || {};
-    var history = []; // {role:'user'|'assistant', content, result?}
+    var history = []; // {role:'user'|'assistant', content, result?, actions?}
     var pending = false;
+    var conversationId = null;
+    var historyOpen = false;
+    var historyRawList = [];
 
     root.innerHTML =
-      '<div class="phf-ai-thread" data-ai-thread aria-live="polite"></div>' +
-      '<div class="phf-ai-error" data-ai-error hidden></div>' +
-      '<form class="phf-ai-form" data-ai-form>' +
-        '<textarea class="phf-ai-input" data-ai-input rows="2" maxlength="' + MAX_MESSAGE_CHARS + '" placeholder="Nhập câu hỏi... (Enter để gửi, Shift+Enter để xuống dòng)"></textarea>' +
-        '<div class="phf-ai-form-actions">' +
-          '<button type="button" class="phf-ai-new" data-ai-new>Cuộc trò chuyện mới</button>' +
-          '<button type="submit" class="phf-ai-send" data-ai-send>Gửi</button>' +
+      '<div class="phf-ai-chat-view" data-ai-chat-view>' +
+        '<div class="phf-ai-thread" data-ai-thread aria-live="polite"></div>' +
+        '<div class="phf-ai-error" data-ai-error hidden></div>' +
+        '<form class="phf-ai-form" data-ai-form>' +
+          '<textarea class="phf-ai-input" data-ai-input rows="2" maxlength="' + MAX_MESSAGE_CHARS + '" placeholder="Nhập câu hỏi... (Enter để gửi, Shift+Enter để xuống dòng)"></textarea>' +
+          '<div class="phf-ai-form-actions">' +
+            '<button type="button" class="phf-ai-new" data-ai-new>Cuộc trò chuyện mới</button>' +
+            '<button type="submit" class="phf-ai-send" data-ai-send>Gửi</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+      '<div class="phf-ai-history-view" data-ai-history-view hidden>' +
+        '<div class="phf-ai-history-head">' +
+          '<div class="phf-ai-history-title">Lịch sử hội thoại</div>' +
+          '<button type="button" class="phf-ai-history-close" data-ai-history-close aria-label="Đóng lịch sử">✕</button>' +
         '</div>' +
-      '</form>';
+        '<input type="search" class="phf-ai-history-search" data-ai-history-search placeholder="Tìm cuộc trò chuyện...">' +
+        '<button type="button" class="phf-ai-history-new" data-ai-history-new>+ Cuộc trò chuyện mới</button>' +
+        '<div class="phf-ai-history-list" data-ai-history-list></div>' +
+      '</div>';
 
+    var chatView = root.querySelector('[data-ai-chat-view]');
+    var historyView = root.querySelector('[data-ai-history-view]');
     var thread = root.querySelector('[data-ai-thread]');
     var form = root.querySelector('[data-ai-form]');
     var input = root.querySelector('[data-ai-input]');
     var sendBtn = root.querySelector('[data-ai-send]');
     var errorBox = root.querySelector('[data-ai-error]');
     var newBtn = root.querySelector('[data-ai-new]');
+    var historyCloseBtn = root.querySelector('[data-ai-history-close]');
+    var historyNewBtn = root.querySelector('[data-ai-history-new]');
+    var historySearch = root.querySelector('[data-ai-history-search]');
+    var historyListEl = root.querySelector('[data-ai-history-list]');
 
     function scrollToBottom(){ thread.scrollTop = thread.scrollHeight; }
 
@@ -262,6 +305,103 @@
       renderThread();
     }
 
+    // ---- Lich su hoi thoai (Batch C) ----
+    // Luu ben vung qua /api/ai/conversations - best-effort (khong chan luot
+    // chat neu luu that bai, chi log am tham) vi day la tinh nang phu, KHONG
+    // phai nguon du lieu chinh cua cuoc hoi thoai dang dien ra.
+    function apiConversations(payload){
+      return fetch('/api/ai/conversations', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(response){
+        return response.json().catch(function(){ return {}; });
+      });
+    }
+
+    function persistTurn(userMsg, assistantMsg){
+      var payloadMessages = [
+        { role: 'user', content: userMsg.content },
+        { role: 'assistant', content: assistantMsg.content, result: assistantMsg.result || null, actions: assistantMsg.actions || null }
+      ];
+      var action = conversationId ? 'append' : 'create';
+      var body = conversationId ? { action: action, id: conversationId, messages: payloadMessages } : { action: action, messages: payloadMessages };
+      apiConversations(body).then(function(json){
+        if (json && json.ok !== false && json.id) conversationId = json.id;
+      }).catch(function(){ /* best-effort - khong hien loi cho nguoi dung vi khong anh huong cau tra loi vua nhan */ });
+    }
+
+    function renderHistoryList(list){
+      if (!list || !list.length) {
+        historyListEl.innerHTML = '<div class="phf-ai-history-empty">Chưa có cuộc trò chuyện nào.</div>';
+        return;
+      }
+      var groups = groupConversationsByRecency(list);
+      var sections = [
+        { label: 'Hôm nay', items: groups.today },
+        { label: '7 ngày qua', items: groups.week },
+        { label: 'Cũ hơn', items: groups.older }
+      ].filter(function(s){ return s.items.length; });
+      historyListEl.innerHTML = sections.map(function(s){
+        return '<div class="phf-ai-history-group">' +
+          '<div class="phf-ai-history-group-label">' + escapeHtml(s.label) + '</div>' +
+          s.items.map(function(c){
+            return '<div class="phf-ai-history-item" data-ai-history-open="' + escapeHtml(c.id) + '">' +
+              '<div class="phf-ai-history-item-main">' +
+                '<div class="phf-ai-history-item-title">' + escapeHtml(c.title || 'Cuộc trò chuyện mới') + '</div>' +
+                '<div class="phf-ai-history-item-meta">' + (Number(c.messageCount) || 0) + ' tin nhắn · ' + escapeHtml(formatHistoryMeta(c.updatedAt)) + '</div>' +
+              '</div>' +
+              '<button type="button" class="phf-ai-history-item-delete" data-ai-history-delete="' + escapeHtml(c.id) + '" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">🗑</button>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+      }).join('');
+    }
+
+    function loadHistoryList(){
+      historyListEl.innerHTML = '<div class="phf-ai-history-empty">Đang tải...</div>';
+      apiConversations({ action: 'list' }).then(function(json){
+        historyRawList = (json && json.ok !== false && Array.isArray(json.conversations)) ? json.conversations : [];
+        renderHistoryList(historyRawList);
+      }).catch(function(){
+        historyListEl.innerHTML = '<div class="phf-ai-history-empty">Không thể tải lịch sử lúc này.</div>';
+      });
+    }
+
+    function openHistory(){
+      historyOpen = true;
+      chatView.hidden = true;
+      historyView.hidden = false;
+      if (historySearch) historySearch.value = '';
+      loadHistoryList();
+    }
+    function closeHistory(){
+      historyOpen = false;
+      chatView.hidden = false;
+      historyView.hidden = true;
+    }
+    function toggleHistory(){ if (historyOpen) closeHistory(); else openHistory(); }
+
+    function openConversation(id){
+      if (pending || !id) return;
+      setError('');
+      apiConversations({ action: 'get', id: id }).then(function(json){
+        if (!json || json.ok === false) { setError(friendlyError(new Error((json && json.error) || 'Không thể mở lại cuộc trò chuyện.'))); return; }
+        conversationId = json.id;
+        history = Array.isArray(json.messages) ? json.messages : [];
+        closeHistory();
+        renderThread();
+      }).catch(function(){ setError('Không thể mở lại cuộc trò chuyện.'); });
+    }
+
+    function deleteConversationById(id){
+      if (!id) return;
+      apiConversations({ action: 'delete', id: id }).then(function(){
+        if (conversationId === id) { conversationId = null; history = []; renderThread(); }
+        loadHistoryList();
+      }).catch(function(){ /* best-effort */ });
+    }
+
     function sendMessage(text){
       var trimmed = String(text || '').trim();
       if (!trimmed || pending) return;
@@ -284,7 +424,9 @@
           err.code = json.code || '';
           throw err;
         }
-        history = nextHistory.concat([{ role: 'assistant', content: String(json.reply || ''), result: json.result || null, actions: json.actions || null }]);
+        var assistantMsg = { role: 'assistant', content: String(json.reply || ''), result: json.result || null, actions: json.actions || null };
+        history = nextHistory.concat([assistantMsg]);
+        persistTurn(nextHistory[nextHistory.length - 1], assistantMsg);
       }).catch(function(error){
         history = history.slice(0, -1);
         input.value = trimmed;
@@ -297,6 +439,7 @@
     function newConversation(){
       if (pending) return;
       history = [];
+      conversationId = null;
       setError('');
       renderThread();
       input.value = '';
@@ -314,13 +457,27 @@
       var path = btn.getAttribute('data-ai-nav');
       if (path && window.phfNavigate) window.phfNavigate(path);
     });
+    historyCloseBtn.addEventListener('click', closeHistory);
+    historyNewBtn.addEventListener('click', function(){ newConversation(); closeHistory(); });
+    historySearch.addEventListener('input', function(){
+      var q = historySearch.value.trim().toLowerCase();
+      var filtered = q ? historyRawList.filter(function(c){ return String(c.title || '').toLowerCase().indexOf(q) !== -1; }) : historyRawList;
+      renderHistoryList(filtered);
+    });
+    historyListEl.addEventListener('click', function(evt){
+      var delBtn = evt.target && evt.target.closest ? evt.target.closest('[data-ai-history-delete]') : null;
+      if (delBtn) { evt.stopPropagation(); deleteConversationById(delBtn.getAttribute('data-ai-history-delete')); return; }
+      var openBtn = evt.target && evt.target.closest ? evt.target.closest('[data-ai-history-open]') : null;
+      if (openBtn) openConversation(openBtn.getAttribute('data-ai-history-open'));
+    });
 
     renderThread();
 
     return {
       newConversation: newConversation,
       focus: function(){ try { input.focus(); } catch(e){} },
-      isPending: function(){ return pending; }
+      isPending: function(){ return pending; },
+      toggleHistory: toggleHistory
     };
   }
 

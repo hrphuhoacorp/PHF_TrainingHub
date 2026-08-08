@@ -25,6 +25,7 @@ const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChe
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { listKnlPeople } = require('./lib/knl-people');
 const { runChatSandbox } = require('./lib/ai-sandbox');
+const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./lib/ai-conversations');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -357,6 +358,20 @@ const server = http.createServer(async (req, res) => {
       catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
       const outcome = await runChatSandbox(session, body.messages);
       return sendJson(res, 200, {ok:true,reply:outcome.reply,result:outcome.result || null,actions:outcome.actions || null});
+    }
+
+    if (pathname === '/api/ai/conversations' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session = await requireSession(req, ['admin', 'manager', 'learner']);
+      const raw = await readBody(req); let body = {};
+      try { body = JSON.parse(raw || '{}'); }
+      catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
+      const conversationActions = { list: listConversations, get: getConversation, create: createConversation, append: appendMessages, delete: deleteConversation };
+      const action = String(body.action || '').trim();
+      const run = conversationActions[action];
+      if (!run) return sendJson(res, 400, {ok:false,error:'Hành động không hợp lệ.',code:'AI_CONVERSATION_ACTION_INVALID'});
+      const result = await run(session, body);
+      return sendJson(res, 200, {ok:true, ...result});
     }
 
     if (pathname === '/api/data') {

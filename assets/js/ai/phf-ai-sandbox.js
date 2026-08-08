@@ -25,12 +25,15 @@
         '<header class="phf-ai-sandbox-header">' +
           '<button type="button" class="phf-ai-back" onclick="phfNavigate(\'' + escapeAttr(roleHome()) + '\')">← PHF HR</button>' +
           '<div class="phf-ai-sandbox-title"><span class="phf-ai-mark" aria-hidden="true">' + window.PHFAiEngine.markSvg + '</span><span><strong>PHF AI</strong><small>AI thử nghiệm</small></span></div>' +
+          '<button type="button" class="phf-ai-sandbox-history" data-ai-sandbox-history aria-label="Lịch sử hội thoại" title="Lịch sử hội thoại">🕘 Lịch sử</button>' +
           '<span class="phf-ai-badge">DeepSeek • Thử nghiệm</span>' +
         '</header>' +
         '<div class="phf-ai-sandbox-body" data-ai-engine-root></div>' +
       '</main>';
     document.title = 'PHF AI · Thử nghiệm';
-    window.PHFAiEngine.mount(root.querySelector('[data-ai-engine-root]'), {});
+    var controller = window.PHFAiEngine.mount(root.querySelector('[data-ai-engine-root]'), {});
+    var historyBtn = root.querySelector('[data-ai-sandbox-history]');
+    if (historyBtn) historyBtn.addEventListener('click', function(){ if (controller) controller.toggleHistory(); });
     return true;
   };
 })();

@@ -35,6 +35,7 @@
         '<div class="phf-ai-floating-panel-head">' +
           '<span class="phf-ai-mark" aria-hidden="true">' + markSvg() + '</span>' +
           '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong></span>' +
+          '<button type="button" class="phf-ai-floating-history" data-ai-floating-history aria-label="Lịch sử hội thoại" title="Lịch sử hội thoại">🕘</button>' +
           '<button type="button" class="phf-ai-floating-close" data-ai-floating-close aria-label="Đóng PHF AI">✕</button>' +
         '</div>' +
         '<div class="phf-ai-floating-panel-body" data-ai-floating-body></div>' +
@@ -44,9 +45,11 @@
     iconBtn = root.querySelector('[data-ai-floating-toggle]');
     panel = root.querySelector('[data-ai-floating-panel]');
     var closeBtn = root.querySelector('[data-ai-floating-close]');
+    var historyBtn = root.querySelector('[data-ai-floating-history]');
 
     iconBtn.addEventListener('click', function(){ setOpen(!open); });
     closeBtn.addEventListener('click', function(){ setOpen(false); });
+    historyBtn.addEventListener('click', function(){ if (controller) controller.toggleHistory(); });
     document.addEventListener('keydown', function(evt){
       if (evt.key === 'Escape' && open) setOpen(false);
     });
