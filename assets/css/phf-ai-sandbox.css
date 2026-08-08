@@ -12,7 +12,7 @@
 .phf-ai-sandbox-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:18px 20px 20px}
 .phf-ai-warning{flex:0 0 auto;margin-bottom:12px;padding:10px 14px;border-radius:12px;background:#fff7e6;border:1px solid #f2d999;color:#8a5a00;font-size:13px;line-height:1.5}
 [data-ai-engine-root],[data-ai-floating-body]{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-.phf-ai-chat-view,.phf-ai-history-view{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.phf-ai-chat-view:not([hidden]),.phf-ai-history-view:not([hidden]){flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .phf-ai-thread{flex:1 1 auto;min-height:220px;max-height:60vh;overflow-y:auto;padding:6px 2px;display:flex;flex-direction:column;gap:12px}
 .phf-ai-empty{margin:auto;text-align:center;padding:24px 16px}
 .phf-ai-empty-title{font-size:15px;font-weight:700;color:#3c534a;margin-bottom:6px}
