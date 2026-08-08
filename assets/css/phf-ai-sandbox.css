@@ -116,7 +116,7 @@
 .phf-ai-floating-btn:hover img{filter:drop-shadow(0 6px 14px rgba(7,64,48,.45))}
 .phf-ai-floating-panel{position:fixed;right:24px;bottom:120px;width:min(400px,calc(100vw - 40px));height:min(600px,calc(100vh - 158px));background:#f5f9fb;border-radius:20px;box-shadow:0 24px 70px rgba(6,40,30,.28);display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:contain;opacity:0;transform:translateY(10px) scale(.98);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
 .phf-ai-floating-panel.phf-ai-panel-open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
-.phf-ai-floating-panel-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px 14px;background:linear-gradient(120deg,#075b45,#247fa4);color:#fff}
+.phf-ai-floating-panel-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px 14px;background:linear-gradient(120deg,#c65a00,#ff9a3d);color:#fff}
 .phf-ai-floating-panel-head .phf-ai-mark{width:44px;height:44px;border-radius:14px;padding:0;box-sizing:border-box}
 .phf-ai-floating-panel-head .phf-ai-mark img{width:30px;height:30px}
 .phf-ai-floating-panel-title{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center}
