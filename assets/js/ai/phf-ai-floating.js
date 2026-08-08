@@ -28,7 +28,7 @@
     root.hidden = true;
     root.innerHTML =
       '<button type="button" class="phf-ai-floating-btn" data-ai-floating-toggle aria-label="Mở PHF AI" aria-expanded="false" title="PHF AI">' + markSvg() + '</button>' +
-      '<div class="phf-ai-floating-panel" data-ai-floating-panel hidden>' +
+      '<div class="phf-ai-floating-panel" data-ai-floating-panel aria-hidden="true">' +
         '<div class="phf-ai-floating-panel-head">' +
           '<span class="phf-ai-mark" aria-hidden="true">' + markSvg() + '</span>' +
           '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong><small>AI thử nghiệm</small></span>' +
@@ -51,7 +51,10 @@
 
   function setOpen(next){
     open = !!next;
-    if (panel) panel.hidden = !open;
+    if (panel) {
+      panel.classList.toggle('phf-ai-panel-open', open);
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
     if (iconBtn) iconBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (document.body) document.body.classList.toggle('phf-ai-floating-open', open);
     if (open) {

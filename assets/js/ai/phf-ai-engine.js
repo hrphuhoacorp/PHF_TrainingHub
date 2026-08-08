@@ -285,14 +285,11 @@
     };
   }
 
-  // Bieu tuong PHF AI dung chung cho ca 2 mat UI (trang day + floating) -
-  // placeholder SVG (mat nguoi + circuit, khong slogan) trong luc cho asset
-  // PNG chinh thuc tu logo da chot. Chi sua 1 noi nay khi co asset that.
-  var MARK_SVG = '<svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    '<path d="M13 4c4 0 7 3.2 7 7.2 0 2.6-1.3 4.8-3.3 6.1V21h-2v-2.3c-.6.1-1.1.1-1.7 0V21h-2v-3.7C8.9 16 7.6 13.8 7.6 11.2 7.6 7.2 9.6 4 13 4Z" stroke="currentColor" stroke-width="1.4"/>' +
-    '<circle cx="24" cy="7" r="1.6" fill="currentColor"/><circle cx="27" cy="12" r="1.6" fill="currentColor"/><circle cx="24" cy="17" r="1.6" fill="currentColor"/>' +
-    '<path d="M18 8h4M20 12h5M18 16h4" stroke="currentColor" stroke-width="1.2"/>' +
-  '</svg>';
+  // Bieu tuong PHF AI dung chung cho ca 2 mat UI (trang day + floating).
+  // KHONG con SVG mat-nguoi/circuit tu ve - chi la nhan chu trung tinh cho
+  // toi khi co asset PNG/SVG chinh thuc (logo PHF AI da chot) duoc dat vao
+  // assets/logo/ va thay the o day. Chi sua 1 noi nay.
+  var MARK_SVG = '<span class="phf-ai-mark-text">AI</span>';
 
   window.PHFAiEngine = {
     mount: mount,

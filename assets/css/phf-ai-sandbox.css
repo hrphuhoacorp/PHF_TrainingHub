@@ -5,7 +5,7 @@
 .phf-ai-sandbox-title{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px}
 .phf-ai-sandbox-title strong{display:block;font-size:19px}
 .phf-ai-sandbox-title small{display:block;opacity:.85;margin-top:2px;font-size:13px;font-weight:400}
-.phf-ai-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:#fff}
+.phf-ai-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff}
 .phf-ai-badge{flex:0 0 auto;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-size:12px;font-weight:700;white-space:nowrap}
 .phf-ai-sandbox-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:18px 20px 20px}
 .phf-ai-warning{flex:0 0 auto;margin-bottom:12px;padding:10px 14px;border-radius:12px;background:#fff7e6;border:1px solid #f2d999;color:#8a5a00;font-size:13px;line-height:1.5}
@@ -104,7 +104,9 @@
 .phf-ai-floating{position:fixed;right:20px;bottom:20px;z-index:99000;font-family:Arial,Helvetica,system-ui,sans-serif}
 .phf-ai-floating-btn{width:56px;height:56px;border-radius:50%;border:0;background:linear-gradient(135deg,#075b45,#247fa4);color:#fff;box-shadow:0 10px 28px rgba(7,64,48,.32);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .phf-ai-floating-btn:hover{filter:brightness(1.06)}
-.phf-ai-floating-panel{position:fixed;right:20px;bottom:88px;width:min(400px,calc(100vw - 40px));height:min(600px,calc(100vh - 130px));background:#f5f9fb;border-radius:20px;box-shadow:0 24px 70px rgba(6,40,30,.28);display:flex;flex-direction:column;overflow:hidden}
+.phf-ai-floating-panel{position:fixed;right:20px;bottom:88px;width:min(400px,calc(100vw - 40px));height:min(600px,calc(100vh - 130px));background:#f5f9fb;border-radius:20px;box-shadow:0 24px 70px rgba(6,40,30,.28);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateY(10px) scale(.98);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.phf-ai-floating-panel.phf-ai-panel-open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.phf-ai-mark-text{display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:.02em}
 .phf-ai-floating-panel-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px 14px;background:linear-gradient(120deg,#075b45,#247fa4);color:#fff}
 .phf-ai-floating-panel-title{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
 .phf-ai-floating-panel-title strong{font-size:14.5px}
