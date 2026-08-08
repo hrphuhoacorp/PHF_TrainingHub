@@ -31,7 +31,7 @@
       '<div class="phf-ai-floating-panel" data-ai-floating-panel aria-hidden="true">' +
         '<div class="phf-ai-floating-panel-head">' +
           '<span class="phf-ai-mark" aria-hidden="true">' + markSvg() + '</span>' +
-          '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong><small>AI thử nghiệm</small></span>' +
+          '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong></span>' +
           '<button type="button" class="phf-ai-floating-close" data-ai-floating-close aria-label="Đóng PHF AI">✕</button>' +
         '</div>' +
         '<div class="phf-ai-floating-panel-body" data-ai-floating-body></div>' +

@@ -176,7 +176,6 @@
     var pending = false;
 
     root.innerHTML =
-      '<div class="phf-ai-warning">AI có thể đưa ra thông tin chưa chính xác. Vui lòng kiểm tra trước khi sử dụng.</div>' +
       '<div class="phf-ai-thread" data-ai-thread aria-live="polite"></div>' +
       '<div class="phf-ai-error" data-ai-error hidden></div>' +
       '<form class="phf-ai-form" data-ai-form>' +
@@ -198,7 +197,7 @@
 
     function renderThread(){
       if (!history.length) {
-        thread.innerHTML = '<div class="phf-ai-empty">Chưa có cuộc trò chuyện nào. Hãy đặt câu hỏi để thử nghiệm PHF AI.</div>';
+        thread.innerHTML = '<div class="phf-ai-empty"><div class="phf-ai-empty-title">Tôi có thể hỗ trợ gì cho bạn hôm nay?</div><div class="phf-ai-empty-sub">Hỏi về nghiệp vụ, dữ liệu và các chức năng trong PHF HR.</div></div>';
         return;
       }
       var html = history.map(function(msg){
@@ -286,10 +285,10 @@
   }
 
   // Bieu tuong PHF AI dung chung cho ca 2 mat UI (trang day + floating).
-  // KHONG con SVG mat-nguoi/circuit tu ve - chi la nhan chu trung tinh cho
-  // toi khi co asset PNG/SVG chinh thuc (logo PHF AI da chot) duoc dat vao
-  // assets/logo/ va thay the o day. Chi sua 1 noi nay.
-  var MARK_SVG = '<span class="phf-ai-mark-text">AI</span>';
+  // assets/logo/phf-ai-mark-icon-v2.png = crop tight + can lai ty le
+  // qua cam/chu "PHF AI" tu chinh phf-ai-mark-icon.png goc (Python PIL,
+  // khong ve lai artwork). Chi sua 1 noi nay khi doi asset.
+  var MARK_SVG = '<img src="assets/logo/phf-ai-mark-icon-v2.png?v=1.45.12_ai_mark_recompose" alt="PHF AI" draggable="false">';
 
   window.PHFAiEngine = {
     mount: mount,
