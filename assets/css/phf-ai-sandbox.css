@@ -53,8 +53,6 @@
 .phf-ai-evidence-incomplete{background:#fff3e0;color:#8a5a00}
 .phf-ai-evidence-conflicted{background:#fdeeee;color:#a3241f}
 .phf-ai-opinion-tag{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:999px;background:#eef0ff;color:#3d3a9e;font-size:11px;font-weight:700}
-.phf-ai-only-mobile{display:none}
-.phf-ai-only-desktop{display:block}
 
 .phf-ai-rank-table-wrap{width:100%;overflow-x:auto}
 .phf-ai-rank-table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -96,6 +94,14 @@
 .phf-ai-summary-row:last-child{border-bottom:0}
 .phf-ai-summary-row span{color:#3c534a}
 .phf-ai-summary-row b{color:#17382d}
+
+/* Dat sau cac rule .phf-ai-rank-list/.phf-ai-rank-table-wrap (cung set
+   display, cung specificity 1 class) de .phf-ai-only-mobile/.phf-ai-only-
+   desktop luon la nguon xac dinh cuoi cung o desktop - tranh bug ca bang
+   VA the mobile cung hien thi song song (thu tu CSS cu bi 2 rule tren de
+   len truoc gay loi nay). */
+.phf-ai-only-mobile{display:none}
+.phf-ai-only-desktop{display:block}
 
 @media(max-width:700px){
   .phf-ai-only-desktop{display:none}
