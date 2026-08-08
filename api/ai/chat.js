@@ -10,9 +10,10 @@ const { send, sendError, requestBody } = require('../../lib/api-response');
 const { runChatSandbox } = require('../../lib/ai-sandbox');
 
 /* PHF AI Sandbox - Vercel serverless function. Admin-only. AI co the doc
-   (KHONG ghi) diem Checklist qua 1 tool whitelist trong lib/ai-sandbox.js/
-   lib/ai-checklist-tools.js. Logic dung chung voi nhanh /api/ai/chat trong
-   server.js qua lib/ai-sandbox.js de hai runtime khong lech nhau. */
+   (KHONG ghi) Checklist/Nhan su/KNL qua TOOL REGISTRY whitelist trong
+   lib/ai-tool-registry.js. Logic dung chung voi nhanh /api/ai/chat trong
+   server.js qua lib/ai-sandbox.js de hai runtime khong lech nhau, va dung
+   chung cho ca /admin/ai-sandbox lan floating assistant o frontend. */
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
@@ -25,8 +26,8 @@ module.exports = async function handler(req, res) {
 
     const session = await requireSession(req, ['admin']);
     const body = requestBody(req);
-    const result = await runChatSandbox(session, body.messages);
-    return send(res, 200, {ok:true,reply:result.reply});
+    const outcome = await runChatSandbox(session, body.messages);
+    return send(res, 200, {ok:true,reply:outcome.reply,result:outcome.result || null});
   } catch (error) {
     return sendError(res, error);
   }
