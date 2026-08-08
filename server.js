@@ -355,7 +355,7 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBody(req); let body = {};
       try { body = JSON.parse(raw || '{}'); }
       catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
-      const result = await runChatSandbox(session.sub, body.messages);
+      const result = await runChatSandbox(session, body.messages);
       return sendJson(res, 200, {ok:true,reply:result.reply});
     }
 
