@@ -24,6 +24,7 @@ const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePrevi
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { listKnlPeople } = require('./lib/knl-people');
+const { runChatSandbox } = require('./lib/ai-sandbox');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -347,6 +348,16 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res,200,{ok:true,count:accounts.length});
     }
 
+
+    if (pathname === '/api/ai/chat' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session = await requireSession(req, ['admin']);
+      const raw = await readBody(req); let body = {};
+      try { body = JSON.parse(raw || '{}'); }
+      catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
+      const result = await runChatSandbox(session.sub, body.messages);
+      return sendJson(res, 200, {ok:true,reply:result.reply});
+    }
 
     if (pathname === '/api/data') {
       assertSameOrigin(req);
