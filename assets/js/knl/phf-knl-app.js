@@ -59,6 +59,7 @@ var CAPABILITY_LABELS = {
   access_knl:'Truy cập KNL',
   view_people:'Xem Nhân sự',
   manage_permissions:'Quản lý phân quyền KNL',
+  income_view:'Truy cập mục Thu nhập',
   propose:'Đề xuất năng lực (chưa mở nghiệp vụ)',
   agree_proposal:'Đồng ý đề xuất (chưa mở nghiệp vụ)',
   approve:'Duyệt (chưa mở nghiệp vụ)',
@@ -68,6 +69,7 @@ var SCOPE_LABELS = {
   self:'Chỉ chính mình',
   sales_all_branches:'Bán hàng — cả 3 chi nhánh',
   department:'Theo bộ phận',
+  employees:'Nhân sự cụ thể',
   all_company:'Toàn công ty'
 };
 var STATUS_LABELS = { active:'Đang làm việc', inactive:'Ngừng làm việc', all:'Tất cả' };
@@ -75,7 +77,7 @@ var STATUS_LABELS = { active:'Đang làm việc', inactive:'Ngừng làm việc'
 function scopeText(scope){
   if(!scope || !scope.type) return '—';
   var label = SCOPE_LABELS[scope.type] || scope.type;
-  if(scope.type==='department' && Array.isArray(scope.values) && scope.values.length) return label + ': ' + scope.values.map(esc).join(', ');
+  if((scope.type==='department' || scope.type==='employees') && Array.isArray(scope.values) && scope.values.length) return label + ': ' + scope.values.map(esc).join(', ');
   return label;
 }
 
@@ -239,6 +241,9 @@ function permEditForm(){
   }).join('');
   var scopeOptions = Object.keys(SCOPE_LABELS).map(function(t){ return '<option value="'+t+'"'+(g.peopleScope && g.peopleScope.type===t?' selected':'')+'>'+SCOPE_LABELS[t]+'</option>'; }).join('');
   var scopeValues = (g.peopleScope && Array.isArray(g.peopleScope.values)) ? g.peopleScope.values.join(', ') : '';
+  var scopeType = g.peopleScope && g.peopleScope.type;
+  var scopeValuesShown = scopeType==='department' || scopeType==='employees';
+  var scopeValuesLabel = scopeType==='employees' ? 'Mã nhân sự (phân cách bởi dấu phẩy)' : 'Phòng ban (phân cách bởi dấu phẩy)';
   return '' +
     '<section class="phfk-panel phfk-form" data-knl-grant-form>' +
       '<h2>'+(g.id ? 'Sửa quyền KNL' : 'Cấp quyền KNL mới')+'</h2>' +
@@ -250,7 +255,7 @@ function permEditForm(){
       '<label class="phfk-field"><span>Nhóm quyền gợi ý</span><select class="phfk-input" data-knl-preset>'+presetOptions+'</select></label>' +
       '<div class="phfk-field"><span>Năng lực</span><div class="phfk-checklist">'+capabilityBoxes+'</div></div>' +
       '<label class="phfk-field"><span>Phạm vi xem Nhân sự</span><select class="phfk-input" data-knl-scope-type>'+scopeOptions+'</select></label>' +
-      '<label class="phfk-field" data-knl-scope-values-field'+(g.peopleScope && g.peopleScope.type==='department' ? '' : ' hidden')+'><span>Phòng ban (phân cách bởi dấu phẩy)</span><input type="text" class="phfk-input" data-knl-scope-values value="'+esc(scopeValues)+'"></label>' +
+      '<label class="phfk-field" data-knl-scope-values-field'+(scopeValuesShown ? '' : ' hidden')+'><span data-knl-scope-values-label>'+esc(scopeValuesLabel)+'</span><input type="text" class="phfk-input" data-knl-scope-values value="'+esc(scopeValues)+'"></label>' +
       '<label class="phfk-field"><span>Lý do cấp/thay đổi quyền</span><textarea class="phfk-input" rows="2" data-knl-reason>'+esc(g.reason)+'</textarea></label>' +
       '<label class="phfk-check"><input type="checkbox" data-knl-active'+(g.isActive!==false?' checked':'')+'> Đang hoạt động</label>' +
       '<p class="phfk-error" data-knl-form-error hidden></p>' +
@@ -335,7 +340,11 @@ function bindPermissionsForm(root){
   var scopeTypeSelect = root.querySelector('[data-knl-scope-type]');
   if(scopeTypeSelect) scopeTypeSelect.addEventListener('change', function(){
     var field = root.querySelector('[data-knl-scope-values-field]');
-    if(field) field.hidden = scopeTypeSelect.value !== 'department';
+    var isEmployees = scopeTypeSelect.value === 'employees';
+    var shown = isEmployees || scopeTypeSelect.value === 'department';
+    if(field) field.hidden = !shown;
+    var label = root.querySelector('[data-knl-scope-values-label]');
+    if(label) label.textContent = isEmployees ? 'Mã nhân sự (phân cách bởi dấu phẩy)' : 'Phòng ban (phân cách bởi dấu phẩy)';
   });
 
   var saveBtn = root.querySelector('[data-knl-save-grant]');

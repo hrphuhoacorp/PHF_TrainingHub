@@ -126,6 +126,8 @@ function loadKnlLibsWithMock() {
 const loaded = loadKnlLibsWithMock();
 const { getKnlCapabilities: getCaps, listKnlPermissionGrants, upsertKnlPermissionGrant: upsertGrant } = loaded.permissionsLib;
 const { listKnlPeople } = loaded.peopleLib;
+// knl-scope.js không phụ thuộc Supabase — require thẳng, không cần mock.
+const { subjectMatchesScope } = require('../lib/knl-scope');
 
 // ---------------------------------------------------------------------------
 // Fixture nhân sự (checklist_employee_assignments) — CHỈ ĐỌC qua KNL People
@@ -139,7 +141,10 @@ STATE.employees.push(
   { employee_code: 'S-OTHER', employee_name: 'Ngoài Phạm Vi', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Bình Dương', employee_status: 'Đang làm việc' },
   { employee_code: 'QTTH1', employee_name: 'Đồng Nghiệp QTTH', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đang làm việc' },
   { employee_code: 'KHO1', employee_name: 'Nhân viên Kho', title: 'Thủ kho', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
-  { employee_code: 'OLD1', employee_name: 'Đã Nghỉ Việc', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đã nghỉ việc' }
+  { employee_code: 'OLD1', employee_name: 'Đã Nghỉ Việc', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đã nghỉ việc' },
+  { employee_code: 'TBP-E1', employee_name: 'Cấp Dưới Một', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
+  { employee_code: 'TBP-E2', employee_name: 'Cấp Dưới Hai', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
+  { employee_code: 'TBP-E3', employee_name: 'Cấp Dưới Ba', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' }
 );
 
 function session(role, opts) {
@@ -186,13 +191,13 @@ async function run() {
 
   // ---------- CASE 4: Trợ lý GĐ thấy toàn công ty (đang làm việc) ----------
   result = await listKnlPeople(session('manager', { id: 'acc-tlgd' }));
-  check(result.people.length === 7, 'CASE 4. Trợ lý GĐ (all_company) thấy toàn bộ 7 nhân sự đang làm việc (8 dòng fixture - 1 đã nghỉ việc)');
+  check(result.people.length === 10, 'CASE 4. Trợ lý GĐ (all_company) thấy toàn bộ 10 nhân sự đang làm việc (11 dòng fixture - 1 đã nghỉ việc)');
 
   // ---------- CASE 5: Admin/System Admin — đường cứu hộ hoạt động dù KHÔNG có dòng grant nào ----------
   const adminCaps = await getCaps(session('admin', { id: 'u-admin-recovery' }));
   check(adminCaps.isAdmin === true && adminCaps.capabilities.manage_permissions === true && adminCaps.capabilities.access_knl === true, 'CASE 5a. Admin hệ thống (role=admin ở Hub) luôn có full capability KNL kể cả khi chưa từng được cấp grant nào (đường cứu hộ độc lập với bảng knl_permission_grants)');
   result = await listKnlPeople(session('admin', { id: 'u-admin-recovery' }));
-  check(result.people.length === 7, 'CASE 5b. Admin recovery access xem được toàn bộ Nhân sự (scope all_company ngầm định)');
+  check(result.people.length === 10, 'CASE 5b. Admin recovery access xem được toàn bộ Nhân sự (scope all_company ngầm định)');
   const adminGrantsView = await listKnlPermissionGrants(session('admin', { id: 'u-admin-recovery' }));
   check(Array.isArray(adminGrantsView.grants) && adminGrantsView.grants.length >= 5, 'CASE 5c. Admin recovery truy cập được màn Phân quyền (listKnlPermissionGrants) dù chính Admin không có grant row nào');
 
@@ -210,7 +215,7 @@ async function run() {
   result = await listKnlPeople(session('manager', { id: 'acc-tlgd' }), { status: 'inactive' });
   check(codesOf(result.people).length === 1 && result.people[0].employeeCode === 'OLD1', 'CASE 7b. Filter "inactive" hiện đúng 1 nhân sự đã nghỉ việc');
   result = await listKnlPeople(session('manager', { id: 'acc-tlgd' }), { status: 'all' });
-  check(result.people.length === 8, 'CASE 7c. Filter "all" hiện đủ toàn bộ 8 nhân sự (cả đang làm và đã nghỉ)');
+  check(result.people.length === 11, 'CASE 7c. Filter "all" hiện đủ toàn bộ 11 nhân sự (cả đang làm và đã nghỉ)');
 
   // ---------- CASE 8: Thay đổi permission -> audit ghi đúng before/after ----------
   const historyBefore = STATE.history.length;
@@ -230,7 +235,7 @@ async function run() {
   check(!!threw && threw.code === 'KNL_VIEW_PEOPLE_DENIED', 'CASE 9d. Tài khoản có access_knl nhưng chưa cấp view_people -> deny đúng mã KNL_VIEW_PEOPLE_DENIED (không nhầm với KNL_ACCESS_DENIED)');
 
   // ---------- CASE 10: Regression — namespace KNL độc lập, không tạo/sửa bảng checklist_* ----------
-  check(STATE.employees.length === 8 && STATE.employees.every(row => Object.prototype.hasOwnProperty.call(row, 'employee_code')), 'CASE 10. KNL People Adapter chỉ ĐỌC checklist_employee_assignments (8 dòng fixture nguyên vẹn), không insert/update/delete bảng này ở bất kỳ bước nào trong toàn bộ test');
+  check(STATE.employees.length === 11 && STATE.employees.every(row => Object.prototype.hasOwnProperty.call(row, 'employee_code')), 'CASE 10. KNL People Adapter chỉ ĐỌC checklist_employee_assignments (11 dòng fixture nguyên vẹn), không insert/update/delete bảng này ở bất kỳ bước nào trong toàn bộ test');
 
   // ---------- PATCH UI SHELL + FIX PHÂN QUYỀN — regression cho throwDb(): bảng KNL chưa tồn tại (PGRST205) phải dịch thành lỗi rõ ràng, không phải 500 chung chung ----------
   STATE.simulateSchemaMissing = true;
@@ -239,6 +244,76 @@ async function run() {
   catch (err) { threw = err; }
   check(!!threw && threw.code === 'KNL_SCHEMA_MISSING' && threw.statusCode === 503 && /PHF_KNL_PERMISSIONS_1\.0\.sql/.test(threw.message), 'CASE EXTRA. Khi bảng knl_permission_grants chưa tồn tại (PGRST205 thật từ Postgrest), throwDb() dịch thành lỗi 503 KNL_SCHEMA_MISSING trỏ đúng file SQL cần chạy — không rơi vào 500 "Hệ thống chưa thể xử lý yêu cầu" chung chung như trước patch này');
   STATE.simulateSchemaMissing = false;
+
+  // ---------- KNL Permission Audit — batch "reserve TBP" + income_view ----------
+  function grantOf(grants, accountId) { return grants.find(g => g.accountId === accountId); }
+  async function grantsSnapshot() { return (await listKnlPermissionGrants(session('admin', { id: 'u-admin' }))).grants; }
+
+  // CASE 11: TBP nhiều-nhiều — 2 TBP độc lập cùng liệt kê chung 1 nhân sự (TBP-E2)
+  await grant('acc-tbp-a', 'TRUONG_BO_PHAN', { access_knl: true, view_people: true }, { type: 'employees', values: ['TBP-E1', 'TBP-E2'] }, 'Cấp TBP A quản lý E1,E2');
+  await grant('acc-tbp-b', 'TRUONG_BO_PHAN', { access_knl: true, view_people: true }, { type: 'employees', values: ['TBP-E2', 'TBP-E3'] }, 'Cấp TBP B quản lý E2,E3');
+  result = await listKnlPeople(session('manager', { id: 'acc-tbp-a' }));
+  check(JSON.stringify(codesOf(result.people)) === JSON.stringify(['TBP-E1', 'TBP-E2']), 'CASE 11a. TBP A (scope employees=[E1,E2]) thấy đúng E1,E2');
+  result = await listKnlPeople(session('manager', { id: 'acc-tbp-b' }));
+  check(JSON.stringify(codesOf(result.people)) === JSON.stringify(['TBP-E2', 'TBP-E3']), 'CASE 11b. TBP B (scope employees=[E2,E3]) thấy đúng E2,E3 — cùng E2 với TBP A -> many-to-many, không cần bảng join');
+
+  // CASE 12: TBP A -> Nhân viên (UPDATE cùng 1 row active, không đụng is_active) — mất quyền xem E1,E2 ngay, danh sách dời sang reservedEmployees
+  await grant('acc-tbp-a', 'NHAN_VIEN', { access_knl: true, view_people: true }, { type: 'self', values: [] }, 'A rời TBP, chuyển Nhân viên');
+  threw = null;
+  try { result = await listKnlPeople(session('learner', { id: 'acc-tbp-a', employeeCode: 'ACC-TBP-A-SELF' })); }
+  catch (err) { threw = err; }
+  check(!threw && codesOf(result.people).length === 0, 'CASE 12a. A (Nhân viên, scope self, employeeCode không khớp bất kỳ fixture nào) không còn thấy E1,E2 hay bất kỳ ai khác');
+  let snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-tbp-a').peopleScope.reservedEmployees.slice().sort()) === JSON.stringify(['TBP-E1', 'TBP-E2']), 'CASE 12b. Row của A: type đổi thành self, reservedEmployees lưu đúng lại [TBP-E1,TBP-E2] (không mất, không hard delete)');
+  check(grantOf(snap, 'acc-tbp-a').peopleScope.values.length === 0, 'CASE 12c. Row của A: values ACTIVE đã rỗng — reserve không tham gia scope hiện hành');
+
+  // CASE 13: đổi tiếp Nhân viên -> Trợ lý GĐ (vẫn KHÔNG phải employees) — reserve phải nguyên vẹn qua 2 lượt đổi liên tiếp
+  await grant('acc-tbp-a', 'TRO_LY_GD', { access_knl: true, view_people: true }, { type: 'all_company', values: [] }, 'A đổi tiếp sang Trợ lý GĐ');
+  snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-tbp-a').peopleScope.reservedEmployees.slice().sort()) === JSON.stringify(['TBP-E1', 'TBP-E2']), 'CASE 13. Đổi role lần 2 (self -> all_company, không qua employees) — reservedEmployees vẫn giữ nguyên [TBP-E1,TBP-E2], không bị ghi đè/mất chỉ vì đổi role thêm lần nữa');
+
+  // CASE 14: cấp lại TBP, KHÔNG chọn ai (values rỗng) — phải tự động phục hồi TRƯỚC khi validate "cần ít nhất 1 người"
+  await grant('acc-tbp-a', 'TRUONG_BO_PHAN', { access_knl: true, view_people: true }, { type: 'employees', values: [] }, 'Cấp lại TBP cho A, không tick ai');
+  result = await listKnlPeople(session('manager', { id: 'acc-tbp-a' }));
+  check(JSON.stringify(codesOf(result.people)) === JSON.stringify(['TBP-E1', 'TBP-E2']), 'CASE 14a. Cấp lại TBP không chọn ai -> tự phục hồi đúng danh sách cũ E1,E2, không cần Admin đọc history/tick tay');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-tbp-a').peopleScope.reservedEmployees.length === 0, 'CASE 14b. Sau khi phục hồi, reservedEmployees được dọn sạch ([]) — invariant type=employees <=> reservedEmployees=[] luôn đúng');
+
+  // CASE 15: rời TBP lần nữa, để chuẩn bị CASE 16 (chọn danh sách mới, không phải để trống)
+  await grant('acc-tbp-a', 'NHAN_VIEN', { access_knl: true, view_people: true }, { type: 'self', values: [] }, 'A rời TBP lần 2');
+  snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-tbp-a').peopleScope.reservedEmployees.slice().sort()) === JSON.stringify(['TBP-E1', 'TBP-E2']), 'CASE 15. Rời TBP lần 2 — reserve lại đúng [TBP-E1,TBP-E2] (danh sách active ngay trước khi rời)');
+
+  // CASE 16: cấp lại TBP nhưng Admin CHỌN danh sách mới (chỉ E3) — không được merge với reserve cũ, reserve cũ bị xoá vì invariant
+  await grant('acc-tbp-a', 'TRUONG_BO_PHAN', { access_knl: true, view_people: true }, { type: 'employees', values: ['TBP-E3'] }, 'Cấp lại TBP cho A với danh sách mới');
+  result = await listKnlPeople(session('manager', { id: 'acc-tbp-a' }));
+  check(JSON.stringify(codesOf(result.people)) === JSON.stringify(['TBP-E3']), 'CASE 16a. Chọn danh sách mới [E3] -> chỉ E3 active, KHÔNG merge với reserve cũ [E1,E2]');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-tbp-a').peopleScope.reservedEmployees.length === 0, 'CASE 16b. reservedEmployees bị dọn sạch ngay khi có danh sách employees chủ động mới — reserve cũ [E1,E2] không quay lại được nữa (đúng ý "không merge")');
+
+  // CASE 17: subjectMatchesScope KHÔNG BAO GIỜ đọc reservedEmployees, kể cả khi cố tình để dữ liệu "khớp" nằm trong đó
+  const subjectE1 = { employee_code: 'TBP-E1', department: 'Kho', branch: 'Phú Lợi' };
+  check(subjectMatchesScope(subjectE1, { type: 'self', values: [], reservedEmployees: ['TBP-E1'] }, { employeeCode: 'SOMEONE-ELSE' }) === false, 'CASE 17a. type=self, subject KHỚP với reservedEmployees nhưng KHÔNG khớp identity thật -> vẫn false (reservedEmployees không được đọc để "cứu" một scope self không khớp)');
+  check(subjectMatchesScope(subjectE1, { type: 'employees', values: ['TBP-E3'], reservedEmployees: ['TBP-E1'] }, {}) === false, 'CASE 17b. type=employees, subject CHỈ có trong reservedEmployees (không có trong values active) -> false — chứng minh hàm chỉ đọc values, tuyệt đối không đọc reservedEmployees dù type đang đúng là employees');
+  check(subjectMatchesScope(subjectE1, { type: 'employees', values: ['TBP-E1'], reservedEmployees: [] }, {}) === true, 'CASE 17c. Đối chứng: subject có trong values active thật -> true (hàm vẫn hoạt động đúng cho trường hợp hợp lệ)');
+
+  // CASE 18: income_view — Admin mặc định true (kể cả không có grant row), nhưng DB được phép override false cho riêng Admin đó; Admin khác không bị ảnh hưởng
+  let caps = await getCaps(session('admin', { id: 'u-admin-no-row' }));
+  check(caps.capabilities.income_view === true, 'CASE 18a. Admin không có grant row nào -> income_view mặc định true (đường cứu hộ)');
+  await grant('u-admin-revoked-income', 'CUSTOM', { access_knl: true, view_people: true, manage_permissions: true, income_view: false }, { type: 'self', values: [] }, 'Thu hồi income_view của Admin này');
+  caps = await getCaps(session('admin', { id: 'u-admin-revoked-income' }));
+  check(caps.capabilities.income_view === false, 'CASE 18b. Admin có grant row explicit income_view=false -> bị override false thật (revocable), 6 capability cứu hộ còn lại (access_knl/view_people/manage_permissions...) vẫn true nguyên vẹn');
+  check(caps.capabilities.access_knl === true && caps.capabilities.manage_permissions === true, 'CASE 18c. Cùng Admin đó: các capability cứu hộ khác không bị ảnh hưởng bởi việc income_view bị thu hồi');
+  caps = await getCaps(session('admin', { id: 'u-admin-no-row' }));
+  check(caps.capabilities.income_view === true, 'CASE 18d. Admin khác (không có override) vẫn income_view=true — thu hồi của 1 Admin không ảnh hưởng Admin khác');
+
+  // CASE 19: income_view — Trợ lý GĐ được cấp ngoại lệ (không mặc định, phải cấp riêng)
+  await grant('acc-tlgd-noincome', 'TRO_LY_GD', { access_knl: true, view_people: true }, { type: 'all_company', values: [] }, 'Trợ lý GĐ mặc định không có income_view');
+  caps = await getCaps(session('manager', { id: 'acc-tlgd-noincome' }));
+  check(caps.capabilities.income_view === false, 'CASE 19a. Trợ lý GĐ theo preset mặc định KHÔNG có income_view (không tự động mặc định true như Admin)');
+  await grant('acc-tlgd-income', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true }, { type: 'all_company', values: [] }, 'Cấp ngoại lệ Xem thu nhập cho Trợ lý GĐ này');
+  caps = await getCaps(session('manager', { id: 'acc-tlgd-income' }));
+  check(caps.capabilities.income_view === true, 'CASE 19b. Trợ lý GĐ được Admin cấp ngoại lệ income_view=true thật qua đúng cơ chế capabilities chung (không phải logic hard-code riêng)');
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
