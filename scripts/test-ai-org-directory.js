@@ -11,21 +11,34 @@ const assert = require('assert');
 
 const SUPABASE_MODULE_PATH = require.resolve('@supabase/supabase-js');
 
-function stubSupabaseRows(rows) {
-  const fakeQuery = {
-    select() { return this; },
-    neq() { return this; },
-    order() { return this; },
-    limit() { return Promise.resolve({ data: rows, error: null }); }
-  };
+// stubSupabaseRows: nhan tablesMap {tableName: rows} de ho tro nhieu bang
+// (checklist_employee_assignments + checklist_permission_grants cho preset
+// cross-reference batch nay). Chuoi filter (eq/neq/lte/order...) deu bo qua
+// va tra ve nguyen fixture cua dung bang - fixture da duoc chuan bi san
+// dung dieu kien can test, khong can gia lap that logic SQL filter.
+function stubSupabaseRows(tablesMap) {
+  function fakeQueryFor(table) {
+    const rows = (tablesMap && tablesMap[table]) || [];
+    return {
+      select() { return this; },
+      neq() { return this; },
+      eq() { return this; },
+      lte() { return this; },
+      gte() { return this; },
+      or() { return this; },
+      order() { return this; },
+      limit() { return Promise.resolve({ data: rows, error: null }); }
+    };
+  }
   require.cache[SUPABASE_MODULE_PATH] = {
     id: SUPABASE_MODULE_PATH,
     filename: SUPABASE_MODULE_PATH,
     loaded: true,
-    exports: { createClient: () => ({ from: () => fakeQuery }) }
+    exports: { createClient: () => ({ from: (table) => fakeQueryFor(table) }) }
   };
   delete require.cache[require.resolve('../lib/org-directory')];
   delete require.cache[require.resolve('../lib/ai-employee-tools')];
+  delete require.cache[require.resolve('../lib/ai-tool-registry')];
 }
 
 // Fixture 1 cay to chuc nho: PHF001 (Giam doc, dinh cay) <- PHF002 (Truong
@@ -40,11 +53,33 @@ const FIXTURE_ROWS = [
   { employee_id: 'e5', employee_code: 'PHF005', employee_name: 'Phạm Thị D', title: 'Kế toán trưởng', department: 'Kế toán', branch: 'Trụ sở', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' }
 ];
 
+// Fixture phan quyen Checklist (checklist_permission_grants) cho test preset
+// cross-reference: PHF002 (title="Quản lý" trong FIXTURE_ROWS - KHONG co
+// chu "Trợ lý") giu preset TRO_LY_GD -> mo phong dung root cause that da
+// xac nhan tren Production (4 tai khoan TRO_LY_GD co title="Quản lý"). PHF002
+// (title="Trưởng ca") giu preset TRUONG_CA_BH -> 2 nguon KHOP nhau, khong
+// conflict. PHF004 (title="Nhân viên") giu preset TRUONG_BO_PHAN -> 2 nguon
+// LECH nhau (title-text "Trưởng bộ phận" khong khop ai, preset lai chi ra
+// PHF004) - dung de test nhanh CONFLICTED khi ket hop voi 1 nguoi khac co
+// title that la "Trưởng bộ phận".
+const PERMISSION_GRANT_ROWS = [
+  { employee_code: 'PHF001', preset_code: 'TRO_LY_GD', is_active: true, effective_from: '2020-01-01', effective_to: null },
+  { employee_code: 'PHF002', preset_code: 'TRUONG_CA_BH', is_active: true, effective_from: '2020-01-01', effective_to: null },
+  { employee_code: 'PHF004', preset_code: 'TRUONG_BO_PHAN', is_active: true, effective_from: '2020-01-01', effective_to: null }
+];
+// Fixture rieng cho case CONFLICTED: PHF006 co title that "Trưởng bộ phận"
+// (title-text-search se tim thay), CONG THEM PHF004 (title="Nhân viên") giu
+// preset TRUONG_BO_PHAN o tren -> 2 nguon lech nhau (PHF006 chi co trong
+// title, PHF004 chi co trong preset).
+const FIXTURE_ROWS_WITH_CONFLICT = FIXTURE_ROWS.concat([
+  { employee_id: 'e6', employee_code: 'PHF006', employee_name: 'Đỗ Văn E', title: 'Trưởng bộ phận', department: 'Kho', branch: 'Ngô Quyền', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' }
+]);
+
 async function run() {
-  stubSupabaseRows(FIXTURE_ROWS);
+  stubSupabaseRows({ checklist_employee_assignments: FIXTURE_ROWS, checklist_permission_grants: PERMISSION_GRANT_ROWS });
   const {
     getEmployeeManager, getDirectReportsOf, getManagementChainOf,
-    getDepartmentDirectory, getBranchDirectory
+    getDepartmentDirectory, getBranchDirectory, searchEmployees
   } = require('../lib/ai-employee-tools');
   const { buildStructuredResult } = require('../lib/ai-tool-registry');
 
@@ -110,6 +145,47 @@ async function run() {
   assert.ok(!/không tồn tại|đang trống|chưa bổ nhiệm/i.test(unknownStructured.evidence.note) || /KHÔNG suy ra/i.test(unknownStructured.evidence.note),
     'note zero-result KHONG duoc tu ket luan chi nhanh khong ton tai/dang trong - phai chi noi chua tim thay trong nguon');
   console.log('[PASS] 5c: chi nhánh không khớp dữ liệu -> INCOMPLETE, note không tự kết luận "không tồn tại/đang trống"');
+
+  // ---- 5d. Preset cross-reference: FALLBACK khi title-text ra rong (mô
+  // phỏng đúng root cause thật đã xác nhận trên Production - 4 tài khoản
+  // giữ preset TRO_LY_GD có title="Quản lý", KHÔNG phải "Trợ lý Giám đốc") ----
+  const troLyFallback = await searchEmployees(learnerSession, { title: 'Trợ lý Giám đốc' });
+  assert.strictEqual(troLyFallback.titleSource, 'permission_grant_preset', 'title-text rong -> phai fallback sang preset');
+  assert.strictEqual(troLyFallback.total, 1);
+  assert.strictEqual(troLyFallback.employees[0].employeeCode, 'PHF001');
+  assert.strictEqual(troLyFallback.conflict, null);
+  const troLyStructured = buildStructuredResult('search_employees', troLyFallback);
+  assert.strictEqual(troLyStructured.evidence.status, 'VERIFIED');
+  assert.ok(/KHÔNG PHẢI trường chức danh chính thức/i.test(troLyStructured.evidence.note), 'note phai canh bao ro day la tin hieu tu preset, khong phai title that');
+  console.log('[PASS] 5d: search_employees(title="Trợ lý Giám đốc") -> title-text rỗng, fallback đúng sang preset TRO_LY_GD (PHF001), note cảnh báo rõ');
+
+  // ---- 5e. Preset cross-reference: 2 nguồn KHỚP nhau -> không fallback,
+  // không conflict (PHF002 vừa có title="Trưởng ca" vừa giữ preset TRUONG_CA_BH) ----
+  const truongCaAligned = await searchEmployees(learnerSession, { title: 'Trưởng ca' });
+  assert.strictEqual(truongCaAligned.titleSource, 'title_field', '2 nguon khop nhau -> van dung ket qua title-text, khong can fallback');
+  assert.strictEqual(truongCaAligned.conflict, null);
+  assert.strictEqual(truongCaAligned.total, 1);
+  assert.strictEqual(truongCaAligned.employees[0].employeeCode, 'PHF002');
+  console.log('[PASS] 5e: search_employees(title="Trưởng ca") -> title-text và preset TRUONG_CA_BH khớp nhau, giữ nguồn title, không fallback/conflict');
+
+  // ---- 5f. Preset cross-reference: 2 nguồn LỆCH nhau -> CONFLICTED (PHF006
+  // có title thật "Trưởng bộ phận" nhưng PHF004 mới là người giữ preset
+  // TRUONG_BO_PHAN với title="Nhân viên" - dùng fixture riêng có PHF006) ----
+  stubSupabaseRows({ checklist_employee_assignments: FIXTURE_ROWS_WITH_CONFLICT, checklist_permission_grants: PERMISSION_GRANT_ROWS });
+  const { searchEmployees: searchEmployeesConflictFixture } = require('../lib/ai-employee-tools');
+  const { buildStructuredResult: buildStructuredResultConflictFixture } = require('../lib/ai-tool-registry');
+  const conflictResult = await searchEmployeesConflictFixture(learnerSession, { title: 'Trưởng bộ phận' });
+  assert.strictEqual(conflictResult.titleSource, 'title_field');
+  assert.ok(conflictResult.conflict, '2 nguon lech nhau PHAI tra ve conflict, khong duoc am tham chon 1 ben');
+  assert.strictEqual(conflictResult.conflict.presetCode, 'TRUONG_BO_PHAN');
+  assert.deepStrictEqual(conflictResult.conflict.titleEmployees.map(e => e.employeeCode), ['PHF006']);
+  assert.deepStrictEqual(conflictResult.conflict.presetEmployees.map(e => e.employeeCode), ['PHF004']);
+  const conflictStructured = buildStructuredResultConflictFixture('search_employees', conflictResult);
+  assert.strictEqual(conflictStructured.evidence.status, 'CONFLICTED');
+  assert.strictEqual(conflictStructured.data.rows.length, 2, 'phai liet ke ca 2 nguoi tu 2 nguon, khong bo sot ben nao');
+  const matchSources = conflictStructured.data.rows.map(r => r.matchSource).sort();
+  assert.deepStrictEqual(matchSources, ['Chức danh (title)', 'Quyền Checklist (preset)']);
+  console.log('[PASS] 5f: search_employees(title="Trưởng bộ phận") -> 2 nguồn lệch nhau -> CONFLICTED, liệt kê đủ cả 2 người kèm cột "Khớp theo"');
 
   // ---- 6. DSML / tool-call protocol leak guard (P0 Production) ----
   const { looksLikeLeakedToolProtocol, extractLeakedToolCall, sanitizeFinalReply } = require('../lib/ai-sandbox');

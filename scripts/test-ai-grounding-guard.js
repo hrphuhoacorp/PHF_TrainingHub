@@ -17,6 +17,10 @@ function stubSupabaseRows(rows) {
   const fakeQuery = {
     select() { return this; },
     neq() { return this; },
+    eq() { return this; },
+    lte() { return this; },
+    gte() { return this; },
+    or() { return this; },
     order() { return this; },
     limit() { return Promise.resolve({ data: rows, error: null }); }
   };
