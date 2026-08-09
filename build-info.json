@@ -1,7 +1,7 @@
 {
-  "version": "1.48.1",
-  "fingerprint": "1.48.1-knl-batch2-navigation-closeout",
-  "builtAt": "2026-08-09T22:54:57+07:00",
-  "notes": "1.48.1: closes KNL Batch 2 by moving assignment into the Bộ KNL domain tabs and adds the next-stage handover; no backend or data changes.",
-  "build": "1.48.1"
+  "version": "1.49.0",
+  "fingerprint": "1.49.0-knl-survey-v1-migration-gate",
+  "builtAt": "2026-08-09T23:55:00+07:00",
+  "notes": "1.49.0: KNL Survey V1 code, additive migration, permission scope, immutable ticket snapshots, revision history and responsive UI. Production migration is intentionally not executed.",
+  "build": "1.49.0"
 }
