@@ -1,7 +1,7 @@
 {
-  "version": "1.46.3",
-  "fingerprint": "1.46.3-employee-master-excel-import-v1",
-  "builtAt": "2026-08-09T23:58:00+07:00",
-  "notes": "1.46.3: Employee Master Excel Import/Update V1 adds template download, parse and validation, action preview, Admin-only batch commit with compensating rollback, history, and read-only Checklist organization conflict reporting.",
-  "build": "1.46.3"
+  "version": "1.47.0",
+  "fingerprint": "1.47.0-knl-framework-version-dynamic-structure-batch1",
+  "builtAt": "2026-08-09T21:53:33+07:00",
+  "notes": "1.47.0 pending migration: KNL Batch 1 adds immutable framework versions and fully dynamic Draft groups, items, columns and levels without Survey, Assessment, organization or income changes.",
+  "build": "1.47.0"
 }

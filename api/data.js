@@ -21,6 +21,7 @@ const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePrevi
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('../lib/knl-permissions');
 const { listKnlPeople } = require('../lib/knl-people');
+const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('../lib/knl-frameworks');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('../lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
@@ -492,6 +493,19 @@ module.exports = async function handler(req, res) {
         const accounts=(await listHubAccountSummaries()).map(a=>({id:a.id||'',name:a.name||'',email:a.email||'',employeeCode:a.employeeCode||'',role:a.role||'',department:a.department||'',branch:a.branch||'',position:a.position||''}));
         return res.status(200).json({ok:true,accounts});
       }
+      if(payload&&payload.action==='listKnlFrameworks')return res.status(200).json({ok:true,...await listKnlFrameworks(session)});
+      if(payload&&payload.action==='getKnlFrameworkVersion')return res.status(200).json({ok:true,...await getKnlFrameworkVersion(session,payload)});
+      if(payload&&payload.action==='createKnlFramework')return res.status(200).json({ok:true,...await createKnlFramework(session,payload.framework||{})});
+      if(payload&&payload.action==='saveKnlFramework')return res.status(200).json({ok:true,...await saveKnlFramework(session,payload.framework||{})});
+      if(payload&&payload.action==='cloneKnlVersion')return res.status(200).json({ok:true,...await cloneKnlVersion(session,payload)});
+      if(payload&&payload.action==='publishKnlVersion')return res.status(200).json({ok:true,...await publishKnlVersion(session,payload)});
+      if(payload&&payload.action==='saveKnlGroup')return res.status(200).json({ok:true,...await saveKnlGroup(session,payload.group||{})});
+      if(payload&&payload.action==='saveKnlItem')return res.status(200).json({ok:true,...await saveKnlItem(session,payload.item||{})});
+      if(payload&&payload.action==='saveKnlColumn')return res.status(200).json({ok:true,...await saveKnlColumn(session,payload.column||{})});
+      if(payload&&payload.action==='deleteKnlStructure')return res.status(200).json({ok:true,...await deleteKnlStructure(session,payload)});
+      if(payload&&payload.action==='disableKnlStructure')return res.status(200).json({ok:true,...await disableKnlStructure(session,payload)});
+      if(payload&&payload.action==='reorderKnlStructure')return res.status(200).json({ok:true,...await reorderKnlStructure(session,payload)});
+      if(payload&&payload.action==='saveKnlLevelContent')return res.status(200).json({ok:true,...await saveKnlLevelContent(session,payload.levelContent||{})});
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
       payload.actorRole = session.role;

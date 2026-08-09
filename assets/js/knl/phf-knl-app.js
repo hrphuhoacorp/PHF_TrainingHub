@@ -107,6 +107,7 @@ function businessRoleForAccount(acc, grant){
    .phfck-sidebar/.phfck-nav) — class/màu/nội dung hoàn toàn riêng của KNL,
    không đụng file/CSS Checklist, không kéo nghiệp vụ Checklist sang đây. */
 var SIDEBAR_ITEMS = [
+  { key:'bo-knl', label:'Bộ KNL', desc:'Framework & cấu trúc Draft', icon:'▦', needs:'manage_framework' },
   { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
   { key:'phan-quyen', label:'Phân quyền', desc:'Quản lý quyền truy cập KNL', icon:'⚙', needs:'manage_permissions' }
 ];
@@ -114,6 +115,7 @@ var SIDEBAR_ITEMS = [
 function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
   var items = SIDEBAR_ITEMS.filter(function(item){ return isAdmin || (capabilities && capabilities[item.needs]); });
   var icons = {
+    'bo-knl':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
     'nhan-su':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>',
     'phan-quyen':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>'
   };
@@ -706,6 +708,68 @@ async function loadPermissions(root){
   renderPermissionsBody(root);
 }
 
+/* ===================== BỘ KNL / DRAFT STRUCTURE (BATCH 1) ===================== */
+
+var frameworkState={frameworks:[],selectedVersionId:'',detail:null,loading:false,error:''};
+function statusLabel(value){return value==='published'?'Đã phát hành':(value==='inactive'?'Ngừng áp dụng':'Bản nháp');}
+function findFrameworkForVersion(versionId){return frameworkState.frameworks.find(function(f){return (f.versions||[]).some(function(v){return v.id===versionId;});});}
+function orderedActive(rows){return (rows||[]).filter(function(row){return row.isActive!==false;}).slice().sort(function(a,b){return a.sortOrder-b.sortOrder;});}
+function frameworkListHtml(){
+  if(!frameworkState.frameworks.length)return '<div class="phfk-framework-empty">Chưa có bộ KNL. Batch này không nạp dữ liệu demo.</div>';
+  return frameworkState.frameworks.map(function(f){
+    var versions=f.versions||[];
+    return '<section class="phfk-framework-card"><div><b>'+esc(f.name)+'</b><small>'+esc(f.code)+' · '+statusLabel(f.status)+'</small></div>'+
+      '<div class="phfk-version-list">'+versions.map(function(v){return '<button type="button" class="phfk-version-btn'+(frameworkState.selectedVersionId===v.id?' active':'')+'" data-knl-version="'+esc(v.id)+'">v'+v.versionNumber+' · '+esc(v.name)+'<small>'+statusLabel(v.status)+(v.isLocked?' · Đã khóa':'')+'</small></button>';}).join('')+'</div></section>';
+  }).join('');
+}
+function structureColumnsHtml(detail){
+  var columns=orderedActive(detail.columns),mutable=detail.version.status==='draft'&&!detail.version.isLocked;
+  return '<section class="phfk-panel phfk-structure-panel"><div class="phfk-section-head"><div><small>HÀNG 4</small><h2>Cấu hình cột & mức độ</h2></div>'+(mutable?'<button class="phfk-btn-secondary" type="button" data-knl-add-column>+ Thêm cột</button>':'')+'</div>'+
+    '<div class="phfk-column-chips">'+columns.map(function(c,index){return '<div class="phfk-column-chip"><span><b>'+esc(c.label)+'</b><small>'+esc(c.type==='level'?'Mức '+c.levelNumber:(c.type==='description'?'Mô tả tùy chọn':'Hạng mục'))+'</small></span>'+(mutable?'<span class="phfk-mini-actions"><button data-knl-column-move="'+esc(c.id)+'" data-direction="-1"'+(index===0?' disabled':'')+'>←</button><button data-knl-column-move="'+esc(c.id)+'" data-direction="1"'+(index===columns.length-1?' disabled':'')+'>→</button><button data-knl-edit-column="'+esc(c.id)+'">Sửa</button><button data-knl-delete="column:'+esc(c.id)+'">Xóa</button></span>':'')+'</div>';}).join('')+'</div></section>';
+}
+function competencyTableHtml(detail){
+  var columns=orderedActive(detail.columns),groups=orderedActive(detail.groups),items=orderedActive(detail.items),mutable=detail.version.status==='draft'&&!detail.version.isLocked;
+  var itemColumn=columns.find(function(c){return c.type==='item';}),descriptionColumn=columns.find(function(c){return c.type==='description';}),levels=columns.filter(function(c){return c.type==='level';});
+  var contentMap={};(detail.levelContents||[]).forEach(function(x){contentMap[x.itemId+':'+x.columnId]=x.content||'';});
+  return '<section class="phfk-panel phfk-structure-panel"><div class="phfk-section-head"><div><small>CẤU TRÚC DRAFT</small><h2>Nhóm & hạng mục năng lực</h2></div>'+(mutable?'<button class="phfk-btn-primary" type="button" data-knl-add-group>+ Thêm nhóm</button>':'')+'</div>'+
+    (!itemColumn?'<p class="phfk-warning">Draft đang thiếu cột Hạng mục. Thêm lại trước khi phát hành.</p>':'')+
+    groups.map(function(g,gIndex){var groupItems=items.filter(function(i){return i.groupId===g.id;});return '<article class="phfk-group-block"><header><div><b>'+esc(g.name)+'</b><small>'+esc(g.description||'Không có mô tả nhóm')+'</small></div>'+(mutable?'<span class="phfk-mini-actions"><button data-knl-group-move="'+esc(g.id)+'" data-direction="-1"'+(gIndex===0?' disabled':'')+'>↑</button><button data-knl-group-move="'+esc(g.id)+'" data-direction="1"'+(gIndex===groups.length-1?' disabled':'')+'>↓</button><button data-knl-edit-group="'+esc(g.id)+'">Sửa</button><button data-knl-add-item="'+esc(g.id)+'">+ Hạng mục</button><button data-knl-delete="group:'+esc(g.id)+'">Xóa</button></span>':'')+'</header>'+
+      '<div class="phfk-dynamic-table-wrap"><table class="phfk-dynamic-table"><thead><tr>'+(itemColumn?'<th>'+esc(itemColumn.label)+'</th>':'')+(descriptionColumn?'<th>'+esc(descriptionColumn.label)+'</th>':'')+levels.map(function(c){return '<th>'+esc(c.label)+'</th>';}).join('')+(mutable?'<th>Thao tác</th>':'')+'</tr></thead><tbody>'+
+      (groupItems.length?groupItems.map(function(item,index){return '<tr>'+(itemColumn?'<td><b>'+esc(item.name)+'</b></td>':'')+(descriptionColumn?'<td>'+esc(item.description||'—')+'</td>':'')+levels.map(function(c){return '<td>'+(mutable?'<textarea data-knl-level-content="'+esc(item.id)+':'+esc(c.id)+'" aria-label="'+esc(item.name+' - '+c.label)+'">'+esc(contentMap[item.id+':'+c.id]||'')+'</textarea>':esc(contentMap[item.id+':'+c.id]||'—'))+'</td>';}).join('')+(mutable?'<td><span class="phfk-mini-actions"><button data-knl-item-move="'+esc(item.id)+'" data-group-id="'+esc(g.id)+'" data-direction="-1"'+(index===0?' disabled':'')+'>↑</button><button data-knl-item-move="'+esc(item.id)+'" data-group-id="'+esc(g.id)+'" data-direction="1"'+(index===groupItems.length-1?' disabled':'')+'>↓</button><button data-knl-edit-item="'+esc(item.id)+'">Sửa</button><button data-knl-delete="item:'+esc(item.id)+'">Xóa</button></span></td>':'')+'</tr>';}).join(''):'<tr><td colspan="'+Math.max(1,(itemColumn?1:0)+(descriptionColumn?1:0)+levels.length+(mutable?1:0))+'">Chưa có hạng mục.</td></tr>')+'</tbody></table></div></article>';}).join('')+
+    (!groups.length?'<div class="phfk-empty">Chưa có nhóm năng lực trong Draft.</div>':'')+'</section>';
+}
+function frameworkWorkspaceHtml(){
+  var detail=frameworkState.detail;
+  return '<div class="phfk-page-head"><div><small>KNL · BATCH 1</small><h1>Bộ KNL & cấu trúc động</h1></div><button type="button" class="phfk-btn-primary" data-knl-create-framework>+ Tạo bộ KNL</button></div>'+
+    '<p class="phfk-batch-note">Chỉ quản trị cấu trúc Draft. Không có Survey, Assessment, nhân sự, organization hay dữ liệu demo trong batch này.</p>'+
+    '<div class="phfk-framework-workspace"><aside class="phfk-panel phfk-framework-list">'+frameworkListHtml()+'</aside><div class="phfk-framework-detail">'+
+    (!detail?'<div class="phfk-empty">Chọn một version để quản trị cấu trúc.</div>':'<section class="phfk-panel phfk-version-head"><div><small>'+esc(detail.framework.code)+' · VERSION '+detail.version.versionNumber+'</small><h2>'+esc(detail.framework.name)+' — '+esc(detail.version.name)+'</h2><p>'+statusLabel(detail.framework.status)+' · '+statusLabel(detail.version.status)+(detail.version.isLocked?' · Version bất biến':' · Có thể chỉnh sửa')+'</p></div><div class="phfk-form-actions">'+(detail.version.status==='draft'&&!detail.version.isLocked?'<button class="phfk-btn-secondary" data-knl-publish-version>Phát hành & khóa</button>':'<button class="phfk-btn-primary" data-knl-clone-version>Tạo version mới</button>')+(detail.framework.status==='published'?'<button class="phfk-btn-secondary" data-knl-inactivate-framework>Ngừng áp dụng</button>':'')+'</div></section>'+structureColumnsHtml(detail)+competencyTableHtml(detail))+'</div></div>'+
+    (frameworkState.error?'<p class="phfk-error">'+esc(frameworkState.error)+'</p>':'');
+}
+function renderFrameworkBody(root){var body=root.querySelector('[data-knl-body]');if(body)body.innerHTML=frameworkState.loading?'<div class="phfk-loading">Đang tải cấu trúc KNL…</div>':frameworkWorkspaceHtml();bindFrameworkEvents(root);}
+async function loadFrameworkDetail(root,versionId){frameworkState.selectedVersionId=versionId||'';frameworkState.detail=null;if(!versionId){renderFrameworkBody(root);return;}frameworkState.loading=true;renderFrameworkBody(root);try{frameworkState.detail=await apiPost('getKnlFrameworkVersion',{versionId:versionId});frameworkState.error='';}catch(e){frameworkState.error=e.message;}frameworkState.loading=false;renderFrameworkBody(root);}
+async function loadFrameworks(root){frameworkState.loading=true;renderFrameworkBody(root);try{var data=await apiPost('listKnlFrameworks');frameworkState.frameworks=data.frameworks||[];var exists=frameworkState.frameworks.some(function(f){return (f.versions||[]).some(function(v){return v.id===frameworkState.selectedVersionId;});});if(!exists){var first=frameworkState.frameworks.reduce(function(found,f){return found||(f.versions||[]).find(function(v){return v.status==='draft';})||(f.versions||[])[0];},null);frameworkState.selectedVersionId=first?first.id:'';}frameworkState.error='';}catch(e){frameworkState.error=e.message;frameworkState.frameworks=[];}frameworkState.loading=false;if(frameworkState.selectedVersionId)return loadFrameworkDetail(root,frameworkState.selectedVersionId);renderFrameworkBody(root);}
+function moveIds(rows,id,direction){var active=orderedActive(rows),index=active.findIndex(function(x){return x.id===id;}),target=index+Number(direction);if(index<0||target<0||target>=active.length)return null;var tmp=active[index];active[index]=active[target];active[target]=tmp;return active.map(function(x){return x.id;});}
+async function runFrameworkAction(root,action,extra){frameworkState.error='';try{await apiPost(action,extra||{});await loadFrameworks(root);}catch(e){frameworkState.error=e.message;renderFrameworkBody(root);}}
+function bindFrameworkEvents(root){
+  root.querySelectorAll('[data-knl-version]').forEach(function(el){el.addEventListener('click',function(){loadFrameworkDetail(root,el.getAttribute('data-knl-version'));});});
+  var create=root.querySelector('[data-knl-create-framework]');if(create)create.addEventListener('click',async function(){var code=prompt('Mã bộ KNL (A-Z, 0-9, _ hoặc -):','');if(code===null)return;var name=prompt('Tên bộ KNL:','');if(name===null)return;var count=prompt('Số mức khởi tạo (có thể thêm/bớt ở Draft):','4');if(count===null)return;await runFrameworkAction(root,'createKnlFramework',{framework:{code:code,name:name,levelCount:Number(count),includeDescription:true}});});
+  var addGroup=root.querySelector('[data-knl-add-group]');if(addGroup)addGroup.addEventListener('click',function(){var name=prompt('Tên nhóm năng lực:','');if(name)runFrameworkAction(root,'saveKnlGroup',{group:{versionId:frameworkState.selectedVersionId,name:name}});});
+  root.querySelectorAll('[data-knl-edit-group]').forEach(function(el){el.addEventListener('click',function(){var row=frameworkState.detail.groups.find(function(x){return x.id===el.getAttribute('data-knl-edit-group');});var name=prompt('Tên nhóm năng lực:',row.name);if(name)runFrameworkAction(root,'saveKnlGroup',{group:{id:row.id,versionId:row.versionId,name:name,description:row.description}});});});
+  root.querySelectorAll('[data-knl-add-item]').forEach(function(el){el.addEventListener('click',function(){var name=prompt('Tên hạng mục năng lực:','');if(name)runFrameworkAction(root,'saveKnlItem',{item:{versionId:frameworkState.selectedVersionId,groupId:el.getAttribute('data-knl-add-item'),name:name}});});});
+  root.querySelectorAll('[data-knl-edit-item]').forEach(function(el){el.addEventListener('click',function(){var row=frameworkState.detail.items.find(function(x){return x.id===el.getAttribute('data-knl-edit-item');});var name=prompt('Tên hạng mục:',row.name);if(name===null||!name.trim())return;var description=prompt('Mô tả (tùy chọn):',row.description||'');if(description===null)return;runFrameworkAction(root,'saveKnlItem',{item:{id:row.id,versionId:row.versionId,groupId:row.groupId,name:name,description:description}});});});
+  var addColumn=root.querySelector('[data-knl-add-column]');if(addColumn)addColumn.addEventListener('click',function(){var type=prompt('Loại cột: item / description / level','level');if(type===null)return;type=type.trim().toLowerCase();var levels=frameworkState.detail.columns.filter(function(c){return c.type==='level';});var levelNumber=type==='level'?Number(prompt('Số mức:',String(levels.length+1))):null;var label=prompt('Nhãn cột:',type==='level'?'MỨC ĐỘ '+levelNumber:(type==='description'?'MÔ TẢ':'HẠNG MỤC'));if(label)runFrameworkAction(root,'saveKnlColumn',{column:{versionId:frameworkState.selectedVersionId,type:type,label:label,levelNumber:levelNumber}});});
+  root.querySelectorAll('[data-knl-edit-column]').forEach(function(el){el.addEventListener('click',function(){var row=frameworkState.detail.columns.find(function(x){return x.id===el.getAttribute('data-knl-edit-column');});var label=prompt('Nhãn cột:',row.label);if(label)runFrameworkAction(root,'saveKnlColumn',{column:{id:row.id,versionId:row.versionId,type:row.type,label:label,levelNumber:row.levelNumber}});});});
+  root.querySelectorAll('[data-knl-delete]').forEach(function(el){el.addEventListener('click',function(){var parts=el.getAttribute('data-knl-delete').split(':');if(confirm('Xóa vật lý khỏi Draft chưa sử dụng?'))runFrameworkAction(root,'deleteKnlStructure',{entity:parts[0],id:parts[1]});});});
+  root.querySelectorAll('[data-knl-group-move]').forEach(function(el){el.addEventListener('click',function(){var ids=moveIds(frameworkState.detail.groups,el.getAttribute('data-knl-group-move'),el.getAttribute('data-direction'));if(ids)runFrameworkAction(root,'reorderKnlStructure',{entity:'group',parentId:frameworkState.selectedVersionId,orderedIds:ids});});});
+  root.querySelectorAll('[data-knl-item-move]').forEach(function(el){el.addEventListener('click',function(){var groupId=el.getAttribute('data-group-id'),ids=moveIds(frameworkState.detail.items.filter(function(x){return x.groupId===groupId;}),el.getAttribute('data-knl-item-move'),el.getAttribute('data-direction'));if(ids)runFrameworkAction(root,'reorderKnlStructure',{entity:'item',parentId:groupId,orderedIds:ids});});});
+  root.querySelectorAll('[data-knl-column-move]').forEach(function(el){el.addEventListener('click',function(){var ids=moveIds(frameworkState.detail.columns,el.getAttribute('data-knl-column-move'),el.getAttribute('data-direction'));if(ids)runFrameworkAction(root,'reorderKnlStructure',{entity:'column',parentId:frameworkState.selectedVersionId,orderedIds:ids});});});
+  root.querySelectorAll('[data-knl-level-content]').forEach(function(el){el.addEventListener('change',function(){var ids=el.getAttribute('data-knl-level-content').split(':');runFrameworkAction(root,'saveKnlLevelContent',{levelContent:{versionId:frameworkState.selectedVersionId,itemId:ids[0],columnId:ids[1],content:el.value}});});});
+  var publish=root.querySelector('[data-knl-publish-version]');if(publish)publish.addEventListener('click',function(){if(confirm('Phát hành sẽ khóa bất biến version này. Tiếp tục?'))runFrameworkAction(root,'publishKnlVersion',{versionId:frameworkState.selectedVersionId});});
+  var clone=root.querySelector('[data-knl-clone-version]');if(clone)clone.addEventListener('click',function(){var name=prompt('Tên version mới:',frameworkState.detail.version.name+' (bản mới)');if(name)runFrameworkAction(root,'cloneKnlVersion',{versionId:frameworkState.selectedVersionId,name:name});});
+  var inactivate=root.querySelector('[data-knl-inactivate-framework]');if(inactivate)inactivate.addEventListener('click',function(){if(confirm('Ngừng áp dụng bộ KNL này? Version đã phát hành vẫn được giữ bất biến.'))runFrameworkAction(root,'saveKnlFramework',{framework:{id:frameworkState.detail.framework.id,name:frameworkState.detail.framework.name,description:frameworkState.detail.framework.description,status:'inactive'}});});
+}
+
 /* ===================== ENTRY ===================== */
 
 window.phfRenderKnl = async function(path){
@@ -725,12 +789,18 @@ window.phfRenderKnl = async function(path){
 
   var isAdmin = capData.isAdmin === true;
   var capabilities = capData.capabilities || {};
-  var tab = /\/phan-quyen$/.test(path) ? 'phan-quyen' : 'nhan-su';
+  var tab = /\/bo-knl$/.test(path) ? 'bo-knl' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : 'nhan-su');
   var canPeople = isAdmin || capabilities.access_knl;
   var canPermissions = isAdmin || capabilities.manage_permissions;
+  var canFrameworks = isAdmin || capabilities.manage_framework;
 
   if(tab === 'phan-quyen' && !canPermissions){
     root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame(tab, capabilities, isAdmin, noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".')) + '</div>';
+    bindShell(root);
+    return true;
+  }
+  if(tab === 'bo-knl' && !canFrameworks){
+    root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame(tab, capabilities, isAdmin, noAccessSection('Bạn chưa được cấp quyền quản lý cấu trúc KNL.')) + '</div>';
     bindShell(root);
     return true;
   }
@@ -743,7 +813,10 @@ window.phfRenderKnl = async function(path){
   root.innerHTML = '<div class="phf-knl-root-shell">' + shellFrame(tab, capabilities, isAdmin, '') + '</div>';
   bindShell(root);
 
-  if(tab === 'phan-quyen'){
+  if(tab === 'bo-knl'){
+    frameworkState={frameworks:[],selectedVersionId:'',detail:null,loading:false,error:''};
+    await loadFrameworks(root);
+  }else if(tab === 'phan-quyen'){
     permState.editing = null;
     await loadPermissions(root);
   }else{
