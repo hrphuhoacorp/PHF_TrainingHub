@@ -6,6 +6,8 @@ const path=require('path');
 const crypto=require('crypto');
 const root=path.resolve(__dirname,'..');
 const sql=fs.readFileSync(path.join(root,'scripts','PHF_KNL_ASSIGNMENT_SOURCE_MANIFEST_1.48.0.sql'),'utf8');
+const ui=fs.readFileSync(path.join(root,'assets','js','knl','phf-knl-app.js'),'utf8');
+const router=fs.readFileSync(path.join(root,'assets','js','phf-url-router.js'),'utf8');
 const manifest=require('../assets/data/knl-source-manifest-2026-08-09.json');
 let passed=0;
 function check(value,message){assert.ok(value,message);passed++;console.log('PASS',message);}
@@ -18,6 +20,9 @@ check(/knl_seed_source_candidate/i.test(sql)&&/SOURCE_HASH_CHANGED_REVIEW_REQUIR
 check(/enable row level security/i.test(sql)&&/revoke all on public\.knl_source_manifests/i.test(sql),'RLS/revoke fail-closed cho bảng Batch 2');
 check(!/(insert|update|delete)\s+(into\s+|from\s+)?public\.checklist_/i.test(sql),'Migration không ghi ngược Checklist');
 check(!/create table[^;]*(survey|assessment)/i.test(sql),'Batch 2 không tạo Survey/Assessment');
+const sidebarBlock=(ui.match(/var SIDEBAR_ITEMS\s*=\s*\[([\s\S]*?)\];/)||[])[1]||'';
+check(!sidebarBlock.includes("key:'gan-ap-dung'")&&ui.includes('data-knl-domain-tab="gan-ap-dung"'),'Gán & áp dụng là tab nội bộ Bộ KNL, không phải domain menu trái');
+check(router.includes("'/admin/knl/gan-ap-dung'")&&ui.includes("activeTab==='gan-ap-dung'?'bo-knl':activeTab"),'Deeplink Gán & áp dụng giữ compatibility và active domain Bộ KNL');
 
 const ready=manifest.candidates.filter(row=>row.candidateStatus==='READY');
 const review=manifest.candidates.filter(row=>row.candidateStatus==='NEEDS_REVIEW');

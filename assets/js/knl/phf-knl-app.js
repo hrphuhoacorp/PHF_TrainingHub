@@ -108,22 +108,21 @@ function businessRoleForAccount(acc, grant){
    không đụng file/CSS Checklist, không kéo nghiệp vụ Checklist sang đây. */
 var SIDEBAR_ITEMS = [
   { key:'bo-knl', label:'Bộ KNL', desc:'Framework & cấu trúc Draft', icon:'▦', needs:'manage_framework' },
-  { key:'gan-ap-dung', label:'Gán & áp dụng', desc:'Source thật và assignment', icon:'⌁', needs:'manage_framework', adminOnly:true },
   { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
   { key:'phan-quyen', label:'Phân quyền', desc:'Quản lý quyền truy cập KNL', icon:'⚙', needs:'manage_permissions' }
 ];
 
 function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
+  var activeSidebarTab=activeTab==='gan-ap-dung'?'bo-knl':activeTab;
   var items = SIDEBAR_ITEMS.filter(function(item){ if(item.adminOnly)return isAdmin===true;return isAdmin || (capabilities && capabilities[item.needs]); });
   var icons = {
     'bo-knl':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
-    'gan-ap-dung':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     'nhan-su':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>',
     'phan-quyen':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>'
   };
   var navHtml = items.map(function(item){
     var desc=item.key==='nhan-su'?'Danh sách & phạm vi':'Quyền thao tác & scope';
-    return '<button type="button" class="phfk-nav-item'+(activeTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
+    return '<button type="button" class="phfk-nav-item'+(activeSidebarTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
       '<span class="phfk-nav-icon">'+(icons[item.key]||'')+'</span>' +
       '<span><b>'+item.label+'</b><small>'+desc+'</small></span></button>';
   }).join('');
@@ -142,6 +141,13 @@ function bindShell(root){
   root.querySelectorAll('[data-knl-back]').forEach(function(el){ el.addEventListener('click', goHub); });
   root.querySelectorAll('[data-knl-tab]').forEach(function(el){ el.addEventListener('click', function(){ goTab(el.getAttribute('data-knl-tab')); }); });
 }
+
+function frameworkDomainNav(activeTab){
+  return '<nav class="phfk-domain-tabs" aria-label="Bộ KNL">'+
+    '<button type="button" class="'+(activeTab==='bo-knl'?'active':'')+'" data-knl-domain-tab="bo-knl">Cấu trúc bộ KNL</button>'+
+    '<button type="button" class="'+(activeTab==='gan-ap-dung'?'active':'')+'" data-knl-domain-tab="gan-ap-dung">Gán & áp dụng</button></nav>';
+}
+function bindFrameworkDomainNav(root){root.querySelectorAll('[data-knl-domain-tab]').forEach(function(el){el.addEventListener('click',function(){goTab(el.getAttribute('data-knl-domain-tab'));});});}
 
 function noAccessSection(message){
   return '<section class="phfk-empty"><p>' + esc(message) + '</p></section>';
@@ -742,7 +748,7 @@ function competencyTableHtml(detail){
 }
 function frameworkWorkspaceHtml(){
   var detail=frameworkState.detail;
-  return '<div class="phfk-page-head"><div><small>KNL · BATCH 1</small><h1>Bộ KNL & cấu trúc động</h1></div><button type="button" class="phfk-btn-primary" data-knl-create-framework>+ Tạo bộ KNL</button></div>'+
+  return frameworkDomainNav('bo-knl')+'<div class="phfk-page-head"><div><small>KNL · BATCH 1</small><h1>Bộ KNL & cấu trúc động</h1></div><button type="button" class="phfk-btn-primary" data-knl-create-framework>+ Tạo bộ KNL</button></div>'+
     '<p class="phfk-batch-note">Chỉ quản trị cấu trúc Draft. Không có Survey, Assessment, nhân sự, organization hay dữ liệu demo trong batch này.</p>'+
     '<div class="phfk-framework-workspace"><aside class="phfk-panel phfk-framework-list">'+frameworkListHtml()+'</aside><div class="phfk-framework-detail">'+
     (!detail?'<div class="phfk-empty">Chọn một version để quản trị cấu trúc.</div>':'<section class="phfk-panel phfk-version-head"><div><small>'+esc(detail.framework.code)+' · VERSION '+detail.version.versionNumber+'</small><h2>'+esc(detail.framework.name)+' — '+esc(detail.version.name)+'</h2><p>'+statusLabel(detail.framework.status)+' · '+statusLabel(detail.version.status)+(detail.version.isLocked?' · Version bất biến':' · Có thể chỉnh sửa')+'</p></div><div class="phfk-form-actions">'+(detail.version.status==='draft'&&!detail.version.isLocked?'<button class="phfk-btn-secondary" data-knl-publish-version>Phát hành & khóa</button>':'<button class="phfk-btn-primary" data-knl-clone-version>Tạo version mới</button>')+(detail.framework.status==='published'?'<button class="phfk-btn-secondary" data-knl-inactivate-framework>Ngừng áp dụng</button>':'')+'</div></section>'+structureColumnsHtml(detail)+competencyTableHtml(detail))+'</div></div>'+
@@ -754,6 +760,7 @@ async function loadFrameworks(root){frameworkState.loading=true;renderFrameworkB
 function moveIds(rows,id,direction){var active=orderedActive(rows),index=active.findIndex(function(x){return x.id===id;}),target=index+Number(direction);if(index<0||target<0||target>=active.length)return null;var tmp=active[index];active[index]=active[target];active[target]=tmp;return active.map(function(x){return x.id;});}
 async function runFrameworkAction(root,action,extra){frameworkState.error='';try{await apiPost(action,extra||{});await loadFrameworks(root);}catch(e){frameworkState.error=e.message;renderFrameworkBody(root);}}
 function bindFrameworkEvents(root){
+  bindFrameworkDomainNav(root);
   root.querySelectorAll('[data-knl-version]').forEach(function(el){el.addEventListener('click',function(){loadFrameworkDetail(root,el.getAttribute('data-knl-version'));});});
   var create=root.querySelector('[data-knl-create-framework]');if(create)create.addEventListener('click',async function(){var code=prompt('Mã bộ KNL (A-Z, 0-9, _ hoặc -):','');if(code===null)return;var name=prompt('Tên bộ KNL:','');if(name===null)return;var count=prompt('Số mức khởi tạo (có thể thêm/bớt ở Draft):','4');if(count===null)return;await runFrameworkAction(root,'createKnlFramework',{framework:{code:code,name:name,levelCount:Number(count),includeDescription:true}});});
   var addGroup=root.querySelector('[data-knl-add-group]');if(addGroup)addGroup.addEventListener('click',function(){var name=prompt('Tên nhóm năng lực:','');if(name)runFrameworkAction(root,'saveKnlGroup',{group:{versionId:frameworkState.selectedVersionId,name:name}});});
@@ -781,7 +788,7 @@ function assignmentPageHtml(){
   var p=assignmentState.preview||{totals:{},ready:[],needsReview:[],excluded:[]},t=assignmentState.targets||{},positionDisabled=!(t.positions||[]).length;
   var peopleOptions=(t.people||[]).map(function(person){return '<option value="'+esc(person.employeeCode)+'">'+esc(person.employeeCode+' · '+person.employeeName+' · '+(person.title||'Chưa có chức danh'))+'</option>';}).join('');
   var positionOptions=(t.positions||[]).map(function(pos){return '<option value="'+esc(pos.positionRef)+'">'+esc([pos.position,pos.department,pos.branch].filter(Boolean).join(' · '))+'</option>';}).join('');
-  return '<div class="phfk-page-head"><div><small>KNL · BATCH 2</small><h1>Gán vị trí & áp dụng</h1></div></div>'+
+  return frameworkDomainNav('gan-ap-dung')+'<div class="phfk-page-head"><div><small>KNL · BATCH 2</small><h1>Gán vị trí & áp dụng</h1></div></div>'+
     '<section class="phfk-panel phfk-source-panel"><div class="phfk-section-head"><div><small>SOURCE MANIFEST</small><h2>Nạp nội dung PHF đã chốt</h2></div><button type="button" class="phfk-btn-primary" data-knl-seed-source>Nạp / kiểm tra lại idempotent</button></div><p class="phfk-batch-note">Sẽ tạo '+Number(p.totals.frameworks||0)+' framework, '+Number(p.totals.groups||0)+' nhóm, '+Number(p.totals.items||0)+' hạng mục và '+Number(p.totals.contents||0)+' nội dung mức. Không tự chọn source đang conflict.</p>'+
     '<details open><summary>Sẵn sàng nạp ('+(p.ready||[]).length+')</summary><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Source</th><th>Vị trí nguồn</th><th>Mức</th><th>Trạng thái</th></tr></thead><tbody>'+sourceRows(p.ready||[],'is-ready')+'</tbody></table></div></details>'+
     '<details><summary>Needs review ('+(p.needsReview||[]).length+')</summary><div class="phfk-table-wrap"><table class="phfk-table"><tbody>'+sourceRows(p.needsReview||[],'is-review')+'</tbody></table></div></details><p class="phfk-source-excluded">Loại khỏi scope: '+esc((p.excluded||[]).map(function(x){return x.sourceSheet;}).join(', '))+'</p></section>'+
@@ -793,6 +800,7 @@ function assignmentPageHtml(){
 function renderAssignmentBody(root){var body=root.querySelector('[data-knl-body]');if(body)body.innerHTML=assignmentState.loading?'<div class="phfk-loading">Đang tải source và assignment…</div>':assignmentPageHtml();bindAssignmentEvents(root);}
 async function loadAssignments(root){assignmentState.loading=true;renderAssignmentBody(root);try{var results=await Promise.all([apiPost('previewKnlSourceSeed'),apiPost('listKnlAssignmentTargets'),apiPost('listKnlFrameworkAssignments'),apiPost('listKnlFrameworks'),apiPost('listKnlSourceManifests')]);assignmentState.preview=results[0];assignmentState.targets=results[1];assignmentState.assignments=results[2].assignments||[];assignmentState.frameworks=results[3].frameworks||[];assignmentState.manifests=results[4].manifests||[];assignmentState.error='';}catch(e){assignmentState.error=e.message;}assignmentState.loading=false;renderAssignmentBody(root);}
 function bindAssignmentEvents(root){
+  bindFrameworkDomainNav(root);
   var seed=root.querySelector('[data-knl-seed-source]');if(seed)seed.addEventListener('click',async function(){if(!confirm('Nạp đúng 11 source READY? Các source NEEDS_REVIEW/EXCLUDED sẽ không được xử lý. Chạy lại sẽ không tạo duplicate.'))return;assignmentState.loading=true;renderAssignmentBody(root);try{var result=await apiPost('seedKnlSourceManifest');assignmentState.result='Seed hoàn tất: '+JSON.stringify(result.summary||{});assignmentState.error='';await loadAssignments(root);}catch(e){assignmentState.loading=false;assignmentState.error=e.message;renderAssignmentBody(root);}});
   var type=root.querySelector('[data-knl-target-type]');if(type)type.addEventListener('change',function(){var employee=root.querySelector('[data-knl-employee-target]'),position=root.querySelector('[data-knl-position-target]');if(employee)employee.hidden=type.value!=='employee';if(position)position.hidden=type.value!=='position';});
   var form=root.querySelector('[data-knl-assignment-form]');if(form)form.addEventListener('submit',async function(event){event.preventDefault();var data=new FormData(form),targetType=String(data.get('targetType')||'employee'),targetRef=targetType==='employee'?data.get('employeeRef'):data.get('positionRef');try{await apiPost('saveKnlFrameworkAssignment',{assignment:{versionId:data.get('versionId'),targetType:targetType,targetRef:targetRef,isPrimary:data.get('isPrimary')==='on',reason:data.get('reason')}});assignmentState.result='Đã lưu assignment theo version và '+(targetType==='employee'?'employee_code':'position reference')+'.';assignmentState.error='';await loadAssignments(root);}catch(e){assignmentState.error=e.message;renderAssignmentBody(root);}});

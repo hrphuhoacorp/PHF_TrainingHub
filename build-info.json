@@ -1,7 +1,7 @@
 {
-  "version": "1.48.0",
-  "fingerprint": "1.48.0-knl-assignment-real-source-batch2",
-  "builtAt": "2026-08-09T22:41:58+07:00",
-  "notes": "1.48.0: KNL Batch 2 adds 11 idempotent PHF source frameworks and version-specific employee/position assignments without Survey or Assessment.",
-  "build": "1.48.0"
+  "version": "1.48.1",
+  "fingerprint": "1.48.1-knl-batch2-navigation-closeout",
+  "builtAt": "2026-08-09T22:54:57+07:00",
+  "notes": "1.48.1: closes KNL Batch 2 by moving assignment into the Bộ KNL domain tabs and adds the next-stage handover; no backend or data changes.",
+  "build": "1.48.1"
 }
