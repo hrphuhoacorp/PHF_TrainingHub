@@ -21,5 +21,5 @@ for(const label of ['Ngày vào làm','Thâm niên','Chức danh','Chức vụ',
 for(const forbidden of ['Phụ cấp / thành phần','Tiền tệ','Ngày chính thức','Ảnh đại diện (URL)','Địa chỉ thường trú','Địa chỉ hiện tại / tạm trú'])assert(!ui.includes(forbidden),`Out-of-scope field remains visible: ${forbidden}`);
 assert(ui.includes("save('saveCompensation',{baseSalary:val('emBaseSalary')}")&&!ui.includes('emAllowances'),'Compensation V1 must submit current salary only.');
 assert(ui.includes("contractType:val('emContractType')")&&!ui.includes('emContractNote'),'Contract V1 contains fields outside the approved baseline.');
-assert(ui.includes('Sẽ triển khai ở batch tiếp theo')&&!ui.includes('data-em-import'),'Full Excel import must remain unavailable in this batch.');
+assert(ui.includes('data-em-import')&&ui.includes('Tải file mẫu V1'),'Employee Profile V1 must remain compatible with the approved Excel Import V1 entry point.');
 console.log('Employee Profile V1 tests: PASS');

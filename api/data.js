@@ -22,6 +22,7 @@ const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChe
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('../lib/knl-permissions');
 const { listKnlPeople } = require('../lib/knl-people');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('../lib/employee-master');
+const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -281,6 +282,8 @@ module.exports = async function handler(req, res) {
         if(action==='savePrivateProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
         if(action==='saveContract')return res.status(200).json({ok:true,...await saveEmployeeMasterContract(session,payload)});
         if(action==='saveCompensation')return res.status(200).json({ok:true,...await saveEmployeeMasterCompensation(session,payload)});
+        if(action==='previewImport')return res.status(200).json({ok:true,...await previewEmployeeImport(session,payload)});
+        if(action==='commitImport')return res.status(200).json({ok:true,...await commitEmployeeImport(session,payload)});
         throw new RequestError('Thao tác Employee Master không hợp lệ.',400,'EMPLOYEE_MASTER_ACTION_INVALID');
       }
       if(classroomSettingsMode){

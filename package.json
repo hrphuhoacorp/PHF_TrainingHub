@@ -7,6 +7,7 @@
     "start": "node server.js",
     "check": "node scripts/phf-check-js.js",
     "test:employee-master": "node scripts/test-employee-master.js",
+    "test:employee-import": "node scripts/test-employee-import-v1.js",
     "smoke": "node scripts/phf-production-smoke-test.js",
     "release:clean": "node scripts/phf-clean-release.js"
   },

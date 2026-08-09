@@ -25,6 +25,7 @@ const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChe
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { listKnlPeople } = require('./lib/knl-people');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('./lib/employee-master');
+const { previewEmployeeImport, commitEmployeeImport } = require('./lib/employee-import');
 const { runChatSandbox } = require('./lib/ai-sandbox');
 const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./lib/ai-conversations');
 const {
@@ -550,6 +551,8 @@ const server = http.createServer(async (req, res) => {
           if(action==='savePrivateProfile')return sendJson(res,200,{ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
           if(action==='saveContract')return sendJson(res,200,{ok:true,...await saveEmployeeMasterContract(session,payload)});
           if(action==='saveCompensation')return sendJson(res,200,{ok:true,...await saveEmployeeMasterCompensation(session,payload)});
+          if(action==='previewImport')return sendJson(res,200,{ok:true,...await previewEmployeeImport(session,payload)});
+          if(action==='commitImport')return sendJson(res,200,{ok:true,...await commitEmployeeImport(session,payload)});
           throw new RequestError('Thao tác Employee Master không hợp lệ.',400,'EMPLOYEE_MASTER_ACTION_INVALID');
         }
         if (classroomUsersMode) {
