@@ -1,7 +1,7 @@
 {
-  "version": "1.47.0",
-  "fingerprint": "1.47.0-knl-framework-version-dynamic-structure-batch1",
-  "builtAt": "2026-08-09T21:53:33+07:00",
-  "notes": "1.47.0 pending migration: KNL Batch 1 adds immutable framework versions and fully dynamic Draft groups, items, columns and levels without Survey, Assessment, organization or income changes.",
-  "build": "1.47.0"
+  "version": "1.48.0",
+  "fingerprint": "1.48.0-knl-assignment-real-source-batch2",
+  "builtAt": "2026-08-09T22:41:58+07:00",
+  "notes": "1.48.0: KNL Batch 2 adds 11 idempotent PHF source frameworks and version-specific employee/position assignments without Survey or Assessment.",
+  "build": "1.48.0"
 }

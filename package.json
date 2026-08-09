@@ -9,6 +9,7 @@
     "test:employee-master": "node scripts/test-employee-master.js",
     "test:employee-import": "node scripts/test-employee-import-v1.js",
     "test:knl-batch1": "node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
+    "test:knl-batch2": "node scripts/test-knl-batch2.js && node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
     "smoke": "node scripts/phf-production-smoke-test.js",
     "release:clean": "node scripts/phf-clean-release.js"
   },

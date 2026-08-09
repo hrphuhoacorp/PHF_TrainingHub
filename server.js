@@ -25,6 +25,7 @@ const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChe
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { listKnlPeople } = require('./lib/knl-people');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
+const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('./lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./lib/employee-import');
 const { runChatSandbox } = require('./lib/ai-sandbox');
@@ -779,6 +780,12 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='disableKnlStructure')return sendJson(res,200,{ok:true,...await disableKnlStructure(session,payload)});
       if(payload&&payload.action==='reorderKnlStructure')return sendJson(res,200,{ok:true,...await reorderKnlStructure(session,payload)});
       if(payload&&payload.action==='saveKnlLevelContent')return sendJson(res,200,{ok:true,...await saveKnlLevelContent(session,payload.levelContent||{})});
+      if(payload&&payload.action==='previewKnlSourceSeed')return sendJson(res,200,{ok:true,...await previewKnlSourceSeed(session)});
+      if(payload&&payload.action==='seedKnlSourceManifest')return sendJson(res,200,{ok:true,...await seedKnlSourceManifest(session)});
+      if(payload&&payload.action==='listKnlSourceManifests')return sendJson(res,200,{ok:true,...await listKnlSourceManifests(session)});
+      if(payload&&payload.action==='listKnlAssignmentTargets')return sendJson(res,200,{ok:true,...await listKnlAssignmentTargets(session)});
+      if(payload&&payload.action==='listKnlFrameworkAssignments')return sendJson(res,200,{ok:true,...await listKnlFrameworkAssignments(session)});
+      if(payload&&payload.action==='saveKnlFrameworkAssignment')return sendJson(res,200,{ok:true,...await saveKnlFrameworkAssignment(session,payload.assignment||{})});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

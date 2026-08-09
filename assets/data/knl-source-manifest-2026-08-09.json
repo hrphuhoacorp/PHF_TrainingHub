@@ -1,0 +1,3704 @@
+{
+  "manifestVersion": "PHF_KNL_SOURCE_2026-08-09_V1",
+  "specDate": "2026-08-09",
+  "sourceSpecSha256": "b0d5e6a5b078b694bc17fc9ec074bfeac43691ed0801e6b29e243bb68a3994f2",
+  "policy": {
+    "canonical": "Seed unique source candidates only; duplicate regular/v2/legacy candidates remain NEEDS_REVIEW.",
+    "organization": "Read checklist_employee_assignments only. Never write Checklist.",
+    "forbidden": "No pay-grade, salary, probation-85-percent or compensation content."
+  },
+  "candidates": [
+    {
+      "manifestKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982",
+      "specDate": "2026-08-09",
+      "sourceFile": "PDF Bán hàng",
+      "sourceSheet": "Nhân viên bán hàng tại cửa hàng",
+      "sourcePosition": "Nhân viên bán hàng tại cửa hàng",
+      "sourceHash": "f0e2ffb84878795b1042738e7a3604b3afac5d019b8a5c736edeea51741757e5",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 4,
+      "includeDescription": true,
+      "guidance": "Biết tên và xuất xứ từng loại đang bán: sầu riêng Ri6 Tiền Giang, nho Mỹ xanh không hạt, táo Envy New Zealand...\nDịch vụ và chính sách cơ bản: Giao hàng, đổi trả, thanh toán, tích điểm, CTKM\nBiết cửa hàng có: gói quà, giao hàng tận nơi, thanh toán tiền mặt / chuyển khoản / quẹt thẻ, đổi trả hàng.\nbao đổi trả khi khách mua phải hàng hư thối (trái cây k được kiểm tra bên trong)\ntrả lời được khách câu hỏi tích điểm để làm gì?\nKhi khách hỏi \"có giao hàng không?\" → trả lời được \"có ạ\" mà không cần hỏi lại đồng nghiệp.\nTình huống kiểm tra\nQuản lý chỉ vào quầy hàng, hỏi: \"Em kể tên 5 loại trái cây nhập khẩu đang có và cho biết từ đâu?\" → Nhân viên kể được, không cần nhìn bảng giá.\nĐạt yêu cầu khi\nKể đúng tên và xuất xứ ít nhất 80% sản phẩm đang bán . Liệt kê đủ 4–5 dịch vụ cửa hàng đang có\nMức 2 — Thành thạo Mô tả được công dụng & điều kiện áp dụng dịch vụ\nNhân viên cần làm được gì?\nKhông chỉ biết tên — mà giải thích được sản phẩm này ngon/tốt ở điểm gì, dùng để làm gì. Và biết rõ từng dịch vụ áp dụng khi nào, điều kiện gì, phí bao nhiêu.\nSản phẩm — nói được điểm nổi bật\nKhách hỏi \"nho này khác gì nho kia?\"\n→ \"Nho Mỹ vỏ mỏng, ăn không cần lột, ngọt thanh. Nho Úc hạt nhỏ hơn, chua nhẹ, phù hợp làm nước ép. Anh/chị ăn trực tiếp thì lấy nho Mỹ ạ.\"\nKhách hỏi \"sầu riêng nào ngon?\"\n→ \"Ri6 múi dày, béo, ít xơ — phù hợp ăn tươi. Musang King đắt hơn, vị đậm hơn, nhiều người mua biếu.\"\nDịch vụ — hiểu rõ điều kiện áp dụng:\n\"Giao hàng phí bao nhiêu?\" → \"Trong 4km miễn phí đơn từ 299k, ngoài ra tính 6k/km ạ.\"\n\"Gói quà mất bao lâu?\" → \"Giỏ tiêu chuẩn khoảng 20 phút, giỏ lớn trên 1 triệu thì 30-45 phút, chị đặt trước thì em chuẩn bị sẵn.\"\n\"Đổi trả được không?\" → \"Nắm được quy định xử lý đổi trả đối với hàng lỗi, hư hỏng hoặc không đạt chất lượng..\"\n\"Voucher cho khách\" -- Nắm được chính sách voucher, ưu đãi và chăm sóc khách VIP\nMức 3 — Nâng cao Tư vấn phù hợp nhu cầu & áp dụng dịch vụ linh hoạt\nNhân viên cần làm được gì?\nKhông chờ khách hỏi từng thứ — mà hỏi lại để hiểu nhu cầu, rồi đề xuất đúng sản phẩm và dịch vụ phù hợp nhất. Biết kết hợp sản phẩm + dịch vụ thành một giải pháp trọn gói cho khách.\nVí dụ tư vấn chủ động\nKhách: \"Cho tôi xem trái cây đi.\"\nNhân viên mức 1: dẫn khách đi xem, đứng chờ khách chọn.\nNhân viên mức 3: \"Dạ, anh/chị mua để ăn ở nhà hay mua biếu ạ? Nhà có mấy người? Có ai kiêng đường không?\" → Sau đó đề xuất cụ thể: \"Vậy em gợi ý giỏ này: bưởi da xanh, ổi lê, thanh long đỏ — đủ vitamin, cả nhà đều ăn được, không ngọt quá ạ.\"\nVí dụ áp dụng dịch vụ linh hoạt\nKhách mua giỏ quà 800k nhưng chưa biết giao đi đâu: \"Anh cứ chọn quà trước, em gói xong rồi anh nhắn địa chỉ, em đặt ship luôn cho, anh không cần ra ngoài.\"\nKhách phân vân vì đơn chưa đủ free ship: \"Chị thêm hộp sữa chua này là đủ 300k, free ship luôn, cũng tiện ạ.\" → đây là upsell tự nhiên từ hiểu biết dịch vụ.\nBiết giải thích giá trị dinh dưỡng & cách bảo quản\n\"Cam vàng này nhiều vitamin C hơn cam xanh, tốt cho người bị cảm hoặc muốn tăng đề kháng. Để ngoài được 3–4 ngày, bỏ tủ lạnh được cả tuần chị ơi.\"\n\"Sầu riêng múi bóc rồi thì nên bọc màng bọc thực phẩm, để ngăn mát ăn trong 2 ngày, đừng để ngăn đá sẽ mất vị anh nhé.\"\nMức 4 — Chuyên gia Phát hiện vấn đề & hỗ trợ nâng cấp hệ thống\nNhân viên cần làm được gì?\nHiểu sâu đến mức có thể chỉ ra chỗ nào trong thông tin sản phẩm / dịch vụ / quy trình đang chưa đúng hoặc chưa đủ — và đề xuất cải thiện. Đồng thời có thể đào tạo lại đồng nghiệp.\nVề sản phẩm\nPhát hiện thông tin trên bảng giá / bao bì sai: \"Anh ơi, mít Thái này ghi xuất xứ Campuchia nhưng thực ra nhà vườn Tây Ninh, em hỏi lại kho nhé.\"\nĐề xuất bổ sung thông tin: \"Mình nên ghi thêm hạn sử dụng và cách bảo quản lên nhãn, khách hay hỏi lắm.\"\nVề dịch vụ & quy trình\nPhát hiện chính sách chưa rõ: \"Chính sách đổi trả đang ghi 'trong ngày' nhưng không nói rõ tính từ lúc mua hay lúc nhận hàng — khách hay thắc mắc, mình nên bổ sung.\"\nĐề xuất cải tiến: \"Nếu mình thêm lựa chọn lịch giao hàng theo giờ, khách văn phòng sẽ order nhiều hơn.\"\nVai trò đào tạo đồng nghiệp\nNhân viên mức 4 có thể tự soạn \"bộ câu hỏi thường gặp của khách\" và hướng dẫn nhân viên mới trả lời. Ví dụ: tạo bảng so sánh sầu riêng Ri6 vs Musang King vs sầu Thái để nhân viên mới tra nhanh khi tư vấn.\nĐạt yêu cầu khi\nPhát hiện ít nhất 1 thông tin sai / thiếu trong 1 tháng và báo cáo có giải phápHướng dẫn được nhân viên mới về SPDV mà không cần tài liệu hỗ trợCó ít nhất 1 đề xuất cải thiện dịch vụ được ghi nhận\nHiểu biết về khách hàng\n\nMức 1 — Cơ bản Phân biệt được nhóm khách hàng\nNhân viên cần làm được gì?\nNhìn vào khách, nói được ngay khách này thuộc nhóm nào trong 3–4 nhóm chính của cửa hàng. Không cần nói chuyện nhiều vẫn đoán được mục đích mua.\nVí dụ thực tế tại Phuhoa Fresh\nChị khoảng 35–45 tuổi, tay cầm túi đi chợ, hỏi \"hôm nay có bưởi không?\" → khách đi chợ thường ngày, mua ăn trong nhà, quan tâm giá và độ tươi.\nCô khoảng 25–35 tuổi, hỏi \"làm giỏ quà khoảng 500k được không?\" → khách mua quà, quan tâm đẹp và sang, ít quan tâm giá từng quả.\nAnh mặc vest, ghé nhanh lúc chiều, mua sầu riêng và chôm chôm → khách văn phòng / khách VIP, mua nhanh, có thể là khách quen.\nKiểm tra thế nào?\nCho xem video / tình huống, hỏi \"khách này nhóm nào?\"Kể đúng 3 nhóm chính và đặc điểm nhận dạng\nMức 2 — Thành thạo Mô tả được chân dung khách hàng\nNhân viên cần làm được gì?\nKhông chỉ nhận ra nhóm, mà còn mô tả được chân dung đầy đủ: họ là ai, thường mua gì, mua lúc nào, đến bằng gì, hay hỏi những câu nào. Nhớ tên và nhận ra khách quen khi họ bước vào.\nVí dụ chân dung 3 nhóm chính\nKhách đi chợ hàng ngày: Chị 35–55 tuổi, thường đến buổi sáng 7–9h, mua rau củ + trái cây ăn gia đình. Hay hỏi giá, hay yêu cầu chọn quả chín. Mua nhiều lần/tuần, giỏ hàng 100–300k.\nKhách mua quà biếu: Đa dạng độ tuổi, thường đến cuối tuần hoặc trước lễ Tết/8/3/20/10. Hỏi \"làm giỏ bao nhiêu tiền\", thích nhìn đẹp, muốn gói sang. Mua 1 lần, giá trị cao 300k–2 triệu.\nKhách VIP / văn phòng: Anh/chị 30–50 tuổi, hay ghé buổi chiều hoặc gọi đặt trước. Mua sầu riêng, nho nhập, trái cây cao cấp. Ít hỏi giá, cần nhanh, hay lấy hóa đơn.\nKiểm tra thế nào?\nMô tả chân dung 1 nhóm không xem tài liệuNhớ và gọi tên được ít nhất 5 khách quen\nMức 3 — Nâng cao Hiểu nỗi đau & lý do thực sự khách mua hàng\nNhân viên cần làm được gì?\nHiểu rằng khách không chỉ \"mua trái cây\" — họ đang giải quyết một vấn đề hoặc thỏa mãn một nhu cầu sâu hơn. Từ đó gợi ý đúng thứ họ cần, thậm chí trước khi họ hỏi.\nNỗi đau & lý do thực sự\nChị mua cam mỗi tuần: Nỗi đau = lo con không đủ vitamin, sợ hàng không sạch. Lý do mua = tin tưởng nguồn gốc, thấy tươi. → Nhân viên giỏi sẽ chủ động nói: \"Cam hôm nay vừa về sáng chị ơi, ngọt lắm, con nhỏ ăn được.\"\nAnh mua giỏ quà: Nỗi đau = không biết mua gì cho sếp/đối tác, sợ quà xấu, mất mặt. → Nhân viên giỏi: \"Anh để em tư vấn giỏ khoảng 800k, nhìn sang, phù hợp biếu sếp, em gói đẹp cho.\"\nCô order online: Nỗi đau = bận, không có thời gian ra ngoài. Lý do = tiện, tin cửa hàng. → Cần giao đúng giờ, hàng đúng như mô tả, không cần giải thích nhiều.\nKiểm tra thế nào?\nRoleplay: khách hỏi \"có gì ngon không?\" → phải hỏi lại để hiểu nhu cầu trước khi tư vấn.Kể được lý do sâu hơn của 2 nhóm khách\nMức 4 — Chuyên gia Nhớ sở thích cá nhân từng khách VIP\nNhân viên cần làm được gì?\nKhông cần khách nhắc lại. Nhớ sở thích, thói quen, hoàn cảnh cá nhân của từng khách VIP và dùng thông tin đó để chăm sóc chủ động — tạo cảm giác khách được \"quen thuộc\" và đặc biệt.\nVí dụ nhớ sở thích cụ thể\nChị Lan (khách VIP): Hay mua sầu riêng Ri6 vào thứ 6, thích múi to, không thích nhão. Dị ứng nhãn. Có 2 con nhỏ hay mua thêm ổi xá lị. → Nhân viên chủ động: \"Chị Lan ơi, hôm nay có sầu riêng Ri6 ngon lắm, em để phần chị múi to rồi.\"\nAnh Hùng (khách doanh nghiệp): Hay đặt giỏ quà trước ngày 20/11, 8/3, Tết. Thích giỏ tone xanh lá. Budget thường 1–1,5 triệu. Cần xuất VAT. → Nhân viên nhắn trước: \"Anh Hùng ơi, 20/11 gần rồi, anh có muốn em chuẩn bị giỏ như năm ngoái không ạ?\"",
+      "frameworkCode": "KNL_NHAN_VIEN_BAN_HANG_TAI_CUA_HANG_34BEF9",
+      "frameworkName": "Nhân viên bán hàng tại cửa hàng",
+      "versionName": "Source Candidate · Nhân viên bán hàng tại cửa hàng",
+      "sourceVersionKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:description",
+          "type": "description",
+          "label": "KIỂM CHỨNG/GHI CHÚ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:1",
+              "sourceRow": "1",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về sản phẩm & dịch vụ",
+              "description": "Kiểm tra bằng tình huống thực tế (roleplay khách hỏi)",
+              "levels": [
+                "Nhận biết và kể tên được các nhóm sản phẩm, nguồn gốc, đặc tính cơ bản. Biết tên và mô tả sơ bộ các dịch vụ và chính sách bán hàng (gói quà, giao hàng, thanh toán, đổi trả, tích điểm, nhân viên).",
+                "Mô tả được công dụng, xuất xứ, điểm nổi bật của từng sản phẩm. Hiểu rõ điều kiện áp dụng từng dịch vụ và chính sách bán hàng (phí giao hàng, thời gian giao, chính sách đổi trả, tích điểm, ưu đãi khách VIP, CTKM).",
+                "Giải thích được giá trị dinh dưỡng, cách bảo quản. Tư vấn & đề xuất sản phẩm phù hợp với từng nhu cầu khách. Áp dụng linh hoạt dịch vụ và chính sách bán hàng để tăng trải nghiệm KH và chốt đơn.",
+                "Có thể trả lời mọi câu hỏi của khách và hỗ trợ đồng nghiệp về SPDV. Phát hiện và báo cáo thông tin SPDV chưa chính xác, đề xuất cải tiến."
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:2",
+              "sourceRow": "2",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "Ghi nhận qua sổ tay khách VIP",
+              "levels": [
+                "Phân biệt được các nhóm khách hàng chính (khách lẻ, khách mua quà, khách VIP).",
+                "Mô tả được chân dung từng nhóm (độ tuổi, mục đích mua, thói quen). Nhớ tên và nhận ra khách quen.",
+                "Hiểu được nỗi đau, lý do mua hàng của từng nhóm. Chủ động gợi ý phù hợp trước khi khách hỏi.",
+                "Nhớ sở thích cá nhân của khách VIP (gia đình, dịp đặc biệt). Góp phần xây dựng mối quan hệ dài hạn."
+              ],
+              "sortOrder": 2
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:3",
+              "sourceRow": "3",
+              "group": "KỸ NĂNG",
+              "name": "Thu ngân",
+              "description": "Kiểm tra qua tỷ lệ sai sót cuối ca, tốc độ xử lý",
+              "levels": [
+                "Thực hiện đúng 3 phương thức thanh toán (tiền mặt, chuyển khoản, quẹt thẻ). Xuất được hóa đơn, còn vài sai sót nhỏ.",
+                "Thành thạo, nhanh, chính xác. Xử lý được đổi trả, tách bill không cần hỗ trợ. Gần như không có sai sót.",
+                "Nhớ SĐT khách VIP. Upsell/cross- sell tự nhiên khi thanh toán. Chốt sổ cuối ca độc lập.",
+                "Xử lý thành thạo tình huống đặc biệt (hoàn tiền, khiếu nại sai giá, lỗi máy POS). Hỗ trợ đào tạo nhân viên mới."
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:4",
+              "sourceRow": "4",
+              "group": "KỸ NĂNG",
+              "name": "Tư vấn & bán hàng",
+              "description": "Theo dõi tỷ lệ upsell, phản hồi khách hàng",
+              "levels": [
+                "Tư vấn đúng thông tin khi khách hỏi. Giới thiệu được sản phẩm chủ lực. Ngoại hình gọn gàng, thái độ thân thiện.",
+                "Tư vấn chủ động, không chờ khách hỏi. Áp dụng linh hoạt dịch vụ theo từng tình huống khách.",
+                "Upsell/cross-sell tự nhiên trong quá trình tư vấn. Nhớ sở thích khách VIP để chăm sóc chu đáo hơn.",
+                "Chuyển đổi được khách vãng lai thành khách thân thiết. Chăm khách hàng. Đào tạo nhân sự mới"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:5",
+              "sourceRow": "5",
+              "group": "KỸ NĂNG",
+              "name": "Gói quà",
+              "description": "Kiểm tra bằng sản phẩm thực tế / thời gian gói",
+              "levels": [
+                "Gói được các giỏ quà cơ bản theo mẫu có sẵn. Đảm bảo gọn gàng, sạch sẽ.",
+                "Gói được giỏ quà từ 1,5 triệu trở lên. Hoàn thành trong 20phút / giỏ tiêu chuẩn.",
+                "Gói được tất cả mẫu tại cửa hàng & theo yêu cầu riêng của khách. Bình tĩnh khi gói trước mặt khách.",
+                "Nghiên cứu và đề xuất mẫu mới cho các dịp đặc biệt. Hỗ trợ đào tạo đồng nghiệp."
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:6",
+              "sourceRow": "6",
+              "group": "KỸ NĂNG",
+              "name": "Bảo quản & kiểm soát hàng hóa",
+              "description": "Tỷ lệ hàng hỏng / tổng hàng nhập trong tháng",
+              "levels": [
+                "Thuộc quy trình bảo quản. Nhận biết và phân loại được hàng lỗi/hỏng.",
+                "Thực hiện đúng quy trình hàng ngày không cần nhắc nhở. Báo cáo kịp thời hàng sắp hết hạn.",
+                "Chủ động giảm tỷ lệ hao hụt dưới mức trung bình cửa hàng. Đề xuất cách bảo quản hiệu quả hơn.",
+                "Theo dõi và ghi nhận dữ liệu hao hụt. Đề xuất cải tiến quy trình có số liệu chứng minh."
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:7",
+              "sourceRow": "7",
+              "group": "KỸ NĂNG",
+              "name": "Trưng bày & hình ảnh cửa hàng",
+              "description": "Đánh giá bằng ảnh chụp & phản hồi quản lý",
+              "levels": [
+                "Trưng bày đơn giản đúng vị trí theo hướng dẫn.",
+                "Trưng bày đúng chuẩn, gọn gàng, sạch sẽ, đúng concept cửa hàng.",
+                "Trưng bày bắt mắt, sáng tạo trong khuôn khổ concept. Chủ động điều chỉnh khi hàng thay đổi.",
+                "Đề xuất concept trưng bày mới theo mùa / dịp đặc biệt. Hỗ trợ hướng dẫn đồng nghiệp."
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:8",
+              "sourceRow": "8",
+              "group": "KỸ NĂNG",
+              "name": "Chăm sóc khách hàng",
+              "description": "Phản hồi từ khách hàng, tỷ lệ khách quay lại",
+              "levels": [
+                "Tuân thủ quy trình CSKH. Thái độ thân thiện, tươi cười, chào hỏi đúng chuẩn.",
+                "Nhớ tên và nhận ra khách VIP. Giao tiếp tự nhiên, tạo cảm giác được chào đón.",
+                "Biết sở thích của khách VIP. Chủ động gợi ý phù hợp trước khi khách yêu cầu.",
+                "Tương tác cá nhân với khách VIP (nhớ dịp đặc biệt, gia đình). Góp phần giữ chân khách trung thành."
+              ],
+              "sortOrder": 6
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:9",
+              "sourceRow": "9",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi & văn hóa DN",
+              "description": "Quan sát hành vi thực tế, phản hồi quản lý & đồng nghiệp",
+              "levels": [
+                "Biết và kể lại được các giá trị cốt lõi của Phuhoa Fresh.",
+                "Hiểu ý nghĩa của từng giá trị. Thể hiện được trong cách ứng xử hàng ngày.",
+                "Vận dụng nhất quán vào công việc. Nhắc nhở đồng nghiệp khi có hành vi chưa phù hợp.",
+                "Là hình mẫu về văn hóa tại cửa hàng. Truyền đạt lại giá trị cho nhân viên mới."
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:d1ee4ed895fe922bf982:item:10",
+              "sourceRow": "10",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi & thích ứng thay đổi",
+              "description": "Kết quả bài kiểm tra, phản hồi quản lý trực tiếp",
+              "levels": [
+                "Tham gia đào tạo khi được yêu cầu. Hoàn thành bài kiểm tra sau khóa học đạt yêu cầu.",
+                "Tham gia đầy đủ và chủ động. Áp dụng ngay kiến thức đã học vào thực tế công việc.",
+                "Tự tìm thêm tài liệu ngoài chương trình đào tạo. Chia sẻ lại với đồng nghiệp.",
+                "Đề xuất nội dung đào tạo mới phù hợp nhu cầu cửa hàng. Nhanh chóng thích nghi khi thay đổi quy trình."
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 10,
+        "contents": 40
+      },
+      "payloadHash": "cdc9da2be44ac205666764e7a7f10c5259ba9dc8b293cc52820ac60254feb35b"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:12b8bde4d86ac81277cc",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Giamsat V2.xlsx",
+      "sourceSheet": "TN_Giamsat (Vinh)",
+      "sourcePosition": "TN Giám sát",
+      "sourceHash": "0560c23c63d9e27bcb7c94b45921f047f264838d4b17c99ab0d7726b844c462e",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TN_GIAMSAT_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TN_GIAMSAT_VINH_B7F0A0",
+      "frameworkName": "TN Giám sát",
+      "versionName": "Source Candidate · TN_Giamsat (Vinh)",
+      "sourceVersionKey": "phf-knl-2026-08-09:12b8bde4d86ac81277cc:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "4f2a5c828b480f71044f2b7d85b801d9c571383a6ba086d79232e01dd16bba01"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Giamsat V2.xlsx",
+      "sourceSheet": "NV_Giamsat",
+      "sourcePosition": "NV Giám sát",
+      "sourceHash": "7aa2faca7118bbe6d9b55d43d300f01cb6987574f0cff65c070a6c425cba689c",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_GIAMSAT_74B6AB",
+      "frameworkName": "NV Giám sát",
+      "versionName": "Source Candidate · NV_Giamsat",
+      "sourceVersionKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "12/12",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:8",
+              "sourceRow": "8",
+              "group": "KỸ NĂNG",
+              "name": "Giám sát hoạt động tại các cửa hàng",
+              "description": "",
+              "levels": [
+                "1. Giám sát tác phong và quy tắc ứng xử PHF\n2. Giám sát vệ sinh cửa hàng và khu vực làm việc",
+                "1. Giám sát trưng bày – chất lượng hàng hóa\n2. Giám sát quy trình đóng cửa và bàn giao ca\n3. Báo cáo giám sát định kỳ",
+                "1.Giám sát hoạt động Marketing tại cửa hàng\n2. Giám sát hoạt động tuân thủ quy trình của cửa hàng",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phối hợp, hướng dẫn cửa hàng xử lý các vấn đề phát sinh",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:9",
+              "sourceRow": "9",
+              "group": "KỸ NĂNG",
+              "name": "Hiệu suất giám sát cửa hàng",
+              "description": "",
+              "levels": [
+                "1.Giám sát 1-2 cửa hàng\n2. Tần suất 1 lần/tháng/cửa hàng",
+                "1.Giám sát 3-5 cửa hàng\n2. Tần suất 2 lần/tháng/cửa hàng",
+                "1.Giám sát 3-5 cửa hàng\n2. Tần suất 1 lần/tuầncửa hàng",
+                "1. Giám sát 5-10 cửa hàng\n2. Tần suất 1 lần/tuầncửa hàng",
+                "1. Giám sát >10 cửa hàng\n2. Tần suất 1 lần/tuầncửa hàng"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:10",
+              "sourceRow": "10",
+              "group": "KỸ NĂNG",
+              "name": "Giám sát quy trình hoạt động các phòng ban",
+              "description": "",
+              "levels": [
+                "Giám sát được 30% phòng ban",
+                "Giám sát được 50% phòng ban",
+                "Giám sát được 70% phòng ban",
+                "1. Giám sát được 100% phòng ban\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 3
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:11",
+              "sourceRow": "11",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:155cefc3e0f43e8968da:item:12",
+              "sourceRow": "12",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 7,
+        "contents": 34
+      },
+      "payloadHash": "2e11cbfb744f588eca345645d07ef1f148b5211d4658dfe0df8fabe7bdf78d2d"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:7103f0a5d1b2fb214729",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Giamsat V2.xlsx",
+      "sourceSheet": "TN_Giamsat_v2",
+      "sourcePosition": "TN Giám sát (v2)",
+      "sourceHash": "bbf099c5f4dd555a2289bbb7924d19f186eb1aba49e6818ec6a0b9d5a3fd9243",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TN_GIAMSAT_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TN_GIAMSAT_V2_138CAA",
+      "frameworkName": "TN Giám sát (v2)",
+      "versionName": "Source Candidate · TN_Giamsat_v2",
+      "sourceVersionKey": "phf-knl-2026-08-09:7103f0a5d1b2fb214729:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "be6be6e849047053d75b7494b405d4f4cdfa1914b286b0332355dbe62148e58a"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:fb706f27e064b605a749",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Goiqua&Soche v2.xlsx",
+      "sourceSheet": "NV Gói quà (PHF)",
+      "sourcePosition": "Nhân viên Gói quà",
+      "sourceHash": "865efbb5a8dcf9a4e37fd5555adcb5d3a18fbb1a592aa1f2d63fbdb59048914c",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_GOIQUA_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_GOI_QUA_PHF_212318",
+      "frameworkName": "Nhân viên Gói quà",
+      "versionName": "Source Candidate · NV Gói quà (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:fb706f27e064b605a749:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "ebd15103f5f757f34b15555e23e0df7c1cd33fa50d6a9b5905eafdd7ac5826a6"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:d44d2170e40807994e73",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Goiqua&Soche v2.xlsx",
+      "sourceSheet": "TBP Gói quà (PHF)",
+      "sourcePosition": "TBP Gói quà",
+      "sourceHash": "9d8f5b1097685438ece1c130036ff40a77efbe6d4cbf5a29753a9dd24d4a9986",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TBP_GOIQUA_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_TBP_GOI_QUA_PHF_16446D",
+      "frameworkName": "TBP Gói quà",
+      "versionName": "Source Candidate · TBP Gói quà (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:d44d2170e40807994e73:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "881f8e180d9e04eadb93a6468a1c801bf8136b7e3e985e5d653d713c538e39a4"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:8fd38f72b645a999b85d",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Goiqua&Soche v2.xlsx",
+      "sourceSheet": "TBP Gói quà (PHF) v2",
+      "sourcePosition": "TBP Gói quà (v2)",
+      "sourceHash": "746403273e8baace50121e94b2a6812b2e8eda2f283ab1827ada0cef6696e7c8",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TBP_GOIQUA_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_TBP_GOI_QUA_PHF_V2_02CD1A",
+      "frameworkName": "TBP Gói quà (v2)",
+      "versionName": "Source Candidate · TBP Gói quà (PHF) v2",
+      "sourceVersionKey": "phf-knl-2026-08-09:8fd38f72b645a999b85d:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [
+        {
+          "sourceRow": "20",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        }
+      ],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "3ccd79a1d4c22ec95ca1febabc7c7095a132f578c9c5783573b5a6388c9bd46d"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:6c6a8b4eac53e7969d9c",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Goiqua&Soche v2.xlsx",
+      "sourceSheet": "NV_Goiqua",
+      "sourcePosition": "NV Gói quà",
+      "sourceHash": "8d4e4b373eaecd1ba21863a59b039f562bf9b61f2461a87847a33d4ff5643f27",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_GOIQUA_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_GOIQUA_D75617",
+      "frameworkName": "NV Gói quà",
+      "versionName": "Source Candidate · NV_Goiqua",
+      "sourceVersionKey": "phf-knl-2026-08-09:6c6a8b4eac53e7969d9c:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "71e6ad0b1cb088218dd93b2e0f8e04e59ce6223ff44a1d045f0de3566a3f91fa"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:a5cd7166621eede9154d",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Goiqua&Soche v2.xlsx",
+      "sourceSheet": "TN_Goiqua",
+      "sourcePosition": "Trưởng nhóm Gói quà",
+      "sourceHash": "5573bcadb65d75fcb50eba3cae4c3bd18302dca49cca0e143c2b1b6f38c4db4f",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TN_GOIQUA_095077",
+      "frameworkName": "Trưởng nhóm Gói quà",
+      "versionName": "Source Candidate · TN_Goiqua",
+      "sourceVersionKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Đáp ứng các yêu cầu trong mô tả công việc",
+              "description": "",
+              "levels": [
+                "Thực hiện được 70% khối lượng công việc theo mô tả công việc",
+                "Thực hiện được 100% khối lượng công việc theo mô tả công việc",
+                "1. Có thể kiêm nhiệm các công việc của các vị trí khác trong phòng\n2. Có thể đào tạo hướng dẫn cho người khác",
+                "1. Có tham mưu, đề xuất, cải tiến áp dụng được vào thực tiễn",
+                "1.Có thể kiêm nhiệm các công việc của các vị trí của các phòng ban khác"
+              ],
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:item:14",
+              "sourceRow": "14",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a5cd7166621eede9154d:item:15",
+              "sourceRow": "15",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 5,
+        "contents": 22
+      },
+      "payloadHash": "535c31b7613e2cead9b3d8ab60aa89da16c7344be6fb72071daccaa8dae88b5b"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:3b962a024a631841a84a",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_HCNS v2.xlsx",
+      "sourceSheet": "NV HCNS (PHF)",
+      "sourcePosition": "Nhân viên HCNS",
+      "sourceHash": "99922a5dc9bceb119220e6d4372002e139484298ee7ed503804b5b6188cd01a8",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_HCNS_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_HCNS_PHF_1EC4DF",
+      "frameworkName": "Nhân viên HCNS",
+      "versionName": "Source Candidate · NV HCNS (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:3b962a024a631841a84a:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [
+        {
+          "sourceRow": "9",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "10",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "11",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        }
+      ],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "132ee06ab94336fc1e2315354be6909ce4d0ca985d3cf366748ea5fa192ab34c"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:d1ac72a91afed6b61c3f",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_HCNS v2.xlsx",
+      "sourceSheet": "TP HCNS (PHF)",
+      "sourcePosition": "Nhân viên HCNS",
+      "sourceHash": "e6805d61449d84ef78ca399baf07aeb5ddd3491e43703ee056429fc3aba8fac9",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TP_HCNS_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TP_HCNS_PHF_1063C7",
+      "frameworkName": "Nhân viên HCNS",
+      "versionName": "Source Candidate · TP HCNS (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:d1ac72a91afed6b61c3f:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [
+        {
+          "sourceRow": "9",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "10",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "11",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "18",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        },
+        {
+          "sourceRow": "21",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        }
+      ],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "e37d74323dfa5a22dfda2c009ba893019c44ca7d6bec8365475213e3d54b282f"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:0b091fef929619ba758a",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_HCNS v2.xlsx",
+      "sourceSheet": "NV_HCNS",
+      "sourcePosition": "Nhân viên HCNS",
+      "sourceHash": "04ad8db628bd94f959632946a4dc252aeac3f663d7739fefd877c47fd6c3794f",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_HCNS_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_HCNS_8DF07E",
+      "frameworkName": "Nhân viên HCNS",
+      "versionName": "Source Candidate · NV_HCNS",
+      "sourceVersionKey": "phf-knl-2026-08-09:0b091fef929619ba758a:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "3be8daa0e9be89aab9d562e5e574108d3cdb8a207b585081c95ec1a9ee47c98d"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:dc4fd3872c518f9d0fc6",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_HCNS v2.xlsx",
+      "sourceSheet": "TP_HCNS",
+      "sourcePosition": "Trưởng phòng HCNS",
+      "sourceHash": "673c41e22af3323ca64c84897d0c3f0dc6ef7adbe315edef3cc38f81156fae1d",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TP_HCNS_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TP_HCNS_88534E",
+      "frameworkName": "Trưởng phòng HCNS",
+      "versionName": "Source Candidate · TP_HCNS",
+      "sourceVersionKey": "phf-knl-2026-08-09:dc4fd3872c518f9d0fc6:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "121a480cb5405b938758a401ebbce742272fd955a92c7512c83da9c4ae98ca61"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:3ee9266bd8c6d7228955",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Khovan v2.xlsx",
+      "sourceSheet": "NV Kho (PHF)",
+      "sourcePosition": "Nhân viên Kho",
+      "sourceHash": "60ee0bd32cf9f2e9034d056cc7d6de8fd9bd9822b76620b34e5eb688c2df7db0",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_KHO_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_KHO_PHF_EADB74",
+      "frameworkName": "Nhân viên Kho",
+      "versionName": "Source Candidate · NV Kho (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:3ee9266bd8c6d7228955:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "b10ed88cff835a342e27b00aab863714f94dfeef45f14682103ebc49fce019ec"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:c10d9b88ea43de921608",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Khovan v2.xlsx",
+      "sourceSheet": "Trưởng Kho (PHF)",
+      "sourcePosition": "Trưởng Kho",
+      "sourceHash": "682c02151f4c3ff0155c3a84bd4d50d584ceb36de032aeea9716cf6348ba69eb",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TRUONG_KHO_REGULAR_V2_UNRESOLVED",
+      "levelCount": 4,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_TRUONG_KHO_PHF_D5BF32",
+      "frameworkName": "Trưởng Kho",
+      "versionName": "Source Candidate · Trưởng Kho (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:c10d9b88ea43de921608:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "c4efe61ab033f3060c06a6777ff409245baefb96c590bae03f0422d8c8642cad"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:50575a1021b19adeadbf",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Khovan v2.xlsx",
+      "sourceSheet": "Trưởng Kho (PHF) v2",
+      "sourcePosition": "Trưởng Kho (v2)",
+      "sourceHash": "b140d97d7b544a94c5070ff97f4563e630ff156e644b6bf34a5f1c92f2304685",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TRUONG_KHO_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "KNL_TRUONG_KHO_PHF_V2_0E47A5",
+      "frameworkName": "Trưởng Kho (v2)",
+      "versionName": "Source Candidate · Trưởng Kho (PHF) v2",
+      "sourceVersionKey": "phf-knl-2026-08-09:50575a1021b19adeadbf:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "e0241f511595f169da8385d37f86f2458157fb0b3fe55baf2552a1972e797b10"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:c67288085135a62f60b9",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Khovan v2.xlsx",
+      "sourceSheet": "NV_Kho",
+      "sourcePosition": "Nhân viên kho",
+      "sourceHash": "b40b678b18185ae3109669433e3f65f33f4fabe0c4fee6723eb8ac41a18ec310",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_KHO_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_KHO_F97846",
+      "frameworkName": "Nhân viên kho",
+      "versionName": "Source Candidate · NV_Kho",
+      "sourceVersionKey": "phf-knl-2026-08-09:c67288085135a62f60b9:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "2e27e1696750f69a273885096cfb49120cb290f40f1440cb9ca03c07299b52f4"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Khovan v2.xlsx",
+      "sourceSheet": "Thukho",
+      "sourcePosition": "Thủ kho",
+      "sourceHash": "12f455219da0715d2f0fd47ce5dbd9f753a75d703327992463aca5a1d9981c09",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_THUKHO_3A5557",
+      "frameworkName": "Thủ kho",
+      "versionName": "Source Candidate · Thukho",
+      "sourceVersionKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Đáp ứng các yêu cầu trong mô tả công việc",
+              "description": "",
+              "levels": [
+                "Thực hiện được 70% khối lượng công việc theo mô tả công việc",
+                "Thực hiện được 100% khối lượng công việc theo mô tả công việc",
+                "1. Có thể kiêm nhiệm các công việc của các vị trí khác trong phòng\n2. Có thể đào tạo hướng dẫn cho người khác",
+                "1. Có tham mưu, đề xuất, cải tiến áp dụng được vào thực tiễn",
+                "1.Có thể kiêm nhiệm các công việc của các vị trí của các phòng ban khác"
+              ],
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:item:14",
+              "sourceRow": "14",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:70fe7f789c6e7350f7d6:item:15",
+              "sourceRow": "15",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 5,
+        "contents": 22
+      },
+      "payloadHash": "a2dfb6fc54378070bbad643048337ec2626b872448cf4ba5a7ba63d887c558e1"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Marketing v2.xlsx",
+      "sourceSheet": "NV_MKT (PHF)",
+      "sourcePosition": "Nhân viên Marketing",
+      "sourceHash": "60c5c4a40946370fbe8cde05f107ec5b6d3ce3797f25a7b928adabaedfe65fde",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_MKT_PHF_1794A7",
+      "frameworkName": "Nhân viên Marketing",
+      "versionName": "Source Candidate · NV_MKT (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức thẩm mỹ – phối màu – bố cục",
+              "description": "",
+              "levels": [
+                "Nắm cơ bản về màu sắc & bố cục",
+                "Biết áp dụng phối màu nhiều dịp lễ",
+                "Tạo concept theo nhu cầu khách",
+                "Thiết kế bộ theme theo mùa, chiến dịch",
+                "Xây Guideline thẩm mỹ và chuẩn phong cách thương hiệu"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về SPDV",
+              "description": "Kiến thức về DMSP: đặc tính, nguồn gốc xuất xứ, cách bảo quản, giá trị gia tăng...",
+              "levels": [
+                "1. Nhận biết và kể tên các sản phẩm cơ bản, nguồn gốc, đặc tính\n2. Nhận biết và kể tên các dịch vụ cơ bản (gói quà, giao hàng, thanh toán…).\n3. Nắm được quy trình phục vụ chung ở mức đơn giản",
+                "1. Hiểu và mô tả được công dụng chính của sản phẩm\n2. Hiểu rõ từng dịch vụ của cửa hàng và điều kiện áp dụng (phí giao hàng, thời gian gói quà, đổi trả…).\n3. Nắm rõ quy trình phục vụ",
+                "1. Có khả năng giải thích về đặc tính, giá trị dinh dưỡng, cách bảo quản sản phẩm. Tư vấn và đề xuất sản phẩm phù hợp với nhu cầu KH\n2. Hiểu sâu về chính sách dịch vụ và lý do áp dụng từng chính sách. Biết cách áp dụng dịch vụ linh hoạt phù hợp từng trường hợp khách",
+                "1. Có khả năng đào tạo cho đồng nghiệp về kiến thức - kỹ năng vận hành về sản phẩm - dịch vụ - chính sách - quy trình...",
+                "1. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến sản phẩm\n2. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến dịch vụ\n3. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến quy trình, chính sách\n4. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:10",
+              "sourceRow": "10",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "",
+              "levels": [
+                "Nắm được các nhóm khách hàng chính của công ty",
+                "Nắm được chân dung các nhóm khách hàng chính của công ty (độ tuổi, giới tính, nghề nghiệp ...)",
+                "Nắm được các nỗi đau của khách hàng, lý do khách đến mua hàng, các insight của khách hàng",
+                "1. Nắm được các hành vi, thói quen mua sắm của các nhóm khách hàng (thời điểm mua sắm, sản phẩm yêu thích, sử dụng các phương tiện truyền thông...)\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Đề xuất, cải tiến các sản phẩm dịch vụ, giải pháp giá trị cho khách hàng\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:11",
+              "sourceRow": "11",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về nhận diện thương hiệu",
+              "description": "",
+              "levels": [
+                "Biết màu nhận diện chính của thương hiệu.",
+                "Hiểu yêu cầu cơ bản về nhận diện của cửa hàng.",
+                "Gói đúng phong cách chung của PHUHOA FRESH (tone màu – sự sạch sẽ – chuyên nghiệp).",
+                "Tùy chỉnh mẫu gói theo guideline thương hiệu.",
+                "Thiết kế bộ tiêu chuẩn gói quà mang bản sắc riêng của PHF."
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:12",
+              "sourceRow": "12",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về dịp lễ – chủ đề – phong cách",
+              "description": "",
+              "levels": [
+                "Biết các dịp lễ lớn: sinh nhật, Noel, Tết…",
+                "Hiểu màu sắc chủ đạo của từng dịp lễ.",
+                "Áp dụng chủ đề theo yêu cầu khách (romantic, luxury, trẻ trung…).",
+                "Thiết kế mẫu theo chủ đề từng sự kiện/chiến dịch của cửa hàng.",
+                "Xây bộ chủ đề mùa vụ mang tính bản sắc thương hiệu."
+              ],
+              "sortOrder": 7
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Viết bài truyền thông",
+              "description": "",
+              "levels": [
+                "Viết theo mẫu có sẵn, nội dung đơn giản và cơ bản, đúng cấu trúc\n\n(Có bài viết)",
+                "Viết đa dạng format phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)\n\n(Có bài viết trên nhiều nền tảng)",
+                "Có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc\n\n(Tạo view)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động\n(Tạo chuyển đổi)",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Viết từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n(Tạo sự đột phá)"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế & dựng video",
+              "description": "",
+              "levels": [
+                "1. Cắt ghép cơ bản bằng CapCut/Canva\n\n2. Dựng video bán hàng ngắn (reels/tiktok) có nhạc, text",
+                "Xây dựng kịch bản và dựng video theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Sản xuất được video campaign\n\nVideo có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Video có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Video từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n4. Xây dựng chiến lược video marketing tối ưu theo nhiều nền tảng đa kênh"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế hình ảnh / ấn phẩm",
+              "description": "",
+              "levels": [
+                "Chỉnh sửa mẫu có sẵn, thiết kế post social cơ bản",
+                "Thiết kế theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Thiết kế bộ nhận diện cho campaign nhỏ\n\nThiết kế có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Thiết kế POSM đồng bộ nhận diện thương hiệu",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Thiết kế sáng tạo, độc đáo\n4. Xây dựng guideline hình ảnh & quản lý chất lượng thiết kế"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Chạy quảng cáo digital",
+              "description": "",
+              "levels": [
+                "Biết tạo chiến dịch cơ bản",
+                "Thiết lập target, theo dõi chỉ số",
+                "Tối ưu chi phí, đọc và phân tích chỉ số (CPC, CTR, ROAS)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân bổ ngân sách đa nền tảng, tạo phễu và tối ưu phễu chuyển đổi",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng chiến lược media tổng thể & dự báo hiệu quả"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý các kênh truyền thông",
+              "description": "",
+              "levels": [
+                "Đăng bài theo kế hoạch có sẵn",
+                "Lập lịch nội dung tuần/tháng",
+                "Theo dõi tương tác, xử lý bình luận/inbox",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân tích dữ liệu tăng trưởng kênh",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng hệ sinh thái truyền thông tích hợp"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:18",
+              "sourceRow": "18",
+              "group": "KỸ NĂNG",
+              "name": "Tổ chức hoạt động sự kiện - chương trình tại cửa hàng",
+              "description": "",
+              "levels": [
+                "Hỗ trợ setup theo hướng dẫn",
+                "Tự triển khai một số chương trình trong sự kiện (mini game nhỏ...)",
+                "Lên kế hoạch chi tiết & ngân sách",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Quản lý toàn bộ sự kiện, phối hợp nhiều bộ phận",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng concept activation dài hạn & đo lường hiệu quả sự kiện"
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:19",
+              "sourceRow": "19",
+              "group": "KỸ NĂNG",
+              "name": "Lên ý tưởng và triển khai mẫu gói quà",
+              "description": "",
+              "levels": [
+                "Tạo giỏ quà ở mức cơ bản, theo các hướng dẫn có sẵn",
+                "Thiết kế các giỏ quà phù hợp với từng dịp, sự kiện, concept riêng",
+                "Thiết kế Giỏ quà có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có khả năng sáng tạo nhiều giỏ quà\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 7
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:20",
+              "sourceRow": "20",
+              "group": "KỸ NĂNG",
+              "name": "Kỹ năng sử dụng công nghệ và AI",
+              "description": "",
+              "levels": [
+                "Biết dùng công cụ AI cơ bản (ChatGPT, Gemini...)",
+                "Biết dùng các câu lệnh phức tạp;\nBiết dùng nhiều AI tạo ra các content, video, hình ảnh...",
+                "Có khả năng sử dụng các công cụ  Marketing một cách tự động hóa(Automation)",
+                "1. Có khả năng tạo ra các tác nhân AI phục vụ công việc\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có khả năng tạo ra đa tác nhân AI phục vụ công việc\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 8
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:21",
+              "sourceRow": "21",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:66a3f5008f7ec3342c7d:item:22",
+              "sourceRow": "22",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 17,
+        "contents": 84
+      },
+      "payloadHash": "7da0e8d9bf214b980a8d261b24e49adc0e8c857de2614b4260853b079b3d0d45"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Marketing v2.xlsx",
+      "sourceSheet": "Leader_MKT (PHF)",
+      "sourcePosition": "Leader MKT",
+      "sourceHash": "46d04551f76ac111138c768407aaa17a6703fdb49837345443e3b8504ee96214",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_LEADER_MKT_PHF_3C02BD",
+      "frameworkName": "Leader MKT",
+      "versionName": "Source Candidate · Leader_MKT (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức thẩm mỹ - phối màu - bố cục",
+              "description": "",
+              "levels": [
+                "Nắm cơ bản về màu sắc & bố cục",
+                "Biết áp dụng phối màu nhiều dịp lễ",
+                "Tạo concept theo nhu cầu khách",
+                "Thiết kế bộ theme theo mùa, chiến dịch",
+                "Xây Guideline thẩm mỹ và chuẩn phong cách thương hiệu"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về SPDV",
+              "description": "Kiến thức về DMSP: đặc tính, nguồn gốc xuất xứ, cách bảo quản, giá trị gia tăng...",
+              "levels": [
+                "1. Nhận biết và kể tên các sản phẩm cơ bản, nguồn gốc, đặc tính\n2. Nhận biết và kể tên các dịch vụ cơ bản (gói quà, giao hàng, thanh toán…).\n3. Nắm được quy trình phục vụ chung ở mức đơn giản",
+                "1. Hiểu và mô tả được công dụng chính của sản phẩm\n2. Hiểu rõ từng dịch vụ của cửa hàng và điều kiện áp dụng (phí giao hàng, thời gian gói quà, đổi trả…).\n3. Nắm rõ quy trình phục vụ",
+                "1. Có khả năng giải thích về đặc tính, giá trị dinh dưỡng, cách bảo quản sản phẩm. Tư vấn và đề xuất sản phẩm phù hợp với nhu cầu KH\n2. Hiểu sâu về chính sách dịch vụ và lý do áp dụng từng chính sách. Biết cách áp dụng dịch vụ linh hoạt phù hợp từng trường hợp khách",
+                "1. Có khả năng đào tạo cho đồng nghiệp về kiến thức - kỹ năng vận hành về sản phẩm - dịch vụ - chính sách - quy trình...",
+                "1. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến sản phẩm\n2. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến dịch vụ\n3. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến quy trình, chính sách\n4. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:10",
+              "sourceRow": "10",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "",
+              "levels": [
+                "Nắm được các nhóm khách hàng chính của công ty",
+                "Nắm được chân dung các nhóm khách hàng chính của công ty (độ tuổi, giới tính, nghề nghiệp ...)",
+                "Nắm được các nỗi đau của khách hàng, lý do khách đến mua hàng, các insight của khách hàng",
+                "1. Nắm được các hành vi, thói quen mua sắm của các nhóm khách hàng (thời điểm mua sắm, sản phẩm yêu thích, sử dụng các phương tiện truyền thông...)\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Đề xuất, cải tiến các sản phẩm dịch vụ, giải pháp giá trị cho khách hàng\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:11",
+              "sourceRow": "11",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về nhận diện thương hiệu",
+              "description": "",
+              "levels": [
+                "Biết màu nhận diện chính của thương hiệu.",
+                "Hiểu yêu cầu cơ bản về nhận diện của cửa hàng.",
+                "Gói đúng phong cách chung của PHUHOA FRESH (tone màu - sự sạch sẽ - chuyên nghiệp).",
+                "Tùy chỉnh mẫu gói theo guideline thương hiệu.",
+                "Thiết kế bộ tiêu chuẩn gói quà mang bản sắc riêng của PHF."
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:12",
+              "sourceRow": "12",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về dịp lễ - chủ đề - phong cách",
+              "description": "",
+              "levels": [
+                "Biết các dịp lễ lớn: sinh nhật, Noel, Tết…",
+                "Hiểu màu sắc chủ đạo của từng dịp lễ.",
+                "Áp dụng chủ đề theo yêu cầu khách (romantic, luxury, trẻ trung…).",
+                "Thiết kế mẫu theo chủ đề từng sự kiện/chiến dịch của cửa hàng.",
+                "Xây bộ chủ đề mùa vụ mang tính bản sắc thương hiệu."
+              ],
+              "sortOrder": 7
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Viết bài truyền thông",
+              "description": "",
+              "levels": [
+                "Viết theo mẫu có sẵn, nội dung đơn giản và cơ bản, đúng cấu trúc\n\n(Có bài viết)",
+                "Viết đa dạng format phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)\n\n(Có bài viết trên nhiều nền tảng)",
+                "Có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc\n\n(Tạo view)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động\n(Tạo chuyển đổi)",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Viết từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n(Tạo sự đột phá)"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế & dựng video",
+              "description": "",
+              "levels": [
+                "1. Cắt ghép cơ bản bằng CapCut/Canva\n\n2. Dựng video bán hàng ngắn (reels/tiktok) có nhạc, text",
+                "Xây dựng kịch bản và dựng video theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Sản xuất được video campaign\n\nVideo có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Video có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Video từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n4. Xây dựng chiến lược video marketing tối ưu theo nhiều nền tảng đa kênh"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế hình ảnh / ấn phẩm",
+              "description": "",
+              "levels": [
+                "Chỉnh sửa mẫu có sẵn, thiết kế post social cơ bản",
+                "Thiết kế theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Thiết kế bộ nhận diện cho campaign nhỏ\n\nThiết kế có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Thiết kế POSM đồng bộ nhận diện thương hiệu",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Thiết kế sáng tạo, độc đáo\n4. Xây dựng guideline hình ảnh & quản lý chất lượng thiết kế"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Chạy quảng cáo digital",
+              "description": "",
+              "levels": [
+                "Biết tạo chiến dịch cơ bản",
+                "Thiết lập target, theo dõi chỉ số",
+                "Tối ưu chi phí, đọc và phân tích chỉ số (CPC, CTR, ROAS)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân bổ ngân sách đa nền tảng, tạo phễu và tối ưu phễu chuyển đổi",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng chiến lược media tổng thể & dự báo hiệu quả"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý các kênh truyền thông",
+              "description": "",
+              "levels": [
+                "Đăng bài theo kế hoạch có sẵn",
+                "Lập lịch nội dung tuần/tháng",
+                "Theo dõi tương tác, xử lý bình luận/inbox",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân tích dữ liệu tăng trưởng kênh",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng hệ sinh thái truyền thông tích hợp"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:18",
+              "sourceRow": "18",
+              "group": "KỸ NĂNG",
+              "name": "Tổ chức hoạt động sự kiện - chương trình tại cửa hàng",
+              "description": "",
+              "levels": [
+                "Hỗ trợ setup theo hướng dẫn",
+                "Tự triển khai một số chương trình trong sự kiện (mini game nhỏ...)",
+                "Lên kế hoạch chi tiết & ngân sách",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Quản lý toàn bộ sự kiện, phối hợp nhiều bộ phận",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng concept activation dài hạn & đo lường hiệu quả sự kiện"
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:19",
+              "sourceRow": "19",
+              "group": "KỸ NĂNG",
+              "name": "Lên ý tưởng và triển khai mẫu gói quà",
+              "description": "",
+              "levels": [
+                "Tạo giỏ quà ở mức cơ bản, theo các hướng dẫn có sẵn",
+                "Thiết kế các giỏ quà phù hợp với từng dịp, sự kiện, concept riêng",
+                "Thiết kế Giỏ quà có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có khả năng sáng tạo nhiều giỏ quà\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 7
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:20",
+              "sourceRow": "20",
+              "group": "KỸ NĂNG",
+              "name": "Kỹ năng sử dụng công nghệ và AI",
+              "description": "",
+              "levels": [
+                "Biết dùng công cụ AI cơ bản (ChatGPT, Gemini...)",
+                "Biết dùng các câu lệnh phức tạp;\nBiết dùng nhiều AI tạo ra các content, video, hình ảnh...",
+                "Có khả năng sử dụng các công cụ  Marketing một cách tự động hóa(Automation)",
+                "1. Có khả năng tạo ra các tác nhân AI phục vụ công việc\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có khả năng tạo ra đa tác nhân AI phục vụ công việc\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 8
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:21",
+              "sourceRow": "21",
+              "group": "KỸ NĂNG",
+              "name": "Quản trị nhân sự",
+              "description": "",
+              "levels": [
+                "1.Giao tiếp cơ bản với đồng nghiệp của toàn hệ thống.\n2. Hỗ trợ đồng đội khi cần",
+                "1.Truyền thông được các thông tin công ty cho nhân viên của bộ phận\n2.Biết nhắc nhở các lỗi nhỏ về tác phong hoặc quy trình",
+                "1.Phân công nhiệm vụ cho nhân viên theo năng lực từng người của bộ phẩn\n2. Giám sát tiến độ và nhắc nhở kịp thời khi có sai sót của bộ phận\n3. Giải quyết được xung đột của bộ phận một cách bình tĩnh",
+                "1. Tạo môi trường làm việc tích cực của bộ phận, tinh thần hỗ trợ đồng đội luôn đc nâng cao\n2. Đào tạo cho đồng nghiệp",
+                "1. Đề xuất thêm nhiều cải tiến về cách quản lý nhân sự\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 9
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:22",
+              "sourceRow": "22",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý tài chính của bộ phận",
+              "description": "",
+              "levels": [
+                "Chưa quản lý tài chính",
+                "1. Kiểm soát được chi phí của bộ phận, không vượt so với kế hoạch - hạn mức - định mức công ty",
+                "1. Tiết kiệm được chi phí của bộ phận trên 5% trong kỳ đánh giá",
+                "1. Tiết kiệm được chi phí của bộ phận trên 10% trong kỳ đánh giá",
+                "1. Tiết kiệm được chi phí của bộ phận trên 20% trong kỳ đánh giá"
+              ],
+              "sortOrder": 10
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:23",
+              "sourceRow": "23",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý tài sản - CCDC - cơ sở vật chất của bộ phận",
+              "description": "Đảm bảo tài sản cơ sở - thiết bị - vật chất vận hành ổn định",
+              "levels": [
+                "Nắm được danh mục tài sản thiết bị - CCDC - cơ sở vật chất của bộ phận đang sử dụng",
+                "Tỷ lệ mất mát hao hụt, hư hỏng tài sản thiết bị - CCDC - cơ sở vật chất không quá 5% trong kỳ đánh giá (không tính các hao mòn, hư hao tự nhiên và bảo trì định kỳ)",
+                "Không xảy ra mất mát hao hụt hư hỏng tài sản thiết bị - CCDC - cơ sở vật chất trong kỳ đánh giá (không tính các hao mòn, hư hao tự nhiên và bảo trì định kỳ)",
+                "1. Có thể đào tạo cho đồng nghiệp",
+                "1. Có đề xuất cải tiến việc bảo quản - quản lý, tăng hiệu suất quản lý, nâng cao thời gian hoặc tối ưu việc sử dụng tài sản thiết bị - CCDC - cơ sở vật chất\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 11
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:24",
+              "sourceRow": "24",
+              "group": "KỸ NĂNG",
+              "name": "Xây dựng hệ thống MKT cho công ty",
+              "description": "",
+              "levels": [
+                "1.Xây dựng biểu mẫu báo cáo, đo lường hiệu quả TTQC",
+                "1. Xây dựng được các quy trình, tài liệu TTQC",
+                "1. Xây dựng và duy trì bộ nhận diện thương hiệu thống nhất",
+                "1. Xây dựng cơ chế chính sách, nguồn lực áp dụng cho bộ phận\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có đề xuất cải tiến\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 12
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:25",
+              "sourceRow": "25",
+              "group": "KỸ NĂNG",
+              "name": "Lập kế hoạch TTQC",
+              "description": "",
+              "levels": [
+                "1.Xây dựng mục tiêu TTQC theo năm/ tháng/ tuần và sự kiện",
+                "1. Lập kế hoạch nội dung & chiến dịch truyền thông",
+                "1. Lập kế hoạch ngân sách vận hành: chi phí MKT, ấn vật phẩm...\n2. Kế hoạch mua sắm tài sản, thiết bị, CCDC cho hoạt động MKT",
+                "1. Lập kế hoạch ngân sách, định biên nhân sự cho bộ phận\n2. Kế hoạch tuyển dụng - đào tạo\n3. Có thể đào tạo cho đồng nghiệp",
+                "1. Kế hoạch chương trình bán hàng, khuyến mãi phù hợp với mục tiêu doanh thu và nhu cầu khách hàng\n2. Có đề xuất cải tiến công tác kế hoạch\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 13
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:26",
+              "sourceRow": "26",
+              "group": "KỸ NĂNG",
+              "name": "Báo cáo công việc",
+              "description": "",
+              "levels": [
+                "Báo cáo được 70% chỉ tiêu kế hoạch",
+                "Báo cáo được 100% chỉ tiêu kế hoạch",
+                "Có thể thực hiện được các báo cáo chuyên đề ở mức độ đơn giản",
+                "1.Có thể thực hiện được các báo cáo chuyên đề ở mức độ phức tạp\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có đề xuất cải tiến công tác báo cáo\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 14
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:27",
+              "sourceRow": "27",
+              "group": "KỸ NĂNG",
+              "name": "Nghiên cứu và tham mưu",
+              "description": "",
+              "levels": [
+                "1.Cải tiến các chỉ số chiến dịch chạy TTQC",
+                "1.Đề xuất cải tiến trải nghiệm khách hàng",
+                "1.Cải tiến chính sách - quy trình - hồ sơ",
+                "1.Cải tiến cơ chế chính sách nhân sự bộ phận",
+                "1.Tham mưu bổ sung ngành nghề, sản phẩm dịch vụ kinh doanh mới\n2.Quản lý rủi ro"
+              ],
+              "sortOrder": 15
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:28",
+              "sourceRow": "28",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:fc5ffbd1367c7c395f52:item:29",
+              "sourceRow": "29",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 24,
+        "contents": 119
+      },
+      "payloadHash": "64b808210732a2185c14dbccde05a902c1b19562a95f9bbf0e4c81fad82e6ad6"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:aad6d711ba495862a09e",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Marketing v2.xlsx",
+      "sourceSheet": "NV_Content (PHF)",
+      "sourcePosition": "Nhân viên Content",
+      "sourceHash": "81fa6605dfd6f5f96cff65aa794c3a96d5de43a40de0c127fd598198e4f2d7ac",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_CONTENT_PHF_24D49E",
+      "frameworkName": "Nhân viên Content",
+      "versionName": "Source Candidate · NV_Content (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức thẩm mỹ - phối màu - bố cục",
+              "description": "",
+              "levels": [
+                "Nắm cơ bản về màu sắc & bố cục",
+                "Biết áp dụng phối màu nhiều dịp lễ",
+                "Tạo concept theo nhu cầu khách",
+                "Thiết kế bộ theme theo mùa, chiến dịch",
+                "Xây Guideline thẩm mỹ và chuẩn phong cách thương hiệu"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về SPDV",
+              "description": "Kiến thức về DMSP: đặc tính, nguồn gốc xuất xứ, cách bảo quản, giá trị gia tăng...",
+              "levels": [
+                "1. Nhận biết và kể tên các sản phẩm cơ bản, nguồn gốc, đặc tính\n2. Nhận biết và kể tên các dịch vụ cơ bản (gói quà, giao hàng, thanh toán…).\n3. Nắm được quy trình phục vụ chung ở mức đơn giản",
+                "1. Hiểu và mô tả được công dụng chính của sản phẩm\n2. Hiểu rõ từng dịch vụ của cửa hàng và điều kiện áp dụng (phí giao hàng, thời gian gói quà, đổi trả…).\n3. Nắm rõ quy trình phục vụ",
+                "1. Có khả năng giải thích về đặc tính, giá trị dinh dưỡng, cách bảo quản sản phẩm. Tư vấn và đề xuất sản phẩm phù hợp với nhu cầu KH\n2. Hiểu sâu về chính sách dịch vụ và lý do áp dụng từng chính sách. Biết cách áp dụng dịch vụ linh hoạt phù hợp từng trường hợp khách",
+                "1. Có khả năng đào tạo cho đồng nghiệp về kiến thức - kỹ năng vận hành về sản phẩm - dịch vụ - chính sách - quy trình...",
+                "1. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến sản phẩm\n2. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến dịch vụ\n3. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến quy trình, chính sách\n4. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:10",
+              "sourceRow": "10",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "",
+              "levels": [
+                "Nắm được các nhóm khách hàng chính của công ty",
+                "Nắm được chân dung các nhóm khách hàng chính của công ty (độ tuổi, giới tính, nghề nghiệp ...)",
+                "Nắm được các nỗi đau của khách hàng, lý do khách đến mua hàng, các insight của khách hàng",
+                "1. Nắm được các hành vi, thói quen mua sắm của các nhóm khách hàng (thời điểm mua sắm, sản phẩm yêu thích, sử dụng các phương tiện truyền thông...)\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Đề xuất, cải tiến các sản phẩm dịch vụ, giải pháp giá trị cho khách hàng\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:11",
+              "sourceRow": "11",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về nhận diện thương hiệu",
+              "description": "",
+              "levels": [
+                "Biết màu nhận diện chính của thương hiệu.",
+                "Hiểu yêu cầu cơ bản về nhận diện của cửa hàng.",
+                "Gói đúng phong cách chung của PHUHOA FRESH (tone màu - sự sạch sẽ - chuyên nghiệp).",
+                "Tùy chỉnh mẫu gói theo guideline thương hiệu.",
+                "Thiết kế bộ tiêu chuẩn gói quà mang bản sắc riêng của PHF."
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:12",
+              "sourceRow": "12",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về dịp lễ - chủ đề - phong cách",
+              "description": "",
+              "levels": [
+                "Biết các dịp lễ lớn: sinh nhật, Noel, Tết…",
+                "Hiểu màu sắc chủ đạo của từng dịp lễ.",
+                "Áp dụng chủ đề theo yêu cầu khách (romantic, luxury, trẻ trung…).",
+                "Thiết kế mẫu theo chủ đề từng sự kiện/chiến dịch của cửa hàng.",
+                "Xây bộ chủ đề mùa vụ mang tính bản sắc thương hiệu."
+              ],
+              "sortOrder": 7
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế hình ảnh / ấn phẩm",
+              "description": "",
+              "levels": [
+                "Chỉnh sửa mẫu có sẵn, thiết kế post social cơ bản",
+                "Thiết kế theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Thiết kế bộ nhận diện cho campaign nhỏ\n\nThiết kế có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Thiết kế POSM đồng bộ nhận diện thương hiệu",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Thiết kế sáng tạo, độc đáo\n4. Xây dựng guideline hình ảnh & quản lý chất lượng thiết kế"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Chạy quảng cáo digital",
+              "description": "",
+              "levels": [
+                "Biết tạo chiến dịch cơ bản",
+                "Thiết lập target, theo dõi chỉ số",
+                "Tối ưu chi phí, đọc và phân tích chỉ số (CPC, CTR, ROAS)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân bổ ngân sách đa nền tảng, tạo phễu và tối ưu phễu chuyển đổi",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng chiến lược media tổng thể & dự báo hiệu quả"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý các kênh truyền thông",
+              "description": "",
+              "levels": [
+                "Đăng bài theo kế hoạch có sẵn",
+                "Lập lịch nội dung tuần/tháng",
+                "Theo dõi tương tác, xử lý bình luận/inbox",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân tích dữ liệu tăng trưởng kênh",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng hệ sinh thái truyền thông tích hợp"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Các kỹ năng khác phục vụ công tác MKT",
+              "description": "",
+              "levels": [
+                "Viết nội dung",
+                "Thiết kế hình ảnh",
+                "Tạo dựng Video",
+                "Chạy và đo lường quảng cáo",
+                "Quản lý kênh truyền thông"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Kỹ năng sử dụng công nghệ và AI",
+              "description": "",
+              "levels": [
+                "Biết dùng công cụ AI cơ bản (ChatGPT, Gemini...)",
+                "Biết dùng các câu lệnh phức tạp;\nBiết dùng nhiều AI tạo ra các content, video, hình ảnh...",
+                "Có khả năng sử dụng các công cụ  Marketing một cách tự động hóa(Automation)",
+                "1. Có khả năng tạo ra các tác nhân AI phục vụ công việc\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có khả năng tạo ra đa tác nhân AI phục vụ công việc\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:18",
+              "sourceRow": "18",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:aad6d711ba495862a09e:item:19",
+              "sourceRow": "19",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 14,
+        "contents": 69
+      },
+      "payloadHash": "6a66bcd2a3fa234335d32a070b409ca44cd35033518fc308e9234073832c6148"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Marketing v2.xlsx",
+      "sourceSheet": "NV_Media (PHF)",
+      "sourcePosition": "Nhân viên Media",
+      "sourceHash": "ba52a8b527eb6d6a9f59ee14cb49984ec3240a55e0d8fb9965960d7745621f1c",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_MEDIA_PHF_0306B5",
+      "frameworkName": "Nhân viên Media",
+      "versionName": "Source Candidate · NV_Media (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức thẩm mỹ - phối màu - bố cục",
+              "description": "",
+              "levels": [
+                "Nắm cơ bản về màu sắc & bố cục",
+                "Biết áp dụng phối màu nhiều dịp lễ",
+                "Tạo concept theo nhu cầu khách",
+                "Thiết kế bộ theme theo mùa, chiến dịch",
+                "Xây Guideline thẩm mỹ và chuẩn phong cách thương hiệu"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về SPDV",
+              "description": "Kiến thức về DMSP: đặc tính, nguồn gốc xuất xứ, cách bảo quản, giá trị gia tăng...",
+              "levels": [
+                "1. Nhận biết và kể tên các sản phẩm cơ bản, nguồn gốc, đặc tính\n2. Nhận biết và kể tên các dịch vụ cơ bản (gói quà, giao hàng, thanh toán…).\n3. Nắm được quy trình phục vụ chung ở mức đơn giản",
+                "1. Hiểu và mô tả được công dụng chính của sản phẩm\n2. Hiểu rõ từng dịch vụ của cửa hàng và điều kiện áp dụng (phí giao hàng, thời gian gói quà, đổi trả…).\n3. Nắm rõ quy trình phục vụ",
+                "1. Có khả năng giải thích về đặc tính, giá trị dinh dưỡng, cách bảo quản sản phẩm. Tư vấn và đề xuất sản phẩm phù hợp với nhu cầu KH\n2. Hiểu sâu về chính sách dịch vụ và lý do áp dụng từng chính sách. Biết cách áp dụng dịch vụ linh hoạt phù hợp từng trường hợp khách",
+                "1. Có khả năng đào tạo cho đồng nghiệp về kiến thức - kỹ năng vận hành về sản phẩm - dịch vụ - chính sách - quy trình...",
+                "1. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến sản phẩm\n2. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến dịch vụ\n3. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến quy trình, chính sách\n4. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:10",
+              "sourceRow": "10",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "",
+              "levels": [
+                "Nắm được các nhóm khách hàng chính của công ty",
+                "Nắm được chân dung các nhóm khách hàng chính của công ty (độ tuổi, giới tính, nghề nghiệp ...)",
+                "Nắm được các nỗi đau của khách hàng, lý do khách đến mua hàng, các insight của khách hàng",
+                "1. Nắm được các hành vi, thói quen mua sắm của các nhóm khách hàng (thời điểm mua sắm, sản phẩm yêu thích, sử dụng các phương tiện truyền thông...)\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Đề xuất, cải tiến các sản phẩm dịch vụ, giải pháp giá trị cho khách hàng\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:11",
+              "sourceRow": "11",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về nhận diện thương hiệu",
+              "description": "",
+              "levels": [
+                "Biết màu nhận diện chính của thương hiệu.",
+                "Hiểu yêu cầu cơ bản về nhận diện của cửa hàng.",
+                "Gói đúng phong cách chung của PHUHOA FRESH (tone màu - sự sạch sẽ - chuyên nghiệp).",
+                "Tùy chỉnh mẫu gói theo guideline thương hiệu.",
+                "Thiết kế bộ tiêu chuẩn gói quà mang bản sắc riêng của PHF."
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:12",
+              "sourceRow": "12",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về dịp lễ - chủ đề - phong cách",
+              "description": "",
+              "levels": [
+                "Biết các dịp lễ lớn: sinh nhật, Noel, Tết…",
+                "Hiểu màu sắc chủ đạo của từng dịp lễ.",
+                "Áp dụng chủ đề theo yêu cầu khách (romantic, luxury, trẻ trung…).",
+                "Thiết kế mẫu theo chủ đề từng sự kiện/chiến dịch của cửa hàng.",
+                "Xây bộ chủ đề mùa vụ mang tính bản sắc thương hiệu."
+              ],
+              "sortOrder": 7
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Viết bài truyền thông",
+              "description": "",
+              "levels": [
+                "Viết theo mẫu có sẵn, nội dung đơn giản và cơ bản, đúng cấu trúc\n\n(Có bài viết)",
+                "Viết đa dạng format phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)\n\n(Có bài viết trên nhiều nền tảng)",
+                "Có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc\n\n(Tạo view)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động\n(Tạo chuyển đổi)",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Viết từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n(Tạo sự đột phá)"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế & dựng video",
+              "description": "",
+              "levels": [
+                "1. Cắt ghép cơ bản bằng CapCut/Canva\n\n2. Dựng video bán hàng ngắn (reels/tiktok) có nhạc, text",
+                "Xây dựng kịch bản và dựng video theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Sản xuất được video campaign\n\nVideo có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Video có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Video từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n4. Xây dựng chiến lược video marketing tối ưu theo nhiều nền tảng đa kênh"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế hình ảnh / ấn phẩm",
+              "description": "",
+              "levels": [
+                "Chỉnh sửa mẫu có sẵn, thiết kế post social cơ bản",
+                "Thiết kế theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Thiết kế bộ nhận diện cho campaign nhỏ\n\nThiết kế có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Thiết kế POSM đồng bộ nhận diện thương hiệu",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Thiết kế sáng tạo, độc đáo\n4. Xây dựng guideline hình ảnh & quản lý chất lượng thiết kế"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý các kênh truyền thông",
+              "description": "",
+              "levels": [
+                "Đăng bài theo kế hoạch có sẵn",
+                "Lập lịch nội dung tuần/tháng",
+                "Theo dõi tương tác, xử lý bình luận/inbox",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân tích dữ liệu tăng trưởng kênh",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng hệ sinh thái truyền thông tích hợp"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Các kỹ năng khác phục vụ công tác MKT",
+              "description": "",
+              "levels": [
+                "Viết nội dung",
+                "Thiết kế hình ảnh",
+                "Tạo dựng Video",
+                "Chạy và đo lường quảng cáo",
+                "Quản lý kênh truyền thông"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:18",
+              "sourceRow": "18",
+              "group": "KỸ NĂNG",
+              "name": "Kỹ năng sử dụng công nghệ và AI",
+              "description": "",
+              "levels": [
+                "Biết dùng công cụ AI cơ bản (ChatGPT, Gemini...)",
+                "Biết dùng các câu lệnh phức tạp;\nBiết dùng nhiều AI tạo ra các content, video, hình ảnh...",
+                "Có khả năng sử dụng các công cụ  Marketing một cách tự động hóa(Automation)",
+                "1. Có khả năng tạo ra các tác nhân AI phục vụ công việc\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có khả năng tạo ra đa tác nhân AI phục vụ công việc\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 6
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:19",
+              "sourceRow": "19",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:b5904267d259d10f3ffb:item:20",
+              "sourceRow": "20",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 15,
+        "contents": 74
+      },
+      "payloadHash": "015aa3a5c79c4f6eeff3c6a183d42b7574730878717b637c0d26547c2d9f918c"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Marketing v2.xlsx",
+      "sourceSheet": "NV_Design (PHF)",
+      "sourcePosition": "Nhân viên Design",
+      "sourceHash": "a300d16e81a1132a104b07edd7f788b5656694e53ee35a5c528f5d29c03e0542",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_DESIGN_PHF_49D9E2",
+      "frameworkName": "Nhân viên Design",
+      "versionName": "Source Candidate · NV_Design (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức thẩm mỹ - phối màu - bố cục",
+              "description": "",
+              "levels": [
+                "Nắm cơ bản về màu sắc & bố cục",
+                "Biết áp dụng phối màu nhiều dịp lễ",
+                "Tạo concept theo nhu cầu khách",
+                "Thiết kế bộ theme theo mùa, chiến dịch",
+                "Xây Guideline thẩm mỹ và chuẩn phong cách thương hiệu"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về SPDV",
+              "description": "Kiến thức về DMSP: đặc tính, nguồn gốc xuất xứ, cách bảo quản, giá trị gia tăng...",
+              "levels": [
+                "1. Nhận biết và kể tên các sản phẩm cơ bản, nguồn gốc, đặc tính\n2. Nhận biết và kể tên các dịch vụ cơ bản (gói quà, giao hàng, thanh toán…).\n3. Nắm được quy trình phục vụ chung ở mức đơn giản",
+                "1. Hiểu và mô tả được công dụng chính của sản phẩm\n2. Hiểu rõ từng dịch vụ của cửa hàng và điều kiện áp dụng (phí giao hàng, thời gian gói quà, đổi trả…).\n3. Nắm rõ quy trình phục vụ",
+                "1. Có khả năng giải thích về đặc tính, giá trị dinh dưỡng, cách bảo quản sản phẩm. Tư vấn và đề xuất sản phẩm phù hợp với nhu cầu KH\n2. Hiểu sâu về chính sách dịch vụ và lý do áp dụng từng chính sách. Biết cách áp dụng dịch vụ linh hoạt phù hợp từng trường hợp khách",
+                "1. Có khả năng đào tạo cho đồng nghiệp về kiến thức - kỹ năng vận hành về sản phẩm - dịch vụ - chính sách - quy trình...",
+                "1. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến sản phẩm\n2. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến dịch vụ\n3. Đề xuất cải thiện, bổ sung, loại bỏ các nội dung liên quan đến quy trình, chính sách\n4. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:10",
+              "sourceRow": "10",
+              "group": "KIẾN THỨC",
+              "name": "Hiểu biết về khách hàng",
+              "description": "",
+              "levels": [
+                "Nắm được các nhóm khách hàng chính của công ty",
+                "Nắm được chân dung các nhóm khách hàng chính của công ty (độ tuổi, giới tính, nghề nghiệp ...)",
+                "Nắm được các nỗi đau của khách hàng, lý do khách đến mua hàng, các insight của khách hàng",
+                "1. Nắm được các hành vi, thói quen mua sắm của các nhóm khách hàng (thời điểm mua sắm, sản phẩm yêu thích, sử dụng các phương tiện truyền thông...)\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Đề xuất, cải tiến các sản phẩm dịch vụ, giải pháp giá trị cho khách hàng\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:11",
+              "sourceRow": "11",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về nhận diện thương hiệu",
+              "description": "",
+              "levels": [
+                "Biết màu nhận diện chính của thương hiệu.",
+                "Hiểu yêu cầu cơ bản về nhận diện của cửa hàng.",
+                "Gói đúng phong cách chung của PHUHOA FRESH (tone màu - sự sạch sẽ - chuyên nghiệp).",
+                "Tùy chỉnh mẫu gói theo guideline thương hiệu.",
+                "Thiết kế bộ tiêu chuẩn gói quà mang bản sắc riêng của PHF."
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:12",
+              "sourceRow": "12",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về dịp lễ - chủ đề - phong cách",
+              "description": "",
+              "levels": [
+                "Biết các dịp lễ lớn: sinh nhật, Noel, Tết…",
+                "Hiểu màu sắc chủ đạo của từng dịp lễ.",
+                "Áp dụng chủ đề theo yêu cầu khách (romantic, luxury, trẻ trung…).",
+                "Thiết kế mẫu theo chủ đề từng sự kiện/chiến dịch của cửa hàng.",
+                "Xây bộ chủ đề mùa vụ mang tính bản sắc thương hiệu."
+              ],
+              "sortOrder": 7
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế & dựng video",
+              "description": "",
+              "levels": [
+                "1. Cắt ghép cơ bản bằng CapCut/Canva\n\n2. Dựng video bán hàng ngắn (reels/tiktok) có nhạc, text",
+                "Xây dựng kịch bản và dựng video theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Sản xuất được video campaign\n\nVideo có khả năng thu hút: Tiêu đề chú ý, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Video có khả năng thuyết phục mua hàng: Problem - Insight - Solution - Benefit, có lý do - bằng chứng cụ thể, kêu gọi khách hàng hành động",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Video từ insight khách hàng, có khả năng tạo ảnh hưởng, tư duy đột phá, sáng tạo\n4. Xây dựng chiến lược video marketing  tối ưu theo nhiều nền tảng đa kênh"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Thiết kế hình ảnh / ấn phẩm",
+              "description": "",
+              "levels": [
+                "Chỉnh sửa mẫu có sẵn, thiết kế post social cơ bản",
+                "Thiết kế theo concept, phù hợp với nhiều kênh truyển thông khác nhau (FB, Web, PR...)",
+                "Thiết kế bộ nhận diện cho campaign nhỏ\n\nThiết kế có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Thiết kế POSM đồng bộ nhận diện thương hiệu",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Thiết kế sáng tạo, độc đáo\n4. Xây dựng guideline hình ảnh & quản lý chất lượng thiết kế"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Chạy quảng cáo digital",
+              "description": "",
+              "levels": [
+                "Biết tạo chiến dịch cơ bản",
+                "Thiết lập target, theo dõi chỉ số",
+                "Tối ưu chi phí, đọc và phân tích chỉ số (CPC, CTR, ROAS)",
+                "1. Có thể đào tạo cho đồng nghiệp\n2. Phân bổ ngân sách đa nền tảng, tạo phễu và tối ưu phễu chuyển đổi",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến\n3. Xây dựng chiến lược media tổng thể & dự báo hiệu quả"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Lên ý tưởng và triển khai mẫu gói quà",
+              "description": "",
+              "levels": [
+                "Tạo giỏ quà ở mức cơ bản, theo các hướng dẫn có sẵn",
+                "Thiết kế các giỏ quà phù hợp với từng dịp, sự kiện, concept riêng",
+                "Thiết kế Giỏ quà có khả năng thu hút, storytelling, chứa yếu tố cảm xúc",
+                "1. Có khả năng sáng tạo nhiều giỏ quà\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Các kỹ năng khác phục vụ công tác MKT",
+              "description": "",
+              "levels": [
+                "Viết nội dung",
+                "Thiết kế hình ảnh",
+                "Tạo dựng Video",
+                "Chạy và đo lường quảng cáo",
+                "Quản lý kênh truyền thông"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:18",
+              "sourceRow": "18",
+              "group": "KỸ NĂNG",
+              "name": "Kỹ năng sử dụng công nghệ và AI",
+              "description": "",
+              "levels": [
+                "Biết dùng công cụ AI cơ bản (ChatGPT, Gemini...)",
+                "Biết dùng các câu lệnh phức tạp;\nBiết dùng nhiều AI tạo ra các content, video, hình ảnh...",
+                "Có khả năng sử dụng các công cụ  Marketing một cách tự động hóa(Automation)",
+                "1. Có khả năng tạo ra các tác nhân AI phục vụ công việc\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có khả năng tạo ra đa tác nhân AI phục vụ công việc\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 6
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:19",
+              "sourceRow": "19",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:a63404abf4eab718dbe4:item:20",
+              "sourceRow": "20",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 15,
+        "contents": 74
+      },
+      "payloadHash": "1b7e1fc5bd1defd7dff08b00361afa395ea4688c2c7213d26f7d788abc6b1e7c"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_TCKT v2.xlsx",
+      "sourceSheet": "KTT",
+      "sourcePosition": "Kế toán trưởng",
+      "sourceHash": "6029ae37d2da83617185c97a5a8729eb3826953029d286879b89c1f77b89269c",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_KTT_465216",
+      "frameworkName": "Kế toán trưởng",
+      "versionName": "Source Candidate · KTT",
+      "sourceVersionKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "Đại học",
+                "Có các bằng cấp chuyên môn uy tín",
+                "Thạc sỹ trở lên",
+                "",
+                ""
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:8",
+              "sourceRow": "8",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức về kế toán - thuế",
+              "description": "",
+              "levels": [
+                "1. Biết nguyên tắc kế toán cơ bản\n2. Biết kê khai các nghĩa vụ về thuế",
+                "1. Hiểu và áp dụng các nguyên tắc kế toán vào thực tế doanh nghiệp\n2. Nắm vững các quy định, nghĩa vụ thuế",
+                "1. Có khả năng thiết lập và kiểm soát danh mục TCKT, hạch toán\n2. Chủ động kiểm soát các nghĩa vụ về thuế",
+                "1. Phân tích và kiểm soát rủi ro kế toán\n2. Phân tích tối ưu chi phí thuế",
+                "1. Xây dựng hệ thống báo cáo quản trị tài chính\n2. Tư vấn chiến lược thuế cho công ty"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:9",
+              "sourceRow": "9",
+              "group": "KIẾN THỨC",
+              "name": "Kiến thức quản trị tài chính",
+              "description": "",
+              "levels": [
+                "1. Hiểu đúng các khái niệm tài chính: về doanh thu - chi phí - lợi nhuận",
+                "1. Phân tích báo cáo tài chính cơ bản",
+                "1. Biết xây dựng mô hình tài chính\n2. Biết quản lý dòng tiền, khoán định mức - ngân sách chi phí",
+                "1. Phân tích hiệu quả kinh doanh và rủi ro tài chính\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 4
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:10",
+              "sourceRow": "10",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý dòng tiền",
+              "description": "",
+              "levels": [
+                "1. Kiểm tra và phê duyệt thu chi đúng quy trình\n2. Đối soát sổ sách khớp với ngân hàng.",
+                "1. Cân đối dòng tiền hàng tuần\n2. Đảm bảo thanh toán công nợ đúng hạn, không bị gián đoạn",
+                "1. Tối ưu hóa vòng quay tiền mặt\n2. Dự báo dòng tiền ngắn hạn chính xác để tận dụng vốn",
+                "1. Tối ưu hóa hiệu quả sử dụng vốn trên toàn hệ thống\n2 .Xây dựng cơ chế kiểm soát dòng tiền, quản trị rủi ro thanh khoản\n3. Có thể đào tạo cho đồng nghiệp",
+                "1. Hoạch định chiến lược nguồn vốn dài hạn\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:11",
+              "sourceRow": "11",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý doanh thu - chi phí",
+              "description": "",
+              "levels": [
+                "1. Đối soát doanh thu từ các nguồn (Sapo, chi nhánh) chính xác\n2. Tập hợp chi phí đầy đủ",
+                "1. Phân tích được các khoản chi phí vượt ngân sách và tìm ra nguyên nhân sự vụ",
+                "1. Đề xuất các phương án tiết kiệm chi phí thực tế dựa trên phân tích số liệu chi tiết",
+                "1. Thiết lập hệ thống định mức chi phí, giao khoán bộ phận\n2. Kiểm soát giá vốn và các chỉ số tài chính vận hành\n3. Có thể đào tạo cho đồng nghiệp",
+                "1. Tham mưu giải pháp gia tăng doanh thu và tiết giảm chi phí\n2. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n3. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 2
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:12",
+              "sourceRow": "12",
+              "group": "KỸ NĂNG",
+              "name": "Quản trị nhân sự",
+              "description": "",
+              "levels": [
+                "1.Giao tiếp cơ bản với đồng nghiệp của toàn hệ thống.\n2. Hỗ trợ đồng đội khi cần",
+                "1.Truyền thông được các thông tin công ty cho nhân viên của bộ phận\n2.Biết nhắc nhở các lỗi nhỏ về tác phong hoặc quy trình",
+                "1.Phân công nhiệm vụ cho nhân viên theo năng lực từng người của bộ phẩn\n2. Giám sát tiến độ và nhắc nhở kịp thời khi có sai sót của bộ phận\n3. Giải quyết được xung đột của bộ phận một cách bình tĩnh",
+                "1. Tạo môi trường làm việc tích cực của bộ phận, tinh thần hỗ trợ đồng đội luôn đc nâng cao\n2. Đào tạo cho đồng nghiệp",
+                "1. Đề xuất thêm nhiều cải tiến về cách quản lý nhân sự\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 3
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý tài chính của bộ phận",
+              "description": "",
+              "levels": [
+                "1. Chưa quản lý tài chính",
+                "1. Kiểm soát được chi phí của bộ phận, không vượt so với kế hoạch - hạn mức - định mức công ty",
+                "1. Tiết kiệm được chi phí của bộ phận trên 5% trong kỳ đánh giá",
+                "1. Tiết kiệm được chi phí của bộ phận trên 10% trong kỳ đánh giá",
+                "1. Tiết kiệm được chi phí của bộ phận trên 20% trong kỳ đánh giá"
+              ],
+              "sortOrder": 4
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:14",
+              "sourceRow": "14",
+              "group": "KỸ NĂNG",
+              "name": "Quản lý tài sản - CCDC - cơ sở vật chất của bộ phận",
+              "description": "Đảm bảo tài sản cơ sở - thiết bị - vật chất vận hành ổn định",
+              "levels": [
+                "1. Nắm được danh mục tài sản thiết bị - CCDC - cơ sở vật chất của bộ phận đang sử dụng",
+                "Tỷ lệ mất mát hao hụt, hư hỏng  tài sản thiết bị - CCDC - cơ sở vật chất không quá 5% trong kỳ đánh giá (không tính các hao mòn, hư hao tự nhiên và bảo trì định kỳ)",
+                "Không xảy ra mất mát hao hụt hư hỏng tài sản thiết bị - CCDC - cơ sở vật chất trong kỳ đánh giá (không tính các hao mòn, hư hao tự nhiên và bảo trì định kỳ)",
+                "1. Có thể đào tạo cho đồng nghiệp",
+                "1. Có đề xuất cải tiến việc bảo quản - quản lý, tăng hiệu suất quản lý, nâng cao thời gian hoặc tối ưu việc sử dụng tài sản thiết bị - CCDC - cơ sở vật chất\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 5
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:15",
+              "sourceRow": "15",
+              "group": "KỸ NĂNG",
+              "name": "Xây dựng quy trình và hệ thống kế toán",
+              "description": "",
+              "levels": [
+                "1. Thực hiện các quy trình kế toán có sẵn",
+                "1. Cập nhật, chỉnh sửa các biểu mẫu kế toán, chứng từ phù hợp thực tế",
+                "1. Xây dựng quy trình kế toán, tiêu chuẩn hạch toán cho tất cả nghiệp vụ",
+                "1. Có thể đào tạo cho đồng nghiệp",
+                "1. Rà soát, chuẩn hóa và cải tiến hệ thống kế toán\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 6
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:16",
+              "sourceRow": "16",
+              "group": "KỸ NĂNG",
+              "name": "Lập kế hoạch",
+              "description": "",
+              "levels": [
+                "Lập kế hoạch thu - chi và lịch thanh toán hàng tuần",
+                "1. Lập kế hoạch dòng tiền và ngân sách hoạt động hằng tháng",
+                "1. Chủ trì xây dựng mô hình tài chính FM01 và giao khoán ngân sách hàng năm cho các bộ phận\n2. Kiểm soát ngân sách bộ phận hằng tháng, điều chỉnh cho phù hợp với thực tế kinh doanh",
+                "1. Hoạch định mô hình tài chính trung hạn (2-3 năm) cho công ty\n2. Có thể đào tạo cho đồng nghiệp",
+                "1. Có nhiều đề xuất, cải tiến cho lĩnh vực này\n2. Đo lường và chứng minh hiệu quả của các đề xuất cải tiến"
+              ],
+              "sortOrder": 7
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:17",
+              "sourceRow": "17",
+              "group": "KỸ NĂNG",
+              "name": "Báo cáo công việc",
+              "description": "",
+              "levels": [
+                "1. Hoàn thành báo cáo doanh thu - chi phí và dòng tiền đầy đủ, đúng hạn\n2. Đảm bảo số liệu báo cáo khớp 100% với chứng từ thực tế và số dư tài khoản ngân hàng, sổ quỹ tiền mặt\n3. Báo cáo đầy đủ danh sách các khoản công nợ đến hạn thanh toán",
+                "1. Lập đầy đủ bộ Báo cáo tài chính và Báo cáo quản trị tháng\n2. Thực hiện báo cáo so sánh giữa Kế hoạch - Thực tế, và giải trình được các nguyên nhân biến động (tăng/giảm) của từng khoản mục chi phí\n3. Đối soát số liệu tồn kho, công nợ nhà cung cấp và doanh thu chi nhánh một cách độc lập và chính xác",
+                "1. Xây dựng hệ thống Dashboards quản trị để lãnh đạo có thể theo dõi các chỉ số tài chính trọng yếu\n2. Tự động hóa, cải tiến quy trình tập hợp số liệu từ các bộ phận",
+                "1. Báo cáo phân tích sâu về hiệu quả của từng dòng sản phẩm hoặc từng chi nhánh để chỉ ra nơi nào đang tạo ra giá trị, nơi nào đang lãng phí.\n2. Đưa ra các cảnh báo sớm về rủi ro tài chính",
+                "1. Cung cấp các phân tích dự báo chính xác về dòng tiền và lợi nhuận trong 3-6 tháng tới dựa trên dữ liệu quá khứ và kế hoạch kinh doanh\n2. Hoạch định chiến lược tài chính dài hạn; tham mưu chiến lược giúp BGĐ ra quyết định đầu tư/ mở rộng"
+              ],
+              "sortOrder": 8
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:18",
+              "sourceRow": "18",
+              "group": "KỸ NĂNG",
+              "name": "Nghiên cứu, tham mưu",
+              "description": "",
+              "levels": [
+                "1. Chủ động rà soát, phát hiện nhanh các sai sót trong hạch toán, nhầm lẫn chứng từ hoặc lệch số dư giữa các phần mềm/ Đehệ thống\n2. Đề xuất phương án xử lý khi sai sót số liệu\n3. Khuyến cáo kịp thời cho nhân viên cấp dưới hoặc các bộ phận liên quan khi họ thực hiện sai quy trình tài chính cơ bản",
+                "1. Phân tích các khoản mục chi phí thường xuyên để tìm ra các điểm bất hợp lý hoặc lãng phí\n2. Tham mưu lựa chọn nhà cung cấp hoặc phương thức thanh toán có lợi hơn về mặt tài chính (chiết khấu thanh toán, kéo dài kỳ hạn nợ)",
+                "1. Nghiên cứu và áp dụng các quy định pháp luật về thuế để xây dựng phương án thuế tối ưu\n2. Tham mưu cải tiến quy trình quản lý tài sản, mua sắm và bán hàng, nhằm triệt tiêu các lỗ hổng có thể dẫn đến thất thoát tiền bạc hoặc hàng hóa",
+                "1. Thẩm định tài chính cho các dự án đầu tư mới (ví dụ: mở chi nhánh, mua sắm máy móc) thông qua các chỉ số tài chính: NPV, ROI...\n2. Tham mưu cơ cấu nguồn vốn tối ưu (khi nào nên dùng vốn vay, khi nào dùng vốn chủ sở hữu) để tối ưu hóa chi phí sử dụng vốn",
+                "1. Nghiên cứu xu hướng thị trường tài chính, kinh tế vĩ mô để tham mưu cho BGĐ các kịch bản ứng phó hoặc cơ hội mở rộng quy mô kinh doanh\n2. Quản lý rủi ro"
+              ],
+              "sortOrder": 9
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:19",
+              "sourceRow": "19",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:ada995efcdc08b9c0f03:item:20",
+              "sourceRow": "20",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 15,
+        "contents": 72
+      },
+      "payloadHash": "6ae0ad78d34cd514e28866affc2662c2634ecc3510058d45ae071d40f04e78ac"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:aaa3246116a488ef3573",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_TCKT v2.xlsx",
+      "sourceSheet": "KTTH",
+      "sourcePosition": "Kế toán viên",
+      "sourceHash": "7552e9a847ceb43c12538a5b752cbfa0cd09d686d5192e6bad5a6e5eaed791dd",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "KE_TOAN_VIEN_VARIANTS_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_KTTH_5036BB",
+      "frameworkName": "Kế toán viên",
+      "versionName": "Source Candidate · KTTH",
+      "sourceVersionKey": "phf-knl-2026-08-09:aaa3246116a488ef3573:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [
+        {
+          "sourceRow": "9",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        }
+      ],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "c171153163252c740812eeb2a74a5925fd40d973524486438cd1a883304b6fb7"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:4d9f7d1bffd7e1e3b4af",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_TCKT v2.xlsx",
+      "sourceSheet": "KT THU",
+      "sourcePosition": "Kế toán viên",
+      "sourceHash": "cdf670fd846d5ae2bd60a21e11a7e0cfaf885ea7d7d759a91b1e1a942249cc5d",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "KE_TOAN_VIEN_VARIANTS_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_KT_THU_49A231",
+      "frameworkName": "Kế toán viên",
+      "versionName": "Source Candidate · KT THU",
+      "sourceVersionKey": "phf-knl-2026-08-09:4d9f7d1bffd7e1e3b4af:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "b8b293ec566ea24a5111ebcb972604b8ffb141450514af2daa53028e7fb7efab"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:52a1ada2a97815124827",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_TCKT v2.xlsx",
+      "sourceSheet": "KT CHI",
+      "sourcePosition": "Kế toán viên",
+      "sourceHash": "1c5400fce23d00c33b60ca8b9a63fd63c448c1eb4316a517bbe8b2cd4749e287",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "KE_TOAN_VIEN_VARIANTS_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_KT_CHI_2F89A7",
+      "frameworkName": "Kế toán viên",
+      "versionName": "Source Candidate · KT CHI",
+      "sourceVersionKey": "phf-knl-2026-08-09:52a1ada2a97815124827:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [
+        {
+          "sourceRow": "8",
+          "reason": "FORBIDDEN_COMPENSATION_CONTENT"
+        }
+      ],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "3ec5806b5bad87e0bb0eca17c2f426e5eb1b65abe090353750978f8b880d7c34"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:ba514787a3637b5d6a83",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Thumua v2.xlsx",
+      "sourceSheet": "NV Thu mua (PHF)",
+      "sourcePosition": "Nhân viên Thu mua",
+      "sourceHash": "c8ed074c3f4d7250acf2a8774e1c870bb8ecc0b5057adda83a401e6e869db7af",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_THUMUA_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_THU_MUA_PHF_98BC57",
+      "frameworkName": "Nhân viên Thu mua",
+      "versionName": "Source Candidate · NV Thu mua (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:ba514787a3637b5d6a83:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "d71813cb9f91c9fd40c68aa1a2a59ab6575e9ce8ed0b027aca0a7f5b518a8adc"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:d3e4f7ee130ba6c60ab7",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Thumua v2.xlsx",
+      "sourceSheet": "TP Thu mua (PHF)",
+      "sourcePosition": "Trưởng phòng Thu mua",
+      "sourceHash": "eec1b01bd2c449266af30292de368d7bcf9509063a1fa0567c867c6426665012",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TP_THUMUA_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TP_THU_MUA_PHF_77FF9C",
+      "frameworkName": "Trưởng phòng Thu mua",
+      "versionName": "Source Candidate · TP Thu mua (PHF)",
+      "sourceVersionKey": "phf-knl-2026-08-09:d3e4f7ee130ba6c60ab7:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "0b0e734777ab75e56a87aee5924122c4588b6013610bb014f3acae474240396c"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:5f09fe06006323f7015a",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Thumua v2.xlsx",
+      "sourceSheet": "TP Thu mua (PHF) v2",
+      "sourcePosition": "Trưởng phòng Thu mua (v2)",
+      "sourceHash": "5f83085f64cc94f3b5e3a9879efc295f43600eb7ffab5b43525e4c5c686f238a",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "TP_THUMUA_REGULAR_V2_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TP_THU_MUA_PHF_V2_FA9A20",
+      "frameworkName": "Trưởng phòng Thu mua (v2)",
+      "versionName": "Source Candidate · TP Thu mua (PHF) v2",
+      "sourceVersionKey": "phf-knl-2026-08-09:5f09fe06006323f7015a:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "e19dcada49f3aded3436083f531efb9945cc30ef4cf4bc709fd5b2a0f5e61441"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:4b7310f0c5754b4a59a3",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Thumua v2.xlsx",
+      "sourceSheet": "NV_Thumua",
+      "sourcePosition": "Nhân viên thu mua",
+      "sourceHash": "82d4699ade4dd5d5b6837717f822820c1b7c2cfa391f8b8385e6fc1a201fd492",
+      "candidateStatus": "NEEDS_REVIEW",
+      "decisionReason": "NV_THUMUA_PHF_LEGACY_UNRESOLVED",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_NV_THUMUA_5E7AE1",
+      "frameworkName": "Nhân viên thu mua",
+      "versionName": "Source Candidate · NV_Thumua",
+      "sourceVersionKey": "phf-knl-2026-08-09:4b7310f0c5754b4a59a3:version:1",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      },
+      "payloadHash": "f28dfa29009d2469093c354f6ce7cedda2d2647ca2924327cd26f1187d6b047d"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc",
+      "specDate": "2026-08-09",
+      "sourceFile": "PHF_KhungDanhgia_Nangluc_Thumua v2.xlsx",
+      "sourceSheet": "Truongnhom_Thumua",
+      "sourcePosition": "Trưởng nhóm Thu mua",
+      "sourceHash": "4b7ef682bd63afed0012fd9a5cf5025e4bcbded7c635dfae2c9b94e1436c296f",
+      "candidateStatus": "READY",
+      "decisionReason": "UNIQUE_SOURCE_CANDIDATE",
+      "levelCount": 5,
+      "includeDescription": true,
+      "guidance": "",
+      "frameworkCode": "KNL_TRUONGNHOM_THUMUA_16D459",
+      "frameworkName": "Trưởng nhóm Thu mua",
+      "versionName": "Source Candidate · Truongnhom_Thumua",
+      "sourceVersionKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:version:1",
+      "columns": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:item",
+          "type": "item",
+          "label": "HẠNG MỤC",
+          "sortOrder": 1
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:description",
+          "type": "description",
+          "label": "MÔ TẢ",
+          "sortOrder": 2
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:level:1",
+          "type": "level",
+          "label": "MỨC ĐỘ 1",
+          "levelNumber": 1,
+          "sortOrder": 3
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:level:2",
+          "type": "level",
+          "label": "MỨC ĐỘ 2",
+          "levelNumber": 2,
+          "sortOrder": 4
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:level:3",
+          "type": "level",
+          "label": "MỨC ĐỘ 3",
+          "levelNumber": 3,
+          "sortOrder": 5
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:level:4",
+          "type": "level",
+          "label": "MỨC ĐỘ 4",
+          "levelNumber": 4,
+          "sortOrder": 6
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:column:level:5",
+          "type": "level",
+          "label": "MỨC ĐỘ 5",
+          "levelNumber": 5,
+          "sortOrder": 7
+        }
+      ],
+      "groups": [
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:group:1",
+          "name": "KIẾN THỨC",
+          "sortOrder": 1,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:item:6",
+              "sourceRow": "6",
+              "group": "KIẾN THỨC",
+              "name": "Kinh nghiệm làm việc trong lĩnh vực liên quan",
+              "description": "",
+              "levels": [
+                "Chưa có kinh nghiệm",
+                "Từ 6 tháng - 1 năm",
+                "Từ 1 - 3 năm",
+                "Từ 3 - 5 năm",
+                "Trên 5 năm kinh nghiệm"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:item:7",
+              "sourceRow": "7",
+              "group": "KIẾN THỨC",
+              "name": "Chuyên môn, trình độ học vấn",
+              "description": "Cấp học",
+              "levels": [
+                "46003",
+                "Trung cấp nghề",
+                "Đại học",
+                "",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:group:2",
+          "name": "KỸ NĂNG",
+          "sortOrder": 2,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:item:13",
+              "sourceRow": "13",
+              "group": "KỸ NĂNG",
+              "name": "Đáp ứng các yêu cầu trong mô tả công việc",
+              "description": "",
+              "levels": [
+                "Thực hiện được 70% khối lượng công việc theo mô tả công việc",
+                "Thực hiện được 100% khối lượng công việc theo mô tả công việc",
+                "1. Có thể kiêm nhiệm các công việc của các vị trí khác trong phòng\n2. Có thể đào tạo hướng dẫn cho người khác",
+                "1. Có tham mưu, đề xuất, cải tiến áp dụng được vào thực tiễn",
+                "1.Có thể kiêm nhiệm các công việc của các vị trí của các phòng ban khác"
+              ],
+              "sortOrder": 1
+            }
+          ]
+        },
+        {
+          "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:group:3",
+          "name": "TINH THẦN & THÁI ĐỘ",
+          "sortOrder": 3,
+          "items": [
+            {
+              "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:item:14",
+              "sourceRow": "14",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tuân thủ giá trị cốt lõi, VHDN",
+              "description": "",
+              "levels": [
+                "Ghi nhớ các giá trị cốt lõi, VHDN",
+                "HIểu, giải thích được ý nghĩa các giá trị",
+                "Vận dụng vào công việc hàng ngày",
+                "Giảng dạy cho đồng nghiệp",
+                "Truyền thông các giá trị ra bên ngoài: đối tác/ khách hàng"
+              ],
+              "sortOrder": 1
+            },
+            {
+              "sourceKey": "phf-knl-2026-08-09:2a0733c13972c8cd52fc:item:15",
+              "sourceRow": "15",
+              "group": "TINH THẦN & THÁI ĐỘ",
+              "name": "Tinh thần học hỏi",
+              "description": "",
+              "levels": [
+                "Có tham gia nhưng không đầy đủ",
+                "Tham gia đầy đủ",
+                "1.Đề xuất các khóa đào tạo mang lại lợi ích cho công ty\n2.Áp dụng kiến thức đã học vào thực tế công việc",
+                "Có thể giảng dạy lại các kiến thức đã học",
+                ""
+              ],
+              "sortOrder": 2
+            }
+          ]
+        }
+      ],
+      "excludedRows": [],
+      "counts": {
+        "groups": 3,
+        "items": 5,
+        "contents": 22
+      },
+      "payloadHash": "f5c158fc5d5ecbb747cf582032a2d1f6f5069ec6a870cee417a8341b8cfdda2e"
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:excluded:cv-cung-ung",
+      "sourceFile": "PHF source package",
+      "sourceSheet": "CV CUNG ỨNG",
+      "candidateStatus": "EXCLUDED",
+      "decisionReason": "OUT_OF_SCOPE_BY_USER",
+      "specDate": "2026-08-09",
+      "sourcePosition": "",
+      "sourceHash": "",
+      "payloadHash": "6e87b493ffb66b4ad107340f55a946e0d0616f7c709b80a52a61150525297fc4",
+      "levelCount": 0,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "",
+      "frameworkName": "",
+      "versionName": "",
+      "sourceVersionKey": "",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      }
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:excluded:nv-van-tai",
+      "sourceFile": "Residual workbook sheets",
+      "sourceSheet": "NV VẬN TẢI",
+      "candidateStatus": "EXCLUDED",
+      "decisionReason": "RESIDUAL_NON_STANDARD_SOURCE",
+      "specDate": "2026-08-09",
+      "sourcePosition": "",
+      "sourceHash": "",
+      "payloadHash": "d289a3bffea921a9d7c57e32cbe11c578753ece79d1946d5a6616ec8a56ab753",
+      "levelCount": 0,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "",
+      "frameworkName": "",
+      "versionName": "",
+      "sourceVersionKey": "",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      }
+    },
+    {
+      "manifestKey": "phf-knl-2026-08-09:excluded:chuoi-gia-tri-hang-sx",
+      "sourceFile": "Residual workbook sheets",
+      "sourceSheet": "CHUỖI GIÁ TRỊ HÀNG SX",
+      "candidateStatus": "EXCLUDED",
+      "decisionReason": "RESIDUAL_NON_PHF_HEADER",
+      "specDate": "2026-08-09",
+      "sourcePosition": "",
+      "sourceHash": "",
+      "payloadHash": "6f77a45df4c59a0813cfb37a2cd84cb3c7ea7e3ccd066578f1bc22765a478ecf",
+      "levelCount": 0,
+      "includeDescription": false,
+      "guidance": "",
+      "frameworkCode": "",
+      "frameworkName": "",
+      "versionName": "",
+      "sourceVersionKey": "",
+      "columns": [],
+      "groups": [],
+      "excludedRows": [],
+      "counts": {
+        "groups": 0,
+        "items": 0,
+        "contents": 0
+      }
+    }
+  ]
+}

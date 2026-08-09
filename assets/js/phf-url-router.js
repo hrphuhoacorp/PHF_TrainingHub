@@ -364,6 +364,7 @@
     '/admin/home':Object.freeze({area:'admin',screen:'hr-home',roles:['admin']}),
     '/admin/knl':Object.freeze({area:'admin',screen:'knl-home',roles:['admin']}),
     '/admin/knl/bo-knl':Object.freeze({area:'admin',screen:'knl-frameworks',roles:['admin']}),
+    '/admin/knl/gan-ap-dung':Object.freeze({area:'admin',screen:'knl-assignments',roles:['admin']}),
     '/admin/knl/nhan-su':Object.freeze({area:'admin',screen:'knl-people',roles:['admin']}),
     '/admin/knl/phan-quyen':Object.freeze({area:'admin',screen:'knl-permissions',roles:['admin']}),
     // PHF AI Sandbox v1: chi Admin, khong route tuong ung cho ql/hv (xem lib/ai-sandbox.js).
@@ -405,10 +406,10 @@
     public:['/','/login'],
     learner:['/hv','/hv/home','/hv/knl','/hv/knl/nhan-su','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/checklist/ho-so-danh-gia','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
     management:['/ql','/ql/home','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
-    admin:['/admin','/admin/home','/admin/knl','/admin/knl/bo-knl','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/ai-sandbox','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
+    admin:['/admin','/admin/home','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/ai-sandbox','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     employeeMaster:['/admin/nhan-su'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
-    knl:['/hv/knl','/hv/knl/nhan-su','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/admin/knl','/admin/knl/bo-knl','/admin/knl/nhan-su','/admin/knl/phan-quyen'],
+    knl:['/hv/knl','/hv/knl/nhan-su','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen'],
     hr:['/hv/home','/ql/home','/admin/home'],
     hub:['/hv','/ql','/admin'],
     checklist:['/hv/checklist','/hv/checklist/ho-so-danh-gia','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
@@ -1044,7 +1045,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/nhan-su'||path==='/admin/knl/phan-quyen'){
+      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/nhan-su'||path==='/admin/knl/phan-quyen'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
