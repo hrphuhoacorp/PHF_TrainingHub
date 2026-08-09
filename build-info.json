@@ -1,7 +1,7 @@
 {
-  "version": "1.46.0",
-  "fingerprint": "1.46.0-phf-hr-employee-master",
-  "builtAt": "2026-08-09T20:30:00+07:00",
-  "notes": "1.46.0: PHF HR Employee Master. Canonical route /admin/nhan-su; legacy account routes redirect. Account/login identity remains in user_accounts and /api/auth/accounts. Organization read model remains checklist_employee_assignments. Additive service-role-only schema separates employee_profiles, employee_private_profiles, employee_contracts, employee_compensation and employee_master_history. Admin UI supports list/search/filter/detail/edit with sensitive fields excluded from list and AI/Directory unchanged.",
-  "build": "1.46.0"
+  "version": "1.46.1",
+  "fingerprint": "1.46.1-employee-master-ui-navigation",
+  "builtAt": "2026-08-09T22:00:00+07:00",
+  "notes": "1.46.1: UI/navigation polish for PHF HR Employee Master. The canonical /admin/nhan-su route now uses a standalone PHF HR shell, while legacy account routes remain compatible. List filters, metrics and employee detail navigation are clearer and responsive; schema, APIs, permissions and business rules are unchanged.",
+  "build": "1.46.1"
 }

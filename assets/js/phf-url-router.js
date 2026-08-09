@@ -1055,6 +1055,7 @@
       }
       if(path==='/admin/nhan-su'){
         if(!requireRoles(['admin']))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
         if(typeof window.phfRenderEmployeeMaster!=='function')throw new Error('PHF_EMPLOYEE_MASTER_RENDERER_MISSING');
         await Promise.resolve(window.phfRenderEmployeeMaster());
         return true;
