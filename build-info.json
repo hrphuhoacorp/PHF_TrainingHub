@@ -1,7 +1,7 @@
 {
   "version": "1.49.0",
   "fingerprint": "1.49.0-knl-survey-v1-migration-gate",
-  "builtAt": "2026-08-09T23:55:00+07:00",
-  "notes": "1.49.0: KNL Survey V1 code, additive migration, permission scope, immutable ticket snapshots, revision history and responsive UI. Production migration is intentionally not executed.",
+  "builtAt": "2026-08-10T00:31:00+07:00",
+  "notes": "1.49.0: KNL Survey V1 released; Production migration and delete-guard hotfix verified, integration smoke passed and test data cleaned.",
   "build": "1.49.0"
 }
