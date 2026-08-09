@@ -309,9 +309,21 @@
     // Luu ben vung qua /api/ai/conversations - best-effort (khong chan luot
     // chat neu luu that bai, chi log am tham) vi day la tinh nang phu, KHONG
     // phai nguon du lieu chinh cua cuoc hoi thoai dang dien ra.
+    //
+    // keepalive:true (ROOT CAUSE fix, Batch C hardening) - persistTurn() goi
+    // fetch nay KHONG await xong moi cho phep dieu huong (xem duoi), va app
+    // dung full-page navigation (phf-url-router.js#navigate -> location.
+    // assign/reload) cho moi lan chuyen man hinh, ke ca khi nguoi dung bam
+    // ngay nut "Di toi..." AI vua goi y. Neu khong co keepalive, trinh duyet
+    // huy request nay khi trang unload truoc khi Supabase kip nhan - luot
+    // hoi thoai vua tra loi se KHONG duoc luu, nen lan sau mo lai tu Lich su
+    // se thieu dung luot do (trieu chung: "AI khong nho" du UI lich su hoat
+    // dong dung, vi ban ghi da luu that su thieu). keepalive gioi han payload
+    // ~64KB o Chrome - payload o day chi 1-2 tin nhan da cap MAX_MESSAGE_CHARS
+    // nen luon nam trong gioi han.
     function apiConversations(payload){
       return fetch('/api/ai/conversations', {
-        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        method: 'POST', credentials: 'same-origin', cache: 'no-store', keepalive: true,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload)
       }).then(function(response){
