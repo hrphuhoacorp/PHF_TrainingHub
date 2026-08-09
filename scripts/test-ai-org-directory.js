@@ -214,6 +214,73 @@ async function run() {
   assert.strictEqual(looksLikeLeakedToolProtocol(sanitized), false, 'fallback text phai sach, khong con dau hieu leak');
   console.log('[PASS] 6d: final reply còn sót leak bị thay bằng fallback sạch (không hiện nguyên văn cho người dùng)');
 
+  // ---- 6e-6h. P0 HOTFIX (đợt 2): biến thể leak MỚI - MỌI thẻ đều mang
+  // marker DSML (kể cả parameter/thẻ đóng), khác với mẫu đợt 1 (chỉ thẻ
+  // ngoài tool_calls/invoke mang marker) - đây CHÍNH XÁC là mẫu chụp màn
+  // hình Production thật đã báo (get_employee_manager, employeeCode PHF078,
+  // hiện ra nguyên văn giao thức ở 1 bong bóng chat riêng sau câu trả lời
+  // tự nhiên trước đó). Regex đợt 1 KHÔNG khớp biến thể này (đòi hỏi "<invoke"/
+  // "<parameter" nguyên văn hoặc kết thúc bằng "｜>") -> looksLikeLeakedToolProtocol
+  // trả về FALSE SAI -> nhánh "reply sạch" ở callDeepSeekWithTools() trả
+  // thẳng rawContent, KHÔNG hề đi qua sanitizeFinalReply() - đây là lỗ hổng
+  // kép (vừa thiếu nhận diện, vừa thiếu 1 chặn cuối cùng bắt buộc).
+  const leakedNewVariantFull =
+    '<｜｜DSML｜｜tool_calls>\n' +
+    '<｜｜DSML｜｜invoke name="get_employee_manager">\n' +
+    '<｜｜DSML｜｜parameter name="employee" string="true">PHF078</｜｜DSML｜｜parameter>\n' +
+    '<｜｜DSML｜｜/invoke>\n' +
+    '<｜｜DSML｜｜/tool_calls>';
+  assert.strictEqual(looksLikeLeakedToolProtocol(leakedNewVariantFull), true,
+    'PHAI nhan dien duoc bien the leak MOI (moi the deu mang marker DSML, ke ca parameter/the dong) - day la mau leak that tu Production dot 2');
+  const extractedNewVariant = extractLeakedToolCall(leakedNewVariantFull);
+  assert.strictEqual(extractedNewVariant.name, 'get_employee_manager');
+  assert.strictEqual(extractedNewVariant.args.employee, 'PHF078', 'phai parse duoc gia tri du the dong cung mang marker DSML (</｜｜DSML｜｜parameter>), khong doi "</parameter>" nguyen van');
+  console.log('[PASS] 6e: nhận diện + parse đúng biến thể leak MỚI (mọi thẻ mang marker DSML, kể cả parameter/thẻ đóng) - đúng mẫu Production đợt 2');
+
+  const naturalAnswerThenLeak = 'PHF078 báo cáo trực tiếp cho quản lý phụ trách bộ phận tương ứng.';
+  const naturalPlusLeakedTail = naturalAnswerThenLeak + '\n\n' + leakedNewVariantFull;
+  const sanitizedNaturalPlusLeak = sanitizeFinalReply(naturalPlusLeakedTail);
+  assert.strictEqual(sanitizedNaturalPlusLeak, naturalAnswerThenLeak,
+    'khi cau tra loi tu nhien THAT + leak cung ton tai trong 1 reply, PHAI chi giu phan tu nhien, cat bo phan leak - khong duoc vut ca cau tra loi tot');
+  assert.strictEqual(looksLikeLeakedToolProtocol(sanitizedNaturalPlusLeak), false);
+  console.log('[PASS] 6f: reply có cả câu trả lời tự nhiên THẬT lẫn leak đuôi -> chỉ giữ phần tự nhiên, cắt bỏ phần leak (không vứt cả câu trả lời tốt)');
+
+  const sanitizedNewVariantOnly = sanitizeFinalReply(leakedNewVariantFull);
+  assert.notStrictEqual(sanitizedNewVariantOnly, leakedNewVariantFull);
+  assert.strictEqual(looksLikeLeakedToolProtocol(sanitizedNewVariantOnly), false, 'khi TOAN BO la leak (khong co phan tu nhien nao), fallback sach - khong hien nguyen van');
+  console.log('[PASS] 6g: reply TOÀN BỘ là biến thể leak mới (không có phần tự nhiên) -> fallback sạch, không hiện nguyên văn');
+
+  // ---- 6h. Regression THẬT của lỗ hổng dot 2: goi qua chinh
+  // callDeepSeekWithTools() (qua runChatSandbox) voi fetch bi stub tra ve
+  // dung format leak Production - xac nhan diem return SOM (khi DeepSeek
+  // khong dung truong tool_calls chuan) KHONG CON duong nao bo qua
+  // sanitizeFinalReply(). Truoc fix, nhanh nay tra thang rawContent (dot 2
+  // that su xay ra tren Production) - test nay se FAIL tren code cu.
+  const { runChatSandbox } = require('../lib/ai-sandbox');
+  const originalFetch = global.fetch;
+  const originalApiKey = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = 'test-fake-key-not-used-network-stubbed';
+  let fetchCallCount = 0;
+  global.fetch = async () => {
+    fetchCallCount += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: naturalPlusLeakedTail } }] })
+    };
+  };
+  try {
+    const integrationSession = { account: { id: 'learner-dsml-integration-1' }, role: 'learner' };
+    const chatResult = await runChatSandbox(integrationSession, [{ role: 'user', content: 'PHF078 báo cáo cho ai?' }]);
+    assert.strictEqual(chatResult.reply, naturalAnswerThenLeak, 'reply cuoi cung tra ve nguoi dung PHAI la phan tu nhien da cat bo leak, khong duoc la rawContent nguyen van (loi dot 2)');
+    assert.strictEqual(looksLikeLeakedToolProtocol(chatResult.reply), false, 'reply cuoi cung TUYET DOI khong duoc con dau hieu giao thuc noi bo');
+    assert.strictEqual(fetchCallCount, 1, 'da co san cau tra loi tu nhien tu luot dau -> khong can goi them luot 2, tranh phi pham');
+    console.log('[PASS] 6h: regression thật qua callDeepSeekWithTools/runChatSandbox - điểm return sớm (không có tool_calls chuẩn) không còn đường nào bỏ qua sanitizeFinalReply()');
+  } finally {
+    global.fetch = originalFetch;
+    if (originalApiKey === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = originalApiKey;
+  }
+
   // ---- 7. Conversation compaction (khong ep "bat dau chat moi") ----
   const { compactMessagesForModel, validateChatMessages } = require('../lib/ai-sandbox');
 
