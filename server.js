@@ -24,6 +24,7 @@ const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePrevi
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { listKnlPeople } = require('./lib/knl-people');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('./lib/employee-master');
 const { runChatSandbox } = require('./lib/ai-sandbox');
 const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./lib/ai-conversations');
 const {
@@ -387,8 +388,13 @@ const server = http.createServer(async (req, res) => {
       const classroomNotificationsMode = requestUrl.searchParams.get('classroomNotifications') === '1';
       const classroomSettingsMode = requestUrl.searchParams.get('classroomSettings') === '1';
       const checklistWorkspaceMode = requestUrl.searchParams.get('checklistWorkspace') === '1';
+      const employeeMasterMode = requestUrl.searchParams.get('employeeMaster') === '1';
       if (req.method === 'GET') {
         const session = await requireSession(req, ['learner','manager','admin']);
+        if(employeeMasterMode){
+          const key=String(requestUrl.searchParams.get('key')||'').trim();
+          return sendJson(res,200,{ok:true,...(key?await getEmployeeMasterDetail(session,{key}):await listEmployeeMaster(session))});
+        }
         if (checklistWorkspaceMode) {
           const [workspace, templateData, violationMode] = await Promise.all([
             getChecklistRoleWorkspace(session),
@@ -538,6 +544,14 @@ const server = http.createServer(async (req, res) => {
         try { payload = JSON.parse(body || '{}'); }
         catch { throw new RequestError('Dữ liệu JSON không hợp lệ.', 400, 'JSON_INVALID'); }
         const session = await requireSession(req, ['learner','manager','admin']);
+        if(employeeMasterMode){
+          const action=String(payload.action||'').trim();
+          if(action==='saveProfile')return sendJson(res,200,{ok:true,...await saveEmployeeMasterProfile(session,payload)});
+          if(action==='savePrivateProfile')return sendJson(res,200,{ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
+          if(action==='saveContract')return sendJson(res,200,{ok:true,...await saveEmployeeMasterContract(session,payload)});
+          if(action==='saveCompensation')return sendJson(res,200,{ok:true,...await saveEmployeeMasterCompensation(session,payload)});
+          throw new RequestError('Thao tác Employee Master không hợp lệ.',400,'EMPLOYEE_MASTER_ACTION_INVALID');
+        }
         if (classroomUsersMode) {
           return sendJson(res, 200, { ok:true, users:await listClassroomUsers(session) });
         }

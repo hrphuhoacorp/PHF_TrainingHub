@@ -1,0 +1,22 @@
+'use strict';
+const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+let passed=0;
+function assert(condition,message){if(!condition)throw new Error(message);passed++;}
+const router=read('assets/js/phf-url-router.js');
+const api=read('api/data.js');
+const server=read('server.js');
+const service=read('lib/employee-master.js');
+const migration=read('scripts/PHF_EMPLOYEE_MASTER_1.46.0.sql');
+const ui=read('assets/js/phf-employee-master.js');
+assert(router.includes("'/admin/nhan-su'"),'Thiếu route canonical Employee Master.');
+assert(/quan-tri\/tai-khoan'\|\|path==='\/admin\/accounts'\) return '\/admin\/nhan-su'/.test(router),'Route tài khoản cũ chưa redirect về canonical.');
+assert(api.includes("employeeMasterMode")&&server.includes("employeeMasterMode"),'Hai runtime API chưa cùng hỗ trợ Employee Master.');
+assert(service.includes("requireAdmin(session)")&&service.includes("EMPLOYEE_MASTER_ADMIN_REQUIRED"),'Backend chưa fail-closed theo quyền Admin.');
+assert(migration.includes('employee_private_profiles')&&migration.includes('employee_compensation')&&migration.includes('employee_master_history'),'Schema chưa tách sensitive/history.');
+assert(/revoke all on table public\.employee_compensation from anon,authenticated/i.test(migration),'Thu nhập chưa bị chặn khỏi client role.');
+assert(ui.includes('Thu nhập, CCCD và địa chỉ không xuất hiện trên bảng danh sách.'),'UI list chưa xác nhận che dữ liệu nhạy cảm.');
+assert(!service.includes("password_hash")&&!service.includes("password_salt"),'Employee Master không được đọc password fields.');
+console.log(`Employee Master tests: ${passed}/${passed} PASS`);

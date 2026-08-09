@@ -16,6 +16,7 @@ function icon(type){
     classroom:'<path d="M4 18v-8.5A2.5 2.5 0 0 1 6.5 7H12v11H6a2 2 0 0 0-2 2Z"/><path d="M20 18v-8.5A2.5 2.5 0 0 0 17.5 7H12v11h6a2 2 0 0 1 2 2Z"/>',
     checklist:'<path d="M9 4h6l1 2h3v15H5V6h3l1-2Z"/><path d="m8 11 1.8 1.8L13 9.5M8 17h7"/>',
     knl:'<path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="m3 14 6-5 5 2 8-7"/>',
+    people:'<circle cx="9" cy="8" r="3"/><path d="M3.5 19v-2.2A4.8 4.8 0 0 1 8.3 12h1.4a4.8 4.8 0 0 1 4.8 4.8V19M16 8.5a2.5 2.5 0 0 1 0 5M17 14c2.2.4 3.5 1.7 3.5 4v1"/>',
     bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
     calendar:'<path d="M5 4v3M19 4v3M4 9h16M5 6h14a1 1 0 0 1 1 1v13H4V7a1 1 0 0 1 1-1Z"/>',
     tasks:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
@@ -25,7 +26,7 @@ function icon(type){
   return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(paths[type]||'')+'</svg>';
 }
 function journeyIcon(type){return '<span class="phf-hr-journey-icon">'+icon(type)+'</span>';}
-window.phfOpenHrModule=function(module){var p=prefix();var map={hub:p,classroom:p+'/classroom',checklist:p+'/checklist',knl:p+'/knl'};return go(map[module]||(p+'/home'));};
+window.phfOpenHrModule=function(module){var p=prefix();var map={people:p+'/nhan-su',hub:p,classroom:p+'/classroom',checklist:p+'/checklist',knl:p+'/knl'};return go(map[module]||(p+'/home'));};
 
 /* Checklist workspace/capability — nguồn chuẩn duy nhất cho Home + Bottom Nav +
    Slide Menu. Chỉ đọc (getChecklistRoleWorkspace có sẵn), cache trong phiên,
@@ -144,6 +145,7 @@ window.phfRenderHrGateway=function(requestedPath){
         </div>
       </section>
       <section class="phf-hr-modules" aria-label="Các hệ thống PHF HR">
+        ${role()==='admin'?'<article class="is-people"><div class="phf-hr-card-head"><span>'+icon('people')+'</span><div><h2>Quản trị nhân sự</h2><b>Tài khoản &amp; Hồ sơ nhân sự</b></div></div><p>Quản lý Employee Master tập trung, hồ sơ cá nhân, hợp đồng, thu nhập và tài khoản đăng nhập liên kết.</p><div class="phf-hr-card-status">Khu quản lý cấp PHF HR · chỉ dành cho Admin được cấp quyền</div><button type="button" data-phf-hr-module="people">Truy cập <span>→</span></button></article>':''}
         <article class="is-hub"><div class="phf-hr-card-head"><span>${icon('hub')}</span><div><h2>Training Hub</h2><b>Hội nhập &amp; Lộ trình</b></div></div><p>Học theo lộ trình, hoàn thành bài học, kiểm tra và theo dõi tiến độ học tập.</p><div class="phf-hr-card-status">Lộ trình hội nhập và đào tạo nhân sự mới</div><button type="button" data-phf-hr-module="hub">Truy cập <span>→</span></button></article>
         <article class="is-classroom"><div class="phf-hr-card-head"><span>${icon('classroom')}</span><div><h2>Classroom</h2><b>Đào tạo nội bộ</b></div></div><p>Tham gia lớp học, xem tài liệu, điểm danh và làm bài kiểm tra.</p><div class="phf-hr-card-status">Lớp học, tài liệu và bài kiểm tra nội bộ</div><button type="button" data-phf-hr-module="classroom">Truy cập <span>→</span></button></article>
         <article class="is-checklist"><div class="phf-hr-card-head"><span>${icon('checklist')}</span><div><h2>Checklist</h2><b>Tuân thủ &amp; Đánh giá</b></div></div><p>Thực hiện checklist, ghi nhận lỗi, giải trình và theo dõi điểm đánh giá.</p><div class="phf-hr-card-status">Tuân thủ công việc và đánh giá hằng tháng</div><button type="button" data-phf-hr-module="checklist">Truy cập <span>→</span></button></article>

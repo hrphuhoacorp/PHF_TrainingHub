@@ -21,6 +21,7 @@ const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePrevi
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('../lib/knl-permissions');
 const { listKnlPeople } = require('../lib/knl-people');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('../lib/employee-master');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -91,6 +92,11 @@ module.exports = async function handler(req, res) {
       const classroomNotificationsMode = String(req.query?.classroomNotifications || '') === '1';
       const classroomSettingsMode = String(req.query?.classroomSettings || '') === '1';
       const checklistWorkspaceMode = String(req.query?.checklistWorkspace || '') === '1';
+      const employeeMasterMode = String(req.query?.employeeMaster || '') === '1';
+      if(employeeMasterMode){
+        const key=String(req.query?.key||'').trim();
+        return res.status(200).json({ok:true,...(key?await getEmployeeMasterDetail(session,{key}):await listEmployeeMaster(session))});
+      }
       if (checklistWorkspaceMode) {
         const [workspace, templateData, violationMode] = await Promise.all([
           getChecklistRoleWorkspace(session),
@@ -268,6 +274,15 @@ module.exports = async function handler(req, res) {
       const classroomNotificationsMode = String(req.query?.classroomNotifications || '') === '1';
       const classroomSettingsMode = String(req.query?.classroomSettings || '') === '1';
       const checklistWorkspaceMode = String(req.query?.checklistWorkspace || '') === '1';
+      const employeeMasterMode = String(req.query?.employeeMaster || '') === '1';
+      if(employeeMasterMode){
+        const action=String(payload.action||'').trim();
+        if(action==='saveProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterProfile(session,payload)});
+        if(action==='savePrivateProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
+        if(action==='saveContract')return res.status(200).json({ok:true,...await saveEmployeeMasterContract(session,payload)});
+        if(action==='saveCompensation')return res.status(200).json({ok:true,...await saveEmployeeMasterCompensation(session,payload)});
+        throw new RequestError('Thao tác Employee Master không hợp lệ.',400,'EMPLOYEE_MASTER_ACTION_INVALID');
+      }
       if(classroomSettingsMode){
         const action=String(payload.action||'').trim();
         if(action==='saveSettings') return res.status(200).json({ok:true,...await saveSettings(session,payload)});

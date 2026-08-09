@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/phf-check-js.js",
+    "test:employee-master": "node scripts/test-employee-master.js",
     "smoke": "node scripts/phf-production-smoke-test.js",
     "release:clean": "node scripts/phf-clean-release.js"
   },

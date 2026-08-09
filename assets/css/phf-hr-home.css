@@ -1,4 +1,5 @@
 :root{--hr-green:#075d43;--hr-dark:#073f31;--hr-text:#163f31;--hr-muted:#64746d;--hr-line:#dce8df;--hr-bg:#f7faf8}
+.phf-hr-modules .is-people{grid-column:1/-1;min-height:220px;background:linear-gradient(135deg,#f7fcf9,#edf8f3)}.phf-hr-modules .is-people .phf-hr-card-head>span{background:#dff3e9;color:#07543e}.phf-hr-modules .is-people .phf-hr-card-head h2,.phf-hr-modules .is-people .phf-hr-card-head b{color:#07543e}
 html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!important}
 .phf-hr-root{min-height:100vh;background:var(--hr-bg);color:var(--hr-text);font-family:Arial,Helvetica,system-ui,sans-serif}.phf-hr-root[hidden]{display:none!important}.phf-hr-root,.phf-hr-root *{box-sizing:border-box}.phf-hr-root svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .phf-hr-home{min-height:100vh;background:linear-gradient(180deg,#fff 0,#f7faf8 115px,#f8fbf9 100%)}
