@@ -1,7 +1,7 @@
 {
-  "version": "1.49.0",
-  "fingerprint": "1.49.0-knl-survey-v1-migration-gate",
-  "builtAt": "2026-08-10T00:31:00+07:00",
-  "notes": "1.49.0: KNL Survey V1 released; Production migration and delete-guard hotfix verified, integration smoke passed and test data cleaned.",
-  "build": "1.49.0"
+  "version": "1.49.1",
+  "fingerprint": "1.49.1-knl-navigation-performance",
+  "builtAt": "2026-08-10T01:01:26+07:00",
+  "notes": "1.49.1: KNL navigation performance batch; persistent shell, scoped in-memory read cache, panel loading, preserved route state and parallel permission reads. No migration or business-rule changes.",
+  "build": "1.49.1"
 }
