@@ -1,0 +1,23 @@
+'use strict';
+const fs=require('fs');
+const path=require('path');
+const assert=require('assert');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const floating=read('assets/js/ai/phf-ai-floating.js');
+const sandboxUi=read('assets/js/ai/phf-ai-sandbox.js');
+const router=read('assets/js/phf-url-router.js');
+const chatApi=read('api/ai/chat.js');
+const conversationsApi=read('api/ai/conversations.js');
+const server=read('server.js');
+const {requireAiAdmin}=require('../lib/ai-sandbox');
+
+assert.doesNotThrow(()=>requireAiAdmin({role:'admin'}),'Admin must be allowed.');
+for(const role of ['manager','learner','employee',''])assert.throws(()=>requireAiAdmin({role}),error=>error&&error.statusCode===403&&error.code==='AI_ADMIN_REQUIRED',`${role||'empty'} must be denied.`);
+assert(floating.includes('var ALLOWED_ROLES = { admin: true };')&&!/manager:\s*true|learner:\s*true/.test(floating),'Floating AI visibility is not Admin-only.');
+assert(sandboxUi.includes("if(currentRole!=='admin')"),'Full-page AI renderer lacks its own role guard.');
+assert(router.includes("'/admin/ai-sandbox':Object.freeze({area:'admin',screen:'ai-sandbox',roles:['admin']})"),'AI route is not Admin-only.');
+assert(chatApi.includes("requireSession(req, ['admin'])")&&conversationsApi.includes("requireSession(req, ['admin'])"),'Vercel AI APIs are not Admin-only.');
+const serverAdminGuards=(server.match(/requireSession\(req, \['admin'\]\)/g)||[]).length;
+assert(serverAdminGuards>=2,'Node runtime AI APIs are not both Admin-only.');
+console.log('PHF AI Admin-only tests: Admin ALLOW; Manager/Employee DENY — PASS');

@@ -1,7 +1,7 @@
 {
-  "version": "1.46.1",
-  "fingerprint": "1.46.1-employee-master-ui-navigation",
-  "builtAt": "2026-08-09T22:00:00+07:00",
-  "notes": "1.46.1: UI/navigation polish for PHF HR Employee Master. The canonical /admin/nhan-su route now uses a standalone PHF HR shell, while legacy account routes remain compatible. List filters, metrics and employee detail navigation are clearer and responsive; schema, APIs, permissions and business rules are unchanged.",
-  "build": "1.46.1"
+  "version": "1.46.2",
+  "fingerprint": "1.46.2-employee-profile-v1-ai-admin-only",
+  "builtAt": "2026-08-09T23:30:00+07:00",
+  "notes": "1.46.2: Employee Profile V1 maps work organization to checklist_employee_assignments, adds the approved personal baseline, limits contract and compensation forms to V1 scope, and keeps account auth unchanged. PHF AI is fail-closed for Admin only across UI, route and backend APIs.",
+  "build": "1.46.2"
 }

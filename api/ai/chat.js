@@ -9,8 +9,8 @@ const { requireSession } = require('../../lib/auth');
 const { send, sendError, requestBody } = require('../../lib/api-response');
 const { runChatSandbox } = require('../../lib/ai-sandbox');
 
-/* PHF AI Sandbox - Vercel serverless function. Mo cho ca 3 role (admin/
-   manager/learner) - AI co the doc (KHONG ghi) Checklist/Nhan su/KNL/
+/* PHF AI Sandbox - Vercel serverless function. Chi Admin duoc truy cap.
+   AI co the doc (KHONG ghi) Checklist/Nhan su/KNL/
    Training Hub/Classroom qua TOOL REGISTRY whitelist trong
    lib/ai-tool-registry.js. MOI tool tu derive quyen tu session that (xem
    TRACE AI COVERAGE) - AI KHONG co quyen doc lap, khong hard-code theo
@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     assertJsonContentType(req);
     assertContentLength(req);
 
-    const session = await requireSession(req, ['admin', 'manager', 'learner']);
+    const session = await requireSession(req, ['admin']);
     const body = requestBody(req);
     const outcome = await runChatSandbox(session, body.messages);
     return send(res, 200, {ok:true,reply:outcome.reply,result:outcome.result || null,actions:outcome.actions || null});

@@ -1,19 +1,17 @@
 (function(){
   'use strict';
 
-  /* PHF AI - Floating Assistant. Hien tren MOI trang cho ca 3 role da dang
-     nhap (admin/manager/learner), khong doi route khi mo/dong. Dung CHUNG
+  /* PHF AI - Floating Assistant. Chi hien cho session Admin da xac thuc,
+     khong doi route khi mo/dong. Dung CHUNG
      endpoint/orchestration/renderer voi /admin/ai-sandbox qua
      window.PHFAiEngine.mount() - khong co AI implementation rieng. An/hien
-     CHI la UX: backend van tu enforce requireSession(['admin','manager',
-     'learner']) doc lap, tung tool tu derive quyen tu session - khong coi
-     day la security. */
+     CHI la UX: backend van fail-closed theo session Admin doc lap. */
 
   var mounted = false;
   var controller = null;
   var open = false;
   var root, iconBtn, panel;
-  var ALLOWED_ROLES = { admin: true, manager: true, learner: true };
+  var ALLOWED_ROLES = { admin: true };
 
   function isAllowedRole(){
     try { return !!(window.phfGetSessionRole && ALLOWED_ROLES[String(window.phfGetSessionRole() || '').toLowerCase()]); }

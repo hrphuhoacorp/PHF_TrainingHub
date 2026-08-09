@@ -1,0 +1,25 @@
+'use strict';
+const fs=require('fs');
+const path=require('path');
+const assert=require('assert');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const migration=read('scripts/PHF_HR_EMPLOYEE_PROFILE_V1_1.46.2.sql');
+const service=read('lib/employee-master.js');
+const assignments=read('lib/checklist-assignments.js');
+const ui=read('assets/js/phf-employee-master.js');
+const checklistUi=read('assets/js/checklist/phf-checklist-app.js');
+
+for(const field of ['nationality','ethnicity','personal_tax_code','social_insurance_code'])assert(migration.includes(field),`Migration missing ${field}`);
+assert(/checklist_employee_assignments[\s\S]*add column if not exists position/.test(migration),'Organization source is missing position.');
+assert(migration.includes('old_row.position')&&migration.includes("item->>'position'"),'Assignment RPC does not preserve position/history.');
+assert(assignments.includes('position:text(row.position)')&&assignments.includes('position:r.position'),'Checklist service does not map position both ways.');
+assert(service.includes("row.position=text(item.position)")&&service.includes("organization:'checklist_employee_assignments"),'Employee service does not map organization from checklist assignments.');
+assert(!service.includes("if(!row.title)row.title=text(item.position)")&&!service.includes("if(!row.department)row.department=text(item.department)"),'Account fields must not become organization truth.');
+assert(checklistUi.includes("row.title||row.jobTitle")&&checklistUi.includes('function employeePositionOf'),'Title and position are not separated in Checklist mapping.');
+for(const label of ['Ngày vào làm','Thâm niên','Chức danh','Chức vụ','Quốc tịch','Dân tộc','MST cá nhân','Mã BHXH'])assert(ui.includes(label),`Employee Profile V1 UI missing ${label}`);
+for(const forbidden of ['Phụ cấp / thành phần','Tiền tệ','Ngày chính thức','Ảnh đại diện (URL)','Địa chỉ thường trú','Địa chỉ hiện tại / tạm trú'])assert(!ui.includes(forbidden),`Out-of-scope field remains visible: ${forbidden}`);
+assert(ui.includes("save('saveCompensation',{baseSalary:val('emBaseSalary')}")&&!ui.includes('emAllowances'),'Compensation V1 must submit current salary only.');
+assert(ui.includes("contractType:val('emContractType')")&&!ui.includes('emContractNote'),'Contract V1 contains fields outside the approved baseline.');
+assert(ui.includes('Sẽ triển khai ở batch tiếp theo')&&!ui.includes('data-em-import'),'Full Excel import must remain unavailable in this batch.');
+console.log('Employee Profile V1 tests: PASS');

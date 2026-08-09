@@ -11,8 +11,8 @@ const {
   listConversations, getConversation, createConversation, appendMessages, deleteConversation
 } = require('../../lib/ai-conversations');
 
-/* PHF AI - Lich su hoi thoai (Batch C), Vercel serverless function. Mo cho
-   ca 3 role giong /api/ai/chat. 1 endpoint, dispatch theo body.action -
+/* PHF AI - Lich su hoi thoai (Batch C), Vercel serverless function. Chi
+   Admin duoc truy cap giong /api/ai/chat. 1 endpoint, dispatch theo body.action -
    dung pattern "action string trong body" da co san trong repo (vd
    /api/data?smokeChecklist=1), tranh mo them nhieu route/file moi. Moi
    action tu doi chieu quyen so huu (account_id) trong
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
     assertJsonContentType(req);
     assertContentLength(req);
 
-    const session = await requireSession(req, ['admin', 'manager', 'learner']);
+    const session = await requireSession(req, ['admin']);
     const body = requestBody(req);
     const action = String(body.action || '').trim();
     const run = ACTIONS[action];

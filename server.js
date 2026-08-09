@@ -353,7 +353,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/ai/chat' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session = await requireSession(req, ['admin', 'manager', 'learner']);
+      const session = await requireSession(req, ['admin']);
       const raw = await readBody(req); let body = {};
       try { body = JSON.parse(raw || '{}'); }
       catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }
@@ -363,7 +363,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/ai/conversations' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session = await requireSession(req, ['admin', 'manager', 'learner']);
+      const session = await requireSession(req, ['admin']);
       const raw = await readBody(req); let body = {};
       try { body = JSON.parse(raw || '{}'); }
       catch { throw new RequestError('Dữ liệu gửi lên không hợp lệ.', 400, 'JSON_INVALID'); }

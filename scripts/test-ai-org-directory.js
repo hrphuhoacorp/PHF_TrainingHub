@@ -270,7 +270,7 @@ async function run() {
     };
   };
   try {
-    const integrationSession = { account: { id: 'learner-dsml-integration-1' }, role: 'learner' };
+    const integrationSession = { account: { id: 'admin-dsml-integration-1' }, role: 'admin' };
     const chatResult = await runChatSandbox(integrationSession, [{ role: 'user', content: 'PHF078 báo cáo cho ai?' }]);
     assert.strictEqual(chatResult.reply, naturalAnswerThenLeak, 'reply cuoi cung tra ve nguoi dung PHAI la phan tu nhien da cat bo leak, khong duoc la rawContent nguyen van (loi dot 2)');
     assert.strictEqual(looksLikeLeakedToolProtocol(chatResult.reply), false, 'reply cuoi cung TUYET DOI khong duoc con dau hieu giao thuc noi bo');

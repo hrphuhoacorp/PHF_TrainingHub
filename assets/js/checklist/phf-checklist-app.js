@@ -1861,6 +1861,7 @@
   function isSystemEmployee(row){var text=(employeeNameOf(row)+' '+employeeCodeOf(row)).toLowerCase();return text.indexOf('admin test')>=0||text.indexOf('admin-test')>=0||String(row&&row.accountType||'').toLowerCase()==='system_admin';}
   var CHECKLIST_DEPARTMENT_STORE='phf_checklist_department_overrides_v1';
   var CHECKLIST_TITLE_STORE='phf_checklist_title_assignments_v1';
+  var CHECKLIST_POSITION_STORE='phf_checklist_position_assignments_v1';
   var CHECKLIST_FORM_ASSIGNMENT_STORE='phf_checklist_form_assignments_v1';
   var CHECKLIST_HIDDEN_EMPLOYEES_STORE='phf_checklist_hidden_unlinked_employees_v1';
   var CHECKLIST_BRANCH_STORE='phf_checklist_branch_assignments_v1';
@@ -1870,18 +1871,18 @@
   var pendingBranchChange=null;
   var checklistAssignmentDbState={suppress:false,timer:null,inflight:null,lastError:'',ready:false,revision:0,settledRevision:0,baseline:{},versions:{},retryTimer:null,retryCount:0,retryScheduled:false,blocked:false};
   function assignmentComparable(row){
-    return JSON.stringify([row.employeeId||'',row.employeeCode||'',row.employeeName||'',row.department||'',row.title||'',row.branch||'',row.managerId||'',row.managerCode||'',row.managerName||'',row.employeeStatus||'Đang làm việc',row.leaveUntil||'',row.statusNote||'',row.templateId||'',row.templateVersion||'',row.effectiveDate||'',row.reason||'']);
+    return JSON.stringify([row.employeeId||'',row.employeeCode||'',row.employeeName||'',row.department||'',row.title||'',row.position||'',row.branch||'',row.managerId||'',row.managerCode||'',row.managerName||'',row.employeeStatus||'Đang làm việc',row.leaveUntil||'',row.statusNote||'',row.templateId||'',row.templateVersion||'',row.effectiveDate||'',row.reason||'']);
   }
   function assignmentMetaForItem(item){
-    var key=formAssignmentKey(item),title=loadTitleAssignments()[titleAssignmentKey(item)]||{},branch=loadBranchAssignments()[branchAssignmentKey(item)]||{},manager=loadManagerAssignments()[managerAssignmentKey(item)]||{},status=loadEmployeeStatusAssignments()[employeeStatusAssignmentKey(item)]||{},form=loadFormAssignments()[key]||{};
-    var candidates=[form,status,manager,branch,title],meta={effectiveDate:'',reason:'',updatedAt:''};
+    var key=formAssignmentKey(item),title=loadTitleAssignments()[titleAssignmentKey(item)]||{},position=loadPositionAssignments()[key]||{},branch=loadBranchAssignments()[branchAssignmentKey(item)]||{},manager=loadManagerAssignments()[managerAssignmentKey(item)]||{},status=loadEmployeeStatusAssignments()[employeeStatusAssignmentKey(item)]||{},form=loadFormAssignments()[key]||{};
+    var candidates=[form,status,manager,branch,position,title],meta={effectiveDate:'',reason:'',updatedAt:''};
     candidates.forEach(function(x){if(!x)return;if(!meta.effectiveDate&&x.effectiveDate)meta.effectiveDate=x.effectiveDate;if(!meta.reason&&x.reason)meta.reason=x.reason;if(!meta.updatedAt&&x.updatedAt)meta.updatedAt=x.updatedAt;});
-    return {title:title,branch:branch,manager:manager,status:status,form:form,meta:meta};
+    return {title:title,position:position,branch:branch,manager:manager,status:status,form:form,meta:meta};
   }
   function checklistAssignmentPayload(){
     return checklistEmployees().map(function(item){
       var x=assignmentMetaForItem(item),key=formAssignmentKey(item);
-      return {employeeKey:key,employeeId:item.id||'',employeeCode:item.code||'',employeeName:item.name||'',department:item.department||'',title:item.title||'',branch:item.branch||'',managerId:item.managerId||'',managerCode:item.managerCode||'',managerName:item.managerName||'',employeeStatus:item.employeeStatus||'Đang làm việc',leaveUntil:item.leaveUntil||'',statusNote:item.statusNote||'',templateId:x.form.templateId||'',templateVersion:x.form.templateVersion||'',effectiveDate:x.meta.effectiveDate||todayIso(),reason:x.meta.reason||'Đồng bộ cấu hình Checklist',expectedUpdatedAt:checklistAssignmentDbState.versions[key]||'',expectedAbsent:!Object.prototype.hasOwnProperty.call(checklistAssignmentDbState.baseline,key)};
+      return {employeeKey:key,employeeId:item.id||'',employeeCode:item.code||'',employeeName:item.name||'',department:item.department||'',title:item.title||'',position:item.position||'',branch:item.branch||'',managerId:item.managerId||'',managerCode:item.managerCode||'',managerName:item.managerName||'',employeeStatus:item.employeeStatus||'Đang làm việc',leaveUntil:item.leaveUntil||'',statusNote:item.statusNote||'',templateId:x.form.templateId||'',templateVersion:x.form.templateVersion||'',effectiveDate:x.meta.effectiveDate||todayIso(),reason:x.meta.reason||'Đồng bộ cấu hình Checklist',expectedUpdatedAt:checklistAssignmentDbState.versions[key]||'',expectedAbsent:!Object.prototype.hasOwnProperty.call(checklistAssignmentDbState.baseline,key)};
     });
   }
   function scheduleChecklistAssignmentsPersist(){
@@ -1921,15 +1922,17 @@
     var rows=data&&Array.isArray(data.checklistAssignments)?data.checklistAssignments:[];
     checklistAssignmentDbState.ready=!!(data&&data.checklistAssignmentsReady);checklistAssignmentDbState.lastError=normalizeText(data&&data.checklistAssignmentsError);checklistAssignmentDbState.blocked=false;checklistAssignmentDbState.retryCount=0;checklistAssignmentDbState.retryScheduled=false;clearTimeout(checklistAssignmentDbState.retryTimer);
     if(!checklistAssignmentDbState.ready||!rows.length){if(checklistAssignmentDbState.ready&&!rows.length)setTimeout(scheduleChecklistAssignmentsPersist,100);return;}
-    var departments={},titles={},branches={},managers={},statuses={},forms={};
-    rows.forEach(function(row){var key=normalizeText(row.employeeKey||row.employeeCode||row.employeeId).toLowerCase();if(!key)return;departments[key]=normalizeText(row.department);titles[key]={title:normalizeText(row.title),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};branches[key]={branch:normalizeText(row.branch),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};managers[key]={managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};statuses[key]={status:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',note:row.statusNote||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};if(row.templateId)forms[key]={templateId:normalizeLegacyTemplateId(row.templateId),templateVersion:(row.templateId==='nv-thu-mua'?'TBP-TM-1.0':(row.templateVersion||'')),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};checklistAssignmentDbState.versions[key]=row.updatedAt||'';checklistAssignmentDbState.baseline[key]=assignmentComparable({employeeId:row.employeeId||'',employeeCode:row.employeeCode||'',employeeName:row.employeeName||'',department:row.department||'',title:row.title||'',branch:row.branch||'',managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',employeeStatus:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',statusNote:row.statusNote||'',templateId:row.templateId||'',templateVersion:row.templateVersion||'',effectiveDate:row.effectiveDate||'',reason:row.reason||''});});
+    var departments={},titles={},positions={},branches={},managers={},statuses={},forms={};
+    rows.forEach(function(row){var key=normalizeText(row.employeeKey||row.employeeCode||row.employeeId).toLowerCase();if(!key)return;departments[key]=normalizeText(row.department);titles[key]={title:normalizeText(row.title),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};positions[key]={position:normalizeText(row.position),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};branches[key]={branch:normalizeText(row.branch),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};managers[key]={managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};statuses[key]={status:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',note:row.statusNote||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};if(row.templateId)forms[key]={templateId:normalizeLegacyTemplateId(row.templateId),templateVersion:(row.templateId==='nv-thu-mua'?'TBP-TM-1.0':(row.templateVersion||'')),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};checklistAssignmentDbState.versions[key]=row.updatedAt||'';checklistAssignmentDbState.baseline[key]=assignmentComparable({employeeId:row.employeeId||'',employeeCode:row.employeeCode||'',employeeName:row.employeeName||'',department:row.department||'',title:row.title||'',position:row.position||'',branch:row.branch||'',managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',employeeStatus:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',statusNote:row.statusNote||'',templateId:row.templateId||'',templateVersion:row.templateVersion||'',effectiveDate:row.effectiveDate||'',reason:row.reason||''});});
     checklistAssignmentDbState.suppress=true;
-    try{localStorage.setItem(CHECKLIST_DEPARTMENT_STORE,JSON.stringify(departments));localStorage.setItem(CHECKLIST_TITLE_STORE,JSON.stringify(titles));localStorage.setItem(CHECKLIST_BRANCH_STORE,JSON.stringify(branches));localStorage.setItem(CHECKLIST_MANAGER_STORE,JSON.stringify(managers));localStorage.setItem(CHECKLIST_EMPLOYEE_STATUS_STORE,JSON.stringify(statuses));localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(forms));}catch(_e){}
+    try{localStorage.setItem(CHECKLIST_DEPARTMENT_STORE,JSON.stringify(departments));localStorage.setItem(CHECKLIST_TITLE_STORE,JSON.stringify(titles));localStorage.setItem(CHECKLIST_POSITION_STORE,JSON.stringify(positions));localStorage.setItem(CHECKLIST_BRANCH_STORE,JSON.stringify(branches));localStorage.setItem(CHECKLIST_MANAGER_STORE,JSON.stringify(managers));localStorage.setItem(CHECKLIST_EMPLOYEE_STATUS_STORE,JSON.stringify(statuses));localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(forms));}catch(_e){}
     checklistAssignmentDbState.suppress=false;
     checklistAssignmentDbState.settledRevision=checklistAssignmentDbState.revision;
   }
-  function employeeTitleOf(row){return normalizeText(row&&((row.position||row.positionName||row.position_name||row.title||row.jobTitle||row.job_title||row.chucDanh||row.chuc_danh)));}
+  function employeeTitleOf(row){return normalizeText(row&&((row.title||row.jobTitle||row.job_title||row.chucDanh||row.chuc_danh)));}
+  function employeePositionOf(row){return normalizeText(row&&((row.position||row.positionName||row.position_name||row.chucVu||row.chuc_vu)));}
   function loadTitleAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_TITLE_STORE)||'{}');return x&&typeof x==='object'?x:{};}catch(_e){return {};}}
+  function loadPositionAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_POSITION_STORE)||'{}');return x&&typeof x==='object'?x:{};}catch(_e){return {};}}
   function saveTitleAssignments(value){try{localStorage.setItem(CHECKLIST_TITLE_STORE,JSON.stringify(value||{}));scheduleChecklistAssignmentsPersist();}catch(_e){}}
   function loadFormAssignments(){try{var x=JSON.parse(localStorage.getItem(CHECKLIST_FORM_ASSIGNMENT_STORE)||'{}');if(!(x&&typeof x==='object'))return {};var changed=false;Object.keys(x).forEach(function(k){if(x[k]&&x[k].templateId==='nv-thu-mua'){x[k].templateId='tbp-thu-mua';x[k].templateVersion='TBP-TM-1.0';changed=true;}});if(changed)localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(x));return x;}catch(_e){return {};}}
   function saveFormAssignments(value){try{localStorage.setItem(CHECKLIST_FORM_ASSIGNMENT_STORE,JSON.stringify(value||{}));scheduleChecklistAssignmentsPersist();return true;}catch(_e){return false;}}
@@ -2139,11 +2142,13 @@
       var name=employeeNameOf(account)||employeeNameOf(row)||(isAdmin?'Admin hệ thống':'Tài khoản chưa đặt tên');
       var mergedCode=code||employeeCodeOf(row)||(isAdmin?'ADMIN':'');
       var department=employeeDepartmentOf(row)||employeeDepartmentOf(account)||(isAdmin?'Quản trị hệ thống':'');
-      var sourceTitle=employeeTitleOf(row)||employeeTitleOf(account)||(isAdmin?'Admin hệ thống':'');
+      var sourceTitle=employeeTitleOf(row)||(isAdmin?'Admin hệ thống':'');
+      var sourcePosition='';
       var sourceBranch=employeeBranchOf(row)||employeeBranchOf(account);
-      var item={id:id,code:mergedCode,name:name,department:department,title:sourceTitle,branch:sourceBranch,raw:row||account,account:account,isSystemAdmin:isAdmin};
+      var item={id:id,code:mergedCode,name:name,department:department,title:sourceTitle,position:sourcePosition,branch:sourceBranch,raw:row||account,account:account,isSystemAdmin:isAdmin};
       var key=departmentKey(item);if(overrides[key])item.department=normalizeText(overrides[key]);
       var titleAssigned=loadTitleAssignments()[titleAssignmentKey(item)];if(titleAssigned&&titleAssigned.title)item.title=normalizeText(titleAssigned.title);
+      var positionAssigned=loadPositionAssignments()[formAssignmentKey(item)];if(positionAssigned)item.position=normalizeText(positionAssigned.position);
       var branchAssigned=loadBranchAssignments()[branchAssignmentKey(item)];if(branchAssigned&&branchAssigned.branch)item.branch=normalizeText(branchAssigned.branch);
       var managerAssigned=loadManagerAssignments()[managerAssignmentKey(item)];
       item.managerId=normalizeText(managerAssigned&&managerAssigned.managerId);item.managerName=normalizeText(managerAssigned&&managerAssigned.managerName);item.managerCode=normalizeText(managerAssigned&&managerAssigned.managerCode);
@@ -2159,7 +2164,7 @@
     var q=normalizeText(peopleUiState.query).toLowerCase();
     var rows=checklistEmployees().filter(function(item){
       if(!q)return true;
-      return (item.name+' '+item.code+' '+item.department+' '+item.title+' '+item.branch+' '+item.managerName+' '+item.employeeStatus).toLowerCase().indexOf(q)>=0;
+      return (item.name+' '+item.code+' '+item.department+' '+item.title+' '+item.position+' '+item.branch+' '+item.managerName+' '+item.employeeStatus).toLowerCase().indexOf(q)>=0;
     });
     var sort=peopleUiState.sort||'name-asc',parts=sort.split('-'),field=parts[0],dir=parts[1]==='desc'?-1:1;
     var map={name:'name',code:'code',department:'department',title:'title',branch:'branch',status:'employeeStatus'};

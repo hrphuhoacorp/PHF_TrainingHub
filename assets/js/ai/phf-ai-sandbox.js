@@ -17,6 +17,12 @@
   }
 
   window.phfRenderAiSandbox = function(path){
+    var currentRole='';
+    try { currentRole=String(window.phfGetSessionRole?window.phfGetSessionRole():'').toLowerCase(); } catch (e) {}
+    if(currentRole!=='admin'){
+      if(window.phfNavigate)window.phfNavigate(currentRole==='manager'?'/ql':'/hv',true);
+      return false;
+    }
     if (window.PHFAppShell) window.PHFAppShell.activateAiSandbox(path);
     var root = document.getElementById('phfAiSandboxRoot');
     if (!root || !window.PHFAiEngine) return false;
