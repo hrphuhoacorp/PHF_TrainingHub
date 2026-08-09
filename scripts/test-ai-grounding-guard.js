@@ -3,34 +3,48 @@
    Hub 43 vs 120 bai semantics (P1). Chay logic san xuat that
    (lib/ai-sandbox.js#enforceGrounding, lib/ai-tool-registry.js#
    buildStructuredResult, lib/ai-training-tools.js#getTrainingProgramOverview,
-   lib/ai-employee-tools.js#searchEmployees) - khong goi DeepSeek/Supabase
-   that, checklist-permissions duoc stub qua require.cache (xem stubChecklistPermissions). */
+   lib/ai-employee-tools.js#searchEmployees -> lib/org-directory.js) - khong
+   goi DeepSeek/Supabase that. lib/org-directory.js tu goi createClient()
+   cua @supabase/supabase-js, nen o day stub THANG module do qua
+   require.cache (xem stubSupabaseRows) de logic filter/search THAT cua
+   org-directory.js chay tren fixture, khong phai code test tu viet lai. */
 
 const assert = require('assert');
-const path = require('path');
 
-const checklistPermissionsPath = require.resolve('../lib/checklist-permissions');
+const SUPABASE_MODULE_PATH = require.resolve('@supabase/supabase-js');
 
-function stubChecklistPermissions(people) {
-  require.cache[checklistPermissionsPath] = {
-    id: checklistPermissionsPath,
-    filename: checklistPermissionsPath,
-    loaded: true,
-    exports: { getChecklistReportAccess: async () => ({ role: 'admin', people }) }
+function stubSupabaseRows(rows) {
+  const fakeQuery = {
+    select() { return this; },
+    neq() { return this; },
+    order() { return this; },
+    limit() { return Promise.resolve({ data: rows, error: null }); }
   };
+  require.cache[SUPABASE_MODULE_PATH] = {
+    id: SUPABASE_MODULE_PATH,
+    filename: SUPABASE_MODULE_PATH,
+    loaded: true,
+    exports: { createClient: () => ({ from: () => fakeQuery }) }
+  };
+  delete require.cache[require.resolve('../lib/org-directory')];
   delete require.cache[require.resolve('../lib/ai-employee-tools')];
 }
 
-function fixtureEmployees(total) {
+// Row shape THAT dung tren Supabase (snake_case) - khop dung cot
+// lib/org-directory.js#loadDirectoryRows dang select, khong phai shape
+// camelCase cua publicPerson() (do la output, khong phai input).
+function fixtureRows(total) {
   const list = [];
   for (let i = 0; i < total; i++) {
     list.push({
-      employeeCode: 'PHF' + String(i + 1).padStart(3, '0'),
-      employeeName: 'Nhân viên ' + (i + 1),
+      employee_id: 'emp-' + (i + 1),
+      employee_code: 'PHF' + String(i + 1).padStart(3, '0'),
+      employee_name: 'Nhân viên ' + (i + 1),
       title: i === 0 ? 'Trợ lý Giám đốc' : (i === 1 ? 'Trưởng ca' : 'Nhân viên'),
       department: 'Bán hàng',
       branch: i === 1 ? 'Phú Lợi' : 'Ngô Quyền',
-      employeeStatus: 'Đang làm việc'
+      manager_code: '', manager_name: '',
+      employee_status: 'Đang làm việc'
     });
   }
   return list;
@@ -38,12 +52,18 @@ function fixtureEmployees(total) {
 
 async function run() {
   // ---- A. Employee grounding guard (P0 "38 nhan vien" repro) ----
-  stubChecklistPermissions(fixtureEmployees(38));
+  stubSupabaseRows(fixtureRows(38));
   const { searchEmployees } = require('../lib/ai-employee-tools');
   const { buildStructuredResult } = require('../lib/ai-tool-registry');
   const { enforceGrounding } = require('../lib/ai-sandbox');
 
-  const searchResult = await searchEmployees({ account: { id: 'admin-1' }, role: 'admin' }, { limit: 10 });
+  // Session hoc vien thuong (KHONG phai admin, KHONG co grant Checklist
+  // nao) - xac nhan chinh sach "Organization Directory mo cho TAT CA role"
+  // ngay trong test P0 nay (org-directory.js#ensureSession chi doi hoi
+  // session ton tai, khong doi hoi role/grant).
+  const learnerSession = { account: { id: 'learner-1' }, role: 'learner' };
+
+  const searchResult = await searchEmployees(learnerSession, { limit: 10 });
   assert.strictEqual(searchResult.total, 38, 'fixture total phai la 38');
   const structured = buildStructuredResult('search_employees', searchResult);
   assert.ok(structured, 'buildStructuredResult khong duoc null voi fixture co du lieu');
@@ -64,10 +84,10 @@ async function run() {
   console.log('[PASS] A2: reply da co caveat dung thi giu nguyen, khong ghi de thua');
 
   // Title filter (chuc danh) - "Truong ca Phu Loi hien tai la ai"
-  const titleResult = await searchEmployees({ account: { id: 'admin-1' }, role: 'admin' }, { title: 'Trưởng ca', branch: 'Phú Lợi' });
+  const titleResult = await searchEmployees(learnerSession, { title: 'Trưởng ca', branch: 'Phú Lợi' });
   assert.strictEqual(titleResult.total, 1, 'loc theo title+branch phai ra dung 1 nguoi');
   assert.strictEqual(titleResult.employees[0].employeeName, 'Nhân viên 2');
-  console.log('[PASS] A3: search_employees loc dung theo title+branch (Truong ca Phu Loi)');
+  console.log('[PASS] A3: search_employees loc dung theo title+branch (Truong ca Phu Loi), tai khoan hoc vien thuong van goi duoc (khong can grant Checklist)');
 
   // ---- B. Training Hub 43 vs 120 (P1) ----
   const { getTrainingProgramOverview } = require('../lib/ai-training-tools');
