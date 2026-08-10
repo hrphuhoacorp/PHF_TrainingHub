@@ -1,7 +1,7 @@
 {
-  "version": "1.50.3",
-  "fingerprint": "1.50.3-knl-compensation-versioning-crud",
+  "version": "1.50.4",
+  "fingerprint": "1.50.4-knl-compensation-ux-reconciliation",
   "builtAt": "2026-08-10T00:00:00+07:00",
-  "notes": "1.50.3: compensation domain becomes a 4-tab HR operating tool (Cơ cấu ngạch & bậc CRUD with clone-to-Draft/schedule-activate, Gán cho nhân viên, Hồ sơ thu nhập polish, Lịch sử) on top of the 1.50.0 Foundation schema.",
-  "build": "1.50.3"
+  "notes": "1.50.4: compensation UX/information-architecture reconciliation against the approved baseline — structure tab header/KPI amounts/Cơm column/slope legend/click-to-expand scenario detail, income profile identity card + 4-column cách-xác-định table + semantic history (Nâng bậc/Chuyển chính thức/...), isolated cache-busting gate for phf-knl-app.js/phf-knl.css. No schema/RPC change, no baseline data change.",
+  "build": "1.50.4"
 }

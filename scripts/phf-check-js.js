@@ -142,4 +142,27 @@ if((releaseAssetTouched.length||releaseLoaderTouched)&&!releaseBuildInfoTouched)
   assert(false,`RELEASE GATE FAILED: đã sửa ${touched.join(', ')} nhưng build-info.json chưa bump version/fingerprint. Static assets dùng Cache-Control immutable 1 năm - phải đổi build-info.json để trình duyệt tải bản mới.`);
 }
 
-console.log(`CHECK PASS: ${javascriptCount} JS files · API parity · SQL stability gates · no backup artifacts · release fingerprint gate`);
+/* KNL 1.50.4: phf-knl-app.js và phf-knl.css KHÔNG dùng runtime loader
+   phfAssetUrl() — chúng cache-bust qua thẻ <script>/<link> ?v= viết tay
+   trong index.html, riêng biệt với build-info.json. Bump build-info.json
+   không tự động xoay hai thẻ này (đây chính là sự cố đã xảy ra ở 1.50.3:
+   code đã deploy đúng nhưng browser vẫn giữ JS cũ vì quên bump thẻ ?v=).
+   Gate nhỏ, cô lập: nếu 1 trong 2 file này nằm trong changed-files thì thẻ
+   ?v= tương ứng trong index.html phải có giá trị khác so với HEAD. */
+function manualAssetTagChanged(assetHref){
+  const headHtml=gitOutput(['show','HEAD:index.html']);
+  if(!headHtml)return true;
+  const pattern=new RegExp(assetHref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\?v=([^"\']+)');
+  const before=(headHtml.match(pattern)||[])[1];
+  const after=(html.match(pattern)||[])[1];
+  if(before===undefined||after===undefined)return true;
+  return before!==after;
+}
+const MANUAL_VERSIONED_ASSETS=['assets/js/knl/phf-knl-app.js','assets/css/phf-knl.css'];
+MANUAL_VERSIONED_ASSETS.forEach(assetPath=>{
+  if(releaseChangedFiles.includes(assetPath)){
+    assert(manualAssetTagChanged(assetPath),`RELEASE GATE FAILED: đã sửa ${assetPath} nhưng thẻ ?v= tương ứng trong index.html chưa đổi giá trị so với HEAD — browser sẽ giữ mãi bản cache cũ (đúng sự cố đã xảy ra ở 1.50.3). Hãy bump ?v= của asset này trong index.html.`);
+  }
+});
+
+console.log(`CHECK PASS: ${javascriptCount} JS files · API parity · SQL stability gates · no backup artifacts · release fingerprint gate · KNL manual asset-tag gate`);

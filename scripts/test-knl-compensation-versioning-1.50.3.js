@@ -61,7 +61,7 @@ has(ui,"apiPost('saveKnlEmployeeIncome',payload)",'assignment tab reuses existin
 has(ui,'Chính thức','non-technical OFFICIAL label');
 has(ui,'Thử việc','probation label');
 assert(!/<h1>[^<]*OFFICIAL/.test(ui),'income profile must not surface the technical OFFICIAL label as primary UX');
-has(ui,'value="910000"','meal allowance default suggestion 910.000, editable');
+has(ui,'name="mealOverride" value="\'+MEAL_SUGGESTION+\'"','meal allowance default suggestion (910.000 via MEAL_SUGGESTION constant since 1.50.4), editable');
 has(ui,"(rows.length<3?","max three extra allowances enforced client-side too");
 has(ui,'lookup master, không override cá nhân','no personal override note on assignment form');
 has(ui,'Version không phải Draft; chỉ xem','Active/Scheduled/Inactive versions render read-only');

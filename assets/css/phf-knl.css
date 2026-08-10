@@ -167,6 +167,41 @@
 .phfk-comp-extra-row{display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
 @media(max-width:760px){.phfk-comp-extra-row{grid-template-columns:1fr}}
 
+/* KNL 1.50.4 — Compensation UX/IA reconciliation */
+.phfk-kpi-sub{display:block;margin-top:3px;color:var(--phfk-muted);font-size:10.5px;font-weight:700}
+.phfk-comp-context-bar{display:flex;flex-wrap:wrap;gap:20px;align-items:center;padding:14px 16px;margin-bottom:6px;border:1px solid var(--phfk-line);border-radius:12px;background:#fff}
+.phfk-comp-context-bar>div{display:flex;flex-direction:column;gap:4px}
+.phfk-comp-context-bar small{color:var(--phfk-muted);font-size:9.5px;font-weight:800;letter-spacing:.06em}
+.phfk-comp-context-bar b{color:var(--phfk-green-deep);font-size:13px}
+.phfk-pct{font-weight:700}
+.phfk-pct.is-pct-negative,.phfk-pct.is-pct-high{color:#b23b3b}
+.phfk-pct.is-pct-low{color:#3f8f52}
+.phfk-pct.is-pct-normal{color:var(--phfk-ink)}
+.phfk-comp-slope-legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.phfk-comp-slope-legend small{color:var(--phfk-muted);font-size:10px;font-weight:800}
+.phfk-comp-slope-legend span{font-size:10.5px;font-weight:700}
+.phfk-comp-slope-legend span.is-pct-low{color:#3f8f52}
+.phfk-comp-slope-legend span.is-pct-normal{color:var(--phfk-ink)}
+.phfk-comp-slope-legend span.is-pct-high{color:#b23b3b}
+.phfk-comp-grade-detail-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}
+.phfk-comp-detail-parts h3,.phfk-comp-detail-scenarios h3{margin:0 0 10px;font-size:13px;color:var(--phfk-green-deep)}
+.phfk-comp-parts-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.phfk-comp-parts-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #edf2ef;font-size:11.5px}
+.phfk-comp-parts-list li:last-child{border-bottom:0}
+.phfk-comp-parts-list li span{color:#456158}
+.phfk-comp-parts-list li input{width:150px;height:34px;border:1px solid #d8e4de;border-radius:8px;padding:0 10px;font-size:11.5px;text-align:right}
+.phfk-comp-parts-subtotal{background:#f5faf7;margin:0 -4px;padding:8px 4px!important;border-radius:8px;font-weight:800}
+.phfk-comp-parts-subtotal b{color:var(--phfk-green-deep)}
+.phfk-comp-parts-group{color:var(--phfk-muted)!important;font-size:10px!important;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border-bottom:0!important;padding-top:14px!important}
+.phfk-comp-identity{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.phfk-comp-identity-avatar{width:52px;height:52px;border-radius:50%;background:var(--phfk-green-soft);color:var(--phfk-green-deep);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex:0 0 auto}
+.phfk-comp-identity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 16px;flex:1}
+.phfk-comp-identity-fields div{display:flex;flex-direction:column;gap:2px}
+.phfk-comp-identity-fields small{color:var(--phfk-muted);font-size:9.5px;font-weight:800;letter-spacing:.05em}
+.phfk-comp-identity-fields b{color:var(--phfk-ink);font-size:12px}
+@media(max-width:900px){.phfk-comp-grade-detail-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.phfk-comp-context-bar{gap:12px}}
+
 /* KNL Batch 3 — Survey V1. Card form, never a horizontal Excel grid. */
 .phfk-survey-create{margin:0 0 16px}.phfk-survey-create>summary{cursor:pointer;font-weight:800;color:var(--phfk-green-deep)}.phfk-survey-create form{margin-top:18px}.phfk-survey-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px}.phfk-survey-steps b{padding:9px 6px;border-radius:8px;background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-size:10px;text-align:center}.phfk-survey-picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:260px;overflow:auto;padding:8px;border:1px solid var(--phfk-line);border-radius:10px;background:#fbfdfc}.phfk-survey-picks label{padding:8px;border-radius:7px;background:#fff;color:var(--phfk-ink);font-size:11px;cursor:pointer}.phfk-survey-picks label:hover{background:var(--phfk-green-soft)}.phfk-survey-picks label small{display:block;margin:3px 0 0 22px;color:var(--phfk-muted)}.phfk-survey-create fieldset,.phfk-survey-item fieldset{margin:14px 0;padding:0;border:0}.phfk-survey-create legend,.phfk-survey-item legend{margin-bottom:8px;color:var(--phfk-green-deep);font-size:11px;font-weight:800}.phfk-survey-preview{margin:14px 0;padding:12px;border:1px solid #cfe1d7;border-radius:10px;background:#f5faf7;color:#456158;font-size:12px}.phfk-survey-card{margin-bottom:14px}.phfk-survey-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.phfk-survey-card h2{margin:4px 0;font-size:18px}.phfk-survey-card header small,.phfk-survey-card header p{color:var(--phfk-muted);font-size:10px}.phfk-survey-progress{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}.phfk-survey-progress span{padding:10px;border:1px solid var(--phfk-line);border-radius:10px;background:#fbfdfc;color:var(--phfk-muted);font-size:10px}.phfk-survey-progress b{display:block;color:var(--phfk-green-deep);font-size:19px}.phfk-survey-ticket-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.phfk-survey-ticket-list button{padding:10px;border:1px solid var(--phfk-line);border-radius:9px;background:#fff;text-align:left;cursor:pointer}.phfk-survey-ticket-list b,.phfk-survey-ticket-list span{display:block}.phfk-survey-ticket-list b{color:var(--phfk-green-deep);font-size:11px}.phfk-survey-ticket-list span{margin-top:4px;color:var(--phfk-muted);font-size:10px}.phfk-survey-form-head{margin:12px 0 16px}.phfk-survey-form-head h1{margin:5px 0;font-size:21px}.phfk-survey-form-head p{color:var(--phfk-muted)}.phfk-survey-group{margin-bottom:16px}.phfk-survey-group>header{padding-bottom:12px;border-bottom:1px solid var(--phfk-line)}.phfk-survey-group>header h2{margin:0;color:var(--phfk-green-deep)}.phfk-survey-group>header p{margin:4px 0 0;color:var(--phfk-muted)}.phfk-survey-item{padding:18px 0;border-bottom:1px solid #eaf0ed;scroll-margin-top:100px}.phfk-survey-item:last-child{border-bottom:0}.phfk-survey-item.is-invalid{margin:0 -10px;padding:18px 10px;border-radius:10px;background:#fff7f5}.phfk-survey-item h3{margin:0 0 5px;font-size:15px}.phfk-survey-item>p{color:var(--phfk-muted);font-size:11px}.phfk-level-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}.phfk-level-options label{display:block;padding:11px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;cursor:pointer}.phfk-level-options label:has(input:checked){border-color:var(--phfk-green);background:var(--phfk-green-soft)}.phfk-level-options b,.phfk-level-options span{display:block}.phfk-level-options b{margin:-16px 0 5px 24px;color:var(--phfk-green-deep);font-size:11px}.phfk-level-options span{color:#5f756b;font-size:10.5px;line-height:1.5}.phfk-suit-options{display:flex;flex-wrap:wrap;gap:8px}.phfk-suit-options label{padding:9px 12px;border:1px solid var(--phfk-line);border-radius:999px;background:#fff;font-size:11px;cursor:pointer}.phfk-suit-options label:has(input:checked){border-color:var(--phfk-green);background:var(--phfk-green-soft)}.phfk-survey-sticky{position:sticky;bottom:10px;z-index:5;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:10px;border:1px solid var(--phfk-line);border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 9px 28px rgba(20,60,45,.13)}.phfk-survey-sticky span{margin-right:auto;color:var(--phfk-muted);font-size:10px}.phfk-survey-result-select{max-width:420px;margin-bottom:14px}.phfk-table details summary{cursor:pointer;color:var(--phfk-green-deep)}.phfk-table details p{max-width:520px;white-space:normal;line-height:1.5}
 @media(max-width:760px){.phfk-survey-steps{grid-template-columns:1fr}.phfk-survey-picks,.phfk-survey-ticket-list{grid-template-columns:1fr}.phfk-survey-progress{grid-template-columns:repeat(2,1fr)}.phfk-survey-card>header{flex-direction:column}.phfk-level-options{grid-template-columns:1fr}.phfk-survey-sticky{bottom:0;flex-wrap:wrap}.phfk-survey-sticky span{width:100%}.phfk-survey-sticky button{flex:1}}
