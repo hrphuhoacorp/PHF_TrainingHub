@@ -55,7 +55,14 @@ function makeTableFactory(rows) {
 
 const V1 = '11111111-1111-4111-8111-111111111111';
 const STATE = {
-  knl_frameworks: [{ id: 'fw-sales', code: 'SALES', name: 'Bán hàng', description: '', status: 'published', created_at: '2026-01-01', updated_at: '2026-01-01' }],
+  knl_frameworks: [
+    { id: 'fw-sales', code: 'SALES', name: 'Bán hàng', description: '', status: 'published', created_at: '2026-01-01', updated_at: '2026-01-01' },
+    // Framework legacy CUNG TEN (KNL cleanup: v1 bi danh dau inactive nhung
+    // van giu display name giong ban chinh) - updated_at co tinh COV MOI HON
+    // ban active de xac nhan filter status, KHONG PHAI thu tu updated_at, la
+    // thu quyet dinh ket qua (xem test T2b duoi).
+    { id: 'fw-sales-legacy', code: 'SALES_LEGACY_V1', name: 'Bán hàng', description: '', status: 'inactive', created_at: '2025-01-01', updated_at: '2026-06-01' }
+  ],
   knl_framework_versions: [{ id: V1, framework_id: 'fw-sales', version_number: 1, name: 'Version 1', description: '', status: 'published', is_locked: true, locked_reason: '', based_on_version_id: '', published_at: '2026-01-02', lifecycle_status: 'PUBLISHED', effective_from: '', effective_to: '', activated_at: '', updated_at: '2026-01-02' }],
   knl_competency_groups: [
     { id: 'g1', version_id: V1, name: 'Kỹ năng bán hàng', description: '', sort_order: 1, is_active: true },
@@ -141,6 +148,14 @@ async function run() {
   const structuredFw = buildStructuredResult('get_knl_framework', fw);
   assert.strictEqual(structuredFw.evidence.status, 'VERIFIED');
   console.log('[PASS] T1: get_knl_framework theo frameworkCode tra dung cau truc that (2 nhom/3 hang muc/3 muc)');
+
+  // ---- T1b (KNL library cleanup regression) - framework INACTIVE cung ten
+  // ("Bán hàng") KHONG duoc bi chon nham du updated_at cua no MOI HON ban
+  // active - xac nhan findFrameworkByCode loc dung status, khong dua vao
+  // thu tu sap xep ngau nhien ----
+  const fwSameName = await getKnlFrameworkForAi(adminSession, { frameworkCode: 'Bán hàng' });
+  assert.strictEqual(fwSameName.version.id, fw.version.id, 'phai van resolve dung framework ACTIVE (fw-sales), khong duoc trung ban inactive cung ten (fw-sales-legacy)');
+  console.log('[PASS] T1b: framework inactive cùng tên hiển thị KHÔNG được AI chọn nhầm (dù updated_at mới hơn) - đúng bản active');
 
   // ---- T2: "Ca trưởng dùng Bộ KNL nào?" - resolve qua position assignment,
   // KHONG tao framework rieng - phai RA DUNG version voi T1 ----
