@@ -374,8 +374,10 @@
     '/admin/knl/gan-ap-dung':Object.freeze({area:'admin',screen:'knl-assignments',roles:['admin']}),
     '/admin/knl/phien-ban-lich-su':Object.freeze({area:'admin',screen:'knl-version-history',roles:['admin']}),
     '/admin/knl/ngach-bac-luong':Object.freeze({area:'admin',screen:'knl-compensation-standard',roles:['admin']}),
+    '/admin/knl/gan-thu-nhap':Object.freeze({area:'admin',screen:'knl-compensation-assign',roles:['admin']}),
     '/admin/knl/nhan-su':Object.freeze({area:'admin',screen:'knl-people',roles:['admin']}),
     '/admin/knl/co-cau-thu-nhap':Object.freeze({area:'admin',screen:'knl-income',roles:['admin']}),
+    '/admin/knl/lich-su-thu-nhap':Object.freeze({area:'admin',screen:'knl-compensation-history',roles:['admin']}),
     '/admin/knl/phan-quyen':Object.freeze({area:'admin',screen:'knl-permissions',roles:['admin']}),
     '/admin/knl/khao-sat':Object.freeze({area:'admin',screen:'knl-surveys',roles:['admin']}),
     '/admin/knl/ket-qua-khao-sat':Object.freeze({area:'admin',screen:'knl-survey-results',roles:['admin']}),
@@ -431,8 +433,8 @@
   // Object.freeze is shallow; these arrays remain intentionally append-only.
   window.PHF_ROUTE_MAP.learner.push('/hv/knl/co-cau-thu-nhap');
   window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap');
-  window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/co-cau-thu-nhap');
-  window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/co-cau-thu-nhap');
+  window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap');
+  window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap');
 
   function canonicalLegacyPath(path){
     path=cleanPath(path);
@@ -1064,7 +1066,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/tieu-chuan-bac'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/phien-ban-lich-su'||path==='/admin/knl/ngach-bac-luong'||path==='/admin/knl/nhan-su'||path==='/admin/knl/co-cau-thu-nhap'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'){
+      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/tieu-chuan-bac'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/phien-ban-lich-su'||path==='/admin/knl/ngach-bac-luong'||path==='/admin/knl/gan-thu-nhap'||path==='/admin/knl/nhan-su'||path==='/admin/knl/co-cau-thu-nhap'||path==='/admin/knl/lich-su-thu-nhap'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;

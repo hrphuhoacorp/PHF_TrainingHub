@@ -67,7 +67,7 @@ assert.deepStrictEqual(incomeTargetRows(targetFixture,{source:'admin_recovery'},
 ['/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/co-cau-thu-nhap'].forEach(route=>has(router,route,'route '+route));
 has(ui,'Mỗi ô là yêu cầu độc lập; không tính trung bình','no-average UX');
 has(ui,'Có bậc sau thấp hơn bậc trước','lower progression warning');
-has(ui,'Promise.all([apiPost(\'listKnlCompensationStandards\')','parallel foundation reads');
+has(ui,"var calls=[apiPost('listKnlCompensationStandards')]","parallel foundation reads (compensation assignment tab, 1.50.3)");
 has(ui,'ensureKnlShell(root,tab,capabilities,isAdmin','persistent shell retained');
 has(ui,'KNL_READ_CACHE_TTL','in-memory cache retained');
 has(ui,"searchParams.get('employee_code')",'canonical income deeplink');
@@ -78,7 +78,7 @@ has(ui,'data-knl-person-income','people entry point');
 has(ui,'data-knl-assignment-income','assignment entry point');
 has(ui,"ensureKnlShell(root,tab,capabilities,isAdmin,'')",'income route retains persistent shell');
 assert(!/data-knl-domain-tab="ngach-bac-luong"/.test(ui),'compensation must not remain a Bộ KNL tab');
-has(ui,"if(activeTab==='ngach-bac-luong')activeSidebarTab='co-cau-thu-nhap'",'legacy compensation route activates compensation sidebar domain');
+has(ui,"if(['ngach-bac-luong','gan-thu-nhap','lich-su-thu-nhap'].indexOf(activeTab)>=0)activeSidebarTab='co-cau-thu-nhap'",'legacy and 1.50.3 compensation routes all activate the compensation sidebar domain');
 has(ui,'compensationDomainNav','compensation standard and income profile share one domain navigation');
 has(ui,'Cơ cấu ngạch & bậc','compensation structure sub-navigation');
 has(ui,'Hồ sơ thu nhập','income profile sub-navigation');

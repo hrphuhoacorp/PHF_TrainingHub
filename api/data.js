@@ -24,7 +24,7 @@ const { listKnlPeople } = require('../lib/knl-people');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('../lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('../lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('../lib/knl-surveys');
-const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome } = require('../lib/knl-foundation');
+const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory } = require('../lib/knl-foundation');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('../lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
@@ -521,6 +521,12 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='listKnlIncomeTargets')return res.status(200).json({ok:true,...await listKnlIncomeTargets(session)});
       if(payload&&payload.action==='getKnlEmployeeIncome')return res.status(200).json({ok:true,...await getKnlEmployeeIncome(session,payload)});
       if(payload&&payload.action==='saveKnlEmployeeIncome')return res.status(200).json({ok:true,...await saveKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='listKnlCompensationAssignmentTargets')return res.status(200).json({ok:true,...await listKnlCompensationAssignmentTargets(session)});
+      if(payload&&payload.action==='cloneKnlCompensationVersion')return res.status(200).json({ok:true,...await cloneKnlCompensationVersion(session,payload)});
+      if(payload&&payload.action==='saveKnlCompensationGrades')return res.status(200).json({ok:true,...await saveKnlCompensationGrades(session,payload)});
+      if(payload&&payload.action==='scheduleKnlCompensationVersion')return res.status(200).json({ok:true,...await scheduleKnlCompensationVersion(session,payload)});
+      if(payload&&payload.action==='getKnlCompensationVersionAudit')return res.status(200).json({ok:true,...await getKnlCompensationVersionAudit(session)});
+      if(payload&&payload.action==='listKnlEmployeeCompensationHistory')return res.status(200).json({ok:true,...await listKnlEmployeeCompensationHistory(session,payload)});
       if(payload&&payload.action==='previewKnlSourceSeed')return res.status(200).json({ok:true,...await previewKnlSourceSeed(session)});
       if(payload&&payload.action==='seedKnlSourceManifest')return res.status(200).json({ok:true,...await seedKnlSourceManifest(session)});
       if(payload&&payload.action==='listKnlSourceManifests')return res.status(200).json({ok:true,...await listKnlSourceManifests(session)});
