@@ -1,7 +1,7 @@
 {
-  "version": "1.50.9",
-  "fingerprint": "1.50.9-knl-library-full-catalog-status-ux",
+  "version": "1.50.10",
+  "fingerprint": "1.50.10-knl-grade-matrix-admin-configurable",
   "builtAt": "2026-08-10T00:00:00+07:00",
-  "notes": "1.50.9: Bộ KNL library now loads every valid source candidate (21 previously skipped as NEEDS_REVIEW — TN Giám sát, Gói quà, HCNS, Kho, Kế toán viên/Thu/Chi, Thu mua variants — are real distinct competency templates, not duplicates; candidateStatus is backend/audit metadata only, no longer a library-inclusion gate). New frameworks default to draft ('Chưa áp dụng'). UI: /admin/knl/bo-knl card and detail header now show clean business name + 'vN · trạng thái' instead of framework code/UUID/READY/NEEDS_REVIEW/duplicated draft status; statusLabel now returns Chưa áp dụng/Đang áp dụng/Ngưng áp dụng. No schema/migration change.",
-  "build": "1.50.9"
+  "notes": "1.50.10: Tiêu chuẩn bậc screen no longer dead-ends for the 21 frameworks seeded in 1.50.9 with no grade definitions. Admin can now add grades one at a time ('+ Thêm bậc', name prompted, never auto-generated) for a version with none yet, then fill in the item×grade matrix and save through the existing knl_save_grade_matrix RPC — no new backend, no migration. Sales and the 10 pre-existing 5-level frameworks are untouched (still read straight from backend grade definitions). Competency level counts stay exactly as sourced (Sales 4, most Excel sources 5, Trưởng Kho (PHF) legacy 4 vs v2 5) — never derived from grade count or vice versa.",
+  "build": "1.50.10"
 }

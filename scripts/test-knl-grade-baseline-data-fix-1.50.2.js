@@ -26,11 +26,16 @@ for(const token of [
 
 assert(!/alter table|drop table|truncate/i.test(migration),'data fix must not change schema or delete data');
 assert(!/knl_employee_compensation_assignments\s+(?:set|values)|delete\s+from\s+public\.knl_employee_compensation/i.test(migration),'data fix must not touch compensation assignments/history');
-assert(ui.includes('grades=m.grades||[]'),'UI grade columns must come only from backend grade definitions');
+assert(ui.includes('savedGrades=m.grades||[]'),'UI grade columns must come only from backend grade definitions when they exist');
 assert(ui.includes('Version chưa có grade definitions. Không tự dựng B1–B4.'),'empty grade state must be explicit');
 assert(!ui.includes("grades=m.grades.length?m.grades:[1,2,3,4]"),'UI must not synthesize B1..B4');
 assert(!ui.includes("foundationState.matrix.grades:[1,2,3,4]"),'save path must not synthesize B1..B4');
 assert(!/Truongnhom_Thumua.*\[1,2,3,4,5\]|Thu mua.*B5/i.test(ui),'UI must not hard-code grade count by department/framework name');
+// 1.50.9 Bộ KNL library batch: khi backend chưa có grade definitions, UI cho
+// phép Admin tự thêm từng bậc một (prompt tên bậc) qua pendingNewGrades —
+// KHÔNG được suy số bậc từ levels.length hay bất kỳ mảng hard-code nào.
+assert(ui.includes('pendingNewGrades'),'empty grade state must offer an Admin-driven way to configure grades, not a dead end');
+assert(!/pendingNewGrades\s*=\s*levels|pendingNewGrades\.length\s*=\s*levels\.length|Array\.from\(\{length:\s*levels/i.test(ui),'pending grade creation must not be derived from competency level count');
 assert.strictEqual((migration.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');
 
 console.log('PASS KNL grade baseline 1.50.2 gate: exact 11-version data fix, immutable/partial guards, idempotency and no compensation mutation.');
