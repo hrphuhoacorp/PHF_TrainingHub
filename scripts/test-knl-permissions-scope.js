@@ -349,6 +349,36 @@ async function run() {
   snap = await grantsSnapshot();
   check(grantOf(snap, 'acc-income-specific').capabilities.income_view === false && !grantOf(snap, 'acc-income-specific').capabilities.incomeScope, 'CASE 25. Tắt income_view -> incomeScope không còn trong capabilities đã lưu (full replace, không merge, không rác)');
 
+  // ---------- 2026-08-11 KNL Permission Clean — income scope department/branch/title ----------
+  // CASE 26 (Acceptance Case 4): 2 phòng ban cùng lúc -> lưu/đọc lại đúng cả 2, server-side chặn rỗng.
+  threw = null;
+  try { await grant('acc-income-dept-empty', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'department', values: [] } }, { type: 'all_company', values: [] }, 'Bật phạm vi phòng ban nhưng không chọn'); }
+  catch (err) { threw = err; }
+  check(!!threw && threw.code === 'KNL_INCOME_SCOPE_VALUES_REQUIRED', 'CASE 26a. incomeScope.type=department nhưng values rỗng -> reject KNL_INCOME_SCOPE_VALUES_REQUIRED (cùng invariant với employees)');
+  await grant('acc-income-dept', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'department', values: ['QTTH', 'Kho'] } }, { type: 'all_company', values: [] }, 'Trợ lý GĐ phụ trách 2 phòng ban cùng lúc');
+  snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-income-dept').capabilities.incomeScope.values.slice().sort()) === JSON.stringify(['Kho', 'QTTH']), 'CASE 26b. incomeScope.type=department lưu/đọc lại đúng CẢ 2 phòng ban cùng lúc, không chỉ 1');
+
+  // CASE 27: branch + title cũng theo đúng invariant đa giá trị/reject rỗng, không lệch riêng employees.
+  await grant('acc-income-branch', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'branch', values: ['Phú Lợi', 'Lái Thiêu'] } }, { type: 'all_company', values: [] }, 'Cấp Thu nhập theo 2 chi nhánh');
+  snap = await grantsSnapshot();
+  check(JSON.stringify(grantOf(snap, 'acc-income-branch').capabilities.incomeScope.values.slice().sort()) === JSON.stringify(['Lái Thiêu', 'Phú Lợi']), 'CASE 27a. incomeScope.type=branch lưu/đọc lại đúng cả 2 chi nhánh');
+  threw = null;
+  try { await grant('acc-income-title-empty', 'TRO_LY_GD', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'title', values: [] } }, { type: 'all_company', values: [] }, 'Bật phạm vi chức danh nhưng không chọn'); }
+  catch (err) { threw = err; }
+  check(!!threw && threw.code === 'KNL_INCOME_SCOPE_VALUES_REQUIRED', 'CASE 27b. incomeScope.type=title nhưng values rỗng -> reject KNL_INCOME_SCOPE_VALUES_REQUIRED');
+
+  // CASE 28 (Acceptance Case 6): đổi role/preset của user KHÔNG được vô tình mở rộng incomeScope thành toàn công ty.
+  await grant('acc-income-dept', 'TRUONG_BO_PHAN', { access_knl: true, view_people: true, income_view: true, incomeScope: { type: 'department', values: ['QTTH', 'Kho'] } }, { type: 'employees', values: ['TBP-E1'] }, 'Đổi role sang TBP, vẫn giữ nguyên phạm vi Thu nhập cũ');
+  snap = await grantsSnapshot();
+  check(grantOf(snap, 'acc-income-dept').capabilities.incomeScope.type === 'department' && JSON.stringify(grantOf(snap, 'acc-income-dept').capabilities.incomeScope.values.slice().sort()) === JSON.stringify(['Kho', 'QTTH']), 'CASE 28. Đổi preset/role (TRO_LY_GD -> TRUONG_BO_PHAN) không tự mở rộng/thu hẹp incomeScope department đang có — Admin phải chủ động đổi mới thay đổi');
+
+  // CASE 29: propose/agree_proposal/approve đã tồn tại trong data model cho batch Workflow sau
+  // nhưng "Đồng ý đề xuất" tuyệt đối KHÔNG kéo theo income_view (mục C của yêu cầu).
+  await grant('acc-agree-only', 'CUSTOM', { access_knl: true, view_people: true, agree_proposal: true }, { type: 'self', values: [] }, 'Cấp quyền Đồng ý đề xuất, không cấp Thu nhập');
+  caps = await getCaps(session('manager', { id: 'acc-agree-only' }));
+  check(caps.capabilities.agree_proposal === true && caps.capabilities.income_view === false, 'CASE 29. Có capability agree_proposal (Đồng ý đề xuất) KHÔNG tự động kéo theo income_view — 2 quyền hoàn toàn độc lập');
+
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
     process.exit(1);

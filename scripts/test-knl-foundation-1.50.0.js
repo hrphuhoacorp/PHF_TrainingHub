@@ -63,6 +63,22 @@ const targetGrant={source:'grant',capabilities:{income_view:true},row:{capabilit
 assert.deepStrictEqual(incomeTargetRows(targetFixture,targetGrant,'PHF001').map(x=>x.employeeCode),['PHF001','PHF002'],'income picker must be own + scoped active people only');
 assert.deepStrictEqual(incomeTargetRows(targetFixture,{source:'admin_recovery'},'').map(x=>x.employeeCode),['PHF001','PHF002','PHF003'],'Admin picker sees all active people');
 
+// 2026-08-11 KNL Permission Clean — income scope mở rộng department/branch/
+// title (đa giá trị), enforcement server-side thật qua incomeScopeAllows/
+// incomeTargetRows, không suy income_view từ people_scope/preset/role.
+assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'department',values:['Kinh doanh','Marketing']}}}},{employeeCode:'PHF010',department:'Marketing',branch:'HCM',title:'NV'}),true,'department scope matches one of the granted departments');
+assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'department',values:['Kinh doanh','Marketing']}}}},{employeeCode:'PHF011',department:'Kho',branch:'HCM',title:'NV'}),false,'department scope denies a department not in the list (no leakage to unlisted departments)');
+assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'branch',values:['Ngô Quyền','Lái Thiêu']}}}},{employeeCode:'PHF012',department:'Bán hàng',branch:'Phú Lợi',title:'NV'}),false,'branch scope denies a branch not in the list');
+assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'title',values:['Trưởng phòng']}}}},{employeeCode:'PHF013',department:'Kho',branch:'HCM',title:'Trưởng phòng'}),true,'title scope matches');
+const targetFixtureOrg=[
+  {employee_code:'D1',employee_name:'Kinh doanh 1',employee_status:'Đang làm việc',department:'Kinh doanh',branch:'HCM',title:'NV'},
+  {employee_code:'D2',employee_name:'Marketing 1',employee_status:'Đang làm việc',department:'Marketing',branch:'HCM',title:'NV'},
+  {employee_code:'D3',employee_name:'Kho 1',employee_status:'Đang làm việc',department:'Kho',branch:'HCM',title:'NV'}
+];
+const deptGrant={source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'department',values:['Kinh doanh','Marketing']}}}};
+assert.deepStrictEqual(incomeTargetRows(targetFixtureOrg,deptGrant,'').map(x=>x.employeeCode).sort(),['D1','D2'],'multi-department income scope must include exactly D1+D2, never D3 (Kho not granted)');
+assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'employees',values:['PHF001']}}}},'PHF001'),true,'incomeScopeAllows must stay backward-compatible with a bare employeeCode string call');
+
 ['getKnlGradeMatrix','saveKnlGradeMatrix','setKnlVersionEffectivity','listKnlCompensationStandards','previewKnlCompensationFoundation','applyKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','saveKnlEmployeeIncome'].forEach(action=>has(api,"payload.action==='"+action+"'",'API '+action));
 ['/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/co-cau-thu-nhap'].forEach(route=>has(router,route,'route '+route));
 has(ui,'Mỗi ô là yêu cầu độc lập; không tính trung bình','no-average UX');
