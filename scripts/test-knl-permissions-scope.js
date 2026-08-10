@@ -95,7 +95,7 @@ function buildSupabaseMock() {
           if (STATE.simulateSchemaMissing && (table === 'knl_permission_grants' || table === 'knl_permission_grant_history')) return missingTableQuery(table);
           if (table === 'knl_permission_grants') return makeTableFactory(STATE.grants)();
           if (table === 'knl_permission_grant_history') return makeTableFactory(STATE.history)();
-          if (table === 'checklist_employee_assignments') return makeTableFactory(STATE.employees)();
+          if (table === 'employee_profiles') return makeTableFactory(STATE.employees)();
           throw new Error('Unexpected table in KNL mock: ' + table);
         }
       };
@@ -134,17 +134,17 @@ const { subjectMatchesScope } = require('../lib/knl-scope');
 // Adapter, mô phỏng dữ liệu tổ chức hiện tại (mục 3-4 của yêu cầu).
 // ---------------------------------------------------------------------------
 STATE.employees.push(
-  { employee_code: 'NV1', employee_name: 'Nguyễn Văn NV1', title: 'Nhân viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đang làm việc' },
-  { employee_code: 'S-PL1', employee_name: 'Trần Thị Bán PL', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
-  { employee_code: 'S-NQ1', employee_name: 'Lê Văn Bán NQ', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Ngô Quyền', employee_status: 'Đang làm việc' },
-  { employee_code: 'S-LT1', employee_name: 'Phạm Thị Bán LT', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Lái Thiêu', employee_status: 'Đang làm việc' },
-  { employee_code: 'S-OTHER', employee_name: 'Ngoài Phạm Vi', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Bình Dương', employee_status: 'Đang làm việc' },
-  { employee_code: 'QTTH1', employee_name: 'Đồng Nghiệp QTTH', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đang làm việc' },
-  { employee_code: 'KHO1', employee_name: 'Nhân viên Kho', title: 'Thủ kho', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
-  { employee_code: 'OLD1', employee_name: 'Đã Nghỉ Việc', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employee_status: 'Đã nghỉ việc' },
-  { employee_code: 'TBP-E1', employee_name: 'Cấp Dưới Một', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
-  { employee_code: 'TBP-E2', employee_name: 'Cấp Dưới Hai', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' },
-  { employee_code: 'TBP-E3', employee_name: 'Cấp Dưới Ba', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employee_status: 'Đang làm việc' }
+  { employee_code: 'NV1', full_name: 'Nguyễn Văn NV1', title: 'Nhân viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'active' },
+  { employee_code: 'S-PL1', full_name: 'Trần Thị Bán PL', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Phú Lợi', employment_status: 'active' },
+  { employee_code: 'S-NQ1', full_name: 'Lê Văn Bán NQ', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Ngô Quyền', employment_status: 'active' },
+  { employee_code: 'S-LT1', full_name: 'Phạm Thị Bán LT', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Lái Thiêu', employment_status: 'active' },
+  { employee_code: 'S-OTHER', full_name: 'Ngoài Phạm Vi', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Bình Dương', employment_status: 'active' },
+  { employee_code: 'QTTH1', full_name: 'Đồng Nghiệp QTTH', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'active' },
+  { employee_code: 'KHO1', full_name: 'Nhân viên Kho', title: 'Thủ kho', department: 'Kho', branch: 'Phú Lợi', employment_status: 'active' },
+  { employee_code: 'OLD1', full_name: 'Đã Nghỉ Việc', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'inactive' },
+  { employee_code: 'TBP-E1', full_name: 'Cấp Dưới Một', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employment_status: 'active' },
+  { employee_code: 'TBP-E2', full_name: 'Cấp Dưới Hai', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employment_status: 'active' },
+  { employee_code: 'TBP-E3', full_name: 'Cấp Dưới Ba', title: 'Nhân viên', department: 'Kho', branch: 'Phú Lợi', employment_status: 'active' }
 );
 
 function session(role, opts) {
@@ -235,7 +235,7 @@ async function run() {
   check(!!threw && threw.code === 'KNL_VIEW_PEOPLE_DENIED', 'CASE 9d. Tài khoản có access_knl nhưng chưa cấp view_people -> deny đúng mã KNL_VIEW_PEOPLE_DENIED (không nhầm với KNL_ACCESS_DENIED)');
 
   // ---------- CASE 10: Regression — namespace KNL độc lập, không tạo/sửa bảng checklist_* ----------
-  check(STATE.employees.length === 11 && STATE.employees.every(row => Object.prototype.hasOwnProperty.call(row, 'employee_code')), 'CASE 10. KNL People Adapter chỉ ĐỌC checklist_employee_assignments (11 dòng fixture nguyên vẹn), không insert/update/delete bảng này ở bất kỳ bước nào trong toàn bộ test');
+  check(STATE.employees.length === 11 && STATE.employees.every(row => Object.prototype.hasOwnProperty.call(row, 'employee_code')), 'CASE 10. KNL People Adapter chỉ ĐỌC employee_profiles (11 dòng fixture nguyên vẹn), không insert/update/delete bảng này ở bất kỳ bước nào trong toàn bộ test');
 
   // ---------- PATCH UI SHELL + FIX PHÂN QUYỀN — regression cho throwDb(): bảng KNL chưa tồn tại (PGRST205) phải dịch thành lỗi rõ ràng, không phải 500 chung chung ----------
   STATE.simulateSchemaMissing = true;

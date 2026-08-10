@@ -46,11 +46,11 @@ function stubSupabaseRows(tablesMap) {
 // cung quan ly truc tiep PHF004 va PHF005 (cung ten "Le Van C" voi PHF... -
 // dung de test ambiguous). PHF005 = Ke toan truong (Ke toan/Tru so).
 const FIXTURE_ROWS = [
-  { employee_id: 'e1', employee_code: 'PHF001', employee_name: 'Nguyễn Văn A', title: 'Giám đốc', department: 'Ban giám đốc', branch: 'Trụ sở', manager_code: '', manager_name: '', employee_status: 'Đang làm việc' },
-  { employee_id: 'e2', employee_code: 'PHF002', employee_name: 'Trần Thị B', title: 'Trưởng ca', department: 'Bán hàng', branch: 'Phú Lợi', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' },
-  { employee_id: 'e3', employee_code: 'PHF003', employee_name: 'Lê Văn C', title: 'Nhân viên', department: 'Bán hàng', branch: 'Phú Lợi', manager_code: 'PHF002', manager_name: 'Trần Thị B', employee_status: 'Đang làm việc' },
-  { employee_id: 'e4', employee_code: 'PHF004', employee_name: 'Lê Văn C', title: 'Nhân viên', department: 'Kho', branch: 'Ngô Quyền', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' },
-  { employee_id: 'e5', employee_code: 'PHF005', employee_name: 'Phạm Thị D', title: 'Kế toán trưởng', department: 'Kế toán', branch: 'Trụ sở', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' }
+  { employee_id: 'e1', employee_code: 'PHF001', full_name: 'Nguyễn Văn A', title: 'Giám đốc', department: 'Ban giám đốc', branch: 'Trụ sở', manager_employee_code: '', employment_status: 'active' },
+  { employee_id: 'e2', employee_code: 'PHF002', full_name: 'Trần Thị B', title: 'Trưởng ca', department: 'Bán hàng', branch: 'Phú Lợi', manager_employee_code: 'PHF001', employment_status: 'active' },
+  { employee_id: 'e3', employee_code: 'PHF003', full_name: 'Lê Văn C', title: 'Nhân viên', department: 'Bán hàng', branch: 'Phú Lợi', manager_employee_code: 'PHF002', employment_status: 'active' },
+  { employee_id: 'e4', employee_code: 'PHF004', full_name: 'Lê Văn C', title: 'Nhân viên', department: 'Kho', branch: 'Ngô Quyền', manager_employee_code: 'PHF001', employment_status: 'active' },
+  { employee_id: 'e5', employee_code: 'PHF005', full_name: 'Phạm Thị D', title: 'Kế toán trưởng', department: 'Kế toán', branch: 'Trụ sở', manager_employee_code: 'PHF001', employment_status: 'active' }
 ];
 
 // Fixture phan quyen Checklist (checklist_permission_grants) cho test preset
@@ -72,11 +72,11 @@ const PERMISSION_GRANT_ROWS = [
 // preset TRUONG_BO_PHAN o tren -> 2 nguon lech nhau (PHF006 chi co trong
 // title, PHF004 chi co trong preset).
 const FIXTURE_ROWS_WITH_CONFLICT = FIXTURE_ROWS.concat([
-  { employee_id: 'e6', employee_code: 'PHF006', employee_name: 'Đỗ Văn E', title: 'Trưởng bộ phận', department: 'Kho', branch: 'Ngô Quyền', manager_code: 'PHF001', manager_name: 'Nguyễn Văn A', employee_status: 'Đang làm việc' }
+  { employee_id: 'e6', employee_code: 'PHF006', full_name: 'Đỗ Văn E', title: 'Trưởng bộ phận', department: 'Kho', branch: 'Ngô Quyền', manager_employee_code: 'PHF001', employment_status: 'active' }
 ]);
 
 async function run() {
-  stubSupabaseRows({ checklist_employee_assignments: FIXTURE_ROWS, checklist_permission_grants: PERMISSION_GRANT_ROWS });
+  stubSupabaseRows({ employee_profiles: FIXTURE_ROWS, checklist_permission_grants: PERMISSION_GRANT_ROWS });
   const {
     getEmployeeManager, getDirectReportsOf, getManagementChainOf,
     getDepartmentDirectory, getBranchDirectory, searchEmployees
@@ -171,7 +171,7 @@ async function run() {
   // ---- 5f. Preset cross-reference: 2 nguồn LỆCH nhau -> CONFLICTED (PHF006
   // có title thật "Trưởng bộ phận" nhưng PHF004 mới là người giữ preset
   // TRUONG_BO_PHAN với title="Nhân viên" - dùng fixture riêng có PHF006) ----
-  stubSupabaseRows({ checklist_employee_assignments: FIXTURE_ROWS_WITH_CONFLICT, checklist_permission_grants: PERMISSION_GRANT_ROWS });
+  stubSupabaseRows({ employee_profiles: FIXTURE_ROWS_WITH_CONFLICT, checklist_permission_grants: PERMISSION_GRANT_ROWS });
   const { searchEmployees: searchEmployeesConflictFixture } = require('../lib/ai-employee-tools');
   const { buildStructuredResult: buildStructuredResultConflictFixture } = require('../lib/ai-tool-registry');
   const conflictResult = await searchEmployeesConflictFixture(learnerSession, { title: 'Trưởng bộ phận' });

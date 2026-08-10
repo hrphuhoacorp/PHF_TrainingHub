@@ -43,12 +43,12 @@ function fixtureRows(total) {
     list.push({
       employee_id: 'emp-' + (i + 1),
       employee_code: 'PHF' + String(i + 1).padStart(3, '0'),
-      employee_name: 'Nhân viên ' + (i + 1),
+      full_name: 'Nhân viên ' + (i + 1),
       title: i === 0 ? 'Trợ lý Giám đốc' : (i === 1 ? 'Trưởng ca' : 'Nhân viên'),
       department: 'Bán hàng',
       branch: i === 1 ? 'Phú Lợi' : 'Ngô Quyền',
-      manager_code: '', manager_name: '',
-      employee_status: 'Đang làm việc'
+      manager_employee_code: '',
+      employment_status: 'active'
     });
   }
   return list;
