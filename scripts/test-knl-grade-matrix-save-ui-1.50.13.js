@@ -23,8 +23,12 @@ const REQUIREMENTS=[];
 ITEMS.forEach(item=>{GRADES.forEach(g=>{REQUIREMENTS.push({itemId:item.id,gradeId:g.id,requiredColumnId:'col-l'+g.gradeNumber,requiredLevelNumber:g.gradeNumber});});});
 
 function jsonResponse(obj){return {ok:true,json:async()=>obj};}
+function columnsForLevelCount(n){return [{id:'col-item',versionId:VERSION_ID,type:'item',label:'HẠNG MỤC',levelNumber:null,sortOrder:1,isActive:true}]
+  .concat(Array.from({length:n},(_,i)=>i+1).map(k=>({id:'col-l'+k,versionId:VERSION_ID,type:'level',label:'MỨC ĐỘ '+k,levelNumber:k,sortOrder:k+1,isActive:true})));}
 
-async function setupDom(gradeState,failSave){
+async function setupDom(gradeState,failSave,levelCount){
+  levelCount=levelCount||5;
+  const columns=gradeState==='empty'?columnsForLevelCount(levelCount):COLUMNS;
   const dom=new JSDOM('<!doctype html><html><body><div id="phfKnlRoot"></div></body></html>',{url:'http://localhost/hr/knl/tieu-chuan-bac?version='+VERSION_ID,runScripts:'outside-only'});
   const {window}=dom;
   const savedCalls=[];
@@ -40,7 +44,7 @@ async function setupDom(gradeState,failSave){
     const body=JSON.parse(opts.body),action=body.action;
     if(action==='getKnlCapabilities')return jsonResponse({ok:true,isAdmin:true,capabilities:{manage_framework:true},presetCode:'ADMIN'});
     if(action==='listKnlFrameworks')return jsonResponse({ok:true,frameworks:[{id:FRAMEWORK_ID,code:'KNL_TEST',name:'Test',status:'draft',versions:[{id:VERSION_ID,frameworkId:FRAMEWORK_ID,versionNumber:1,name:'Version 1',status:'draft',isLocked:false,lifecycleStatus:'DRAFT',effectiveFrom:'',effectiveTo:'',activatedAt:'',updatedAt:''}]}]});
-    if(action==='getKnlFrameworkVersion')return jsonResponse({ok:true,framework:{id:FRAMEWORK_ID,code:'KNL_TEST',name:'Test',status:'draft',versions:[]},version:{id:VERSION_ID,frameworkId:FRAMEWORK_ID,versionNumber:1,name:'Version 1',status:'draft',isLocked:false,lifecycleStatus:'DRAFT',effectiveFrom:'',effectiveTo:'',activatedAt:'',updatedAt:''},groups:[{id:GROUP_ID,versionId:VERSION_ID,name:'Nhóm 1',description:'',sortOrder:1,isActive:true}],items:ITEMS,columns:COLUMNS,levelContents:[]});
+    if(action==='getKnlFrameworkVersion')return jsonResponse({ok:true,framework:{id:FRAMEWORK_ID,code:'KNL_TEST',name:'Test',status:'draft',versions:[]},version:{id:VERSION_ID,frameworkId:FRAMEWORK_ID,versionNumber:1,name:'Version 1',status:'draft',isLocked:false,lifecycleStatus:'DRAFT',effectiveFrom:'',effectiveTo:'',activatedAt:'',updatedAt:''},groups:[{id:GROUP_ID,versionId:VERSION_ID,name:'Nhóm 1',description:'',sortOrder:1,isActive:true}],items:ITEMS,columns:columns,levelContents:[]});
     if(action==='getKnlGradeMatrix')return jsonResponse({ok:true,grades:gradeState==='empty'?[]:GRADES,requirements:gradeState==='empty'?[]:REQUIREMENTS});
     if(action==='saveKnlGradeMatrix'){
       savedCalls.push(body);
@@ -127,8 +131,39 @@ async function clickSaveAndObserve(root){
     assert.strictEqual(savedCalls.length,1);
     assert.strictEqual(savedCalls[0].grades.length,5,'first save of an empty matrix must submit the prefilled B1..B5');
     savedCalls[0].grades.forEach((g,i)=>{assert.strictEqual(g.gradeCode,'B'+(i+1));assert(!g.id,'newly prefilled grades must not carry a backend id before their first save');});
+    assert.strictEqual(savedCalls[0].requirements.length,10,'2 items x 5 grades untouched must still submit every cell');
+    savedCalls[0].requirements.forEach(r=>{
+      const diagonalLevel=Number(r.gradeCode.slice(1));
+      assert.strictEqual(r.requiredLevelNumber,diagonalLevel,'2026-08-11 rule: an untouched cell on a brand-new empty matrix must default to the diagonal baseline Bn->Mn, not a uniform M1');
+    });
   }
-  console.log('PASS Case 3: matrix rỗng + prefill B1..Bn + Save lần đầu -> handler gọi, payload đúng, RPC thực thi');
+  console.log('PASS Case 3: matrix rỗng + prefill diagonal B1/M1..Bn/Mn + Save lần đầu -> handler gọi, payload đúng theo baseline đường chéo, RPC thực thi');
+
+  // Case 3b: matrix rỗng 4 mức -> diagonal phải dừng đúng ở B4/M4 (không lấy nhầm bậc/level của case 5 mức)
+  {
+    const {root,savedCalls}=await setupDom('empty',false,4);
+    await clickSaveAndObserve(root);
+    assert.strictEqual(savedCalls.length,1);
+    assert.strictEqual(savedCalls[0].grades.length,4,'4-level framework must prefill exactly B1..B4, not B1..B5');
+    savedCalls[0].requirements.forEach(r=>{
+      const diagonalLevel=Number(r.gradeCode.slice(1));
+      assert.strictEqual(r.requiredLevelNumber,diagonalLevel,'4-level empty matrix must also default diagonally (B1/M1..B4/M4)');
+    });
+  }
+  console.log('PASS Case 3b: framework 4 mức, matrix rỗng -> diagonal B1/M1..B4/M4 đúng theo levelCount thật, không hard-code 5');
+
+  // Case 3c: đã lưu matrix rồi Admin thêm bậc mới -> bậc mới KHÔNG áp dụng diagonal
+  // (rule chỉ áp dụng cho "grade matrix mới", không phải bậc thêm vào matrix đã có).
+  {
+    const {root,savedCalls}=await setupDom('saved',false);
+    const addBtn=root.querySelector('[data-grade-add]');
+    addBtn.onclick();
+    await clickSaveAndObserve(root);
+    const newGradeReqs=savedCalls[0].requirements.filter(r=>r.gradeCode==='B6');
+    assert(newGradeReqs.length>0,'the newly added B6 must still submit requirement rows');
+    newGradeReqs.forEach(r=>assert.strictEqual(r.requiredLevelNumber,1,'a bậc added to an ALREADY-SAVED matrix must keep defaulting to M1, diagonal only applies to a brand-new empty matrix'));
+  }
+  console.log('PASS Case 3c: thêm bậc vào matrix đã lưu -> bậc mới vẫn mặc định M1, không áp dụng diagonal (đúng phạm vi rule)');
 
   // Error path: RPC failure must surface visibly, never silently swallowed.
   {
