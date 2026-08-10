@@ -1,7 +1,7 @@
 {
-  "version": "1.50.4",
-  "fingerprint": "1.50.4-knl-compensation-ux-reconciliation",
+  "version": "1.50.5",
+  "fingerprint": "1.50.5-accounts-list-load-fix",
   "builtAt": "2026-08-10T00:00:00+07:00",
-  "notes": "1.50.4: compensation UX/information-architecture reconciliation against the approved baseline — structure tab header/KPI amounts/Cơm column/slope legend/click-to-expand scenario detail, income profile identity card + 4-column cách-xác-định table + semantic history (Nâng bậc/Chuyển chính thức/...), isolated cache-busting gate for phf-knl-app.js/phf-knl.css. No schema/RPC change, no baseline data change.",
-  "build": "1.50.4"
+  "notes": "1.50.5: fix /admin/nhan-su > Tài khoản showing 'Chưa có tài khoản phù hợp' with real accounts in Production. renderAccounts() (reached via phfAcctSafeTab from Employee Master's 'Quản lý tài khoản' button) never called loadAccountsFromServer — only the legacy /admin/quan-tri/tai-khoan entry point did, and that route now redirects to /admin/nhan-su. Frontend-only fix: renderAccounts() now always triggers a deduped server refresh, and a failed refresh shows a visible retry message instead of silently rendering the empty-state text. No backend/schema/data change.",
+  "build": "1.50.5"
 }

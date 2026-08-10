@@ -26,4 +26,13 @@ assert(ui.includes('PHF HR</span><i>›</i><span>Quản trị nhân sự')&&ui.i
 assert(['Công việc','Cá nhân','Hợp đồng','Thu nhập','Tài khoản'].every(label=>ui.includes("'"+label+"'"))&&!ui.includes("['history','Lịch sử']"),'Employee detail must expose exactly the five requested top-level sections.');
 assert(!ui.includes('hồ sơ canonical')&&!ui.includes('identity đăng nhập')&&!ui.includes('Read model'),'Technical implementation text leaked into the employee UI.');
 assert(accountUi.includes('activateHr({clear:false,restoreTitle:false})'),'Account subview must remain inside the PHF HR shell.');
+/* Regression guard: reaching the Tài khoản tab via Employee Master's
+   "Quản lý tài khoản" button calls phfAcctSafeTab('accounts') -> renderAccounts()
+   directly, never window.phfRenderAccountAdminSafe (the only place that used to
+   call loadAccountsFromServer). Without a server refresh inside renderAccounts()
+   itself, any admin with an empty/stale localStorage cache sees a permanently
+   empty "Chưa có tài khoản phù hợp" list with zero network calls. */
+assert(/setTimeout\(accountBulkUpdateUi,0\);phfHrLoadAccessState\(false\);loadAccountsFromServer\(false\)/.test(accountUi),'renderAccounts() must trigger a server refresh so every navigation path into the Tài khoản tab (not just the legacy direct route) loads real accounts.');
+assert(accountUi.includes('ACCOUNT_LIST_LOAD_ERROR'),'A failed server refresh must be tracked so the empty-state message can distinguish "load failed" from "genuinely no accounts".');
+assert(accountUi.includes('phfAcctRetryLoad'),'Empty-state message must offer a retry action when the server refresh failed.');
 console.log(`Employee Master tests: ${passed}/${passed} PASS`);
