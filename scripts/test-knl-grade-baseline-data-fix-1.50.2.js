@@ -44,8 +44,16 @@ assert(!/pendingNewGrades\s*=\s*\[1,\s*2,\s*3,\s*4\]|pendingNewGrades\s*=\s*\[1,
 // đã lưu (không chỉ trạng thái pending trước khi lưu lần đầu), miễn version còn
 // mutable (DRAFT + chưa lock). Xóa bậc phải hỏi xác nhận trước khi submit.
 assert(!/pending\s*&&\s*mutable\?'<button type="button" class="phfk-btn-secondary" data-grade-add>/.test(ui),'add-grade control must not be hidden once a version already has saved grade definitions');
-assert(/mutable\?' <button type="button" class="phfk-mini-remove" data-grade-remove=/.test(ui),'remove-grade control must render for every grade column (saved or pending) while the version is mutable');
+assert(/interactive\?' <button type="button" class="phfk-mini-remove" data-grade-remove=/.test(ui),'remove-grade control must render for every grade column (saved or pending) while the version is mutable and not mid-save');
 assert(/data-grade-remove.*confirm\(/.test(ui)||/confirm\('Bỏ bậc/.test(ui),'removing a grade must ask for explicit confirmation before it can wipe saved requirements on next save');
+// 1.50.14 P0: Save phải luôn có loading -> success/error rõ ràng, không silent
+// fail (Admin báo bấm Lưu ma trận không có phản ứng gì sau 1.50.13).
+assert(/gradeSaving:false,gradeMessage:''/.test(ui),'foundationState must track an explicit saving/message state for the grade matrix Save button');
+assert(/saving\s*=\s*foundationState\.gradeSaving===true/.test(ui)&&/interactive\s*=\s*mutable&&!saving/.test(ui),'save-in-flight must disable add\\/remove\\/cell controls too, not just the Save button');
+assert(/saveLabel\s*=\s*saving\?'Đang lưu…':'Lưu ma trận'/.test(ui),'Save button must show an explicit loading label while the RPC is in flight');
+assert(/data-grade-status/.test(ui),'a dedicated, visible status element must exist near the Save button for loading\\/success\\/error feedback');
+assert(/gradeMessage=\s*'Đã lưu ma trận thành công\.'/.test(ui),'a successful save must set a visible success message, not just re-render silently');
+assert(/foundationState\.gradeSaving=true;foundationState\.gradeMessage='';foundationState\.error=''/.test(ui),'clicking Save must immediately flip to a visible saving state before the RPC resolves');
 // 1.50.11: Framework Version dropdown (Tiêu chuẩn bậc) must not surface
 // inactive/legacy frameworks (post library-cleanup canonical-V2 rule) — no
 // hard-coded framework IDs, filtered from the real knl_frameworks.status field.
