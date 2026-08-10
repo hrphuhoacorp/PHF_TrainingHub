@@ -69,6 +69,15 @@ assert(!/KNL_TRUONG_KHO_PHF_D5BF32|KNL_[A-Z_]+_[0-9A-F]{6}['"]\s*[!=]==/.test(ui
 assert(/diagonalDefault\s*=\s*savedGrades\.length\?1:Math\.min\(g\.gradeNumber,levels\.length\|\|1\)/.test(ui),'untouched cells on a brand-new empty matrix must default diagonally (Bn->Mn) via the version\'s own grade/level numbers, not a fixed M1');
 assert(/selected\s*=\s*Number\(r&&r\.requiredLevelNumber\|\|diagonalDefault\)/.test(ui),'per-cell default must fall back to the diagonal baseline only when no real saved requirement exists yet');
 assert(!/selected=Number\(r&&r\.requiredLevelNumber\|\|1\)/.test(ui),'the old uniform-M1 default must be fully replaced by the diagonal baseline logic');
+// 2026-08-11 P0 UX gap: after a successful save the grid looked identical to
+// the unsaved prefill baseline. A persistent saved/dirty/draft badge (not
+// just a one-time toast) must exist and be reachable from any edit control.
+assert(/gradeDirty:false/.test(ui),'foundationState must track a dirty flag separate from the transient success/error message');
+assert(/data-grade-status-badge/.test(ui),'a dedicated, always-visible saved\\/dirty\\/draft badge element must exist near the grid, distinct from the transient toast');
+assert(/savedGrades\.length\?\('<span class="phfk-source-status '\+\(foundationState\.gradeDirty\?'is-review':'is-ready'\)/.test(ui),'the badge must render ĐÃ LƯU (is-ready) vs CÓ THAY ĐỔI CHƯA LƯU (is-review) based on real saved-grades presence + the dirty flag');
+assert(ui.includes("data-grade-cell]').forEach(function(el){el.onchange=function(){if(!(foundationState.matrix.grades||[]).length)return;foundationState.gradeDirty=true"),'editing any M-level cell on an already-saved matrix must flip the dirty flag immediately, not only after the next Save round-trip');
+assert(/foundationState\.gradeDirty=true;rerenderGradeMatrixLocal/.test(ui),'adding or removing a bậc on an already-saved matrix must also flip the dirty flag');
+assert(/foundationState\.gradeDirty=false;foundationState\.gradeMessage='Đã lưu ma trận thành công\.'/.test(ui),'a successful save must explicitly clear the dirty flag so the badge returns to ĐÃ LƯU, not just show a fading toast');
 assert.strictEqual((migration.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');
 
 console.log('PASS KNL grade baseline 1.50.2 gate: exact 11-version data fix, immutable/partial guards, idempotency and no compensation mutation.');

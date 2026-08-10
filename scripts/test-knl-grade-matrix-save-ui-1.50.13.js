@@ -32,6 +32,13 @@ async function setupDom(gradeState,failSave,levelCount){
   const dom=new JSDOM('<!doctype html><html><body><div id="phfKnlRoot"></div></body></html>',{url:'http://localhost/hr/knl/tieu-chuan-bac?version='+VERSION_ID,runScripts:'outside-only'});
   const {window}=dom;
   const savedCalls=[];
+  // Stateful mock persistence: getKnlGradeMatrix must reflect whatever the
+  // last successful saveKnlGradeMatrix call actually submitted, exactly like
+  // real Production (RPC delete-then-inserts, next read returns the new
+  // rows) — otherwise a "reload after save" test would prove nothing.
+  let persistedGrades=gradeState==='empty'?[]:GRADES.map(g=>({...g}));
+  let persistedRequirements=gradeState==='empty'?[]:REQUIREMENTS.map(r=>({...r}));
+  let nextGradeSeq=persistedGrades.length+1;
   window.phfGetSessionRole=()=>'admin';
   window.phfGetCurrentUser=()=>({id:'admin1',email:'admin@phf.local',accountId:'admin1'});
   window.phfNavigate=()=>{};
@@ -45,11 +52,16 @@ async function setupDom(gradeState,failSave,levelCount){
     if(action==='getKnlCapabilities')return jsonResponse({ok:true,isAdmin:true,capabilities:{manage_framework:true},presetCode:'ADMIN'});
     if(action==='listKnlFrameworks')return jsonResponse({ok:true,frameworks:[{id:FRAMEWORK_ID,code:'KNL_TEST',name:'Test',status:'draft',versions:[{id:VERSION_ID,frameworkId:FRAMEWORK_ID,versionNumber:1,name:'Version 1',status:'draft',isLocked:false,lifecycleStatus:'DRAFT',effectiveFrom:'',effectiveTo:'',activatedAt:'',updatedAt:''}]}]});
     if(action==='getKnlFrameworkVersion')return jsonResponse({ok:true,framework:{id:FRAMEWORK_ID,code:'KNL_TEST',name:'Test',status:'draft',versions:[]},version:{id:VERSION_ID,frameworkId:FRAMEWORK_ID,versionNumber:1,name:'Version 1',status:'draft',isLocked:false,lifecycleStatus:'DRAFT',effectiveFrom:'',effectiveTo:'',activatedAt:'',updatedAt:''},groups:[{id:GROUP_ID,versionId:VERSION_ID,name:'Nhóm 1',description:'',sortOrder:1,isActive:true}],items:ITEMS,columns:columns,levelContents:[]});
-    if(action==='getKnlGradeMatrix')return jsonResponse({ok:true,grades:gradeState==='empty'?[]:GRADES,requirements:gradeState==='empty'?[]:REQUIREMENTS});
+    if(action==='getKnlGradeMatrix')return jsonResponse({ok:true,grades:persistedGrades,requirements:persistedRequirements});
     if(action==='saveKnlGradeMatrix'){
       savedCalls.push(body);
       await new Promise(r=>setTimeout(r,15));
       if(failSave)return jsonResponse({ok:false,error:'KNL_VERSION_IMMUTABLE: Version đã khóa hoặc không còn là Draft.'});
+      // Mirror the real RPC's delete-then-insert: assign a fresh backend id to
+      // any submitted grade that doesn't have one yet, replace persisted state wholesale.
+      const gradeIdByCode={};
+      persistedGrades=body.grades.map(g=>{const id=g.id||('grade-new-'+(nextGradeSeq++));gradeIdByCode[g.gradeCode]=id;return{id,versionId:VERSION_ID,gradeCode:g.gradeCode,gradeNumber:g.gradeNumber,label:g.label,sortOrder:g.sortOrder};});
+      persistedRequirements=body.requirements.map(r=>({itemId:r.itemId,gradeId:gradeIdByCode[r.gradeCode],requiredColumnId:r.requiredColumnId,requiredLevelNumber:r.requiredLevelNumber}));
       return jsonResponse({ok:true,saved:{grades:body.grades.length,requirements:body.requirements.length}});
     }
     return jsonResponse({ok:false,error:'unhandled action '+action});
@@ -59,6 +71,8 @@ async function setupDom(gradeState,failSave,levelCount){
   await new Promise(r=>setTimeout(r,20));
   return {window,root:window.document.getElementById('phfKnlRoot'),savedCalls};
 }
+
+function gradeBadge(root){const el=root.querySelector('[data-grade-status-badge]');return el?{text:el.textContent,cls:el.className}:null;}
 
 async function clickSaveAndObserve(root){
   const before=root.querySelector('[data-grade-save]');
@@ -180,5 +194,57 @@ async function clickSaveAndObserve(root){
   }
   console.log('PASS Error path: saveKnlGradeMatrix RPC failure hiển thị lỗi rõ ràng, không silent fail, nút re-enable để retry');
 
-  console.log('PASS KNL grade matrix Save UI 1.50.13: click luôn gọi đúng handler/payload/RPC cho cả 3 case bắt buộc + loading/success/error luôn hiển thị.');
+  // 2026-08-11 saved/unsaved state machine (P0 UX gap: after a successful save
+  // the grid looked identical to the unsaved prefill baseline).
+  // E1/E2: framework rỗng (4 mức và 5 mức) -> mở ra phải hiện rõ CHƯA LƯU.
+  {
+    const {root}=await setupDom('empty',false,4);
+    const badge=gradeBadge(root);
+    assert(badge,'a saved/unsaved status badge must always be visible near the grid');
+    assert(/Chưa lưu/.test(badge.text)&&/is-review/.test(badge.cls),'a brand-new empty 4-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
+  }
+  {
+    const {root}=await setupDom('empty',false,5);
+    const badge=gradeBadge(root);
+    assert(/Chưa lưu/.test(badge.text)&&/is-review/.test(badge.cls),'a brand-new empty 5-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
+  }
+  console.log('PASS E1/E2: framework rỗng 4 mức và 5 mức -> badge CHƯA LƯU hiển thị rõ ràng ngay khi mở');
+
+  // E3/E4: Save thành công -> reload -> badge ĐÃ LƯU; mở lại (fresh DOM/window,
+  // không phụ thuộc bất kỳ local state nào từ phiên trước) vẫn đọc đúng từ persisted data.
+  {
+    const {root}=await setupDom('empty',false,5);
+    await clickSaveAndObserve(root);
+    const badgeAfterSave=gradeBadge(root);
+    assert(badgeAfterSave&&/^Đã lưu$/.test(badgeAfterSave.text)&&/is-ready/.test(badgeAfterSave.cls),'after a successful save the badge must switch to ĐÃ LƯU (is-ready), reloaded from the persisted reload, not just a transient toast');
+  }
+  {
+    // Trạng thái "F5/reopen": DOM/window hoàn toàn mới, mock backend trả về
+    // đúng dữ liệu đã lưu (gradeState='saved') -- chứng minh badge ĐÃ LƯU đến
+    // từ dữ liệu persisted khi mở lại, không phải từ session cũ còn nhớ.
+    const {root}=await setupDom('saved',false);
+    const badge=gradeBadge(root);
+    assert(badge&&/^Đã lưu$/.test(badge.text)&&/is-ready/.test(badge.cls),'reopening a version whose matrix was already persisted must show ĐÃ LƯU immediately, derived purely from the backend response');
+  }
+  console.log('PASS E3/E4: Save thành công -> badge ĐÃ LƯU; F5/mở lại (DOM mới hoàn toàn) vẫn đọc đúng ĐÃ LƯU từ dữ liệu persisted');
+
+  // E5/E6: sau khi đã lưu, sửa 1 cell -> badge chuyển CÓ THAY ĐỔI CHƯA LƯU
+  // (ngay khi đổi, chưa cần bấm Save); Save lại -> quay về ĐÃ LƯU.
+  {
+    const {window,root,savedCalls}=await setupDom('saved',false);
+    const before=gradeBadge(root);
+    assert(/^Đã lưu$/.test(before.text),'must start from a clean ĐÃ LƯU state');
+    const cell=root.querySelector('[data-grade-cell]');
+    cell.value=cell.querySelector('option:last-child').value;
+    cell.dispatchEvent(new window.Event('change',{bubbles:true}));
+    const dirty=gradeBadge(root);
+    assert(/Có thay đổi chưa lưu/.test(dirty.text)&&/is-review/.test(dirty.cls),'editing a cell on an already-saved matrix must immediately flip the badge to CÓ THAY ĐỔI CHƯA LƯU, before Save is even clicked');
+    await clickSaveAndObserve(root);
+    const clean=gradeBadge(root);
+    assert(/^Đã lưu$/.test(clean.text)&&/is-ready/.test(clean.cls),'saving again must return the badge to a clean ĐÃ LƯU state');
+    assert.strictEqual(savedCalls.length,1);
+  }
+  console.log('PASS E5/E6: sửa 1 cell sau khi đã lưu -> badge CÓ THAY ĐỔI CHƯA LƯU ngay lập tức; Save lại -> trở về ĐÃ LƯU');
+
+  console.log('PASS KNL grade matrix Save UI 1.50.13: click luôn gọi đúng handler/payload/RPC cho cả 3 case bắt buộc + loading/success/error luôn hiển thị + saved/dirty/draft state machine đúng.');
 })().catch(e=>{console.error(e);process.exit(1);});
