@@ -14,19 +14,62 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  // "Nhận định AI:"/"Gợi ý AI:" o dau cau tra loi -> gan tag rieng, tach
-  // ro suy luan cua model khoi du kien tool tra ve (EVIDENCE STATUS GATE).
-  var OPINION_PREFIXES = ['Nhận định AI:', 'Gợi ý AI:'];
+
+  /* MARKDOWN LITE (HOTFIX - Production hien thi nguyen ky tu markdown tho,
+     vi du dau sao dam/gach dau dong/backtick) - DeepSeek
+     tra Markdown pho thong (bold/bullet/so thu tu/inline code/doan van), UI
+     truoc gio chi thay \n -> <br> nen ky tu markdown lot nguyen van ra man
+     hinh. KHONG dung thu vien Markdown ngoai (tranh them dependency/bundle
+     cho 1 file thuan JS khong build step) - chi 1 tap con toi thieu, ĐỦ cho
+     van phong tra loi cua PHF AI.
+
+     AN TOAN (BAT BUOC) - escapeHtml() chay TRUOC TIEN tren toan bo raw text,
+     MOI transform markdown sau do chi thao tac tren chuoi DA escape (chi con
+     lai markdown syntax thuan ASCII: * ` - so/dau cham, khong con < > & song)
+     roi boc bang 1 whitelist the co dinh (<strong>/<code>/<ul><li>/<ol><li>/
+     <p>/<br>), KHONG BAO GIO chen truc tiep noi dung chua escape vao HTML,
+     KHONG dung thuoc tinh dong tu du lieu model - model KHONG THE inject
+     HTML/script du dung cu phap markdown nao. */
+  function escapeInlineMarkdown(escapedText){
+    var html = escapedText.replace(/\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+    return html;
+  }
+  function renderMarkdownBlock(block){
+    var lines = block.split('\n').filter(function(l){ return l.length > 0; });
+    if (!lines.length) return '';
+    var isUl = lines.every(function(l){ return /^[-*]\s+/.test(l); });
+    if (isUl) {
+      return '<ul>' + lines.map(function(l){ return '<li>' + escapeInlineMarkdown(l.replace(/^[-*]\s+/, '')) + '</li>'; }).join('') + '</ul>';
+    }
+    var isOl = lines.every(function(l){ return /^\d+[.)]\s+/.test(l); });
+    if (isOl) {
+      return '<ol>' + lines.map(function(l){ return '<li>' + escapeInlineMarkdown(l.replace(/^\d+[.)]\s+/, '')) + '</li>'; }).join('') + '</ol>';
+    }
+    return '<p>' + lines.map(escapeInlineMarkdown).join('<br>') + '</p>';
+  }
+  function renderMarkdownLite(text){
+    var escaped = escapeHtml(text).replace(/\r\n/g, '\n');
+    var blocks = escaped.split(/\n{2,}/).map(function(b){ return b.replace(/^\n+|\n+$/g, ''); }).filter(Boolean);
+    if (!blocks.length) return '';
+    return blocks.map(renderMarkdownBlock).join('');
+  }
+
+  // "Phân tích & đề xuất:" (nhan tu nhien, thay "Nhận định AI:"/"Gợi ý AI:"
+  // cu) o dau cau tra loi -> gan tag rieng, tach ro suy luan cua model khoi
+  // du kien tool tra ve (EVIDENCE STATUS GATE). Giu lai 2 nhan cu de cac
+  // cuoc hoi thoai DA LUU truoc hotfix van hien thi dung tag, khong vo layout.
+  var OPINION_PREFIXES = ['Phân tích & đề xuất:', 'Nhận định AI:', 'Gợi ý AI:'];
   function renderMessageContent(text){
     var raw = String(text == null ? '' : text);
     for (var i = 0; i < OPINION_PREFIXES.length; i++) {
       var prefix = OPINION_PREFIXES[i];
       if (raw.indexOf(prefix) === 0) {
         var rest = raw.slice(prefix.length);
-        return '<span class="phf-ai-opinion-tag">✦ ' + escapeHtml(prefix.slice(0, -1)) + '</span>' + escapeHtml(rest).replace(/\n/g,'<br>');
+        return '<span class="phf-ai-opinion-tag">✦ ' + escapeHtml(prefix.slice(0, -1)) + '</span>' + renderMarkdownLite(rest);
       }
     }
-    return escapeHtml(raw).replace(/\n/g,'<br>');
+    return renderMarkdownLite(raw);
   }
   function formatAsOf(value){
     var d = new Date(value);
