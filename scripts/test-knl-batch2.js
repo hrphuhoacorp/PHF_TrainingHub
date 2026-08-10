@@ -30,7 +30,7 @@ const excluded=manifest.candidates.filter(row=>row.candidateStatus==='EXCLUDED')
 const totals=ready.reduce((sum,row)=>({frameworks:sum.frameworks+1,versions:sum.versions+1,groups:sum.groups+row.counts.groups,items:sum.items+row.counts.items,contents:sum.contents+row.counts.contents}),{frameworks:0,versions:0,groups:0,items:0,contents:0});
 check(JSON.stringify(totals)===JSON.stringify({frameworks:11,versions:11,groups:33,items:132,contents:632}),'Manifest chuẩn bị đúng 11 framework / 11 version / 33 group / 132 item / 632 content');
 check(ready.some(row=>row.levelCount===4)&&ready.some(row=>row.levelCount===5),'Source giữ đúng engine mức động 4 và 5');
-check(review.length===21&&review.every(row=>row.groups.length===0),'21 source regular/v2/legacy conflict được skip, không có payload cấu trúc');
+check(review.length===21&&review.every(row=>row.groups.length>0&&row.counts.groups>0),'21 source NEEDS_REVIEW (regular/v2/legacy naming ambiguity) vẫn có đầy đủ payload cấu trúc — candidateStatus không còn quyết định mẫu có xuất hiện trong thư viện hay không (batch Thư viện Bộ KNL đầy đủ)');
 check(excluded.length===3&&['CV CUNG ỨNG','NV VẬN TẢI','CHUỖI GIÁ TRỊ HÀNG SX'].every(name=>excluded.some(row=>row.sourceSheet===name)),'Ba residual/out-of-scope bị EXCLUDED');
 const forbidden=/lương|thu nhập|bậc lương|thử việc|compensation|85%/i;
 const seededContent=ready.flatMap(row=>[row.guidance||'',...row.groups.flatMap(group=>group.items).flatMap(item=>[item.name,item.description,...item.levels])]).join('\n');
@@ -60,7 +60,7 @@ delete require.cache[servicePath];const service=require('../lib/knl-assignments'
 
 (async()=>{
   const first=await service.seedKnlSourceManifest(admin),snapshot={...dbState.domain};const second=await service.seedKnlSourceManifest(admin);
-  check(first.summary.SEEDED===11&&!first.summary.SKIPPED&&dbState.seeded.size===11,'Seed lần 1 chỉ gọi đúng 11 READY; không xử lý 21 NEEDS_REVIEW hoặc 3 EXCLUDED');
+  check(first.summary.SEEDED===11&&!first.summary.SKIPPED&&dbState.seeded.size===11,'lib/knl-assignments.js#seedKnlSourceManifest (đường RPC hàng loạt cũ) vẫn chỉ gọi 11 READY như thiết kế ban đầu — 21 NEEDS_REVIEW nay được nạp qua scripts/phf-knl-library-seed-needs-review-1.50.9.js (đường CRUD hạt mịn sẵn có, không qua RPC này, không cần migration)');
   check(second.summary.UNCHANGED===11&&JSON.stringify(dbState.domain)===JSON.stringify(snapshot),'Seed lần 2 không tăng framework/version/group/item/content');
   check(dbState.assignments.length===0,'Seed lần 1/lần 2 không tự tạo hoặc duplicate assignment');
   await service.saveKnlFrameworkAssignment(admin,{versionId:versionA,targetType:'employee',targetRef:'E1',reason:'Gán khung A'});

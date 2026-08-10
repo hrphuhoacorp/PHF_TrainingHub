@@ -801,15 +801,16 @@ async function loadPermissions(root){
 /* ===================== BỘ KNL / DRAFT STRUCTURE (BATCH 1) ===================== */
 
 var frameworkState={frameworks:[],selectedVersionId:'',detail:null,loading:false,loaded:false,loadedAt:0,error:''};
-function statusLabel(value){return value==='published'?'Đã phát hành':(value==='inactive'?'Ngừng áp dụng':'Bản nháp');}
+function statusLabel(value){return value==='published'?'Đang áp dụng':(value==='inactive'?'Ngưng áp dụng':'Chưa áp dụng');}
 function findFrameworkForVersion(versionId){return frameworkState.frameworks.find(function(f){return (f.versions||[]).some(function(v){return v.id===versionId;});});}
 function orderedActive(rows){return (rows||[]).filter(function(row){return row.isActive!==false;}).slice().sort(function(a,b){return a.sortOrder-b.sortOrder;});}
 function frameworkListHtml(){
   if(!frameworkState.frameworks.length)return '<div class="phfk-framework-empty">Chưa có bộ KNL. Batch này không nạp dữ liệu demo.</div>';
   return frameworkState.frameworks.map(function(f){
     var versions=f.versions||[];
-    return '<section class="phfk-framework-card"><div><b>'+esc(f.name)+'</b><small>'+esc(f.code)+' · '+statusLabel(f.status)+'</small></div>'+
-      '<div class="phfk-version-list">'+versions.map(function(v){return '<button type="button" class="phfk-version-btn'+(frameworkState.selectedVersionId===v.id?' active':'')+'" data-knl-version="'+esc(v.id)+'">v'+v.versionNumber+' · '+esc(v.name)+'<small>'+statusLabel(v.status)+(v.isLocked?' · Đã khóa':'')+'</small></button>';}).join('')+'</div></section>';
+    var primary=versions[0];
+    return '<section class="phfk-framework-card"><div><b>'+esc(f.name)+'</b><small>'+(primary?('v'+primary.versionNumber+' · '+statusLabel(primary.status)):statusLabel(f.status))+'</small></div>'+
+      '<div class="phfk-version-list">'+versions.map(function(v){return '<button type="button" class="phfk-version-btn'+(frameworkState.selectedVersionId===v.id?' active':'')+'" data-knl-version="'+esc(v.id)+'">v'+v.versionNumber+'<small>'+statusLabel(v.status)+(v.isLocked?' · Đã khóa':'')+'</small></button>';}).join('')+'</div></section>';
   }).join('');
 }
 function structureColumnsHtml(detail){
@@ -833,7 +834,7 @@ function frameworkWorkspaceHtml(){
   return frameworkDomainNav('bo-knl')+'<div class="phfk-page-head"><div><small>KNL · BATCH 1</small><h1>Bộ KNL & cấu trúc động</h1></div><button type="button" class="phfk-btn-primary" data-knl-create-framework>+ Tạo bộ KNL</button></div>'+
     '<p class="phfk-batch-note">Chỉ quản trị cấu trúc Draft. Không có Survey, Assessment, nhân sự, organization hay dữ liệu demo trong batch này.</p>'+
     '<div class="phfk-framework-workspace"><aside class="phfk-panel phfk-framework-list">'+frameworkListHtml()+'</aside><div class="phfk-framework-detail">'+
-    (!detail?'<div class="phfk-empty">Chọn một version để quản trị cấu trúc.</div>':'<section class="phfk-panel phfk-version-head"><div><small>'+esc(detail.framework.code)+' · VERSION '+detail.version.versionNumber+'</small><h2>'+esc(detail.framework.name)+' — '+esc(detail.version.name)+'</h2><p>'+statusLabel(detail.framework.status)+' · '+statusLabel(detail.version.status)+(detail.version.isLocked?' · Version bất biến':' · Có thể chỉnh sửa')+'</p></div><div class="phfk-form-actions">'+(detail.version.status==='draft'&&!detail.version.isLocked?'<button class="phfk-btn-secondary" data-knl-publish-version>Phát hành & khóa</button>':'<button class="phfk-btn-primary" data-knl-clone-version>Tạo version mới</button>')+(detail.framework.status==='published'?'<button class="phfk-btn-secondary" data-knl-inactivate-framework>Ngừng áp dụng</button>':'')+'</div></section>'+structureColumnsHtml(detail)+competencyTableHtml(detail))+'</div></div>'+
+    (!detail?'<div class="phfk-empty">Chọn một version để quản trị cấu trúc.</div>':'<section class="phfk-panel phfk-version-head"><div><h2>'+esc(detail.framework.name)+'</h2><p>Phiên bản '+detail.version.versionNumber+' · '+statusLabel(detail.version.status)+(detail.version.isLocked?' · Version bất biến':' · Có thể chỉnh sửa')+'</p></div><div class="phfk-form-actions">'+(detail.version.status==='draft'&&!detail.version.isLocked?'<button class="phfk-btn-secondary" data-knl-publish-version>Phát hành & khóa</button>':'<button class="phfk-btn-primary" data-knl-clone-version>Tạo version mới</button>')+(detail.framework.status==='published'?'<button class="phfk-btn-secondary" data-knl-inactivate-framework>Ngưng áp dụng</button>':'')+'</div></section>'+structureColumnsHtml(detail)+competencyTableHtml(detail))+'</div></div>'+
     (frameworkState.error?'<p class="phfk-error">'+esc(frameworkState.error)+'</p>':'');
 }
 function renderFrameworkBody(root){var body=root.querySelector('[data-knl-body]');if(body)body.innerHTML=frameworkState.loading?'<div class="phfk-loading">Đang tải cấu trúc KNL…</div>':frameworkWorkspaceHtml();bindFrameworkEvents(root);}

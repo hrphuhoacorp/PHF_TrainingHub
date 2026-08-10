@@ -1,7 +1,7 @@
 {
-  "version": "1.50.5",
-  "fingerprint": "1.50.5-accounts-list-load-fix",
+  "version": "1.50.9",
+  "fingerprint": "1.50.9-knl-library-full-catalog-status-ux",
   "builtAt": "2026-08-10T00:00:00+07:00",
-  "notes": "1.50.5: fix /admin/nhan-su > Tài khoản showing 'Chưa có tài khoản phù hợp' with real accounts in Production. renderAccounts() (reached via phfAcctSafeTab from Employee Master's 'Quản lý tài khoản' button) never called loadAccountsFromServer — only the legacy /admin/quan-tri/tai-khoan entry point did, and that route now redirects to /admin/nhan-su. Frontend-only fix: renderAccounts() now always triggers a deduped server refresh, and a failed refresh shows a visible retry message instead of silently rendering the empty-state text. No backend/schema/data change.",
-  "build": "1.50.5"
+  "notes": "1.50.9: Bộ KNL library now loads every valid source candidate (21 previously skipped as NEEDS_REVIEW — TN Giám sát, Gói quà, HCNS, Kho, Kế toán viên/Thu/Chi, Thu mua variants — are real distinct competency templates, not duplicates; candidateStatus is backend/audit metadata only, no longer a library-inclusion gate). New frameworks default to draft ('Chưa áp dụng'). UI: /admin/knl/bo-knl card and detail header now show clean business name + 'vN · trạng thái' instead of framework code/UUID/READY/NEEDS_REVIEW/duplicated draft status; statusLabel now returns Chưa áp dụng/Đang áp dụng/Ngưng áp dụng. No schema/migration change.",
+  "build": "1.50.9"
 }

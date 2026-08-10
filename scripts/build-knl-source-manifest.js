@@ -41,6 +41,16 @@ const conflictReason={
   'NV Thu mua (PHF)':'NV_THUMUA_PHF_LEGACY_UNRESOLVED','NV_Thumua':'NV_THUMUA_PHF_LEGACY_UNRESOLVED',
   'TP Thu mua (PHF)':'TP_THUMUA_REGULAR_V2_UNRESOLVED','TP Thu mua (PHF) v2':'TP_THUMUA_REGULAR_V2_UNRESOLVED'
 };
+// Business-name overrides: chỉ dùng khi sourcePosition (Vị trí nguồn) của
+// nhiều sheet trùng nhau y hệt và cần tên nghiệp vụ phân biệt. KHÔNG đổi dữ
+// liệu nguồn - chỉ chọn tên hiển thị rõ nghĩa từ chính tên sheet nguồn.
+// KTTH/KT THU/KT CHI đều khai "Vị trí nguồn: Kế toán viên" giống hệt nhau
+// trong PHF_KNL_IMPLEMENTATION_SPEC_2026-08-09.md (không có sheet nào tên
+// literal "KTV") - đây là 3 mẫu KNL nội dung khác nhau (kế toán tổng hợp/
+// thu/chi), không phải bản sao trùng lặp của cùng một vị trí.
+const frameworkNameOverride={
+  'KTTH':'Kế toán viên','KT THU':'Kế toán Thu','KT CHI':'Kế toán Chi'
+};
 function candidateFromTable(meta,table,rawBlock){
   const groupIndex=table.headers.findIndex(h=>/Nhóm/.test(h));
   const itemIndex=table.headers.findIndex(h=>/Hạng mục/.test(h));
@@ -48,6 +58,11 @@ function candidateFromTable(meta,table,rawBlock){
   const levelIndexes=table.headers.map((h,index)=>/^Mức(?: độ)?\s*\d+$/i.test(h)?index:-1).filter(index=>index>=0);
   const rowIndex=table.headers.findIndex(h=>/Dòng nguồn/.test(h));
   const key='phf-knl-2026-08-09:'+sha(meta.sourceFile+'|'+meta.sourceSheet).slice(0,20);
+  // candidateStatus la tin hieu audit/provenance noi bo (backend/data) -
+  // KHONG con quyet dinh mau co duoc nap len thu vien hay khong (xem PHF
+  // Organization Master Cutover session, batch "Thu vien Bo KNL"). Moi
+  // candidate khong phai EXCLUDED deu duoc trich xuat DAY DU groups/
+  // columns/content, nap len voi trang thai nghiep vu "Chua ap dung".
   const status=conflictSheets.has(meta.sourceSheet)?'NEEDS_REVIEW':'READY';
   const kept=[],excluded=[];
   table.rows.forEach((row,index)=>{
@@ -56,12 +71,13 @@ function candidateFromTable(meta,table,rawBlock){
     if(forbidden([item.name,item.description,...item.levels].join(' ')))excluded.push({sourceRow,reason:'FORBIDDEN_COMPENSATION_CONTENT'});else kept.push(item);
   });
   const groups=[];
-  if(status==='READY')kept.forEach(item=>{let group=groups.find(g=>g.name===item.group);if(!group){group={sourceKey:key+':group:'+String(groups.length+1),name:item.group,sortOrder:groups.length+1,items:[]};groups.push(group);}group.items.push({...item,sortOrder:group.items.length+1});});
+  kept.forEach(item=>{let group=groups.find(g=>g.name===item.group);if(!group){group={sourceKey:key+':group:'+String(groups.length+1),name:item.group,sortOrder:groups.length+1,items:[]};groups.push(group);}group.items.push({...item,sortOrder:group.items.length+1});});
   const columns=[{sourceKey:key+':column:item',type:'item',label:'HẠNG MỤC',sortOrder:1}];
   if(descriptionIndex>=0)columns.push({sourceKey:key+':column:description',type:'description',label:table.headers[descriptionIndex].toUpperCase(),sortOrder:columns.length+1});
   levelIndexes.forEach((_,index)=>columns.push({sourceKey:key+':column:level:'+String(index+1),type:'level',label:'MỨC ĐỘ '+String(index+1),levelNumber:index+1,sortOrder:columns.length+1}));
-  const contentCount=status==='READY'?kept.reduce((sum,item)=>sum+item.levels.filter(Boolean).length,0):0;
-  const payload={manifestKey:key,specDate:'2026-08-09',sourceFile:meta.sourceFile,sourceSheet:meta.sourceSheet,sourcePosition:meta.sourcePosition,sourceHash:sha(rawBlock.join('\n')),candidateStatus:status,decisionReason:status==='READY'?'UNIQUE_SOURCE_CANDIDATE':conflictReason[meta.sourceSheet],levelCount:levelIndexes.length,includeDescription:descriptionIndex>=0,guidance:status==='READY'?clean(meta.guidance||''):'',frameworkCode:('KNL_'+slug(meta.sourceSheet)+'_'+sha(key).slice(0,6).toUpperCase()).slice(0,50),frameworkName:meta.sourcePosition,versionName:'Source Candidate · '+meta.sourceSheet,sourceVersionKey:key+':version:1',columns:status==='READY'?columns:[],groups,excludedRows:excluded,counts:{groups:status==='READY'?groups.length:0,items:status==='READY'?kept.length:0,contents:contentCount}};
+  const contentCount=kept.reduce((sum,item)=>sum+item.levels.filter(Boolean).length,0);
+  const frameworkName=frameworkNameOverride[meta.sourceSheet]||meta.sourcePosition;
+  const payload={manifestKey:key,specDate:'2026-08-09',sourceFile:meta.sourceFile,sourceSheet:meta.sourceSheet,sourcePosition:meta.sourcePosition,sourceHash:sha(rawBlock.join('\n')),candidateStatus:status,decisionReason:status==='READY'?'UNIQUE_SOURCE_CANDIDATE':conflictReason[meta.sourceSheet],levelCount:levelIndexes.length,includeDescription:descriptionIndex>=0,guidance:clean(meta.guidance||''),frameworkCode:('KNL_'+slug(meta.sourceSheet)+'_'+sha(key).slice(0,6).toUpperCase()).slice(0,50),frameworkName,versionName:frameworkName,sourceVersionKey:key+':version:1',columns,groups,excludedRows:excluded,counts:{groups:groups.length,items:kept.length,contents:contentCount}};
   payload.payloadHash=sha(JSON.stringify({...payload,payloadHash:undefined}));
   return payload;
 }
