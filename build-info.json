@@ -1,7 +1,7 @@
 {
-  "version": "1.49.1",
-  "fingerprint": "1.49.1-knl-navigation-performance",
-  "builtAt": "2026-08-10T01:01:26+07:00",
-  "notes": "1.49.1: KNL navigation performance batch; persistent shell, scoped in-memory read cache, panel loading, preserved route state and parallel permission reads. No migration or business-rule changes.",
-  "build": "1.49.1"
+  "version": "1.50.0",
+  "fingerprint": "1.50.0-knl-foundation-production",
+  "builtAt": "2026-08-10T09:40:07+07:00",
+  "notes": "1.50.0 Production: competency grade standard, effective framework versions, salary-grade/reference-income foundation, scoped personal income and reviewed 2026-07 baseline.",
+  "build": "1.50.0"
 }

@@ -297,12 +297,13 @@ async function run() {
   check(subjectMatchesScope(subjectE1, { type: 'employees', values: ['TBP-E3'], reservedEmployees: ['TBP-E1'] }, {}) === false, 'CASE 17b. type=employees, subject CHỈ có trong reservedEmployees (không có trong values active) -> false — chứng minh hàm chỉ đọc values, tuyệt đối không đọc reservedEmployees dù type đang đúng là employees');
   check(subjectMatchesScope(subjectE1, { type: 'employees', values: ['TBP-E1'], reservedEmployees: [] }, {}) === true, 'CASE 17c. Đối chứng: subject có trong values active thật -> true (hàm vẫn hoạt động đúng cho trường hợp hợp lệ)');
 
-  // CASE 18: income_view — Admin mặc định true (kể cả không có grant row), nhưng DB được phép override false cho riêng Admin đó; Admin khác không bị ảnh hưởng
+  // CASE 18: Foundation 1.50.0 — Admin luôn full income_view. Backend sensitive API
+  // vẫn là source of truth; grant row không được làm stale/thu hồi đường Admin.
   let caps = await getCaps(session('admin', { id: 'u-admin-no-row' }));
   check(caps.capabilities.income_view === true, 'CASE 18a. Admin không có grant row nào -> income_view mặc định true (đường cứu hộ)');
   await grant('u-admin-revoked-income', 'CUSTOM', { access_knl: true, view_people: true, manage_permissions: true, income_view: false }, { type: 'self', values: [] }, 'Thu hồi income_view của Admin này');
   caps = await getCaps(session('admin', { id: 'u-admin-revoked-income' }));
-  check(caps.capabilities.income_view === false, 'CASE 18b. Admin có grant row explicit income_view=false -> bị override false thật (revocable), 6 capability cứu hộ còn lại (access_knl/view_people/manage_permissions...) vẫn true nguyên vẹn');
+  check(caps.capabilities.income_view === true, 'CASE 18b. Admin có grant row income_view=false vẫn giữ full income_view theo Foundation 1.50.0; backend authorization là source of truth');
   check(caps.capabilities.access_knl === true && caps.capabilities.manage_permissions === true, 'CASE 18c. Cùng Admin đó: các capability cứu hộ khác không bị ảnh hưởng bởi việc income_view bị thu hồi');
   caps = await getCaps(session('admin', { id: 'u-admin-no-row' }));
   check(caps.capabilities.income_view === true, 'CASE 18d. Admin khác (không có override) vẫn income_view=true — thu hồi của 1 Admin không ảnh hưởng Admin khác');

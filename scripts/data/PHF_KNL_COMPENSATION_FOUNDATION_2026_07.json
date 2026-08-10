@@ -1,0 +1,1389 @@
+{
+  "manifestVersion": "PHF_KNL_COMPENSATION_FOUNDATION_2026_07_V1",
+  "sourceFile": "PHF.cocauluong.xlsx",
+  "sourceSha256": "4ca3283c9ae0700e7e4d47ae4ae416f916475360f1a327bf3c2cfc2abbdc523d",
+  "sourcePeriod": "2026-07",
+  "effectivePeriod": null,
+  "policy": {
+    "money": "Integer VND using round() over Excel numeric cells.",
+    "identity": "employee_code only; names are cross-check evidence.",
+    "organization": "Read-only current organization; never write source organization.",
+    "assignment": "Preview first; only WILL_ASSIGN may be written after migration and explicit effective period confirmation."
+  },
+  "overrides": [
+    {
+      "employeeCode": "PHF038",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "NSGQ-B1"
+    },
+    {
+      "employeeCode": "PHF080",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "NSGQ-B1"
+    },
+    {
+      "employeeCode": "PHF034",
+      "sourceGradeCode": "CUNG-B3",
+      "mappedGradeCode": "CUNG-B3"
+    },
+    {
+      "employeeCode": "PHF005",
+      "sourceGradeCode": "CUNG-B2",
+      "mappedGradeCode": "CUNG-B2"
+    },
+    {
+      "employeeCode": "PHF073",
+      "sourceGradeCode": "CUNG-B1",
+      "mappedGradeCode": "CUNG-B1"
+    },
+    {
+      "employeeCode": "PHF035",
+      "sourceGradeCode": "NSSC-B3",
+      "mappedGradeCode": "CUNG-B3"
+    },
+    {
+      "employeeCode": "PHF064",
+      "sourceGradeCode": "NSSC-B2",
+      "mappedGradeCode": "CUNG-B2"
+    },
+    {
+      "employeeCode": "PHF010",
+      "sourceGradeCode": "QLCT-B4",
+      "mappedGradeCode": "QLCT-B4"
+    },
+    {
+      "employeeCode": "PHF004",
+      "sourceGradeCode": "QLCT-B3",
+      "mappedGradeCode": "QLCT-B3"
+    },
+    {
+      "employeeCode": "PHF032",
+      "sourceGradeCode": "CUNG-B6",
+      "mappedGradeCode": "QLCT-B2"
+    }
+  ],
+  "ladders": [
+    {
+      "code": "QLCT",
+      "name": "QUẢN LÝ CẤP TRUNG\n(Phó phòng trở lên)",
+      "sourceRow": 2,
+      "grades": [
+        {
+          "gradeCode": "QLCT-B1",
+          "gradeNumber": 1,
+          "baseSalary": 7000000,
+          "hqcv": 3000000,
+          "managementAllowance": 700000,
+          "professionalAllowance": 700000
+        },
+        {
+          "gradeCode": "QLCT-B2",
+          "gradeNumber": 2,
+          "baseSalary": 9275000,
+          "hqcv": 3975000,
+          "managementAllowance": 927500,
+          "professionalAllowance": 927500
+        },
+        {
+          "gradeCode": "QLCT-B3",
+          "gradeNumber": 3,
+          "baseSalary": 11550000,
+          "hqcv": 4950000,
+          "managementAllowance": 1155000,
+          "professionalAllowance": 1155000
+        },
+        {
+          "gradeCode": "QLCT-B4",
+          "gradeNumber": 4,
+          "baseSalary": 13825000,
+          "hqcv": 5925000,
+          "managementAllowance": 1382500,
+          "professionalAllowance": 1382500
+        },
+        {
+          "gradeCode": "QLCT-B5",
+          "gradeNumber": 5,
+          "baseSalary": 16100000,
+          "hqcv": 6900000,
+          "managementAllowance": 1610000,
+          "professionalAllowance": 1610000
+        },
+        {
+          "gradeCode": "QLCT-B6",
+          "gradeNumber": 6,
+          "baseSalary": 18375000,
+          "hqcv": 12250000,
+          "managementAllowance": 1837500,
+          "professionalAllowance": 1837500
+        },
+        {
+          "gradeCode": "QLCT-B7",
+          "gradeNumber": 7,
+          "baseSalary": 20650000,
+          "hqcv": 13767000,
+          "managementAllowance": 2065000,
+          "professionalAllowance": 2065000
+        },
+        {
+          "gradeCode": "QLCT-B8",
+          "gradeNumber": 8,
+          "baseSalary": 22925000,
+          "hqcv": 15283000,
+          "managementAllowance": 2292500,
+          "professionalAllowance": 2292500
+        },
+        {
+          "gradeCode": "QLCT-B9",
+          "gradeNumber": 9,
+          "baseSalary": 25200000,
+          "hqcv": 16800000,
+          "managementAllowance": 2520000,
+          "professionalAllowance": 2520000
+        },
+        {
+          "gradeCode": "QLCT-B10",
+          "gradeNumber": 10,
+          "baseSalary": 27475000,
+          "hqcv": 18317000,
+          "managementAllowance": 2747500,
+          "professionalAllowance": 2747500
+        }
+      ]
+    },
+    {
+      "code": "KDTT",
+      "name": "KINH DOANH TRỰC TIẾP",
+      "sourceRow": 15,
+      "grades": [
+        {
+          "gradeCode": "KDTT-B1",
+          "gradeNumber": 1,
+          "baseSalary": 5500000,
+          "hqcv": 1375000,
+          "managementAllowance": 550000,
+          "professionalAllowance": 550000
+        },
+        {
+          "gradeCode": "KDTT-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6242500,
+          "hqcv": 1560500,
+          "managementAllowance": 624250,
+          "professionalAllowance": 624250
+        },
+        {
+          "gradeCode": "KDTT-B3",
+          "gradeNumber": 3,
+          "baseSalary": 6985000,
+          "hqcv": 1746000,
+          "managementAllowance": 698500,
+          "professionalAllowance": 698500
+        },
+        {
+          "gradeCode": "KDTT-B4",
+          "gradeNumber": 4,
+          "baseSalary": 7727500,
+          "hqcv": 1931500,
+          "managementAllowance": 772750,
+          "professionalAllowance": 772750
+        },
+        {
+          "gradeCode": "KDTT-B5",
+          "gradeNumber": 5,
+          "baseSalary": 8470000,
+          "hqcv": 2118000,
+          "managementAllowance": 847000,
+          "professionalAllowance": 847000
+        },
+        {
+          "gradeCode": "KDTT-B6",
+          "gradeNumber": 6,
+          "baseSalary": 9212500,
+          "hqcv": 2303500,
+          "managementAllowance": 921250,
+          "professionalAllowance": 921250
+        },
+        {
+          "gradeCode": "KDTT-B7",
+          "gradeNumber": 7,
+          "baseSalary": 9955000,
+          "hqcv": 4266000,
+          "managementAllowance": 995500,
+          "professionalAllowance": 995500
+        },
+        {
+          "gradeCode": "KDTT-B8",
+          "gradeNumber": 8,
+          "baseSalary": 10697500,
+          "hqcv": 4584500,
+          "managementAllowance": 1069750,
+          "professionalAllowance": 1069750
+        },
+        {
+          "gradeCode": "KDTT-B9",
+          "gradeNumber": 9,
+          "baseSalary": 11440000,
+          "hqcv": 4903000,
+          "managementAllowance": 1144000,
+          "professionalAllowance": 1144000
+        },
+        {
+          "gradeCode": "KDTT-B10",
+          "gradeNumber": 10,
+          "baseSalary": 12182500,
+          "hqcv": 5221500,
+          "managementAllowance": 1218250,
+          "professionalAllowance": 1218250
+        },
+        {
+          "gradeCode": "KDTT-B11",
+          "gradeNumber": 11,
+          "baseSalary": 12925000,
+          "hqcv": 5539000,
+          "managementAllowance": 1292500,
+          "professionalAllowance": 1292500
+        },
+        {
+          "gradeCode": "KDTT-B12",
+          "gradeNumber": 12,
+          "baseSalary": 13667500,
+          "hqcv": 5857500,
+          "managementAllowance": 1366750,
+          "professionalAllowance": 1366750
+        }
+      ]
+    },
+    {
+      "code": "KDGT",
+      "name": "KINH DOANH GIÁN TIẾP",
+      "sourceRow": 28,
+      "grades": [
+        {
+          "gradeCode": "KDGT-B1",
+          "gradeNumber": 1,
+          "baseSalary": 6000000,
+          "hqcv": 1500000,
+          "managementAllowance": 600000,
+          "professionalAllowance": 600000
+        },
+        {
+          "gradeCode": "KDGT-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6810000,
+          "hqcv": 1977000,
+          "managementAllowance": 681000,
+          "professionalAllowance": 681000
+        },
+        {
+          "gradeCode": "KDGT-B3",
+          "gradeNumber": 3,
+          "baseSalary": 7620000,
+          "hqcv": 2212000,
+          "managementAllowance": 762000,
+          "professionalAllowance": 762000
+        },
+        {
+          "gradeCode": "KDGT-B4",
+          "gradeNumber": 4,
+          "baseSalary": 8430000,
+          "hqcv": 2810000,
+          "managementAllowance": 843000,
+          "professionalAllowance": 843000
+        },
+        {
+          "gradeCode": "KDGT-B5",
+          "gradeNumber": 5,
+          "baseSalary": 9240000,
+          "hqcv": 3080000,
+          "managementAllowance": 924000,
+          "professionalAllowance": 924000
+        },
+        {
+          "gradeCode": "KDGT-B6",
+          "gradeNumber": 6,
+          "baseSalary": 9960000,
+          "hqcv": 4269000,
+          "managementAllowance": 996000,
+          "professionalAllowance": 996000
+        },
+        {
+          "gradeCode": "KDGT-B7",
+          "gradeNumber": 7,
+          "baseSalary": 10680000,
+          "hqcv": 4577000,
+          "managementAllowance": 1068000,
+          "professionalAllowance": 1068000
+        },
+        {
+          "gradeCode": "KDGT-B8",
+          "gradeNumber": 8,
+          "baseSalary": 11400000,
+          "hqcv": 4886000,
+          "managementAllowance": 1140000,
+          "professionalAllowance": 1140000
+        },
+        {
+          "gradeCode": "KDGT-B9",
+          "gradeNumber": 9,
+          "baseSalary": 12120000,
+          "hqcv": 5194000,
+          "managementAllowance": 1212000,
+          "professionalAllowance": 1212000
+        },
+        {
+          "gradeCode": "KDGT-B10",
+          "gradeNumber": 10,
+          "baseSalary": 12840000,
+          "hqcv": 5503000,
+          "managementAllowance": 1284000,
+          "professionalAllowance": 1284000
+        }
+      ]
+    },
+    {
+      "code": "CUNG",
+      "name": "CUNG ỨNG\n(Kho vận; Thu mua; Vận chuyển)",
+      "sourceRow": 41,
+      "grades": [
+        {
+          "gradeCode": "CUNG-B1",
+          "gradeNumber": 1,
+          "baseSalary": 6000000,
+          "hqcv": 1059000,
+          "managementAllowance": 600000,
+          "professionalAllowance": 600000
+        },
+        {
+          "gradeCode": "CUNG-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6810000,
+          "hqcv": 1202000,
+          "managementAllowance": 681000,
+          "professionalAllowance": 681000
+        },
+        {
+          "gradeCode": "CUNG-B3",
+          "gradeNumber": 3,
+          "baseSalary": 7620000,
+          "hqcv": 1345000,
+          "managementAllowance": 762000,
+          "professionalAllowance": 762000
+        },
+        {
+          "gradeCode": "CUNG-B4",
+          "gradeNumber": 4,
+          "baseSalary": 8430000,
+          "hqcv": 2108000,
+          "managementAllowance": 843000,
+          "professionalAllowance": 843000
+        },
+        {
+          "gradeCode": "CUNG-B5",
+          "gradeNumber": 5,
+          "baseSalary": 9240000,
+          "hqcv": 3080000,
+          "managementAllowance": 924000,
+          "professionalAllowance": 924000
+        },
+        {
+          "gradeCode": "CUNG-B6",
+          "gradeNumber": 6,
+          "baseSalary": 9960000,
+          "hqcv": 4269000,
+          "managementAllowance": 996000,
+          "professionalAllowance": 996000
+        },
+        {
+          "gradeCode": "CUNG-B7",
+          "gradeNumber": 7,
+          "baseSalary": 10680000,
+          "hqcv": 4577000,
+          "managementAllowance": 1068000,
+          "professionalAllowance": 1068000
+        },
+        {
+          "gradeCode": "CUNG-B8",
+          "gradeNumber": 8,
+          "baseSalary": 11400000,
+          "hqcv": 4886000,
+          "managementAllowance": 1140000,
+          "professionalAllowance": 1140000
+        },
+        {
+          "gradeCode": "CUNG-B9",
+          "gradeNumber": 9,
+          "baseSalary": 12120000,
+          "hqcv": 5194000,
+          "managementAllowance": 1212000,
+          "professionalAllowance": 1212000
+        },
+        {
+          "gradeCode": "CUNG-B10",
+          "gradeNumber": 10,
+          "baseSalary": 12840000,
+          "hqcv": 5503000,
+          "managementAllowance": 1284000,
+          "professionalAllowance": 1284000
+        }
+      ]
+    },
+    {
+      "code": "NSGQ",
+      "name": "NHÂN SỰ TRỰC TIẾP\n(Gói quà)",
+      "sourceRow": 54,
+      "grades": [
+        {
+          "gradeCode": "NSGQ-B1",
+          "gradeNumber": 1,
+          "baseSalary": 5500000,
+          "hqcv": 1375000,
+          "managementAllowance": 550000,
+          "professionalAllowance": 550000
+        },
+        {
+          "gradeCode": "NSGQ-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6270000,
+          "hqcv": 1568000,
+          "managementAllowance": 627000,
+          "professionalAllowance": 627000
+        },
+        {
+          "gradeCode": "NSGQ-B3",
+          "gradeNumber": 3,
+          "baseSalary": 7040000,
+          "hqcv": 1760000,
+          "managementAllowance": 704000,
+          "professionalAllowance": 704000
+        },
+        {
+          "gradeCode": "NSGQ-B4",
+          "gradeNumber": 4,
+          "baseSalary": 7810000,
+          "hqcv": 1953000,
+          "managementAllowance": 781000,
+          "professionalAllowance": 781000
+        },
+        {
+          "gradeCode": "NSGQ-B5",
+          "gradeNumber": 5,
+          "baseSalary": 8580000,
+          "hqcv": 2145000,
+          "managementAllowance": 858000,
+          "professionalAllowance": 858000
+        },
+        {
+          "gradeCode": "NSGQ-B6",
+          "gradeNumber": 6,
+          "baseSalary": 9350000,
+          "hqcv": 2338000,
+          "managementAllowance": 935000,
+          "professionalAllowance": 935000
+        },
+        {
+          "gradeCode": "NSGQ-B7",
+          "gradeNumber": 7,
+          "baseSalary": 10120000,
+          "hqcv": 2530000,
+          "managementAllowance": 1012000,
+          "professionalAllowance": 1012000
+        },
+        {
+          "gradeCode": "NSGQ-B8",
+          "gradeNumber": 8,
+          "baseSalary": 10890000,
+          "hqcv": 2723000,
+          "managementAllowance": 1089000,
+          "professionalAllowance": 1089000
+        },
+        {
+          "gradeCode": "NSGQ-B9",
+          "gradeNumber": 9,
+          "baseSalary": 11660000,
+          "hqcv": 2915000,
+          "managementAllowance": 1166000,
+          "professionalAllowance": 1166000
+        },
+        {
+          "gradeCode": "NSGQ-B10",
+          "gradeNumber": 10,
+          "baseSalary": 12430000,
+          "hqcv": 3108000,
+          "managementAllowance": 1243000,
+          "professionalAllowance": 1243000
+        },
+        {
+          "gradeCode": "NSGQ-B11",
+          "gradeNumber": 11,
+          "baseSalary": 13200000,
+          "hqcv": 3300000,
+          "managementAllowance": 1320000,
+          "professionalAllowance": 1320000
+        },
+        {
+          "gradeCode": "NSGQ-B12",
+          "gradeNumber": 12,
+          "baseSalary": 13970000,
+          "hqcv": 3493000,
+          "managementAllowance": 1397000,
+          "professionalAllowance": 1397000
+        }
+      ]
+    },
+    {
+      "code": "NSSC",
+      "name": "NHÂN SỰ TRỰC TIẾP\n(Sơ chế)",
+      "sourceRow": 67,
+      "grades": [
+        {
+          "gradeCode": "NSSC-B1",
+          "gradeNumber": 1,
+          "baseSalary": 5500000,
+          "hqcv": 1375000,
+          "managementAllowance": 550000,
+          "professionalAllowance": 275000
+        },
+        {
+          "gradeCode": "NSSC-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6050000,
+          "hqcv": 1513000,
+          "managementAllowance": 605000,
+          "professionalAllowance": 302500
+        },
+        {
+          "gradeCode": "NSSC-B3",
+          "gradeNumber": 3,
+          "baseSalary": 6600000,
+          "hqcv": 1650000,
+          "managementAllowance": 660000,
+          "professionalAllowance": 330000
+        },
+        {
+          "gradeCode": "NSSC-B4",
+          "gradeNumber": 4,
+          "baseSalary": 7150000,
+          "hqcv": 1788000,
+          "managementAllowance": 715000,
+          "professionalAllowance": 357500
+        },
+        {
+          "gradeCode": "NSSC-B5",
+          "gradeNumber": 5,
+          "baseSalary": 7700000,
+          "hqcv": 1925000,
+          "managementAllowance": 770000,
+          "professionalAllowance": 385000
+        },
+        {
+          "gradeCode": "NSSC-B6",
+          "gradeNumber": 6,
+          "baseSalary": 8250000,
+          "hqcv": 2063000,
+          "managementAllowance": 825000,
+          "professionalAllowance": 412500
+        },
+        {
+          "gradeCode": "NSSC-B7",
+          "gradeNumber": 7,
+          "baseSalary": 8800000,
+          "hqcv": 2200000,
+          "managementAllowance": 880000,
+          "professionalAllowance": 440000
+        },
+        {
+          "gradeCode": "NSSC-B8",
+          "gradeNumber": 8,
+          "baseSalary": 9350000,
+          "hqcv": 2338000,
+          "managementAllowance": 935000,
+          "professionalAllowance": 467500
+        },
+        {
+          "gradeCode": "NSSC-B9",
+          "gradeNumber": 9,
+          "baseSalary": 9900000,
+          "hqcv": 2475000,
+          "managementAllowance": 990000,
+          "professionalAllowance": 495000
+        },
+        {
+          "gradeCode": "NSSC-B10",
+          "gradeNumber": 10,
+          "baseSalary": 10450000,
+          "hqcv": 2613000,
+          "managementAllowance": 1045000,
+          "professionalAllowance": 522500
+        },
+        {
+          "gradeCode": "NSSC-B11",
+          "gradeNumber": 11,
+          "baseSalary": 11000000,
+          "hqcv": 2750000,
+          "managementAllowance": 1100000,
+          "professionalAllowance": 550000
+        },
+        {
+          "gradeCode": "NSSC-B12",
+          "gradeNumber": 12,
+          "baseSalary": 11550000,
+          "hqcv": 2888000,
+          "managementAllowance": 1155000,
+          "professionalAllowance": 577500
+        }
+      ]
+    },
+    {
+      "code": "NSGT",
+      "name": "NHÂN SỰ GIÁN TIẾP\n(TCKT; HCNS)",
+      "sourceRow": 80,
+      "grades": [
+        {
+          "gradeCode": "NSGT-B1",
+          "gradeNumber": 1,
+          "baseSalary": 6000000,
+          "hqcv": 2571000,
+          "managementAllowance": 600000,
+          "professionalAllowance": 600000
+        },
+        {
+          "gradeCode": "NSGT-B2",
+          "gradeNumber": 2,
+          "baseSalary": 6810000,
+          "hqcv": 2919000,
+          "managementAllowance": 681000,
+          "professionalAllowance": 681000
+        },
+        {
+          "gradeCode": "NSGT-B3",
+          "gradeNumber": 3,
+          "baseSalary": 7620000,
+          "hqcv": 3266000,
+          "managementAllowance": 762000,
+          "professionalAllowance": 762000
+        },
+        {
+          "gradeCode": "NSGT-B4",
+          "gradeNumber": 4,
+          "baseSalary": 8430000,
+          "hqcv": 3613000,
+          "managementAllowance": 843000,
+          "professionalAllowance": 843000
+        },
+        {
+          "gradeCode": "NSGT-B5",
+          "gradeNumber": 5,
+          "baseSalary": 9240000,
+          "hqcv": 3960000,
+          "managementAllowance": 924000,
+          "professionalAllowance": 924000
+        },
+        {
+          "gradeCode": "NSGT-B6",
+          "gradeNumber": 6,
+          "baseSalary": 9960000,
+          "hqcv": 4269000,
+          "managementAllowance": 996000,
+          "professionalAllowance": 996000
+        },
+        {
+          "gradeCode": "NSGT-B7",
+          "gradeNumber": 7,
+          "baseSalary": 10680000,
+          "hqcv": 4577000,
+          "managementAllowance": 1068000,
+          "professionalAllowance": 1068000
+        },
+        {
+          "gradeCode": "NSGT-B8",
+          "gradeNumber": 8,
+          "baseSalary": 11400000,
+          "hqcv": 4886000,
+          "managementAllowance": 1140000,
+          "professionalAllowance": 1140000
+        },
+        {
+          "gradeCode": "NSGT-B9",
+          "gradeNumber": 9,
+          "baseSalary": 12120000,
+          "hqcv": 5194000,
+          "managementAllowance": 1212000,
+          "professionalAllowance": 1212000
+        },
+        {
+          "gradeCode": "NSGT-B10",
+          "gradeNumber": 10,
+          "baseSalary": 12840000,
+          "hqcv": 5503000,
+          "managementAllowance": 1284000,
+          "professionalAllowance": 1284000
+        }
+      ]
+    },
+    {
+      "code": "LDPT",
+      "name": "LAO ĐỘNG PHỔ THÔNG\n(Bảo vệ; Tạp vụ)",
+      "sourceRow": 92,
+      "grades": [
+        {
+          "gradeCode": "LDPT-B1",
+          "gradeNumber": 1,
+          "baseSalary": 5500000,
+          "hqcv": 0,
+          "managementAllowance": 550000,
+          "professionalAllowance": 550000
+        },
+        {
+          "gradeCode": "LDPT-B2",
+          "gradeNumber": 2,
+          "baseSalary": 5899850,
+          "hqcv": 1475150,
+          "managementAllowance": 589985,
+          "professionalAllowance": 589985
+        },
+        {
+          "gradeCode": "LDPT-B3",
+          "gradeNumber": 3,
+          "baseSalary": 6299700,
+          "hqcv": 1575300,
+          "managementAllowance": 629970,
+          "professionalAllowance": 629970
+        },
+        {
+          "gradeCode": "LDPT-B4",
+          "gradeNumber": 4,
+          "baseSalary": 6699550,
+          "hqcv": 1674450,
+          "managementAllowance": 669955,
+          "professionalAllowance": 669955
+        },
+        {
+          "gradeCode": "LDPT-B5",
+          "gradeNumber": 5,
+          "baseSalary": 7099400,
+          "hqcv": 1774600,
+          "managementAllowance": 709940,
+          "professionalAllowance": 709940
+        },
+        {
+          "gradeCode": "LDPT-B6",
+          "gradeNumber": 6,
+          "baseSalary": 7499250,
+          "hqcv": 1874750,
+          "managementAllowance": 749925,
+          "professionalAllowance": 749925
+        },
+        {
+          "gradeCode": "LDPT-B7",
+          "gradeNumber": 7,
+          "baseSalary": 7899100,
+          "hqcv": 1974900,
+          "managementAllowance": 789910,
+          "professionalAllowance": 789910
+        },
+        {
+          "gradeCode": "LDPT-B8",
+          "gradeNumber": 8,
+          "baseSalary": 8298950,
+          "hqcv": 2075050,
+          "managementAllowance": 829895,
+          "professionalAllowance": 829895
+        },
+        {
+          "gradeCode": "LDPT-B9",
+          "gradeNumber": 9,
+          "baseSalary": 8698800,
+          "hqcv": 2175200,
+          "managementAllowance": 869880,
+          "professionalAllowance": 869880
+        },
+        {
+          "gradeCode": "LDPT-B10",
+          "gradeNumber": 10,
+          "baseSalary": 9098650,
+          "hqcv": 2274350,
+          "managementAllowance": 909865,
+          "professionalAllowance": 909865
+        },
+        {
+          "gradeCode": "LDPT-B11",
+          "gradeNumber": 11,
+          "baseSalary": 9498500,
+          "hqcv": 2374500,
+          "managementAllowance": 949850,
+          "professionalAllowance": 949850
+        },
+        {
+          "gradeCode": "LDPT-B12",
+          "gradeNumber": 12,
+          "baseSalary": 9898350,
+          "hqcv": 2474650,
+          "managementAllowance": 989835,
+          "professionalAllowance": 989835
+        }
+      ]
+    }
+  ],
+  "employees": [
+    {
+      "sourceRow": 11,
+      "employeeCode": "PHF065",
+      "employeeName": "Nguyễn Hà Vi",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 12,
+      "employeeCode": "PHF084",
+      "employeeName": "Đặng Thị Duy",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 13,
+      "employeeCode": "PHF085",
+      "employeeName": "Nguyễn Thị Huyền",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 14,
+      "employeeCode": "PHF046",
+      "employeeName": "Đặng Ngọc Như Quỳnh",
+      "sourceGradeCode": "KDTT-B4",
+      "mappedGradeCode": "KDTT-B4",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 15,
+      "employeeCode": "PHF020",
+      "employeeName": "Trần Thị Phương Huỳnh",
+      "sourceGradeCode": "KDTT-B2",
+      "mappedGradeCode": "KDTT-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 16,
+      "employeeCode": "PHF042",
+      "employeeName": "Nguyễn Hoàng Khang",
+      "sourceGradeCode": "KDTT-B2",
+      "mappedGradeCode": "KDTT-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 17,
+      "employeeCode": "PHF018",
+      "employeeName": "Nguyễn Thị Lệ",
+      "sourceGradeCode": "KDTT-B3",
+      "mappedGradeCode": "KDTT-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 18,
+      "employeeCode": "PHF041",
+      "employeeName": "Đặng Thị Diễm",
+      "sourceGradeCode": "KDTT-B2",
+      "mappedGradeCode": "KDTT-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 19,
+      "employeeCode": "PHF060",
+      "employeeName": "Nguyễn Thiên Trúc",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 20,
+      "employeeCode": "PHF087",
+      "employeeName": "Trịnh Đình Trường",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 21,
+      "employeeCode": "PHF076",
+      "employeeName": "Võ Phương Diệu",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 22,
+      "employeeCode": "PHF077",
+      "employeeName": "Phạm Thị Như Quỳnh",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 23,
+      "employeeCode": "PHF089",
+      "employeeName": "Lê Bình Phương Uyên",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 24,
+      "employeeCode": "PHF079",
+      "employeeName": "Nguyễn Thanh Lợi",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 25,
+      "employeeCode": "PHF082",
+      "employeeName": "Lý Minh Phước",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 26,
+      "employeeCode": "PHF078",
+      "employeeName": "Châu Quỳnh Như",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 27,
+      "employeeCode": "PHF091",
+      "employeeName": "Phan Thị Cẩm Tiên",
+      "sourceGradeCode": "TV",
+      "mappedGradeCode": null,
+      "employmentType": "PROBATION",
+      "probationAmount": 6800000,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": false,
+      "mealAllowance": 0,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 28,
+      "employeeCode": "PHF092",
+      "employeeName": "Huỳnh Nhật Toàn",
+      "sourceGradeCode": "TV",
+      "mappedGradeCode": null,
+      "employmentType": "PROBATION",
+      "probationAmount": 6800000,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": false,
+      "mealAllowance": 0,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 29,
+      "employeeCode": "PHF090",
+      "employeeName": "Nguyễn Thị Khánh Vân",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 30,
+      "employeeCode": "PHF081",
+      "employeeName": "Trần Châu Phương Dung",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "KDTT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 31,
+      "employeeCode": "PHF026",
+      "employeeName": "Đinh Thị Như Quyên",
+      "sourceGradeCode": "KDTT-B3",
+      "mappedGradeCode": "KDTT-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 32,
+      "employeeCode": "PHF038",
+      "employeeName": "Dương Sô Phát",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "NSGQ-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 33,
+      "employeeCode": "PHF080",
+      "employeeName": "Nguyễn Thị Trúc Ly",
+      "sourceGradeCode": "KDTT-B1",
+      "mappedGradeCode": "NSGQ-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 34,
+      "employeeCode": "PHF036",
+      "employeeName": "Trần Trung Hải",
+      "sourceGradeCode": "NSGQ-B6",
+      "mappedGradeCode": "NSGQ-B6",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 35,
+      "employeeCode": "PHF012",
+      "employeeName": "Lê Vĩnh Thắng",
+      "sourceGradeCode": "NSGT-B6",
+      "mappedGradeCode": "NSGT-B6",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 36,
+      "employeeCode": "PHF056",
+      "employeeName": "Lê Ngọc Diễm",
+      "sourceGradeCode": "NSGT-B3",
+      "mappedGradeCode": "NSGT-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 37,
+      "employeeCode": "PHF007",
+      "employeeName": "Nguyễn Thị Bích",
+      "sourceGradeCode": "NSGT-B4",
+      "mappedGradeCode": "NSGT-B4",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 38,
+      "employeeCode": "PHF071",
+      "employeeName": "Hà Viết Nguyên Thanh",
+      "sourceGradeCode": "QLCT-B5",
+      "mappedGradeCode": "QLCT-B5",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 39,
+      "employeeCode": "PHF008",
+      "employeeName": "Nguyễn Ngọc Diệu Linh",
+      "sourceGradeCode": "NSGT-B2",
+      "mappedGradeCode": "NSGT-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 40,
+      "employeeCode": "PHF034",
+      "employeeName": "Nguyễn Duy Hải",
+      "sourceGradeCode": "CUNG-B3",
+      "mappedGradeCode": "CUNG-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 41,
+      "employeeCode": "PHF005",
+      "employeeName": "Nguyễn Minh Nhật",
+      "sourceGradeCode": "CUNG-B2",
+      "mappedGradeCode": "CUNG-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 42,
+      "employeeCode": "PHF035",
+      "employeeName": "Trần Văn Út",
+      "sourceGradeCode": "NSSC-B3",
+      "mappedGradeCode": "CUNG-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 43,
+      "employeeCode": "PHF073",
+      "employeeName": "Nguyễn Huỳnh Phước Huy",
+      "sourceGradeCode": "CUNG-B1",
+      "mappedGradeCode": "CUNG-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 44,
+      "employeeCode": "PHF064",
+      "employeeName": "Hà Thị Lan",
+      "sourceGradeCode": "NSSC-B2",
+      "mappedGradeCode": "CUNG-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 45,
+      "employeeCode": "PHF069",
+      "employeeName": "Lê Thị Thanh Chúc",
+      "sourceGradeCode": "KDGT-B1",
+      "mappedGradeCode": "KDGT-B1",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 46,
+      "employeeCode": "PHF028",
+      "employeeName": "Tạ Ngọc Linh Thi",
+      "sourceGradeCode": "KDGT-B5",
+      "mappedGradeCode": "KDGT-B5",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 47,
+      "employeeCode": "PHF051",
+      "employeeName": "Trịnh Thị Ngọc Linh",
+      "sourceGradeCode": "CUNG-B3",
+      "mappedGradeCode": "CUNG-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": false,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 48,
+      "employeeCode": "PHF010",
+      "employeeName": "Nguyễn Thủy Tiên",
+      "sourceGradeCode": "QLCT-B4",
+      "mappedGradeCode": "QLCT-B4",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 49,
+      "employeeCode": "PHF004",
+      "employeeName": "Trần Gia Bảo Ngọc",
+      "sourceGradeCode": "QLCT-B3",
+      "mappedGradeCode": "QLCT-B3",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": false,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    },
+    {
+      "sourceRow": 50,
+      "employeeCode": "PHF032",
+      "employeeName": "Trần Hữu Vinh",
+      "sourceGradeCode": "CUNG-B6",
+      "mappedGradeCode": "QLCT-B2",
+      "employmentType": "OFFICIAL",
+      "probationAmount": 0,
+      "hasProfessionalAllowance": true,
+      "hasManagementAllowance": true,
+      "hasMealAllowance": true,
+      "mealAllowance": 910000,
+      "mappingValid": true
+    }
+  ]
+}

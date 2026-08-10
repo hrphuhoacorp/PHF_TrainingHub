@@ -322,6 +322,7 @@
     '/hv/home':Object.freeze({area:'learner',screen:'hr-home',roles:['learner']}),
     '/hv/knl':Object.freeze({area:'learner',screen:'knl-home',roles:['learner']}),
     '/hv/knl/nhan-su':Object.freeze({area:'learner',screen:'knl-people',roles:['learner']}),
+    '/hv/knl/co-cau-thu-nhap':Object.freeze({area:'learner',screen:'knl-income',roles:['learner']}),
     '/hv/knl/khao-sat':Object.freeze({area:'learner',screen:'knl-surveys',roles:['learner']}),
     '/hv/knl/ket-qua-khao-sat':Object.freeze({area:'learner',screen:'knl-survey-results',roles:['learner']}),
     '/hv/bai-hoc':Object.freeze({area:'learner',screen:'learning',roles:['learner']}),
@@ -339,6 +340,7 @@
     '/ql/home':Object.freeze({area:'manager',screen:'hr-home',roles:['manager']}),
     '/ql/knl':Object.freeze({area:'manager',screen:'knl-home',roles:['manager']}),
     '/ql/knl/nhan-su':Object.freeze({area:'manager',screen:'knl-people',roles:['manager']}),
+    '/ql/knl/co-cau-thu-nhap':Object.freeze({area:'manager',screen:'knl-income',roles:['manager']}),
     '/ql/knl/phan-quyen':Object.freeze({area:'manager',screen:'knl-permissions',roles:['manager']}),
     '/ql/knl/khao-sat':Object.freeze({area:'manager',screen:'knl-surveys',roles:['manager']}),
     '/ql/knl/ket-qua-khao-sat':Object.freeze({area:'manager',screen:'knl-survey-results',roles:['manager']}),
@@ -368,8 +370,12 @@
     '/admin/home':Object.freeze({area:'admin',screen:'hr-home',roles:['admin']}),
     '/admin/knl':Object.freeze({area:'admin',screen:'knl-home',roles:['admin']}),
     '/admin/knl/bo-knl':Object.freeze({area:'admin',screen:'knl-frameworks',roles:['admin']}),
+    '/admin/knl/tieu-chuan-bac':Object.freeze({area:'admin',screen:'knl-grade-standard',roles:['admin']}),
     '/admin/knl/gan-ap-dung':Object.freeze({area:'admin',screen:'knl-assignments',roles:['admin']}),
+    '/admin/knl/phien-ban-lich-su':Object.freeze({area:'admin',screen:'knl-version-history',roles:['admin']}),
+    '/admin/knl/ngach-bac-luong':Object.freeze({area:'admin',screen:'knl-compensation-standard',roles:['admin']}),
     '/admin/knl/nhan-su':Object.freeze({area:'admin',screen:'knl-people',roles:['admin']}),
+    '/admin/knl/co-cau-thu-nhap':Object.freeze({area:'admin',screen:'knl-income',roles:['admin']}),
     '/admin/knl/phan-quyen':Object.freeze({area:'admin',screen:'knl-permissions',roles:['admin']}),
     '/admin/knl/khao-sat':Object.freeze({area:'admin',screen:'knl-surveys',roles:['admin']}),
     '/admin/knl/ket-qua-khao-sat':Object.freeze({area:'admin',screen:'knl-survey-results',roles:['admin']}),
@@ -420,6 +426,13 @@
     hub:['/hv','/ql','/admin'],
     checklist:['/hv/checklist','/hv/checklist/ho-so-danh-gia','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat']
   });
+
+  // Keep the diagnostic route map aligned with the authoritative registry.
+  // Object.freeze is shallow; these arrays remain intentionally append-only.
+  window.PHF_ROUTE_MAP.learner.push('/hv/knl/co-cau-thu-nhap');
+  window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap');
+  window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/co-cau-thu-nhap');
+  window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/co-cau-thu-nhap');
 
   function canonicalLegacyPath(path){
     path=cleanPath(path);
@@ -804,7 +817,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/hv/knl'||path==='/hv/knl/nhan-su'||path==='/hv/knl/khao-sat'||path==='/hv/knl/ket-qua-khao-sat'){
+      if(path==='/hv/knl'||path==='/hv/knl/nhan-su'||path==='/hv/knl/co-cau-thu-nhap'||path==='/hv/knl/khao-sat'||path==='/hv/knl/ket-qua-khao-sat'){
         if(!requireRoles(['learner']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
@@ -877,7 +890,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/ql/knl'||path==='/ql/knl/nhan-su'||path==='/ql/knl/phan-quyen'||path==='/ql/knl/khao-sat'||path==='/ql/knl/ket-qua-khao-sat'){
+      if(path==='/ql/knl'||path==='/ql/knl/nhan-su'||path==='/ql/knl/co-cau-thu-nhap'||path==='/ql/knl/phan-quyen'||path==='/ql/knl/khao-sat'||path==='/ql/knl/ket-qua-khao-sat'){
         if(!requireRoles(['manager']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
@@ -1051,7 +1064,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/nhan-su'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'){
+      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/tieu-chuan-bac'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/phien-ban-lich-su'||path==='/admin/knl/ngach-bac-luong'||path==='/admin/knl/nhan-su'||path==='/admin/knl/co-cau-thu-nhap'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;

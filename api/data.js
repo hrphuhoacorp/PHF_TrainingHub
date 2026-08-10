@@ -24,7 +24,8 @@ const { listKnlPeople } = require('../lib/knl-people');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('../lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('../lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('../lib/knl-surveys');
-const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract, saveCompensation:saveEmployeeMasterCompensation } = require('../lib/employee-master');
+const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, getKnlEmployeeIncome, saveKnlEmployeeIncome } = require('../lib/knl-foundation');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('../lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
   assertSameOrigin,
@@ -284,7 +285,10 @@ module.exports = async function handler(req, res) {
         if(action==='saveProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterProfile(session,payload)});
         if(action==='savePrivateProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
         if(action==='saveContract')return res.status(200).json({ok:true,...await saveEmployeeMasterContract(session,payload)});
-        if(action==='saveCompensation')return res.status(200).json({ok:true,...await saveEmployeeMasterCompensation(session,payload)});
+        if(action==='saveCompensation'){
+          const error=new Error('Thu nhập đã chuyển sang KNL > Bậc & Cơ cấu thu nhập; không cập nhật trực tiếp mức lương legacy.');
+          error.statusCode=409;error.code='EMPLOYEE_COMPENSATION_LEGACY_READ_ONLY';throw error;
+        }
         if(action==='previewImport')return res.status(200).json({ok:true,...await previewEmployeeImport(session,payload)});
         if(action==='commitImport')return res.status(200).json({ok:true,...await commitEmployeeImport(session,payload)});
         throw new RequestError('Thao tác Employee Master không hợp lệ.',400,'EMPLOYEE_MASTER_ACTION_INVALID');
@@ -508,6 +512,14 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='disableKnlStructure')return res.status(200).json({ok:true,...await disableKnlStructure(session,payload)});
       if(payload&&payload.action==='reorderKnlStructure')return res.status(200).json({ok:true,...await reorderKnlStructure(session,payload)});
       if(payload&&payload.action==='saveKnlLevelContent')return res.status(200).json({ok:true,...await saveKnlLevelContent(session,payload.levelContent||{})});
+      if(payload&&payload.action==='getKnlGradeMatrix')return res.status(200).json({ok:true,...await getKnlGradeMatrix(session,payload)});
+      if(payload&&payload.action==='saveKnlGradeMatrix')return res.status(200).json({ok:true,...await saveKnlGradeMatrix(session,payload)});
+      if(payload&&payload.action==='setKnlVersionEffectivity')return res.status(200).json({ok:true,...await setKnlVersionEffectivity(session,payload)});
+      if(payload&&payload.action==='listKnlCompensationStandards')return res.status(200).json({ok:true,...await listKnlCompensationStandards(session)});
+      if(payload&&payload.action==='previewKnlCompensationFoundation')return res.status(200).json({ok:true,...await previewKnlCompensationFoundation(session)});
+      if(payload&&payload.action==='applyKnlCompensationFoundation')return res.status(200).json({ok:true,...await applyKnlCompensationFoundation(session,payload)});
+      if(payload&&payload.action==='getKnlEmployeeIncome')return res.status(200).json({ok:true,...await getKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='saveKnlEmployeeIncome')return res.status(200).json({ok:true,...await saveKnlEmployeeIncome(session,payload)});
       if(payload&&payload.action==='previewKnlSourceSeed')return res.status(200).json({ok:true,...await previewKnlSourceSeed(session)});
       if(payload&&payload.action==='seedKnlSourceManifest')return res.status(200).json({ok:true,...await seedKnlSourceManifest(session)});
       if(payload&&payload.action==='listKnlSourceManifests')return res.status(200).json({ok:true,...await listKnlSourceManifests(session)});
