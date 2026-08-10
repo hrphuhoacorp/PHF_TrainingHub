@@ -73,4 +73,50 @@ assert.ok(/<ol>/.test(ordered) && (ordered.match(/<li>/g) || []).length === 2, '
 assert.ok(/<code>mã lệnh<\/code>/.test(ordered), 'inline code phai thanh <code>');
 console.log('[PASS] Case 6: danh sách số thứ tự + inline code render đúng');
 
+// ---- Case 7: EXACT Production regression fixture (report "literal **/---")
+// - hr, bold nhieu doan, khong con markdown tho ----
+const productionFixture =
+  'Đây là câu hỏi rất trọng tâm, vì hai hệ thống này hay bị nhầm là "cùng đo lường nhân viên", nhưng thực ra chúng phục vụ hai mục đích hoàn toàn khác nhau trong nghiệp vụ PHF.\n\n' +
+  '---\n\n' +
+  '**Checklist** là công cụ đo lường **mức độ tuân thủ và thực thi công việc theo kỳ**. Nó hoạt động theo cơ chế: mỗi kỳ, nhân viên bắt đầu với điểm tối đa, và bị trừ điểm mỗi khi có lỗi vi phạm được ghi nhận chính thức.\n\n' +
+  '**Khung năng lực** lại đo lường **năng lực nghề nghiệp** – tức kiến thức, kỹ năng, khả năng xử lý công việc ở chiều sâu.';
+const htmlFixture = engine.renderMessageContent(productionFixture);
+assert.ok(!htmlFixture.includes('**'), 'fixture Production KHONG duoc con ky tu ** tho: ' + htmlFixture);
+assert.ok(!/(^|<p>)---/.test(htmlFixture) && !htmlFixture.includes('<p>---</p>'), 'fixture Production KHONG duoc con "---" tho');
+assert.ok(/<hr>/.test(htmlFixture), '"---" phai render thanh <hr>');
+assert.ok(/<strong>Checklist<\/strong>/.test(htmlFixture) && /<strong>Khung năng lực<\/strong>/.test(htmlFixture), 'bold Checklist/Khung năng lực phai render dung');
+console.log('[PASS] Case 7: đúng fixture Production báo lỗi (heading mở bài + --- + 2 đoạn bold) render sạch hoàn toàn - không còn **/---');
+
+// ---- Case 8: italic (* và _), code fence nhieu dong, heading gia (#) ----
+const italic1 = engine.renderMessageContent('Đây là *nhấn mạnh* trong câu.');
+assert.ok(/<em>nhấn mạnh<\/em>/.test(italic1), 'italic bang * don phai thanh <em>');
+const italic2 = engine.renderMessageContent('Đây là _nhấn mạnh_ trong câu.');
+assert.ok(/<em>nhấn mạnh<\/em>/.test(italic2), 'italic bang _ don phai thanh <em>');
+const boldStillWorks = engine.renderMessageContent('**In đậm** và *in nghiêng* cùng câu.');
+assert.ok(/<strong>In đậm<\/strong>/.test(boldStillWorks) && /<em>in nghiêng<\/em>/.test(boldStillWorks), 'bold va italic cung xuat hien trong 1 cau phai deu dung, khong xung dot');
+
+const fence = engine.renderMessageContent('Ví dụ lệnh:\n\n```\nconst x = 1;\nconsole.log(x);\n```\n\nSau đoạn code.');
+assert.ok(/<pre><code>/.test(fence) && /<\/code><\/pre>/.test(fence), 'code fence nhieu dong phai thanh <pre><code>');
+assert.ok(/const x = 1;/.test(fence) && /console\.log\(x\);/.test(fence), 'noi dung code fence phai giu nguyen (khong bi tach thanh nhieu <p> boi dong trong ben trong)');
+assert.ok(/Sau đoạn code\./.test(fence), 'doan van sau code fence van phai render binh thuong');
+
+const heading = engine.renderMessageContent('## Tổng quan\n\nNội dung bên dưới.');
+assert.ok(/phf-ai-heading/.test(heading) && /<strong>Tổng quan<\/strong>/.test(heading), 'heading gia (##) phai bold nhe, khong dung the h1-h6 that');
+assert.ok(!/<h[1-6]/.test(heading), 'khong duoc dung the heading that (h1-h6) - tranh bien bubble thanh document');
+console.log('[PASS] Case 8: italic (*/_), code fence nhiều dòng, heading giả (#) render đúng, không xung đột với bold/list');
+
+// ---- Case 9: XSS qua cu phap moi (code fence, italic, heading) ----
+const xssNew = [
+  '```\n<script>alert(1)</script>\n```',
+  '# <img src=x onerror=alert(1)>',
+  '*<a href="javascript:alert(1)">click</a>*'
+];
+xssNew.forEach(function(payload){
+  const html = engine.renderMessageContent(payload);
+  assert.ok(!/<script/i.test(html), 'code fence khong duoc lot <script qua: ' + payload + ' => ' + html);
+  assert.ok(!/<img/i.test(html), 'heading khong duoc lot <img qua: ' + payload + ' => ' + html);
+  assert.ok(!/<a\s/i.test(html), 'italic khong duoc lot <a qua: ' + payload + ' => ' + html);
+});
+console.log('[PASS] Case 9: cú pháp markdown mới (code fence/heading/italic) vẫn escape sạch, không XSS');
+
 console.log('\nALL PASS - test-ai-markdown-render.js');

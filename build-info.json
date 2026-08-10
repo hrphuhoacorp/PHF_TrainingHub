@@ -1,7 +1,7 @@
 {
-  "version": "1.50.11",
-  "fingerprint": "1.50.11-phf-ai-truncation-markdown-hotfix",
-  "builtAt": "2026-08-10T20:30:00+07:00",
-  "notes": "1.50.11: PHF AI hotfix - responses no longer cut mid-word (DeepSeek finish_reason was never read; max_tokens raised 1024->1536 and a length-safety trim+note kicks in if the model still hits the cap), chat now renders minimal safe Markdown (bold/lists/paragraphs/inline code, escape-then-transform, no raw HTML/script possible) instead of showing literal **/-/` characters, and the 'Nhận định AI:'/'Gợi ý AI:' heading habit is replaced with natural phrasing (old saved conversations still render correctly via legacy prefix support).",
-  "build": "1.50.11"
+  "version": "1.50.12",
+  "fingerprint": "1.50.12-phf-ai-markdown-cachebust-conversational-ux",
+  "builtAt": "2026-08-10T22:00:00+07:00",
+  "notes": "1.50.12: fixes the real Production cause of 1.50.11's Markdown bug - phf-ai-engine.js/phf-ai-sandbox.css are loaded via a hand-written ?v= tag in index.html (immutable 1yr cache), not the build-info.json runtime loader, so the browser kept serving the pre-hotfix files under an unchanged URL; ?v= bumped and both files added to the manual-asset-tag release gate so this can't recur silently. Markdown-lite renderer extended with horizontal rule (---), italic (*/_), fenced code blocks, and lightweight headings (rendered as bold text, not real h1-h6, to keep the chat bubble from looking like a document). SYSTEM_PROMPT tightened for natural conversational UX: no throat-clearing openers, length scales with question complexity, evidence/analysis labeling only when it actually matters (not on every sentence), tool-calling mechanics hidden from user-facing wording, no raw error dumps.",
+  "build": "1.50.12"
 }

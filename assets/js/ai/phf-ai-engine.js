@@ -32,12 +32,27 @@
      HTML/script du dung cu phap markdown nao. */
   function escapeInlineMarkdown(escapedText){
     var html = escapedText.replace(/\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([^\n_]+?)__/g, '<strong>$1</strong>');
     html = html.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+    // Italic - CHI sau khi bold (**/__) da duoc tieu thu het, con lai 1 sao/
+    // gach duoi don le moi coi la italic, tranh nhan nham nua sau cua **.
+    html = html.replace(/(^|[^*])\*([^\n*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    html = html.replace(/\b_([^\n_]+?)_\b/g, '<em>$1</em>');
     return html;
   }
+  // Dong dang "# ", "## ", "### " o dau dong (bat ke may cap #) -> coi la
+  // heading NHUNG chi bold trong the <p> thuong (KHONG dung <h1>-<h6> that -
+  // yeu cau UX "heading khong qua to trong bubble chat", tranh bien bubble
+  // thanh document/report).
+  var HEADING_RE = /^#{1,6}\s+(.+)$/;
+  var HR_RE = /^([-*_])\1{2,}\s*$/;
   function renderMarkdownBlock(block){
     var lines = block.split('\n').filter(function(l){ return l.length > 0; });
     if (!lines.length) return '';
+    if (lines.length === 1 && HR_RE.test(lines[0])) return '<hr>';
+    if (lines.length === 1 && HEADING_RE.test(lines[0])) {
+      return '<p class="phf-ai-heading"><strong>' + escapeInlineMarkdown(lines[0].replace(HEADING_RE, '$1')) + '</strong></p>';
+    }
     var isUl = lines.every(function(l){ return /^[-*]\s+/.test(l); });
     if (isUl) {
       return '<ul>' + lines.map(function(l){ return '<li>' + escapeInlineMarkdown(l.replace(/^[-*]\s+/, '')) + '</li>'; }).join('') + '</ul>';
@@ -48,11 +63,30 @@
     }
     return '<p>' + lines.map(escapeInlineMarkdown).join('<br>') + '</p>';
   }
+  // splitCodeFences - tach truoc cac khoi ```code``` (CO THE chua dong trong,
+  // khong duoc coi la ranh gioi doan van nhu paragraph thuong) khoi phan van
+  // ban con lai, chay TREN chuoi DA escapeHtml (backtick khong bi escape nen
+  // van nhan dien dung cu phap ``` sau khi escape).
+  function splitCodeFences(escapedText){
+    var parts = [];
+    var re = /```[^\n]*\n?([\s\S]*?)```/g;
+    var lastIndex = 0, m;
+    while ((m = re.exec(escapedText))) {
+      if (m.index > lastIndex) parts.push({ type: 'text', content: escapedText.slice(lastIndex, m.index) });
+      parts.push({ type: 'code', content: m[1].replace(/\n$/, '') });
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < escapedText.length) parts.push({ type: 'text', content: escapedText.slice(lastIndex) });
+    return parts;
+  }
   function renderMarkdownLite(text){
     var escaped = escapeHtml(text).replace(/\r\n/g, '\n');
-    var blocks = escaped.split(/\n{2,}/).map(function(b){ return b.replace(/^\n+|\n+$/g, ''); }).filter(Boolean);
-    if (!blocks.length) return '';
-    return blocks.map(renderMarkdownBlock).join('');
+    var segments = splitCodeFences(escaped);
+    return segments.map(function(seg){
+      if (seg.type === 'code') return seg.content ? '<pre><code>' + seg.content + '</code></pre>' : '';
+      var blocks = seg.content.split(/\n{2,}/).map(function(b){ return b.replace(/^\n+|\n+$/g, ''); }).filter(Boolean);
+      return blocks.map(renderMarkdownBlock).join('');
+    }).join('');
   }
 
   // "Phân tích & đề xuất:" (nhan tu nhien, thay "Nhận định AI:"/"Gợi ý AI:"
