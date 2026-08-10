@@ -27,15 +27,30 @@ for(const token of [
 assert(!/alter table|drop table|truncate/i.test(migration),'data fix must not change schema or delete data');
 assert(!/knl_employee_compensation_assignments\s+(?:set|values)|delete\s+from\s+public\.knl_employee_compensation/i.test(migration),'data fix must not touch compensation assignments/history');
 assert(ui.includes('savedGrades=m.grades||[]'),'UI grade columns must come only from backend grade definitions when they exist');
-assert(ui.includes('Version chưa có grade definitions. Không tự dựng B1–B4.'),'empty grade state must be explicit');
+assert(ui.includes('Version chưa có grade definitions chính thức.'),'empty grade state must be explicit');
 assert(!ui.includes("grades=m.grades.length?m.grades:[1,2,3,4]"),'UI must not synthesize B1..B4');
 assert(!ui.includes("foundationState.matrix.grades:[1,2,3,4]"),'save path must not synthesize B1..B4');
 assert(!/Truongnhom_Thumua.*\[1,2,3,4,5\]|Thu mua.*B5/i.test(ui),'UI must not hard-code grade count by department/framework name');
-// 1.50.9 Bộ KNL library batch: khi backend chưa có grade definitions, UI cho
-// phép Admin tự thêm từng bậc một (prompt tên bậc) qua pendingNewGrades —
-// KHÔNG được suy số bậc từ levels.length hay bất kỳ mảng hard-code nào.
+// 1.50.10: khi backend chưa có grade definitions, UI cho phép Admin tự thêm/
+// sửa/xóa từng bậc qua pendingNewGrades. Kể từ quyết định PHF 2026-08-10, gợi ý
+// khởi tạo B1..Bn PHẢI khớp động theo levelCols.length của chính version đó
+// (4 mức -> B1..B4, 5 mức -> B1..B5, N mức -> B1..Bn) — không phải một mảng
+// hard-code cố định [1,2,3,4]/[1,2,3,4,5], và không suy theo tên phòng ban.
 assert(ui.includes('pendingNewGrades'),'empty grade state must offer an Admin-driven way to configure grades, not a dead end');
-assert(!/pendingNewGrades\s*=\s*levels|pendingNewGrades\.length\s*=\s*levels\.length|Array\.from\(\{length:\s*levels/i.test(ui),'pending grade creation must not be derived from competency level count');
+assert(/levelCols\s*=\s*orderedActive\(foundationState\.detail\.columns\)\.filter\(function\(c\)\{return c\.type===['"]level['"];\}\)/.test(ui),'default grade suggestion must derive its count from the version\'s own active level columns');
+assert(/pendingNewGrades\s*=\s*levelCols\.map\(function\(c,index\)\{var n=index\+1;return\{gradeCode:'B'\+n,gradeNumber:n,label:'Bậc '\+n,sortOrder:n\};\}\)/.test(ui),'default grade suggestion must generate exactly one B{n} per level column, dynamically (B1..Bn)');
+assert(!/pendingNewGrades\s*=\s*\[1,\s*2,\s*3,\s*4\]|pendingNewGrades\s*=\s*\[1,\s*2,\s*3,\s*4,\s*5\]/.test(ui),'pending grade creation must not be a fixed hard-coded array');
+// 1.50.11: Admin phải xóa/thêm bậc được cả với version đã có grade definitions
+// đã lưu (không chỉ trạng thái pending trước khi lưu lần đầu), miễn version còn
+// mutable (DRAFT + chưa lock). Xóa bậc phải hỏi xác nhận trước khi submit.
+assert(!/pending\s*&&\s*mutable\?'<button type="button" class="phfk-btn-secondary" data-grade-add>/.test(ui),'add-grade control must not be hidden once a version already has saved grade definitions');
+assert(/mutable\?' <button type="button" class="phfk-mini-remove" data-grade-remove=/.test(ui),'remove-grade control must render for every grade column (saved or pending) while the version is mutable');
+assert(/data-grade-remove.*confirm\(/.test(ui)||/confirm\('Bỏ bậc/.test(ui),'removing a grade must ask for explicit confirmation before it can wipe saved requirements on next save');
+// 1.50.11: Framework Version dropdown (Tiêu chuẩn bậc) must not surface
+// inactive/legacy frameworks (post library-cleanup canonical-V2 rule) — no
+// hard-coded framework IDs, filtered from the real knl_frameworks.status field.
+assert(/foundationVersionOptions\(\)\{return \(foundationState\.frameworks\|\|\[\]\)\.filter\(function\(f\)\{return f\.status!==['"]inactive['"];\}\)/.test(ui),'grade-matrix version dropdown must filter out frameworks with status===inactive from the real framework list, not a hard-coded ID list');
+assert(!/KNL_TRUONG_KHO_PHF_D5BF32|KNL_[A-Z_]+_[0-9A-F]{6}['"]\s*[!=]==/.test(ui.match(/foundationVersionOptions[\s\S]{0,400}/)[0]),'dropdown filter must not hard-code specific framework IDs/codes');
 assert.strictEqual((migration.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');
 
 console.log('PASS KNL grade baseline 1.50.2 gate: exact 11-version data fix, immutable/partial guards, idempotency and no compensation mutation.');

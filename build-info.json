@@ -1,7 +1,7 @@
 {
-  "version": "1.50.12",
-  "fingerprint": "1.50.12-phf-ai-markdown-cachebust-conversational-ux",
-  "builtAt": "2026-08-10T22:00:00+07:00",
-  "notes": "1.50.12: fixes the real Production cause of 1.50.11's Markdown bug - phf-ai-engine.js/phf-ai-sandbox.css are loaded via a hand-written ?v= tag in index.html (immutable 1yr cache), not the build-info.json runtime loader, so the browser kept serving the pre-hotfix files under an unchanged URL; ?v= bumped and both files added to the manual-asset-tag release gate so this can't recur silently. Markdown-lite renderer extended with horizontal rule (---), italic (*/_), fenced code blocks, and lightweight headings (rendered as bold text, not real h1-h6, to keep the chat bubble from looking like a document). SYSTEM_PROMPT tightened for natural conversational UX: no throat-clearing openers, length scales with question complexity, evidence/analysis labeling only when it actually matters (not on every sentence), tool-calling mechanics hidden from user-facing wording, no raw error dumps.",
-  "build": "1.50.12"
+  "version": "1.50.13",
+  "fingerprint": "1.50.13-knl-grade-matrix-saved-state-crud-inactive-filter",
+  "builtAt": "2026-08-10T23:30:00+07:00",
+  "notes": "1.50.13: KNL Tiêu chuẩn bậc fixes. (1) Framework Version dropdown filtered out frameworks with knl_frameworks.status='inactive' (the 9 legacy frameworks retired by the earlier library cleanup, e.g. KNL_TRUONG_KHO_PHF_D5BF32) — filtered by the real status field, no hard-coded IDs; default first-load pick also skips inactive frameworks. (2) Restored Admin's ability to add/edit/delete a bậc on a version whose grade matrix was already saved — previously the +Thêm bậc / xóa buttons were only wired for the pre-save pendingNewGrades staging list and silently disappeared the moment a matrix had ANY saved grade definitions, leaving only per-cell M-level edits possible. pendingNewGrades is now the single always-editable working draft (cloned from saved grades, or from the dynamic B1..Bn suggestion when empty) for both new and already-saved versions; Save always submits this draft through the existing saveKnlGradeMatrix full-replace RPC (no new RPC/schema). Removing a bậc now asks for explicit confirmation before it can drop saved requirements on next Save. Kept the existing rule: default suggestion count always derives from the version's own active level columns (B1..Bn dynamically), never a fixed/hard-coded count.",
+  "build": "1.50.13"
 }
