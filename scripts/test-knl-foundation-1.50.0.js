@@ -77,6 +77,11 @@ has(ui,"apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefi
 has(ui,'data-knl-person-income','people entry point');
 has(ui,'data-knl-assignment-income','assignment entry point');
 has(ui,"ensureKnlShell(root,tab,capabilities,isAdmin,'')",'income route retains persistent shell');
+assert(!/data-knl-domain-tab="ngach-bac-luong"/.test(ui),'compensation must not remain a Bộ KNL tab');
+has(ui,"if(activeTab==='ngach-bac-luong')activeSidebarTab='co-cau-thu-nhap'",'legacy compensation route activates compensation sidebar domain');
+has(ui,'compensationDomainNav','compensation standard and income profile share one domain navigation');
+has(ui,'Cơ cấu ngạch & bậc','compensation structure sub-navigation');
+has(ui,'Hồ sơ thu nhập','income profile sub-navigation');
 
 assert.strictEqual((sql.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');
 console.log('PASS KNL Foundation 1.50.0 static/contracts: schema, guards, mappings, permissions, routes and performance invariants.');

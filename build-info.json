@@ -1,7 +1,7 @@
 {
-  "version": "1.50.1",
-  "fingerprint": "1.50.1-knl-income-route-picker",
-  "builtAt": "2026-08-10T09:57:43+07:00",
-  "notes": "1.50.1: resolve own-income from the authenticated account, add server-scoped Admin/authorized employee picker and canonical employee_code deeplinks without remounting the KNL shell.",
-  "build": "1.50.1"
+  "version": "1.50.2",
+  "fingerprint": "1.50.2-knl-dynamic-grade-ia",
+  "builtAt": "2026-08-10T11:24:00+07:00",
+  "notes": "1.50.2: dynamic competency grade columns come only from backend grade definitions; compensation structure and income profile now live under the compensation sidebar domain.",
+  "build": "1.50.2"
 }

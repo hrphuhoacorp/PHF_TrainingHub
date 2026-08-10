@@ -11,7 +11,7 @@
     "test:knl-batch1": "node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
     "test:knl-batch2": "node scripts/test-knl-batch2.js && node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
     "test:knl-survey": "node scripts/test-knl-survey-v1.js && node scripts/test-knl-batch2.js && node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
-    "test:knl-foundation": "node scripts/test-knl-foundation-1.50.0.js && node scripts/test-knl-survey-v1.js && node scripts/test-knl-batch2.js && node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
+    "test:knl-foundation": "node scripts/test-knl-grade-baseline-data-fix-1.50.2.js && node scripts/test-knl-foundation-1.50.0.js && node scripts/test-knl-survey-v1.js && node scripts/test-knl-batch2.js && node scripts/test-knl-framework-batch1.js && node scripts/test-knl-permissions-scope.js",
     "verify:knl-survey:production": "node scripts/phf-knl-survey-production-smoke.js --verify",
     "smoke": "node scripts/phf-production-smoke-test.js",
     "release:clean": "node scripts/phf-clean-release.js"
