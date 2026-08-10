@@ -135,10 +135,10 @@ const { subjectMatchesScope } = require('../lib/knl-scope');
 // ---------------------------------------------------------------------------
 STATE.employees.push(
   { employee_code: 'NV1', full_name: 'Nguyễn Văn NV1', title: 'Nhân viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'active' },
-  { employee_code: 'S-PL1', full_name: 'Trần Thị Bán PL', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Phú Lợi', employment_status: 'active' },
-  { employee_code: 'S-NQ1', full_name: 'Lê Văn Bán NQ', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Ngô Quyền', employment_status: 'active' },
-  { employee_code: 'S-LT1', full_name: 'Phạm Thị Bán LT', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Lái Thiêu', employment_status: 'active' },
-  { employee_code: 'S-OTHER', full_name: 'Ngoài Phạm Vi', title: 'Nhân viên bán hàng', department: 'Bán hàng', branch: 'Bình Dương', employment_status: 'active' },
+  { employee_code: 'S-PL1', full_name: 'Trần Thị Bán PL', title: 'Nhân viên bán hàng', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', employment_status: 'active' },
+  { employee_code: 'S-NQ1', full_name: 'Lê Văn Bán NQ', title: 'Nhân viên bán hàng', department: 'Bộ phận bán hàng', branch: 'Ngô Quyền', employment_status: 'active' },
+  { employee_code: 'S-LT1', full_name: 'Phạm Thị Bán LT', title: 'Nhân viên bán hàng', department: 'Bộ phận bán hàng', branch: 'Lái Thiêu', employment_status: 'active' },
+  { employee_code: 'S-OTHER', full_name: 'Ngoài Phạm Vi', title: 'Nhân viên bán hàng', department: 'Bộ phận bán hàng', branch: 'Bình Dương', employment_status: 'active' },
   { employee_code: 'QTTH1', full_name: 'Đồng Nghiệp QTTH', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'active' },
   { employee_code: 'KHO1', full_name: 'Nhân viên Kho', title: 'Thủ kho', department: 'Kho', branch: 'Phú Lợi', employment_status: 'active' },
   { employee_code: 'OLD1', full_name: 'Đã Nghỉ Việc', title: 'Chuyên viên', department: 'QTTH', branch: 'Ngô Quyền', employment_status: 'inactive' },
