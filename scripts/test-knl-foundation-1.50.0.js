@@ -9,7 +9,7 @@ const sql=read('scripts/PHF_KNL_COMPETENCY_GRADE_COMPENSATION_FOUNDATION_1.50.0.
 const api=read('api/data.js'),ui=read('assets/js/knl/phf-knl-app.js'),router=read('assets/js/phf-url-router.js');
 const manifest=require('./data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
 const {reconcile}=require('./phf-knl-foundation-reconciliation');
-const {incomeScopeAllows}=require('../lib/knl-foundation');
+const {incomeScopeAllows,incomeTargetRows}=require('../lib/knl-foundation');
 
 function has(source,value,label){assert(source.includes(value),label||('missing '+value));}
 [
@@ -53,14 +53,30 @@ assert.strictEqual(incomeScopeAllows({source:'admin_recovery'},'PHF001'),true,'A
 assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'employees',values:['PHF001']}}}},'PHF001'),true,'scoped income');
 assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'employees',values:['PHF001']}}}},'PHF002'),false,'out of income scope');
 assert.strictEqual(incomeScopeAllows({source:'grant',capabilities:{income_view:false},row:{capabilities:{incomeScope:{type:'all_company'}}}},'PHF001'),false,'income capability fail closed');
+const targetFixture=[
+  {employee_code:'PHF001',employee_name:'Own',employee_status:'Đang làm việc'},
+  {employee_code:'PHF002',employee_name:'Allowed',employee_status:'Đang làm việc'},
+  {employee_code:'PHF003',employee_name:'Denied',employee_status:'Đang làm việc'},
+  {employee_code:'PHF004',employee_name:'Inactive',employee_status:'Đã nghỉ việc'}
+];
+const targetGrant={source:'grant',capabilities:{income_view:true},row:{capabilities:{incomeScope:{type:'employees',values:['PHF002','PHF004']}}}};
+assert.deepStrictEqual(incomeTargetRows(targetFixture,targetGrant,'PHF001').map(x=>x.employeeCode),['PHF001','PHF002'],'income picker must be own + scoped active people only');
+assert.deepStrictEqual(incomeTargetRows(targetFixture,{source:'admin_recovery'},'').map(x=>x.employeeCode),['PHF001','PHF002','PHF003'],'Admin picker sees all active people');
 
-['getKnlGradeMatrix','saveKnlGradeMatrix','setKnlVersionEffectivity','listKnlCompensationStandards','previewKnlCompensationFoundation','applyKnlCompensationFoundation','getKnlEmployeeIncome','saveKnlEmployeeIncome'].forEach(action=>has(api,"payload.action==='"+action+"'",'API '+action));
+['getKnlGradeMatrix','saveKnlGradeMatrix','setKnlVersionEffectivity','listKnlCompensationStandards','previewKnlCompensationFoundation','applyKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','saveKnlEmployeeIncome'].forEach(action=>has(api,"payload.action==='"+action+"'",'API '+action));
 ['/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/co-cau-thu-nhap'].forEach(route=>has(router,route,'route '+route));
 has(ui,'Mỗi ô là yêu cầu độc lập; không tính trung bình','no-average UX');
 has(ui,'Có bậc sau thấp hơn bậc trước','lower progression warning');
 has(ui,'Promise.all([apiPost(\'listKnlCompensationStandards\')','parallel foundation reads');
 has(ui,'ensureKnlShell(root,tab,capabilities,isAdmin','persistent shell retained');
 has(ui,'KNL_READ_CACHE_TTL','in-memory cache retained');
+has(ui,"searchParams.get('employee_code')",'canonical income deeplink');
+has(ui,"searchParams.get('choose_employee')==='1'",'authorized picker back/F5 route state');
+has(ui,"apiPost('listKnlIncomeTargets')",'Admin/scoped income picker');
+has(ui,"apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined)",'own route omits override and explicit route passes employee code');
+has(ui,'data-knl-person-income','people entry point');
+has(ui,'data-knl-assignment-income','assignment entry point');
+has(ui,"ensureKnlShell(root,tab,capabilities,isAdmin,'')",'income route retains persistent shell');
 
 assert.strictEqual((sql.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');
 console.log('PASS KNL Foundation 1.50.0 static/contracts: schema, guards, mappings, permissions, routes and performance invariants.');

@@ -1,7 +1,7 @@
 {
-  "version": "1.50.0",
-  "fingerprint": "1.50.0-knl-foundation-production",
-  "builtAt": "2026-08-10T09:40:07+07:00",
-  "notes": "1.50.0 Production: competency grade standard, effective framework versions, salary-grade/reference-income foundation, scoped personal income and reviewed 2026-07 baseline.",
-  "build": "1.50.0"
+  "version": "1.50.1",
+  "fingerprint": "1.50.1-knl-income-route-picker",
+  "builtAt": "2026-08-10T09:57:43+07:00",
+  "notes": "1.50.1: resolve own-income from the authenticated account, add server-scoped Admin/authorized employee picker and canonical employee_code deeplinks without remounting the KNL shell.",
+  "build": "1.50.1"
 }
