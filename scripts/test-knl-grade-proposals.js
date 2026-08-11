@@ -89,7 +89,8 @@ function makeTableFactory(rows, opts = {}) {
 const STATE = {
   grants: [], history: [], employees: [],
   ladders: [], versions: [], grades: [], assignments: [],
-  proposals: [], steps: []
+  proposals: [], steps: [],
+  simulateRpcFaultBeforeCommit: false
 };
 
 function proposalUniquenessGuard(list, existingRows) {
@@ -99,6 +100,69 @@ function proposalUniquenessGuard(list, existingRows) {
     }
   }
   return null;
+}
+
+/* Mock của 2 RPC atomic (scripts/PHF_KNL_GRADE_PROMOTION_PROPOSAL_1.51.0.sql
+ * — knl_grade_promotion_propose / knl_grade_promotion_transition) — mô phỏng
+ * ĐÚNG contract "tất cả hoặc không gì cả": mọi thứ được TÍNH TOÁN xong trước
+ * (biến local), CHỈ mutate STATE.proposals/STATE.steps ở bước cuối cùng, sau
+ * khi mọi guard (unique constraint / optimistic concurrency / simulated
+ * fault) đã pass. STATE.simulateRpcFaultBeforeCommit dùng để chứng minh tính
+ * atomic (mục 1 batch 2.1, "Bổ sung test fault/rollback"): khi bật cờ này,
+ * hàm trả lỗi TRƯỚC khi mutate bất kỳ STATE nào — test khẳng định
+ * STATE.proposals/STATE.steps hoàn toàn không đổi sau lệnh gọi lỗi đó. */
+function snakeRow(obj) { const row = {}; Object.keys(obj || {}).forEach(k => { if (obj[k] !== undefined) row[k] = obj[k]; }); return row; }
+
+async function mockGradePromotionRpc(name, params) {
+  if (name === 'knl_grade_promotion_propose') {
+    const p = params.p_proposal, steps = params.p_steps || [];
+    if (p.status !== undefined) { /* Node không set status, RPC luôn ép 'pending' — mock giữ đúng contract này */ }
+    const dupErr = proposalUniquenessGuard([{ status: 'pending', subject_employee_code: p.subject_employee_code }], STATE.proposals);
+    if (dupErr) return { data: null, error: dupErr };
+    if (STATE.simulateRpcFaultBeforeCommit) { STATE.simulateRpcFaultBeforeCommit = false; return { data: null, error: { message: 'SIMULATED_FAULT_BEFORE_COMMIT' } }; }
+    const now = new Date().toISOString();
+    const proposalRow = snakeRow({
+      id: uid('proposal'), subject_employee_code: p.subject_employee_code, subject_employee_name: p.subject_employee_name,
+      created_by: p.created_by || null, created_by_name: p.created_by_name || null, created_at: now,
+      compensation_ladder_id: p.compensation_ladder_id, compensation_version_id: p.compensation_version_id,
+      current_grade_id: p.current_grade_id, current_grade_code: p.current_grade_code, current_grade_number: p.current_grade_number,
+      proposed_grade_id: p.proposed_grade_id, proposed_grade_code: p.proposed_grade_code, proposed_grade_number: p.proposed_grade_number,
+      reason: p.reason, status: 'pending', selected_first_approver_employee_code: p.selected_first_approver_employee_code || null,
+      routing_snapshot: p.routing_snapshot || [], current_step_index: p.current_step_index || 0, updated_at: now
+    });
+    const stepRows = steps.map(s => snakeRow({
+      id: uid('step'), proposal_id: proposalRow.id, step_index: s.step_index, actor_id: s.actor_id || null, actor_employee_code: s.actor_employee_code || null,
+      actor_name: s.actor_name || null, action: s.action, suggested_grade_id: s.suggested_grade_id || null, suggested_grade_code: s.suggested_grade_code || null,
+      suggested_grade_number: s.suggested_grade_number || null, reason: s.reason || null, acted_at: now
+    }));
+    // Commit — cả proposal và toàn bộ steps cùng lúc (atomic contract).
+    STATE.proposals.push(proposalRow);
+    stepRows.forEach(r => STATE.steps.push(r));
+    return { data: clone(proposalRow), error: null };
+  }
+
+  if (name === 'knl_grade_promotion_transition') {
+    const row = STATE.proposals.find(r => r.id === params.p_proposal_id);
+    if (!row) return { data: null, error: { message: 'PROPOSAL_NOT_FOUND' } };
+    if (row.status !== params.p_expected_status) return { data: null, error: { message: 'PROPOSAL_STATE_CHANGED' } };
+    if (params.p_expected_step_index != null && row.current_step_index !== params.p_expected_step_index) return { data: null, error: { message: 'PROPOSAL_STATE_CHANGED' } };
+    if (STATE.simulateRpcFaultBeforeCommit) { STATE.simulateRpcFaultBeforeCommit = false; return { data: null, error: { message: 'SIMULATED_FAULT_BEFORE_COMMIT' } }; }
+    const now = new Date().toISOString();
+    const patch = params.p_patch || {};
+    const patchedRow = Object.assign({}, row, snakeRow(patch), { updated_at: now });
+    const stepRows = (params.p_steps || []).map(s => snakeRow({
+      id: uid('step'), proposal_id: row.id, step_index: s.step_index, actor_id: s.actor_id || null, actor_employee_code: s.actor_employee_code || null,
+      actor_name: s.actor_name || null, action: s.action, suggested_grade_id: s.suggested_grade_id || null, suggested_grade_code: s.suggested_grade_code || null,
+      suggested_grade_number: s.suggested_grade_number || null, reason: s.reason || null,
+      reassigned_from_employee_code: s.reassigned_from_employee_code || null, reassigned_to_employee_code: s.reassigned_to_employee_code || null, acted_at: now
+    }));
+    // Commit — patch proposal + toàn bộ steps (kể cả reassign nếu có) cùng lúc.
+    Object.assign(row, patchedRow);
+    stepRows.forEach(r => STATE.steps.push(r));
+    return { data: clone(row), error: null };
+  }
+
+  throw new Error('Unexpected RPC in KNL Grade Proposal mock: ' + name);
 }
 
 function buildSupabaseMock() {
@@ -116,7 +180,8 @@ function buildSupabaseMock() {
           if (table === 'knl_grade_promotion_proposals') return makeTableFactory(STATE.proposals, { beforeInsert: proposalUniquenessGuard })();
           if (table === 'knl_grade_promotion_proposal_steps') return makeTableFactory(STATE.steps)();
           throw new Error('Unexpected table in KNL Grade Proposal mock: ' + table);
-        }
+        },
+        rpc(name, params) { return mockGradePromotionRpc(name, params); }
       };
     }
   };
@@ -167,7 +232,10 @@ STATE.employees.push(
   { employee_code: 'TIEN1', full_name: 'Trợ Lý Bán hàng', title: 'Trợ lý Giám đốc', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', manager_employee_code: 'GD1', employment_status: 'active' },
   { employee_code: 'TC1', full_name: 'Trưởng ca Phú Lợi', title: 'Trưởng ca', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', manager_employee_code: 'TIEN1', employment_status: 'active' },
   { employee_code: 'TC2', full_name: 'Trưởng ca Ngô Quyền', title: 'Trưởng ca', department: 'Bộ phận bán hàng', branch: 'Ngô Quyền', manager_employee_code: 'TIEN1', employment_status: 'active' },
-  { employee_code: 'NVSALES1', full_name: 'NV Bán hàng 1', title: 'Nhân viên', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', manager_employee_code: 'TIEN1', employment_status: 'active' }
+  { employee_code: 'NVSALES1', full_name: 'NV Bán hàng 1', title: 'Nhân viên', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', manager_employee_code: 'TIEN1', employment_status: 'active' },
+  // TC3: title='Trưởng ca' NHƯNG KHÔNG có grant nào — dùng để kiểm chứng
+  // title KHÔNG còn là authorization fallback (mục 2 batch 2.1).
+  { employee_code: 'TC3', full_name: 'Trưởng ca Chưa Được Cấp Quyền', title: 'Trưởng ca', department: 'Bộ phận bán hàng', branch: 'Lái Thiêu', manager_employee_code: 'TIEN1', employment_status: 'active' }
 );
 
 STATE.ladders.push({ id: 'ladder-1', code: 'NSGQ', name: 'Ngạch nhân sự gián quản' });
@@ -179,6 +247,7 @@ STATE.assignments.push(
   { employee_code: 'NVSALES1', employment_type: 'OFFICIAL', payroll_period: '2026-07', compensation_grade_id: 'grade-B1', compensation_version_id: 'version-1' },
   { employee_code: 'TC1', employment_type: 'OFFICIAL', payroll_period: '2026-07', compensation_grade_id: 'grade-B2', compensation_version_id: 'version-1' },
   { employee_code: 'VINH1', employment_type: 'OFFICIAL', payroll_period: '2026-07', compensation_grade_id: 'grade-B1', compensation_version_id: 'version-1' },
+  { employee_code: 'TC3', employment_type: 'OFFICIAL', payroll_period: '2026-07', compensation_grade_id: 'grade-B1', compensation_version_id: 'version-1' },
   { employee_code: 'NVKHOPROBATION', employment_type: 'PROBATION', payroll_period: '2026-07', compensation_grade_id: null, compensation_version_id: null }
   // NVKHO2: cố ý KHÔNG có dòng assignment nào -> test "chưa thiết lập bậc hiện tại"
 );
@@ -315,8 +384,33 @@ async function run() {
   check(tcCreatesDetail.steps.map(s => s.action).join(',') === 'propose,agree' && tcCreatesDetail.steps[1].reason.includes('Tự động'), 'CASE SALES-6. Timeline ghi rõ bước agree tự động (audit minh bạch, không giấu)');
 
   // Trưởng ca tự đề xuất cho chính mình -> bỏ qua tầng Trưởng ca, đi thẳng Tiên
+  // (TC1 CÓ grant thật agree_proposal:true — subjectIsApproverRole nhận diện
+  // qua GRANT, không phải qua title — xem block "title fallback removed" bên dưới).
   const tc1Self = (await createProposal(session('manager', { id: 'acc-tc1', employeeCode: 'TC1' }), { employeeCode: 'TC1', reason: 'TC1 tự đề xuất', proposedGradeId: 'grade-B4' })).proposal;
-  check(tc1Self.routingSnapshot.map(s => s.employeeCode).join(',') === 'TIEN1,', 'CASE SALES-7. Trưởng ca tự đề xuất (title=Trưởng ca) -> KHÔNG cần chọn selectedFirstApprover, bỏ qua chính mình, đi thẳng Tiên -> Admin');
+  check(tc1Self.routingSnapshot.map(s => s.employeeCode).join(',') === 'TIEN1,', 'CASE SALES-7. Trưởng ca có grant thật tự đề xuất -> KHÔNG cần chọn selectedFirstApprover, bỏ qua chính mình, đi thẳng Tiên -> Admin');
+
+  // ================= TITLE AUTHORIZATION FALLBACK REMOVED (mục 2 batch 2.1) =================
+  // TC3: title='Trưởng ca' NHƯNG KHÔNG có grant nào. TIEN1 (propose:true,
+  // people_scope phủ Sales) tạo hộ cho TC3.
+  await expectFail(createProposal(session('manager', { id: 'acc-tien', employeeCode: 'TIEN1' }), { employeeCode: 'TC3', reason: 'TC3 title Trưởng ca nhưng chưa có grant', proposedGradeId: 'grade-B2' }), 'KNL_PROPOSAL_SALES_APPROVER_REQUIRED', 'CASE TITLE-FALLBACK-1. TC3 có title="Trưởng ca" nhưng KHÔNG có grant agree_proposal -> vẫn bị coi là rank-and-file, bắt buộc chọn Trưởng ca xử lý (title KHÔNG còn tự động miễn trừ, đúng mục 2 batch 2.1)');
+  await expectFail(createProposal(session('manager', { id: 'acc-tien', employeeCode: 'TIEN1' }), { employeeCode: 'TC3', reason: 'Chọn chính TC3 xử lý cho TC3', proposedGradeId: 'grade-B2', selectedFirstApproverEmployeeCode: 'TC3' }), 'KNL_PROPOSAL_SALES_APPROVER_SELF_NOT_ALLOWED', 'CASE TITLE-FALLBACK-2. Chọn chính TC3 (title Trưởng ca, không có grant) làm người xử lý cho chính TC3 -> bị chặn bởi guard self-select (không tồn tại self-agree) — không có "quyền tạm" nào từ title dù có thử self-select hay không');
+  const tc3ViaPeer = (await createProposal(session('manager', { id: 'acc-tien', employeeCode: 'TIEN1' }), { employeeCode: 'TC3', reason: 'Chọn TC1 (có grant thật) xử lý cho TC3', proposedGradeId: 'grade-B2', selectedFirstApproverEmployeeCode: 'TC1' })).proposal;
+  check(tc3ViaPeer.routingSnapshot[0].employeeCode === 'TC1', 'CASE TITLE-FALLBACK-3. Chọn TC1 (đồng nghiệp CÓ grant thật) xử lý cho TC3 -> hợp lệ, chứng minh authority hoàn toàn dựa trên grant, không phải title');
+  await processStep(session('manager', { id: 'acc-tc1', employeeCode: 'TC1' }), { proposalId: tc3ViaPeer.id, action: 'agree', suggestedGradeId: 'grade-B2' });
+  await processStep(session('manager', { id: 'acc-tien', employeeCode: 'TIEN1' }), { proposalId: tc3ViaPeer.id, action: 'agree', suggestedGradeId: 'grade-B2' });
+  await processStep(session('admin', { id: 'u-admin' }), { proposalId: tc3ViaPeer.id, action: 'agree', suggestedGradeId: 'grade-B2' });
+
+  // "Chưa cấu hình" — tạm thu hồi agree_proposal của CẢ 2 Trưởng ca đang có
+  // grant thật (TC1, TC2) -> hệ thống phải fail-closed với message rõ ràng,
+  // KHÔNG âm thầm rơi về title.
+  await grant('acc-tc1', 'TC1', 'NHAN_VIEN', { access_knl: true, view_people: true, propose: true, agree_proposal: false }, { type: 'self', values: [] }, 'Tạm thu hồi để test not-configured');
+  await grant('acc-tc2', 'TC2', 'NHAN_VIEN', { access_knl: true, view_people: true, propose: true, agree_proposal: false }, { type: 'self', values: [] }, 'Tạm thu hồi để test not-configured');
+  await expectFail(createProposal(session('learner', { id: 'acc-nvsales1', employeeCode: 'NVSALES1' }), { employeeCode: 'NVSALES1', reason: 'Không còn ai được cấu hình xử lý Sales', proposedGradeId: 'grade-B2', selectedFirstApproverEmployeeCode: 'TC1' }), 'KNL_PROPOSAL_SALES_NOT_CONFIGURED', 'CASE TITLE-FALLBACK-4. KHÔNG còn tài khoản Sales nào có agree_proposal -> fail closed với mã lỗi configuration-missing rõ ràng (KNL_PROPOSAL_SALES_NOT_CONFIGURED), không phải lỗi chung chung');
+  await grant('acc-tc1', 'TC1', 'TRUONG_CA_CHTR', { access_knl: true, view_people: true, propose: true, agree_proposal: true }, { type: 'sales_all_branches', values: [] }, 'Khôi phục quyền TC1 cho case sau');
+  await grant('acc-tc2', 'TC2', 'TRUONG_CA_CHTR', { access_knl: true, view_people: true, propose: true, agree_proposal: true }, { type: 'sales_all_branches', values: [] }, 'Khôi phục quyền TC2 cho case sau');
+
+  // Self-select bị chặn: NV Bán hàng tự đề xuất mà chọn CHÍNH MÌNH xử lý -> không tồn tại self-agree.
+  await expectFail(createProposal(session('learner', { id: 'acc-nvsales1', employeeCode: 'NVSALES1' }), { employeeCode: 'NVSALES1', reason: 'NVSALES1 tự chọn chính mình xử lý', proposedGradeId: 'grade-B2', selectedFirstApproverEmployeeCode: 'NVSALES1' }), 'KNL_PROPOSAL_SALES_APPROVER_SELF_NOT_ALLOWED', 'CASE TITLE-FALLBACK-5. NV Bán hàng tự đề xuất mà chọn chính mình xử lý -> bị chặn ngay (self-agree không tồn tại, kể cả qua đường Sales picker)');
 
   // ================= VISIBILITY (proposalScope ĐỘC LẬP với people_scope) =================
   await grant('acc-nvkho1', 'NVKHO1', 'NHAN_VIEN', { access_knl: true, view_people: true, propose: true, view_proposals: true, proposalScope: { type: 'self', values: [] } }, { type: 'self', values: [] }, 'Bổ sung view_proposals cho NVKHO1 (cập nhật cùng account, giữ nguyên các quyền khác)');
@@ -368,6 +462,35 @@ async function run() {
   // ================= listMyGradePromotionProposals =================
   const mine = await listMine(session('learner', { id: 'acc-nvkho1', employeeCode: 'NVKHO1' }));
   check(mine.proposals.every(p => p.subjectEmployeeCode === 'NVKHO1' || p.createdBy === 'acc-nvkho1'), 'CASE MINE-1. "Proposal của tôi" chỉ gồm proposal mà NVKHO1 là subject hoặc creator');
+
+  // ================= ATOMIC ROLLBACK (mục 1 batch 2.1) =================
+  // Chứng minh contract "state change và audit step cùng commit hoặc cùng
+  // rollback": bật cờ giả lập lỗi NGAY TRƯỚC bước commit trong mock RPC (mô
+  // phỏng transaction Postgres fail giữa chừng) rồi khẳng định KHÔNG có
+  // proposal/step nào bị ghi một phần.
+  // Dùng VINH1 làm subject (proposal trước đó của VINH1 đã 'approved' — terminal,
+  // không vướng ràng buộc 1-active-proposal của NVKHO1 đang còn 'pending' từ case BROKEN ROUTE).
+  const proposalsCountBeforeCreateFault = STATE.proposals.length, stepsCountBeforeCreateFault = STATE.steps.length;
+  STATE.simulateRpcFaultBeforeCommit = true;
+  let createFaultThrew = null;
+  try { await createProposal(session('manager', { id: 'acc-vinh', employeeCode: 'VINH1' }), { employeeCode: 'VINH1', reason: 'Test atomic rollback lúc tạo', proposedGradeId: 'grade-B2' }); }
+  catch (e) { createFaultThrew = e; }
+  check(!!createFaultThrew, 'CASE ATOMIC-1. createProposal ném lỗi đúng khi RPC fault giữa transaction (giả lập)');
+  check(STATE.proposals.length === proposalsCountBeforeCreateFault && STATE.steps.length === stepsCountBeforeCreateFault, 'CASE ATOMIC-2. Sau lỗi lúc TẠO: KHÔNG có proposal mồ côi (không step) và KHÔNG có step mồ côi (không proposal) — proposals/steps hoàn toàn không đổi, đúng "cùng commit hoặc cùng rollback"');
+
+  // Cùng kiểm chứng cho nhánh XỬ LÝ (agree) — tạo 1 proposal thật trước (không fault), rồi fault khi agree.
+  const atomicTransitionSubject = (await createProposal(session('manager', { id: 'acc-vinh', employeeCode: 'VINH1' }), { employeeCode: 'VINH1', reason: 'Setup cho test atomic rollback lúc xử lý', proposedGradeId: 'grade-B3' })).proposal;
+  const snapshotBeforeTransitionFault = JSON.stringify(STATE.proposals.find(p => p.id === atomicTransitionSubject.id));
+  const stepsCountBeforeTransitionFault = STATE.steps.length;
+  STATE.simulateRpcFaultBeforeCommit = true;
+  let transitionFaultThrew = null;
+  try { await processStep(session('admin', { id: 'u-admin' }), { proposalId: atomicTransitionSubject.id, action: 'agree', suggestedGradeId: 'grade-B2' }); }
+  catch (e) { transitionFaultThrew = e; }
+  check(!!transitionFaultThrew, 'CASE ATOMIC-3. agree ném lỗi đúng khi RPC fault giữa transaction (giả lập)');
+  const snapshotAfterTransitionFault = JSON.stringify(STATE.proposals.find(p => p.id === atomicTransitionSubject.id));
+  check(snapshotAfterTransitionFault === snapshotBeforeTransitionFault && STATE.steps.length === stepsCountBeforeTransitionFault, 'CASE ATOMIC-4. Sau lỗi lúc XỬ LÝ: proposal row KHÔNG bị patch một phần (current_step_index/status y hệt trước lệnh) và KHÔNG có step mới nào lọt vào — không tồn tại trạng thái "proposal đã đổi nhưng timeline chưa ghi"');
+  // dọn state: xử lý lại bình thường (không fault) để không ảnh hưởng case sau
+  await withdrawProposal(session('manager', { id: 'acc-vinh', employeeCode: 'VINH1' }), { proposalId: atomicTransitionSubject.id, reason: 'Dọn state sau test atomic rollback' });
 
   // ================= REGRESSION — không đọc income/lương ở bất kỳ đâu =================
   const proposalJson = JSON.stringify(STATE.proposals);
