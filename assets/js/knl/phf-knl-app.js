@@ -1217,6 +1217,53 @@ function incomePickerHtml(message){var people=foundationState.incomeTargets||[];
 function bindIncomePicker(root){var search=root.querySelector('[data-knl-income-search]');if(search)search.addEventListener('input',function(){var q=String(search.value||'').trim().toLowerCase();root.querySelectorAll('[data-knl-income-target]').forEach(function(row){row.hidden=!!(q&&String(row.dataset.search||'').indexOf(q)===-1);});});root.querySelectorAll('[data-knl-income-target]').forEach(function(row){row.addEventListener('click',function(){goIncomeEmployee(row.getAttribute('data-knl-income-target'));});});}
 async function showIncomePicker(root,message){var body=root.querySelector('[data-knl-body]');try{if(!foundationState.incomeTargetsLoaded){var result=await apiPost('listKnlIncomeTargets');foundationState.incomeTargets=result.people||[];foundationState.incomeTargetsLoaded=true;}body.innerHTML=incomePickerHtml(message);bindIncomePicker(root);bindCompensationDomainNav(root);}catch(e){body.innerHTML=noAccessSection(e.message);}}
 function compensationInitials(name){var parts=String(name||'').trim().split(/\s+/);return parts.length&&parts[parts.length-1]?parts[parts.length-1][0].toUpperCase():'?';}
+function pad2(n){return n<10?'0'+n:''+n;}
+function formatDateVN(dateStr){var s=String(dateStr||'').trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:s;}
+function formatDateTimeVN(isoStr){var s=String(isoStr||'').trim();if(!s)return '—';var d=new Date(s);if(isNaN(d.getTime()))return s;return pad2(d.getDate())+'/'+pad2(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
+function computeSeniorityLabel(hireDateStr){
+  var s=String(hireDateStr||'').trim();if(!s)return '';
+  var d=new Date(s);if(isNaN(d.getTime()))return '';
+  var now=new Date(),months=(now.getFullYear()-d.getFullYear())*12+(now.getMonth()-d.getMonth());
+  if(now.getDate()<d.getDate())months--;
+  if(months<0)return '';
+  var years=Math.floor(months/12),remMonths=months%12;
+  if(years<=0&&remMonths<=0)return 'Dưới 1 tháng';
+  var parts=[];if(years>0)parts.push(years+' năm');if(remMonths>0)parts.push(remMonths+' tháng');
+  return parts.join(' ');
+}
+function employmentStatusLabelVN(status){var s=String(status||'').toLowerCase();if(s==='active')return 'Đang làm việc';if(s==='inactive')return 'Đã nghỉ việc';return status||'—';}
+/* Actor kỹ thuật/hệ thống -> nhãn thân thiện cho UI. KHÔNG sửa raw data
+ * backend (changedByName gốc vẫn nguyên trong payload) - chỉ đổi cách hiển
+ * thị. Chỉ nhận diện đúng các pattern hệ thống thật đang có trong DB (batch
+ * script/seed/baseline/foundation) - không đoán; tên người thật (nhân sự/
+ * admin) hiển thị nguyên tên, không đổi. */
+function friendlyActorLabel(name){
+  var s=String(name||'').trim();
+  if(!s)return '—';
+  if(/batch script|baseline|foundation \d|seed/i.test(s))return 'Hệ thống (khởi tạo dữ liệu)';
+  return s;
+}
+/* Tách level_content thành bullet CHỈ khi chắc chắn là danh sách: đánh số
+ * "1. 2. 3." hoặc gạch đầu dòng "- "/"• " ở ĐẦU MỖI dòng (yêu cầu content có
+ * xuống dòng thật giữa các mục — đúng format thật trong DB, xem sample
+ * "1. Giám sát...\n2. Giám sát..."). Dấu "-" giữa câu (vd "Từ 1 - 3 năm",
+ * "CCDC - cơ sở vật chất") không có xuống dòng nên KHÔNG rơi vào nhánh tách
+ * danh sách - giữ nguyên nguyên văn, không sửa nghĩa, không rewrite. */
+function formatLevelContentHtml(content){
+  var raw=String(content||'').trim();
+  if(!raw)return '<span class="phfk-comp-content-empty">—</span>';
+  var lines=raw.split(/\n/).map(function(l){return l.trim();}).filter(function(l){return l.length;});
+  if(lines.length>=2){
+    if(lines.every(function(l){return /^\d+[.)]\s*/.test(l);})){
+      return '<ul class="phfk-comp-content-list">'+lines.map(function(l){return '<li>'+esc(l.replace(/^\d+[.)]\s*/,''))+'</li>';}).join('')+'</ul>';
+    }
+    if(lines.every(function(l){return /^[-•]\s+/.test(l);})){
+      return '<ul class="phfk-comp-content-list">'+lines.map(function(l){return '<li>'+esc(l.replace(/^[-•]\s+/,''))+'</li>';}).join('')+'</ul>';
+    }
+    return lines.map(function(l){return '<p class="phfk-comp-content-line">'+esc(l)+'</p>';}).join('');
+  }
+  return '<p class="phfk-comp-content-line">'+esc(raw)+'</p>';
+}
 function compensationIdentityCardHtml(current){
   var org=current.organizationSnapshot||{},fields=[];
   if(org.department)fields.push(['PHÒNG BAN',org.department]);
@@ -1226,6 +1273,30 @@ function compensationIdentityCardHtml(current){
   return '<section class="phfk-panel phfk-comp-identity"><div class="phfk-comp-identity-avatar">'+esc(compensationInitials(current.employeeName))+'</div>'+
     '<div class="phfk-comp-identity-fields"><div><small>MÃ NHÂN VIÊN</small><b>'+esc(current.employeeCode)+'</b></div>'+
     fields.map(function(f){return '<div><small>'+f[0]+'</small><b>'+esc(f[1])+'</b></div>';}).join('')+'</div></section>';
+}
+/* Hồ sơ cá nhân đầy đủ ở đầu màn cá nhân — nguồn employee_profiles thật qua
+ * getKnlEmployeeProfile (KHÔNG suy diễn field không có, KHÔNG lấy từ
+ * organizationSnapshot của compensation vì đó là snapshot lúc gán lương, có
+ * thể khác hồ sơ hiện hành). Fallback về card cũ (từ income) nếu profile
+ * fetch lỗi/không có quyền, để không bao giờ để trắng khối này. */
+function profileCardHtml(profile,fallbackCurrent){
+  if(!profile)return fallbackCurrent?compensationIdentityCardHtml(fallbackCurrent):'';
+  var avatar=profile.avatarUrl
+    ?'<img class="phfk-comp-identity-avatar-img" src="'+esc(profile.avatarUrl)+'" alt="">'
+    :esc(compensationInitials(profile.fullName));
+  var fields=[];
+  if(profile.title)fields.push(['CHỨC DANH',profile.title]);
+  if(profile.department)fields.push(['PHÒNG BAN',profile.department]);
+  if(profile.branch)fields.push(['CHI NHÁNH',profile.branch]);
+  if(profile.hireDate)fields.push(['NGÀY VÀO CÔNG TY',formatDateVN(profile.hireDate)]);
+  var seniority=computeSeniorityLabel(profile.hireDate);
+  if(seniority)fields.push(['THÂM NIÊN',seniority]);
+  fields.push(['TRẠNG THÁI',employmentStatusLabelVN(profile.employmentStatus)]);
+  return '<section class="phfk-panel phfk-comp-identity"><div class="phfk-comp-identity-avatar'+(profile.avatarUrl?' has-image':'')+'">'+avatar+'</div>'+
+    '<div class="phfk-comp-identity-fields"><div><small>HỌ VÀ TÊN</small><b>'+esc(profile.fullName||profile.employeeCode)+'</b></div>'+
+    '<div><small>MÃ NHÂN VIÊN</small><b>'+esc(profile.employeeCode)+'</b></div>'+
+    fields.map(function(f){return '<div><small>'+f[0]+'</small><b>'+esc(f[1])+'</b></div>';}).join('')+
+    '</div></section>';
 }
 /* Suy nhãn thay đổi (semantic) và trước/sau từ snapshot before/after đã lưu —
    KHÔNG lookup master hiện tại để dựng lại lịch sử. */
@@ -1252,8 +1323,9 @@ function incomeHtml(){
   var i=foundationState.income,current=i&&i.current,nav=compensationDomainNav('co-cau-thu-nhap',foundationState.incomeIsAdmin),change=foundationState.incomeCanSelect?'<button type="button" class="phfk-btn-secondary" data-knl-change-income>Chọn nhân sự khác</button>':'';
   if(!current)return nav+'<div class="phfk-page-head"><div><small>KNL · CÁ NHÂN</small><h1>Bậc & Cơ cấu thu nhập</h1><p>'+esc(i&&i.employeeCode||'')+'</p></div>'+change+'</div>'+noAccessSection('Chưa có cơ cấu thu nhập tham chiếu đang áp dụng.');
   var isOfficial=current.employmentType==='OFFICIAL',totalPosition=current.baseSalary+current.hqcv;
-  var head='<div class="phfk-page-head"><div><small>KNL · HỒ SƠ CÁ NHÂN</small><h1>'+esc(current.employeeName||current.employeeCode)+' · '+esc(current.employeeCode)+'</h1><p>Bậc & Cơ cấu thu nhập hiện tại</p></div><div class="phfk-income-head-actions"><span class="phfk-source-status is-ready">Đang áp dụng</span>'+change+'</div></div>';
-  var identity=compensationIdentityCardHtml(current);
+  var p=foundationState.profile;
+  var head='<div class="phfk-page-head"><div><small>KNL · HỒ SƠ CÁ NHÂN</small><h1>'+esc((p&&p.fullName)||current.employeeName||current.employeeCode)+' · '+esc(current.employeeCode)+'</h1><p>Hồ sơ cá nhân, Bậc & Cơ cấu thu nhập và Khung năng lực đang áp dụng</p></div><div class="phfk-income-head-actions"><span class="phfk-source-status is-ready">Đang áp dụng</span>'+change+'</div></div>';
+  var identity=profileCardHtml(p,current);
   var gradeRef=esc((current.ladderCode||'')+'-'+(current.gradeCode||''));
   var card;
   if(!isOfficial){
@@ -1271,8 +1343,8 @@ function incomeHtml(){
       '<tr class="phfk-comp-parts-subtotal"><td colspan="2"><b>Tổng cơ cấu thu nhập chính thức</b></td><td><b>'+money(current.totalReferenceIncome)+'</b></td><td></td></tr>'+
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
   }
-  var history='<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(h.changedAt)+'</td><td>'+esc(h.changedByName||'—')+'</td></tr>';}).join('')+'</tbody></table></div></section>';
-  return nav+head+identity+competencyStandardHtml()+card+history;
+  var history='<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(formatDateTimeVN(h.changedAt))+'</td><td>'+esc(friendlyActorLabel(h.changedByName))+'</td></tr>';}).join('')+'</tbody></table></div></section>';
+  return nav+head+identity+card+competencyStandardHtml()+history;
 }
 /* Khối "KNL đang áp dụng" — gắn vào màn cá nhân hiện có (Bậc & Cơ cấu thu
  * nhập), KHÔNG tạo route riêng (đúng chỉ đạo: ưu tiên gắn vào self-view hiện
@@ -1281,13 +1353,14 @@ function incomeHtml(){
 function competencyStatusLabel(status){return status==='CONFIRMED'?'Chính thức':'Tạm áp dụng';}
 function competencyGradeTableHtml(standard){
   if(!standard||!standard.groups||!standard.groups.length)return '<p class="phfk-empty">Chưa có tiêu chuẩn chi tiết cho bậc này.</p>';
-  return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhóm / Năng lực</th><th>Mức yêu cầu</th><th>Nội dung</th></tr></thead><tbody>'+
-    standard.groups.map(function(g){
-      return g.items.map(function(it,idx){
-        return '<tr><td>'+(idx===0?'<b>'+esc(g.name)+'</b><br>':'')+esc(it.name)+'</td><td>'+esc(it.requiredColumnLabel||('Mức '+it.requiredLevelNumber))+'</td><td>'+esc(it.content||'—')+'</td></tr>';
-      }).join('');
-    }).join('')+
-    '</tbody></table></div>';
+  return standard.groups.map(function(g){
+    return '<div class="phfk-comp-group"><h4 class="phfk-comp-group-title">'+esc(g.name)+'</h4>'+
+      '<div class="phfk-table-wrap"><table class="phfk-table phfk-comp-table"><thead><tr><th>Năng lực</th><th>Mức yêu cầu</th><th>Nội dung</th></tr></thead><tbody>'+
+      g.items.map(function(it){
+        return '<tr><td>'+esc(it.name)+'</td><td><span class="phfk-comp-level-badge">'+esc(it.requiredColumnLabel||('Mức '+it.requiredLevelNumber))+'</span></td><td class="phfk-comp-content-cell">'+formatLevelContentHtml(it.content)+'</td></tr>';
+      }).join('')+
+      '</tbody></table></div></div>';
+  }).join('');
 }
 function competencyStandardHtml(){
   var c=foundationState.competency;
@@ -1296,17 +1369,17 @@ function competencyStandardHtml(){
   }
   var a=c.assignment||{};
   var head='<div class="phfk-section-head"><h2>KNL đang áp dụng</h2><span class="phfk-source-status '+(a.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(a.status))+'</span></div>';
-  var summary='<div class="phfk-income-summary"><div><small>KHUNG NĂNG LỰC</small><b>'+esc((c.framework&&c.framework.name)||'—')+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'—')+'</b></div><div><small>HIỆU LỰC TỪ</small><b>'+esc(a.effectiveFrom||'—')+'</b></div></div>';
-  var currentBlock='<div class="phfk-competency-block"><h3>Tiêu chuẩn bậc hiện tại</h3>'+competencyGradeTableHtml(c.currentStandard)+'</div>';
+  var summary='<div class="phfk-income-summary"><div><small>KHUNG NĂNG LỰC</small><b>'+esc((c.framework&&c.framework.name)||'—')+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'—')+'</b></div><div><small>HIỆU LỰC TỪ</small><b>'+esc(formatDateVN(a.effectiveFrom))+'</b></div></div>';
+  var currentBlock='<div class="phfk-competency-block is-current"><div class="phfk-comp-block-head"><span class="phfk-comp-block-tag is-current">Hiện tại</span><h3>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'')+'</h3></div>'+competencyGradeTableHtml(c.currentStandard)+'</div>';
   var nextBlock;
   if(c.isMaxGrade){
-    nextBlock='<div class="phfk-competency-block"><h3>Bậc tiếp theo</h3><p class="phfk-batch-note">Bạn đang ở bậc cao nhất của khung năng lực hiện tại.</p></div>';
+    nextBlock='<div class="phfk-competency-block is-next"><div class="phfk-comp-block-head"><span class="phfk-comp-block-tag is-next">Tiếp theo</span><h3>Bậc tiếp theo</h3></div><p class="phfk-batch-note">Bạn đang ở bậc cao nhất của khung năng lực hiện tại.</p></div>';
   }else{
-    nextBlock='<div class="phfk-competency-block"><h3>Tiêu chuẩn bậc tiếp theo ('+esc((c.nextGrade&&c.nextGrade.label)||(c.nextGrade&&c.nextGrade.code)||'')+')</h3>'+competencyGradeTableHtml(c.nextStandard)+'</div>';
+    nextBlock='<div class="phfk-competency-block is-next"><div class="phfk-comp-block-head"><span class="phfk-comp-block-tag is-next">Tiếp theo</span><h3>'+esc((c.nextGrade&&c.nextGrade.label)||(c.nextGrade&&c.nextGrade.code)||'')+'</h3></div>'+competencyGradeTableHtml(c.nextStandard)+'</div>';
   }
   return '<section class="phfk-panel phfk-competency-panel">'+head+summary+currentBlock+nextBlock+'</section>';
 }
-async function renderIncome(root,isAdmin,capabilities){var body=root.querySelector('[data-knl-body]'),url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';foundationState.incomeIsAdmin=isAdmin===true;foundationState.incomeCanSelect=isAdmin===true||(capabilities&&capabilities.income_view===true);if(!queryCode&&(isAdmin||choose&&foundationState.incomeCanSelect)){await showIncomePicker(root);return;}try{foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);try{foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);}catch(ce){foundationState.competency=null;}body.innerHTML=incomeHtml();bindCompensationDomainNav(root);var change=body.querySelector('[data-knl-change-income]');if(change)change.addEventListener('click',goIncomePicker);}catch(e){if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED')await showIncomePicker(root,e.message);else body.innerHTML=noAccessSection(e.message);}}
+async function renderIncome(root,isAdmin,capabilities){var body=root.querySelector('[data-knl-body]'),url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';foundationState.incomeIsAdmin=isAdmin===true;foundationState.incomeCanSelect=isAdmin===true||(capabilities&&capabilities.income_view===true);if(!queryCode&&(isAdmin||choose&&foundationState.incomeCanSelect)){await showIncomePicker(root);return;}try{foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);try{foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);}catch(ce){foundationState.competency=null;}try{var profileResult=await apiPost('getKnlEmployeeProfile',queryCode?{employeeCode:queryCode}:undefined);foundationState.profile=profileResult.profile;}catch(pe){foundationState.profile=null;}body.innerHTML=incomeHtml();bindCompensationDomainNav(root);var change=body.querySelector('[data-knl-change-income]');if(change)change.addEventListener('click',goIncomePicker);}catch(e){if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED')await showIncomePicker(root,e.message);else body.innerHTML=noAccessSection(e.message);}}
 
 /* ===== Gán cho nhân viên — Official (lookup master, no personal override) / Probation (fixed-only) ===== */
 function assignLadderOptions(selectedId){return ((assignState.standards&&assignState.standards.ladders)||[]).map(function(l){return '<option value="'+esc(l.id)+'"'+(l.id===selectedId?' selected':'')+'>'+esc(l.code+' · '+l.name)+'</option>';}).join('');}
