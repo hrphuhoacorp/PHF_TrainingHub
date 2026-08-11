@@ -44,8 +44,8 @@ function sidebarRoleLabel(capabilities, isAdmin){
 var KNL_READ_CACHE_TTL = 30000;
 var knlReadCache = new Map();
 var knlAuthorizationSignature = '';
-var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory']);
-var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion']);
+var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject']);
+var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal']);
 function knlCacheOwner(){var u=currentUser();return String(u.id||u.accountId||u.email||u.employeeCode||u.employee_code||roleHome())+'|'+knlAuthorizationSignature;}
 function clearKnlReadCache(){knlReadCache.clear();}
 function invalidateKnlViewState(action){
@@ -135,6 +135,11 @@ var SIDEBAR_ITEMS = [
   { key:'khao-sat', label:'Khảo sát & đánh giá', desc:'Đợt khảo sát và kết quả', icon:'◫', needs:'access_knl' },
   { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
   { key:'co-cau-thu-nhap', label:'Bậc & Cơ cấu thu nhập', desc:'Thông tin tham chiếu cá nhân', icon:'◍', ownAlways:true },
+  // KNL Grade Promotion Proposal batch 2: 4 capability riêng biệt
+  // (view_proposals/propose/agree_proposal/approve) — bất kỳ capability nào
+  // trong 4 cái cũng đủ để THẤY menu (mỗi sub-view bên trong tự gate theo
+  // đúng capability của nó, xem renderGradePromotionSection()).
+  { key:'de-xuat-nang-bac', label:'Đề xuất nâng bậc', desc:'Nâng bậc & phê duyệt', icon:'◔', needsAny:['view_proposals','propose','agree_proposal','approve'] },
   { key:'phan-quyen', label:'Phân quyền', desc:'Quản lý quyền truy cập KNL', icon:'⚙', needs:'manage_permissions' }
 ];
 
@@ -143,12 +148,13 @@ function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
   if(['tieu-chuan-bac','phien-ban-lich-su'].indexOf(activeTab)>=0)activeSidebarTab='bo-knl';
   if(['ngach-bac-luong','gan-thu-nhap','lich-su-thu-nhap'].indexOf(activeTab)>=0)activeSidebarTab='co-cau-thu-nhap';
   if(activeTab==='ket-qua-khao-sat')activeSidebarTab='khao-sat';
-  var items = SIDEBAR_ITEMS.filter(function(item){ if(item.ownAlways)return true;if(item.adminOnly)return isAdmin===true;return isAdmin || (capabilities && capabilities[item.needs]); });
+  var items = SIDEBAR_ITEMS.filter(function(item){ if(item.ownAlways)return true;if(item.adminOnly)return isAdmin===true;if(item.needsAny)return isAdmin||item.needsAny.some(function(k){return capabilities&&capabilities[k]===true;});return isAdmin || (capabilities && capabilities[item.needs]); });
   var icons = {
     'bo-knl':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
     'khao-sat':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg>',
     'nhan-su':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>',
     'co-cau-thu-nhap':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 3h12v18H6zM9 12h6M9 16h4"/></svg>',
+    'de-xuat-nang-bac':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
     'phan-quyen':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>'
   };
   var navHtml = items.map(function(item){
@@ -1382,6 +1388,195 @@ async function renderCompensationHistory(root){
   }catch(e){body.innerHTML=compensationDomainNav('lich-su-thu-nhap',true)+noAccessSection(e.message);bindCompensationDomainNav(root);}
 }
 
+/* ===================== ĐỀ XUẤT NÂNG BẬC (KNL Grade Promotion Proposal, batch 2) =====================
+   Functional-first theo đúng chỉ đạo Technical Lead (mục 13 batch 2) — chưa
+   polish. Không hiển thị bất kỳ số tiền nào (base_salary/hqcv/allowance) ở
+   bất kỳ đâu trong section này — API backend (lib/knl-grade-proposals.js)
+   vốn cũng không bao giờ trả các field đó. */
+var gpState = { loaded:false, loadedAt:0, view:'awaiting', mine:[], awaiting:[], visible:[], visibleStatus:'', detail:null, detailId:'', error:'', message:'', createEmployeeCode:'', createGradeOptions:null, createError:'' };
+var GP_STATUS_LABELS = { pending:'Đang xử lý', approved:'Đã duyệt', rejected:'Không đồng ý', withdrawn:'Đã rút' };
+var GP_ACTION_LABELS = { propose:'Tạo đề xuất', agree:'Đồng ý', approve:'Duyệt (Admin)', reject:'Không đồng ý', withdraw:'Rút đề xuất', reassign:'Route lại (tự động)' };
+
+function gpNav(activeView, capabilities, isAdmin){
+  var canView = isAdmin || capabilities.view_proposals === true;
+  var canPropose = isAdmin || capabilities.propose === true;
+  var tabs = [['awaiting','Cần tôi xử lý'],['mine','Đề xuất của tôi']];
+  if(canView) tabs.push(['visible','Danh sách']);
+  if(canPropose) tabs.push(['create','Tạo đề xuất']);
+  return '<nav class="phfk-domain-tabs" aria-label="Đề xuất nâng bậc">'+tabs.map(function(t){return '<button type="button" class="'+(activeView===t[0]?'active':'')+'" data-gp-nav="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</nav>';
+}
+function bindGpNav(root){root.querySelectorAll('[data-gp-nav]').forEach(function(b){b.onclick=function(){gpState.view=b.getAttribute('data-gp-nav');gpState.error='';var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);renderGpBody(root);};});}
+
+function gpGradeLine(currentCode,currentNumber,proposedCode,proposedNumber){return esc(currentCode||'—')+' → '+esc(proposedCode||'—');}
+function gpRow(p){
+  return '<tr><td><b>'+esc(p.subjectEmployeeName)+'</b><small>'+esc(p.subjectEmployeeCode)+'</small></td>'+
+    '<td>'+gpGradeLine(p.currentGradeCode,p.currentGradeNumber,p.proposedGradeCode,p.proposedGradeNumber)+'</td>'+
+    '<td><span class="phfk-pill phfk-pill-'+esc(p.status)+'">'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</span></td>'+
+    '<td>'+fmtDate(p.createdAt)+'</td>'+
+    '<td><button type="button" class="phfk-link" data-gp-open="'+esc(p.id)+'">Xem</button></td></tr>';
+}
+function gpTable(list,emptyText){
+  if(!list||!list.length) return '<section class="phfk-empty"><p>'+esc(emptyText)+'</p></section>';
+  return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhân sự</th><th>Bậc hiện tại → đề xuất</th><th>Trạng thái</th><th>Ngày tạo</th><th></th></tr></thead><tbody>'+list.map(gpRow).join('')+'</tbody></table></div>';
+}
+
+function gpListBodyHtml(capabilities,isAdmin){
+  var head = gpNav(gpState.view,capabilities,isAdmin);
+  var msg = (gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'');
+  if(gpState.view==='mine') return head+msg+gpTable(gpState.mine,'Bạn chưa tạo hoặc chưa là nhân sự của Đề xuất nâng bậc nào.');
+  if(gpState.view==='visible'){
+    var statusFilter='<div class="phfk-filters"><select class="phfk-input" data-gp-status-filter>'+['','pending','approved','rejected','withdrawn'].map(function(s){return '<option value="'+s+'"'+(gpState.visibleStatus===s?' selected':'')+'>'+(s?esc(GP_STATUS_LABELS[s]):'Tất cả trạng thái')+'</option>';}).join('')+'</select></div>';
+    return head+statusFilter+msg+gpTable(gpState.visible,'Chưa có Đề xuất nâng bậc nào trong phạm vi xem của bạn.');
+  }
+  if(gpState.view==='create') return head+msg+gpCreateFormHtml();
+  return head+msg+gpTable(gpState.awaiting,'Hiện không có Đề xuất nâng bậc nào cần bạn xử lý.');
+}
+
+function gpCreateFormHtml(){
+  var opts = gpState.createGradeOptions;
+  var gradeBlock = '';
+  if(opts && opts.hasBaseline===false){
+    gradeBlock = '<p class="phfk-error">'+(opts.reason==='probation'?'Nhân sự đang trong thời gian thử việc, chưa thiết lập bậc hiện tại — chưa thể tạo đề xuất.':'Chưa thiết lập bậc hiện tại cho nhân sự này — chưa thể tạo đề xuất.')+'</p>';
+  } else if(opts && opts.hasBaseline===true){
+    gradeBlock = '<p>Bậc hiện tại: <b>'+esc(opts.currentGradeCode)+'</b> ('+esc(opts.ladderName||opts.ladderCode)+')</p>'+
+      (opts.nextGrades.length ? '<fieldset><legend>Chọn bậc đề xuất (tối đa 4 bậc kế tiếp còn hợp lệ)</legend>'+opts.nextGrades.map(function(g){return '<label><input type="radio" name="proposedGradeId" value="'+esc(g.id)+'"> '+esc(g.gradeCode)+'</label>';}).join('')+'</fieldset>' : '<p class="phfk-error">Không còn bậc kế tiếp hợp lệ trong ladder.</p>');
+  }
+  return '<form class="phfk-panel" data-gp-create-form>'+
+    '<label class="phfk-field"><span>Mã nhân viên được đề xuất</span><input class="phfk-input" name="employeeCode" value="'+esc(gpState.createEmployeeCode)+'" placeholder="VD: PHF001" required></label>'+
+    '<button type="button" class="phfk-btn-secondary" data-gp-load-grade>Tải bậc hiện tại</button>'+
+    (gpState.createError?'<p class="phfk-error">'+esc(gpState.createError)+'</p>':'')+
+    '<div data-gp-grade-block>'+gradeBlock+'</div>'+
+    '<label class="phfk-field"><span>Lý do đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label>'+
+    '<label class="phfk-field"><span>Mã Trưởng ca xử lý <small>(chỉ bắt buộc nếu nhân sự thuộc Bán hàng và bản thân không phải Trưởng ca)</small></span><input class="phfk-input" name="selectedFirstApproverEmployeeCode" placeholder="VD: PHF041"></label>'+
+    '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary">Tạo đề xuất</button></div>'+
+    '</form>';
+}
+
+function gpDetailHtml(){
+  var d = gpState.detail; if(!d) return '';
+  var p = d.proposal;
+  var head = '<button class="phfk-link" data-gp-back>← Quay lại</button><section class="phfk-panel"><small>'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</small><h1>'+esc(p.subjectEmployeeName)+' <small>('+esc(p.subjectEmployeeCode)+')</small></h1>'+
+    '<p>Bậc hiện tại <b>'+esc(p.currentGradeCode)+'</b> → Bậc đề xuất ban đầu <b>'+esc(p.proposedGradeCode)+'</b></p>'+
+    '<p>Lý do: '+esc(p.reason)+'</p>'+
+    (p.status==='approved'?'<p class="phfk-success">Admin đã chấp thuận, bậc chốt cuối: <b>'+esc(p.finalDecidedGradeCode)+'</b> ('+esc(p.finalDecidedByName)+', '+fmtDate(p.finalDecidedAt)+')</p>':'')+
+    (p.status==='rejected'?'<p class="phfk-error">Không đồng ý bởi '+esc(p.rejectedByName)+' — '+esc(p.rejectedReason)+' ('+fmtDate(p.rejectedAt)+')</p>':'')+
+    (p.status==='withdrawn'?'<p>Đã rút bởi người tạo — '+esc(p.withdrawnReason)+' ('+fmtDate(p.withdrawnAt)+')</p>':'')+
+    '</section>';
+
+  var timeline = '<section class="phfk-panel"><h2>Timeline</h2><ol class="phfk-gp-timeline">'+(d.steps||[]).map(function(s){
+    var line = esc(GP_ACTION_LABELS[s.action]||s.action);
+    if(s.action==='reassign') line += ' — chuyển từ '+esc(s.reassignedFromEmployeeCode)+' sang '+esc(s.reassignedToEmployeeCode);
+    else if(s.actorName) line += ' bởi '+esc(s.actorName)+(s.actorEmployeeCode?' ('+esc(s.actorEmployeeCode)+')':'');
+    if(s.suggestedGradeCode) line += ' · bậc kiến nghị: '+esc(s.suggestedGradeCode);
+    if(s.reason) line += ' · '+esc(s.reason);
+    return '<li>'+line+'<small>'+fmtDate(s.actedAt)+'</small></li>';
+  }).join('')+'</ol></section>';
+
+  var actions = '';
+  if(p.status==='pending' && d.isMyTurn){
+    var eligible = (gpState.detailGradeOptions||[]).filter(function(g){return g.gradeNumber<=p.proposedGradeNumber;});
+    actions = '<section class="phfk-panel"><h2>Xử lý</h2>'+
+      '<form data-gp-agree-form><label class="phfk-field"><span>Bậc kiến nghị (phải > bậc hiện tại, không vượt quá bậc đề xuất ban đầu)</span><select class="phfk-input" name="suggestedGradeId" required>'+
+      eligible.map(function(g){return '<option value="'+esc(g.id)+'"'+(g.gradeCode===p.proposedGradeCode?' selected':'')+'>'+esc(g.gradeCode)+'</option>';}).join('')+
+      '</select></label><label class="phfk-field"><span>Ghi chú (không bắt buộc)</span><textarea class="phfk-input" name="note"></textarea></label>'+
+      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary">Đồng ý</button></div></form>'+
+      '<form data-gp-reject-form><label class="phfk-field"><span>Lý do không đồng ý</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label>'+
+      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary">Không đồng ý</button></div></form>'+
+      '</section>';
+  }
+  var withdrawBlock = '';
+  if(p.status==='pending' && p.createdBy && currentUser() && (currentUser().id===p.createdBy || currentUser().accountId===p.createdBy)){
+    withdrawBlock = '<section class="phfk-panel"><form data-gp-withdraw-form><label class="phfk-field"><span>Lý do rút đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label><div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary">Rút đề xuất</button></div></form></section>';
+  }
+  return head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+timeline+actions+withdrawBlock;
+}
+
+function renderGpBody(root){
+  var body = root.querySelector('[data-knl-body]'); if(!body) return;
+  if(gpState.detail){ body.innerHTML = gpDetailHtml(); bindGpDetail(root); return; }
+  body.innerHTML = gpListBodyHtml(gpState.lastCapabilities||{}, gpState.lastIsAdmin===true);
+  bindGpNav(root);
+  bindGpList(root);
+}
+
+function bindGpList(root){
+  root.querySelectorAll('[data-gp-open]').forEach(function(b){b.onclick=function(){openGpDetail(root,b.getAttribute('data-gp-open'));};});
+  var statusFilter = root.querySelector('[data-gp-status-filter]');
+  if(statusFilter) statusFilter.onchange=function(){gpState.visibleStatus=statusFilter.value;loadGpVisible(root);};
+  var loadGradeBtn = root.querySelector('[data-gp-load-grade]');
+  if(loadGradeBtn) loadGradeBtn.onclick=async function(){
+    var input=root.querySelector('[name="employeeCode"]'),code=String(input.value||'').trim().toUpperCase();
+    if(!code){gpState.createError='Vui lòng nhập mã nhân viên.';renderGpBody(root);return;}
+    gpState.createEmployeeCode=code;gpState.createError='';
+    try{ gpState.createGradeOptions = await apiPost('getKnlGradeOptionsForSubject',{employeeCode:code}); }
+    catch(e){ gpState.createError=e.message; gpState.createGradeOptions=null; }
+    renderGpBody(root);
+  };
+  var form = root.querySelector('[data-gp-create-form]');
+  if(form) form.onsubmit=async function(ev){
+    ev.preventDefault();
+    var fd=new FormData(form),gradeId=form.querySelector('[name="proposedGradeId"]:checked');
+    if(!gradeId){gpState.createError='Vui lòng tải bậc hiện tại và chọn bậc đề xuất.';renderGpBody(root);return;}
+    try{
+      await apiPost('createKnlGradePromotionProposal',{proposal:{employeeCode:fd.get('employeeCode'),reason:fd.get('reason'),proposedGradeId:gradeId.value,selectedFirstApproverEmployeeCode:fd.get('selectedFirstApproverEmployeeCode')}});
+      gpState.message='Đã tạo Đề xuất nâng bậc.';gpState.createEmployeeCode='';gpState.createGradeOptions=null;gpState.view='mine';
+      await loadGpMine(root);
+    }catch(e){ gpState.createError=e.message; renderGpBody(root); }
+  };
+}
+
+function bindGpDetail(root){
+  var back = root.querySelector('[data-gp-back]');
+  if(back) back.onclick=function(){gpState.detail=null;gpState.error='';gpState.message='';var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);renderGpBody(root);};
+  var agreeForm = root.querySelector('[data-gp-agree-form]');
+  if(agreeForm) agreeForm.onsubmit=async function(ev){
+    ev.preventDefault();var fd=new FormData(agreeForm);
+    try{ await apiPost('agreeKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,suggestedGradeId:fd.get('suggestedGradeId'),note:fd.get('note')});
+      gpState.message='Đã ghi nhận xử lý.';await openGpDetail(root,gpState.detail.proposal.id); }
+    catch(e){ gpState.error=e.message; renderGpBody(root); }
+  };
+  var rejectForm = root.querySelector('[data-gp-reject-form]');
+  if(rejectForm) rejectForm.onsubmit=async function(ev){
+    ev.preventDefault();var fd=new FormData(rejectForm);
+    try{ await apiPost('rejectKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
+      gpState.message='Đã ghi nhận Không đồng ý.';await openGpDetail(root,gpState.detail.proposal.id); }
+    catch(e){ gpState.error=e.message; renderGpBody(root); }
+  };
+  var withdrawForm = root.querySelector('[data-gp-withdraw-form]');
+  if(withdrawForm) withdrawForm.onsubmit=async function(ev){
+    ev.preventDefault();var fd=new FormData(withdrawForm);
+    try{ await apiPost('withdrawKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
+      gpState.message='Đã rút đề xuất.';await openGpDetail(root,gpState.detail.proposal.id); }
+    catch(e){ gpState.error=e.message; renderGpBody(root); }
+  };
+}
+
+async function openGpDetail(root,proposalId){
+  gpState.error='';gpState.message='';
+  var u=new URL(location.href);u.searchParams.set('proposal',proposalId);history.pushState({},'',u.pathname+u.search);
+  try{
+    gpState.detail = await apiPost('getKnlGradePromotionProposalDetail',{proposalId:proposalId});
+    var opts = await apiPost('getKnlGradeOptionsForSubject',{employeeCode:gpState.detail.proposal.subjectEmployeeCode}).catch(function(){return null;});
+    gpState.detailGradeOptions = (opts && opts.nextGrades) || [];
+  }catch(e){ gpState.error=e.message; gpState.detail=null; }
+  renderGpBody(root);
+}
+
+async function loadGpAwaiting(root){ try{ gpState.awaiting=(await apiPost('listKnlGradePromotionProposalsAwaitingMyAction')).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
+async function loadGpMine(root){ try{ gpState.mine=(await apiPost('listMyKnlGradePromotionProposals')).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
+async function loadGpVisible(root){ try{ gpState.visible=(await apiPost('listVisibleKnlGradePromotionProposals',{status:gpState.visibleStatus})).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
+
+async function renderGradePromotionSection(root, capabilities, isAdmin){
+  gpState.lastCapabilities = capabilities; gpState.lastIsAdmin = isAdmin;
+  var proposalId = new URL(location.href).searchParams.get('proposal');
+  if(proposalId){ await openGpDetail(root, proposalId); return; }
+  gpState.detail = null;
+  if(gpState.view==='mine') await loadGpMine(root);
+  else if(gpState.view==='visible' && (isAdmin || capabilities.view_proposals)) await loadGpVisible(root);
+  else if(gpState.view==='create' && (isAdmin || capabilities.propose)){ renderGpBody(root); bindGpList(root); }
+  else { gpState.view='awaiting'; await loadGpAwaiting(root); }
+}
+
 /* ===================== ENTRY ===================== */
 
 window.phfRenderKnl = async function(path){
@@ -1391,7 +1586,7 @@ window.phfRenderKnl = async function(path){
   document.title = 'PHF Khung năng lực';
   if(knlActivePath)knlScrollMemory[knlActivePath]=window.scrollY||0;
   knlActivePath=path;
-  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : 'nhan-su'))))))))));
+  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/de-xuat-nang-bac$/.test(path) ? 'de-xuat-nang-bac' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : 'nhan-su')))))))))));
   if(root.querySelector('.phf-knl-root-shell'))showKnlPanelLoading(root,tab);
   else root.innerHTML = '<div class="phfk-loading">Đang tải…</div>';
 
@@ -1439,6 +1634,11 @@ window.phfRenderKnl = async function(path){
     ensureKnlShell(root,'nhan-su',capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền truy cập KNL. Vui lòng liên hệ Admin.'));
     return true;
   }
+  var canProposalAny = isAdmin || capabilities.view_proposals === true || capabilities.propose === true || capabilities.agree_proposal === true || capabilities.approve === true;
+  if(tab === 'de-xuat-nang-bac' && !canProposalAny){
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền nào liên quan Đề xuất nâng bậc (xem/tạo/xử lý).'));
+    return true;
+  }
 
   ensureKnlShell(root,tab,capabilities,isAdmin,'');
 
@@ -1467,6 +1667,8 @@ window.phfRenderKnl = async function(path){
     if(frameworkState.loaded&&Date.now()-frameworkState.loadedAt<KNL_READ_CACHE_TTL)renderFrameworkBody(root);else await loadFrameworks(root);
   }else if(tab === 'phan-quyen'){
     await loadPermissions(root);
+  }else if(tab === 'de-xuat-nang-bac'){
+    await renderGradePromotionSection(root, capabilities, isAdmin);
   }else{
     if(peopleState.loaded&&Date.now()-peopleState.loadedAt<KNL_READ_CACHE_TTL)renderPeopleBody(root);else await loadPeople(root);
   }

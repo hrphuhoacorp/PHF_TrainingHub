@@ -23,6 +23,7 @@ const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChec
 const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('./lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
+const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject } = require('./lib/knl-grade-proposals');
 const { listKnlPeople } = require('./lib/knl-people');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
@@ -800,6 +801,15 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='scheduleKnlCompensationVersion')return sendJson(res,200,{ok:true,...await scheduleKnlCompensationVersion(session,payload)});
       if(payload&&payload.action==='getKnlCompensationVersionAudit')return sendJson(res,200,{ok:true,...await getKnlCompensationVersionAudit(session)});
       if(payload&&payload.action==='listKnlEmployeeCompensationHistory')return sendJson(res,200,{ok:true,...await listKnlEmployeeCompensationHistory(session,payload)});
+      if(payload&&payload.action==='getKnlGradeOptionsForSubject')return sendJson(res,200,{ok:true,...await getGradeOptionsForSubject(session,payload)});
+      if(payload&&payload.action==='createKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await createGradePromotionProposal(session,payload.proposal||{})});
+      if(payload&&payload.action==='agreeKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await processGradePromotionProposalStep(session,{...payload,action:'agree'})});
+      if(payload&&payload.action==='rejectKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await processGradePromotionProposalStep(session,{...payload,action:'reject'})});
+      if(payload&&payload.action==='withdrawKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await withdrawGradePromotionProposal(session,payload)});
+      if(payload&&payload.action==='listMyKnlGradePromotionProposals')return sendJson(res,200,{ok:true,...await listMyGradePromotionProposals(session)});
+      if(payload&&payload.action==='listKnlGradePromotionProposalsAwaitingMyAction')return sendJson(res,200,{ok:true,...await listProposalsAwaitingMyAction(session)});
+      if(payload&&payload.action==='listVisibleKnlGradePromotionProposals')return sendJson(res,200,{ok:true,...await listVisibleGradePromotionProposals(session,payload)});
+      if(payload&&payload.action==='getKnlGradePromotionProposalDetail')return sendJson(res,200,{ok:true,...await getGradePromotionProposalDetail(session,payload)});
       if(payload&&payload.action==='previewKnlSourceSeed')return sendJson(res,200,{ok:true,...await previewKnlSourceSeed(session)});
       if(payload&&payload.action==='seedKnlSourceManifest')return sendJson(res,200,{ok:true,...await seedKnlSourceManifest(session)});
       if(payload&&payload.action==='listKnlSourceManifests')return sendJson(res,200,{ok:true,...await listKnlSourceManifests(session)});
