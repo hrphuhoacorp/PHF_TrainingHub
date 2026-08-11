@@ -1,5 +1,10 @@
 -- PHF KNL Employee Competency Assignment — 1.52.0
--- *** DRAFT — CHƯA APPLY PRODUCTION. Chờ Technical Lead/PHF duyệt. ***
+-- FINAL — đã integration-test PASS trên PHF-HR-DEV (non-Production Supabase
+-- project): STEP 1 bootstrap, STEP 2 migration, verify btree_gist/constraints/
+-- RPC, T1-T17, STEP 4 verification — tất cả PASS. Sẵn sàng apply Production.
+-- Không đổi business semantics so với bản đã test trên DEV (3 fix đã test:
+-- không dùng stale FOUND; CONFIRM bắt buộc reason; PROVISIONAL->CONFIRMED
+-- kèm đổi grade vẫn là CONFIRM).
 --
 -- Thiết kế theo policy đã chốt (KNL Personal Assignment Design batch):
 --   - 1 employee = tối đa 1 assignment is_active=true tại 1 thời điểm.
