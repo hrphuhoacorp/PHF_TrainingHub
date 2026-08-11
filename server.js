@@ -25,7 +25,7 @@ const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChe
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
 const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject } = require('./lib/knl-grade-proposals');
 const { listKnlPeople, getKnlEmployeeProfile } = require('./lib/knl-people');
-const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, getKnlEmployeeCompetencyStandard, setKnlEmployeeCompetencyAssignment } = require('./lib/knl-competency');
+const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, getKnlEmployeeCompetencyStandard, getKnlEmployeeCompetencyGradeStandard, setKnlEmployeeCompetencyAssignment } = require('./lib/knl-competency');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('./lib/knl-surveys');
@@ -806,6 +806,7 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='getKnlEmployeeCompetencyAssignment')return sendJson(res,200,{ok:true,...await getKnlEmployeeCompetencyAssignment(session,payload)});
       if(payload&&payload.action==='listKnlEmployeeCompetencyHistory')return sendJson(res,200,{ok:true,...await listKnlEmployeeCompetencyHistory(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeCompetencyStandard')return sendJson(res,200,{ok:true,...await getKnlEmployeeCompetencyStandard(session,payload)});
+      if(payload&&payload.action==='getKnlEmployeeCompetencyGradeStandard')return sendJson(res,200,{ok:true,...await getKnlEmployeeCompetencyGradeStandard(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeProfile')return sendJson(res,200,{ok:true,profile:await getKnlEmployeeProfile(session,payload)});
       if(payload&&payload.action==='setKnlEmployeeCompetencyAssignment')return sendJson(res,200,{ok:true,...await setKnlEmployeeCompetencyAssignment(session,payload)});
       if(payload&&payload.action==='getKnlGradeOptionsForSubject')return sendJson(res,200,{ok:true,...await getGradeOptionsForSubject(session,payload)});

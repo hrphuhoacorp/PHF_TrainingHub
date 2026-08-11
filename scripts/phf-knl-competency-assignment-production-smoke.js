@@ -77,6 +77,35 @@ async function realSession(employeeCode, roleOverride) {
   console.log('11. REGRESSION GUARD — PHF012 self-view (employeeId=' + phf012.employeeId + ' <> employeeCode=PHF012):', JSON.stringify({ hasAssignment: phf012Result.hasAssignment, currentGrade: phf012Result.currentGrade?.code, framework: phf012Result.framework?.code }), phf012Ok ? '— OK' : '— FAIL, bug tái diễn!');
   if (!phf012Ok) process.exitCode = 1;
 
+  // 12. furtherGrades — PHF012 (current B3, next B4, framework có B1-B5) phải có đúng furtherGrades=[B5]
+  const phf012Standard = await lib.getKnlEmployeeCompetencyStandard(phf012, {});
+  const furtherOk = Array.isArray(phf012Standard.furtherGrades) && phf012Standard.furtherGrades.length === 1 && phf012Standard.furtherGrades[0].code === 'B5';
+  console.log('12. furtherGrades PHF012 (current B3, next B4):', JSON.stringify(phf012Standard.furtherGrades), furtherOk ? '— OK' : '— MISMATCH!');
+
+  // 13. getKnlEmployeeCompetencyGradeStandard — self lấy đúng B5 (bậc xa hơn), tự resolve version từ assignment
+  const g5 = await lib.getKnlEmployeeCompetencyGradeStandard(phf012, { gradeCode: 'B5' });
+  console.log('13. Grade standard B5 cho PHF012:', JSON.stringify({ grade: g5.grade, itemCount: g5.standard.groups.reduce((n, g) => n + g.items.length, 0) }));
+
+  // 14. Bậc không thuộc version của nhân sự -> từ chối, không invent
+  try {
+    await lib.getKnlEmployeeCompetencyGradeStandard(phf012, { gradeCode: 'B99' });
+    console.log('14. B99 UNEXPECTED SUCCESS (should have been rejected)');
+  } catch (e) {
+    console.log('14. B99 correctly rejected —', e.code, '-', e.message);
+  }
+
+  // 15. Non-authorized xem "bậc xa hơn" của người khác vẫn bị chặn đúng permission
+  try {
+    await lib.getKnlEmployeeCompetencyGradeStandard(self, { employeeCode: 'PHF028', gradeCode: 'B4' });
+    console.log('15. Non-authorized grade-standard view PHF028 by PHF041: UNEXPECTED SUCCESS');
+  } catch (e) {
+    console.log('15. Non-authorized grade-standard view PHF028 by PHF041: DENIED as expected —', e.code, '-', e.message);
+  }
+
+  // 16. History period actor field mới (updatedByName/createdByName) — không invent, đọc thẳng từ DB
+  const phf012History = await lib.listKnlEmployeeCompetencyHistory(phf012, {});
+  console.log('16. History PHF012 actor field:', JSON.stringify(phf012History.periods.map(p => ({ status: p.status, updatedByName: p.updatedByName }))));
+
   console.log('');
   console.log('SMOKE TEST DONE');
 })().catch(e => { console.error('SMOKE FAIL', e && e.stack || e); process.exit(1); });

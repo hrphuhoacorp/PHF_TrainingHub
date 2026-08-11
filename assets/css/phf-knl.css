@@ -145,7 +145,7 @@
 @media(max-width:760px){.phfk-assignment-form{grid-template-columns:1fr}}
 
 /* KNL 1.50.0 — grade standard, effective versions and reference income. */
-.phfk-foundation-select{max-width:520px;margin-bottom:14px}.phfk-grade-table select{min-width:88px}.phfk-foundation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfk-foundation-kpis .phfk-panel{margin:0;padding:16px}.phfk-foundation-kpis small,.phfk-foundation-kpis b{display:block}.phfk-foundation-kpis small{color:var(--phfk-muted);font-size:10px;font-weight:800;letter-spacing:.07em}.phfk-foundation-kpis b{margin-top:7px;color:var(--phfk-green-deep);font-size:25px}.phfk-income-card{max-width:920px}.phfk-income-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.phfk-income-summary>div{padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#f8fbf9}.phfk-income-summary small,.phfk-income-summary b{display:block}.phfk-income-summary small{color:var(--phfk-muted);font-size:10px;font-weight:800}.phfk-income-summary b{margin-top:6px;color:var(--phfk-green-deep);font-size:17px}
+.phfk-foundation-select{max-width:520px;margin-bottom:14px}.phfk-grade-table select{min-width:88px}.phfk-foundation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfk-foundation-kpis .phfk-panel{margin:0;padding:16px}.phfk-foundation-kpis small,.phfk-foundation-kpis b{display:block}.phfk-foundation-kpis small{color:var(--phfk-muted);font-size:10px;font-weight:800;letter-spacing:.07em}.phfk-foundation-kpis b{margin-top:7px;color:var(--phfk-green-deep);font-size:25px}.phfk-income-card{max-width:920px}.phfk-income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}.phfk-income-summary>div{padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#f8fbf9}.phfk-income-summary small,.phfk-income-summary b{display:block}.phfk-income-summary small{color:var(--phfk-muted);font-size:10px;font-weight:800}.phfk-income-summary b{margin-top:6px;color:var(--phfk-green-deep);font-size:17px}
 .phfk-income-picker{max-width:920px}.phfk-income-picker>.phfk-field{max-width:520px}.phfk-income-targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.phfk-income-targets>button{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;color:var(--phfk-text);text-align:left;cursor:pointer}.phfk-income-targets>button:hover,.phfk-income-targets>button:focus-visible{border-color:var(--phfk-green);background:#f2faf6}.phfk-income-targets span,.phfk-income-targets small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phfk-income-targets span{color:var(--phfk-green-deep);font-weight:700}.phfk-income-targets small{color:var(--phfk-muted)}.phfk-income-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media(max-width:900px){.phfk-domain-tabs{width:100%;overflow-x:auto}.phfk-domain-tabs button{white-space:nowrap}.phfk-foundation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.phfk-foundation-kpis,.phfk-income-summary,.phfk-income-targets{grid-template-columns:1fr}.phfk-income-head-actions{width:100%;justify-content:space-between}}
@@ -232,3 +232,48 @@
 .phfk-competency-block .phfk-comp-block-head{margin-top:0}
 .phfk-competency-block.is-current{border-left:3px solid var(--phfk-green)}
 .phfk-competency-block.is-next{border-left:3px solid #e2b455}
+
+/* KNL personal screen — comparison matrix delta 2026-08-11. Current/Next/
+ * Further phân biệt bằng 3 accent nhẹ (không quá nhiều màu): xanh PHF cho
+ * Hiện tại, vàng cho Tiếp theo, xám trung tính cho Bậc xa hơn. */
+.phfk-comp-matrix-toolbar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.phfk-comp-matrix-wrap{overflow:auto}
+.phfk-comp-matrix{min-width:640px}
+.phfk-comp-matrix thead th{vertical-align:top;line-height:1.6}
+.phfk-comp-matrix th.phfk-comp-matrix-col{min-width:220px}
+.phfk-comp-matrix th .phfk-comp-block-tag.is-further{background:#eef1ef;color:#4d5a54}
+.phfk-comp-matrix th .phfk-comp-level-badge{margin-left:4px}
+.phfk-comp-matrix-group-row td{background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-weight:800;font-size:11px;padding:9px 13px!important;white-space:nowrap}
+.phfk-comp-cell-neutral{color:var(--phfk-muted);font-style:italic}
+.phfk-comp-content-list{list-style:none;margin:0;padding:0}
+.phfk-comp-content-list li{position:relative;padding-left:20px;margin:0 0 6px;line-height:1.55}
+.phfk-comp-content-list li:last-child{margin-bottom:0}
+.phfk-comp-content-list li::before{content:'✓';position:absolute;left:0;top:0;color:var(--phfk-green);font-weight:800}
+.phfk-comp-content-empty{color:var(--phfk-muted)}
+@media(max-width:760px){
+  .phfk-comp-matrix-wrap{overflow:visible}
+  .phfk-comp-matrix{min-width:0}
+  .phfk-comp-matrix thead{display:none}
+  .phfk-comp-matrix,.phfk-comp-matrix tbody,.phfk-comp-matrix tr,.phfk-comp-matrix td{display:block;width:100%}
+  .phfk-comp-matrix tr{margin-bottom:14px;border:1px solid var(--phfk-line);border-radius:12px;padding:10px 13px;background:#fff}
+  .phfk-comp-matrix tr.phfk-comp-matrix-group-row{border:0;background:transparent;padding:2px 2px 8px;margin-bottom:2px}
+  .phfk-comp-matrix-group-row td{background:transparent!important;padding:0!important}
+  .phfk-comp-matrix td{padding:8px 0;border-bottom:1px dashed #edf2ef}
+  .phfk-comp-matrix td:last-child{border-bottom:0}
+  .phfk-comp-matrix td[data-label]::before{content:attr(data-label);display:block;color:var(--phfk-muted);font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+  .phfk-comp-matrix td:first-child{font-weight:800;color:var(--phfk-ink);border-bottom:1px solid var(--phfk-line);margin-bottom:4px}
+  .phfk-comp-matrix td:first-child::before{display:none}
+}
+
+/* Lịch sử thay đổi bậc KNL — timeline card gọn, tách khỏi Salary history. */
+.phfk-comp-history-timeline{display:flex;flex-direction:column;gap:0}
+.phfk-comp-history-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid #edf2ef}
+.phfk-comp-history-item:last-child{border-bottom:0}
+.phfk-comp-history-dot{width:10px;height:10px;border-radius:50%;background:var(--phfk-green);margin-top:6px;flex:0 0 auto}
+.phfk-comp-history-body{flex:1;min-width:0}
+.phfk-comp-history-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.phfk-comp-history-head b{font-size:12.5px;color:var(--phfk-ink)}
+.phfk-comp-history-transition{margin:0 0 4px;font-size:12.5px;color:var(--phfk-ink)}
+.phfk-comp-history-meta{margin:0 0 4px;color:var(--phfk-muted);font-size:10.5px}
+.phfk-comp-history-reason{margin:0 0 4px;color:#5f756b;font-size:11px}
+.phfk-comp-history-actor{margin:0;color:var(--phfk-muted);font-size:10.5px}

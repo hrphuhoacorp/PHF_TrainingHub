@@ -97,7 +97,7 @@ function loadLibsWithMock() {
   return lib;
 }
 
-const { getKnlEmployeeCompetencyStandard } = loadLibsWithMock();
+const { getKnlEmployeeCompetencyStandard, getKnlEmployeeCompetencyGradeStandard } = loadLibsWithMock();
 const { upsertKnlPermissionGrant: upsertGrant } = require(permissionsPath);
 
 STATE.employees.push(
@@ -110,25 +110,29 @@ STATE.frameworks.push({ id: 'fw-1', code: 'KNL_TEST', name: 'Khung năng lực t
 STATE.versions.push({ id: 'v-1', framework_id: 'fw-1', version_number: 1 });
 STATE.grades.push(
   { id: 'g-b1', version_id: 'v-1', grade_code: 'B1', grade_number: 1, sort_order: 1, label: 'Bậc 1' },
-  { id: 'g-b2', version_id: 'v-1', grade_code: 'B2', grade_number: 2, sort_order: 2, label: 'Bậc 2' }
+  { id: 'g-b2', version_id: 'v-1', grade_code: 'B2', grade_number: 2, sort_order: 2, label: 'Bậc 2' },
+  { id: 'g-b3', version_id: 'v-1', grade_code: 'B3', grade_number: 3, sort_order: 3, label: 'Bậc 3' }
 );
 STATE.groups.push({ id: 'grp-1', version_id: 'v-1', name: 'Nhóm Kỹ năng', sort_order: 1 });
 STATE.items.push({ id: 'item-1', version_id: 'v-1', group_id: 'grp-1', name: 'Kỹ năng X', sort_order: 1 });
 STATE.columns.push(
   { id: 'col-1', version_id: 'v-1', label: 'Mức 1' },
-  { id: 'col-2', version_id: 'v-1', label: 'Mức 2' }
+  { id: 'col-2', version_id: 'v-1', label: 'Mức 2' },
+  { id: 'col-3', version_id: 'v-1', label: 'Mức 3' }
 );
 STATE.requirements.push(
   { version_id: 'v-1', item_id: 'item-1', grade_id: 'g-b1', required_column_id: 'col-1', required_level_number: 1 },
-  { version_id: 'v-1', item_id: 'item-1', grade_id: 'g-b2', required_column_id: 'col-2', required_level_number: 2 }
+  { version_id: 'v-1', item_id: 'item-1', grade_id: 'g-b2', required_column_id: 'col-2', required_level_number: 2 },
+  { version_id: 'v-1', item_id: 'item-1', grade_id: 'g-b3', required_column_id: 'col-3', required_level_number: 3 }
 );
 STATE.levelContents.push(
   { version_id: 'v-1', item_id: 'item-1', column_id: 'col-1', content: 'Nội dung yêu cầu mức 1' },
-  { version_id: 'v-1', item_id: 'item-1', column_id: 'col-2', content: 'Nội dung yêu cầu mức 2' }
+  { version_id: 'v-1', item_id: 'item-1', column_id: 'col-2', content: 'Nội dung yêu cầu mức 2' },
+  { version_id: 'v-1', item_id: 'item-1', column_id: 'col-3', content: 'Nội dung yêu cầu mức 3' }
 );
 STATE.competency.push(
   { id: 'ca-1', employee_code: 'EMP1', employee_name: 'Nguyễn Văn A', framework_version_id: 'v-1', competency_grade_id: 'g-b1', status: 'PROVISIONAL', effective_from: '2026-08-01', effective_to: null, is_active: true, grade_snapshot: {}, organization_snapshot: {}, note: 'baseline', reason: 'baseline', updated_at: '2026-08-11T00:00:00Z' },
-  { id: 'ca-2', employee_code: 'EMP2', employee_name: 'Trần Thị B', framework_version_id: 'v-1', competency_grade_id: 'g-b2', status: 'CONFIRMED', effective_from: '2026-08-01', effective_to: null, is_active: true, grade_snapshot: {}, organization_snapshot: {}, note: 'baseline', reason: 'baseline', updated_at: '2026-08-11T00:00:00Z' }
+  { id: 'ca-2', employee_code: 'EMP2', employee_name: 'Trần Thị B', framework_version_id: 'v-1', competency_grade_id: 'g-b3', status: 'CONFIRMED', effective_from: '2026-08-01', effective_to: null, is_active: true, grade_snapshot: {}, organization_snapshot: {}, note: 'baseline', reason: 'baseline', updated_at: '2026-08-11T00:00:00Z' }
 );
 
 function session(role, opts) { opts = opts || {}; return { role, account: { id: opts.id || '', name: opts.name || '' }, employeeCode: opts.employeeCode || '' }; }
@@ -158,8 +162,9 @@ async function run() {
 
   // 3. Self có assignment, ĐANG ở bậc cao nhất -> isMaxGrade=true, nextGrade/nextStandard=null
   result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp2', employeeCode: 'EMP2' }));
-  check(result.isMaxGrade === true && result.nextGrade === null && result.nextStandard === null, '3. Self (EMP2, B2 = bậc cao nhất của version test) -> isMaxGrade=true, nextGrade/nextStandard=null');
+  check(result.isMaxGrade === true && result.nextGrade === null && result.nextStandard === null, '3. Self (EMP2, B3 = bậc cao nhất của version test) -> isMaxGrade=true, nextGrade/nextStandard=null');
   check(result.assignment.status === 'CONFIRMED', '3b. assignment.status trả đúng CONFIRMED cho EMP2 (không lẫn PROVISIONAL)');
+  check(Array.isArray(result.furtherGrades) && result.furtherGrades.length === 0, '3c. EMP2 ở bậc cao nhất -> furtherGrades rỗng');
 
   // 4. Self KHÔNG có assignment -> trạng thái rõ ràng, không lỗi
   result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp3', employeeCode: 'EMP3' }));
@@ -174,6 +179,34 @@ async function run() {
   // 6. Authorized qua peopleScope (view_people + all_company) -> xem được người khác
   result = await getKnlEmployeeCompetencyStandard(session('manager', { id: 'acct-mgr1', employeeCode: 'MGR1' }), { employeeCode: 'EMP1' });
   check(result.hasAssignment === true && result.employeeCode === 'EMP1', '6. MGR1 (view_people, scope all_company) xem được tiêu chuẩn KNL của EMP1');
+
+  // 7. "Xem thêm bậc" — EMP1 (current B1, next B2) phải có đúng 1 further grade B3
+  result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp1', employeeCode: 'EMP1' }));
+  check(Array.isArray(result.furtherGrades) && result.furtherGrades.length === 1 && result.furtherGrades[0].code === 'B3', '7a. EMP1 (current B1, next B2) -> furtherGrades = [B3] đúng thứ tự sort_order');
+
+  // 8. getKnlEmployeeCompetencyGradeStandard: EMP1 lấy đúng standard của B3 (grade xa hơn), tự resolve version từ assignment
+  let g3 = await getKnlEmployeeCompetencyGradeStandard(session('learner', { id: 'acct-emp1', employeeCode: 'EMP1' }), { gradeCode: 'B3' });
+  check(g3.grade.code === 'B3' && g3.standard.groups[0].items[0].content === 'Nội dung yêu cầu mức 3', '8. getKnlEmployeeCompetencyGradeStandard trả đúng standard B3 cho EMP1 (tự resolve version từ assignment, không nhận version từ client)');
+
+  // 9. Bậc không thuộc version của nhân sự -> từ chối rõ ràng, không invent
+  threw = null;
+  try { await getKnlEmployeeCompetencyGradeStandard(session('learner', { id: 'acct-emp1', employeeCode: 'EMP1' }), { gradeCode: 'B99' }); }
+  catch (e) { threw = e; }
+  check(!!threw && threw.code === 'KNL_COMPETENCY_GRADE_NOT_FOUND', '9. gradeCode không tồn tại trong version của nhân sự -> KNL_COMPETENCY_GRADE_NOT_FOUND, không invent');
+
+  // 10. Nhân sự chưa có assignment -> getKnlEmployeeCompetencyGradeStandard từ chối rõ ràng
+  threw = null;
+  try { await getKnlEmployeeCompetencyGradeStandard(session('learner', { id: 'acct-emp3', employeeCode: 'EMP3' }), { gradeCode: 'B1' }); }
+  catch (e) { threw = e; }
+  check(!!threw && threw.code === 'KNL_COMPETENCY_NO_ASSIGNMENT', '10. EMP3 (chưa có assignment) gọi getKnlEmployeeCompetencyGradeStandard -> KNL_COMPETENCY_NO_ASSIGNMENT');
+
+  // 11. Permission "Xem thêm bậc" cho người khác vẫn qua đúng view_people/peopleScope — không invent scope mới
+  threw = null;
+  try { await getKnlEmployeeCompetencyGradeStandard(session('learner', { id: 'acct-emp3', employeeCode: 'EMP3' }), { employeeCode: 'EMP1', gradeCode: 'B3' }); }
+  catch (e) { threw = e; }
+  check(!!threw && threw.code === 'KNL_COMPETENCY_VIEW_DENIED', '11a. EMP3 (self-scope) bị chặn xem grade B3 của EMP1');
+  let g3ByMgr = await getKnlEmployeeCompetencyGradeStandard(session('manager', { id: 'acct-mgr1', employeeCode: 'MGR1' }), { employeeCode: 'EMP1', gradeCode: 'B3' });
+  check(g3ByMgr.grade.code === 'B3', '11b. MGR1 (view_people, all_company) xem được grade B3 của EMP1');
 
   if (failures) { console.error('\n' + failures + ' check(s) failed.'); process.exit(1); }
   console.log('\nALL PASS');
