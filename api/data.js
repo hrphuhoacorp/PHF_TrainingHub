@@ -25,7 +25,7 @@ const { listKnlPeople } = require('../lib/knl-people');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('../lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('../lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('../lib/knl-surveys');
-const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory } = require('../lib/knl-foundation');
+const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods } = require('../lib/knl-foundation');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('../lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
@@ -528,6 +528,7 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='scheduleKnlCompensationVersion')return res.status(200).json({ok:true,...await scheduleKnlCompensationVersion(session,payload)});
       if(payload&&payload.action==='getKnlCompensationVersionAudit')return res.status(200).json({ok:true,...await getKnlCompensationVersionAudit(session)});
       if(payload&&payload.action==='listKnlEmployeeCompensationHistory')return res.status(200).json({ok:true,...await listKnlEmployeeCompensationHistory(session,payload)});
+      if(payload&&payload.action==='listKnlEmployeeCompensationPeriods')return res.status(200).json({ok:true,...await listKnlEmployeeCompensationPeriods(session,payload)});
       if(payload&&payload.action==='getKnlGradeOptionsForSubject')return res.status(200).json({ok:true,...await getGradeOptionsForSubject(session,payload)});
       if(payload&&payload.action==='createKnlGradePromotionProposal')return res.status(200).json({ok:true,...await createGradePromotionProposal(session,payload.proposal||{})});
       if(payload&&payload.action==='agreeKnlGradePromotionProposal')return res.status(200).json({ok:true,...await processGradePromotionProposalStep(session,{...payload,action:'agree'})});
