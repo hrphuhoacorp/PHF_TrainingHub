@@ -145,7 +145,7 @@
 @media(max-width:760px){.phfk-assignment-form{grid-template-columns:1fr}}
 
 /* KNL 1.50.0 — grade standard, effective versions and reference income. */
-.phfk-foundation-select{max-width:520px;margin-bottom:14px}.phfk-grade-table select{min-width:88px}.phfk-foundation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfk-foundation-kpis .phfk-panel{margin:0;padding:16px}.phfk-foundation-kpis small,.phfk-foundation-kpis b{display:block}.phfk-foundation-kpis small{color:var(--phfk-muted);font-size:10px;font-weight:800;letter-spacing:.07em}.phfk-foundation-kpis b{margin-top:7px;color:var(--phfk-green-deep);font-size:25px}.phfk-income-card{max-width:920px}.phfk-income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}.phfk-income-summary>div{padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#f8fbf9}.phfk-income-summary small,.phfk-income-summary b{display:block}.phfk-income-summary small{color:var(--phfk-muted);font-size:10px;font-weight:800}.phfk-income-summary b{margin-top:6px;color:var(--phfk-green-deep);font-size:17px}
+.phfk-foundation-select{max-width:520px;margin-bottom:14px}.phfk-grade-table select{min-width:88px}.phfk-foundation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfk-foundation-kpis .phfk-panel{margin:0;padding:16px}.phfk-foundation-kpis small,.phfk-foundation-kpis b{display:block}.phfk-foundation-kpis small{color:var(--phfk-muted);font-size:10px;font-weight:800;letter-spacing:.07em}.phfk-foundation-kpis b{margin-top:7px;color:var(--phfk-green-deep);font-size:25px}.phfk-income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}.phfk-income-summary>div{padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#f8fbf9;display:flex;flex-direction:column;justify-content:center}.phfk-income-summary small,.phfk-income-summary b{display:block}.phfk-income-summary small{color:var(--phfk-muted);font-size:10px;font-weight:800}.phfk-income-summary b{margin-top:6px;color:var(--phfk-green-deep);font-size:17px}
 .phfk-income-picker{max-width:920px}.phfk-income-picker>.phfk-field{max-width:520px}.phfk-income-targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.phfk-income-targets>button{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;color:var(--phfk-text);text-align:left;cursor:pointer}.phfk-income-targets>button:hover,.phfk-income-targets>button:focus-visible{border-color:var(--phfk-green);background:#f2faf6}.phfk-income-targets span,.phfk-income-targets small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phfk-income-targets span{color:var(--phfk-green-deep);font-weight:700}.phfk-income-targets small{color:var(--phfk-muted)}.phfk-income-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media(max-width:900px){.phfk-domain-tabs{width:100%;overflow-x:auto}.phfk-domain-tabs button{white-space:nowrap}.phfk-foundation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.phfk-foundation-kpis,.phfk-income-summary,.phfk-income-targets{grid-template-columns:1fr}.phfk-income-head-actions{width:100%;justify-content:space-between}}
@@ -236,11 +236,11 @@
 /* KNL personal screen — comparison matrix delta 2026-08-11. Current/Next/
  * Further phân biệt bằng 3 accent nhẹ (không quá nhiều màu): xanh PHF cho
  * Hiện tại, vàng cho Tiếp theo, xám trung tính cho Bậc xa hơn. */
-.phfk-comp-matrix-toolbar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.phfk-comp-matrix-toolbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .phfk-comp-matrix-wrap{overflow:auto}
 .phfk-comp-matrix{min-width:640px}
 .phfk-comp-matrix thead th{vertical-align:top;line-height:1.6}
-.phfk-comp-matrix th.phfk-comp-matrix-col{min-width:220px}
+.phfk-comp-matrix th.phfk-comp-matrix-col{min-width:280px;width:38%}
 .phfk-comp-matrix th .phfk-comp-block-tag.is-further{background:#eef1ef;color:#4d5a54}
 .phfk-comp-matrix th .phfk-comp-level-badge{margin-left:4px}
 .phfk-comp-matrix-group-row td{background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-weight:800;font-size:11px;padding:9px 13px!important;white-space:nowrap}
