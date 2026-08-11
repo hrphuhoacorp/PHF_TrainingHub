@@ -1272,9 +1272,41 @@ function incomeHtml(){
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
   }
   var history='<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(h.changedAt)+'</td><td>'+esc(h.changedByName||'—')+'</td></tr>';}).join('')+'</tbody></table></div></section>';
-  return nav+head+identity+card+history;
+  return nav+head+identity+competencyStandardHtml()+card+history;
 }
-async function renderIncome(root,isAdmin,capabilities){var body=root.querySelector('[data-knl-body]'),url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';foundationState.incomeIsAdmin=isAdmin===true;foundationState.incomeCanSelect=isAdmin===true||(capabilities&&capabilities.income_view===true);if(!queryCode&&(isAdmin||choose&&foundationState.incomeCanSelect)){await showIncomePicker(root);return;}try{foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);body.innerHTML=incomeHtml();bindCompensationDomainNav(root);var change=body.querySelector('[data-knl-change-income]');if(change)change.addEventListener('click',goIncomePicker);}catch(e){if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED')await showIncomePicker(root,e.message);else body.innerHTML=noAccessSection(e.message);}}
+/* Khối "KNL đang áp dụng" — gắn vào màn cá nhân hiện có (Bậc & Cơ cấu thu
+ * nhập), KHÔNG tạo route riêng (đúng chỉ đạo: ưu tiên gắn vào self-view hiện
+ * hành). Toàn bộ business logic (current/next grade, isMaxGrade) do server
+ * resolve qua getKnlEmployeeCompetencyStandard; frontend chỉ render. */
+function competencyStatusLabel(status){return status==='CONFIRMED'?'Chính thức':'Tạm áp dụng';}
+function competencyGradeTableHtml(standard){
+  if(!standard||!standard.groups||!standard.groups.length)return '<p class="phfk-empty">Chưa có tiêu chuẩn chi tiết cho bậc này.</p>';
+  return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhóm / Năng lực</th><th>Mức yêu cầu</th><th>Nội dung</th></tr></thead><tbody>'+
+    standard.groups.map(function(g){
+      return g.items.map(function(it,idx){
+        return '<tr><td>'+(idx===0?'<b>'+esc(g.name)+'</b><br>':'')+esc(it.name)+'</td><td>'+esc(it.requiredColumnLabel||('Mức '+it.requiredLevelNumber))+'</td><td>'+esc(it.content||'—')+'</td></tr>';
+      }).join('');
+    }).join('')+
+    '</tbody></table></div>';
+}
+function competencyStandardHtml(){
+  var c=foundationState.competency;
+  if(!c||!c.hasAssignment){
+    return '<section class="phfk-panel phfk-competency-panel"><div class="phfk-section-head"><h2>KNL đang áp dụng</h2></div>'+noAccessSection('Chưa được thiết lập Khung năng lực.')+'</section>';
+  }
+  var a=c.assignment||{};
+  var head='<div class="phfk-section-head"><h2>KNL đang áp dụng</h2><span class="phfk-source-status '+(a.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(a.status))+'</span></div>';
+  var summary='<div class="phfk-income-summary"><div><small>KHUNG NĂNG LỰC</small><b>'+esc((c.framework&&c.framework.name)||'—')+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'—')+'</b></div><div><small>HIỆU LỰC TỪ</small><b>'+esc(a.effectiveFrom||'—')+'</b></div></div>';
+  var currentBlock='<div class="phfk-competency-block"><h3>Tiêu chuẩn bậc hiện tại</h3>'+competencyGradeTableHtml(c.currentStandard)+'</div>';
+  var nextBlock;
+  if(c.isMaxGrade){
+    nextBlock='<div class="phfk-competency-block"><h3>Bậc tiếp theo</h3><p class="phfk-batch-note">Bạn đang ở bậc cao nhất của khung năng lực hiện tại.</p></div>';
+  }else{
+    nextBlock='<div class="phfk-competency-block"><h3>Tiêu chuẩn bậc tiếp theo ('+esc((c.nextGrade&&c.nextGrade.label)||(c.nextGrade&&c.nextGrade.code)||'')+')</h3>'+competencyGradeTableHtml(c.nextStandard)+'</div>';
+  }
+  return '<section class="phfk-panel phfk-competency-panel">'+head+summary+currentBlock+nextBlock+'</section>';
+}
+async function renderIncome(root,isAdmin,capabilities){var body=root.querySelector('[data-knl-body]'),url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';foundationState.incomeIsAdmin=isAdmin===true;foundationState.incomeCanSelect=isAdmin===true||(capabilities&&capabilities.income_view===true);if(!queryCode&&(isAdmin||choose&&foundationState.incomeCanSelect)){await showIncomePicker(root);return;}try{foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);try{foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);}catch(ce){foundationState.competency=null;}body.innerHTML=incomeHtml();bindCompensationDomainNav(root);var change=body.querySelector('[data-knl-change-income]');if(change)change.addEventListener('click',goIncomePicker);}catch(e){if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED')await showIncomePicker(root,e.message);else body.innerHTML=noAccessSection(e.message);}}
 
 /* ===== Gán cho nhân viên — Official (lookup master, no personal override) / Probation (fixed-only) ===== */
 function assignLadderOptions(selectedId){return ((assignState.standards&&assignState.standards.ladders)||[]).map(function(l){return '<option value="'+esc(l.id)+'"'+(l.id===selectedId?' selected':'')+'>'+esc(l.code+' · '+l.name)+'</option>';}).join('');}
