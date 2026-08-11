@@ -20,9 +20,12 @@
 function deriveAction(old, input, today) {
   if (!old) return 'CREATE';
   if (input.effectiveFrom < today) return 'RETROACTIVE_CHANGE';
-  if (old.status === 'PROVISIONAL' && input.status === 'CONFIRMED'
-      && old.frameworkVersionId === input.frameworkVersionId
-      && old.competencyGradeId === input.competencyGradeId) return 'CONFIRM';
+  // CONFIRM = mọi chuyển PROVISIONAL->CONFIRMED, kể cả khi grade/framework
+  // cũng đổi lúc confirm (mục 3: cho phép sửa Bậc khi confirm) — sửa lại sau
+  // khi tự phát hiện qua bước derive integration test rằng điều kiện cũ
+  // (yêu cầu grade/framework y hệt) khiến "confirm + sửa Bậc" rơi nhầm vào
+  // SUPERSEDE và mất luôn yêu cầu reason bắt buộc cho hành vi confirm.
+  if (old.status === 'PROVISIONAL' && input.status === 'CONFIRMED') return 'CONFIRM';
   return 'SUPERSEDE';
 }
 
@@ -66,8 +69,8 @@ check(!threw, '2c. Baseline có reason đủ dài -> pass validation hồi tố'
 const provisional = { status: 'PROVISIONAL', frameworkVersionId: 'v1', competencyGradeId: 'g-B1', effectiveFrom: '2026-08-01' };
 check(deriveAction(provisional, { status: 'CONFIRMED', frameworkVersionId: 'v1', competencyGradeId: 'g-B1', effectiveFrom: TODAY }, TODAY) === 'CONFIRM', '3. PROVISIONAL->CONFIRMED cùng grade, effective_from=hôm nay -> action=CONFIRM');
 
-// ---- CASE 4: CONFIRM nhưng đổi cả grade (đánh giá thực tế khác baseline) -> vẫn SUPERSEDE, không phải CONFIRM thuần ----
-check(deriveAction(provisional, { status: 'CONFIRMED', frameworkVersionId: 'v1', competencyGradeId: 'g-B2', effectiveFrom: TODAY }, TODAY) === 'SUPERSEDE', '4. Confirm nhưng đổi grade khác baseline -> action=SUPERSEDE (không phải CONFIRM thuần, vì nội dung grade thực sự đổi) — vẫn audit đủ before/after grade cũ/mới qua history row');
+// ---- CASE 4: CONFIRM kèm sửa grade (đánh giá thực tế khác baseline) -> vẫn CONFIRM, không rơi nhầm sang SUPERSEDE (mục 3: "được phép đổi competency grade" khi confirm, vẫn phải bắt buộc reason như mọi CONFIRM khác) ----
+check(deriveAction(provisional, { status: 'CONFIRMED', frameworkVersionId: 'v1', competencyGradeId: 'g-B2', effectiveFrom: TODAY }, TODAY) === 'CONFIRM', '4. Confirm kèm sửa grade khác baseline -> VẪN action=CONFIRM (không rơi sang SUPERSEDE chỉ vì nội dung grade đổi) — before/after grade cũ/mới vẫn thấy rõ qua history row, và reason vẫn bắt buộc vì là CONFIRM');
 
 // ---- CASE 5: đổi framework/grade bình thường (thăng bậc, chuyển vị trí) -> SUPERSEDE ----
 const confirmed = { status: 'CONFIRMED', frameworkVersionId: 'v1', competencyGradeId: 'g-B2', effectiveFrom: '2026-08-01' };

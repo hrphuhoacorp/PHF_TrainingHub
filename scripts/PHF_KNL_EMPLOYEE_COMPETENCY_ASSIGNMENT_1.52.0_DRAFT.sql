@@ -171,13 +171,16 @@ begin
       using errcode = '55000';
   end if;
 
+  -- CONFIRM = mọi chuyển PROVISIONAL -> CONFIRMED, KỂ CẢ khi Admin đồng thời
+  -- sửa lại Bậc/Framework lúc confirm (mục 3: "được phép đổi competency grade
+  -- nếu kết quả thực tế khác baseline") — không chỉ khi grade/framework giữ
+  -- nguyên. Việc grade có đổi hay không đã tự thấy rõ qua before/after trong
+  -- history, không cần tách thành SUPERSEDE riêng chỉ vì có đổi grade.
   if not found then
     v_action := 'CREATE';
   elsif p_effective_from < current_date then
     v_action := 'RETROACTIVE_CHANGE';
-  elsif v_old.status = 'PROVISIONAL' and p_status = 'CONFIRMED'
-        and v_old.framework_version_id = p_framework_version_id
-        and v_old.competency_grade_id = p_competency_grade_id then
+  elsif v_old.status = 'PROVISIONAL' and p_status = 'CONFIRMED' then
     v_action := 'CONFIRM';
   else
     v_action := 'SUPERSEDE';
