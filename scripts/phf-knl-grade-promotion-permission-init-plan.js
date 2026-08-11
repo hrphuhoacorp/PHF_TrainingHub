@@ -36,44 +36,50 @@ const db = createClient(String(process.env.SUPABASE_URL).trim(), String(process.
 const SESSION = { role: 'admin', sub: 'system-knl-grade-promotion-permission-init', account: { id: 'system-knl-grade-promotion-permission-init', name: 'PHF KNL Grade Promotion Proposal — permission init plan (batch 2.1)' } };
 const REASON = 'KNL Đề xuất nâng bậc — permission initialization theo policy đã chốt, verify lại batch 2.2 (không hard-code theo employee_code). Không đổi income_view/incomeScope.';
 
-/* BATCH 2.2 FIX: gỡ toàn bộ hard-code theo employee_code (kể cả nhánh Giám
- * đốc riêng — "Giám đốc không cần tạo ngoại lệ hard-code riêng", mục 3 batch
- * 2.2). Rule bây giờ áp dụng ĐỒNG NHẤT cho mọi account, chỉ phân nhánh theo
- * preset_code (dữ liệu, không phải danh sách mã nhân viên viết tay) đúng 1
- * chỗ duy nhất — cho agree_proposal:
+/* PRODUCTION GATE FIX (rollout batch): PHF chốt tường minh Giám đốc KHÔNG
+ * được propose=true (chỉ xem, không tự đề xuất) — khác với rule "đồng nhất"
+ * ở batch 2.2. Phân loại vẫn HOÀN TOÀN DATA-DRIVEN qua people_scope.type,
+ * KHÔNG hard-code employee_code nào:
  *
- *   Rule 1 (MỌI account, không ngoại lệ): propose:true + view_proposals:true
- *   + proposalScope MIRROR đúng people_scope hiện có (đã đánh giá semantic ở
- *   mục 4 batch 2.1). Giám đốc (preset TRO_LY_GD, people_scope=all_company,
- *   agree_proposal=false SẴN CÓ trong data) nhận đúng propose/view_proposals/
- *   proposalScope=all_company như MỌI account khác cùng shape — không có
- *   nhánh code riêng nào kiểm tra employee_code của bà.
+ *   - people_scope.type === 'all_company'  -> nhóm "view-only toàn công ty"
+ *     (Giám đốc là account DUY NHẤT có shape này trong data thật — verify
+ *     lại ngay trước khi apply, xem guardAllCompanyGroup() bên dưới):
+ *     propose GIỮ NGUYÊN (không set true), view_proposals=true,
+ *     proposalScope=all_company, agree_proposal GIỮ NGUYÊN (không đụng).
+ *   - Mọi type khác (department/sales_all_branches/self/employees):
+ *     propose=true, view_proposals=true, proposalScope mirror people_scope,
+ *     agree_proposal=true CHỈ khi preset_code==='TRUONG_BO_PHAN' còn false
+ *     (đúng policy TBP) — không đụng agree_proposal của preset khác.
  *
- *   Rule 2 (agree_proposal — CHỈ đụng khi thật sự thiếu): chỉ bổ sung
- *   agree_proposal:true cho preset_code==='TRUONG_BO_PHAN' hiện đang false
- *   (đúng policy "TBP: agree_proposal đúng department", xác nhận lại bằng
- *   query trực tiếp ở batch 2.2). KHÔNG đụng agree_proposal của preset nào
- *   khác — 3 Trợ lý GĐ (PHF004/010/032) CŨNG preset TRUONG_BO_PHAN nhưng đã
- *   true sẵn trong data thật nên set() không ghi gì (no-op, không phải bị bỏ
- *   qua có chủ đích); TRO_LY_GD (chỉ Giám đốc dùng preset này trong data thật
- *   — xem TRACE REPORT batch 1 mục preset mislabeling) và TRUONG_CA_CHTR (3
- *   Trưởng ca, đã true sẵn) không nằm trong Rule 2 nên giữ nguyên giá trị
- *   agree_proposal đang có — đây chính là lý do Giám đốc không cần nhánh
- *   riêng: preset TRO_LY_GD của bà chưa từng bị Rule 2 chạm tới. */
+ * approve KHÔNG set cho ai (Admin dùng đường cứu hộ role='admin').
+ * income_view/incomeScope KHÔNG đọc/ghi ở bất kỳ đâu trong file này. */
 function planFor(grant) {
   const cap = grant.capabilities || {};
   const scope = grant.people_scope || { type: 'self', values: [] };
   const patch = { capabilities: { ...cap }, changed: [] };
   function set(key, value) { if (patch.capabilities[key] !== value) { patch.capabilities[key] = value; patch.changed.push(key + ': ' + cap[key] + ' -> ' + value); } }
 
-  set('propose', true);
+  const isViewOnlyAllCompany = scope.type === 'all_company';
+
+  if (!isViewOnlyAllCompany) set('propose', true);
   set('view_proposals', true);
   const proposalScope = { type: scope.type, values: scope.values || [] };
   if (JSON.stringify(patch.capabilities.proposalScope) !== JSON.stringify(proposalScope)) { patch.capabilities.proposalScope = proposalScope; patch.changed.push('proposalScope: -> ' + JSON.stringify(proposalScope)); }
 
-  if (grant.preset_code === 'TRUONG_BO_PHAN') set('agree_proposal', true);
+  if (!isViewOnlyAllCompany && grant.preset_code === 'TRUONG_BO_PHAN') set('agree_proposal', true);
 
   return patch;
+}
+
+// Guard: nhóm "all_company" phải ĐÚNG 1 account (Giám đốc) và account đó phải
+// đang agree_proposal=false — nếu khác, dữ liệu đã đổi so với báo cáo batch
+// 2.2 -> STOP, không apply mù theo rule cũ.
+function guardAllCompanyGroup(grants) {
+  const group = grants.filter(g => (g.people_scope || {}).type === 'all_company');
+  if (group.length !== 1) return 'Nhóm all_company có ' + group.length + ' account (kỳ vọng đúng 1 = Giám đốc) — dữ liệu khác báo cáo batch 2.2.';
+  const g = group[0];
+  if (g.capabilities && g.capabilities.agree_proposal === true) return 'Account all_company (' + g.employee_code + ') đang agree_proposal=true — khác báo cáo batch 2.2 (kỳ vọng false).';
+  return null;
 }
 
 async function main() {
@@ -81,15 +87,23 @@ async function main() {
   if (result.error) { console.error(result.error.message); process.exit(1); }
   const grants = result.data || [];
 
+  const guardError = guardAllCompanyGroup(grants);
+  if (guardError) { console.error('STOP — GUARD FAILED:', guardError); process.exit(1); }
+
   console.log(APPLY ? '=== APPLYING PERMISSION INIT PLAN ===' : '=== DRY RUN — PLAN ONLY (pass --apply to write) ===');
   console.log('Total active grants scanned:', grants.length, '\n');
 
-  let changedCount = 0;
+  let changedCount = 0, proposeTrueCount = 0, viewProposalsTrueCount = 0, agreeProposalTrueCount = 0;
+  const incomeFieldTouched = [];
   for (const grant of grants) {
     const plan = planFor(grant);
+    if (plan.capabilities.propose === true) proposeTrueCount++;
+    if (plan.capabilities.view_proposals === true) viewProposalsTrueCount++;
+    if (plan.capabilities.agree_proposal === true) agreeProposalTrueCount++;
+    if (plan.changed.some(line => /income_view|incomeScope/i.test(line))) incomeFieldTouched.push(grant.employee_code);
     if (!plan.changed.length) continue;
     changedCount++;
-    console.log(grant.employee_code, grant.employee_name, '(' + grant.preset_code + ')');
+    console.log(grant.employee_code, grant.employee_name, '(' + grant.preset_code + ', scope=' + (grant.people_scope || {}).type + ')');
     plan.changed.forEach(line => console.log('  ' + line));
     if (APPLY) {
       const { capabilities } = plan;
@@ -101,8 +115,13 @@ async function main() {
       console.log('  WRITTEN. new capabilities:', JSON.stringify(saved.capabilities));
     }
   }
-  console.log('\nAccounts requiring changes:', changedCount, '/', grants.length);
+  console.log('\n=== SUMMARY ===');
+  console.log('Accounts requiring changes:', changedCount, '/', grants.length);
   console.log('Accounts unchanged (already correct or no plan rule matched):', grants.length - changedCount);
+  console.log('Final propose=true count:', proposeTrueCount, '/', grants.length, '(expected 36/37 — PHF002 excluded)');
+  console.log('Final view_proposals=true count:', viewProposalsTrueCount, '/', grants.length, '(expected 37/37)');
+  console.log('Final agree_proposal=true count:', agreeProposalTrueCount, '/', grants.length, '(expected 12/37 — 3 Trợ lý + 3 Trưởng ca + 6 TBP)');
+  console.log('income_view/incomeScope touched on any account:', incomeFieldTouched.length ? incomeFieldTouched.join(',') : 'NONE (confirmed untouched)');
   if (!APPLY) console.log('\nNo writes performed. Re-run with --apply after PHF/Technical Lead review AND after the migration has been applied to Production.');
 }
 main().catch(e => { console.error(e); process.exit(1); });
