@@ -171,10 +171,6 @@ begin
       using errcode = '55000';
   end if;
 
-  if p_effective_from < current_date and coalesce(length(btrim(p_reason)), 0) < 5 then
-    raise exception 'KNL_COMPETENCY_RETROACTIVE_REASON_REQUIRED' using errcode = '22023';
-  end if;
-
   if not found then
     v_action := 'CREATE';
   elsif p_effective_from < current_date then
@@ -185,6 +181,16 @@ begin
     v_action := 'CONFIRM';
   else
     v_action := 'SUPERSEDE';
+  end if;
+
+  -- Reason bắt buộc cho 2 trường hợp đã chốt nghiệp vụ: hồi tố (mọi hành động
+  -- có effective_from ở quá khứ) VÀ confirm (PROVISIONAL->CONFIRMED, kể cả khi
+  -- effective_from không hồi tố) — "Khi confirm: bắt buộc reason/căn cứ" theo
+  -- đúng mục 3 của batch Personal Assignment Design. KHÔNG bắt buộc cho CREATE/
+  -- SUPERSEDE thường (không hồi tố, không phải confirm) vì batch không chốt
+  -- yêu cầu này cho các trường hợp đó.
+  if v_action in ('RETROACTIVE_CHANGE', 'CONFIRM') and coalesce(length(btrim(p_reason)), 0) < 5 then
+    raise exception 'KNL_COMPETENCY_REASON_REQUIRED:%', v_action using errcode = '22023';
   end if;
 
   -- Snapshot nội dung Bậc tại thời điểm gán (label + sort_order + toàn bộ
