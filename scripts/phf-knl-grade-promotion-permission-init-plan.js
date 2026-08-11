@@ -1,31 +1,24 @@
 'use strict';
 /*
- * PHF KNL "Đề xuất nâng bậc" — Permission Initialization PLAN (mục 3 batch 2.1).
+ * PHF KNL "Đề xuất nâng bậc" — Permission Initialization PLAN.
+ * Gốc: mục 3 batch 2.1. SỬA ở batch 2.2: gỡ hard-code theo employee_code
+ * (bao gồm nhánh Giám đốc riêng) sau khi Technical Lead chỉ ra Batch 1 từng
+ * BÁO SAI rằng 3 Trưởng ca Bán hàng chưa có agree_proposal — đã verify lại
+ * bằng query trực tiếp (batch 2.2): PHF018/041/042 THẬT SỰ đã có
+ * agree_proposal:true từ trước (không phải do batch nào của tôi ghi — xem
+ * updated_at ~2026-08-11T02:40 UTC, trước cả batch 1). Rule giờ derive từ
+ * preset_code (dữ liệu), không phải danh sách mã nhân viên viết tay.
  *
  * REVIEWABLE nhưng CHƯA APPLY — dry-run mặc định, chỉ in ra đúng những gì sẽ
- * đổi cho từng account theo policy đã chốt (mục 3), KHÔNG tự chạy --apply ở
- * batch này. Không đụng income_view/incomeScope ở bất kỳ dòng nào — mọi patch
- * dưới đây chỉ set access_knl/propose/agree_proposal/approve/view_proposals/
- * proposalScope, income giữ nguyên y hệt giá trị đang có trên mỗi account.
+ * đổi cho từng account theo policy đã chốt, KHÔNG tự chạy --apply ở batch
+ * này. Không đụng income_view/incomeScope ở bất kỳ dòng nào — mọi patch dưới
+ * đây chỉ set propose/agree_proposal/view_proposals/proposalScope, income
+ * giữ nguyên y hệt giá trị đang có trên mỗi account. approve KHÔNG được set
+ * cho bất kỳ ai (Admin dùng đường cứu hộ role='admin', không cần grant).
  *
  * Ghi qua đúng lib/knl-permissions.js#upsertKnlPermissionGrant (audit đầy đủ
  * vào knl_permission_grant_history), KHÔNG ghi thẳng bảng — cùng convention
  * đã dùng ở scripts/phf-org-master-seed-from-checklist-1.50.7.js.
- *
- * Policy nguồn (mục 3 batch 2.1):
- *   Creation : NV=self; TBP/Trợ lý/Trưởng ca=self+phạm vi phụ trách (reuse
- *              people_scope, đã đánh giá ở mục 4 — xem lib/knl-grade-
- *              proposals.js#creationAuthorized); Admin=all company (đường
- *              cứu hộ, không cần grant).
- *   Visibility: NV=self; Trưởng ca Bán hàng=Sales 3 CN; TBP=department;
- *              Trợ lý=các department/mảng phụ trách; Giám đốc=all_company
- *              view-only; Admin=all_company (đường cứu hộ).
- *   Processing: Trưởng ca Bán hàng hợp lệ=agree_proposal trong Sales scope;
- *              TBP=agree_proposal đúng department; Ngọc/Tiên/Vinh=agree_
- *              proposal đúng mảng đã chốt (đã có sẵn trong data thật); Giám
- *              đốc=false; Admin=final authority (đường cứu hộ, approve chỉ
- *              cần cho Admin — KHÔNG grant approve=true cho ai khác ở plan
- *              này, đúng "Admin: final authority").
  *
  * Chạy xem plan (KHÔNG ghi gì):
  *   node scripts/phf-knl-grade-promotion-permission-init-plan.js
@@ -41,47 +34,45 @@ const APPLY = process.argv.includes('--apply');
 const db = createClient(String(process.env.SUPABASE_URL).trim(), String(process.env.SUPABASE_SECRET_KEY).trim(), { auth: { persistSession: false, autoRefreshToken: false } });
 
 const SESSION = { role: 'admin', sub: 'system-knl-grade-promotion-permission-init', account: { id: 'system-knl-grade-promotion-permission-init', name: 'PHF KNL Grade Promotion Proposal — permission init plan (batch 2.1)' } };
-const REASON = 'KNL Đề xuất nâng bậc — permission initialization theo policy đã chốt (mục 3, batch 2.1). Không đổi income_view/incomeScope.';
+const REASON = 'KNL Đề xuất nâng bậc — permission initialization theo policy đã chốt, verify lại batch 2.2 (không hard-code theo employee_code). Không đổi income_view/incomeScope.';
 
-// TBP 6 phòng ban (mục 3: "TBP: agree_proposal đúng department") — dùng đúng
-// people_scope hiện có của từng account làm proposalScope (đã đánh giá ở mục
-// 4: cùng semantic "phạm vi phụ trách").
-const TBP_CODES = new Set(['PHF012', 'PHF028', 'PHF034', 'PHF038', 'PHF051', 'PHF071']);
-// Ngọc/Tiên/Vinh (mục 3: "Ngọc/Tiên/Vinh: agree_proposal đúng mảng đã chốt")
-// — agree_proposal đã = true sẵn trong data thật, chỉ cần bổ sung propose +
-// view_proposals/proposalScope.
-const ASSISTANT_CODES = new Set(['PHF004', 'PHF010', 'PHF032']);
-const SALES_LEADER_CODES = new Set(['PHF018', 'PHF041', 'PHF042']);
-const DIRECTOR_CODE = 'PHF002';
-
+/* BATCH 2.2 FIX: gỡ toàn bộ hard-code theo employee_code (kể cả nhánh Giám
+ * đốc riêng — "Giám đốc không cần tạo ngoại lệ hard-code riêng", mục 3 batch
+ * 2.2). Rule bây giờ áp dụng ĐỒNG NHẤT cho mọi account, chỉ phân nhánh theo
+ * preset_code (dữ liệu, không phải danh sách mã nhân viên viết tay) đúng 1
+ * chỗ duy nhất — cho agree_proposal:
+ *
+ *   Rule 1 (MỌI account, không ngoại lệ): propose:true + view_proposals:true
+ *   + proposalScope MIRROR đúng people_scope hiện có (đã đánh giá semantic ở
+ *   mục 4 batch 2.1). Giám đốc (preset TRO_LY_GD, people_scope=all_company,
+ *   agree_proposal=false SẴN CÓ trong data) nhận đúng propose/view_proposals/
+ *   proposalScope=all_company như MỌI account khác cùng shape — không có
+ *   nhánh code riêng nào kiểm tra employee_code của bà.
+ *
+ *   Rule 2 (agree_proposal — CHỈ đụng khi thật sự thiếu): chỉ bổ sung
+ *   agree_proposal:true cho preset_code==='TRUONG_BO_PHAN' hiện đang false
+ *   (đúng policy "TBP: agree_proposal đúng department", xác nhận lại bằng
+ *   query trực tiếp ở batch 2.2). KHÔNG đụng agree_proposal của preset nào
+ *   khác — 3 Trợ lý GĐ (PHF004/010/032) CŨNG preset TRUONG_BO_PHAN nhưng đã
+ *   true sẵn trong data thật nên set() không ghi gì (no-op, không phải bị bỏ
+ *   qua có chủ đích); TRO_LY_GD (chỉ Giám đốc dùng preset này trong data thật
+ *   — xem TRACE REPORT batch 1 mục preset mislabeling) và TRUONG_CA_CHTR (3
+ *   Trưởng ca, đã true sẵn) không nằm trong Rule 2 nên giữ nguyên giá trị
+ *   agree_proposal đang có — đây chính là lý do Giám đốc không cần nhánh
+ *   riêng: preset TRO_LY_GD của bà chưa từng bị Rule 2 chạm tới. */
 function planFor(grant) {
-  const code = grant.employee_code;
   const cap = grant.capabilities || {};
   const scope = grant.people_scope || { type: 'self', values: [] };
-  const patch = { capabilities: { ...cap }, peopleScope: grant.people_scope, changed: [] };
-
+  const patch = { capabilities: { ...cap }, changed: [] };
   function set(key, value) { if (patch.capabilities[key] !== value) { patch.capabilities[key] = value; patch.changed.push(key + ': ' + cap[key] + ' -> ' + value); } }
 
-  if (code === DIRECTOR_CODE) {
-    // Giám đốc: view-only — propose/agree_proposal/approve giữ nguyên false,
-    // chỉ thêm visibility toàn công ty.
-    set('view_proposals', true);
-    if (JSON.stringify(patch.capabilities.proposalScope) !== JSON.stringify({ type: 'all_company', values: [] })) { patch.capabilities.proposalScope = { type: 'all_company', values: [] }; patch.changed.push('proposalScope: -> all_company'); }
-  } else if (ASSISTANT_CODES.has(code) || SALES_LEADER_CODES.has(code) || TBP_CODES.has(code)) {
-    set('propose', true);
-    set('agree_proposal', true); // đã true sẵn cho ASSISTANT/SALES_LEADER; TBP là thay đổi thật
-    set('view_proposals', true);
-    const proposalScope = { type: scope.type, values: scope.values || [] };
-    if (JSON.stringify(patch.capabilities.proposalScope) !== JSON.stringify(proposalScope)) { patch.capabilities.proposalScope = proposalScope; patch.changed.push('proposalScope: -> ' + JSON.stringify(proposalScope)); }
-  } else {
-    // NHAN_VIEN mặc định (self) — propose:true (NV được tự đề xuất cho chính
-    // mình), view_proposals:true+self để đúng matrix "NV: self" tường minh
-    // (không bắt buộc kỹ thuật vì "Đề xuất của tôi" không cần capability này,
-    // nhưng PHF liệt kê NV trong Visibility matrix nên set tường minh cho khớp).
-    set('propose', true);
-    set('view_proposals', true);
-    if (JSON.stringify(patch.capabilities.proposalScope) !== JSON.stringify({ type: 'self', values: [] })) { patch.capabilities.proposalScope = { type: 'self', values: [] }; patch.changed.push('proposalScope: -> self'); }
-  }
+  set('propose', true);
+  set('view_proposals', true);
+  const proposalScope = { type: scope.type, values: scope.values || [] };
+  if (JSON.stringify(patch.capabilities.proposalScope) !== JSON.stringify(proposalScope)) { patch.capabilities.proposalScope = proposalScope; patch.changed.push('proposalScope: -> ' + JSON.stringify(proposalScope)); }
+
+  if (grant.preset_code === 'TRUONG_BO_PHAN') set('agree_proposal', true);
+
   return patch;
 }
 
