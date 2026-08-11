@@ -187,8 +187,9 @@ begin
     v_action := 'SUPERSEDE';
   end if;
 
-  -- Snapshot nội dung Bậc tại thời điểm gán (label + toàn bộ requirement theo item).
-  select gd.grade_code, gd.grade_number, gd.label, fv.version_number, f.code as framework_code, f.name as framework_name
+  -- Snapshot nội dung Bậc tại thời điểm gán (label + sort_order + toàn bộ
+  -- requirement theo item).
+  select gd.grade_code, gd.grade_number, gd.sort_order, gd.label, fv.version_number, f.code as framework_code, f.name as framework_name
     into v_grade
     from public.knl_grade_definitions gd
     join public.knl_framework_versions fv on fv.id = gd.version_id
@@ -204,10 +205,18 @@ begin
   v_grade_snapshot := jsonb_build_object(
     'frameworkCode', v_grade.framework_code, 'frameworkName', v_grade.framework_name,
     'versionNumber', v_grade.version_number, 'gradeCode', v_grade.grade_code,
-    'gradeNumber', v_grade.grade_number, 'label', v_grade.label, 'requirements', v_requirements
+    'gradeNumber', v_grade.grade_number, 'sortOrder', v_grade.sort_order, 'label', v_grade.label, 'requirements', v_requirements
   );
 
-  if found then
+  -- SỬA (review 1.52.0 trước integration test): KHÔNG dùng "if found then" ở
+  -- đây — FOUND đã bị ghi đè bởi 2 lệnh SELECT INTO phía trên (dòng snapshot
+  -- Bậc + snapshot requirements, lệnh sau luôn "found" vì có COALESCE/aggregate
+  -- luôn trả đúng 1 dòng), nên "if found" ở vị trí cũ LUÔN đúng bất kể v_old có
+  -- thật hay không. Hành vi quan sát được TRƯỚC ĐÂY vẫn đúng một cách tình cờ
+  -- (UPDATE ... WHERE id = NULL luôn khớp 0 dòng khi v_old.id là NULL), nhưng
+  -- đây là logic dễ vỡ nếu ai đó chèn thêm 1 SELECT INTO nữa phía trên - kiểm
+  -- tra thẳng v_old.id để không phụ thuộc trạng thái FOUND còn sót lại.
+  if v_old.id is not null then
     update public.knl_employee_competency_assignments
       set is_active = false, effective_to = p_effective_from, updated_by = p_actor_id, updated_by_name = p_actor_name, updated_at = now()
       where id = v_old.id;
