@@ -1220,7 +1220,6 @@ function compensationIdentityCardHtml(current){
     '<div class="phfk-comp-identity-fields"><div><small>MÃ NHÂN VIÊN</small><b>'+esc(current.employeeCode)+'</b></div>'+
     fields.map(function(f){return '<div><small>'+f[0]+'</small><b>'+esc(f[1])+'</b></div>';}).join('')+'</div></section>';
 }
-function allowanceRemark(applies){return applies?'<span class="phfk-source-status is-ready">✓ Được hưởng</span>':'<span class="phfk-source-status">× Không hưởng</span>';}
 /* Suy nhãn thay đổi (semantic) và trước/sau từ snapshot before/after đã lưu —
    KHÔNG lookup master hiện tại để dựng lại lịch sử. */
 function compensationChangeSummary(h){
@@ -1258,9 +1257,9 @@ function incomeHtml(){
       '<tr><td>1. Lương cơ bản (LCB)</td><td>Theo ngạch-bậc ('+gradeRef+')</td><td>'+money(current.baseSalary)+'</td><td>Cấu hình hệ thống</td></tr>'+
       '<tr><td>2. Hệ số chất lượng công việc (HQCV)</td><td>Theo ngạch-bậc ('+gradeRef+')</td><td>'+money(current.hqcv)+'</td><td>Cấu hình hệ thống</td></tr>'+
       '<tr class="phfk-comp-parts-subtotal"><td colspan="2">Tổng lương vị trí (1+2)</td><td><b>'+money(totalPosition)+'</b></td><td></td></tr>'+
-      '<tr><td>3. Phụ cấp nghiệp vụ</td><td>Theo ngạch-bậc ('+gradeRef+', chuẩn '+money(current.standardProfessionalAllowance)+')</td><td>'+money(current.professionalAllowance)+'</td><td>'+allowanceRemark(current.isProfessionalAllowance)+'</td></tr>'+
-      '<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc ('+gradeRef+', chuẩn '+money(current.standardManagementAllowance)+')</td><td>'+money(current.managementAllowance)+'</td><td>'+allowanceRemark(current.isManagementAllowance)+'</td></tr>'+
-      '<tr><td>5. Tiền cơm</td><td>Theo cấu hình gán (gợi ý '+money(MEAL_SUGGESTION)+')</td><td>'+money(current.mealAllowance)+'</td><td>'+allowanceRemark(current.isMealAllowance)+'</td></tr>'+
+      (current.isProfessionalAllowance?'<tr><td>3. Phụ cấp nghiệp vụ</td><td>Theo ngạch-bậc ('+gradeRef+', chuẩn '+money(current.standardProfessionalAllowance)+')</td><td>'+money(current.professionalAllowance)+'</td><td></td></tr>':'')+
+      (current.isManagementAllowance?'<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc ('+gradeRef+', chuẩn '+money(current.standardManagementAllowance)+')</td><td>'+money(current.managementAllowance)+'</td><td></td></tr>':'')+
+      (current.isMealAllowance?'<tr><td>5. Tiền cơm</td><td>Theo cấu hình gán (gợi ý '+money(MEAL_SUGGESTION)+')</td><td>'+money(current.mealAllowance)+'</td><td></td></tr>':'')+
       ((current.extraAllowances||[]).length?'<tr><td>6. PC khác</td><td>Theo cấu hình gán (tối đa 3 khoản)</td><td>'+current.extraAllowances.map(function(x){return esc(x.name)+': '+money(x.amount);}).join('<br>')+'</td><td></td></tr>':'')+
       '<tr class="phfk-comp-parts-subtotal"><td colspan="2"><b>Tổng cơ cấu thu nhập chính thức</b></td><td><b>'+money(current.totalReferenceIncome)+'</b></td><td></td></tr>'+
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
