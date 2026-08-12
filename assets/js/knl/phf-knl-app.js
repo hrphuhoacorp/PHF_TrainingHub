@@ -1335,6 +1335,31 @@ function compensationChangeTransition(h){
   if(beforeLabel===afterLabel)return{from:'—',to:'—'};
   return{from:beforeLabel,to:afterLabel};
 }
+/* "Thu nhập tham chiếu Bậc lương kế tiếp" — PREVIEW thuần, đọc đúng
+ * getKnlEmployeeNextCompensationGrade (hệ Compensation, KHÔNG liên quan
+ * competency B1-B5). Whitelist do BACKEND đã áp (preview.isProfessionalAllowance/
+ * isManagementAllowance carry-forward từ chính assignment hiện tại của nhân
+ * sự) — frontend chỉ render đúng cờ đã nhận, không tự quyết định hiện/ẩn. */
+function compensationNextGradeHtml(){
+  var n=foundationState.nextCompensationGrade;
+  if(!n||!n.hasCurrentGrade)return '';
+  var head='<div class="phfk-section-head"><h2>Thu nhập tham chiếu Bậc lương kế tiếp</h2></div>';
+  if(n.isMaxGrade){
+    return '<section class="phfk-panel phfk-comp-next-grade">'+head+'<p class="phfk-batch-note">Bạn đang ở bậc lương cao nhất của ngạch hiện tại.</p></section>';
+  }
+  var p=n.preview;
+  if(!p||!n.nextGrade)return '';
+  var nextLabel=n.nextGrade.code,totalPosition=p.baseSalary+p.hqcv;
+  var rows='<tr><td>1. Lương cơ bản (LCB)</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.baseSalary)+'</td></tr>'+
+    '<tr><td>2. Hệ số chất lượng công việc (HQCV)</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.hqcv)+'</td></tr>'+
+    '<tr class="phfk-comp-parts-subtotal"><td colspan="2">Tổng lương vị trí (1+2)</td><td><b>'+money(totalPosition)+'</b></td></tr>'+
+    (p.isProfessionalAllowance?'<tr><td>3. Phụ cấp nghiệp vụ</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.professionalAllowance)+'</td></tr>':'')+
+    (p.isManagementAllowance?'<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.managementAllowance)+'</td></tr>':'');
+  return '<section class="phfk-panel phfk-comp-next-grade">'+head+
+    '<p class="phfk-batch-note">Xem trước mức tham chiếu tại <b>Bậc '+esc(nextLabel)+'</b> (đang ở Bậc '+esc((n.currentGrade&&n.currentGrade.code)||'—')+') — chỉ hiển thị các khoản bạn đang thực sự được hưởng ở bậc hiện tại. Đây là preview tham khảo, không phải quyết định gán bậc hay cam kết thu nhập.</p>'+
+    '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Khoản mục</th><th>Cách xác định</th><th>Mức tiền (VND)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '</section>';
+}
 function incomeHtml(){
   var i=foundationState.income,current=i&&i.current,nav=compensationDomainNav('co-cau-thu-nhap',foundationState.incomeIsAdmin),change=foundationState.incomeCanSelect?'<button type="button" class="phfk-btn-secondary" data-knl-change-income>Chọn nhân sự khác</button>':'';
   if(!current)return nav+'<div class="phfk-page-head"><div><small>KNL · CÁ NHÂN</small><h1>Bậc & Cơ cấu thu nhập</h1><p>'+esc(i&&i.employeeCode||'')+'</p></div>'+change+'</div>'+noAccessSection('Chưa có cơ cấu thu nhập tham chiếu đang áp dụng.');
@@ -1360,7 +1385,7 @@ function incomeHtml(){
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
   }
   var history='<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(formatDateTimeVN(h.changedAt))+'</td><td>'+esc(friendlyActorLabel(h.changedByName))+'</td></tr>';}).join('')+'</tbody></table></div></section>';
-  return nav+head+identity+card+competencyStandardHtml()+competencyHistoryHtml()+history;
+  return nav+head+identity+card+compensationNextGradeHtml()+competencyStandardHtml()+competencyHistoryHtml()+history;
 }
 /* Khối "KNL đang áp dụng" — gắn vào màn cá nhân hiện có (Bậc & Cơ cấu thu
  * nhập), KHÔNG tạo route riêng (đúng chỉ đạo: ưu tiên gắn vào self-view hiện
@@ -1507,8 +1532,14 @@ function competencyTargetHtml(c){
     if(!mainHtml&&!holdHtml)return '';
     return '<div class="phfk-target-group"><h3 class="phfk-target-group-name">'+esc(g.name)+'</h3>'+(mainHtml||'<p class="phfk-empty">Không có yêu cầu tăng chuẩn trong nhóm này.</p>')+holdHtml+'</div>';
   }).join('');
+  /* Collapse toàn block bằng <details> thuần HTML (không JS/API riêng) —
+   * <summary> luôn hiển thị (title/note/summary đã nằm NGOÀI details, phía
+   * trên), mặc định collapsed (không có thuộc tính open). Business logic
+   * structural diff giữ nguyên 100%, chỉ đổi UX hiển thị. */
   return '<section class="phfk-panel phfk-competency-target"><div class="phfk-section-head"><h2>Mục tiêu hướng tới '+esc(nextLabel)+'</h2></div>'+
-    note+summary+body+'</section>';
+    note+summary+
+    '<details class="phfk-target-detail-toggle"><summary><span class="phfk-target-toggle-collapsed">+ Xem chi tiết</span><span class="phfk-target-toggle-expanded">− Thu gọn</span></summary>'+body+'</details>'+
+    '</section>';
 }
 /* Dựng "chuỗi bậc" đầy đủ 1 lần khi load nhân sự: [current, next, ...further].
  * current/next đã có standard đầy đủ sẵn (từ getKnlEmployeeCompetencyStandard);
@@ -1652,6 +1683,7 @@ async function renderIncome(root,isAdmin,capabilities){
   foundationState.competencyWindowStart=0;
   try{
     foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);
+    try{foundationState.nextCompensationGrade=await apiPost('getKnlEmployeeNextCompensationGrade',queryCode?{employeeCode:queryCode}:undefined);}catch(nge){foundationState.nextCompensationGrade=null;}
     try{
       foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);
       if(foundationState.competency&&foundationState.competency.hasAssignment){

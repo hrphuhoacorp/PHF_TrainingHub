@@ -305,6 +305,21 @@
 .phfk-target-hold[open] summary::before{content:"▾ "}
 .phfk-target-hold .phfk-target-item{margin-top:10px}
 
+/* Collapse toàn block "Mục tiêu hướng tới Bậc X" — <details> thuần, mặc định
+ * đóng. Summary luôn hiển thị dạng control rõ ràng "+ Xem chi tiết" /
+ * "− Thu gọn" (đổi qua CSS theo [open], không JS). */
+.phfk-target-detail-toggle{margin-top:14px;border-top:1px dashed var(--phfk-line);padding-top:12px}
+.phfk-target-detail-toggle summary{cursor:pointer;font-size:12.5px;font-weight:800;color:var(--phfk-green-deep);list-style:none}
+.phfk-target-detail-toggle summary::-webkit-details-marker{display:none}
+.phfk-target-toggle-expanded{display:none}
+.phfk-target-detail-toggle[open] .phfk-target-toggle-collapsed{display:none}
+.phfk-target-detail-toggle[open] .phfk-target-toggle-expanded{display:inline}
+
+/* "Thu nhập tham chiếu Bậc lương kế tiếp" — preview, viền nét đứt để phân
+ * biệt trực quan với cơ cấu thu nhập HIỆN TẠI (viền liền, phfk-income-card),
+ * tái dùng nguyên .phfk-table/.phfk-panel, không tự tạo hệ màu mới. */
+.phfk-comp-next-grade{border:1px dashed var(--phfk-line)}
+
 /* Lịch sử thay đổi bậc KNL — timeline card gọn, tách khỏi Salary history. */
 .phfk-comp-history-timeline{display:flex;flex-direction:column;gap:0}
 .phfk-comp-history-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid #edf2ef}
