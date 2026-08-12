@@ -2010,7 +2010,17 @@ function gpCreateInitialState(){
     approverOptions:null, approverLoading:false, approverQuery:'', approverSelectedCode:'',
     reason:'', submitting:false, error:'' };
 }
-var gpState = { loaded:false, loadedAt:0, view:'awaiting', mine:[], awaiting:[], visible:[], visibleStatus:'', detail:null, detailId:'', error:'', message:'', create:gpCreateInitialState() };
+/* 3 dataset (awaiting/mine/visible) đều có loading/loaded/loadError RIÊNG —
+ * bắt buộc để gpListBodyHtml() phân biệt được "chưa fetch bao giờ"/"đang
+ * fetch" với "đã fetch xong và rỗng thật" (mục 4 báo cáo bug initial-load).
+ * KHÔNG dùng gpState.error/gpState.message chung cho việc này — 2 field đó
+ * vẫn giữ nguyên nghĩa cũ (thông báo sau hành động agree/reject/withdraw/tạo
+ * đề xuất), tách biệt khỏi lỗi tải danh sách. */
+var gpState = { loaded:false, loadedAt:0, view:'awaiting',
+  mine:[], mineLoading:false, mineLoaded:false, mineLoadError:'',
+  awaiting:[], awaitingLoading:false, awaitingLoaded:false, awaitingLoadError:'',
+  visible:[], visibleLoading:false, visibleLoaded:false, visibleLoadError:'',
+  visibleStatus:'', detail:null, detailId:'', error:'', message:'', create:gpCreateInitialState() };
 var GP_STATUS_LABELS = { pending:'Đang xử lý', approved:'Đã duyệt', rejected:'Không đồng ý', withdrawn:'Đã rút' };
 var GP_ACTION_LABELS = { propose:'Tạo đề xuất', agree:'Đồng ý', approve:'Duyệt (Admin)', reject:'Không đồng ý', withdraw:'Rút đề xuất', reassign:'Route lại (tự động)' };
 
@@ -2022,7 +2032,11 @@ function gpNav(activeView, capabilities, isAdmin){
   if(canPropose) tabs.push(['create','Tạo đề xuất']);
   return '<nav class="phfk-domain-tabs" aria-label="Đề xuất nâng bậc">'+tabs.map(function(t){return '<button type="button" class="'+(activeView===t[0]?'active':'')+'" data-gp-nav="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</nav>';
 }
-function bindGpNav(root){root.querySelectorAll('[data-gp-nav]').forEach(function(b){b.onclick=function(){gpState.view=b.getAttribute('data-gp-nav');gpState.error='';var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);renderGpBody(root);};});}
+function bindGpNav(root){root.querySelectorAll('[data-gp-nav]').forEach(function(b){b.onclick=function(){
+  gpState.view=b.getAttribute('data-gp-nav');gpState.error='';
+  var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);
+  gpLoadActiveView(root); // bấm tab nào -> loader đúng của tab đó chạy ngay, không chờ mount lại (xem gpLoadActiveView())
+};});}
 
 function gpGradeLine(currentCode,currentNumber,proposedCode,proposedNumber){return esc(currentCode||'—')+' <span class="phfk-gp-grade-arrow-mini" aria-hidden="true">→</span> <b class="phfk-gp-grade-target-mini">'+esc(proposedCode||'—')+'</b>';}
 
@@ -2087,16 +2101,25 @@ function gpTable(list,emptyText){
   return '<div class="phfk-table-wrap"><table class="phfk-table phfk-gp-table"><thead><tr><th>Nhân sự</th><th>Bậc</th><th>Người đề xuất</th><th>Tiến trình</th><th>Đang chờ</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+list.map(gpRow).join('')+'</tbody></table></div>';
 }
 
+/* loading > loadError > list rỗng thật — 3 trạng thái KHÔNG được lẫn vào
+ * nhau (mục "loaded-empty thật" vs "API error" vs "chưa fetch xong" trong
+ * báo cáo bug). loading ưu tiên cao nhất vì loadError của lần fetch TRƯỚC có
+ * thể còn treo trong lúc đang fetch lại. */
+function gpDatasetBodyHtml(loading,loadError,list,emptyText){
+  if(loading) return '<div class="phfk-loading">Đang tải…</div>';
+  if(loadError) return '<p class="phfk-error">'+esc(loadError)+'</p>';
+  return gpTable(list,emptyText);
+}
 function gpListBodyHtml(capabilities,isAdmin){
   var head = gpNav(gpState.view,capabilities,isAdmin);
   var msg = (gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'');
-  if(gpState.view==='mine') return head+msg+gpTable(gpState.mine,'Bạn chưa tạo hoặc chưa là nhân sự của Đề xuất nâng bậc nào.');
+  if(gpState.view==='mine') return head+msg+gpDatasetBodyHtml(gpState.mineLoading,gpState.mineLoadError,gpState.mine,'Bạn chưa tạo hoặc chưa là nhân sự của Đề xuất nâng bậc nào.');
   if(gpState.view==='visible'){
     var statusFilter='<div class="phfk-filters"><select class="phfk-input" data-gp-status-filter>'+['','pending','approved','rejected','withdrawn'].map(function(s){return '<option value="'+s+'"'+(gpState.visibleStatus===s?' selected':'')+'>'+(s?esc(GP_STATUS_LABELS[s]):'Tất cả trạng thái')+'</option>';}).join('')+'</select></div>';
-    return head+statusFilter+msg+gpTable(gpState.visible,'Chưa có Đề xuất nâng bậc nào trong phạm vi xem của bạn.');
+    return head+statusFilter+msg+gpDatasetBodyHtml(gpState.visibleLoading,gpState.visibleLoadError,gpState.visible,'Chưa có Đề xuất nâng bậc nào trong phạm vi xem của bạn.');
   }
   if(gpState.view==='create') return head+msg+gpCreateFormHtml();
-  return head+msg+gpTable(gpState.awaiting,'Hiện không có Đề xuất nâng bậc nào cần bạn xử lý.');
+  return head+msg+gpDatasetBodyHtml(gpState.awaitingLoading,gpState.awaitingLoadError,gpState.awaiting,'Hiện không có Đề xuất nâng bậc nào cần bạn xử lý.');
 }
 
 function gpNormalizeSearch(v){
@@ -2492,19 +2515,56 @@ async function openGpDetail(root,proposalId){
   renderGpBody(root);
 }
 
-async function loadGpAwaiting(root){ try{ gpState.awaiting=(await apiPost('listKnlGradePromotionProposalsAwaitingMyAction')).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
-async function loadGpMine(root){ try{ gpState.mine=(await apiPost('listMyKnlGradePromotionProposals')).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
-async function loadGpVisible(root){ try{ gpState.visible=(await apiPost('listVisibleKnlGradePromotionProposals',{status:gpState.visibleStatus})).proposals||[]; }catch(e){ gpState.error=e.message; } renderGpBody(root); }
+/* Guard bằng chính flag Loading (không token/request-id riêng): mỗi loader
+ * ghi CHỈ vào field state của chính nó (mine/awaiting/visible tách biệt),
+ * và gpListBodyHtml() luôn render theo gpState.view HIỆN TẠI + state của
+ * đúng dataset đó tại thời điểm render — nên 1 request cũ resolve trễ không
+ * bao giờ đè nhầm data sang tab khác đang active (mục "chuyển tab nhanh" /
+ * race condition trong báo cáo bug). Nếu đã có 1 lượt đang fetch thì bỏ qua
+ * lượt gọi trùng (tránh double-fetch vô nghĩa khi user bấm nhanh 2 lần). */
+async function loadGpAwaiting(root){
+  if(gpState.awaitingLoading)return;
+  gpState.awaitingLoading=true; gpState.awaitingLoadError=''; renderGpBody(root);
+  try{ gpState.awaiting=(await apiPost('listKnlGradePromotionProposalsAwaitingMyAction')).proposals||[]; gpState.awaitingLoaded=true; }
+  catch(e){ gpState.awaitingLoadError=e.message; }
+  gpState.awaitingLoading=false; renderGpBody(root);
+}
+async function loadGpMine(root){
+  if(gpState.mineLoading)return;
+  gpState.mineLoading=true; gpState.mineLoadError=''; renderGpBody(root);
+  try{ gpState.mine=(await apiPost('listMyKnlGradePromotionProposals')).proposals||[]; gpState.mineLoaded=true; }
+  catch(e){ gpState.mineLoadError=e.message; }
+  gpState.mineLoading=false; renderGpBody(root);
+}
+async function loadGpVisible(root){
+  if(gpState.visibleLoading)return;
+  gpState.visibleLoading=true; gpState.visibleLoadError=''; renderGpBody(root);
+  try{ gpState.visible=(await apiPost('listVisibleKnlGradePromotionProposals',{status:gpState.visibleStatus})).proposals||[]; gpState.visibleLoaded=true; }
+  catch(e){ gpState.visibleLoadError=e.message; }
+  gpState.visibleLoading=false; renderGpBody(root);
+}
+
+/* Dispatch loader ĐÚNG cho gpState.view hiện hành — DUY NHẤT 1 nơi quyết
+ * định "view nào cần load gì", dùng chung cho cả lần mount đầu tiên
+ * (renderGradePromotionSection) VÀ mỗi lần bấm tab trong bindGpNav(). Trước
+ * đây bindGpNav chỉ đổi gpState.view rồi render lại — không gọi loader nào —
+ * nên tab vừa bấm hiện "trống"/thông báo rỗng sai cho tới khi có 1 lượt
+ * mount lại (chuyển sang màn KNL khác rồi quay lại) tình cờ gọi đúng hàm
+ * này. Sửa tại đây (lifecycle dùng chung), không vá riêng theo role/tab. */
+async function gpLoadActiveView(root){
+  var capabilities = gpState.lastCapabilities||{}, isAdmin = gpState.lastIsAdmin===true;
+  if(gpState.view==='mine') await loadGpMine(root);
+  else if(gpState.view==='visible' && (isAdmin || capabilities.view_proposals)) await loadGpVisible(root);
+  else if(gpState.view==='create' && (isAdmin || capabilities.propose)){ renderGpBody(root); bindGpList(root); await loadGpCreatePool(root); }
+  else { gpState.view='awaiting'; await loadGpAwaiting(root); }
+}
 
 async function renderGradePromotionSection(root, capabilities, isAdmin){
   gpState.lastCapabilities = capabilities; gpState.lastIsAdmin = isAdmin;
   var proposalId = new URL(location.href).searchParams.get('proposal');
   if(proposalId){ await openGpDetail(root, proposalId); return; }
   gpState.detail = null;
-  if(gpState.view==='mine') await loadGpMine(root);
-  else if(gpState.view==='visible' && (isAdmin || capabilities.view_proposals)) await loadGpVisible(root);
-  else if(gpState.view==='create' && (isAdmin || capabilities.propose)){ renderGpBody(root); bindGpList(root); await loadGpCreatePool(root); }
-  else { gpState.view='awaiting'; await loadGpAwaiting(root); }
+  await gpLoadActiveView(root);
 }
 
 /* ===================== ENTRY ===================== */
