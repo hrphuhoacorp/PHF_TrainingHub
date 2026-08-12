@@ -84,6 +84,7 @@ var CAPABILITY_LABELS = {
   view_people:'Xem Nhân sự',
   manage_permissions:'Quản lý phân quyền KNL',
   income_view:'Truy cập mục Thu nhập',
+  view_proposals:'Xem đề xuất nâng bậc',
   propose:'Đề xuất năng lực (chưa mở nghiệp vụ)',
   agree_proposal:'Đồng ý đề xuất (chưa mở nghiệp vụ)',
   approve:'Duyệt (chưa mở nghiệp vụ)',
@@ -107,11 +108,11 @@ var STATUS_LABELS = { active:'Đang làm việc', inactive:'Ngừng làm việc'
    "Tuỳ chỉnh" (CUSTOM) là preset kỹ thuật cũ, không còn hiển thị ở đây nữa
    theo đúng yêu cầu — vẫn chọn được qua "Thiết lập nâng cao" nếu cần. */
 var BUSINESS_ROLES = [
-  { key:'assistant', label:'Trợ lý GĐ', presetCode:'TRO_LY_GD' },
-  { key:'tbp', label:'TBP', presetCode:'TRUONG_BO_PHAN' },
-  { key:'employee', label:'Nhân viên', presetCode:'NHAN_VIEN' }
+  { key:'employee', label:'Nhân viên', subtitle:'Sử dụng KNL cá nhân', presetCode:'NHAN_VIEN' },
+  { key:'tbp', label:'Trưởng bộ phận', subtitle:'Quản lý nhân sự được phân công', presetCode:'TRUONG_BO_PHAN' },
+  { key:'assistant', label:'Trợ lý Giám đốc', subtitle:'Quyền theo phạm vi được cấp', presetCode:'TRO_LY_GD' }
 ];
-var BUSINESS_ROLE_LABELS = { admin:'Admin', assistant:'Trợ lý GĐ', tbp:'TBP', employee:'Nhân viên', unknown:'Tuỳ chỉnh' };
+var BUSINESS_ROLE_LABELS = { admin:'Admin', assistant:'Trợ lý Giám đốc', tbp:'Trưởng bộ phận', employee:'Nhân viên', unknown:'Tuỳ chỉnh' };
 function roleKeyFromPreset(presetCode){
   if(!presetCode) return ''; // chưa chọn vai trò nào (tài khoản mới, chưa có grant) - khác với "unknown" (đã có preset nhưng không map được 1 trong 3 vai trò)
   if(presetCode==='TRO_LY_GD') return 'assistant';
@@ -577,17 +578,42 @@ function advancedSectionHtml(g){
   var scopeValues = (g.peopleScope && Array.isArray(g.peopleScope.values)) ? g.peopleScope.values.join(', ') : '';
   var scopeType = g.peopleScope && g.peopleScope.type;
   var scopeValuesShown = scopeType==='department' || scopeType==='employees';
-  var scopeValuesLabel = scopeType==='employees' ? 'Mã nhân sự (phân cách bởi dấu phẩy)' : 'Phòng ban (phân cách bởi dấu phẩy)';
+  var scopeValuesLabel = scopeType==='employees' ? 'Mã nhân sự (ngăn cách bằng dấu phẩy)' : 'Phòng ban (ngăn cách bằng dấu phẩy)';
   return '' +
     '<details class="phfk-perm-advanced" data-knl-advanced'+(permState.advancedOpen?' open':'')+'>' +
-      '<summary>Thiết lập nâng cao</summary>' +
+      '<summary>6. Thiết lập nâng cao</summary>' +
       '<div class="phfk-perm-advanced-body">' +
-        '<label class="phfk-field"><span>Nhóm quyền (preset kỹ thuật)</span><select class="phfk-input" data-knl-adv-preset>'+presetOptions+'</select></label>' +
+        '<label class="phfk-field"><span>Mẫu quyền</span><select class="phfk-input" data-knl-adv-preset>'+presetOptions+'</select></label>' +
         '<div class="phfk-field"><span>Năng lực</span><div class="phfk-checklist">'+capabilityBoxes+'</div></div>' +
-        '<label class="phfk-field"><span>Phạm vi Nhân sự (scope kỹ thuật)</span><select class="phfk-input" data-knl-adv-scope-type>'+scopeOptions+'</select></label>' +
+        '<label class="phfk-field"><span>Loại phạm vi nhân sự</span><select class="phfk-input" data-knl-adv-scope-type>'+scopeOptions+'</select></label>' +
         '<label class="phfk-field" data-knl-adv-scope-values-field'+(scopeValuesShown?'':' hidden')+'><span data-knl-adv-scope-values-label>'+esc(scopeValuesLabel)+'</span><input type="text" class="phfk-input" data-knl-adv-scope-values value="'+esc(scopeValues)+'"></label>' +
       '</div>' +
     '</details>';
+}
+
+/* Đọc-hiểu "Phạm vi nhân sự được quản lý" (peopleScope) — CHỈ trực quan hoá
+   giá trị peopleScope đang có (do vai trò quyết định tự động), KHÔNG thêm
+   lựa chọn mới. Radio hiển thị readonly (không click được) trừ trường hợp
+   type==='employees' (TBP) — nơi peopleScope thật sự do Admin chọn qua
+   picker nhân sự cụ thể bên dưới, giữ nguyên đúng hành vi cũ. */
+var PEOPLE_SCOPE_READOUT_ORDER = ['all_company','department','sales_all_branches','employees','self'];
+function peopleScopeSectionHtml(roleKey, g){
+  var scopeType = (g.peopleScope && g.peopleScope.type) || 'self';
+  var rows = PEOPLE_SCOPE_READOUT_ORDER.filter(function(t){ return t===scopeType || t==='all_company' || t==='department' || t==='employees'; })
+    .map(function(t){
+      var active = t===scopeType;
+      return '<label class="phfk-radio phfk-perm-scope-readout-row'+(active?' is-active':'')+'"><input type="radio" disabled'+(active?' checked':'')+'> '+esc(SCOPE_LABELS[t]||t)+'</label>';
+    }).join('');
+  var hint = scopeType==='employees'
+    ? 'Chọn danh sách nhân sự cụ thể bên dưới.'
+    : 'Phạm vi này do vai trò KNL ở trên quyết định. Cần loại phạm vi khác (theo chi nhánh…) thì dùng "Thiết lập nâng cao".';
+  return '' +
+    '<div class="phfk-perm-scope-readout">' +
+      '<span>Phạm vi được quản lý</span>' +
+      rows +
+      '<p class="phfk-perm-scope-hint">'+esc(hint)+'</p>' +
+      (scopeType==='employees' ? subordinatePickerHtml() : '') +
+    '</div>';
 }
 
 /* Thu nhập: checkbox -> (nếu bật) link "Thiết lập phạm vi" -> (nếu mở) radio
@@ -598,13 +624,14 @@ function incomeSectionHtml(g){
   var incomeChecked = !!(g.capabilities && g.capabilities.income_view);
   var scopeObj = g.capabilities && g.capabilities.incomeScope;
   var scopeType = scopeObj && scopeObj.type;
-  var html = '<div class="phfk-field phfk-perm-income"><span>Quyền bổ sung</span>' +
-    '<label class="phfk-check"><input type="checkbox" data-knl-income-view'+(incomeChecked?' checked':'')+'> Truy cập mục Thu nhập</label>';
+  var html = '<div class="phfk-field phfk-perm-income"><span>3. Quyền chức năng</span>' +
+    '<label class="phfk-check phfk-perm-income-check"><input type="checkbox" data-knl-income-view'+(incomeChecked?' checked':'')+'> Xem Thu nhập <span class="phfk-badge phfk-badge-warning">Nhạy cảm</span></label>' +
+    '<p class="phfk-perm-income-helper">Cho phép xem thông tin thu nhập theo phạm vi được cấp.</p>';
   if(incomeChecked){
     html += '<button type="button" class="phfk-link phfk-perm-income-toggle" data-knl-income-config-toggle>'+(permState.incomeConfigOpen?'Ẩn phạm vi ▴':'Thiết lập phạm vi ▾')+'</button>';
     if(permState.incomeConfigOpen){
       html += '<div class="phfk-perm-income-config">' +
-        '<small>PHẠM VI XEM THU NHẬP</small>' +
+        '<small>4. PHẠM VI THU NHẬP</small>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="all_company"'+(scopeType==='all_company'?' checked':'')+'> Toàn công ty</label>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="department"'+(scopeType==='department'?' checked':'')+'> Theo phòng ban</label>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="branch"'+(scopeType==='branch'?' checked':'')+'> Theo chi nhánh</label>' +
@@ -626,28 +653,32 @@ function permConfigPanel(){
   var isHubAdmin = String(acc.role).toLowerCase()==='admin';
   var roleKey = businessRoleForAccount(acc, g);
 
-  var head = '<div class="phfk-perm-config-head"><small>ĐANG CẤU HÌNH</small><h2>'+esc(acc.name||acc.email)+'</h2><p>'+esc(acc.employeeCode||acc.email||'')+(acc.position?' · '+esc(acc.position):'')+'</p></div>';
+  var head = '<div class="phfk-perm-config-head"><small>ĐANG CẤU HÌNH</small><h2>'+esc(acc.name||acc.email)+'</h2><p>'+esc(acc.employeeCode||acc.email||'')+(acc.position?' · '+esc(acc.position):'')+(acc.department?' · '+esc(acc.department):'')+(acc.branch?' · '+esc(acc.branch):'')+'</p></div>';
 
   var roleSection;
   if(isHubAdmin){
-    roleSection = '<div class="phfk-perm-role-readonly"><small>VAI TRÒ KNL</small><strong>Admin</strong><p>Toàn quyền KNL theo tài khoản Hub (đường cứu hộ) — không cấu hình được ở màn này.</p></div>';
+    roleSection = '<div class="phfk-perm-role-readonly"><small>2. VAI TRÒ KNL</small><strong>Admin <span class="phfk-badge phfk-badge-warning">Quyền rất cao</span></strong><p>Toàn quyền KNL theo tài khoản Hub (đường cứu hộ) — không cấu hình được ở màn này.</p></div>';
   }else{
-    roleSection = '<div class="phfk-field"><span>Vai trò KNL</span><div class="phfk-perm-role-options">' +
-      BUSINESS_ROLES.map(function(r){ return '<button type="button" class="phfk-perm-role-btn'+(roleKey===r.key?' active':'')+'" data-knl-role="'+r.key+'">'+esc(r.label)+'</button>'; }).join('') +
-      '<button type="button" class="phfk-perm-role-btn is-disabled" disabled title="Cấp qua tài khoản Hub, không cấu hình ở đây">Admin</button>' +
+    roleSection = '<div class="phfk-field"><span>2. Vai trò KNL</span><div class="phfk-perm-role-cards">' +
+      BUSINESS_ROLES.map(function(r){
+        return '<button type="button" class="phfk-perm-role-card'+(roleKey===r.key?' active':'')+'" data-knl-role="'+r.key+'">' +
+          '<b>'+esc(r.label)+'</b><small>'+esc(r.subtitle)+'</small>' +
+        '</button>';
+      }).join('') +
+      '<button type="button" class="phfk-perm-role-card is-disabled" disabled title="Cấp qua tài khoản Hub, không cấu hình ở đây"><b>Admin</b><small>Quản trị hệ thống</small></button>' +
       '</div>' +
       (roleKey==='unknown' ? '<p class="phfk-perm-role-hint">Tài khoản đang dùng cấu hình nâng cao (không khớp 3 vai trò trên) — chọn 1 vai trò để chuẩn hoá, hoặc xem "Thiết lập nâng cao".</p>' : '') +
     '</div>';
   }
 
-  var subordinateSection = (!isHubAdmin && roleKey==='tbp') ? subordinatePickerHtml() : '';
+  var scopeSection = (!isHubAdmin && roleKey) ? peopleScopeSectionHtml(roleKey, g) : '';
   var incomeSection = incomeSectionHtml(g);
   var activeSection = isHubAdmin ? '' : '<label class="phfk-check phfk-perm-active-toggle"><input type="checkbox" data-knl-active'+(g.isActive!==false?' checked':'')+'> Đang cấp quyền KNL</label>';
-  var reasonSection = '<label class="phfk-field phfk-perm-reason"><span>Lý do thay đổi quyền</span><textarea class="phfk-input" rows="2" placeholder="Ví dụ: Bổ nhiệm TBP Kho tháng 8" data-knl-reason>'+esc(g.reason||'')+'</textarea></label>';
+  var reasonSection = '<label class="phfk-field phfk-perm-reason"><span>5. Lý do thay đổi quyền</span><textarea class="phfk-input" rows="2" placeholder="Nhập lý do thay đổi quyền..." data-knl-reason>'+esc(g.reason||'')+'</textarea></label>';
 
   return '' +
     '<section class="phfk-panel phfk-perm-config">' +
-      head + roleSection + subordinateSection + incomeSection + activeSection + reasonSection +
+      head + roleSection + scopeSection + incomeSection + activeSection + reasonSection +
       '<p class="phfk-error" data-knl-form-error hidden></p>' +
       '<div class="phfk-form-actions"><button type="button" class="phfk-btn-primary" data-knl-save-grant'+(permState.saving?' disabled':'')+'>Lưu</button></div>' +
       advancedSectionHtml(g) +

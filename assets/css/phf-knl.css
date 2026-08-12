@@ -70,16 +70,31 @@
 /* Nhãn cấp section (Vai trò KNL/Nhân viên cấp dưới/Quyền bổ sung/Lý do...) -
    nổi bật hơn label cấp field bên trong 1 bậc, tạo hierarchy rõ ràng. */
 .phfk-perm-config > .phfk-field > span:first-child{display:block;font-size:12.5px;font-weight:800;color:var(--phfk-green-deep);margin-bottom:9px;letter-spacing:-.005em}
-.phfk-perm-role-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.phfk-perm-role-btn{height:44px;border:1px solid var(--phfk-line);background:#fff;color:#456158;border-radius:10px;padding:0 10px;font-size:12.5px;font-weight:700;cursor:pointer;transition:border-color .12s ease,background .12s ease,color .12s ease}
-.phfk-perm-role-btn:hover{background:#f8fbf9;border-color:#cfe0d8}
-.phfk-perm-role-btn.active{border-color:var(--phfk-green);background:var(--phfk-green);color:#fff;box-shadow:0 4px 12px rgba(99,173,48,.25)}
-.phfk-perm-role-btn.is-disabled{opacity:.4;cursor:not-allowed;background:#fbfcfb}
+.phfk-perm-role-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.phfk-perm-role-card{display:flex;flex-direction:column;gap:4px;text-align:left;min-height:64px;border:1px solid var(--phfk-line);background:#fff;color:#456158;border-radius:11px;padding:10px 12px;cursor:pointer;transition:border-color .12s ease,background .12s ease,color .12s ease}
+.phfk-perm-role-card:hover{background:#f8fbf9;border-color:#cfe0d8}
+.phfk-perm-role-card b{font-size:12.5px;font-weight:800;color:inherit}
+.phfk-perm-role-card small{font-size:10.5px;font-weight:600;color:#7f938a;line-height:1.35}
+.phfk-perm-role-card.active{border-color:var(--phfk-green);background:var(--phfk-green-soft);color:var(--phfk-green-deep);box-shadow:0 4px 12px rgba(99,173,48,.18)}
+.phfk-perm-role-card.active small{color:#4e8f2c}
+.phfk-perm-role-card.is-disabled{opacity:.45;cursor:not-allowed;background:#fbfcfb}
 .phfk-perm-role-hint{margin-top:10px;font-size:11px;line-height:1.5;color:#8b6a24;background:#fff8e6;border:1px solid #f0dfa8;border-radius:9px;padding:9px 11px}
 .phfk-perm-role-readonly{border:1px solid var(--phfk-line);border-radius:12px;padding:14px 16px;background:#f8fbf9}
 .phfk-perm-role-readonly small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em}
-.phfk-perm-role-readonly strong{display:block;margin:6px 0 4px;font-size:16px;color:var(--phfk-green-deep)}
+.phfk-perm-role-readonly strong{display:flex;align-items:center;gap:8px;margin:6px 0 4px;font-size:16px;color:var(--phfk-green-deep)}
 .phfk-perm-role-readonly p{margin:0;font-size:11.5px;line-height:1.5;color:var(--phfk-muted)}
+
+.phfk-badge-warning{background:var(--phfk-warning-bg);color:var(--phfk-warning);border:1px solid var(--phfk-warning-border);font-size:9.5px;padding:3px 8px;margin-left:8px;vertical-align:middle}
+
+.phfk-perm-scope-readout{border:1px solid var(--phfk-info-border);background:var(--phfk-info-bg);border-radius:12px;padding:14px}
+.phfk-perm-scope-readout > span{display:block;font-size:12.5px;font-weight:800;color:var(--phfk-green-deep);margin-bottom:9px}
+.phfk-perm-scope-readout-row{opacity:.55;padding:5px 2px;cursor:default}
+.phfk-perm-scope-readout-row.is-active{opacity:1;font-weight:800;color:var(--phfk-info)}
+.phfk-perm-scope-hint{margin:6px 2px 0;font-size:10.8px;line-height:1.5;color:#4c6f96}
+.phfk-perm-scope-readout .phfk-perm-subordinate{margin-top:12px;background:#fff}
+
+.phfk-perm-income-check{font-weight:800;color:var(--phfk-warning)}
+.phfk-perm-income-helper{margin:6px 2px 0;font-size:11px;line-height:1.5;color:var(--phfk-muted)}
 
 .phfk-perm-picker-filters{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:10px}
 .phfk-perm-picker-filters .phfk-input{height:38px;font-size:11px}
@@ -125,7 +140,7 @@
   .phfk-perm-picker-filters{grid-template-columns:1fr}
   .phfk-perm-subordinate-row{grid-template-columns:18px auto 1fr;gap:8px}
   .phfk-perm-subordinate-dept{display:none}
-  .phfk-perm-role-options{grid-template-columns:repeat(2,1fr)}
+  .phfk-perm-role-cards{grid-template-columns:repeat(2,1fr)}
   .phfk-form-actions{position:sticky;bottom:0;background:#fff;padding:10px 0;margin:0 -1px;box-shadow:0 -6px 14px rgba(20,60,45,.06)}
   .phfk-form-actions .phfk-btn-primary{width:100%}
 }
