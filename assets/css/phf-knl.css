@@ -146,7 +146,7 @@
 
 /* KNL 1.50.0 — grade standard, effective versions and reference income. */
 .phfk-foundation-select{max-width:520px;margin-bottom:14px}.phfk-grade-table select{min-width:88px}.phfk-foundation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phfk-foundation-kpis .phfk-panel{margin:0;padding:16px}.phfk-foundation-kpis small,.phfk-foundation-kpis b{display:block}.phfk-foundation-kpis small{color:var(--phfk-muted);font-size:10px;font-weight:800;letter-spacing:.07em}.phfk-foundation-kpis b{margin-top:7px;color:var(--phfk-green-deep);font-size:25px}.phfk-income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}.phfk-income-summary>div{padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#f8fbf9;display:flex;flex-direction:column;justify-content:center}.phfk-income-summary small,.phfk-income-summary b{display:block}.phfk-income-summary small{color:var(--phfk-muted);font-size:10px;font-weight:800}.phfk-income-summary b{margin-top:6px;color:var(--phfk-green-deep);font-size:17px}
-.phfk-income-card .phfk-income-summary{grid-template-columns:1.5fr 1fr 1fr 1.1fr}
+.phfk-income-card .phfk-income-summary{grid-template-columns:repeat(4,1fr)}
 @media(max-width:760px){.phfk-income-card .phfk-income-summary{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}}
 .phfk-income-picker{max-width:920px}.phfk-income-picker>.phfk-field{max-width:520px}.phfk-income-targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.phfk-income-targets>button{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;color:var(--phfk-text);text-align:left;cursor:pointer}.phfk-income-targets>button:hover,.phfk-income-targets>button:focus-visible{border-color:var(--phfk-green);background:#f2faf6}.phfk-income-targets span,.phfk-income-targets small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phfk-income-targets span{color:var(--phfk-green-deep);font-weight:700}.phfk-income-targets small{color:var(--phfk-muted)}.phfk-income-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media(max-width:900px){.phfk-domain-tabs{width:100%;overflow-x:auto}.phfk-domain-tabs button{white-space:nowrap}.phfk-foundation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -332,3 +332,55 @@
 .phfk-comp-history-meta{margin:0 0 4px;color:var(--phfk-muted);font-size:10.5px}
 .phfk-comp-history-reason{margin:0 0 4px;color:#5f756b;font-size:11px}
 .phfk-comp-history-actor{margin:0;color:var(--phfk-muted);font-size:10.5px}
+
+/* Màn cá nhân KNL — visual hierarchy polish 2026-08-12 (theo visual target
+ * PHF đã chốt): xanh PHF = hiện tại/đang áp dụng, cam/vàng nhạt = bậc kế
+ * tiếp/tham chiếu/mục tiêu, trắng/xám = nền/lịch sử. Chỉ đổi màu sắc/spacing
+ * để tạo hierarchy — KHÔNG đổi cấu trúc dữ liệu/business logic. */
+:root{--phfk-amber:#e2b455;--phfk-amber-deep:#8b681f;--phfk-amber-soft:#fff8e8}
+
+/* 1. Bậc & Cơ cấu thu nhập hiện tại — tone xanh PHF nhẹ, bậc hiện tại nổi rõ */
+.phfk-income-card{border-left:3px solid var(--phfk-green)}
+.phfk-comp-summary-highlight{background:var(--phfk-green-soft);border-radius:9px}
+.phfk-comp-summary-highlight small{color:var(--phfk-green-deep)}
+.phfk-comp-summary-highlight b{color:var(--phfk-green-deep);font-size:19px}
+.phfk-comp-summary-highlight.is-next{background:var(--phfk-amber-soft)}
+.phfk-comp-summary-highlight.is-next small{color:var(--phfk-amber-deep)}
+.phfk-comp-summary-highlight.is-next b{color:var(--phfk-amber-deep);font-size:19px}
+.phfk-comp-final-total{background:var(--phfk-green-soft)!important;margin:0 -4px;padding:10px 4px!important;border-radius:8px}
+.phfk-comp-final-total b{color:var(--phfk-green-deep);font-size:13.5px}
+
+/* 2. Thu nhập tham chiếu Bậc lương kế tiếp — tone cam/vàng nhạt (tương lai,
+ * không phải đang hưởng). Viền + tiêu đề + tổng dùng cùng 1 accent cam. */
+.phfk-comp-next-grade{border:1px solid #f0e0b8;border-left:3px solid var(--phfk-amber);background:linear-gradient(180deg,var(--phfk-amber-soft) 0,#fff 90px)}
+.phfk-comp-next-grade .phfk-section-head h2{color:var(--phfk-amber-deep)}
+.phfk-comp-next-grade .phfk-section-head{flex-wrap:wrap}
+.phfk-comp-next-total{background:var(--phfk-amber-soft)!important;margin:0 -4px;padding:10px 4px!important;border-radius:8px}
+.phfk-comp-next-total b{color:var(--phfk-amber-deep);font-size:13.5px}
+
+/* 3. KNL đang áp dụng — header cột "Bậc X · quan hệ" + tint rất nhẹ cả cột,
+ * không tô đậm toàn bảng. Xanh cho Hiện tại, cam nhạt cho Kế tiếp. */
+.phfk-comp-col-grade{font-weight:800;font-size:12.5px}
+.phfk-comp-matrix th.phfk-comp-matrix-col.is-current{background:var(--phfk-green-soft)}
+.phfk-comp-matrix th.phfk-comp-matrix-col.is-next{background:var(--phfk-amber-soft)}
+.phfk-comp-matrix th.phfk-comp-matrix-col.is-current .phfk-comp-col-grade{color:var(--phfk-green-deep)}
+.phfk-comp-matrix th.phfk-comp-matrix-col.is-next .phfk-comp-col-grade{color:var(--phfk-amber-deep)}
+.phfk-comp-matrix td.phfk-comp-content-cell.is-current,.phfk-comp-matrix td.phfk-comp-cell-neutral.is-current{background:rgba(99,173,48,.045)}
+.phfk-comp-matrix td.phfk-comp-content-cell.is-next,.phfk-comp-matrix td.phfk-comp-cell-neutral.is-next{background:rgba(226,180,85,.09)}
+.phfk-comp-matrix-toolbar .phfk-btn-secondary{font-size:10.8px;padding:0 11px;min-height:32px}
+
+/* 4. Mục tiêu hướng tới Bậc kế tiếp — cùng semantic cam/vàng với "kế tiếp" */
+.phfk-competency-target{border-left:3px solid var(--phfk-amber)}
+.phfk-competency-target .phfk-section-head h2{color:var(--phfk-amber-deep)}
+.phfk-target-detail-toggle summary{color:var(--phfk-amber-deep)}
+
+/* 5. Lịch sử — giảm trọng lượng thị giác so với current/next; record hiện
+ * hành (is_active=true) giữ accent xanh, còn lại trung tính. */
+.phfk-history-panel{box-shadow:none;background:#fbfdfc}
+.phfk-history-panel h2{font-size:15px}
+.phfk-comp-history-dot{width:9px;height:9px;border-radius:50%;background:#c4d1cb;margin-top:6px;flex:0 0 auto}
+.phfk-comp-history-dot.is-current{background:var(--phfk-green)}
+
+@media(max-width:560px){
+  .phfk-comp-next-grade .phfk-section-head{align-items:flex-start}
+}

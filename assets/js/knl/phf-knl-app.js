@@ -1349,14 +1349,19 @@ function compensationNextGradeHtml(){
   }
   var p=n.preview;
   if(!p||!n.nextGrade)return '';
-  var nextLabel=n.nextGrade.code,totalPosition=p.baseSalary+p.hqcv;
+  var nextLabel=n.nextGrade.code,curLabel=(n.currentGrade&&n.currentGrade.code)||'—';
+  var totalPosition=p.baseSalary+p.hqcv;
+  var totalReference=totalPosition+(p.isProfessionalAllowance?p.professionalAllowance:0)+(p.isManagementAllowance?p.managementAllowance:0);
+  var chip='<span class="phfk-comp-block-tag is-next">BẬC TIẾP THEO: '+esc(nextLabel)+'</span>';
+  var summary='<div class="phfk-income-summary"><div><small>NGẠCH</small><b>'+esc((n.currentGrade&&(n.currentGrade.ladderName||n.currentGrade.ladderCode))||'—')+'</b></div><div class="phfk-comp-summary-highlight is-next"><small>BẬC KẾ TIẾP</small><b>'+esc(nextLabel)+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc(curLabel)+'</b></div></div>';
   var rows='<tr><td>1. Lương cơ bản (LCB)</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.baseSalary)+'</td></tr>'+
     '<tr><td>2. Hệ số chất lượng công việc (HQCV)</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.hqcv)+'</td></tr>'+
     '<tr class="phfk-comp-parts-subtotal"><td colspan="2">Tổng lương vị trí (1+2)</td><td><b>'+money(totalPosition)+'</b></td></tr>'+
     (p.isProfessionalAllowance?'<tr><td>3. Phụ cấp nghiệp vụ</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.professionalAllowance)+'</td></tr>':'')+
-    (p.isManagementAllowance?'<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.managementAllowance)+'</td></tr>':'');
-  return '<section class="phfk-panel phfk-comp-next-grade">'+head+
-    '<p class="phfk-batch-note">Xem trước mức tham chiếu tại <b>Bậc '+esc(nextLabel)+'</b> (đang ở Bậc '+esc((n.currentGrade&&n.currentGrade.code)||'—')+') — chỉ hiển thị các khoản bạn đang thực sự được hưởng ở bậc hiện tại. Đây là preview tham khảo, không phải quyết định gán bậc hay cam kết thu nhập.</p>'+
+    (p.isManagementAllowance?'<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc kế tiếp ('+esc(nextLabel)+')</td><td>'+money(p.managementAllowance)+'</td></tr>':'')+
+    '<tr class="phfk-comp-next-total"><td colspan="2"><b>Tổng thu nhập tham chiếu (Bậc '+esc(nextLabel)+')</b></td><td><b>'+money(totalReference)+'</b></td></tr>';
+  return '<section class="phfk-panel phfk-comp-next-grade"><div class="phfk-section-head"><h2>Thu nhập tham chiếu Bậc lương kế tiếp</h2>'+chip+'</div>'+summary+
+    '<p class="phfk-batch-note">Xem trước mức tham chiếu tại <b>Bậc '+esc(nextLabel)+'</b> (đang ở Bậc '+esc(curLabel)+') — chỉ hiển thị các khoản bạn đang thực sự được hưởng ở bậc hiện tại. Đây là preview tham khảo, không phải quyết định gán bậc hay cam kết thu nhập.</p>'+
     '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Khoản mục</th><th>Cách xác định</th><th>Mức tiền (VND)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '</section>';
 }
@@ -1368,11 +1373,12 @@ function incomeHtml(){
   var head='<div class="phfk-page-head"><div><small>KNL · HỒ SƠ CÁ NHÂN</small><h1>'+esc((p&&p.fullName)||current.employeeName||current.employeeCode)+' · '+esc(current.employeeCode)+'</h1><p>Hồ sơ cá nhân, Bậc & Cơ cấu thu nhập và Khung năng lực đang áp dụng</p></div><div class="phfk-income-head-actions"><span class="phfk-source-status is-ready">Đang áp dụng</span>'+change+'</div></div>';
   var identity=profileCardHtml(p,current);
   var gradeRef=esc((current.ladderCode||'')+'-'+(current.gradeCode||''));
+  var cardHead='<div class="phfk-section-head"><h2>Bậc & Cơ cấu thu nhập hiện tại</h2><span class="phfk-source-status is-ready">Đang áp dụng</span></div>';
   var card;
   if(!isOfficial){
-    card='<section class="phfk-panel phfk-income-card"><div class="phfk-income-summary"><div><small>LOẠI</small><b>Thử việc</b></div><div><small>KỲ LƯƠNG ÁP DỤNG</small><b>'+esc(current.payrollPeriod)+'</b></div><div><small>MỨC LƯƠNG THỬ VIỆC</small><b>'+money(current.probationAmount)+'</b></div></div><p class="phfk-batch-note">Nhân sự thử việc chưa gán Ngạch/Bậc/PC; không dựng cơ cấu chính thức giả định.</p></section>';
+    card='<section class="phfk-panel phfk-income-card">'+cardHead+'<div class="phfk-income-summary"><div><small>LOẠI</small><b>Thử việc</b></div><div><small>KỲ LƯƠNG ÁP DỤNG</small><b>'+esc(current.payrollPeriod)+'</b></div><div><small>MỨC LƯƠNG THỬ VIỆC</small><b>'+money(current.probationAmount)+'</b></div></div><p class="phfk-batch-note">Nhân sự thử việc chưa gán Ngạch/Bậc/PC; không dựng cơ cấu chính thức giả định.</p></section>';
   }else{
-    card='<section class="phfk-panel phfk-income-card"><div class="phfk-income-summary"><div><small>NGẠCH</small><b>'+esc(current.ladderName||current.ladderCode||'—')+'</b></div><div><small>BẬC</small><b>'+esc(current.gradeCode||'—')+'</b></div><div><small>VERSION</small><b>v'+esc(current.versionNumber||'—')+'</b></div><div><small>KỲ LƯƠNG ÁP DỤNG</small><b>'+esc(current.payrollPeriod)+'</b></div></div>'+
+    card='<section class="phfk-panel phfk-income-card">'+cardHead+'<div class="phfk-income-summary"><div><small>NGẠCH</small><b>'+esc(current.ladderName||current.ladderCode||'—')+'</b></div><div class="phfk-comp-summary-highlight"><small>BẬC</small><b>'+esc(current.gradeCode||'—')+'</b></div><div><small>VERSION</small><b>v'+esc(current.versionNumber||'—')+'</b></div><div><small>KỲ LƯƠNG ÁP DỤNG</small><b>'+esc(current.payrollPeriod)+'</b></div></div>'+
       '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Khoản mục</th><th>Cách xác định</th><th>Mức tiền (VND)</th><th>Ghi chú</th></tr></thead><tbody>'+
       '<tr><td>1. Lương cơ bản (LCB)</td><td>Theo ngạch-bậc ('+gradeRef+')</td><td>'+money(current.baseSalary)+'</td><td>Cấu hình hệ thống</td></tr>'+
       '<tr><td>2. Hệ số chất lượng công việc (HQCV)</td><td>Theo ngạch-bậc ('+gradeRef+')</td><td>'+money(current.hqcv)+'</td><td>Cấu hình hệ thống</td></tr>'+
@@ -1381,10 +1387,10 @@ function incomeHtml(){
       (current.isManagementAllowance?'<tr><td>4. Phụ cấp quản lý/trách nhiệm</td><td>Theo ngạch-bậc ('+gradeRef+', chuẩn '+money(current.standardManagementAllowance)+')</td><td>'+money(current.managementAllowance)+'</td><td></td></tr>':'')+
       (current.isMealAllowance?'<tr><td>5. Tiền cơm</td><td>Theo cấu hình gán (gợi ý '+money(MEAL_SUGGESTION)+')</td><td>'+money(current.mealAllowance)+'</td><td></td></tr>':'')+
       ((current.extraAllowances||[]).length?'<tr><td>6. PC khác</td><td>Theo cấu hình gán (tối đa 3 khoản)</td><td>'+current.extraAllowances.map(function(x){return esc(x.name)+': '+money(x.amount);}).join('<br>')+'</td><td></td></tr>':'')+
-      '<tr class="phfk-comp-parts-subtotal"><td colspan="2"><b>Tổng cơ cấu thu nhập chính thức</b></td><td><b>'+money(current.totalReferenceIncome)+'</b></td><td></td></tr>'+
+      '<tr class="phfk-comp-final-total"><td colspan="2"><b>Tổng thu nhập hiện tại</b></td><td><b>'+money(current.totalReferenceIncome)+'</b></td><td></td></tr>'+
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
   }
-  var history='<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(formatDateTimeVN(h.changedAt))+'</td><td>'+esc(friendlyActorLabel(h.changedByName))+'</td></tr>';}).join('')+'</tbody></table></div></section>';
+  var history='<section class="phfk-panel phfk-history-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi cơ cấu thu nhập</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(formatDateTimeVN(h.changedAt))+'</td><td>'+esc(friendlyActorLabel(h.changedByName))+'</td></tr>';}).join('')+'</tbody></table></div></section>';
   return nav+head+identity+card+compensationNextGradeHtml()+competencyStandardHtml()+competencyHistoryHtml()+history;
 }
 /* Khối "KNL đang áp dụng" — gắn vào màn cá nhân hiện có (Bậc & Cơ cấu thu
@@ -1417,10 +1423,13 @@ function buildCompetencyMatrixGroups(columns){
 function competencyMatrixHtml(columns){
   var groups=buildCompetencyMatrixGroups(columns);
   if(!groups.length)return '<p class="phfk-empty">Chưa có tiêu chuẩn chi tiết cho các bậc này.</p>';
-  /* Header gọn: chỉ nhãn quan hệ (Hiện tại/Tiếp theo/Bậc xa hơn) + tên bậc —
-   * bỏ badge "MỨC ĐỘ N" lặp lại gây rối mắt (đã đủ ngữ nghĩa qua tên Bậc N). */
+  /* Header: "Bậc X · QUAN HỆ" gộp 1 khối, tone nền nhẹ theo accentClass để
+   * phân biệt ngay Hiện tại (xanh PHF)/Kế tiếp (cam nhạt)/Bậc xa hơn (xám) —
+   * không bịa text "Đạt ✓" nào (chưa có canonical assessment, xem wording
+   * safeguard ở buildCompetencyTargetDiff). Cell nội dung cũng nhận
+   * col.accentClass để cả cột có tint rất nhẹ, không tô đậm toàn bảng. */
   var head='<tr><th class="phfk-comp-matrix-label-col">Nhóm / Năng lực</th>'+columns.map(function(col){
-    return '<th class="phfk-comp-matrix-col '+col.accentClass+'"><span class="phfk-comp-block-tag '+col.accentClass+'">'+esc(col.tag)+'</span><br>'+esc(col.label)+'</th>';
+    return '<th class="phfk-comp-matrix-col '+col.accentClass+'"><span class="phfk-comp-col-grade">'+esc(col.label)+'</span> <span class="phfk-comp-block-tag '+col.accentClass+'">'+esc(col.tag)+'</span></th>';
   }).join('')+'</tr>';
   var body=groups.map(function(g){
     return '<tr class="phfk-comp-matrix-group-row"><td colspan="'+(columns.length+1)+'">'+esc(g.name)+'</td></tr>'+
@@ -1428,8 +1437,8 @@ function competencyMatrixHtml(columns){
         return '<tr><td data-label="Năng lực">'+esc(it.name)+'</td>'+columns.map(function(col){
           var cellLabel=col.tag+(col.label?' — '+col.label:'');
           var cell=it.cells[col.key];
-          if(!cell)return '<td class="phfk-comp-cell-neutral" data-label="'+esc(cellLabel)+'">Không áp dụng ở bậc này</td>';
-          return '<td class="phfk-comp-content-cell" data-label="'+esc(cellLabel)+'">'+formatLevelContentHtml(cell.content)+'</td>';
+          if(!cell)return '<td class="phfk-comp-cell-neutral '+col.accentClass+'" data-label="'+esc(cellLabel)+'">Không áp dụng ở bậc này</td>';
+          return '<td class="phfk-comp-content-cell '+col.accentClass+'" data-label="'+esc(cellLabel)+'">'+formatLevelContentHtml(cell.content)+'</td>';
         }).join('')+'</tr>';
       }).join('');
   }).join('');
@@ -1658,7 +1667,7 @@ function competencyHistoryHtml(){
     var before=idx>0?sorted[idx-1]:null;
     var bg=before?before.gradeSnapshot||{}:null,ag=p.gradeSnapshot||{};
     var fromLabel=bg?(bg.gradeCode||'—'):'—',toLabel=ag.gradeCode||'—';
-    return '<div class="phfk-comp-history-item"><div class="phfk-comp-history-dot"></div><div class="phfk-comp-history-body">'+
+    return '<div class="phfk-comp-history-item"><div class="phfk-comp-history-dot'+(p.isActive?' is-current':'')+'"></div><div class="phfk-comp-history-body">'+
       '<div class="phfk-comp-history-head"><b>'+esc(formatDateVN(p.effectiveFrom))+'</b><span class="phfk-source-status '+(p.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(p.status))+'</span></div>'+
       '<p class="phfk-comp-history-transition">'+esc(competencyHistoryLabel(before,p))+': <b>'+esc(fromLabel)+'</b> → <b>'+esc(toLabel)+'</b></p>'+
       '<p class="phfk-comp-history-meta">'+esc(ag.frameworkName||'')+(ag.versionNumber?' · v'+esc(ag.versionNumber):'')+'</p>'+
@@ -1666,7 +1675,7 @@ function competencyHistoryHtml(){
       '<p class="phfk-comp-history-actor">Người thực hiện: '+esc(friendlyActorLabel(p.updatedByName||p.createdByName))+'</p>'+
       '</div></div>';
   }).reverse().join('');
-  return '<section class="phfk-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi bậc KNL</h2></div><div class="phfk-comp-history-timeline">'+rows+'</div></section>';
+  return '<section class="phfk-panel phfk-history-panel"><div class="phfk-section-head"><h2>Lịch sử thay đổi bậc KNL</h2></div><div class="phfk-comp-history-timeline">'+rows+'</div></section>';
 }
 function bindIncomeSection(root){
   bindCompensationDomainNav(root);
