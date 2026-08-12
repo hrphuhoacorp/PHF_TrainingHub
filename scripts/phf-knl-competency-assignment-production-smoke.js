@@ -77,10 +77,10 @@ async function realSession(employeeCode, roleOverride) {
   console.log('11. REGRESSION GUARD — PHF012 self-view (employeeId=' + phf012.employeeId + ' <> employeeCode=PHF012):', JSON.stringify({ hasAssignment: phf012Result.hasAssignment, currentGrade: phf012Result.currentGrade?.code, framework: phf012Result.framework?.code }), phf012Ok ? '— OK' : '— FAIL, bug tái diễn!');
   if (!phf012Ok) process.exitCode = 1;
 
-  // 12. furtherGrades — PHF012 (current B3, next B4, framework có B1-B5) phải có đúng furtherGrades=[B5]
+  // 12. allGrades — PHF012 (current B3, framework có B1-B5) phải trả đủ chuỗi B1..B5, không chỉ forward
   const phf012Standard = await lib.getKnlEmployeeCompetencyStandard(phf012, {});
-  const furtherOk = Array.isArray(phf012Standard.furtherGrades) && phf012Standard.furtherGrades.length === 1 && phf012Standard.furtherGrades[0].code === 'B5';
-  console.log('12. furtherGrades PHF012 (current B3, next B4):', JSON.stringify(phf012Standard.furtherGrades), furtherOk ? '— OK' : '— MISMATCH!');
+  const allGradesOk = Array.isArray(phf012Standard.allGrades) && phf012Standard.allGrades.map(g => g.code).join(',') === 'B1,B2,B3,B4,B5';
+  console.log('12. allGrades PHF012 (current B3):', JSON.stringify(phf012Standard.allGrades.map(g => g.code)), allGradesOk ? '— OK' : '— MISMATCH!');
 
   // 13. getKnlEmployeeCompetencyGradeStandard — self lấy đúng B5 (bậc xa hơn), tự resolve version từ assignment
   const g5 = await lib.getKnlEmployeeCompetencyGradeStandard(phf012, { gradeCode: 'B5' });

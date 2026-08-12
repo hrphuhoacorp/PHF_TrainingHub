@@ -164,7 +164,7 @@ async function run() {
   result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp2', employeeCode: 'EMP2' }));
   check(result.isMaxGrade === true && result.nextGrade === null && result.nextStandard === null, '3. Self (EMP2, B3 = bậc cao nhất của version test) -> isMaxGrade=true, nextGrade/nextStandard=null');
   check(result.assignment.status === 'CONFIRMED', '3b. assignment.status trả đúng CONFIRMED cho EMP2 (không lẫn PROVISIONAL)');
-  check(Array.isArray(result.furtherGrades) && result.furtherGrades.length === 0, '3c. EMP2 ở bậc cao nhất -> furtherGrades rỗng');
+  check(Array.isArray(result.allGrades) && result.allGrades.length === 3 && result.allGrades.map(g=>g.code).join(',')==='B1,B2,B3', '3c. allGrades trả đầy đủ chuỗi bậc thật của version (B1,B2,B3), không chỉ forward từ current');
 
   // 4. Self KHÔNG có assignment -> trạng thái rõ ràng, không lỗi
   result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp3', employeeCode: 'EMP3' }));
@@ -182,7 +182,7 @@ async function run() {
 
   // 7. "Xem thêm bậc" — EMP1 (current B1, next B2) phải có đúng 1 further grade B3
   result = await getKnlEmployeeCompetencyStandard(session('learner', { id: 'acct-emp1', employeeCode: 'EMP1' }));
-  check(Array.isArray(result.furtherGrades) && result.furtherGrades.length === 1 && result.furtherGrades[0].code === 'B3', '7a. EMP1 (current B1, next B2) -> furtherGrades = [B3] đúng thứ tự sort_order');
+  check(Array.isArray(result.allGrades) && result.allGrades.map(g=>g.code).join(',')==='B1,B2,B3', '7a. EMP1 (current B1, next B2) -> allGrades = [B1,B2,B3] đúng thứ tự sort_order, đủ cả bậc trước lẫn sau');
 
   // 8. getKnlEmployeeCompetencyGradeStandard: EMP1 lấy đúng standard của B3 (grade xa hơn), tự resolve version từ assignment
   let g3 = await getKnlEmployeeCompetencyGradeStandard(session('learner', { id: 'acct-emp1', employeeCode: 'EMP1' }), { gradeCode: 'B3' });

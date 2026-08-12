@@ -1261,7 +1261,14 @@ function splitStructuredContentLines(content){
     if(lines.every(function(l){return /^[-•]\s+/.test(l);}))return lines.map(function(l){return l.replace(/^[-•]\s+/,'');});
     return lines;
   }
-  return [raw];
+  /* 1 dòng duy nhất: vẫn bóc prefix liệt kê Ở ĐẦU CHUỖI nếu có (leftover
+   * enumeration artifact khi chỉ còn 1 yêu cầu, vd "1. Tiết kiệm được chi
+   * phí..." — PHF chốt phải hiện "✓ Tiết kiệm được chi phí..." chứ không
+   * còn "1."). Regex yêu cầu marker + khoảng trắng NGAY ĐẦU chuỗi nên không
+   * đụng dash/số nằm giữa câu (vd "Từ 1 - 3 năm", "CCDC - cơ sở vật chất",
+   * "...Tết - Trung Thu - 8/3." đều không khớp vì không bắt đầu bằng marker). */
+  var single=lines[0]||raw;
+  return [single.replace(/^\d+[.)]\s+/,'').replace(/^[-•]\s+/,'')];
 }
 /* Visual language DUY NHẤT cho mọi requirement content trong comparison
  * matrix (mục C của batch UI/UX delta): 1 ý -> 1 dòng ✓; nhiều ý -> mỗi ý 1
@@ -1387,7 +1394,7 @@ function competencyMatrixHtml(columns){
   if(!groups.length)return '<p class="phfk-empty">Chưa có tiêu chuẩn chi tiết cho các bậc này.</p>';
   /* Header gọn: chỉ nhãn quan hệ (Hiện tại/Tiếp theo/Bậc xa hơn) + tên bậc —
    * bỏ badge "MỨC ĐỘ N" lặp lại gây rối mắt (đã đủ ngữ nghĩa qua tên Bậc N). */
-  var head='<tr><th>Nhóm / Năng lực</th>'+columns.map(function(col){
+  var head='<tr><th class="phfk-comp-matrix-label-col">Nhóm / Năng lực</th>'+columns.map(function(col){
     return '<th class="phfk-comp-matrix-col '+col.accentClass+'"><span class="phfk-comp-block-tag '+col.accentClass+'">'+esc(col.tag)+'</span><br>'+esc(col.label)+'</th>';
   }).join('')+'</tr>';
   var body=groups.map(function(g){
@@ -1408,11 +1415,28 @@ function competencyMatrixHtml(columns){
  * further chỉ có code/number/label, standard=null cho tới khi thật sự cần
  * (lazy-load khi trượt cửa sổ tới đó) — KHÔNG fetch trước toàn bộ để tránh
  * query thừa cho các bậc user có thể không bao giờ xem. */
+/* Chuỗi bậc = TOÀN BỘ allGrades thật của version (cả trước lẫn sau current) —
+ * standard chỉ có sẵn cho current/next (đã fetch cùng lúc); các bậc còn lại
+ * standard=null, lazy-load khi user trượt cửa sổ tới đó qua đúng
+ * getKnlEmployeeCompetencyGradeStandard (tự resolve version từ assignment,
+ * không tin gradeCode/version từ đâu khác). Không invent bậc ngoài allGrades. */
 function buildCompetencyGradeSequence(c){
-  var seq=[{code:c.currentGrade.code,number:c.currentGrade.number,label:c.currentGrade.label,standard:c.currentStandard,isRealCurrent:true}];
-  if(c.nextGrade)seq.push({code:c.nextGrade.code,number:c.nextGrade.number,label:c.nextGrade.label,standard:c.nextStandard,isRealNext:true});
-  (c.furtherGrades||[]).forEach(function(g){seq.push({code:g.code,number:g.number,label:g.label,standard:null});});
-  return seq;
+  return (c.allGrades||[]).map(function(g){
+    var node={code:g.code,number:g.number,label:g.label,standard:null};
+    if(g.code===c.currentGrade.code){node.standard=c.currentStandard;node.isRealCurrent=true;}
+    else if(c.nextGrade&&g.code===c.nextGrade.code){node.standard=c.nextStandard;node.isRealNext=true;}
+    return node;
+  });
+}
+/* Nhãn theo QUAN HỆ THẬT với current/next của nhân sự (không phụ thuộc vị
+ * trí cửa sổ đang xem) — đúng 4 trạng thái đã chốt: Hiện tại / Kế tiếp /
+ * Bậc trước (mọi bậc nhỏ hơn current) / Bậc tiếp theo (mọi bậc lớn hơn next,
+ * hoặc lớn hơn current nếu không có next vì đang ở bậc cao nhất). */
+function competencyGradeTag(node,c){
+  if(node.code===c.currentGrade.code)return{tag:'Hiện tại',accentClass:'is-current'};
+  if(c.nextGrade&&node.code===c.nextGrade.code)return{tag:'Kế tiếp',accentClass:'is-next'};
+  if(Number(node.number)<Number(c.currentGrade.number))return{tag:'Bậc trước',accentClass:'is-previous'};
+  return{tag:'Bậc tiếp theo',accentClass:'is-further'};
 }
 function competencyStandardHtml(){
   var c=foundationState.competency;
@@ -1423,48 +1447,43 @@ function competencyStandardHtml(){
   var head='<div class="phfk-section-head"><h2>KNL đang áp dụng</h2><span class="phfk-source-status '+(a.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(a.status))+'</span></div>';
   var summary='<div class="phfk-income-summary"><div><small>KHUNG NĂNG LỰC</small><b>'+esc((c.framework&&c.framework.name)||'—')+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'—')+'</b></div><div><small>HIỆU LỰC TỪ</small><b>'+esc(formatDateVN(a.effectiveFrom))+'</b></div></div>';
 
-  if(c.isMaxGrade){
-    return '<section class="phfk-panel phfk-competency-panel">'+head+summary+'<p class="phfk-batch-note">Bạn đang ở bậc cao nhất của khung năng lực hiện tại.</p></section>';
+  var seq=foundationState.competencyGradeSequence||[];
+  if(seq.length<2){
+    return '<section class="phfk-panel phfk-competency-panel">'+head+summary+'<p class="phfk-batch-note">Khung năng lực hiện chỉ có 1 bậc, không có bậc liền kề để so sánh.</p></section>';
   }
-
-  var seq=foundationState.competencyGradeSequence;
   var w=foundationState.competencyWindowStart||0;
   var left=seq[w],right=seq[w+1];
-  function tagFor(node){
-    if(node.isRealCurrent)return{tag:'Hiện tại',accentClass:'is-current'};
-    if(node.isRealNext)return{tag:'Tiếp theo',accentClass:'is-next'};
-    return{tag:'Bậc xa hơn',accentClass:'is-further'};
-  }
-  var leftTag=tagFor(left),rightTag=tagFor(right);
+  var leftTag=competencyGradeTag(left,c),rightTag=competencyGradeTag(right,c);
   var columns=[
     {key:'left',tag:leftTag.tag,accentClass:leftTag.accentClass,label:left.label||left.code,standard:left.standard},
     {key:'right',tag:rightTag.tag,accentClass:rightTag.accentClass,label:right.label||right.code,standard:right.standard}
   ];
 
   var backBtn=w>0
-    ?'<button type="button" class="phfk-btn-secondary" data-knl-comp-back>← Quay lại '+esc(seq[w-1].label||seq[w-1].code)+' ↔ '+esc(seq[w].label||seq[w].code)+'</button>'
-    :'';
+    ?'<button type="button" class="phfk-btn-secondary" data-knl-comp-nav="back" data-knl-comp-nav-grade="'+esc(seq[w-1].code)+'">+ Xem '+esc(seq[w-1].label||seq[w-1].code)+'</button>'
+    :'<span></span>';
   var moreBtn=(w+2<seq.length)
-    ?'<button type="button" class="phfk-btn-secondary" data-knl-comp-more data-knl-comp-more-grade="'+esc(seq[w+2].code)+'">+ Xem '+esc(seq[w+2].label||seq[w+2].code)+'</button>'
-    :'';
+    ?'<button type="button" class="phfk-btn-secondary" data-knl-comp-nav="forward" data-knl-comp-nav-grade="'+esc(seq[w+2].code)+'">+ Xem '+esc(seq[w+2].label||seq[w+2].code)+'</button>'
+    :'<span></span>';
 
   return '<section class="phfk-panel phfk-competency-panel">'+head+summary+
     '<div class="phfk-comp-matrix-toolbar">'+backBtn+moreBtn+'</div>'+
     competencyMatrixHtml(columns)+
     '</section>';
 }
-async function loadCompetencyExtraGrade(root,gradeCode){
-  var btn=root.querySelector('[data-knl-comp-more]');
+async function loadCompetencyGradeNav(root,direction,gradeCode){
+  var btn=root.querySelector('[data-knl-comp-nav="'+direction+'"]');
   if(btn){btn.disabled=true;btn.textContent='Đang tải…';}
   try{
     var seq=foundationState.competencyGradeSequence,w=foundationState.competencyWindowStart||0;
-    var node=seq[w+2];
+    var targetIdx=direction==='forward'?w+2:w-1;
+    var node=seq[targetIdx];
     if(node&&!node.standard){
       var queryCode=String(new URL(location.href).searchParams.get('employee_code')||'').trim().toUpperCase();
       var result=await apiPost('getKnlEmployeeCompetencyGradeStandard',Object.assign({gradeCode:gradeCode},queryCode?{employeeCode:queryCode}:{}));
       node.standard=result.standard;
     }
-    foundationState.competencyWindowStart=w+1;
+    foundationState.competencyWindowStart=direction==='forward'?w+1:w-1;
     var body=root.querySelector('[data-knl-body]');
     body.innerHTML=incomeHtml();
     bindIncomeSection(root);
@@ -1473,14 +1492,10 @@ async function loadCompetencyExtraGrade(root,gradeCode){
   }
 }
 function bindCompetencyMatrix(root){
-  var moreBtn=root.querySelector('[data-knl-comp-more]');
-  if(moreBtn)moreBtn.addEventListener('click',function(){loadCompetencyExtraGrade(root,moreBtn.getAttribute('data-knl-comp-more-grade'));});
-  var backBtn=root.querySelector('[data-knl-comp-back]');
-  if(backBtn)backBtn.addEventListener('click',function(){
-    foundationState.competencyWindowStart=Math.max(0,(foundationState.competencyWindowStart||0)-1);
-    var body=root.querySelector('[data-knl-body]');
-    body.innerHTML=incomeHtml();
-    bindIncomeSection(root);
+  root.querySelectorAll('[data-knl-comp-nav]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      loadCompetencyGradeNav(root,btn.getAttribute('data-knl-comp-nav'),btn.getAttribute('data-knl-comp-nav-grade'));
+    });
   });
 }
 /* Lịch sử thay đổi bậc KNL — KHÔNG PHẢI Salary history. Dùng đúng
@@ -1537,8 +1552,15 @@ async function renderIncome(root,isAdmin,capabilities){
     foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);
     try{
       foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);
-      if(foundationState.competency&&foundationState.competency.hasAssignment&&!foundationState.competency.isMaxGrade){
-        foundationState.competencyGradeSequence=buildCompetencyGradeSequence(foundationState.competency);
+      if(foundationState.competency&&foundationState.competency.hasAssignment){
+        var seqBuilt=buildCompetencyGradeSequence(foundationState.competency);
+        foundationState.competencyGradeSequence=seqBuilt;
+        var curIdx=seqBuilt.findIndex(function(n){return n.isRealCurrent;});
+        /* Mặc định: current↔next (curIdx). Nếu đang ở bậc cao nhất (không có
+         * next) thì không có gì để hiện bên phải -> mặc định lùi 1 bước để
+         * vẫn hiện được 1 cặp so sánh (previous↔current), đúng yêu cầu "current
+         * = B5 -> mặc định B4↔B5 HIỆN TẠI". */
+        foundationState.competencyWindowStart=foundationState.competency.isMaxGrade?Math.max(0,curIdx-1):curIdx;
       }
     }catch(ce){foundationState.competency=null;}
     try{foundationState.competencyHistory=await apiPost('listKnlEmployeeCompetencyHistory',queryCode?{employeeCode:queryCode}:undefined);}catch(he){foundationState.competencyHistory=null;}
