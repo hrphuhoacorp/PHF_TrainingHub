@@ -1410,6 +1410,106 @@ function competencyMatrixHtml(columns){
   }).join('');
   return '<div class="phfk-table-wrap phfk-comp-matrix-wrap"><table class="phfk-table phfk-comp-matrix"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
 }
+/* "Mục tiêu hướng tới bậc kế tiếp" — SO SÁNH TIÊU CHUẨN currentStandard vs
+ * nextStandard theo ĐÚNG item.id thật (cùng pattern buildCompetencyMatrixGroups),
+ * hoàn toàn client-side, KHÔNG gọi API mới. Đây là so tiêu chuẩn văn bản
+ * (requiredLevelNumber/content), TUYỆT ĐỐI không phải kết luận nhân viên đã
+ * "đạt"/"chưa đạt" — chưa có canonical assessment (xem Implementation Gate
+ * đã duyệt). 4 nhánh: raise (next>current) / hold (next=current) / new (item
+ * chỉ có ở next) / changed (next<current hoặc bất thường, trung tính, không
+ * diễn giải "giảm chuẩn"). Item chỉ có ở current (không có ở next) không
+ * thuộc mục tiêu bậc kế tiếp nên bị loại khỏi diff này. */
+function buildCompetencyTargetDiff(c){
+  var next=c.nextStandard;
+  if(!next||!next.groups)return null;
+  var cur=c.currentStandard;
+  var groupOrder=[],groupById={};
+  function ensureGroup(g){
+    if(!groupById[g.id]){groupById[g.id]={id:g.id,name:g.name,itemOrder:[],itemById:{}};groupOrder.push(g.id);}
+    return groupById[g.id];
+  }
+  (cur&&cur.groups||[]).forEach(function(g){
+    var bucket=ensureGroup(g);
+    g.items.forEach(function(it){
+      if(!bucket.itemById[it.id]){bucket.itemById[it.id]={curItem:it,nextItem:null};bucket.itemOrder.push(it.id);}
+    });
+  });
+  next.groups.forEach(function(g){
+    var bucket=ensureGroup(g);
+    g.items.forEach(function(it){
+      if(!bucket.itemById[it.id]){bucket.itemById[it.id]={curItem:null,nextItem:null};bucket.itemOrder.push(it.id);}
+      bucket.itemById[it.id].nextItem=it;
+    });
+  });
+  var counts={raise:0,hold:0,new:0,changed:0};
+  var groups=groupOrder.map(function(gid){
+    var g=groupById[gid];
+    var items=g.itemOrder.map(function(iid){
+      var e=g.itemById[iid],curIt=e.curItem,nextIt=e.nextItem;
+      if(!nextIt)return null;
+      var nextLevel=Number(nextIt.requiredLevelNumber||0);
+      var kind,curLevel=null,curLabel=null;
+      if(!curIt)kind='new';
+      else{
+        curLevel=Number(curIt.requiredLevelNumber||0);curLabel=curIt.requiredColumnLabel||('Mức '+curLevel);
+        if(nextLevel>curLevel)kind='raise';
+        else if(nextLevel===curLevel)kind='hold';
+        else kind='changed';
+      }
+      counts[kind]++;
+      return {id:iid,name:nextIt.name,content:nextIt.content,kind:kind,curLevel:curLevel,curLabel:curLabel,nextLevel:nextLevel,nextLabel:nextIt.requiredColumnLabel||('Mức '+nextLevel)};
+    }).filter(Boolean);
+    return items.length?{id:g.id,name:g.name,items:items}:null;
+  }).filter(Boolean);
+  var total=counts.raise+counts.hold+counts.new+counts.changed;
+  return {groups:groups,counts:counts,total:total};
+}
+var COMPETENCY_TARGET_KIND_LABEL={raise:'Cần nâng chuẩn',hold:'Duy trì chuẩn',new:'Yêu cầu mới',changed:'Chuẩn thay đổi'};
+function competencyTargetItemTransition(it){
+  if(it.kind==='new')return esc(COMPETENCY_TARGET_KIND_LABEL.new)+' ở '+esc(it.nextLabel);
+  if(it.kind==='hold')return esc(COMPETENCY_TARGET_KIND_LABEL.hold)+' · '+esc(it.curLabel);
+  return esc(COMPETENCY_TARGET_KIND_LABEL[it.kind])+' · '+esc(it.curLabel)+' → '+esc(it.nextLabel);
+}
+function competencyTargetItemRow(it){
+  return '<div class="phfk-target-item is-'+it.kind+'">'+
+    '<div class="phfk-target-item-head"><span class="phfk-target-tag is-'+it.kind+'">'+esc(COMPETENCY_TARGET_KIND_LABEL[it.kind])+'</span>'+
+    '<b>'+esc(it.name)+'</b></div>'+
+    '<p class="phfk-target-item-transition">'+competencyTargetItemTransition(it)+'</p>'+
+    formatLevelContentHtml(it.content)+
+    '</div>';
+}
+function competencyTargetHtml(c){
+  if(c.isMaxGrade||!c.nextGrade){
+    return '<section class="phfk-panel phfk-competency-target"><div class="phfk-section-head"><h2>Mục tiêu hướng tới bậc kế tiếp</h2></div>'+
+      '<p class="phfk-batch-note">Bạn đang ở bậc cao nhất của Khung năng lực hiện tại.</p></section>';
+  }
+  var diff=buildCompetencyTargetDiff(c);
+  var nextLabel=c.nextGrade.label||c.nextGrade.code,curLabel=(c.currentGrade&&(c.currentGrade.label||c.currentGrade.code))||'';
+  if(!diff||!diff.groups.length){
+    return '<section class="phfk-panel phfk-competency-target"><div class="phfk-section-head"><h2>Mục tiêu hướng tới '+esc(nextLabel)+'</h2></div>'+
+      '<p class="phfk-batch-note">Chưa có tiêu chuẩn chi tiết để so sánh cho bậc này.</p></section>';
+  }
+  var counts=diff.counts;
+  var summaryParts=[];
+  if(counts.raise)summaryParts.push(counts.raise+' cần nâng chuẩn');
+  if(counts.new)summaryParts.push(counts.new+' yêu cầu mới');
+  if(counts.changed)summaryParts.push(counts.changed+' chuẩn thay đổi');
+  if(counts.hold)summaryParts.push(counts.hold+' duy trì chuẩn');
+  var changedTotal=counts.raise+counts.new+counts.changed;
+  var summary='<p class="phfk-target-summary">'+changedTotal+'/'+diff.total+' năng lực có tiêu chuẩn thay đổi khi chuyển từ '+esc(curLabel)+' lên '+esc(nextLabel)+'</p>'+
+    (summaryParts.length?'<p class="phfk-target-summary-breakdown">'+esc(summaryParts.join(' · '))+'</p>':'');
+  var note='<p class="phfk-batch-note phfk-target-note">Đây là so sánh <b>tiêu chuẩn '+esc(curLabel)+' → '+esc(nextLabel)+'</b>, không phải đánh giá năng lực thực tế của bạn.</p>';
+  var body=diff.groups.map(function(g){
+    var main=g.items.filter(function(it){return it.kind!=='hold';});
+    var hold=g.items.filter(function(it){return it.kind==='hold';});
+    var mainHtml=main.map(competencyTargetItemRow).join('');
+    var holdHtml=hold.length?'<details class="phfk-target-hold"><summary>Duy trì chuẩn ('+hold.length+')</summary>'+hold.map(competencyTargetItemRow).join('')+'</details>':'';
+    if(!mainHtml&&!holdHtml)return '';
+    return '<div class="phfk-target-group"><h3 class="phfk-target-group-name">'+esc(g.name)+'</h3>'+(mainHtml||'<p class="phfk-empty">Không có yêu cầu tăng chuẩn trong nhóm này.</p>')+holdHtml+'</div>';
+  }).join('');
+  return '<section class="phfk-panel phfk-competency-target"><div class="phfk-section-head"><h2>Mục tiêu hướng tới '+esc(nextLabel)+'</h2></div>'+
+    note+summary+body+'</section>';
+}
 /* Dựng "chuỗi bậc" đầy đủ 1 lần khi load nhân sự: [current, next, ...further].
  * current/next đã có standard đầy đủ sẵn (từ getKnlEmployeeCompetencyStandard);
  * further chỉ có code/number/label, standard=null cho tới khi thật sự cần
@@ -1447,9 +1547,11 @@ function competencyStandardHtml(){
   var head='<div class="phfk-section-head"><h2>KNL đang áp dụng</h2><span class="phfk-source-status '+(a.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(a.status))+'</span></div>';
   var summary='<div class="phfk-income-summary"><div><small>KHUNG NĂNG LỰC</small><b>'+esc((c.framework&&c.framework.name)||'—')+'</b></div><div><small>BẬC HIỆN TẠI</small><b>'+esc((c.currentGrade&&c.currentGrade.label)||(c.currentGrade&&c.currentGrade.code)||'—')+'</b></div><div><small>HIỆU LỰC TỪ</small><b>'+esc(formatDateVN(a.effectiveFrom))+'</b></div></div>';
 
+  var target=competencyTargetHtml(c);
+
   var seq=foundationState.competencyGradeSequence||[];
   if(seq.length<2){
-    return '<section class="phfk-panel phfk-competency-panel">'+head+summary+'<p class="phfk-batch-note">Khung năng lực hiện chỉ có 1 bậc, không có bậc liền kề để so sánh.</p></section>';
+    return '<section class="phfk-panel phfk-competency-panel">'+head+summary+'<p class="phfk-batch-note">Khung năng lực hiện chỉ có 1 bậc, không có bậc liền kề để so sánh.</p></section>'+target;
   }
   var w=foundationState.competencyWindowStart||0;
   var left=seq[w],right=seq[w+1];
@@ -1469,7 +1571,7 @@ function competencyStandardHtml(){
   return '<section class="phfk-panel phfk-competency-panel">'+head+summary+
     '<div class="phfk-comp-matrix-toolbar">'+backBtn+moreBtn+'</div>'+
     competencyMatrixHtml(columns)+
-    '</section>';
+    '</section>'+target;
 }
 async function loadCompetencyGradeNav(root,direction,gradeCode){
   var btn=root.querySelector('[data-knl-comp-nav="'+direction+'"]');

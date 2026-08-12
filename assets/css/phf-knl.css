@@ -278,6 +278,33 @@
   .phfk-comp-matrix td:first-child::before{display:none}
 }
 
+/* "Mục tiêu hướng tới bậc kế tiếp" — trung tính, không scoring/chart. 4 tag
+ * màu nhẹ khớp accent đã dùng cho matrix (xanh=tăng chuẩn/mới đáng chú ý,
+ * xám=duy trì, cam trung tính=thay đổi bất thường — không đỏ/cảnh báo vì
+ * KHÔNG phải lỗi/thiếu sót nhân viên). */
+.phfk-competency-target .phfk-target-note{margin-top:0}
+.phfk-target-summary{font-weight:800;color:var(--phfk-ink);margin:10px 0 2px}
+.phfk-target-summary-breakdown{color:var(--phfk-muted);font-size:12px;margin:0 0 14px}
+.phfk-target-group{margin-top:18px}
+.phfk-target-group-name{margin:0 0 10px;font-size:13px;color:var(--phfk-green-deep);font-weight:800}
+.phfk-target-item{border:1px solid var(--phfk-line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.phfk-target-item:last-child{margin-bottom:0}
+.phfk-target-item-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.phfk-target-item-head b{font-size:13px;color:var(--phfk-ink)}
+.phfk-target-item-transition{margin:0 0 8px;font-size:12px;color:var(--phfk-muted)}
+.phfk-target-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.phfk-target-tag.is-raise{background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
+.phfk-target-tag.is-new{background:#fff6dc;color:#8b681f}
+.phfk-target-tag.is-changed{background:#f3eaea;color:#7a4a4a}
+.phfk-target-tag.is-hold{background:#eef1ef;color:#4d5a54}
+.phfk-target-item.is-hold{background:#fafbfa}
+.phfk-target-hold{margin-top:10px;border-top:1px dashed var(--phfk-line);padding-top:10px}
+.phfk-target-hold summary{cursor:pointer;font-size:11.5px;font-weight:700;color:#456c5c;list-style:none}
+.phfk-target-hold summary::-webkit-details-marker{display:none}
+.phfk-target-hold summary::before{content:"▸ ";display:inline-block}
+.phfk-target-hold[open] summary::before{content:"▾ "}
+.phfk-target-hold .phfk-target-item{margin-top:10px}
+
 /* Lịch sử thay đổi bậc KNL — timeline card gọn, tách khỏi Salary history. */
 .phfk-comp-history-timeline{display:flex;flex-direction:column;gap:0}
 .phfk-comp-history-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid #edf2ef}
