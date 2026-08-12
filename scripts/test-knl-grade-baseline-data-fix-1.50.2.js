@@ -74,8 +74,9 @@ assert(!/selected=Number\(r&&r\.requiredLevelNumber\|\|1\)/.test(ui),'the old un
 // just a one-time toast) must exist and be reachable from any edit control.
 assert(/gradeDirty:false/.test(ui),'foundationState must track a dirty flag separate from the transient success/error message');
 assert(/data-grade-status-badge/.test(ui),'a dedicated, always-visible saved\\/dirty\\/draft badge element must exist near the grid, distinct from the transient toast');
-assert(/savedGrades\.length\?\('<span class="phfk-source-status '\+\(foundationState\.gradeDirty\?'is-review':'is-ready'\)/.test(ui),'the badge must render ĐÃ LƯU (is-ready) vs CÓ THAY ĐỔI CHƯA LƯU (is-review) based on real saved-grades presence + the dirty flag');
-assert(ui.includes("data-grade-cell]').forEach(function(el){el.onchange=function(){if(!(foundationState.matrix.grades||[]).length)return;foundationState.gradeDirty=true"),'editing any M-level cell on an already-saved matrix must flip the dirty flag immediately, not only after the next Save round-trip');
+assert(/savebarState\s*=\s*!savedGrades\.length\?'is-new':\(dirty\?'is-dirty':'is-saved'\)/.test(ui),'the badge must render is-saved vs is-dirty vs is-new based on real saved-grades presence + the dirty flag');
+assert(/savebarLabel\s*=\s*!savedGrades\.length\?'Chưa lưu · baseline khởi tạo':\(dirty\?'Có thay đổi chưa lưu':'Đã lưu'\)/.test(ui),'the badge label must switch between Đã lưu / Có thay đổi chưa lưu / Chưa lưu · baseline khởi tạo');
+assert(/data-grade-cell\]'\)\.forEach\(function\(el\)\{el\.onchange=function\(\)\{\s*if\(!\(foundationState\.matrix\.grades\|\|\[\]\)\.length\)return;\s*foundationState\.gradeDirty=true;/.test(ui),'editing any M-level cell on an already-saved matrix must flip the dirty flag immediately, not only after the next Save round-trip');
 assert(/foundationState\.gradeDirty=true;rerenderGradeMatrixLocal/.test(ui),'adding or removing a bậc on an already-saved matrix must also flip the dirty flag');
 assert(/foundationState\.gradeDirty=false;foundationState\.gradeMessage='Đã lưu ma trận thành công\.'/.test(ui),'a successful save must explicitly clear the dirty flag so the badge returns to ĐÃ LƯU, not just show a fading toast');
 assert.strictEqual((migration.match(/\$\$/g)||[]).length%2,0,'balanced SQL dollar quotes');

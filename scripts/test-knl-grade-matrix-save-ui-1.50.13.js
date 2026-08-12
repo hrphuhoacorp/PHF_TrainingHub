@@ -72,7 +72,7 @@ async function setupDom(gradeState,failSave,levelCount){
   return {window,root:window.document.getElementById('phfKnlRoot'),savedCalls};
 }
 
-function gradeBadge(root){const el=root.querySelector('[data-grade-status-badge]');return el?{text:el.textContent,cls:el.className}:null;}
+function gradeBadge(root){const el=root.querySelector('[data-grade-status-badge]');if(!el)return null;const label=el.querySelector('.phfk-grade-savebar-label');return {text:label?label.textContent:'',cls:el.className};}
 
 async function clickSaveAndObserve(root){
   const before=root.querySelector('[data-grade-save]');
@@ -205,12 +205,12 @@ async function clickSaveAndObserve(root){
     const {root}=await setupDom('empty',false,4);
     const badge=gradeBadge(root);
     assert(badge,'a saved/unsaved status badge must always be visible near the grid');
-    assert(/Chưa lưu/.test(badge.text)&&/is-review/.test(badge.cls),'a brand-new empty 4-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
+    assert(/Chưa lưu/.test(badge.text)&&/is-new/.test(badge.cls),'a brand-new empty 4-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
   }
   {
     const {root}=await setupDom('empty',false,5);
     const badge=gradeBadge(root);
-    assert(/Chưa lưu/.test(badge.text)&&/is-review/.test(badge.cls),'a brand-new empty 5-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
+    assert(/Chưa lưu/.test(badge.text)&&/is-new/.test(badge.cls),'a brand-new empty 5-level matrix must show an explicit CHƯA LƯU badge, not look like saved data');
   }
   console.log('PASS E1/E2: framework rỗng 4 mức và 5 mức -> badge CHƯA LƯU hiển thị rõ ràng ngay khi mở');
 
@@ -220,7 +220,7 @@ async function clickSaveAndObserve(root){
     const {root}=await setupDom('empty',false,5);
     await clickSaveAndObserve(root);
     const badgeAfterSave=gradeBadge(root);
-    assert(badgeAfterSave&&/^Đã lưu$/.test(badgeAfterSave.text)&&/is-ready/.test(badgeAfterSave.cls),'after a successful save the badge must switch to ĐÃ LƯU (is-ready), reloaded from the persisted reload, not just a transient toast');
+    assert(badgeAfterSave&&/^Đã lưu$/.test(badgeAfterSave.text)&&/is-saved/.test(badgeAfterSave.cls),'after a successful save the badge must switch to ĐÃ LƯU (is-saved), reloaded from the persisted reload, not just a transient toast');
   }
   {
     // Trạng thái "F5/reopen": DOM/window hoàn toàn mới, mock backend trả về
@@ -228,7 +228,7 @@ async function clickSaveAndObserve(root){
     // từ dữ liệu persisted khi mở lại, không phải từ session cũ còn nhớ.
     const {root}=await setupDom('saved',false);
     const badge=gradeBadge(root);
-    assert(badge&&/^Đã lưu$/.test(badge.text)&&/is-ready/.test(badge.cls),'reopening a version whose matrix was already persisted must show ĐÃ LƯU immediately, derived purely from the backend response');
+    assert(badge&&/^Đã lưu$/.test(badge.text)&&/is-saved/.test(badge.cls),'reopening a version whose matrix was already persisted must show ĐÃ LƯU immediately, derived purely from the backend response');
   }
   console.log('PASS E3/E4: Save thành công -> badge ĐÃ LƯU; F5/mở lại (DOM mới hoàn toàn) vẫn đọc đúng ĐÃ LƯU từ dữ liệu persisted');
 
@@ -242,10 +242,10 @@ async function clickSaveAndObserve(root){
     cell.value=cell.querySelector('option:last-child').value;
     cell.dispatchEvent(new window.Event('change',{bubbles:true}));
     const dirty=gradeBadge(root);
-    assert(/Có thay đổi chưa lưu/.test(dirty.text)&&/is-review/.test(dirty.cls),'editing a cell on an already-saved matrix must immediately flip the badge to CÓ THAY ĐỔI CHƯA LƯU, before Save is even clicked');
+    assert(/Có thay đổi chưa lưu/.test(dirty.text)&&/is-dirty/.test(dirty.cls),'editing a cell on an already-saved matrix must immediately flip the badge to CÓ THAY ĐỔI CHƯA LƯU, before Save is even clicked');
     await clickSaveAndObserve(root);
     const clean=gradeBadge(root);
-    assert(/^Đã lưu$/.test(clean.text)&&/is-ready/.test(clean.cls),'saving again must return the badge to a clean ĐÃ LƯU state');
+    assert(/^Đã lưu$/.test(clean.text)&&/is-saved/.test(clean.cls),'saving again must return the badge to a clean ĐÃ LƯU state');
     assert.strictEqual(savedCalls.length,1);
   }
   console.log('PASS E5/E6: sửa 1 cell sau khi đã lưu -> badge CÓ THAY ĐỔI CHƯA LƯU ngay lập tức; Save lại -> trở về ĐÃ LƯU');
