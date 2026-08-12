@@ -238,8 +238,9 @@ function noAccessSection(message){
 
 /* ===================== NHÂN SỰ ===================== */
 
-var peopleState = { filters:{ search:'', department:'', branch:'', status:'active' }, rows:[], loading:false, loaded:false, loadedAt:0, searchTimer:null };
+var peopleState = { filters:{ search:'', department:'', branch:'', status:'active' }, rows:[], loading:false, loaded:false, loadedAt:0, searchTimer:null, page:0 };
 var peopleCanViewIncome = false;
+var PEOPLE_PAGE_SIZE = 20;
 
 function peopleFilterBar(){
   var f = peopleState.filters;
@@ -249,7 +250,7 @@ function peopleFilterBar(){
   var branchOptions = '<option value="">Tất cả chi nhánh</option>' + branches.map(function(b){ return '<option value="'+esc(b)+'"'+(f.branch===b?' selected':'')+'>'+esc(b)+'</option>'; }).join('');
   var statusOptions = ['active','inactive','all'].map(function(s){ return '<option value="'+s+'"'+(f.status===s?' selected':'')+'>'+STATUS_LABELS[s]+'</option>'; }).join('');
   return '' +
-    '<div class="phfk-filters">' +
+    '<div class="phfk-filters phfk-people-filters">' +
       '<input type="search" class="phfk-input" placeholder="Tìm mã NV hoặc họ tên…" value="'+esc(f.search)+'" data-knl-people-search>' +
       '<select class="phfk-input" data-knl-people-department>'+deptOptions+'</select>' +
       '<select class="phfk-input" data-knl-people-branch>'+branchOptions+'</select>' +
@@ -257,46 +258,71 @@ function peopleFilterBar(){
     '</div>';
 }
 
+/* Trạng thái: badge nhẹ, semantic — "Đang làm việc" xanh nhẹ, còn lại
+ * (Đã nghỉ việc/khác) trung tính, KHÔNG đỏ (không phải trạng thái cảnh báo,
+ * chỉ là nhân sự không còn active — đúng yêu cầu PHF mục 5). */
+function peopleStatusBadgeHtml(status){
+  var isActive = status === STATUS_LABELS.active;
+  return '<span class="phfk-people-status'+(isActive?' is-active':' is-neutral')+'">'+esc(status||'—')+'</span>';
+}
+
 function peopleTable(){
   if(peopleState.loading) return '<div class="phfk-loading">Đang tải danh sách nhân sự…</div>';
   if(!peopleState.rows.length) return noAccessSection('Không có nhân sự nào thuộc phạm vi của bạn với bộ lọc hiện tại.');
-  /* "Xem thu nhập" per-row: cột (peopleCanViewIncome) chỉ quyết định CÓ hiện
-   * cột "Thu nhập" hay không (layout, giữ cấu trúc bảng hiện hữu) — nút bên
-   * trong từng row PHẢI theo đúng p.canViewIncome do BACKEND tính sẵn
-   * (incomeScopeAllows, lib/knl-people.js:listKnlPeople), KHÔNG tự suy từ
-   * capability phẳng nữa. false -> ô rỗng, không placeholder giả. */
-  var rows = peopleState.rows.map(function(p){
-    return '<tr><td>'+esc(p.employeeCode)+'</td><td>'+esc(p.employeeName)+'</td><td>'+esc(p.title)+'</td><td>'+esc(p.department)+'</td><td>'+esc(p.branch)+'</td><td>'+esc(p.status)+'</td>'+(peopleCanViewIncome?'<td>'+(p.canViewIncome===true?'<button type="button" class="phfk-link" data-knl-person-income="'+esc(p.employeeCode)+'">Xem thu nhập</button>':'')+'</td>':'')+'</tr>';
+  var totalPages = Math.max(1, Math.ceil(peopleState.rows.length / PEOPLE_PAGE_SIZE));
+  if(peopleState.page >= totalPages) peopleState.page = totalPages - 1;
+  if(peopleState.page < 0) peopleState.page = 0;
+  var pageItems = peopleState.rows.slice(peopleState.page*PEOPLE_PAGE_SIZE, peopleState.page*PEOPLE_PAGE_SIZE + PEOPLE_PAGE_SIZE);
+  /* Hierarchy: Họ tên (primary, bold) + Mã NV (secondary, nhỏ/neutral, gộp
+   * cùng ô) đứng đầu — Mã NV không còn là cột riêng đầu bảng. "Xem thu nhập"
+   * per-row: cột (peopleCanViewIncome) chỉ quyết định CÓ hiện cột "Thao tác"
+   * hay không (layout) — nút bên trong từng row PHẢI theo đúng
+   * p.canViewIncome do BACKEND tính sẵn (incomeScopeAllows,
+   * lib/knl-people.js:listKnlPeople), KHÔNG tự suy từ capability phẳng.
+   * false -> ô rỗng, không placeholder giả. */
+  var rows = pageItems.map(function(p){
+    return '<tr><td class="phfk-people-name-cell"><b>'+esc(p.employeeName)+'</b><small>'+esc(p.employeeCode)+'</small></td><td>'+esc(p.title)+'</td><td>'+esc(p.department)+'</td><td>'+esc(p.branch)+'</td><td>'+peopleStatusBadgeHtml(p.status)+'</td>'+(peopleCanViewIncome?'<td>'+(p.canViewIncome===true?'<button type="button" class="phfk-link" data-knl-person-income="'+esc(p.employeeCode)+'">Xem thu nhập</button>':'')+'</td>':'')+'</tr>';
   }).join('');
+  var pagination = totalPages>1 ? (
+    '<div class="phfk-perm-account-pagination phfk-people-pagination">' +
+      '<button type="button" data-knl-people-page="-1"'+(peopleState.page<=0?' disabled':'')+'>‹ Trước</button>' +
+      '<span>Trang '+(peopleState.page+1)+'/'+totalPages+'</span>' +
+      '<button type="button" data-knl-people-page="1"'+(peopleState.page>=totalPages-1?' disabled':'')+'>Sau ›</button>' +
+    '</div>'
+  ) : '';
   return '' +
-    '<div class="phfk-table-wrap"><table class="phfk-table">' +
-      '<thead><tr><th>Mã NV</th><th>Họ và tên</th><th>Chức vụ/Chức danh</th><th>Phòng ban</th><th>Chi nhánh</th><th>Trạng thái</th>'+(peopleCanViewIncome?'<th>Thu nhập</th>':'')+'</tr></thead>' +
+    '<div class="phfk-table-wrap phfk-people-table-wrap"><table class="phfk-table phfk-people-table">' +
+      '<thead><tr><th>Họ và tên</th><th>Chức vụ/Chức danh</th><th>Phòng ban</th><th>Chi nhánh</th><th>Trạng thái</th>'+(peopleCanViewIncome?'<th>Thao tác</th>':'')+'</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
     '</table></div>' +
-    '<p class="phfk-count">' + peopleState.rows.length + ' nhân sự</p>';
+    '<div class="phfk-people-table-foot"><p class="phfk-count">' + peopleState.rows.length + ' nhân sự</p>' + pagination + '</div>';
 }
 
 function renderPeopleBody(root){
   var body = root.querySelector('[data-knl-body]');
   if(!body) return;
-  body.innerHTML = '<div class="phfk-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + peopleFilterBar() + peopleTable();
+  body.innerHTML = '<div class="phfk-people-screen"><div class="phfk-page-head phfk-people-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + peopleFilterBar() + peopleTable() + '</div>';
   bindPeopleFilters(root);
 }
 
 function bindPeopleFilters(root){
   root.querySelectorAll('[data-knl-person-income]').forEach(function(button){button.addEventListener('click',function(){goIncomeEmployee(button.getAttribute('data-knl-person-income'));});});
+  root.querySelectorAll('[data-knl-people-page]').forEach(function(button){button.addEventListener('click',function(){
+    peopleState.page += Number(button.getAttribute('data-knl-people-page'));
+    renderPeopleBody(root);
+  });});
   var search = root.querySelector('[data-knl-people-search]');
   if(search) search.addEventListener('input', function(){
     peopleState.filters.search = search.value;
     clearTimeout(peopleState.searchTimer);
-    peopleState.searchTimer = setTimeout(function(){ loadPeople(root); }, 300);
+    peopleState.searchTimer = setTimeout(function(){ peopleState.page = 0; loadPeople(root); }, 300);
   });
   var dept = root.querySelector('[data-knl-people-department]');
-  if(dept) dept.addEventListener('change', function(){ peopleState.filters.department = dept.value; loadPeople(root); });
+  if(dept) dept.addEventListener('change', function(){ peopleState.filters.department = dept.value; peopleState.page = 0; loadPeople(root); });
   var branch = root.querySelector('[data-knl-people-branch]');
-  if(branch) branch.addEventListener('change', function(){ peopleState.filters.branch = branch.value; loadPeople(root); });
+  if(branch) branch.addEventListener('change', function(){ peopleState.filters.branch = branch.value; peopleState.page = 0; loadPeople(root); });
   var status = root.querySelector('[data-knl-people-status]');
-  if(status) status.addEventListener('change', function(){ peopleState.filters.status = status.value; loadPeople(root); });
+  if(status) status.addEventListener('change', function(){ peopleState.filters.status = status.value; peopleState.page = 0; loadPeople(root); });
 }
 
 async function loadPeople(root){
@@ -308,7 +334,7 @@ async function loadPeople(root){
   }catch(e){
     peopleState.rows = [];
     var body = root.querySelector('[data-knl-body]');
-    if(body) body.innerHTML = '<div class="phfk-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + noAccessSection(e.message);
+    if(body) body.innerHTML = '<div class="phfk-people-screen"><div class="phfk-page-head phfk-people-page-head"><div><small>KNL &middot; NHÂN SỰ</small><h1>Nhân sự thuộc phạm vi</h1></div></div>' + noAccessSection(e.message) + '</div>';
     peopleState.loading = false;
     return;
   }

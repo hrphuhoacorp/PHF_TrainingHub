@@ -456,3 +456,37 @@
 @media(max-width:560px){
   .phfk-comp-next-grade .phfk-section-head{align-items:flex-start}
 }
+
+/* Màn "Nhân sự" (/ql|/admin|/hv /knl/nhan-su) — polish 2026-08-12. Scope
+ * riêng .phfk-people-screen để KHÔNG ảnh hưởng .phfk-filters/.phfk-input/
+ * .phfk-table dùng chung ở các màn KNL khác (framework/compensation/survey/
+ * permission picker...). Filter là công cụ phụ (nhẹ hơn bảng); bảng là nội
+ * dung chính (header rõ hơn body); Họ tên nổi hơn Mã NV; status badge nhẹ,
+ * không đỏ; pagination nhỏ gọn tái dùng đúng style .phfk-perm-account-
+ * pagination đã có (nhất quán với picker Phân quyền). Sticky table header
+ * KHÔNG áp dụng — page dùng scroll toàn trang qua .phfk-topbar sticky sẵn
+ * (72px) và .phfk-sidebar sticky riêng, thêm sticky thead sẽ cần offset
+ * top đúng 72px + rủi ro chồng z-index với 2 phần tử sticky đó; PHF cho
+ * phép bỏ nếu source hiện tại không phù hợp an toàn (mục 7) — bỏ theo đúng
+ * hướng dẫn, không ép. */
+.phfk-people-page-head{margin-bottom:14px}
+.phfk-page-head.phfk-people-page-head h1{font-size:21px;letter-spacing:-.015em}
+.phfk-people-filters{padding:12px 14px;margin-bottom:12px}
+.phfk-people-filters .phfk-input{height:36px;font-size:13px;padding:0 12px}
+
+.phfk-people-table thead th{font-size:13px;font-weight:800;color:var(--phfk-ink);letter-spacing:0;text-transform:none}
+.phfk-people-table tbody td{font-size:13.5px;line-height:1.55;padding:11px 13px}
+.phfk-people-name-cell b{display:block;font-weight:700;color:var(--phfk-ink);font-size:13.5px}
+.phfk-people-name-cell small{display:block;margin-top:2px;color:var(--phfk-muted);font-size:11px;font-weight:500}
+
+.phfk-people-status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.phfk-people-status.is-active{background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
+.phfk-people-status.is-neutral{background:#eef1ef;color:#5c6b64}
+
+.phfk-people-table-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:10px}
+.phfk-people-table-foot .phfk-count{margin:0}
+.phfk-people-pagination{margin:0}
+
+@media(max-width:900px){
+  .phfk-page-head.phfk-people-page-head h1{font-size:19px}
+}
