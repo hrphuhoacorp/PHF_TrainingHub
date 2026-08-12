@@ -217,7 +217,7 @@
 .phfk-comp-group:last-child{margin-bottom:0}
 .phfk-comp-group-title{margin:0 0 8px;color:var(--phfk-green-deep);font-size:12.5px;font-weight:800}
 .phfk-comp-table tbody td{white-space:normal;vertical-align:top;line-height:1.55}
-.phfk-comp-content-cell{max-width:420px;word-break:break-word}
+.phfk-comp-content-cell{overflow-wrap:break-word;word-break:break-word}
 .phfk-comp-content-list{margin:0;padding-left:18px}
 .phfk-comp-content-list li{margin:0 0 4px}
 .phfk-comp-content-list li:last-child{margin-bottom:0}
@@ -242,12 +242,21 @@
 .phfk-comp-matrix-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .phfk-comp-matrix-wrap{overflow:auto}
 .phfk-comp-matrix{min-width:640px;table-layout:fixed;width:100%}
+/* Root cause của overlap Production: .phfk-table tbody td{white-space:nowrap}
+ * (rule chung cho mọi bảng) có specificity CAO HƠN .phfk-comp-content-cell
+ * (1 class) nên luôn thắng — word-break/overflow-wrap không có tác dụng gì
+ * khi nowrap đã chặn xuống dòng, và dưới table-layout:fixed (cột đã khóa
+ * width), text nowrap tràn thẳng ra khỏi cell vào cột bên cạnh thay vì đẩy
+ * rộng cột. Selector 2-class dưới đây có specificity cao hơn để thắng chắc
+ * chắn (không phụ thuộc thứ tự khai báo trong file), khôi phục wrap tự
+ * nhiên cho MỌI cell trong matrix (nhãn năng lực, nội dung, ô trung tính). */
+.phfk-comp-matrix.phfk-table tbody td{white-space:normal;vertical-align:top}
 .phfk-comp-matrix thead th{vertical-align:top;line-height:1.6}
 .phfk-comp-matrix th.phfk-comp-matrix-label-col{width:24%}
 .phfk-comp-matrix th.phfk-comp-matrix-col{min-width:280px;width:38%}
 .phfk-comp-matrix th .phfk-comp-block-tag.is-further{background:#eef1ef;color:#4d5a54}
 .phfk-comp-matrix th .phfk-comp-level-badge{margin-left:4px}
-.phfk-comp-matrix-group-row td{background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-weight:800;font-size:11px;padding:9px 13px!important;white-space:nowrap}
+.phfk-comp-matrix-group-row td{background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-weight:800;font-size:11px;padding:9px 13px!important;white-space:nowrap!important}
 .phfk-comp-cell-neutral{color:var(--phfk-muted);font-style:italic}
 .phfk-comp-content-list{list-style:none;margin:0;padding:0}
 .phfk-comp-content-list li{position:relative;padding-left:20px;margin:0 0 6px;line-height:1.55}
