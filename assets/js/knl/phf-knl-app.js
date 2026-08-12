@@ -131,7 +131,7 @@ function businessRoleForAccount(acc, grant){
    .phfck-sidebar/.phfck-nav) — class/màu/nội dung hoàn toàn riêng của KNL,
    không đụng file/CSS Checklist, không kéo nghiệp vụ Checklist sang đây. */
 var SIDEBAR_ITEMS = [
-  { key:'bo-knl', label:'Bộ KNL', desc:'Framework & cấu trúc Draft', icon:'▦', needs:'manage_framework' },
+  { key:'bo-knl', label:'Bộ KNL', desc:'Cấu trúc, tiêu chuẩn bậc & phiên bản', icon:'▦', needs:'manage_framework' },
   { key:'khao-sat', label:'Khảo sát & đánh giá', desc:'Đợt khảo sát và kết quả', icon:'◫', needs:'access_knl' },
   { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
   { key:'co-cau-thu-nhap', label:'Bậc & Cơ cấu thu nhập', desc:'Thông tin tham chiếu cá nhân', icon:'◍', ownAlways:true },
@@ -1036,7 +1036,9 @@ function assignmentFrameworkOptions(){return (assignmentState.frameworks||[]).ma
 function assignmentVersionOptionsForFramework(frameworkId){var f=(assignmentState.frameworks||[]).find(function(x){return x.id===frameworkId;});return (f&&f.versions||[]).slice().sort(function(a,b){return b.versionNumber-a.versionNumber;}).map(function(v){return '<option value="'+esc(v.id)+'">v'+v.versionNumber+' · '+esc(statusLabel(v.status))+'</option>';}).join('');}
 function assignmentStatusLabel(status){return status==='inactive'?'Ngưng áp dụng':'Đang áp dụng';}
 function assignmentStatusBadge(status){return '<span class="phfk-source-status '+(status==='inactive'?'is-review':'is-ready')+'">'+esc(assignmentStatusLabel(status))+'</span>';}
-function sourceRows(rows,statusClass){return (rows||[]).map(function(row){var saved=(assignmentState.manifests||[]).find(function(item){return item.manifestKey===row.manifestKey;});var label=saved?(saved.importStatus+' · '+saved.candidateStatus):(row.reason||'Sẵn sàng');return '<tr><td>'+esc(row.sourceSheet)+'</td><td>'+esc(row.sourcePosition||'—')+'</td><td>'+esc(row.levelCount||'—')+'</td><td><span class="phfk-source-status '+statusClass+'">'+esc(label)+'</span></td></tr>';}).join('');}
+function manifestCandidateLabel(v){return {READY:'Sẵn sàng',NEEDS_REVIEW:'Cần kiểm tra',EXCLUDED:'Không thuộc phạm vi'}[v]||(v||'—');}
+function manifestImportLabel(v){return {PENDING:'Chưa nạp',SEEDED:'Đã nạp',SKIPPED:'Đã bỏ qua',CONFLICT:'Xung đột dữ liệu'}[v]||(v||'—');}
+function sourceRows(rows,statusClass){return (rows||[]).map(function(row){var saved=(assignmentState.manifests||[]).find(function(item){return item.manifestKey===row.manifestKey;});var label=saved?(manifestImportLabel(saved.importStatus)+' · '+manifestCandidateLabel(saved.candidateStatus)):(row.reason||'Sẵn sàng');return '<tr><td>'+esc(row.sourceSheet)+'</td><td>'+esc(row.sourcePosition||'—')+'</td><td>'+esc(row.levelCount||'—')+'</td><td><span class="phfk-source-status '+statusClass+'">'+esc(label)+'</span></td></tr>';}).join('');}
 function assignmentPrepHtml(){
   var p=assignmentState.preview||{totals:{},ready:[],needsReview:[],excluded:[]};
   return '<section class="phfk-panel phfk-source-panel"><div class="phfk-section-head"><div><small>CHUẨN BỊ DỮ LIỆU</small><h2>Nạp dữ liệu Bộ KNL đã chuẩn bị</h2></div><button type="button" class="phfk-btn-primary" data-knl-seed-source>Nạp dữ liệu (không tạo trùng)</button></div>'+
@@ -1105,28 +1107,221 @@ function updateAssignmentSummary(root){
 }
 
 /* ===================== SURVEY V1 ===================== */
-var surveyState={loading:false,loaded:false,loadedAt:0,campaigns:[],tickets:[],setup:null,detail:null,results:null,resultFilters:{},error:'',message:'',autosaveTimer:null};
+function emptyWizardForm(){return {name:'',description:'',startsAt:'',endsAt:'',versionIds:[],employeeCodes:[]};}
+var surveyState={loading:false,loaded:false,loadedAt:0,campaigns:[],tickets:[],setup:null,detail:null,results:null,resultFilters:{},error:'',message:'',autosaveTimer:null,
+  wizardOpen:false,wizardStep:1,wizardForm:emptyWizardForm(),wizardPreview:null,wizardError:'',wizardTargetFilters:{department:'',branch:'',title:'',position:'',search:''}};
+function campaignStatusLabel(v){return {DRAFT:'Dự thảo',OPEN:'Đang mở',CLOSED:'Đã đóng'}[v]||(v||'—');}
+function ticketStatusLabel(v){return {NOT_STARTED:'Chưa làm',IN_PROGRESS:'Đang làm',SUBMITTED:'Đã gửi'}[v]||(v||'—');}
+function submissionActionLabel(v){return {SUBMIT:'Gửi lần đầu',RESUBMIT:'Gửi lại'}[v]||(v||'—');}
 function surveyNav(active){return '<nav class="phfk-domain-tabs" aria-label="Khảo sát & đánh giá"><button type="button" class="'+(active==='khao-sat'?'active':'')+'" data-survey-nav="khao-sat">Đợt khảo sát</button><button type="button" class="'+(active==='ket-qua-khao-sat'?'active':'')+'" data-survey-nav="ket-qua-khao-sat">Kết quả khảo sát</button></nav>';}
 function bindSurveyNav(root){root.querySelectorAll('[data-survey-nav]').forEach(function(b){b.onclick=function(){goTab(b.getAttribute('data-survey-nav'));};});}
 function fmtDate(v){if(!v)return '—';try{return new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short'}).format(new Date(v));}catch(e){return v;}}
 function progressHtml(p){p=p||{};return '<div class="phfk-survey-progress"><span><b>'+Number(p.total||0)+'</b>Tổng phiếu</span><span><b>'+Number(p.notStarted||0)+'</b>Chưa làm</span><span><b>'+Number(p.inProgress||0)+'</b>Đang làm</span><span><b>'+Number(p.submitted||0)+'</b>Đã gửi</span><span><b>'+Number(p.overdue||0)+'</b>Quá hạn</span></div>';}
-function surveyCampaignCards(){return surveyState.campaigns.map(function(c){var own=surveyState.tickets.filter(function(t){return t.campaignId===c.id;});return '<article class="phfk-panel phfk-survey-card"><header><div><small>'+esc(c.status)+'</small><h2>'+esc(c.name)+'</h2><p>'+fmtDate(c.startsAt)+' → '+fmtDate(c.endsAt)+'</p></div>'+(c.status==='DRAFT'?'<button class="phfk-btn-primary" data-open-survey="'+esc(c.id)+'">Mở khảo sát</button>':(c.status==='OPEN'?'<button class="phfk-btn-secondary" data-close-survey="'+esc(c.id)+'">Đóng đợt</button>':''))+'</header>'+progressHtml(c.progress)+'<div class="phfk-survey-ticket-list">'+(own.map(function(t){return '<button type="button" data-survey-ticket="'+esc(t.id)+'"><b>'+esc(t.frameworkSnapshot.frameworkName||'Bộ KNL')+' · v'+esc(t.frameworkSnapshot.versionNumber||'')+'</b><span>'+esc(t.employeeName)+' · '+esc(t.status)+'</span></button>';}).join('')||'<p>Chưa có phiếu trong phạm vi.</p>')+'</div></article>';}).join('')||'<section class="phfk-empty"><p>Chưa có đợt khảo sát.</p></section>';}
-function campaignWizardHtml(){if(!surveyState.setup)return'';var versions=surveyState.setup.versions||[],people=surveyState.setup.people||[];function options(key,label){return '<option value="">Tất cả '+label+'</option>'+Array.from(new Set(people.map(function(p){return p[key];}).filter(Boolean))).sort().map(function(v){return '<option>'+esc(v)+'</option>';}).join('');}return '<details class="phfk-panel phfk-survey-create"><summary>Tạo đợt khảo sát mới</summary><form data-survey-campaign-form><div class="phfk-survey-steps"><b>Thông tin</b><b>Chọn Bộ KNL/version</b><b>Chọn đối tượng</b><b>Xem trước</b><b>Mở khảo sát</b></div><div class="phfk-assignment-form"><label class="phfk-field"><span>Tên đợt</span><input class="phfk-input" name="name" minlength="3" required></label><label class="phfk-field"><span>Mô tả</span><input class="phfk-input" name="description"></label><label class="phfk-field"><span>Bắt đầu</span><input class="phfk-input" type="datetime-local" name="startsAt" required></label><label class="phfk-field"><span>Hạn hoàn thành</span><input class="phfk-input" type="datetime-local" name="endsAt" required></label></div><fieldset><legend>Bộ KNL/version đã phát hành</legend><div class="phfk-survey-picks">'+versions.map(function(v){return '<label><input type="checkbox" name="versionId" value="'+esc(v.id)+'"> '+esc(v.frameworkName)+' · v'+esc(v.versionNumber)+'</label>';}).join('')+'</div></fieldset><div class="phfk-filters"><input class="phfk-input" type="search" placeholder="Nhân sự" data-survey-person-search><select class="phfk-input" data-survey-dept>'+options('department','phòng ban')+'</select><select class="phfk-input" data-survey-branch>'+options('branch','chi nhánh')+'</select><select class="phfk-input" data-survey-title>'+options('title','chức danh')+'</select><select class="phfk-input" data-survey-position>'+options('position','chức vụ')+'</select></div><fieldset><legend>Đối tượng từ organization hiện hành</legend><div class="phfk-survey-picks phfk-survey-people">'+people.map(function(p){return '<label data-survey-person-row data-search="'+esc((p.employeeCode+' '+p.employeeName).toLowerCase())+'" data-dept="'+esc(p.department)+'" data-branch="'+esc(p.branch)+'" data-title="'+esc(p.title)+'" data-position="'+esc(p.position)+'"><input type="checkbox" name="employeeCode" value="'+esc(p.employeeCode)+'"> <b>'+esc(p.employeeCode)+'</b> · '+esc(p.employeeName)+' <small>'+esc([p.department,p.branch,p.title,p.position].filter(Boolean).join(' · '))+'</small></label>';}).join('')+'</div></fieldset><div class="phfk-survey-preview" data-survey-preview>Chọn version và nhân sự để xem trước số phiếu thực tế.</div><div class="phfk-form-actions"><button class="phfk-btn-secondary" type="button" data-survey-preview-btn>Xem trước</button><button class="phfk-btn-primary" type="submit">Lưu Draft</button></div></form></details>';}
-function renderSurveyList(root,isAdmin){var body=root.querySelector('[data-knl-body]');if(!body)return;body.innerHTML=surveyNav('khao-sat')+(isAdmin?campaignWizardHtml():'')+surveyCampaignCards()+(surveyState.message?'<p class="phfk-success">'+esc(surveyState.message)+'</p>':'')+(surveyState.error?'<p class="phfk-error">'+esc(surveyState.error)+'</p>':'');bindSurveyList(root,isAdmin);}
+function surveyCampaignCards(isAdmin){
+  if(!surveyState.campaigns.length)return '<section class="phfk-empty phfk-survey-empty"><h3>Chưa có đợt khảo sát</h3><p>Tạo đợt đầu tiên để bắt đầu đánh giá năng lực nhân sự theo Bộ KNL đang áp dụng.</p>'+
+    (isAdmin?'<button type="button" class="phfk-btn-primary" data-survey-open-wizard>+ Tạo đợt khảo sát</button>':'')+
+    '<div class="phfk-survey-empty-steps"><span>1. Chọn Bộ KNL</span><span>→</span><span>2. Chọn nhân sự</span><span>→</span><span>3. Mở khảo sát</span></div></section>';
+  return surveyState.campaigns.map(function(c){var own=surveyState.tickets.filter(function(t){return t.campaignId===c.id;});return '<article class="phfk-panel phfk-survey-card"><header><div><span class="phfk-source-status '+(c.status==='OPEN'?'is-ready':(c.status==='CLOSED'?'':'is-review'))+'">'+esc(campaignStatusLabel(c.status))+'</span><h2>'+esc(c.name)+'</h2><p>'+fmtDate(c.startsAt)+' → '+fmtDate(c.endsAt)+'</p></div>'+(c.status==='DRAFT'?'<button class="phfk-btn-primary" data-open-survey="'+esc(c.id)+'">Mở khảo sát</button>':(c.status==='OPEN'?'<button class="phfk-btn-secondary" data-close-survey="'+esc(c.id)+'">Đóng đợt</button>':''))+'</header>'+progressHtml(c.progress)+'<div class="phfk-survey-ticket-list">'+(own.map(function(t){return '<button type="button" data-survey-ticket="'+esc(t.id)+'"><b>'+esc(t.frameworkSnapshot.frameworkName||'Bộ KNL')+' · v'+esc(t.frameworkSnapshot.versionNumber||'')+'</b><span>'+esc(t.employeeName)+' · '+esc(ticketStatusLabel(t.status))+'</span></button>';}).join('')||'<p>Chưa có phiếu trong phạm vi.</p>')+'</div></article>';}).join('');
+}
+function surveyWizardStepsNav(){
+  var labels=['Thông tin','Chọn Bộ KNL','Chọn đối tượng','Xem trước','Mở khảo sát'];
+  return '<div class="phfk-survey-steps">'+labels.map(function(l,i){var n=i+1,cls=surveyState.wizardStep===n?'active':(surveyState.wizardStep>n?'is-done':'');return '<b class="'+cls+'">'+n+'. '+l+'</b>';}).join('')+'</div>';
+}
+function campaignWizardHtml(){
+  if(!surveyState.setup)return'';
+  var versions=surveyState.setup.versions||[],people=surveyState.setup.people||[],step=surveyState.wizardStep,wf=surveyState.wizardForm;
+  var step1=step===1?('<div class="phfk-assignment-form">'+
+      '<label class="phfk-field"><span>Tên đợt *</span><input class="phfk-input" name="name" minlength="3" required value="'+esc(wf.name)+'"></label>'+
+      '<label class="phfk-field"><span>Mô tả</span><input class="phfk-input" name="description" value="'+esc(wf.description)+'"></label>'+
+      '<label class="phfk-field"><span>Ngày bắt đầu *</span><input class="phfk-input" type="datetime-local" name="startsAt" required value="'+esc(wf.startsAt)+'"></label>'+
+      '<label class="phfk-field"><span>Hạn hoàn thành *</span><input class="phfk-input" type="datetime-local" name="endsAt" required value="'+esc(wf.endsAt)+'"></label>'+
+    '</div>'):'';
+  var step2=step===2?(!versions.length?
+      '<div class="phfk-empty"><p><b>Chưa có phiên bản Bộ KNL đủ điều kiện để tạo khảo sát.</b></p><p>Hãy phát hành phiên bản Bộ KNL trước khi tạo đợt khảo sát.</p><button type="button" class="phfk-btn-secondary" data-survey-goto-versions>Đi tới quản lý phiên bản</button></div>'
+    :'<fieldset><legend>Bộ KNL &amp; phiên bản đã phát hành</legend><div class="phfk-survey-picks">'+versions.map(function(v){return '<label><input type="checkbox" name="versionId" value="'+esc(v.id)+'"'+(wf.versionIds.indexOf(v.id)>=0?' checked':'')+'> '+esc(v.frameworkName)+' · v'+esc(v.versionNumber)+'</label>';}).join('')+'</div></fieldset>'):'';
+  var step3='';
+  if(step===3){
+    var filterLabels={department:'phòng ban',branch:'chi nhánh',title:'chức danh',position:'chức vụ'};
+    step3='<div class="phfk-survey-target-filters"><input class="phfk-input" type="search" placeholder="Tìm theo tên hoặc mã nhân sự" data-survey-person-search value="'+esc(surveyState.wizardTargetFilters.search)+'">'+
+      Object.keys(filterLabels).map(function(key){return '<select class="phfk-input" data-survey-filter="'+key+'"><option value="">Tất cả '+filterLabels[key]+'</option></select>';}).join('')+
+      '</div><p class="phfk-survey-target-count"><span data-survey-match-count>—</span> · <span data-survey-selected-count>Đã chọn 0 nhân sự</span></p>'+
+      '<div class="phfk-survey-picks phfk-survey-people">'+people.map(function(p){return '<label data-survey-person-row data-code="'+esc(p.employeeCode)+'"><input type="checkbox" name="employeeCode" value="'+esc(p.employeeCode)+'"'+(wf.employeeCodes.indexOf(p.employeeCode)>=0?' checked':'')+'> <b>'+esc(p.employeeCode)+'</b> · '+esc(p.employeeName)+' <small>'+esc([p.department,p.branch,p.title,p.position].filter(Boolean).join(' · '))+'</small></label>';}).join('')+'</div>';
+  }
+  var step4='';
+  if(step===4){
+    var p=surveyState.wizardPreview;
+    step4=!p?'<div class="phfk-loading">Đang tính số phiếu thực tế…</div>':(
+      '<div class="phfk-survey-review"><div><small>Tên đợt</small><b>'+esc(wf.name)+'</b></div>'+
+      '<div><small>Bộ KNL</small><b>'+wf.versionIds.length+' phiên bản đã chọn</b></div>'+
+      '<div><small>Đối tượng</small><b>'+Number(p.employeeCount||0)+' nhân sự</b></div>'+
+      '<div><small>Thời gian</small><b>'+esc(fmtDate(wf.startsAt))+' → '+esc(fmtDate(wf.endsAt))+'</b></div>'+
+      '<div><small>Phiếu dự kiến</small><b>'+Number(p.ticketCount||0)+' phiếu</b></div></div>'+
+      (p.unassignedCount?'<p class="phfk-warning">'+Number(p.unassignedCount)+' nhân sự chưa có Bộ KNL phù hợp đang áp dụng cho phiên bản đã chọn và sẽ không được tạo phiếu.</p>':'')
+    );
+  }
+  var step5=step===5?(
+    '<div class="phfk-survey-review"><div><small>Tên đợt</small><b>'+esc(wf.name)+'</b></div>'+
+    '<div><small>Đối tượng</small><b>'+wf.employeeCodes.length+' nhân sự</b></div>'+
+    '<div><small>Thời gian</small><b>'+esc(fmtDate(wf.startsAt))+' → '+esc(fmtDate(wf.endsAt))+'</b></div></div>'+
+    '<p class="phfk-batch-note">Sau khi mở, đợt khảo sát sẽ sinh phiếu cho các nhân sự có Bộ KNL phù hợp đang áp dụng; tên đợt, thời gian và đối tượng sẽ không sửa được nữa. Chạy lại thao tác này sẽ không tạo phiếu trùng.</p>'
+  ):'';
+  var footer='<div class="phfk-form-actions phfk-survey-wizard-actions">'+
+    (step>1?'<button type="button" class="phfk-btn-secondary" data-wizard-back>← Quay lại</button>':'')+
+    '<button type="button" class="phfk-btn-secondary" data-wizard-save-draft>Lưu nháp</button>'+
+    (step<5?'<button type="button" class="phfk-btn-primary" data-wizard-next'+(step===2&&!versions.length?' disabled':'')+'>Tiếp tục →</button>':'<button type="button" class="phfk-btn-primary" data-wizard-open>Mở đợt khảo sát</button>')+
+    '</div>';
+  return '<section class="phfk-panel phfk-survey-create"><div class="phfk-section-head"><div><small>TẠO ĐỢT KHẢO SÁT</small><h2>Tạo đợt khảo sát mới</h2></div><button type="button" class="phfk-link" data-survey-cancel-wizard>Hủy</button></div>'+
+    surveyWizardStepsNav()+
+    '<form data-survey-campaign-form>'+step1+step2+step3+step4+step5+
+    (surveyState.wizardError?'<p class="phfk-error">'+esc(surveyState.wizardError)+'</p>':'')+
+    footer+'</form></section>';
+}
+function renderSurveyList(root,isAdmin){
+  var body=root.querySelector('[data-knl-body]');if(!body)return;
+  body.innerHTML=surveyNav('khao-sat')+
+    '<div class="phfk-page-head"><div><small>KNL · KHẢO SÁT</small><h1>Đợt khảo sát</h1></div>'+(isAdmin&&!surveyState.wizardOpen?'<button type="button" class="phfk-btn-primary" data-survey-open-wizard>+ Tạo đợt khảo sát</button>':'')+'</div>'+
+    (isAdmin&&surveyState.wizardOpen?campaignWizardHtml():'')+
+    surveyCampaignCards(isAdmin)+
+    (surveyState.message?'<p class="phfk-success">'+esc(surveyState.message)+'</p>':'')+(surveyState.error?'<p class="phfk-error">'+esc(surveyState.error)+'</p>':'');
+  bindSurveyList(root,isAdmin);
+}
 function selectedValues(form,name){return Array.from(form.querySelectorAll('[name="'+name+'"]:checked')).map(function(x){return x.value;});}
-function bindSurveyList(root,isAdmin){bindSurveyNav(root);root.querySelectorAll('[data-survey-ticket]').forEach(function(b){b.onclick=function(){var u=new URL(location.href);u.searchParams.set('ticket',b.getAttribute('data-survey-ticket'));history.pushState({},'',u.pathname+u.search);loadSurveyTicket(root,b.getAttribute('data-survey-ticket'));};});root.querySelectorAll('[data-open-survey]').forEach(function(b){b.onclick=async function(){if(!confirm('Mở khảo sát và sinh các phiếu theo assignment hiện hành?'))return;try{var r=await apiPost('openKnlSurveyCampaign',{campaignId:b.getAttribute('data-open-survey')});surveyState.message='Đã mở khảo sát; tạo mới '+r.createdTickets+' phiếu (retry không tạo trùng).';await loadSurveyList(root,isAdmin);}catch(e){surveyState.error=e.message;renderSurveyList(root,isAdmin);}};});root.querySelectorAll('[data-close-survey]').forEach(function(b){b.onclick=async function(){if(!confirm('Đóng đợt sẽ khóa toàn bộ phiếu. Tiếp tục?'))return;try{await apiPost('closeKnlSurveyCampaign',{campaignId:b.getAttribute('data-close-survey')});await loadSurveyList(root,isAdmin);}catch(e){surveyState.error=e.message;renderSurveyList(root,isAdmin);}};});var form=root.querySelector('[data-survey-campaign-form]');if(!form)return;function filterPeople(){var q=String(root.querySelector('[data-survey-person-search]').value||'').toLowerCase(),d=root.querySelector('[data-survey-dept]').value,b=root.querySelector('[data-survey-branch]').value,t=root.querySelector('[data-survey-title]').value,p=root.querySelector('[data-survey-position]').value;root.querySelectorAll('[data-survey-person-row]').forEach(function(row){row.hidden=!!((q&&!row.dataset.search.includes(q))||(d&&row.dataset.dept!==d)||(b&&row.dataset.branch!==b)||(t&&row.dataset.title!==t)||(p&&row.dataset.position!==p));});}['[data-survey-person-search]','[data-survey-dept]','[data-survey-branch]','[data-survey-title]','[data-survey-position]'].forEach(function(s){var el=root.querySelector(s);el[el.tagName==='INPUT'?'oninput':'onchange']=filterPeople;});root.querySelector('[data-survey-preview-btn]').onclick=async function(){try{var r=await apiPost('getKnlSurveySetup',{versionIds:selectedValues(form,'versionId'),employeeCodes:selectedValues(form,'employeeCode')}),p=r.preview||{};root.querySelector('[data-survey-preview]').innerHTML='<b>'+Number(p.employeeCount||0)+'</b> nhân sự · <b>'+Number(p.versionCount||0)+'</b> framework/version · <b>'+Number(p.ticketCount||0)+'</b> phiếu thực tế sẽ sinh'+(p.unassignedCount?' · '+p.unassignedCount+' cặp không có assignment':'');}catch(e){root.querySelector('[data-survey-preview]').textContent=e.message;}};form.onsubmit=async function(ev){ev.preventDefault();var fd=new FormData(form);try{var r=await apiPost('saveKnlSurveyCampaign',{campaign:{name:fd.get('name'),description:fd.get('description'),startsAt:fd.get('startsAt'),endsAt:fd.get('endsAt'),versionIds:selectedValues(form,'versionId'),employeeCodes:selectedValues(form,'employeeCode')}});surveyState.message='Đã lưu Draft: '+r.preview.employeeCount+' nhân sự, '+r.preview.versionCount+' version, '+r.preview.ticketCount+' phiếu dự kiến.';await loadSurveyList(root,isAdmin);}catch(e){surveyState.error=e.message;renderSurveyList(root,isAdmin);}};}
+function syncWizardForm(root){
+  var form=root.querySelector('[data-survey-campaign-form]');if(!form)return;
+  var fd=new FormData(form);
+  if(form.querySelector('[name="name"]')){surveyState.wizardForm.name=fd.get('name')||'';surveyState.wizardForm.description=fd.get('description')||'';surveyState.wizardForm.startsAt=fd.get('startsAt')||'';surveyState.wizardForm.endsAt=fd.get('endsAt')||'';}
+  if(form.querySelector('[name="versionId"]'))surveyState.wizardForm.versionIds=selectedValues(form,'versionId');
+  if(form.querySelector('[name="employeeCode"]'))surveyState.wizardForm.employeeCodes=selectedValues(form,'employeeCode');
+}
+function validateWizardStep(step){
+  var wf=surveyState.wizardForm;
+  if(step===1){
+    if(!wf.name||wf.name.trim().length<3)return 'Vui lòng nhập tên đợt (tối thiểu 3 ký tự).';
+    if(!wf.startsAt||!wf.endsAt)return 'Vui lòng chọn ngày bắt đầu và hạn hoàn thành.';
+    if(wf.endsAt<=wf.startsAt)return 'Hạn hoàn thành phải sau ngày bắt đầu.';
+  }else if(step===2){
+    if(!wf.versionIds.length)return 'Vui lòng chọn ít nhất một Bộ KNL/phiên bản.';
+  }else if(step===3){
+    if(!wf.employeeCodes.length)return 'Vui lòng chọn ít nhất một nhân sự.';
+  }
+  return '';
+}
+function resetWizard(){surveyState.wizardOpen=false;surveyState.wizardStep=1;surveyState.wizardForm=emptyWizardForm();surveyState.wizardPreview=null;surveyState.wizardError='';surveyState.wizardTargetFilters={department:'',branch:'',title:'',position:'',search:''};}
+async function fetchWizardPreview(root,isAdmin){
+  surveyState.wizardPreview=null;
+  renderSurveyList(root,isAdmin);
+  try{var r=await apiPost('getKnlSurveySetup',{versionIds:surveyState.wizardForm.versionIds,employeeCodes:surveyState.wizardForm.employeeCodes});surveyState.wizardPreview=r.preview||{};}
+  catch(e){surveyState.wizardError=e.message;}
+  renderSurveyList(root,isAdmin);
+}
+function goWizardStep(root,isAdmin,delta){
+  syncWizardForm(root);
+  if(delta>0){var err=validateWizardStep(surveyState.wizardStep);if(err){surveyState.wizardError=err;renderSurveyList(root,isAdmin);return;}}
+  surveyState.wizardError='';
+  surveyState.wizardStep=Math.min(5,Math.max(1,surveyState.wizardStep+delta));
+  if(surveyState.wizardStep===4)fetchWizardPreview(root,isAdmin);else renderSurveyList(root,isAdmin);
+}
+async function submitWizardDraft(root,isAdmin){
+  syncWizardForm(root);
+  var err=validateWizardStep(1);if(err){surveyState.wizardError=err;renderSurveyList(root,isAdmin);return;}
+  var wf=surveyState.wizardForm;
+  try{
+    var r=await apiPost('saveKnlSurveyCampaign',{campaign:{name:wf.name,description:wf.description,startsAt:wf.startsAt,endsAt:wf.endsAt,versionIds:wf.versionIds,employeeCodes:wf.employeeCodes}});
+    surveyState.message='Đã lưu Dự thảo: '+r.preview.employeeCount+' nhân sự, '+r.preview.versionCount+' Bộ KNL/phiên bản, '+r.preview.ticketCount+' phiếu dự kiến.';
+    resetWizard();
+    await loadSurveyList(root,isAdmin);
+  }catch(e){surveyState.wizardError=e.message;renderSurveyList(root,isAdmin);}
+}
+async function submitWizardOpen(root,isAdmin){
+  syncWizardForm(root);
+  var err=validateWizardStep(1)||validateWizardStep(2)||validateWizardStep(3);
+  if(err){surveyState.wizardError=err;renderSurveyList(root,isAdmin);return;}
+  var wf=surveyState.wizardForm;
+  try{
+    var save=await apiPost('saveKnlSurveyCampaign',{campaign:{name:wf.name,description:wf.description,startsAt:wf.startsAt,endsAt:wf.endsAt,versionIds:wf.versionIds,employeeCodes:wf.employeeCodes}});
+    var open=await apiPost('openKnlSurveyCampaign',{campaignId:save.campaignId});
+    surveyState.message='Đã mở đợt khảo sát; tạo mới '+open.createdTickets+' phiếu (chạy lại không tạo trùng).';
+    resetWizard();
+    await loadSurveyList(root,isAdmin);
+  }catch(e){surveyState.wizardError=e.message;renderSurveyList(root,isAdmin);}
+}
+function refreshTargetFilters(root){
+  if(!surveyState.setup)return;
+  var searchEl=root.querySelector('[data-survey-person-search]');if(!searchEl)return;
+  var selects={department:root.querySelector('[data-survey-filter="department"]'),branch:root.querySelector('[data-survey-filter="branch"]'),title:root.querySelector('[data-survey-filter="title"]'),position:root.querySelector('[data-survey-filter="position"]')};
+  var labels={department:'phòng ban',branch:'chi nhánh',title:'chức danh',position:'chức vụ'};
+  var q=String(searchEl.value||'').toLowerCase();
+  surveyState.wizardTargetFilters.search=searchEl.value||'';
+  var current={department:selects.department.value,branch:selects.branch.value,title:selects.title.value,position:selects.position.value};
+  var people=surveyState.setup.people||[];
+  function matches(p,exceptKey){
+    if(q&&!(p.employeeCode+' '+p.employeeName).toLowerCase().includes(q))return false;
+    return Object.keys(current).every(function(k){if(k===exceptKey)return true;if(!current[k])return true;return p[k]===current[k];});
+  }
+  Object.keys(selects).forEach(function(key){
+    var eligible=people.filter(function(p){return matches(p,key);});
+    var values=Array.from(new Set(eligible.map(function(p){return p[key];}).filter(Boolean))).sort();
+    if(current[key]&&values.indexOf(current[key])===-1)current[key]='';
+    var sel=selects[key],value=current[key];
+    sel.innerHTML='<option value="">Tất cả '+labels[key]+'</option>'+values.map(function(v){return '<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(v)+'</option>';}).join('');
+    sel.value=value;
+    surveyState.wizardTargetFilters[key]=value;
+  });
+  var matchCount=0;
+  root.querySelectorAll('[data-survey-person-row]').forEach(function(row){
+    var p=people.find(function(x){return x.employeeCode===row.dataset.code;});
+    var visible=p&&matches(p,null);
+    row.hidden=!visible;
+    if(visible)matchCount++;
+  });
+  var countEl=root.querySelector('[data-survey-match-count]');if(countEl)countEl.textContent=matchCount+' nhân sự phù hợp';
+  var selectedEl=root.querySelector('[data-survey-selected-count]');
+  if(selectedEl){var n=root.querySelectorAll('[data-survey-person-row] input:checked').length;selectedEl.textContent='Đã chọn '+n+' nhân sự';}
+}
+function bindSurveyList(root,isAdmin){
+  bindSurveyNav(root);
+  root.querySelectorAll('[data-survey-ticket]').forEach(function(b){b.onclick=function(){var u=new URL(location.href);u.searchParams.set('ticket',b.getAttribute('data-survey-ticket'));history.pushState({},'',u.pathname+u.search);loadSurveyTicket(root,b.getAttribute('data-survey-ticket'));};});
+  root.querySelectorAll('[data-open-survey]').forEach(function(b){b.onclick=async function(){if(!confirm('Mở khảo sát và sinh các phiếu theo Bộ KNL đang áp dụng?'))return;try{var r=await apiPost('openKnlSurveyCampaign',{campaignId:b.getAttribute('data-open-survey')});surveyState.message='Đã mở khảo sát; tạo mới '+r.createdTickets+' phiếu (chạy lại không tạo trùng).';await loadSurveyList(root,isAdmin);}catch(e){surveyState.error=e.message;renderSurveyList(root,isAdmin);}};});
+  root.querySelectorAll('[data-close-survey]').forEach(function(b){b.onclick=async function(){if(!confirm('Đóng đợt sẽ khóa toàn bộ phiếu. Tiếp tục?'))return;try{await apiPost('closeKnlSurveyCampaign',{campaignId:b.getAttribute('data-close-survey')});await loadSurveyList(root,isAdmin);}catch(e){surveyState.error=e.message;renderSurveyList(root,isAdmin);}};});
+  if(!isAdmin)return;
+  root.querySelectorAll('[data-survey-open-wizard]').forEach(function(b){b.onclick=function(){surveyState.wizardOpen=true;renderSurveyList(root,isAdmin);};});
+  var cancel=root.querySelector('[data-survey-cancel-wizard]');if(cancel)cancel.onclick=function(){resetWizard();renderSurveyList(root,isAdmin);};
+  var form=root.querySelector('[data-survey-campaign-form]');if(!form)return;
+  var back=root.querySelector('[data-wizard-back]');if(back)back.onclick=function(){goWizardStep(root,isAdmin,-1);};
+  var next=root.querySelector('[data-wizard-next]');if(next)next.onclick=function(){goWizardStep(root,isAdmin,1);};
+  var draft=root.querySelector('[data-wizard-save-draft]');if(draft)draft.onclick=function(){submitWizardDraft(root,isAdmin);};
+  var open=root.querySelector('[data-wizard-open]');if(open)open.onclick=function(){submitWizardOpen(root,isAdmin);};
+  var gotoVersions=root.querySelector('[data-survey-goto-versions]');if(gotoVersions)gotoVersions.onclick=function(){if(typeof window.phfNavigate==='function')window.phfNavigate(knlPath('phien-ban-lich-su'));};
+  if(root.querySelector('[data-survey-person-search]')){
+    refreshTargetFilters(root);
+    ['[data-survey-person-search]','[data-survey-filter="department"]','[data-survey-filter="branch"]','[data-survey-filter="title"]','[data-survey-filter="position"]'].forEach(function(sel){
+      var el=root.querySelector(sel);if(el)el[el.tagName==='INPUT'?'oninput':'onchange']=function(){refreshTargetFilters(root);};
+    });
+    var picks=root.querySelector('.phfk-survey-people');
+    if(picks)picks.addEventListener('change',function(e){if(e.target&&e.target.name==='employeeCode'){var n=picks.querySelectorAll('input:checked').length;var el=root.querySelector('[data-survey-selected-count]');if(el)el.textContent='Đã chọn '+n+' nhân sự';}});
+  }
+}
 async function loadSurveyList(root,isAdmin){surveyState.loading=true;try{var calls=[apiPost('listKnlSurveyCampaigns')];if(isAdmin)calls.push(apiPost('getKnlSurveySetup'));var r=await Promise.all(calls);surveyState.campaigns=r[0].campaigns||[];surveyState.tickets=r[0].tickets||[];surveyState.setup=isAdmin?r[1]:null;surveyState.error='';surveyState.loaded=true;surveyState.loadedAt=Date.now();}catch(e){surveyState.error=e.message;}surveyState.loading=false;renderSurveyList(root,isAdmin);}
 
 function responseValue(itemId,key){var r=(surveyState.detail.responses||[]).find(function(x){return x.itemId===itemId;});return r?r[key]||'':'';}
-function ticketFormHtml(){var d=surveyState.detail,t=d.ticket,c=d.campaign,answered=d.items.filter(function(i){return responseValue(i.id,'selectedColumnId')&&responseValue(i.id,'suitability');}).length;return '<button class="phfk-link" data-survey-back>← Danh sách phiếu</button><section class="phfk-panel phfk-survey-form-head"><small>'+esc(c.name)+'</small><h1>'+esc(t.frameworkSnapshot.frameworkName)+' · Version '+esc(t.frameworkSnapshot.versionNumber)+'</h1><p>Hạn hoàn thành: '+fmtDate(c.endsAt)+' · Tiến độ '+answered+'/'+d.items.length+(d.readOnly?' · Chỉ đọc':'')+'</p></section><form data-survey-ticket-form>'+d.groups.map(function(g){var items=d.items.filter(function(i){return i.groupId===g.id;});return '<section class="phfk-panel phfk-survey-group"><header><h2>'+esc(g.name)+'</h2><p>'+esc(g.description)+'</p></header>'+items.map(function(item){var selected=responseValue(item.id,'selectedColumnId'),suit=responseValue(item.id,'suitability'),comment=responseValue(item.id,'comment');return '<article class="phfk-survey-item" id="survey-item-'+esc(item.id)+'" data-survey-item="'+esc(item.id)+'"><h3>'+esc(item.name)+'</h3>'+(item.description?'<p>'+esc(item.description)+'</p>':'')+'<fieldset><legend>Mức tự đánh giá <em>*</em></legend><div class="phfk-level-options">'+d.levels.map(function(l){var content=(d.levelContents.find(function(x){return x.itemId===item.id&&x.columnId===l.id;})||{}).content||'Chưa có mô tả';return '<label title="'+esc(content)+'"><input type="radio" name="level-'+esc(item.id)+'" value="'+esc(l.id)+'" data-level-number="'+l.levelNumber+'"'+(selected===l.id?' checked':'')+(d.readOnly?' disabled':'')+'><b>Mức '+l.levelNumber+'</b><span>'+esc(content)+'</span></label>';}).join('')+'</div></fieldset><fieldset><legend>Mức phù hợp <em>*</em></legend><div class="phfk-suit-options">'+[['SUITABLE','Phù hợp'],['UNCLEAR','Chưa rõ'],['UNSUITABLE','Không phù hợp']].map(function(x){return '<label><input type="radio" name="suit-'+esc(item.id)+'" value="'+x[0]+'"'+(suit===x[0]?' checked':'')+(d.readOnly?' disabled':'')+'> '+x[1]+'</label>';}).join('')+'</div></fieldset><label class="phfk-field"><span>Góp ý <small>(bắt buộc nếu Chưa rõ/Không phù hợp)</small></span><textarea class="phfk-input" name="comment-'+esc(item.id)+'"'+(d.readOnly?' disabled':'')+'>'+esc(comment)+'</textarea></label><p class="phfk-error" data-item-error hidden></p></article>';}).join('')+'</section>';}).join('')+'<section class="phfk-panel"><label class="phfk-field"><span>Theo bạn, công việc/năng lực quan trọng nào của vị trí hiện chưa được phản ánh trong khung này?</span><textarea class="phfk-input" name="generalFeedback"'+(d.readOnly?' disabled':'')+'>'+esc(t.generalFeedback||'')+'</textarea></label></section>'+(d.readOnly?'': '<div class="phfk-survey-sticky"><span data-autosave-status></span><button type="button" class="phfk-btn-secondary" data-save-draft>Lưu nháp</button><button type="submit" class="phfk-btn-primary">'+(t.status==='SUBMITTED'?'Gửi lại phản hồi':'Gửi khảo sát')+'</button></div>')+'</form>'+(d.history.length?'<section class="phfk-panel"><h2>Lịch sử gửi</h2>'+d.history.map(function(h){return '<p>Lần '+h.revision+' · '+esc(h.action)+' · '+fmtDate(h.submitted_at)+' · '+esc(h.submitted_by_name||'')+'</p>';}).join('')+'</section>':'');}
+function ticketFormHtml(){var d=surveyState.detail,t=d.ticket,c=d.campaign,answered=d.items.filter(function(i){return responseValue(i.id,'selectedColumnId')&&responseValue(i.id,'suitability');}).length;return '<button class="phfk-link" data-survey-back>← Danh sách phiếu</button><section class="phfk-panel phfk-survey-form-head"><small>'+esc(c.name)+'</small><h1>'+esc(t.frameworkSnapshot.frameworkName)+' · Phiên bản '+esc(t.frameworkSnapshot.versionNumber)+'</h1><p>Hạn hoàn thành: '+fmtDate(c.endsAt)+' · Tiến độ '+answered+'/'+d.items.length+(d.readOnly?' · Chỉ đọc':'')+'</p></section><form data-survey-ticket-form>'+d.groups.map(function(g){var items=d.items.filter(function(i){return i.groupId===g.id;});return '<section class="phfk-panel phfk-survey-group"><header><h2>'+esc(g.name)+'</h2><p>'+esc(g.description)+'</p></header>'+items.map(function(item){var selected=responseValue(item.id,'selectedColumnId'),suit=responseValue(item.id,'suitability'),comment=responseValue(item.id,'comment');return '<article class="phfk-survey-item" id="survey-item-'+esc(item.id)+'" data-survey-item="'+esc(item.id)+'"><h3>'+esc(item.name)+'</h3>'+(item.description?'<p>'+esc(item.description)+'</p>':'')+'<fieldset><legend>Mức tự đánh giá <em>*</em></legend><div class="phfk-level-options">'+d.levels.map(function(l){var content=(d.levelContents.find(function(x){return x.itemId===item.id&&x.columnId===l.id;})||{}).content||'Chưa có mô tả';return '<label title="'+esc(content)+'"><input type="radio" name="level-'+esc(item.id)+'" value="'+esc(l.id)+'" data-level-number="'+l.levelNumber+'"'+(selected===l.id?' checked':'')+(d.readOnly?' disabled':'')+'><b>Mức '+l.levelNumber+'</b><span>'+esc(content)+'</span></label>';}).join('')+'</div></fieldset><fieldset><legend>Mức phù hợp <em>*</em></legend><div class="phfk-suit-options">'+[['SUITABLE','Phù hợp'],['UNCLEAR','Chưa rõ'],['UNSUITABLE','Không phù hợp']].map(function(x){return '<label><input type="radio" name="suit-'+esc(item.id)+'" value="'+x[0]+'"'+(suit===x[0]?' checked':'')+(d.readOnly?' disabled':'')+'> '+x[1]+'</label>';}).join('')+'</div></fieldset><label class="phfk-field"><span>Góp ý <small>(bắt buộc nếu Chưa rõ/Không phù hợp)</small></span><textarea class="phfk-input" name="comment-'+esc(item.id)+'"'+(d.readOnly?' disabled':'')+'>'+esc(comment)+'</textarea></label><p class="phfk-error" data-item-error hidden></p></article>';}).join('')+'</section>';}).join('')+'<section class="phfk-panel"><label class="phfk-field"><span>Theo bạn, công việc/năng lực quan trọng nào của vị trí hiện chưa được phản ánh trong khung này?</span><textarea class="phfk-input" name="generalFeedback"'+(d.readOnly?' disabled':'')+'>'+esc(t.generalFeedback||'')+'</textarea></label></section>'+(d.readOnly?'': '<div class="phfk-survey-sticky"><span data-autosave-status></span><button type="button" class="phfk-btn-secondary" data-save-draft>Lưu nháp</button><button type="submit" class="phfk-btn-primary">'+(t.status==='SUBMITTED'?'Gửi lại phản hồi':'Gửi khảo sát')+'</button></div>')+'</form>'+(d.history.length?'<section class="phfk-panel"><h2>Lịch sử gửi</h2>'+d.history.map(function(h){return '<p>Lần '+h.revision+' · '+esc(submissionActionLabel(h.action))+' · '+fmtDate(h.submitted_at)+' · '+esc(h.submitted_by_name||'')+'</p>';}).join('')+'</section>':'');}
 function collectTicket(root,validate){var responses=[],firstInvalid=null;surveyState.detail.items.forEach(function(item){var block=root.querySelector('[data-survey-item="'+item.id+'"]'),level=block.querySelector('[name="level-'+item.id+'"]:checked'),suit=block.querySelector('[name="suit-'+item.id+'"]:checked'),comment=block.querySelector('[name="comment-'+item.id+'"]').value.trim(),invalid=validate&&(!level||!suit||((suit.value==='UNCLEAR'||suit.value==='UNSUITABLE')&&!comment));block.classList.toggle('is-invalid',!!invalid);var err=block.querySelector('[data-item-error]');err.hidden=!invalid;if(invalid)err.textContent=!level?'Vui lòng chọn mức tự đánh giá.':(!suit?'Vui lòng chọn mức phù hợp.':'Vui lòng nhập góp ý cho lựa chọn này.');if(invalid&&!firstInvalid)firstInvalid=block;responses.push({itemId:item.id,selectedColumnId:level?level.value:'',selectedLevelNumber:level?Number(level.dataset.levelNumber):null,suitability:suit?suit.value:'',comment:comment});});return{responses:responses,generalFeedback:root.querySelector('[name="generalFeedback"]').value.trim(),firstInvalid:firstInvalid};}
 async function saveTicketFromForm(root,submit,silent){var payload=collectTicket(root,submit);if(payload.firstInvalid){payload.firstInvalid.scrollIntoView({behavior:'smooth',block:'center'});payload.firstInvalid.querySelector('input,textarea').focus();return false;}var status=root.querySelector('[data-autosave-status]');if(status)status.textContent=submit?'Đang gửi…':'Đang lưu…';try{await apiPost('saveKnlSurveyTicket',{ticketId:surveyState.detail.ticket.id,responses:payload.responses,generalFeedback:payload.generalFeedback,submit:submit});if(status)status.textContent=submit?'Đã gửi':'Đã tự động lưu';if(submit&&!silent){surveyState.message='Đã gửi phản hồi và lưu lịch sử revision.';await loadSurveyTicket(root,surveyState.detail.ticket.id);}return true;}catch(e){if(status)status.textContent=e.message;return false;}}
 function bindTicket(root){var back=root.querySelector('[data-survey-back]');if(back)back.onclick=function(){var u=new URL(location.href);u.searchParams.delete('ticket');history.pushState({},'',u.pathname+u.search);if(surveyState.loaded&&Date.now()-surveyState.loadedAt<KNL_READ_CACHE_TTL)renderSurveyList(root,knlLastIsAdmin);else loadSurveyList(root,knlLastIsAdmin);};var form=root.querySelector('[data-survey-ticket-form]');if(!form||surveyState.detail.readOnly)return;form.onchange=function(){clearTimeout(surveyState.autosaveTimer);surveyState.autosaveTimer=setTimeout(function(){saveTicketFromForm(root,false,true);},900);};var save=root.querySelector('[data-save-draft]');if(save)save.onclick=function(){saveTicketFromForm(root,false,false);};form.onsubmit=function(e){e.preventDefault();saveTicketFromForm(root,true,false);};}
 async function loadSurveyTicket(root,ticketId){try{surveyState.detail=await apiPost('getKnlSurveyTicket',{ticketId:ticketId});var body=root.querySelector('[data-knl-body]');body.innerHTML=ticketFormHtml();bindTicket(root);}catch(e){surveyState.error=e.message;renderSurveyList(root,false);}}
 
 function resultFiltersHtml(r){var o=r.filterOptions||{},f=surveyState.resultFilters;function select(key,label,rows,value,labelFn){return '<select class="phfk-input" data-result-filter="'+key+'"><option value="">Tất cả '+label+'</option>'+rows.map(function(x){var v=value(x);return '<option value="'+esc(v)+'"'+(f[key]===v?' selected':'')+'>'+esc(labelFn(x))+'</option>';}).join('')+'</select>';}return '<div class="phfk-filters phfk-survey-result-filters">'+select('versionId','Bộ KNL',o.versions||[],function(x){return x.id;},function(x){return x.name+' · v'+x.versionNumber;})+select('department','phòng ban',o.departments||[],String,String)+select('branch','chi nhánh',o.branches||[],String,String)+select('title','chức danh',o.titles||[],String,String)+select('position','chức vụ',o.positions||[],String,String)+select('employeeCode','nhân sự',o.people||[],function(x){return x.employeeCode;},function(x){return x.employeeCode+' · '+x.employeeName;})+'</div>';}
-function resultsHtml(){var r=surveyState.results;if(!r)return'<section class="phfk-empty"><p>Chọn một đợt để xem kết quả.</p></section>';var clone=r.canClone?'<section class="phfk-panel"><div class="phfk-section-head"><div><small>VERSIONING AN TOÀN</small><h2>Tạo Draft mới từ kết quả khảo sát</h2></div></div><div class="phfk-mini-actions">'+(r.versions||[]).map(function(v){return '<button type="button" data-clone-survey-version="'+esc(v.id)+'">Clone '+esc(v.frameworkName||v.name)+' · v'+esc(v.versionNumber)+'</button>';}).join('')+'</div></section>':'';return resultFiltersHtml(r)+progressHtml(r.progress)+'<section class="phfk-panel"><div class="phfk-section-head"><div><small>CHẤT LƯỢNG BỘ KNL</small><h2>Phản hồi theo hạng mục</h2></div><label class="phfk-check"><input type="checkbox" data-needs-review> Chỉ hiện Cần xem xét</label></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhóm / Hạng mục</th><th>% Phù hợp</th><th>% Chưa rõ</th><th>% Không phù hợp</th><th>Phân bố mức</th><th>Góp ý</th></tr></thead><tbody>'+r.quality.map(function(q){return '<tr data-quality-row data-needs="'+q.needsReview+'"><td><details><summary><b>'+esc(q.groupName)+'</b><br>'+esc(q.itemName)+'</summary>'+q.details.map(function(d){return '<p><b>'+esc(d.employeeCode)+' · '+esc(d.employeeName)+'</b>: Mức '+esc(d.selectedLevelNumber)+' · '+esc(d.suitability)+(d.comment?' · '+esc(d.comment):'')+'</p>';}).join('')+'</details></td><td>'+q.suitablePct+'%</td><td>'+q.unclearPct+'%</td><td>'+q.unsuitablePct+'%</td><td>'+esc(Object.keys(q.levelDistribution).map(function(k){return 'M'+k+': '+q.levelDistribution[k];}).join(' · '))+'</td><td>'+q.commentCount+'</td></tr>';}).join('')+'</tbody></table></div></section>'+clone;}
-async function loadSurveyResults(root){var body=root.querySelector('[data-knl-body]');try{var list=await apiPost('listKnlSurveyCampaigns'),campaignId=new URL(location.href).searchParams.get('campaign')||(list.campaigns[0]||{}).id;surveyState.campaigns=list.campaigns||[];if(campaignId)surveyState.results=await apiPost('getKnlSurveyResults',{campaignId:campaignId,filters:surveyState.resultFilters});body.innerHTML=surveyNav('ket-qua-khao-sat')+'<label class="phfk-field phfk-survey-result-select"><span>Đợt khảo sát</span><select class="phfk-input" data-result-campaign>'+surveyState.campaigns.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===campaignId?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label>'+resultsHtml();bindSurveyNav(root);var select=root.querySelector('[data-result-campaign]');if(select)select.onchange=function(){surveyState.resultFilters={};var u=new URL(location.href);u.searchParams.set('campaign',select.value);history.pushState({},'',u.pathname+u.search);loadSurveyResults(root);};root.querySelectorAll('[data-result-filter]').forEach(function(el){el.onchange=function(){surveyState.resultFilters[el.getAttribute('data-result-filter')]=el.value;loadSurveyResults(root);};});var review=root.querySelector('[data-needs-review]');if(review)review.onchange=function(){root.querySelectorAll('[data-quality-row]').forEach(function(row){row.hidden=review.checked&&row.dataset.needs!=='true';});};root.querySelectorAll('[data-clone-survey-version]').forEach(function(b){b.onclick=async function(){var name=prompt('Tên Draft mới:','Draft từ kết quả khảo sát');if(!name)return;try{await apiPost('cloneKnlSurveyVersionToDraft',{campaignId:campaignId,versionId:b.getAttribute('data-clone-survey-version'),name:name});alert('Đã tạo Draft mới; version đã khảo sát không bị thay đổi.');}catch(e){alert(e.message);}};});}catch(e){body.innerHTML=surveyNav('ket-qua-khao-sat')+noAccessSection(e.message);bindSurveyNav(root);}}
+function suitabilityLabel(v){return {SUITABLE:'Phù hợp',UNCLEAR:'Chưa rõ',UNSUITABLE:'Không phù hợp'}[v]||(v||'—');}
+function resultsHtml(){
+  var r=surveyState.results;
+  if(!r)return'<section class="phfk-empty"><p>Chọn một đợt để xem kết quả.</p></section>';
+  if(Number(r.progress&&r.progress.submitted||0)===0){
+    return progressHtml(r.progress)+'<section class="phfk-empty"><h3>Chưa có kết quả khảo sát</h3><p>Kết quả sẽ xuất hiện khi đợt khảo sát có phiếu đánh giá được hoàn thành.</p></section>';
+  }
+  var clone=r.canClone?'<section class="phfk-panel"><div class="phfk-section-head"><div><small>PHIÊN BẢN AN TOÀN</small><h2>Tạo phiên bản Dự thảo mới từ kết quả khảo sát</h2></div></div><div class="phfk-mini-actions">'+(r.versions||[]).map(function(v){return '<button type="button" data-clone-survey-version="'+esc(v.id)+'">Sao chép '+esc(v.frameworkName||v.name)+' · v'+esc(v.versionNumber)+'</button>';}).join('')+'</div></section>':'';
+  return resultFiltersHtml(r)+progressHtml(r.progress)+'<section class="phfk-panel"><div class="phfk-section-head"><div><small>CHẤT LƯỢNG BỘ KNL</small><h2>Phản hồi theo hạng mục</h2></div><label class="phfk-check"><input type="checkbox" data-needs-review> Chỉ hiện Cần xem xét</label></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhóm / Hạng mục</th><th>% Phù hợp</th><th>% Chưa rõ</th><th>% Không phù hợp</th><th>Phân bố mức</th><th>Góp ý</th></tr></thead><tbody>'+r.quality.map(function(q){return '<tr data-quality-row data-needs="'+q.needsReview+'"><td><details><summary><b>'+esc(q.groupName)+'</b><br>'+esc(q.itemName)+'</summary>'+q.details.map(function(d){return '<p><b>'+esc(d.employeeCode)+' · '+esc(d.employeeName)+'</b>: Mức '+esc(d.selectedLevelNumber)+' · '+esc(suitabilityLabel(d.suitability))+(d.comment?' · '+esc(d.comment):'')+'</p>';}).join('')+'</details></td><td>'+q.suitablePct+'%</td><td>'+q.unclearPct+'%</td><td>'+q.unsuitablePct+'%</td><td>'+esc(Object.keys(q.levelDistribution).map(function(k){return 'M'+k+': '+q.levelDistribution[k];}).join(' · '))+'</td><td>'+q.commentCount+'</td></tr>';}).join('')+'</tbody></table></div></section>'+clone;
+}
+async function loadSurveyResults(root){var body=root.querySelector('[data-knl-body]');try{var list=await apiPost('listKnlSurveyCampaigns'),campaignId=new URL(location.href).searchParams.get('campaign')||(list.campaigns[0]||{}).id;surveyState.campaigns=list.campaigns||[];if(campaignId)surveyState.results=await apiPost('getKnlSurveyResults',{campaignId:campaignId,filters:surveyState.resultFilters});body.innerHTML=surveyNav('ket-qua-khao-sat')+'<label class="phfk-field phfk-survey-result-select"><span>Đợt khảo sát</span><select class="phfk-input" data-result-campaign>'+surveyState.campaigns.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===campaignId?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label>'+resultsHtml();bindSurveyNav(root);var select=root.querySelector('[data-result-campaign]');if(select)select.onchange=function(){surveyState.resultFilters={};var u=new URL(location.href);u.searchParams.set('campaign',select.value);history.pushState({},'',u.pathname+u.search);loadSurveyResults(root);};root.querySelectorAll('[data-result-filter]').forEach(function(el){el.onchange=function(){surveyState.resultFilters[el.getAttribute('data-result-filter')]=el.value;loadSurveyResults(root);};});var review=root.querySelector('[data-needs-review]');if(review)review.onchange=function(){root.querySelectorAll('[data-quality-row]').forEach(function(row){row.hidden=review.checked&&row.dataset.needs!=='true';});};root.querySelectorAll('[data-clone-survey-version]').forEach(function(b){b.onclick=async function(){var name=prompt('Tên phiên bản Dự thảo mới:','Dự thảo từ kết quả khảo sát');if(!name)return;try{await apiPost('cloneKnlSurveyVersionToDraft',{campaignId:campaignId,versionId:b.getAttribute('data-clone-survey-version'),name:name});alert('Đã tạo phiên bản Dự thảo mới; phiên bản đã khảo sát không bị thay đổi.');}catch(e){alert(e.message);}};});}catch(e){body.innerHTML=surveyNav('ket-qua-khao-sat')+noAccessSection(e.message);bindSurveyNav(root);}}
 
 /* ===================== GRADE + EFFECTIVE VERSION + REFERENCE INCOME ===================== */
 
@@ -1220,6 +1415,7 @@ function bindGradeMatrixInteractions(root,id){bindFrameworkDomainNav(root);var b
     };
   }
 async function renderGradeMatrix(root,versionId){var body=root.querySelector('[data-knl-body]');try{var id=await loadFoundationVersion(versionId);body.innerHTML=gradeMatrixHtml();bindGradeMatrixInteractions(root,id);}catch(e){body.innerHTML=frameworkDomainNav('tieu-chuan-bac')+noAccessSection(e.message);bindFrameworkDomainNav(root);}}
+function lifecycleStatusLabel(v){return {DRAFT:'Chưa đặt hiệu lực',SCHEDULED:'Đã lên lịch hiệu lực',ACTIVE:'Đang có hiệu lực',INACTIVE:'Hết hiệu lực'}[v]||(v||'—');}
 function fmtKnlDateTime(v){
   if(!v)return '—';
   if(/^\d{4}-\d{2}-\d{2}$/.test(v)){var parts=v.split('-');return parts[2]+'/'+parts[1]+'/'+parts[0];}
@@ -1260,7 +1456,7 @@ function vhDetailHtml(){
     '<section class="phfk-panel"><h2>Thông tin phiên bản</h2><div class="phfk-vh-info-grid">'+
       '<div><small>Bộ KNL</small><b>'+esc(f.name)+'</b></div>'+
       '<div><small>Trạng thái</small><b>'+esc(statusLabel(v.status))+(v.isLocked?' · Đã khóa':'')+'</b></div>'+
-      '<div><small>Lifecycle</small><b>'+esc(v.lifecycleStatus||'—')+'</b></div>'+
+      '<div><small>Trạng thái hiệu lực</small><b>'+esc(lifecycleStatusLabel(v.lifecycleStatus))+'</b></div>'+
       '<div><small>Hiệu lực từ</small><b>'+esc(fmtKnlDateTime(v.effectiveFrom))+'</b></div>'+
       '<div><small>Cập nhật lúc</small><b>'+esc(fmtKnlDateTime(v.updatedAt))+'</b></div>'+
     '</div></section>';
