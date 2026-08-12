@@ -2020,7 +2020,7 @@ var gpState = { loaded:false, loadedAt:0, view:'awaiting',
   mine:[], mineLoading:false, mineLoaded:false, mineLoadError:'',
   awaiting:[], awaitingLoading:false, awaitingLoaded:false, awaitingLoadError:'',
   visible:[], visibleLoading:false, visibleLoaded:false, visibleLoadError:'',
-  visibleStatus:'', detail:null, detailId:'', error:'', message:'', create:gpCreateInitialState() };
+  visibleStatus:'', detail:null, detailId:'', error:'', message:'', detailActionBusy:false, create:gpCreateInitialState() };
 var GP_STATUS_LABELS = { pending:'Đang xử lý', approved:'Đã duyệt', rejected:'Không đồng ý', withdrawn:'Đã rút' };
 var GP_ACTION_LABELS = { propose:'Tạo đề xuất', agree:'Đồng ý', approve:'Duyệt (Admin)', reject:'Không đồng ý', withdraw:'Rút đề xuất', reassign:'Route lại (tự động)' };
 
@@ -2276,45 +2276,73 @@ function gpCreateFormHtml(){
     '</form>';
 }
 
+/* employeeCode "trông giống" mã PHF Organization Master chuẩn (vd "PHF012")
+ * — dùng CHỈ để quyết định có hiển thị công khai employeeCode trong Lịch sử
+ * xử lý hay không (mục 3.C: không hiện internal/legacy id kiểu "HV-xxxx" nếu
+ * đã có employeeCode chuẩn). KHÔNG map/đoán giá trị — nếu không giống mã
+ * chuẩn thì chỉ ẩn khỏi UI công khai, raw value vẫn giữ nguyên ở thuộc tính
+ * title (dev-safe, không hiển thị) để không mất audit trail. */
+function gpLooksLikeStandardEmployeeCode(code){ return /^[A-Z]{2,8}[0-9]{2,6}$/.test(String(code||'').trim()); }
+
 function gpDetailHtml(){
   var d = gpState.detail; if(!d) return '';
   var p = d.proposal;
-  var head = '<button class="phfk-link" data-gp-back>← Quay lại</button><section class="phfk-panel"><small>'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</small><h1>'+esc(p.subjectEmployeeName)+' <small>('+esc(p.subjectEmployeeCode)+')</small></h1>'+
-    '<p>Bậc hiện tại <b>'+esc(p.currentGradeCode)+'</b> → Bậc đề xuất ban đầu <b>'+esc(p.proposedGradeCode)+'</b></p>'+
-    '<p>Lý do: '+esc(p.reason)+'</p>'+
+  var subjectMeta = [p.subjectEmployeeCode].filter(Boolean).join(' · ');
+  var head = '<button type="button" class="phfk-link phfk-gp-back" data-gp-back>← Quay lại</button>'+
+    '<section class="phfk-panel phfk-gp-detail-head">'+
+    '<span class="phfk-pill phfk-pill-'+esc(p.status)+'">'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</span>'+
+    '<h1 class="phfk-gp-detail-title">'+esc(p.subjectEmployeeName)+' <small>'+esc(subjectMeta)+'</small></h1>'+
+    '<div class="phfk-gp-detail-grade">'+esc(p.currentGradeCode||'—')+' <span aria-hidden="true">→</span> <b>'+esc(p.proposedGradeCode||'—')+'</b></div>'+
+    '<dl class="phfk-gp-detail-meta">'+
+      '<div><dt>Người đề xuất</dt><dd>'+esc(p.createdByName||'—')+'</dd></div>'+
+      '<div><dt>Ngày tạo</dt><dd>'+fmtDate(p.createdAt)+'</dd></div>'+
+    '</dl>'+
+    (p.reason?'<p class="phfk-gp-detail-reason"><b>Lý do:</b> '+esc(p.reason)+'</p>':'')+
     (p.status==='approved'?'<p class="phfk-success">Admin đã chấp thuận, bậc chốt cuối: <b>'+esc(p.finalDecidedGradeCode)+'</b> ('+esc(p.finalDecidedByName)+', '+fmtDate(p.finalDecidedAt)+')</p>':'')+
     (p.status==='rejected'?'<p class="phfk-error">Không đồng ý bởi '+esc(p.rejectedByName)+' — '+esc(p.rejectedReason)+' ('+fmtDate(p.rejectedAt)+')</p>':'')+
-    (p.status==='withdrawn'?'<p>Đã rút bởi người tạo — '+esc(p.withdrawnReason)+' ('+fmtDate(p.withdrawnAt)+')</p>':'')+
+    (p.status==='withdrawn'?'<p class="phfk-gp-detail-note">Đã rút bởi người tạo — '+esc(p.withdrawnReason)+' ('+fmtDate(p.withdrawnAt)+')</p>':'')+
     '</section>';
 
   var workflowOverview = gpWorkflowOverviewHtml(d);
 
-  var timeline = '<section class="phfk-panel"><h2>Timeline</h2><ol class="phfk-gp-timeline">'+(d.steps||[]).map(function(s){
+  var steps = d.steps||[];
+  var historyOpen = steps.length<=3;
+  var history = '<details class="phfk-panel phfk-gp-history"'+(historyOpen?' open':'')+'><summary>Lịch sử xử lý</summary><ol class="phfk-gp-timeline">'+steps.map(function(s){
     var line = esc(GP_ACTION_LABELS[s.action]||s.action);
+    var rawTitle = '';
     if(s.action==='reassign') line += ' — chuyển từ '+esc(s.reassignedFromEmployeeCode)+' sang '+esc(s.reassignedToEmployeeCode);
-    else if(s.actorName) line += ' bởi '+esc(s.actorName)+(s.actorEmployeeCode?' ('+esc(s.actorEmployeeCode)+')':'');
+    else if(s.actorName){
+      var codeIsStandard = s.actorEmployeeCode && gpLooksLikeStandardEmployeeCode(s.actorEmployeeCode);
+      line += ' bởi '+esc(s.actorName)+(codeIsStandard?' ('+esc(s.actorEmployeeCode)+')':'');
+      if(s.actorEmployeeCode && !codeIsStandard) rawTitle=' title="Mã nội bộ (chưa chuẩn hoá): '+esc(s.actorEmployeeCode)+'"';
+    }
     if(s.suggestedGradeCode) line += ' · bậc kiến nghị: '+esc(s.suggestedGradeCode);
     if(s.reason) line += ' · '+esc(s.reason);
-    return '<li>'+line+'<small>'+fmtDate(s.actedAt)+'</small></li>';
-  }).join('')+'</ol></section>';
+    return '<li'+rawTitle+'>'+line+'<small>'+fmtDate(s.actedAt)+'</small></li>';
+  }).join('')+'</ol></details>';
 
   var actions = '';
   if(p.status==='pending' && d.isMyTurn){
     var eligible = (gpState.detailGradeOptions||[]).filter(function(g){return g.gradeNumber<=p.proposedGradeNumber;});
-    actions = '<section class="phfk-panel"><h2>Xử lý</h2>'+
-      '<form data-gp-agree-form><label class="phfk-field"><span>Bậc kiến nghị (phải > bậc hiện tại, không vượt quá bậc đề xuất ban đầu)</span><select class="phfk-input" name="suggestedGradeId" required>'+
+    var busy = gpState.detailActionBusy===true;
+    actions = '<section class="phfk-panel phfk-gp-decision"><h2>Quyết định của bạn</h2>'+
+      '<form data-gp-agree-form class="phfk-gp-decision-agree"><label class="phfk-field"><span>Bậc kiến nghị (phải > bậc hiện tại, không vượt quá bậc đề xuất ban đầu)</span><select class="phfk-input" name="suggestedGradeId" required'+(busy?' disabled':'')+'>'+
       eligible.map(function(g){return '<option value="'+esc(g.id)+'"'+(g.gradeCode===p.proposedGradeCode?' selected':'')+'>'+esc(g.gradeCode)+'</option>';}).join('')+
-      '</select></label><label class="phfk-field"><span>Ghi chú (không bắt buộc)</span><textarea class="phfk-input" name="note"></textarea></label>'+
-      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary">Đồng ý</button></div></form>'+
-      '<form data-gp-reject-form><label class="phfk-field"><span>Lý do không đồng ý</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label>'+
-      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary">Không đồng ý</button></div></form>'+
+      '</select></label><label class="phfk-field"><span>Ghi chú (không bắt buộc)</span><textarea class="phfk-input" name="note"'+(busy?' disabled':'')+'></textarea></label>'+
+      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary"'+(busy?' disabled':'')+'>'+(busy?'Đang xử lý…':'Đồng ý')+'</button></div></form>'+
+      '<details class="phfk-gp-decision-reject"><summary class="phfk-btn-ghost-danger">Không đồng ý</summary>'+
+      '<form data-gp-reject-form><label class="phfk-field"><span>Lý do không đồng ý</span><textarea class="phfk-input" name="reason" minlength="5" required'+(busy?' disabled':'')+'></textarea></label>'+
+      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary"'+(busy?' disabled':'')+'>'+(busy?'Đang xử lý…':'Xác nhận không đồng ý')+'</button></div></form></details>'+
       '</section>';
   }
   var withdrawBlock = '';
   if(p.status==='pending' && p.createdBy && currentUser() && (currentUser().id===p.createdBy || currentUser().accountId===p.createdBy)){
-    withdrawBlock = '<section class="phfk-panel"><form data-gp-withdraw-form><label class="phfk-field"><span>Lý do rút đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label><div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary">Rút đề xuất</button></div></form></section>';
+    var wBusy = gpState.detailActionBusy===true;
+    withdrawBlock = '<details class="phfk-gp-withdraw"><summary>Rút đề xuất</summary>'+
+      '<form data-gp-withdraw-form><label class="phfk-field"><span>Lý do rút đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required'+(wBusy?' disabled':'')+'></textarea></label>'+
+      '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary"'+(wBusy?' disabled':'')+'>'+(wBusy?'Đang xử lý…':'Xác nhận rút đề xuất')+'</button></div></form></details>';
   }
-  return head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+workflowOverview+timeline+actions+withdrawBlock;
+  return '<div class="phfk-gp-detail">'+head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+workflowOverview+history+actions+withdrawBlock+'</div>';
 }
 
 /* "TIẾN TRÌNH XỬ LÝ" (mục 7 batch giám sát Admin) — tách biệt hoàn toàn khỏi
@@ -2478,34 +2506,60 @@ function bindGpCreateForm(root){
   });
 }
 
+/* Chống double-submit (mục 6): 1 flag DUY NHẤT gpState.detailActionBusy cho
+ * cả 3 form agree/reject/withdraw (không thể chạy đồng thời > 1 hành động
+ * trên CÙNG 1 proposal đang mở) — early-return nếu đã busy, và
+ * gpDetailHtml() tự disable nút/field khi busy=true (đọc lại flag mỗi lần
+ * render, cùng pattern c.submitting đã dùng ở form Tạo đề xuất). FormData
+ * PHẢI đọc TRƯỚC khi set busy+render (render sẽ thay innerHTML, hủy chính
+ * form đang submit). */
 function bindGpDetail(root){
   var back = root.querySelector('[data-gp-back]');
-  if(back) back.onclick=function(){gpState.detail=null;gpState.error='';gpState.message='';var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);renderGpBody(root);};
+  if(back) back.onclick=function(){
+    gpState.detail=null;gpState.error='';gpState.message='';
+    var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);
+    gpLoadActiveView(root); // mục 6: quay lại list phải refetch, không hiện dataset cũ trước khi vào detail
+  };
   var agreeForm = root.querySelector('[data-gp-agree-form]');
   if(agreeForm) agreeForm.onsubmit=async function(ev){
-    ev.preventDefault();var fd=new FormData(agreeForm);
-    try{ await apiPost('agreeKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,suggestedGradeId:fd.get('suggestedGradeId'),note:fd.get('note')});
-      gpState.message='Đã ghi nhận xử lý.';await openGpDetail(root,gpState.detail.proposal.id); }
-    catch(e){ gpState.error=e.message; renderGpBody(root); }
+    ev.preventDefault();
+    if(gpState.detailActionBusy)return;
+    var fd=new FormData(agreeForm);
+    gpState.detailActionBusy=true; renderGpBody(root);
+    try{
+      await apiPost('agreeKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,suggestedGradeId:fd.get('suggestedGradeId'),note:fd.get('note')});
+      gpState.message='Đã ghi nhận xử lý.'; gpState.detailActionBusy=false;
+      await openGpDetail(root,gpState.detail.proposal.id);
+    }catch(e){ gpState.detailActionBusy=false; gpState.error=e.message; renderGpBody(root); }
   };
   var rejectForm = root.querySelector('[data-gp-reject-form]');
   if(rejectForm) rejectForm.onsubmit=async function(ev){
-    ev.preventDefault();var fd=new FormData(rejectForm);
-    try{ await apiPost('rejectKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
-      gpState.message='Đã ghi nhận Không đồng ý.';await openGpDetail(root,gpState.detail.proposal.id); }
-    catch(e){ gpState.error=e.message; renderGpBody(root); }
+    ev.preventDefault();
+    if(gpState.detailActionBusy)return;
+    var fd=new FormData(rejectForm);
+    gpState.detailActionBusy=true; renderGpBody(root);
+    try{
+      await apiPost('rejectKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
+      gpState.message='Đã ghi nhận Không đồng ý.'; gpState.detailActionBusy=false;
+      await openGpDetail(root,gpState.detail.proposal.id);
+    }catch(e){ gpState.detailActionBusy=false; gpState.error=e.message; renderGpBody(root); }
   };
   var withdrawForm = root.querySelector('[data-gp-withdraw-form]');
   if(withdrawForm) withdrawForm.onsubmit=async function(ev){
-    ev.preventDefault();var fd=new FormData(withdrawForm);
-    try{ await apiPost('withdrawKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
-      gpState.message='Đã rút đề xuất.';await openGpDetail(root,gpState.detail.proposal.id); }
-    catch(e){ gpState.error=e.message; renderGpBody(root); }
+    ev.preventDefault();
+    if(gpState.detailActionBusy)return;
+    var fd=new FormData(withdrawForm);
+    gpState.detailActionBusy=true; renderGpBody(root);
+    try{
+      await apiPost('withdrawKnlGradePromotionProposal',{proposalId:gpState.detail.proposal.id,reason:fd.get('reason')});
+      gpState.message='Đã rút đề xuất.'; gpState.detailActionBusy=false;
+      await openGpDetail(root,gpState.detail.proposal.id);
+    }catch(e){ gpState.detailActionBusy=false; gpState.error=e.message; renderGpBody(root); }
   };
 }
 
 async function openGpDetail(root,proposalId){
-  gpState.error='';gpState.message='';
+  gpState.error='';gpState.message='';gpState.detailActionBusy=false;
   var u=new URL(location.href);u.searchParams.set('proposal',proposalId);history.pushState({},'',u.pathname+u.search);
   try{
     gpState.detail = await apiPost('getKnlGradePromotionProposalDetail',{proposalId:proposalId});

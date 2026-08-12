@@ -596,3 +596,74 @@
 .phfk-gp-wf-node.is-current small{color:var(--phfk-amber-deep)}
 .phfk-gp-wf-node.is-rejected small{color:var(--phfk-red-deep)}
 .phfk-gp-wf-node.is-future b,.phfk-gp-wf-node.is-future small{color:var(--phfk-muted)}
+
+/* Detail proposal — redesign hierarchy (batch "polish detail + refetch").
+ * Scope RIÊNG (.phfk-gp-*), KHÔNG đổi .phfk-panel/.phfk-table dùng chung
+ * toàn KNL — tránh ảnh hưởng các màn khác (Nhân sự/Compensation/Framework)
+ * ngoài phạm vi batch này. */
+.phfk-gp-detail{max-width:720px}
+.phfk-gp-back{display:inline-block;margin-bottom:10px}
+.phfk-gp-detail-head{padding:20px}
+.phfk-gp-detail-title{margin:10px 0 6px;font-size:19px;line-height:1.25;font-weight:800;color:var(--phfk-ink);letter-spacing:-.005em}
+.phfk-gp-detail-title small{margin-left:6px;font-size:12.5px;font-weight:700;color:var(--phfk-muted)}
+.phfk-gp-detail-grade{font-size:15px;font-weight:700;color:var(--phfk-muted)}
+.phfk-gp-detail-grade b{color:var(--phfk-green-deep);font-size:16px}
+.phfk-gp-detail-meta{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--phfk-line)}
+.phfk-gp-detail-meta div{display:flex;flex-direction:column;gap:2px}
+.phfk-gp-detail-meta dt{margin:0;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--phfk-muted);text-transform:uppercase}
+.phfk-gp-detail-meta dd{margin:0;font-size:13px;font-weight:700;color:var(--phfk-ink)}
+.phfk-gp-detail-reason{margin:14px 0 0;font-size:13px;line-height:1.55;color:var(--phfk-ink)}
+.phfk-gp-detail-reason b{color:var(--phfk-muted);font-weight:700}
+.phfk-gp-detail-note{margin:10px 0 0;font-size:12.5px;color:var(--phfk-muted)}
+
+/* Lịch sử xử lý — collapsible, tách khỏi stepper "Tiến trình xử lý" phía
+ * trên (mục 3.C). summary tự thay h2 (cùng cỡ chữ .phfk-panel h2). */
+.phfk-gp-history{padding:18px}
+.phfk-gp-history summary{cursor:pointer;list-style:none;font-size:15.5px;font-weight:700;color:#173f33}
+.phfk-gp-history summary::-webkit-details-marker{display:none}
+.phfk-gp-history summary::before{content:'▸';display:inline-block;margin-right:8px;color:var(--phfk-muted);transition:transform .12s ease}
+.phfk-gp-history[open] summary::before{transform:rotate(90deg)}
+.phfk-gp-history .phfk-gp-timeline{margin-top:14px}
+.phfk-gp-timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.phfk-gp-timeline li{padding-bottom:10px;border-bottom:1px dashed #eef2ef;font-size:12.5px;color:var(--phfk-ink);line-height:1.5}
+.phfk-gp-timeline li:last-child{border-bottom:0;padding-bottom:0}
+.phfk-gp-timeline li small{display:block;margin-top:2px;color:var(--phfk-muted);font-size:11px}
+
+/* "Quyết định của bạn" (mục 4) — Đồng ý luôn hiện sẵn (đường chính), Không
+ * đồng ý dùng <details><summary> để lý do CHỈ mở khi bấm (progressive
+ * disclosure, KHÔNG mở sẵn) — cùng pattern <details> đã dùng ở Survey. */
+.phfk-gp-decision h2{font-size:15.5px}
+.phfk-gp-decision-agree .phfk-form-actions{margin-top:6px}
+.phfk-gp-decision-reject{margin-top:14px;padding-top:14px;border-top:1px solid var(--phfk-line)}
+.phfk-gp-decision-reject summary{list-style:none}
+.phfk-gp-decision-reject summary::-webkit-details-marker{display:none}
+.phfk-btn-ghost-danger{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:10px;border:1px solid #f0d3ce;background:#fff;color:var(--phfk-red-deep);font-size:11.5px;font-weight:700;cursor:pointer}
+.phfk-btn-ghost-danger:hover{background:#fdf1ef}
+.phfk-gp-decision-reject[open] summary.phfk-btn-ghost-danger{background:#fdf1ef;margin-bottom:12px}
+.phfk-gp-decision-reject form{padding-left:2px}
+.phfk-btn-secondary:disabled{opacity:.6;cursor:default}
+
+/* Rút đề xuất (mục 5) — action phụ của creator, KHÔNG cùng trọng lượng thị
+ * giác với workflow chính: không bọc .phfk-panel (không card lớn), chỉ 1
+ * dòng link-style cho tới khi bấm mở form. */
+.phfk-gp-withdraw{margin-top:18px;padding-top:14px;border-top:1px dashed var(--phfk-line)}
+.phfk-gp-withdraw summary{cursor:pointer;list-style:none;display:inline-block;font-size:12px;font-weight:700;color:var(--phfk-muted)}
+.phfk-gp-withdraw summary:hover{color:var(--phfk-red-deep)}
+.phfk-gp-withdraw summary::-webkit-details-marker{display:none}
+.phfk-gp-withdraw form{margin-top:12px}
+
+/* Typography Danh sách (mục 10) — override RIÊNG .phfk-gp-table, không đụng
+ * .phfk-table dùng chung các màn KNL khác. */
+.phfk-gp-table thead th{font-size:12.5px;font-weight:800}
+.phfk-gp-table tbody td{font-size:13px}
+.phfk-gp-table tbody td small{font-size:11.5px}
+
+/* Mobile — Bottom Nav coexistence (mục 9). body.phf-knl-mode đã có
+ * padding-bottom toàn cục cho bottom nav; thêm khoảng đệm cuối riêng cho
+ * module proposal (form Rút đề xuất/Quyết định là section cuối cùng hay bị
+ * che theo PHF QA) để chắc chắn không phụ thuộc duy nhất vào 1 rule global. */
+@media(max-width:760px){
+  .phfk-gp-detail{padding-bottom:24px}
+  .phfk-gp-decision .phfk-btn-primary,.phfk-gp-decision-reject .phfk-btn-secondary,.phfk-gp-withdraw .phfk-btn-secondary{width:100%}
+  .phfk-gp-detail-meta{gap:14px}
+}
