@@ -791,61 +791,94 @@
 /* PHF KNL — Dashboard (Gate 1: layout/hierarchy shell theo demo đã duyệt,
    CHƯA nối dữ liệu thật — mọi panel ở trạng thái rỗng/skeleton). Không tạo
    palette riêng, dùng lại --phfk-success/warning/danger/info + .phfk-panel/
-   .phfk-page-head/.phfk-badge/.phfk-table đã có. */
-.phfk-dash{display:flex;flex-direction:column;gap:16px}
+   .phfk-page-head/.phfk-badge/.phfk-table đã có.
+   VISUAL POLISH (PHF review — Technical Gate 1 PASS, Visual chưa PASS):
+   tăng visual hierarchy KPI, giảm chiều cao donut/AI, tăng trọng số bảng
+   "So sánh phòng ban", giảm density filter, chuẩn bị class semantic biến
+   động cho Gate 2 — KHÔNG đổi bất kỳ nội dung/dữ liệu nào. */
+.phfk-dash{display:flex;flex-direction:column;gap:14px}
 .phfk-dash-head{align-items:flex-start}
 .phfk-dash-subtitle{margin:4px 0 0;font-size:12px;color:var(--phfk-muted)}
 .phfk-dash-period{display:flex;gap:8px}
-.phfk-dash-period .phfk-input{height:36px;font-size:11px;min-width:140px}
-.phfk-dash-filters{margin-bottom:0}
-.phfk-dash-filters-note{margin:-8px 2px 0}
+.phfk-dash-period .phfk-input{height:34px;font-size:11px;min-width:132px}
+.phfk-dash-filters{padding:10px 12px;gap:8px;margin-bottom:0}
+.phfk-dash-filters .phfk-input{height:33px;font-size:10.8px}
+.phfk-dash-filters-note{margin:-6px 2px 0}
 .phfk-dash-empty-note{margin:8px 2px 0;font-size:10.8px;line-height:1.5;color:var(--phfk-muted)}
 
+/* KPI: value là visual focus lớn nhất card — tăng size/weight, label nhỏ
+   hơn hẳn, icon có tint semantic nhẹ (2 nhóm: thu nhập=xanh PHF, nhân sự/
+   năng lực=info xanh dương — không dùng 4 màu chói cạnh tranh). */
 .phfk-dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.phfk-dash-kpi{background:#fff;border:1px solid var(--phfk-line);border-radius:14px;padding:14px 16px;box-shadow:0 6px 18px rgba(32,79,64,.04)}
+.phfk-dash-kpi{background:#fff;border:1px solid var(--phfk-line);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(32,79,64,.05)}
 .phfk-dash-kpi-top{display:flex;align-items:center;gap:8px}
-.phfk-dash-kpi-icon{width:26px;height:26px;border-radius:8px;background:var(--phfk-green-soft);color:var(--phfk-green-deep);display:grid;place-items:center;font-size:13px}
-.phfk-dash-kpi-label{font-size:10.8px;font-weight:700;color:var(--phfk-muted)}
-.phfk-dash-kpi-value{margin:10px 0 2px;font-size:26px;font-weight:800;color:var(--phfk-green-deep);letter-spacing:-.01em}
-.phfk-dash-kpi-delta{margin:0;font-size:10.5px;color:var(--phfk-muted)}
+.phfk-dash-kpi-icon{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:14px;flex:0 0 auto}
+.phfk-dash-kpi-icon.is-income{background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
+.phfk-dash-kpi-icon.is-people{background:var(--phfk-info-bg);color:var(--phfk-info)}
+.phfk-dash-kpi-label{font-size:10.8px;font-weight:700;color:var(--phfk-muted);line-height:1.3}
+.phfk-dash-kpi-value{margin:12px 0 3px;font-size:32px;font-weight:800;color:var(--phfk-green-deep);letter-spacing:-.02em;line-height:1}
+.phfk-dash-kpi-delta{display:flex;align-items:center;gap:5px;margin:0;font-size:10.8px;color:var(--phfk-muted)}
+.phfk-dash-kpi-delta-dash{display:inline-block;width:12px;height:1.5px;background:var(--phfk-line)}
+/* Semantic biến động — chuẩn bị sẵn cho Gate 2 (chưa gán vào giá trị nào ở
+   Gate 1 vì chưa có dữ liệu thật, KHÔNG tạo % giả). */
+.phfk-dash-delta-up{color:var(--phfk-success);font-weight:700}
+.phfk-dash-delta-down{color:var(--phfk-danger);font-weight:700}
+.phfk-dash-delta-flat{color:var(--phfk-muted);font-weight:600}
 
 .phfk-dash-panel{margin-top:0}
-.phfk-dash-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.phfk-dash-panel-compact{padding:14px 16px}
+.phfk-dash-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .phfk-dash-panel-head h2{margin:0;font-size:14px;color:var(--phfk-green-deep);font-weight:800}
 
-.phfk-dash-grid-main{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.phfk-dash-grid-main{display:grid;grid-template-columns:1fr 1.15fr;gap:14px}
 .phfk-dash-grid-secondary{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 
-.phfk-dash-donut-wrap{position:relative;width:150px;height:150px;margin:6px auto}
+.phfk-dash-donut-wrap{position:relative;width:118px;height:118px;margin:2px auto}
 .phfk-dash-donut{width:100%;height:100%}
 .phfk-dash-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-.phfk-dash-donut-center b{font-size:20px;color:var(--phfk-muted)}
-.phfk-dash-donut-center small{font-size:10px;color:var(--phfk-muted)}
+.phfk-dash-donut-center b{font-size:18px;color:var(--phfk-muted)}
+.phfk-dash-donut-center small{font-size:9.5px;color:var(--phfk-muted)}
 
-.phfk-dash-ai-panel{background:linear-gradient(180deg,#fbfdfc,#fff)}
-.phfk-dash-ai-helper{margin:0 0 8px;font-size:11.5px;font-weight:700;color:var(--phfk-ink)}
-.phfk-dash-ai-prompts{display:flex;flex-direction:column;gap:6px}
-.phfk-dash-ai-prompt{text-align:left;border:1px solid var(--phfk-line);background:#fff;border-radius:9px;padding:9px 11px;font-size:11.5px;color:#456158;cursor:not-allowed}
-.phfk-dash-ai-result{margin-top:14px;border-top:1px dashed var(--phfk-line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
-.phfk-dash-ai-result-block small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em;margin-bottom:4px}
-.phfk-dash-ai-cta{width:100%;margin-top:12px}
+/* AI panel: accent info-blue rất nhẹ (1 viền trái mảnh) để nhận biết đây là
+   khu AI hỗ trợ, không phải card quảng cáo — không lấn át bảng dữ liệu. */
+.phfk-dash-ai-panel{background:#fff;border-left:3px solid var(--phfk-info-border)}
+.phfk-dash-ai-helper{margin:0 0 7px;font-size:11px;font-weight:700;color:var(--phfk-ink)}
+.phfk-dash-ai-prompts{display:flex;flex-direction:column;gap:5px}
+.phfk-dash-ai-prompt{text-align:left;border:1px solid var(--phfk-line);background:#fbfdfc;border-radius:8px;padding:7px 10px;font-size:11px;color:#456158;cursor:not-allowed}
+.phfk-dash-ai-result{margin-top:12px;border-top:1px dashed var(--phfk-line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.phfk-dash-ai-result-block small{display:block;color:#789087;font-weight:800;font-size:9.5px;letter-spacing:.08em;margin-bottom:3px}
+.phfk-dash-ai-result-block .phfk-dash-empty-note{margin-top:0}
+.phfk-dash-ai-cta{width:100%;margin-top:10px;min-height:36px;font-size:11.5px}
 
-.phfk-dash-table-empty{text-align:center;color:var(--phfk-muted);font-size:11.5px;padding:22px 12px}
+/* "So sánh phòng ban" = khối trọng tâm — heading lớn hơn, padding rộng hơn
+   1 chút, thanh accent xanh PHF mảnh phía trên để tách biệt trọng số. */
+.phfk-dash-panel-primary{padding:20px 22px;border-top:3px solid var(--phfk-green)}
+.phfk-dash-panel-primary .phfk-dash-panel-head h2{font-size:16px}
+.phfk-dash-panel-primary .phfk-table thead th{background:#eef6ea;color:var(--phfk-green-deep);font-weight:800}
 
-.phfk-dash-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;height:130px;padding:0 4px}
+.phfk-dash-table-empty{text-align:center;color:var(--phfk-muted);font-size:11.5px;padding:20px 12px}
+
+/* Điểm cần chú ý — tint warning rất nhẹ (không phải đỏ, không phải cảnh
+   báo lỗi) để phân biệt đây là khu vực cần theo dõi, chưa phải rủi ro. */
+.phfk-dash-panel-attention{background:var(--phfk-warning-bg);border-color:var(--phfk-warning-border)}
+.phfk-dash-panel-attention .phfk-dash-panel-head h2{color:var(--phfk-warning)}
+.phfk-dash-panel-attention .phfk-dash-empty-note{color:#8b6a24}
+
+.phfk-dash-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;height:120px;padding:8px 4px 0;border-bottom:1px solid var(--phfk-line)}
 .phfk-dash-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
-.phfk-dash-bar-track{width:100%;max-width:34px;height:100%;background:#f3f7f5;border-radius:8px 8px 3px 3px;display:flex;align-items:flex-end;overflow:hidden}
-.phfk-dash-bar-fill{width:100%;height:4%;background:var(--phfk-line);border-radius:8px 8px 0 0}
-.phfk-dash-bar-col small{font-size:10.5px;color:var(--phfk-muted);font-weight:700}
+.phfk-dash-bar-track{width:100%;max-width:32px;height:100%;background:#f6f9f7;border:1px solid #eef2f0;border-radius:6px 6px 0 0;display:flex;align-items:flex-end;overflow:hidden}
+.phfk-dash-bar-fill{width:100%;height:3%;background:var(--phfk-line)}
+.phfk-dash-bar-col small{font-size:10.5px;color:var(--phfk-muted);font-weight:700;margin-top:2px}
 
 .phfk-dash-trend-toggle{display:flex;gap:6px;flex-wrap:wrap}
-.phfk-dash-trend-toggle button{border:1px solid var(--phfk-line);background:#fff;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:700;color:#456158;cursor:not-allowed}
+.phfk-dash-trend-toggle button{border:1px solid var(--phfk-line);background:#fff;border-radius:8px;padding:7px 11px;font-size:10.8px;font-weight:700;color:#456158;cursor:not-allowed}
 .phfk-dash-trend-toggle button.active{border-color:var(--phfk-green);background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
+.phfk-dash-sparkline{display:block;width:100%;height:52px;margin-top:10px}
 
 .phfk-dash-actionbar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.phfk-dash-action-mini{background:#fff;border:1px solid var(--phfk-line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px}
-.phfk-dash-action-mini b{font-size:18px;color:var(--phfk-muted)}
-.phfk-dash-action-mini span{font-size:11px;color:var(--phfk-ink);font-weight:600}
+.phfk-dash-action-mini{background:#fff;border:1px solid var(--phfk-line);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px}
+.phfk-dash-action-mini b{font-size:16px;color:var(--phfk-muted)}
+.phfk-dash-action-mini span{font-size:10.8px;color:var(--phfk-ink);font-weight:600}
 
 @media(max-width:1100px){
   .phfk-dash-kpis{grid-template-columns:repeat(2,1fr)}
@@ -857,4 +890,5 @@
   .phfk-dash-period .phfk-input{flex:1;min-width:0}
   .phfk-dash-kpis{grid-template-columns:1fr}
   .phfk-dash-actionbar{grid-template-columns:1fr}
+  .phfk-dash-panel-primary{padding:16px}
 }

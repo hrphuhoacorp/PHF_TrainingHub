@@ -3154,12 +3154,12 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
    apiPost nào, KHÔNG aggregation, KHÔNG data thật/giả trông giống thật — mọi
    KPI/chart/table đều ở trạng thái rỗng "—"/"Chưa nối dữ liệu" theo đúng yêu
    cầu mục 21. Gate 2 mới nối dữ liệu thật + áp incomeScope/peopleScope. */
-function dashboardKpiTileHtml(icon, label){
+function dashboardKpiTileHtml(icon, label, tone){
   return '' +
     '<div class="phfk-dash-kpi">' +
-      '<div class="phfk-dash-kpi-top"><span class="phfk-dash-kpi-icon">'+icon+'</span><span class="phfk-dash-kpi-label">'+esc(label)+'</span></div>' +
+      '<div class="phfk-dash-kpi-top"><span class="phfk-dash-kpi-icon is-'+(tone||'income')+'">'+icon+'</span><span class="phfk-dash-kpi-label">'+esc(label)+'</span></div>' +
       '<div class="phfk-dash-kpi-value">—</div>' +
-      '<p class="phfk-dash-kpi-delta">Chưa nối dữ liệu</p>' +
+      '<p class="phfk-dash-kpi-delta"><span class="phfk-dash-kpi-delta-dash" aria-hidden="true">–</span> Chưa nối dữ liệu</p>' +
     '</div>';
 }
 function dashboardDonutSkeletonHtml(centerLabel){
@@ -3180,6 +3180,13 @@ function dashboardEmptyTableHtml(headers, note){
       '<thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead>' +
       '<tbody><tr><td colspan="'+headers.length+'" class="phfk-dash-table-empty">'+esc(note)+'</td></tr></tbody>' +
     '</table></div>';
+}
+/* Sparkline shell rỗng cho "Xu hướng theo thời gian" — 1 đường ngang phẳng
+   neutral (KHÔNG phải đường xu hướng giả), chỉ để khối không trông như
+   khoảng trắng thuần khi chưa có dữ liệu. Gate 2 thay path này bằng dữ liệu
+   thật. */
+function dashboardSparklineSkeletonHtml(){
+  return '<svg viewBox="0 0 280 60" class="phfk-dash-sparkline" aria-hidden="true"><line x1="4" y1="30" x2="276" y2="30" stroke="var(--phfk-line)" stroke-width="2" stroke-dasharray="4 5"/></svg>';
 }
 function renderKnlDashboard(root){
   var body = root.querySelector('[data-knl-body]');
@@ -3213,19 +3220,19 @@ function renderKnlDashboard(root){
       '<p class="phfk-dash-empty-note phfk-dash-filters-note">Bộ lọc sẽ hoạt động khi Dashboard được nối dữ liệu thật (Gate 2).</p>' +
 
       '<div class="phfk-dash-kpis">' +
-        dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập') +
-        dashboardKpiTileHtml('◍', 'Tổng nhân sự') +
-        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người') +
-        dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)') +
+        dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income') +
+        dashboardKpiTileHtml('◍', 'Tổng nhân sự', 'people') +
+        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người', 'income') +
+        dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)', 'people') +
       '</div>' +
 
       '<div class="phfk-dash-grid-main">' +
-        '<section class="phfk-panel phfk-dash-panel">' +
+        '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact">' +
           '<div class="phfk-dash-panel-head"><h2>Cơ cấu quỹ thu nhập theo phòng ban</h2></div>' +
           dashboardDonutSkeletonHtml('Chưa có dữ liệu') +
           '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
         '</section>' +
-        '<section class="phfk-panel phfk-dash-panel phfk-dash-ai-panel">' +
+        '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact phfk-dash-ai-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Hỏi AI về dữ liệu này</h2><span class="phfk-badge phfk-badge-warning">Sắp ra mắt</span></div>' +
           '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
           '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" disabled>'+esc(p)+'</button>'; }).join('') + '</div>' +
@@ -3238,7 +3245,7 @@ function renderKnlDashboard(root){
         '</section>' +
       '</div>' +
 
-      '<section class="phfk-panel phfk-dash-panel">' +
+      '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-primary">' +
         '<div class="phfk-dash-panel-head"><h2>So sánh phòng ban</h2></div>' +
         dashboardEmptyTableHtml(['Phòng ban','Nhân sự','Quỹ thu nhập','Bình quân','Biến động','M3+','Xem'], emptyNote) +
       '</section>' +
@@ -3256,13 +3263,14 @@ function renderKnlDashboard(root){
       '</div>' +
 
       '<div class="phfk-dash-grid-secondary">' +
-        '<section class="phfk-panel phfk-dash-panel">' +
+        '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-attention">' +
           '<div class="phfk-dash-panel-head"><h2>Điểm cần chú ý</h2></div>' +
           '<p class="phfk-dash-empty-note">Các điểm cần chú ý sẽ xuất hiện khi dữ liệu Dashboard được kết nối.</p>' +
         '</section>' +
         '<section class="phfk-panel phfk-dash-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Xu hướng theo thời gian</h2></div>' +
           '<div class="phfk-dash-trend-toggle">' + trendRanges.map(function(t,i){ return '<button type="button" class="'+(i===0?'active':'')+'" disabled>'+esc(t)+'</button>'; }).join('') + '</div>' +
+          dashboardSparklineSkeletonHtml() +
           '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
         '</section>' +
       '</div>' +
