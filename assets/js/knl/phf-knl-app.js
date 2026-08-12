@@ -2024,17 +2024,67 @@ function gpNav(activeView, capabilities, isAdmin){
 }
 function bindGpNav(root){root.querySelectorAll('[data-gp-nav]').forEach(function(b){b.onclick=function(){gpState.view=b.getAttribute('data-gp-nav');gpState.error='';var u=new URL(location.href);u.searchParams.delete('proposal');history.pushState({},'',u.pathname+u.search);renderGpBody(root);};});}
 
-function gpGradeLine(currentCode,currentNumber,proposedCode,proposedNumber){return esc(currentCode||'—')+' → '+esc(proposedCode||'—');}
+function gpGradeLine(currentCode,currentNumber,proposedCode,proposedNumber){return esc(currentCode||'—')+' <span class="phfk-gp-grade-arrow-mini" aria-hidden="true">→</span> <b class="phfk-gp-grade-target-mini">'+esc(proposedCode||'—')+'</b>';}
+
+/* Workflow progress — DUY NHẤT dựa vào routing_snapshot/liveChain +
+ * current_step_index + status thật đã persist (không invent, không hardcode
+ * số tầng/tên người). Dùng chung cho cả "Tiến trình" (compact, list) và
+ * "TIẾN TRÌNH XỬ LÝ" (block đầy đủ, detail) — xem gpChainCompactHtml() /
+ * gpWorkflowOverviewHtml() bên dưới, cùng đọc qua gpStepStatus(). */
+function gpStepStatus(i, currentStepIndex, status){
+  if(i < currentStepIndex) return 'done';
+  if(i === currentStepIndex){
+    if(status === 'pending') return 'current';
+    if(status === 'rejected') return 'rejected';
+    if(status === 'withdrawn') return 'withdrawn';
+  }
+  return 'future';
+}
+function gpShortName(name){
+  var parts = String(name||'').trim().split(/\s+/).filter(Boolean);
+  return parts.length ? parts[parts.length-1] : '';
+}
+/* "Đang chờ": resolve THẲNG từ routing_snapshot[current_step_index] đã
+ * persist — không đoán khi index không hợp lệ (mục 5: hiển thị an toàn
+ * "Chưa xác định người xử lý" thay vì suy diễn). */
+function gpWaitingStep(p){
+  if(p.status !== 'pending') return null;
+  var chain = p.routingSnapshot || [];
+  return chain[p.currentStepIndex] || undefined; // undefined = index không resolve được (khác null = đã kết thúc)
+}
+function gpWaitingCellHtml(p){
+  if(p.status !== 'pending') return '<span class="phfk-gp-waiting-none">—</span>';
+  var step = gpWaitingStep(p);
+  if(!step) return '<span class="phfk-gp-waiting-unknown">Chưa xác định người xử lý</span>';
+  var name = step.tier==='final' ? 'Admin' : (step.employeeName || step.employeeCode || 'Không xác định');
+  var sub = step.tier==='final' ? 'Duyệt cuối' : 'Đồng ý';
+  return '<b>'+esc(name)+'</b><small>'+esc(sub)+'</small>';
+}
+function gpChainCompactHtml(p){
+  var chain = p.routingSnapshot || [];
+  if(!chain.length) return '<span class="phfk-gp-waiting-none">—</span>';
+  return '<div class="phfk-gp-chain">'+chain.map(function(step,i){
+    var st = gpStepStatus(i, p.currentStepIndex, p.status);
+    var label = step.tier==='final' ? 'Admin' : gpShortName(step.employeeName || step.employeeCode || '?');
+    var sub = st==='current' ? (step.tier==='final'?'Chờ duyệt':'Đang chờ') : (st==='rejected'?'Từ chối':(st==='withdrawn'?'Đã rút':''));
+    return '<span class="phfk-gp-chain-node is-'+st+'">'+esc(label)+(sub?'<i>'+esc(sub)+'</i>':'')+'</span>'+(i<chain.length-1?'<span class="phfk-gp-chain-arrow" aria-hidden="true">→</span>':'');
+  }).join('')+'</div>';
+}
+
 function gpRow(p){
-  return '<tr><td><b>'+esc(p.subjectEmployeeName)+'</b><small>'+esc(p.subjectEmployeeCode)+'</small></td>'+
-    '<td>'+gpGradeLine(p.currentGradeCode,p.currentGradeNumber,p.proposedGradeCode,p.proposedGradeNumber)+'</td>'+
-    '<td><span class="phfk-pill phfk-pill-'+esc(p.status)+'">'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</span></td>'+
-    '<td>'+fmtDate(p.createdAt)+'</td>'+
+  var subjMeta = [p.subjectEmployeeCode, p.subjectTitle].filter(Boolean).join(' · ');
+  var creatorMeta = [p.createdByEmployeeCode, p.createdByTitle].filter(Boolean).join(' · ');
+  return '<tr><td><b>'+esc(p.subjectEmployeeName)+'</b><small>'+esc(subjMeta)+'</small></td>'+
+    '<td class="phfk-gp-grade-cell">'+gpGradeLine(p.currentGradeCode,p.currentGradeNumber,p.proposedGradeCode,p.proposedGradeNumber)+'</td>'+
+    '<td><b>'+esc(p.createdByName)+'</b><small>'+esc(creatorMeta)+'</small></td>'+
+    '<td class="phfk-gp-chain-cell">'+gpChainCompactHtml(p)+'</td>'+
+    '<td class="phfk-gp-waiting-cell">'+gpWaitingCellHtml(p)+'</td>'+
+    '<td><span class="phfk-pill phfk-pill-'+esc(p.status)+'">'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</span><small>'+fmtDate(p.createdAt)+'</small></td>'+
     '<td><button type="button" class="phfk-link" data-gp-open="'+esc(p.id)+'">Xem</button></td></tr>';
 }
 function gpTable(list,emptyText){
   if(!list||!list.length) return '<section class="phfk-empty"><p>'+esc(emptyText)+'</p></section>';
-  return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Nhân sự</th><th>Bậc hiện tại → đề xuất</th><th>Trạng thái</th><th>Ngày tạo</th><th></th></tr></thead><tbody>'+list.map(gpRow).join('')+'</tbody></table></div>';
+  return '<div class="phfk-table-wrap"><table class="phfk-table phfk-gp-table"><thead><tr><th>Nhân sự</th><th>Bậc</th><th>Người đề xuất</th><th>Tiến trình</th><th>Đang chờ</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+list.map(gpRow).join('')+'</tbody></table></div>';
 }
 
 function gpListBodyHtml(capabilities,isAdmin){
@@ -2214,6 +2264,8 @@ function gpDetailHtml(){
     (p.status==='withdrawn'?'<p>Đã rút bởi người tạo — '+esc(p.withdrawnReason)+' ('+fmtDate(p.withdrawnAt)+')</p>':'')+
     '</section>';
 
+  var workflowOverview = gpWorkflowOverviewHtml(d);
+
   var timeline = '<section class="phfk-panel"><h2>Timeline</h2><ol class="phfk-gp-timeline">'+(d.steps||[]).map(function(s){
     var line = esc(GP_ACTION_LABELS[s.action]||s.action);
     if(s.action==='reassign') line += ' — chuyển từ '+esc(s.reassignedFromEmployeeCode)+' sang '+esc(s.reassignedToEmployeeCode);
@@ -2239,7 +2291,51 @@ function gpDetailHtml(){
   if(p.status==='pending' && p.createdBy && currentUser() && (currentUser().id===p.createdBy || currentUser().accountId===p.createdBy)){
     withdrawBlock = '<section class="phfk-panel"><form data-gp-withdraw-form><label class="phfk-field"><span>Lý do rút đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label><div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary">Rút đề xuất</button></div></form></section>';
   }
-  return head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+timeline+actions+withdrawBlock;
+  return head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+workflowOverview+timeline+actions+withdrawBlock;
+}
+
+/* "TIẾN TRÌNH XỬ LÝ" (mục 7 batch giám sát Admin) — tách biệt hoàn toàn khỏi
+ * Timeline audit bên dưới: đây là "proposal đang ở đâu" (workflow overview,
+ * render từ liveChain [live re-resolve, ĐÚNG cùng nguồn isMyTurn đã dùng] +
+ * currentStepIndex + status), Timeline là "đã xảy ra sự kiện gì" (steps audit
+ * append-only, giữ nguyên không đổi). d.liveChain lấy từ
+ * getGradePromotionProposalDetail() (lib/knl-grade-proposals.js) — có thể
+ * rỗng nếu chain không resolve được (vd subject rời Organization Master),
+ * khi đó fallback về routing_snapshot đã persist thay vì ẩn hẳn block. Tên
+ * người "đã xử lý" ưu tiên đọc từ steps thật (agree/approve theo đúng thứ tự
+ * — mỗi vị trí chain tương ứng đúng 1 step agree/approve, kể cả khi có
+ * reassign xen giữa) thay vì suy từ liveChain, để không hiển thị sai người
+ * trong case route bị đổi (mục 7 batch 2 — broken-route reassign). */
+function gpCompletedActors(steps){
+  return (steps||[]).filter(function(s){return s.action==='agree'||s.action==='approve';});
+}
+function gpWorkflowOverviewHtml(d){
+  var p = d.proposal;
+  var chain = (d.liveChain && d.liveChain.length) ? d.liveChain : (p.routingSnapshot||[]);
+  if(!chain.length) return '';
+  var doneActors = gpCompletedActors(d.steps);
+  var icons = {done:'✓',current:'●',future:'○',rejected:'✕',withdrawn:'–'};
+  var rows = chain.map(function(step,i){
+    var st = gpStepStatus(i, p.currentStepIndex, p.status);
+    var name = step.tier==='final' ? 'Admin' : (step.employeeName || step.employeeCode || 'Không xác định');
+    var sub;
+    if(st==='done'){
+      var doer = doneActors[i];
+      if(doer && doer.actorName) name = doer.actorName;
+      sub = step.tier==='final' ? 'Đã duyệt' : 'Đã đồng ý';
+    }else if(st==='current'){
+      sub = step.tier==='final' ? 'Đang chờ Duyệt' : 'Đang chờ đồng ý';
+    }else if(st==='rejected'){
+      name = p.rejectedByName || name;
+      sub = 'Không đồng ý'+(p.rejectedReason?' — '+p.rejectedReason:'');
+    }else if(st==='withdrawn'){
+      sub = 'Đã rút trước khi xử lý';
+    }else{
+      sub = step.tier==='final' ? 'Chưa tới lượt · Duyệt cuối' : 'Chưa tới lượt';
+    }
+    return '<li class="phfk-gp-wf-node is-'+st+'"><span class="phfk-gp-wf-icon" aria-hidden="true">'+(icons[st]||'○')+'</span><div><b>'+esc(name)+'</b><small>'+esc(sub)+'</small></div></li>';
+  }).join('');
+  return '<section class="phfk-panel"><h2>Tiến trình xử lý</h2><ol class="phfk-gp-workflow">'+rows+'</ol></section>';
 }
 
 function renderGpBody(root){
