@@ -260,8 +260,13 @@ function peopleFilterBar(){
 function peopleTable(){
   if(peopleState.loading) return '<div class="phfk-loading">Đang tải danh sách nhân sự…</div>';
   if(!peopleState.rows.length) return noAccessSection('Không có nhân sự nào thuộc phạm vi của bạn với bộ lọc hiện tại.');
+  /* "Xem thu nhập" per-row: cột (peopleCanViewIncome) chỉ quyết định CÓ hiện
+   * cột "Thu nhập" hay không (layout, giữ cấu trúc bảng hiện hữu) — nút bên
+   * trong từng row PHẢI theo đúng p.canViewIncome do BACKEND tính sẵn
+   * (incomeScopeAllows, lib/knl-people.js:listKnlPeople), KHÔNG tự suy từ
+   * capability phẳng nữa. false -> ô rỗng, không placeholder giả. */
   var rows = peopleState.rows.map(function(p){
-    return '<tr><td>'+esc(p.employeeCode)+'</td><td>'+esc(p.employeeName)+'</td><td>'+esc(p.title)+'</td><td>'+esc(p.department)+'</td><td>'+esc(p.branch)+'</td><td>'+esc(p.status)+'</td>'+(peopleCanViewIncome?'<td><button type="button" class="phfk-link" data-knl-person-income="'+esc(p.employeeCode)+'">Xem thu nhập</button></td>':'')+'</tr>';
+    return '<tr><td>'+esc(p.employeeCode)+'</td><td>'+esc(p.employeeName)+'</td><td>'+esc(p.title)+'</td><td>'+esc(p.department)+'</td><td>'+esc(p.branch)+'</td><td>'+esc(p.status)+'</td>'+(peopleCanViewIncome?'<td>'+(p.canViewIncome===true?'<button type="button" class="phfk-link" data-knl-person-income="'+esc(p.employeeCode)+'">Xem thu nhập</button>':'')+'</td>':'')+'</tr>';
   }).join('');
   return '' +
     '<div class="phfk-table-wrap"><table class="phfk-table">' +
