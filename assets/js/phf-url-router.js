@@ -346,6 +346,7 @@
     '/ql/knl/khao-sat':Object.freeze({area:'manager',screen:'knl-surveys',roles:['manager']}),
     '/ql/knl/ket-qua-khao-sat':Object.freeze({area:'manager',screen:'knl-survey-results',roles:['manager']}),
     '/ql/knl/de-xuat-nang-bac':Object.freeze({area:'manager',screen:'knl-grade-promotion-proposal',roles:['manager']}),
+    '/ql/knl/dashboard':Object.freeze({area:'manager',screen:'knl-dashboard',roles:['manager']}),
     '/ql/quan-ly':Object.freeze({area:'manager',screen:'workspace',roles:['manager']}),
     '/ql/hoc-vien':Object.freeze({area:'manager',screen:'learners',roles:['manager']}),
     '/ql/noi-dung':Object.freeze({area:'manager',screen:'content',roles:['manager']}),
@@ -384,6 +385,7 @@
     '/admin/knl/khao-sat':Object.freeze({area:'admin',screen:'knl-surveys',roles:['admin']}),
     '/admin/knl/ket-qua-khao-sat':Object.freeze({area:'admin',screen:'knl-survey-results',roles:['admin']}),
     '/admin/knl/de-xuat-nang-bac':Object.freeze({area:'admin',screen:'knl-grade-promotion-proposal',roles:['admin']}),
+    '/admin/knl/dashboard':Object.freeze({area:'admin',screen:'knl-dashboard',roles:['admin']}),
     // PHF AI Sandbox v1: chi Admin, khong route tuong ung cho ql/hv (xem lib/ai-sandbox.js).
     '/admin/ai-sandbox':Object.freeze({area:'admin',screen:'ai-sandbox',roles:['admin']}),
     '/admin/nhan-su':Object.freeze({area:'admin',screen:'employee-master',roles:['admin']}),
@@ -435,9 +437,9 @@
   // Keep the diagnostic route map aligned with the authoritative registry.
   // Object.freeze is shallow; these arrays remain intentionally append-only.
   window.PHF_ROUTE_MAP.learner.push('/hv/knl/co-cau-thu-nhap','/hv/knl/de-xuat-nang-bac');
-  window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap','/ql/knl/de-xuat-nang-bac');
-  window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac');
-  window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac');
+  window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap','/ql/knl/de-xuat-nang-bac','/ql/knl/dashboard');
+  window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac','/admin/knl/dashboard');
+  window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
 
   function canonicalLegacyPath(path){
     path=cleanPath(path);
@@ -895,7 +897,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/ql/knl'||path==='/ql/knl/nhan-su'||path==='/ql/knl/co-cau-thu-nhap'||path==='/ql/knl/phan-quyen'||path==='/ql/knl/khao-sat'||path==='/ql/knl/ket-qua-khao-sat'||path==='/ql/knl/de-xuat-nang-bac'){
+      if(path==='/ql/knl'||path==='/ql/knl/nhan-su'||path==='/ql/knl/co-cau-thu-nhap'||path==='/ql/knl/phan-quyen'||path==='/ql/knl/khao-sat'||path==='/ql/knl/ket-qua-khao-sat'||path==='/ql/knl/de-xuat-nang-bac'||path==='/ql/knl/dashboard'){
         if(!requireRoles(['manager']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;
@@ -1069,7 +1071,7 @@
         await Promise.resolve(window.phfRenderPostLoginHome&&window.phfRenderPostLoginHome());
         return true;
       }
-      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/tieu-chuan-bac'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/phien-ban-lich-su'||path==='/admin/knl/ngach-bac-luong'||path==='/admin/knl/gan-thu-nhap'||path==='/admin/knl/nhan-su'||path==='/admin/knl/co-cau-thu-nhap'||path==='/admin/knl/lich-su-thu-nhap'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'||path==='/admin/knl/de-xuat-nang-bac'){
+      if(path==='/admin/knl'||path==='/admin/knl/bo-knl'||path==='/admin/knl/tieu-chuan-bac'||path==='/admin/knl/gan-ap-dung'||path==='/admin/knl/phien-ban-lich-su'||path==='/admin/knl/ngach-bac-luong'||path==='/admin/knl/gan-thu-nhap'||path==='/admin/knl/nhan-su'||path==='/admin/knl/co-cau-thu-nhap'||path==='/admin/knl/lich-su-thu-nhap'||path==='/admin/knl/phan-quyen'||path==='/admin/knl/khao-sat'||path==='/admin/knl/ket-qua-khao-sat'||path==='/admin/knl/de-xuat-nang-bac'||path==='/admin/knl/dashboard'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderKnl&&window.phfRenderKnl(path));
         return true;

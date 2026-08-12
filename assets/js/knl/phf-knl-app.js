@@ -132,6 +132,7 @@ function businessRoleForAccount(acc, grant){
    .phfck-sidebar/.phfck-nav) — class/màu/nội dung hoàn toàn riêng của KNL,
    không đụng file/CSS Checklist, không kéo nghiệp vụ Checklist sang đây. */
 var SIDEBAR_ITEMS = [
+  { key:'dashboard', label:'Dashboard', desc:'Tổng quan nguồn lực · Năng lực · Thu nhập', icon:'◧', dashboardOnly:true },
   { key:'bo-knl', label:'Bộ KNL', desc:'Cấu trúc, tiêu chuẩn bậc & phiên bản', icon:'▦', needs:'manage_framework' },
   { key:'khao-sat', label:'Khảo sát & đánh giá', desc:'Đợt khảo sát và kết quả', icon:'◫', needs:'access_knl' },
   { key:'nhan-su', label:'Nhân sự', desc:'Nhân sự thuộc phạm vi', icon:'◍', needs:'access_knl' },
@@ -144,13 +145,14 @@ var SIDEBAR_ITEMS = [
   { key:'phan-quyen', label:'Phân quyền', desc:'Quản lý quyền truy cập KNL', icon:'⚙', needs:'manage_permissions' }
 ];
 
-function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
+function shellFrame(activeTab, capabilities, isAdmin, bodyHtml, canDashboard){
   var activeSidebarTab=activeTab==='gan-ap-dung'?'bo-knl':activeTab;
   if(['tieu-chuan-bac','phien-ban-lich-su'].indexOf(activeTab)>=0)activeSidebarTab='bo-knl';
   if(['ngach-bac-luong','gan-thu-nhap','lich-su-thu-nhap'].indexOf(activeTab)>=0)activeSidebarTab='co-cau-thu-nhap';
   if(activeTab==='ket-qua-khao-sat')activeSidebarTab='khao-sat';
-  var items = SIDEBAR_ITEMS.filter(function(item){ if(item.ownAlways)return true;if(item.adminOnly)return isAdmin===true;if(item.needsAny)return isAdmin||item.needsAny.some(function(k){return capabilities&&capabilities[k]===true;});return isAdmin || (capabilities && capabilities[item.needs]); });
+  var items = SIDEBAR_ITEMS.filter(function(item){ if(item.dashboardOnly)return canDashboard===true;if(item.ownAlways)return true;if(item.adminOnly)return isAdmin===true;if(item.needsAny)return isAdmin||item.needsAny.some(function(k){return capabilities&&capabilities[k]===true;});return isAdmin || (capabilities && capabilities[item.needs]); });
   var icons = {
+    'dashboard':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
     'bo-knl':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
     'khao-sat':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg>',
     'nhan-su':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>',
@@ -159,7 +161,7 @@ function shellFrame(activeTab, capabilities, isAdmin, bodyHtml){
     'phan-quyen':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>'
   };
   var navHtml = items.map(function(item){
-    var desc=item.key==='nhan-su'?'Danh sách & phạm vi':'Quyền thao tác & scope';
+    var desc=item.key==='nhan-su'?'Danh sách & phạm vi':(item.key==='dashboard'?'Tổng quan nguồn lực':'Quyền thao tác & scope');
     return '<button type="button" class="phfk-nav-item'+(activeSidebarTab===item.key?' active':'')+'" data-knl-tab="'+item.key+'">' +
       '<span class="phfk-nav-icon">'+(icons[item.key]||'')+'</span>' +
       '<span><b>'+item.label+'</b><small>'+desc+'</small></span></button>';
@@ -183,17 +185,17 @@ var knlActivePath = '';
 var knlScrollMemory = {};
 var knlLastIsAdmin = false;
 function activeSidebarTab(tab){ if(['ngach-bac-luong','gan-thu-nhap','lich-su-thu-nhap'].indexOf(tab)>=0)return'co-cau-thu-nhap';return ['gan-ap-dung','tieu-chuan-bac','phien-ban-lich-su'].indexOf(tab)>=0?'bo-knl':(tab==='ket-qua-khao-sat'?'khao-sat':tab); }
-function shellSignature(capabilities,isAdmin){
-  return JSON.stringify({admin:isAdmin===true,access:capabilities&&capabilities.access_knl===true,framework:capabilities&&capabilities.manage_framework===true,permissions:capabilities&&capabilities.manage_permissions===true});
+function shellSignature(capabilities,isAdmin,canDashboard){
+  return JSON.stringify({admin:isAdmin===true,access:capabilities&&capabilities.access_knl===true,framework:capabilities&&capabilities.manage_framework===true,permissions:capabilities&&capabilities.manage_permissions===true,dashboard:canDashboard===true});
 }
 function setShellActiveTab(root,tab){
   var active=activeSidebarTab(tab);
   root.querySelectorAll('[data-knl-tab]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-knl-tab')===active);});
 }
-function ensureKnlShell(root,tab,capabilities,isAdmin,bodyHtml){
-  var shell=root.querySelector('.phf-knl-root-shell'),signature=shellSignature(capabilities,isAdmin);
+function ensureKnlShell(root,tab,capabilities,isAdmin,bodyHtml,canDashboard){
+  var shell=root.querySelector('.phf-knl-root-shell'),signature=shellSignature(capabilities,isAdmin,canDashboard);
   if(!shell||shell.dataset.signature!==signature){
-    root.innerHTML='<div class="phf-knl-root-shell">'+shellFrame(tab,capabilities,isAdmin,bodyHtml||'')+'</div>';
+    root.innerHTML='<div class="phf-knl-root-shell">'+shellFrame(tab,capabilities,isAdmin,bodyHtml||'',canDashboard)+'</div>';
     shell=root.querySelector('.phf-knl-root-shell');
     shell.dataset.signature=signature;
     bindShell(root);
@@ -3147,6 +3149,128 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
 
 /* ===================== ENTRY ===================== */
 
+/* ===================== DASHBOARD KNL (Gate 1 — UI shell only) =====================
+   Chỉ dựng layout/hierarchy/component shell theo demo PHF đã duyệt. KHÔNG gọi
+   apiPost nào, KHÔNG aggregation, KHÔNG data thật/giả trông giống thật — mọi
+   KPI/chart/table đều ở trạng thái rỗng "—"/"Chưa nối dữ liệu" theo đúng yêu
+   cầu mục 21. Gate 2 mới nối dữ liệu thật + áp incomeScope/peopleScope. */
+function dashboardKpiTileHtml(icon, label){
+  return '' +
+    '<div class="phfk-dash-kpi">' +
+      '<div class="phfk-dash-kpi-top"><span class="phfk-dash-kpi-icon">'+icon+'</span><span class="phfk-dash-kpi-label">'+esc(label)+'</span></div>' +
+      '<div class="phfk-dash-kpi-value">—</div>' +
+      '<p class="phfk-dash-kpi-delta">Chưa nối dữ liệu</p>' +
+    '</div>';
+}
+function dashboardDonutSkeletonHtml(centerLabel){
+  return '' +
+    '<div class="phfk-dash-donut-wrap">' +
+      '<svg viewBox="0 0 120 120" class="phfk-dash-donut" aria-hidden="true"><circle cx="60" cy="60" r="46" fill="none" stroke="var(--phfk-line)" stroke-width="16"/></svg>' +
+      '<div class="phfk-dash-donut-center"><b>—</b><small>'+esc(centerLabel)+'</small></div>' +
+    '</div>';
+}
+function dashboardBarSkeletonHtml(labels){
+  return '<div class="phfk-dash-bars">' + labels.map(function(l){
+    return '<div class="phfk-dash-bar-col"><div class="phfk-dash-bar-track"><span class="phfk-dash-bar-fill"></span></div><small>'+esc(l)+'</small></div>';
+  }).join('') + '</div>';
+}
+function dashboardEmptyTableHtml(headers, note){
+  return '' +
+    '<div class="phfk-table-wrap phfk-dash-table-wrap"><table class="phfk-table">' +
+      '<thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead>' +
+      '<tbody><tr><td colspan="'+headers.length+'" class="phfk-dash-table-empty">'+esc(note)+'</td></tr></tbody>' +
+    '</table></div>';
+}
+function renderKnlDashboard(root){
+  var body = root.querySelector('[data-knl-body]');
+  if(!body) return;
+  var emptyNote = 'Chưa nối dữ liệu — sẽ hiển thị khi Dashboard KNL được nối dữ liệu thật (Gate 2).';
+  var disabledTitle = 'Sẽ hoạt động khi Dashboard được nối dữ liệu (Gate 2)';
+  var aiPrompts = [
+    'So sánh thu nhập và bậc KNL giữa các phòng ban',
+    'Phòng ban nào có biến động thu nhập đáng chú ý?',
+    'Phân tích nhóm nhân sự đang xem',
+    'Chỉ ra các điểm cần xem xét trong cơ cấu nguồn lực'
+  ];
+  var actionItems = ['Đề xuất nâng bậc đang xử lý', 'Nhân sự chưa có KNL', 'Khảo sát sắp hết hạn'];
+  var trendRanges = ['Tháng hiện tại', '3 tháng', '6 tháng', '12 tháng'];
+  body.innerHTML = '' +
+    '<div class="phfk-dash">' +
+      '<div class="phfk-page-head phfk-dash-head">' +
+        '<div><small>KNL &middot; DASHBOARD</small><h1>Dashboard KNL</h1><p class="phfk-dash-subtitle">Tổng quan nguồn lực · Năng lực · Thu nhập</p></div>' +
+        '<div class="phfk-dash-period">' +
+          '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tháng hiện tại</option></select>' +
+          '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Toàn công ty</option></select>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="phfk-filters phfk-dash-filters">' +
+        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả phòng ban</option></select>' +
+        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả chi nhánh</option></select>' +
+        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả chức danh</option></select>' +
+        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả bậc KNL</option></select>' +
+      '</div>' +
+      '<p class="phfk-dash-empty-note phfk-dash-filters-note">Bộ lọc sẽ hoạt động khi Dashboard được nối dữ liệu thật (Gate 2).</p>' +
+
+      '<div class="phfk-dash-kpis">' +
+        dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập') +
+        dashboardKpiTileHtml('◍', 'Tổng nhân sự') +
+        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người') +
+        dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)') +
+      '</div>' +
+
+      '<div class="phfk-dash-grid-main">' +
+        '<section class="phfk-panel phfk-dash-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Cơ cấu quỹ thu nhập theo phòng ban</h2></div>' +
+          dashboardDonutSkeletonHtml('Chưa có dữ liệu') +
+          '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
+        '</section>' +
+        '<section class="phfk-panel phfk-dash-panel phfk-dash-ai-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Hỏi AI về dữ liệu này</h2><span class="phfk-badge phfk-badge-warning">Sắp ra mắt</span></div>' +
+          '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
+          '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" disabled>'+esc(p)+'</button>'; }).join('') + '</div>' +
+          '<div class="phfk-dash-ai-result">' +
+            '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Chưa có nhận định — sẽ xuất hiện sau khi kết nối AI DeepSeek.</p></div>' +
+            '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>' +
+          '</div>' +
+          '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" disabled title="Sẽ được kích hoạt ở bước kết nối dữ liệu.">Phân tích với AI</button>' +
+          '<p class="phfk-dash-empty-note">Sẽ được kích hoạt ở bước kết nối dữ liệu.</p>' +
+        '</section>' +
+      '</div>' +
+
+      '<section class="phfk-panel phfk-dash-panel">' +
+        '<div class="phfk-dash-panel-head"><h2>So sánh phòng ban</h2></div>' +
+        dashboardEmptyTableHtml(['Phòng ban','Nhân sự','Quỹ thu nhập','Bình quân','Biến động','M3+','Xem'], emptyNote) +
+      '</section>' +
+
+      '<div class="phfk-dash-grid-secondary">' +
+        '<section class="phfk-panel phfk-dash-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Phân bố bậc KNL</h2></div>' +
+          dashboardBarSkeletonHtml(['M1','M2','M3','M4','M5']) +
+          '<p class="phfk-dash-empty-note">Số mức hiển thị theo đúng framework thực tế của từng phòng ban ở Gate 2. '+esc(emptyNote)+'</p>' +
+        '</section>' +
+        '<section class="phfk-panel phfk-dash-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Thu nhập theo bậc KNL</h2></div>' +
+          dashboardEmptyTableHtml(['Bậc KNL','Nhân sự','Thu nhập bình quân','Biến động'], emptyNote) +
+        '</section>' +
+      '</div>' +
+
+      '<div class="phfk-dash-grid-secondary">' +
+        '<section class="phfk-panel phfk-dash-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Điểm cần chú ý</h2></div>' +
+          '<p class="phfk-dash-empty-note">Các điểm cần chú ý sẽ xuất hiện khi dữ liệu Dashboard được kết nối.</p>' +
+        '</section>' +
+        '<section class="phfk-panel phfk-dash-panel">' +
+          '<div class="phfk-dash-panel-head"><h2>Xu hướng theo thời gian</h2></div>' +
+          '<div class="phfk-dash-trend-toggle">' + trendRanges.map(function(t,i){ return '<button type="button" class="'+(i===0?'active':'')+'" disabled>'+esc(t)+'</button>'; }).join('') + '</div>' +
+          '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
+        '</section>' +
+      '</div>' +
+
+      '<section class="phfk-dash-actionbar">' + actionItems.map(function(t){ return '<div class="phfk-dash-action-mini"><b>—</b><span>'+esc(t)+'</span></div>'; }).join('') + '</section>' +
+    '</div>';
+}
+
 window.phfRenderKnl = async function(path){
   if(window.PHFAppShell) window.PHFAppShell.activateKnl(path);
   var root = document.getElementById('phfKnlRoot');
@@ -3154,7 +3278,7 @@ window.phfRenderKnl = async function(path){
   document.title = 'PHF Khung năng lực';
   if(knlActivePath)knlScrollMemory[knlActivePath]=window.scrollY||0;
   knlActivePath=path;
-  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/de-xuat-nang-bac$/.test(path) ? 'de-xuat-nang-bac' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : 'nhan-su')))))))))));
+  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/de-xuat-nang-bac$/.test(path) ? 'de-xuat-nang-bac' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : (/\/dashboard$/.test(path) ? 'dashboard' : 'nhan-su'))))))))))));
   if(root.querySelector('.phf-knl-root-shell'))showKnlPanelLoading(root,tab);
   else root.innerHTML = '<div class="phfk-loading">Đang tải…</div>';
 
@@ -3185,30 +3309,43 @@ window.phfRenderKnl = async function(path){
   var canPermissions = isAdmin || capabilities.manage_permissions;
   var canFrameworks = isAdmin || capabilities.manage_framework;
   peopleCanViewIncome = isAdmin || capabilities.income_view === true;
+  /* Dashboard KNL (Gate 1, UI shell only): tạm thời gate theo đúng business
+     role KNL hiện có — Admin (đường cứu hộ) hoặc preset TRO_LY_GD (bao gồm
+     cả "Giám đốc" thật lẫn "Trợ lý Giám đốc", xem classify() trong
+     scripts/phf-knl-initial-permission-seed-2026-08.js: cả 2 chức danh cùng
+     rơi vào 1 preset TRO_LY_GD/'assistant' — hệ thống hiện KHÔNG phân biệt
+     2 chức danh này thành 2 preset riêng). KHÔNG hardcode employee_code,
+     KHÔNG thêm capability key mới (Gate 1 không đổi backend/CAPABILITY_KEYS).
+     Gate 2 sẽ quyết định gate chính thức (có thể cần capability riêng). */
+  var canDashboard = isAdmin || roleKeyFromPreset(capData.presetCode||'')==='assistant';
 
   if(tab === 'phan-quyen' && !canPermissions){
-    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".'));
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".'),canDashboard);
     return true;
   }
   if(['bo-knl','tieu-chuan-bac','phien-ban-lich-su'].indexOf(tab)>=0 && !canFrameworks){
-    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền quản lý cấu trúc KNL.'));
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền quản lý cấu trúc KNL.'),canDashboard);
     return true;
   }
   if((tab === 'gan-ap-dung'||tab === 'ngach-bac-luong'||tab === 'gan-thu-nhap'||tab === 'lich-su-thu-nhap') && !isAdmin){
-    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Chỉ Admin được nạp source và quản trị assignment KNL.'));
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Chỉ Admin được nạp source và quản trị assignment KNL.'),canDashboard);
     return true;
   }
   if(tab === 'nhan-su' && !canPeople){
-    ensureKnlShell(root,'nhan-su',capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền truy cập KNL. Vui lòng liên hệ Admin.'));
+    ensureKnlShell(root,'nhan-su',capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền truy cập KNL. Vui lòng liên hệ Admin.'),canDashboard);
     return true;
   }
   var canProposalAny = isAdmin || capabilities.view_proposals === true || capabilities.propose === true || capabilities.agree_proposal === true || capabilities.approve === true;
   if(tab === 'de-xuat-nang-bac' && !canProposalAny){
-    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền nào liên quan Đề xuất nâng bậc (xem/tạo/xử lý).'));
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Tài khoản chưa được cấp quyền nào liên quan Đề xuất nâng bậc (xem/tạo/xử lý).'),canDashboard);
+    return true;
+  }
+  if(tab === 'dashboard' && !canDashboard){
+    ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Dashboard KNL chỉ dành cho Admin, Giám đốc và Trợ lý Giám đốc.'),canDashboard);
     return true;
   }
 
-  ensureKnlShell(root,tab,capabilities,isAdmin,'');
+  ensureKnlShell(root,tab,capabilities,isAdmin,'',canDashboard);
 
   if(tab === 'co-cau-thu-nhap'){
     await renderIncome(root,isAdmin,capabilities);
@@ -3237,6 +3374,8 @@ window.phfRenderKnl = async function(path){
     await loadPermissions(root);
   }else if(tab === 'de-xuat-nang-bac'){
     await renderGradePromotionSection(root, capabilities, isAdmin);
+  }else if(tab === 'dashboard'){
+    renderKnlDashboard(root);
   }else{
     if(peopleState.loaded&&Date.now()-peopleState.loadedAt<KNL_READ_CACHE_TTL)renderPeopleBody(root);else await loadPeople(root);
   }
