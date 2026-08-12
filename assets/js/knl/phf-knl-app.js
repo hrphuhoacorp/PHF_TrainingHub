@@ -1989,7 +1989,28 @@ async function renderCompensationHistory(root){
    polish. Không hiển thị bất kỳ số tiền nào (base_salary/hqcv/allowance) ở
    bất kỳ đâu trong section này — API backend (lib/knl-grade-proposals.js)
    vốn cũng không bao giờ trả các field đó. */
-var gpState = { loaded:false, loadedAt:0, view:'awaiting', mine:[], awaiting:[], visible:[], visibleStatus:'', detail:null, detailId:'', error:'', message:'', createEmployeeCode:'', createGradeOptions:null, createError:'' };
+/* create state — TRACE 2026-08-12 (batch redesign "Tạo đề xuất"): payload
+ * gửi lên createKnlGradePromotionProposal (employeeCode/reason/
+ * proposedGradeId/selectedFirstApproverEmployeeCode) và toàn bộ business
+ * rule KHÔNG đổi so với form cũ — chỉ đổi CÁCH chọn giá trị (picker thay vì
+ * gõ tay). Employee picker dùng lại NGUYÊN listKnlPeople (đã lọc đúng
+ * peopleScope, cùng nguồn màn Nhân sự) — không phải toàn bộ tổ chức, đúng
+ * tập "creationAuthorized" cho phép (self hoặc peopleScope match, xem
+ * lib/knl-grade-proposals.js). Receiver picker dùng action MỚI
+ * getKnlGradePromotionApproverOptions (lib/knl-grade-proposals.js) — THUẦN
+ * READ, liệt kê lại ĐÚNG cùng 1 predicate mà resolveApprovalChain() nhánh
+ * Sales đã dùng để validate lúc submit (capabilities.agree_proposal===true +
+ * subjectMatchesScope(subject, grant.people_scope,...)) — không phải rule
+ * mới, không mở rộng ai được chọn. Backend vẫn tự re-validate độc lập lúc
+ * tạo proposal, picker chỉ hỗ trợ UI. */
+function gpCreateInitialState(){
+  return { pool:null, poolLoading:false, poolLoaded:false, poolError:'',
+    employeeQuery:'', employeeSelected:null,
+    gradeOptions:null, gradeLoading:false, gradeSelectedId:'',
+    approverOptions:null, approverLoading:false, approverQuery:'', approverSelectedCode:'',
+    reason:'', submitting:false, error:'' };
+}
+var gpState = { loaded:false, loadedAt:0, view:'awaiting', mine:[], awaiting:[], visible:[], visibleStatus:'', detail:null, detailId:'', error:'', message:'', create:gpCreateInitialState() };
 var GP_STATUS_LABELS = { pending:'Đang xử lý', approved:'Đã duyệt', rejected:'Không đồng ý', withdrawn:'Đã rút' };
 var GP_ACTION_LABELS = { propose:'Tạo đề xuất', agree:'Đồng ý', approve:'Duyệt (Admin)', reject:'Không đồng ý', withdraw:'Rút đề xuất', reassign:'Route lại (tự động)' };
 
@@ -2028,23 +2049,157 @@ function gpListBodyHtml(capabilities,isAdmin){
   return head+msg+gpTable(gpState.awaiting,'Hiện không có Đề xuất nâng bậc nào cần bạn xử lý.');
 }
 
-function gpCreateFormHtml(){
-  var opts = gpState.createGradeOptions;
-  var gradeBlock = '';
-  if(opts && opts.hasBaseline===false){
-    gradeBlock = '<p class="phfk-error">'+(opts.reason==='probation'?'Nhân sự đang trong thời gian thử việc, chưa thiết lập bậc hiện tại — chưa thể tạo đề xuất.':'Chưa thiết lập bậc hiện tại cho nhân sự này — chưa thể tạo đề xuất.')+'</p>';
-  } else if(opts && opts.hasBaseline===true){
-    gradeBlock = '<p>Bậc hiện tại: <b>'+esc(opts.currentGradeCode)+'</b> ('+esc(opts.ladderName||opts.ladderCode)+')</p>'+
-      (opts.nextGrades.length ? '<fieldset><legend>Chọn bậc đề xuất (tối đa 4 bậc kế tiếp còn hợp lệ)</legend>'+opts.nextGrades.map(function(g){return '<label><input type="radio" name="proposedGradeId" value="'+esc(g.id)+'"> '+esc(g.gradeCode)+'</label>';}).join('')+'</fieldset>' : '<p class="phfk-error">Không còn bậc kế tiếp hợp lệ trong ladder.</p>');
+function gpNormalizeSearch(v){
+  return String(v==null?'':v).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d');
+}
+function gpFilterDirectory(list,query,excludeCode){
+  var q=gpNormalizeSearch(query);
+  if(!q)return [];
+  return (list||[]).filter(function(p){
+    if(excludeCode && p.employeeCode===excludeCode)return false;
+    return gpNormalizeSearch(p.employeeName+' '+p.employeeCode).indexOf(q)>=0;
+  }).slice(0,8);
+}
+function gpPersonMetaLine(p){
+  return [p.title,p.department,p.branch].filter(Boolean).map(esc).join(' · ');
+}
+
+/* 01 — Nhân sự được đề xuất: searchable picker trên đúng listKnlPeople đã
+ * fetch (peopleScope), không free text. */
+function gpEmployeePickerHtml(){
+  var c=gpState.create;
+  var body;
+  if(c.employeeSelected){
+    var p=c.employeeSelected;
+    body='<div class="phfk-gp-selected-person"><div><b>'+esc(p.employeeName)+'</b><small>'+esc(p.employeeCode)+(gpPersonMetaLine(p)?' · '+gpPersonMetaLine(p):'')+'</small></div>'+
+      '<button type="button" class="phfk-link" data-gp-employee-clear>Đổi nhân sự</button></div>';
+  }else{
+    var results=gpFilterDirectory(c.pool,c.employeeQuery);
+    body='<div class="phfk-gp-combobox">'+
+      '<input type="text" class="phfk-input" placeholder="Tìm theo họ tên hoặc mã nhân viên…" value="'+esc(c.employeeQuery)+'" data-gp-employee-search autocomplete="off">'+
+      (c.poolLoading?'<p class="phfk-batch-note">Đang tải danh sách nhân sự…</p>':'')+
+      (c.poolError?'<p class="phfk-error">'+esc(c.poolError)+'</p>':'')+
+      (c.employeeQuery&&results.length?'<div class="phfk-gp-suggestions">'+results.map(function(p){
+        return '<button type="button" class="phfk-gp-suggestion" data-gp-employee-pick="'+esc(p.employeeCode)+'"><b>'+esc(p.employeeName)+'</b><small>'+esc(p.employeeCode)+(gpPersonMetaLine(p)?' · '+gpPersonMetaLine(p):'')+'</small></button>';
+      }).join('')+'</div>':'')+
+      (c.employeeQuery&&!results.length&&!c.poolLoading?'<p class="phfk-empty">Không tìm thấy nhân sự phù hợp trong phạm vi bạn được phép đề xuất.</p>':'')+
+      '</div>';
   }
-  return '<form class="phfk-panel" data-gp-create-form>'+
-    '<label class="phfk-field"><span>Mã nhân viên được đề xuất</span><input class="phfk-input" name="employeeCode" value="'+esc(gpState.createEmployeeCode)+'" placeholder="VD: PHF001" required></label>'+
-    '<button type="button" class="phfk-btn-secondary" data-gp-load-grade>Tải bậc hiện tại</button>'+
-    (gpState.createError?'<p class="phfk-error">'+esc(gpState.createError)+'</p>':'')+
-    '<div data-gp-grade-block>'+gradeBlock+'</div>'+
-    '<label class="phfk-field"><span>Lý do đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required></textarea></label>'+
-    '<label class="phfk-field"><span>Mã Trưởng ca xử lý <small>(chỉ bắt buộc nếu nhân sự thuộc Bán hàng và bản thân không phải Trưởng ca)</small></span><input class="phfk-input" name="selectedFirstApproverEmployeeCode" placeholder="VD: PHF041"></label>'+
-    '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary">Tạo đề xuất</button></div>'+
+  return '<div class="phfk-gp-block"><div class="phfk-gp-block-head"><span class="phfk-gp-step">01</span><h3>Nhân sự được đề xuất</h3></div>'+body+'</div>';
+}
+
+/* 02 — Bậc hiện tại → Bậc đề xuất: card so sánh, chip chọn bậc (input radio
+ * ẩn giữ semantic/keyboard, style qua :has(input:checked) — cùng pattern đã
+ * dùng ở .phfk-suit-options). KHÔNG đổi thuật toán lấy grade (vẫn
+ * getKnlGradeOptionsForSubject / tối đa 4 bậc kế tiếp), KHÔNG đổi value
+ * submit (vẫn g.id). */
+function gpGradeBlockHtml(){
+  var c=gpState.create;
+  if(!c.employeeSelected)return '';
+  var head='<div class="phfk-gp-block-head"><span class="phfk-gp-step">02</span><h3>Bậc hiện tại → Bậc đề xuất</h3></div>';
+  if(c.gradeLoading)return '<div class="phfk-gp-block">'+head+'<p class="phfk-loading">Đang tải bậc hiện tại…</p></div>';
+  var opts=c.gradeOptions;
+  if(!opts)return '';
+  if(opts.hasBaseline===false){
+    var msg=opts.reason==='probation'?'Nhân sự đang trong thời gian thử việc, chưa thiết lập bậc hiện tại — chưa thể tạo đề xuất.':'Chưa thiết lập bậc hiện tại cho nhân sự này — chưa thể tạo đề xuất.';
+    return '<div class="phfk-gp-block">'+head+'<p class="phfk-error">'+esc(msg)+'</p></div>';
+  }
+  var cards=(opts.nextGrades||[]).map(function(g){
+    return '<label class="phfk-gp-grade-card"><input type="radio" name="proposedGradeId" value="'+esc(g.id)+'" class="phfk-sr-only" data-gp-grade-radio'+(c.gradeSelectedId===g.id?' checked':'')+'><span>'+esc(g.gradeCode)+'</span></label>';
+  }).join('');
+  return '<div class="phfk-gp-block">'+head+
+    '<div class="phfk-gp-grade-flow">'+
+      '<div class="phfk-gp-grade-current"><small>BẬC HIỆN TẠI</small><b>'+esc(opts.currentGradeCode)+'</b></div>'+
+      '<div class="phfk-gp-grade-arrow" aria-hidden="true">→</div>'+
+      '<div class="phfk-gp-grade-target"><small>BẬC ĐỀ XUẤT</small>'+((opts.nextGrades||[]).length?'<div class="phfk-gp-grade-cards">'+cards+'</div>':'<p class="phfk-error">Không còn bậc kế tiếp hợp lệ trong ladder.</p>')+'</div>'+
+    '</div></div>';
+}
+
+/* 03 — Người nhận xử lý: CHỈ render khi backend báo required=true (đúng điều
+ * kiện cũ "thuộc Bán hàng và bản thân không phải Trưởng ca"). Picker chỉ từ
+ * approverOptions.approvers (getKnlGradePromotionApproverOptions) — không
+ * free text, không thể gõ mã tuỳ ý. */
+function gpApproverBlockHtml(){
+  var c=gpState.create;
+  if(!c.employeeSelected||!c.gradeOptions||c.gradeOptions.hasBaseline!==true)return '';
+  var head='<div class="phfk-gp-block-head"><span class="phfk-gp-step">03</span><h3>Người nhận xử lý</h3></div>';
+  if(c.approverLoading)return '<div class="phfk-gp-block">'+head+'<p class="phfk-loading">Đang kiểm tra người nhận xử lý…</p></div>';
+  var ao=c.approverOptions;
+  if(!ao||ao.required!==true)return '';
+  if(ao.configured===false){
+    return '<div class="phfk-gp-block">'+head+'<p class="phfk-error">Chưa có Trưởng ca Bán hàng nào được Admin cấp quyền xử lý Đề xuất nâng bậc. Vui lòng liên hệ Admin cấu hình quyền trước khi tạo đề xuất.</p></div>';
+  }
+  var selected=c.approverSelectedCode&&(ao.approvers||[]).find(function(a){return a.employeeCode===c.approverSelectedCode;});
+  var body;
+  if(selected){
+    body='<div class="phfk-gp-selected-person"><div><b>'+esc(selected.employeeName)+'</b><small>'+esc(selected.employeeCode)+(gpPersonMetaLine(selected)?' · '+gpPersonMetaLine(selected):'')+'</small></div>'+
+      '<button type="button" class="phfk-link" data-gp-approver-clear>Đổi người nhận</button></div>';
+  }else{
+    var list=c.approverQuery?gpFilterDirectory(ao.approvers,c.approverQuery):(ao.approvers||[]);
+    body='<div class="phfk-gp-combobox">'+
+      '<input type="text" class="phfk-input" placeholder="Tìm Trưởng ca theo tên hoặc mã…" value="'+esc(c.approverQuery)+'" data-gp-approver-search autocomplete="off">'+
+      '<div class="phfk-gp-suggestions is-static">'+(list.length?list.map(function(a){
+        return '<button type="button" class="phfk-gp-suggestion" data-gp-approver-pick="'+esc(a.employeeCode)+'"><b>'+esc(a.employeeName)+'</b><small>'+esc(a.employeeCode)+(gpPersonMetaLine(a)?' · '+gpPersonMetaLine(a):'')+'</small></button>';
+      }).join(''):'<p class="phfk-empty">Không tìm thấy Trưởng ca phù hợp.</p>')+'</div>'+
+      '</div>';
+  }
+  return '<div class="phfk-gp-block">'+head+'<p class="phfk-gp-hint">Bắt buộc — nhân sự thuộc Bán hàng và bản thân bạn không phải Trưởng ca.</p>'+body+'</div>';
+}
+
+/* 04 — Lý do đề xuất: textarea, chỉ thêm helper text hướng dẫn nhập liệu
+ * (không tự sinh nội dung), giữ nguyên validation backend (min 5 ký tự). */
+function gpReasonBlockHtml(){
+  var c=gpState.create;
+  if(!c.employeeSelected)return '';
+  return '<div class="phfk-gp-block"><div class="phfk-gp-block-head"><span class="phfk-gp-step">04</span><h3>Lý do đề xuất</h3></div>'+
+    '<p class="phfk-gp-hint">Nêu kết quả công việc, sự phát triển năng lực, trách nhiệm hoặc căn cứ cho đề xuất nâng bậc.</p>'+
+    '<textarea class="phfk-input phfk-gp-reason" data-gp-reason placeholder="Nhập lý do đề xuất…" minlength="5">'+esc(c.reason)+'</textarea>'+
+    '</div>';
+}
+
+function gpCreateCanSubmit(){
+  var c=gpState.create;
+  if(!c.employeeSelected)return false;
+  if(!c.gradeOptions||c.gradeOptions.hasBaseline!==true)return false;
+  if(!c.gradeSelectedId)return false;
+  if(String(c.reason||'').trim().length<5)return false;
+  if(c.approverOptions&&c.approverOptions.required===true){
+    if(c.approverOptions.configured===false)return false;
+    if(!c.approverSelectedCode)return false;
+  }
+  return true;
+}
+
+/* Tóm tắt đề xuất — chỉ render từ dữ liệu đã chọn thật, không invent
+ * workflow status nào (không hiện "Đang chờ xử lý"/step gì — proposal
+ * chưa tồn tại tới khi submit thành công). */
+function gpSummaryBlockHtml(){
+  var c=gpState.create;
+  if(!c.employeeSelected||!c.gradeOptions||c.gradeOptions.hasBaseline!==true||!c.gradeSelectedId)return '';
+  var grade=(c.gradeOptions.nextGrades||[]).find(function(g){return g.id===c.gradeSelectedId;});
+  if(!grade)return '';
+  var receiverLine='';
+  if(c.approverOptions&&c.approverOptions.required===true){
+    var sel=c.approverSelectedCode&&(c.approverOptions.approvers||[]).find(function(a){return a.employeeCode===c.approverSelectedCode;});
+    receiverLine='<p>Người nhận xử lý: <b>'+(sel?esc(sel.employeeName)+' ('+esc(sel.employeeCode)+')':'<span class="phfk-error">Chưa chọn</span>')+'</b></p>';
+  }
+  return '<div class="phfk-gp-summary"><small>TÓM TẮT ĐỀ XUẤT</small>'+
+    '<p>'+esc(c.employeeSelected.employeeName)+' · '+esc(c.employeeSelected.employeeCode)+'</p>'+
+    '<p class="phfk-gp-summary-grade">'+esc(c.gradeOptions.currentGradeCode)+' → <b>'+esc(grade.gradeCode)+'</b></p>'+
+    receiverLine+
+    '</div>';
+}
+
+function gpCreateFormHtml(){
+  var c=gpState.create;
+  return '<form class="phfk-panel phfk-gp-create-form" data-gp-create-form>'+
+    gpEmployeePickerHtml()+
+    gpGradeBlockHtml()+
+    gpApproverBlockHtml()+
+    gpReasonBlockHtml()+
+    gpSummaryBlockHtml()+
+    (c.error?'<p class="phfk-error">'+esc(c.error)+'</p>':'')+
+    '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary"'+(gpCreateCanSubmit()?'':' disabled')+(c.submitting?' disabled':'')+'>'+(c.submitting?'Đang tạo…':'Tạo đề xuất')+'</button></div>'+
     '</form>';
 }
 
@@ -2099,26 +2254,109 @@ function bindGpList(root){
   root.querySelectorAll('[data-gp-open]').forEach(function(b){b.onclick=function(){openGpDetail(root,b.getAttribute('data-gp-open'));};});
   var statusFilter = root.querySelector('[data-gp-status-filter]');
   if(statusFilter) statusFilter.onchange=function(){gpState.visibleStatus=statusFilter.value;loadGpVisible(root);};
-  var loadGradeBtn = root.querySelector('[data-gp-load-grade]');
-  if(loadGradeBtn) loadGradeBtn.onclick=async function(){
-    var input=root.querySelector('[name="employeeCode"]'),code=String(input.value||'').trim().toUpperCase();
-    if(!code){gpState.createError='Vui lòng nhập mã nhân viên.';renderGpBody(root);return;}
-    gpState.createEmployeeCode=code;gpState.createError='';
-    try{ gpState.createGradeOptions = await apiPost('getKnlGradeOptionsForSubject',{employeeCode:code}); }
-    catch(e){ gpState.createError=e.message; gpState.createGradeOptions=null; }
+  if(gpState.view==='create') bindGpCreateForm(root);
+}
+
+/* Giữ focus/con trỏ khi re-render do gõ tìm kiếm (employee/approver combobox)
+ * — innerHTML replace toàn bộ form nên phải tự khôi phục, tránh mất focus
+ * giữa chừng khi gõ (UX combobox cơ bản). */
+function gpRerenderPreserveFocus(root){
+  var active=document.activeElement,marker=null,selStart=null,selEnd=null;
+  if(active&&active.hasAttribute){
+    ['data-gp-employee-search','data-gp-approver-search'].forEach(function(attr){ if(active.hasAttribute(attr))marker=attr; });
+    if(marker&&typeof active.selectionStart==='number'){selStart=active.selectionStart;selEnd=active.selectionEnd;}
+  }
+  renderGpBody(root);
+  if(marker){
+    var el=root.querySelector('['+marker+']');
+    if(el){ el.focus(); if(selStart!=null&&el.setSelectionRange){ try{ el.setSelectionRange(selStart,selEnd); }catch(e){} } }
+  }
+}
+
+async function loadGpCreatePool(root){
+  var c=gpState.create;
+  if(c.poolLoaded||c.poolLoading)return;
+  c.poolLoading=true;
+  try{ c.pool=(await apiPost('listKnlPeople',{status:'active'})).people||[]; c.poolError=''; }
+  catch(e){ c.pool=[]; c.poolError=e.message; }
+  c.poolLoading=false; c.poolLoaded=true;
+  renderGpBody(root);
+}
+
+async function loadGpGradeAndApproverOptions(root,employeeCode){
+  var c=gpState.create;
+  c.gradeLoading=true; c.error='';
+  renderGpBody(root);
+  try{ c.gradeOptions=await apiPost('getKnlGradeOptionsForSubject',{employeeCode:employeeCode}); }
+  catch(e){ c.error=e.message; c.gradeOptions=null; }
+  c.gradeLoading=false;
+  renderGpBody(root);
+  if(c.gradeOptions&&c.gradeOptions.hasBaseline===true){
+    c.approverLoading=true;
     renderGpBody(root);
-  };
-  var form = root.querySelector('[data-gp-create-form]');
-  if(form) form.onsubmit=async function(ev){
+    try{ c.approverOptions=await apiPost('getKnlGradePromotionApproverOptions',{employeeCode:employeeCode}); }
+    catch(e){ c.approverOptions=null; }
+    c.approverLoading=false;
+    renderGpBody(root);
+  }
+}
+
+function bindGpCreateForm(root){
+  var form=root.querySelector('[data-gp-create-form]');
+  if(!form)return;
+  var c=gpState.create;
+
+  var empSearch=form.querySelector('[data-gp-employee-search]');
+  if(empSearch)empSearch.addEventListener('input',function(){c.employeeQuery=empSearch.value;gpRerenderPreserveFocus(root);});
+  form.querySelectorAll('[data-gp-employee-pick]').forEach(function(btn){btn.addEventListener('click',function(){
+    var pickedCode=btn.getAttribute('data-gp-employee-pick');
+    var person=(c.pool||[]).find(function(p){return p.employeeCode===pickedCode;});
+    if(!person)return;
+    c.employeeSelected=person; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
+    renderGpBody(root);
+    loadGpGradeAndApproverOptions(root,person.employeeCode);
+  });});
+  var empClear=form.querySelector('[data-gp-employee-clear]');
+  if(empClear)empClear.addEventListener('click',function(){
+    c.employeeSelected=null; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
+    renderGpBody(root);
+  });
+
+  form.querySelectorAll('[data-gp-grade-radio]').forEach(function(radio){radio.addEventListener('change',function(){
+    c.gradeSelectedId=radio.value; renderGpBody(root);
+  });});
+
+  var apprSearch=form.querySelector('[data-gp-approver-search]');
+  if(apprSearch)apprSearch.addEventListener('input',function(){c.approverQuery=apprSearch.value;gpRerenderPreserveFocus(root);});
+  form.querySelectorAll('[data-gp-approver-pick]').forEach(function(btn){btn.addEventListener('click',function(){
+    c.approverSelectedCode=btn.getAttribute('data-gp-approver-pick'); c.approverQuery=''; renderGpBody(root);
+  });});
+  var apprClear=form.querySelector('[data-gp-approver-clear]');
+  if(apprClear)apprClear.addEventListener('click',function(){ c.approverSelectedCode=''; renderGpBody(root); });
+
+  var reasonEl=form.querySelector('[data-gp-reason]');
+  var submitBtn=form.querySelector('button[type="submit"]');
+  if(reasonEl)reasonEl.addEventListener('input',function(){
+    c.reason=reasonEl.value;
+    if(submitBtn)submitBtn.disabled=!gpCreateCanSubmit();
+  });
+
+  form.addEventListener('submit',async function(ev){
     ev.preventDefault();
-    var fd=new FormData(form),gradeId=form.querySelector('[name="proposedGradeId"]:checked');
-    if(!gradeId){gpState.createError='Vui lòng tải bậc hiện tại và chọn bậc đề xuất.';renderGpBody(root);return;}
+    if(!gpCreateCanSubmit())return;
+    c.submitting=true; c.error='';
+    if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent='Đang tạo…'; }
     try{
-      await apiPost('createKnlGradePromotionProposal',{proposal:{employeeCode:fd.get('employeeCode'),reason:fd.get('reason'),proposedGradeId:gradeId.value,selectedFirstApproverEmployeeCode:fd.get('selectedFirstApproverEmployeeCode')}});
-      gpState.message='Đã tạo Đề xuất nâng bậc.';gpState.createEmployeeCode='';gpState.createGradeOptions=null;gpState.view='mine';
+      await apiPost('createKnlGradePromotionProposal',{proposal:{
+        employeeCode:c.employeeSelected.employeeCode,
+        reason:c.reason,
+        proposedGradeId:c.gradeSelectedId,
+        selectedFirstApproverEmployeeCode:c.approverSelectedCode||undefined
+      }});
+      gpState.message='Đã tạo Đề xuất nâng bậc.'; gpState.create=gpCreateInitialState(); gpState.view='mine';
       await loadGpMine(root);
-    }catch(e){ gpState.createError=e.message; renderGpBody(root); }
-  };
+    }catch(e){ c.submitting=false; c.error=e.message; renderGpBody(root); }
+  });
 }
 
 function bindGpDetail(root){
@@ -2169,7 +2407,7 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
   gpState.detail = null;
   if(gpState.view==='mine') await loadGpMine(root);
   else if(gpState.view==='visible' && (isAdmin || capabilities.view_proposals)) await loadGpVisible(root);
-  else if(gpState.view==='create' && (isAdmin || capabilities.propose)){ renderGpBody(root); bindGpList(root); }
+  else if(gpState.view==='create' && (isAdmin || capabilities.propose)){ renderGpBody(root); bindGpList(root); await loadGpCreatePool(root); }
   else { gpState.view='awaiting'; await loadGpAwaiting(root); }
 }
 

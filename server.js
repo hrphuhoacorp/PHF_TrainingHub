@@ -23,7 +23,7 @@ const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChec
 const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('./lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
-const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject } = require('./lib/knl-grade-proposals');
+const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject, getGradePromotionApproverOptions } = require('./lib/knl-grade-proposals');
 const { listKnlPeople, getKnlEmployeeProfile } = require('./lib/knl-people');
 const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, getKnlEmployeeCompetencyStandard, getKnlEmployeeCompetencyGradeStandard, setKnlEmployeeCompetencyAssignment } = require('./lib/knl-competency');
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
@@ -811,6 +811,7 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='getKnlEmployeeProfile')return sendJson(res,200,{ok:true,profile:await getKnlEmployeeProfile(session,payload)});
       if(payload&&payload.action==='setKnlEmployeeCompetencyAssignment')return sendJson(res,200,{ok:true,...await setKnlEmployeeCompetencyAssignment(session,payload)});
       if(payload&&payload.action==='getKnlGradeOptionsForSubject')return sendJson(res,200,{ok:true,...await getGradeOptionsForSubject(session,payload)});
+      if(payload&&payload.action==='getKnlGradePromotionApproverOptions')return sendJson(res,200,{ok:true,...await getGradePromotionApproverOptions(session,payload)});
       if(payload&&payload.action==='createKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await createGradePromotionProposal(session,payload.proposal||{})});
       if(payload&&payload.action==='agreeKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await processGradePromotionProposalStep(session,{...payload,action:'agree'})});
       if(payload&&payload.action==='rejectKnlGradePromotionProposal')return sendJson(res,200,{ok:true,...await processGradePromotionProposalStep(session,{...payload,action:'reject'})});

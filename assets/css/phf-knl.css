@@ -490,3 +490,57 @@
 @media(max-width:900px){
   .phfk-page-head.phfk-people-page-head h1{font-size:19px}
 }
+
+/* Đề xuất nâng bậc — "Tạo đề xuất" redesign 2026-08-12. Executive form: 1
+ * card duy nhất (.phfk-panel), các khối đánh số là section NỘI BỘ (divider
+ * mảnh, không phải card riêng) để tránh "card trong card". Grade chip dùng
+ * input radio ẩn (.phfk-sr-only) + :has(input:checked) — cùng pattern đã có
+ * ở .phfk-suit-options/.phfk-level-options (Survey), không tự tạo hệ mới. */
+.phfk-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.phfk-gp-create-form{display:flex;flex-direction:column}
+.phfk-gp-block{padding:18px 0;border-bottom:1px solid var(--phfk-line)}
+.phfk-gp-block:first-child{padding-top:2px}
+.phfk-gp-block:last-of-type{border-bottom:0;padding-bottom:2px}
+.phfk-gp-block-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.phfk-gp-step{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 auto;border-radius:50%;background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-size:10.5px;font-weight:800}
+.phfk-gp-block-head h3{margin:0;font-size:14px;font-weight:800;color:var(--phfk-ink)}
+.phfk-gp-hint{margin:0 0 10px;color:var(--phfk-muted);font-size:11.5px;line-height:1.5}
+
+.phfk-gp-combobox{position:relative}
+.phfk-gp-suggestions{margin-top:6px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;max-height:260px;overflow:auto;box-shadow:0 8px 20px rgba(20,60,45,.08)}
+.phfk-gp-suggestions.is-static{box-shadow:none;max-height:220px;margin-top:8px}
+.phfk-gp-suggestion{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #f1f5f2;background:#fff;padding:9px 12px;cursor:pointer}
+.phfk-gp-suggestion:last-child{border-bottom:0}
+.phfk-gp-suggestion:hover{background:var(--phfk-green-soft)}
+.phfk-gp-suggestion b{display:block;font-size:12.5px;color:var(--phfk-ink);font-weight:700}
+.phfk-gp-suggestion small{display:block;margin-top:2px;color:var(--phfk-muted);font-size:10.5px}
+
+.phfk-gp-selected-person{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--phfk-line);border-radius:10px;background:var(--phfk-neutral-bg)}
+.phfk-gp-selected-person b{display:block;font-size:13px;color:var(--phfk-ink)}
+.phfk-gp-selected-person small{display:block;margin-top:2px;color:var(--phfk-muted);font-size:11px}
+
+.phfk-gp-grade-flow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.phfk-gp-grade-current{border:1px solid var(--phfk-line);border-left:3px solid var(--phfk-green);border-radius:10px;padding:12px 16px;min-width:120px}
+.phfk-gp-grade-current small,.phfk-gp-grade-target>small{display:block;color:var(--phfk-muted);font-size:9.8px;font-weight:800;letter-spacing:.05em;margin-bottom:5px}
+.phfk-gp-grade-current b{font-size:16px;color:var(--phfk-green-deep)}
+.phfk-gp-grade-arrow{font-size:18px;color:var(--phfk-muted)}
+.phfk-gp-grade-target{flex:1;min-width:220px}
+.phfk-gp-grade-cards{display:flex;flex-wrap:wrap;gap:8px}
+.phfk-gp-grade-card{display:inline-flex;align-items:center;padding:9px 16px;border:1.5px solid var(--phfk-line);border-radius:10px;background:#fff;cursor:pointer;font-weight:700;font-size:13px;color:var(--phfk-ink);transition:border-color .12s ease}
+.phfk-gp-grade-card:hover{border-color:#b7cfc1}
+.phfk-gp-grade-card:has(input:focus-visible){outline:2px solid var(--phfk-green);outline-offset:1px}
+.phfk-gp-grade-card:has(input:checked){border-color:var(--phfk-green);color:var(--phfk-green-deep);box-shadow:inset 0 0 0 1px var(--phfk-green)}
+
+.phfk-gp-reason{min-height:96px;height:auto;padding:11px 13px;line-height:1.55;resize:vertical}
+
+.phfk-gp-summary{margin-top:14px;padding:14px 16px;border-radius:10px;background:var(--phfk-green-soft);border:1px solid #d9ecd0}
+.phfk-gp-summary small{display:block;color:var(--phfk-green-deep);font-size:9.8px;font-weight:800;letter-spacing:.06em;margin-bottom:6px}
+.phfk-gp-summary p{margin:0 0 4px;font-size:12.5px;color:var(--phfk-ink)}
+.phfk-gp-summary p:last-child{margin-bottom:0}
+.phfk-gp-summary-grade{font-size:14px}
+.phfk-gp-summary-grade b{color:var(--phfk-green-deep)}
+
+@media(max-width:560px){
+  .phfk-gp-grade-flow{flex-direction:column;align-items:flex-start}
+  .phfk-gp-grade-arrow{transform:rotate(90deg)}
+}
