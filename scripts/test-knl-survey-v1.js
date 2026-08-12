@@ -38,6 +38,51 @@ assert(!/(income|compensation).*(insert|update|upsert)/i.test(service),'Survey m
 
 ['getKnlSurveySetup','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','listKnlSurveyCampaigns','getKnlSurveyTicket','saveKnlSurveyTicket','getKnlSurveyResults','cloneKnlSurveyVersionToDraft'].forEach(action=>{has(api,new RegExp("action==='"+action+"'"),'Vercel API missing '+action);has(server,new RegExp("action==='"+action+"'"),'Node API missing '+action);});
 
+// SURVEY IDENTITY RESIDUAL fix (2026-08-12): actor() từng ưu tiên
+// session.employeeId (internal Training Hub id kiểu "hv-xxxx") trước
+// session.account.employeeCode (mã Organization Master chuẩn "PHFxxx") —
+// đúng pattern bug đã fix ở lib/knl-grade-proposals.js/lib/knl-permissions.js
+// (commit 9bc4bae) nhưng module Survey có actor() cục bộ riêng nên không tự
+// thừa hưởng fix. Static: xác nhận pattern nguy hiểm đã biến mất và pattern
+// canonical đã áp dụng. Functional: gọi thẳng actor() thật (export riêng cho
+// test, không đổi hành vi export khác) để chứng minh case A/B/C/D/E.
+assert(!/employeeCode:text\(session\?\.employeeId/.test(service),'actor() không được còn ưu tiên session.employeeId (legacy Training Hub internal id) trước employeeCode chuẩn — SURVEY IDENTITY RESIDUAL 2026-08-12');
+has(service,/employeeCode:text\(session\?\.employeeCode\|\|session\?\.employee_code\|\|session\?\.account\?\.employeeCode\|\|session\?\.account\?\.employee_code\)\.toUpperCase\(\)/,'actor() phải resolve employeeCode theo đúng canonical pattern (employeeCode/employee_code/account.employeeCode/account.employee_code)');
+{
+  const { actor } = require('../lib/knl-surveys');
+  // Case A — account resolve được employeeCode chuẩn dù session còn mang legacy employeeId.
+  assert(
+    actor({ employeeId: 'hv-0934510194', account: { id: 'acct1', employeeCode: 'phf012' }, role: 'employee' }).employeeCode === 'PHF012',
+    'Case A: actor().employeeCode phải là PHF012 (account.employeeCode, uppercase) dù session.employeeId mang giá trị legacy hv-0934510194'
+  );
+  assert(
+    actor({ employeeId: 'hv-999', employeeCode: 'phf034', role: 'employee' }).employeeCode === 'PHF034',
+    'Case A2: session.employeeCode (top-level, không qua account) cũng phải thắng session.employeeId legacy'
+  );
+  // Case B — self ownership: getKnlSurveyTicket/saveKnlSurveyTicket so a.employeeCode
+  // với t.employee_code (xem dòng "p_employee_code:a.employeeCode" và
+  // "a.employeeCode!==t.employee_code" trong lib/knl-surveys.js) bằng đúng actor()
+  // này — chứng minh actor() resolve đúng tức là self-submit/self-view sẽ khớp.
+  const selfSession = { employeeId: 'hv-0934510194', account: { id: 'acct1', employeeCode: 'phf012' }, role: 'employee' };
+  assert(
+    actor(selfSession).employeeCode === 'PHF012',
+    'Case B: nhân viên có session.employeeId khác employeeCode chuẩn phải vẫn được nhận diện đúng là chủ phiếu PHF012 (không còn mismatch giả gây KNL_SURVEY_OWN_ONLY/readOnly sai)'
+  );
+  // Case C — Survey V1 không có khái niệm evaluator/reviewer/assessor; fix
+  // employeeCode không được kéo theo hoặc cần thêm bất kỳ role đánh giá nào,
+  // và role resolution (dùng cho admin-gate) phải giữ nguyên hành vi.
+  assert(!/evaluator|reviewer|assessor/i.test(service), 'Survey actor()/service không được tự thêm khái niệm evaluator/reviewer/assessor chưa có trong backend');
+  assert(actor({ employeeId: 'hv-1', account: { employeeCode: 'phf099' }, role: 'manager' }).role === 'manager', 'Case C: role resolution không bị ảnh hưởng bởi fix employeeCode');
+  // Case D — audit id/name (p_actor_id/p_actor_name) vẫn resolve từ account.id/
+  // account.name như cũ, không bị đổi bởi fix employeeCode; raw audit rows cũ
+  // trong DB không bị rewrite (fix chỉ đổi cách resolve tại request-time).
+  assert(actor({ account: { id: 'acct-99', name: 'Admin X' }, sub: 'sub-99', role: 'admin' }).id === 'acct-99', 'Case D: audit id (created_by/updated_by) vẫn resolve từ account.id, không đổi bởi fix employeeCode');
+  assert(actor({ account: { name: 'Admin X' }, role: 'admin' }).name === 'Admin X', 'Case D: audit name không đổi bởi fix employeeCode');
+  // Case E — Admin gate (a.role!=='admin' -> KNL_SURVEY_ADMIN_REQUIRED, dòng 32)
+  // dùng actor().role, không dùng employeeCode -> không regression quyền Admin.
+  assert(actor({ role: 'ADMIN' }).role === 'admin', 'Case E: role vẫn lowercase đúng, Admin-gate (a.role!==\'admin\') không regression bởi fix employeeCode');
+}
+
 // UI/route: parent sidebar + sub-navigation, deep link and item-focused validation.
 has(ui,/label:'Khảo sát & đánh giá'/,'parent Survey domain missing');
 has(ui,/Đợt khảo sát[\s\S]+Kết quả khảo sát/,'Survey sub-navigation missing');
