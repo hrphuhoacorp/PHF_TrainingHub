@@ -118,21 +118,25 @@ async function clickSaveAndObserve(root){
   }
   console.log('PASS Case 2a: matrix đã lưu + thêm bậc -> handler gọi, payload đúng, RPC thực thi');
 
-  // Case 2b: matrix đã lưu -> xóa bậc (với confirmation) -> Save
+  // Case 2b: matrix đã lưu -> xóa bậc (với modal xác nhận) -> Save
   {
     const {window,root,savedCalls}=await setupDom('saved',false);
-    let confirmCalled=false;
-    window.confirm=(msg)=>{confirmCalled=true;assert(/Bỏ bậc/.test(msg),'delete must ask a specific confirmation message');return true;};
     const delBtn=root.querySelector('[data-grade-remove]');
     assert(delBtn,'remove-grade control must be available on an already-saved matrix');
     delBtn.onclick();
-    assert(confirmCalled,'deleting a grade must trigger a confirmation dialog');
+    const overlay=window.document.querySelector('.phfk-modal-overlay');
+    assert(overlay,'deleting a grade must open a confirmation modal (not the native browser confirm())');
+    assert(/Xóa bậc/.test(overlay.textContent),'modal must show a specific confirmation message naming the grade');
+    const confirmBtn=overlay.querySelector('[data-modal-confirm]');
+    assert(confirmBtn,'modal must expose an explicit confirm action');
+    confirmBtn.onclick();
+    assert(!window.document.querySelector('.phfk-modal-overlay'),'modal must close after confirming');
     await clickSaveAndObserve(root);
     assert.strictEqual(savedCalls.length,1);
     assert.strictEqual(savedCalls[0].grades.length,4,'delete-grade case must submit 4 remaining grades, renumbered contiguously');
     assert.deepStrictEqual(savedCalls[0].grades.map(g=>g.gradeCode),['B1','B2','B3','B4'],'remaining grades must be renumbered contiguously (B1..B4)');
   }
-  console.log('PASS Case 2b: matrix đã lưu + xóa bậc -> confirm() bắt buộc, payload đúng, RPC thực thi');
+  console.log('PASS Case 2b: matrix đã lưu + xóa bậc -> modal xác nhận bắt buộc, payload đúng, RPC thực thi');
 
   // Case 3: matrix rỗng -> prefill B1..Bn (levelCols.length=5) -> Save lần đầu
   {

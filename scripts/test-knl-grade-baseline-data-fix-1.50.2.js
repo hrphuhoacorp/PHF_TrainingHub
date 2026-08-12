@@ -27,7 +27,7 @@ for(const token of [
 assert(!/alter table|drop table|truncate/i.test(migration),'data fix must not change schema or delete data');
 assert(!/knl_employee_compensation_assignments\s+(?:set|values)|delete\s+from\s+public\.knl_employee_compensation/i.test(migration),'data fix must not touch compensation assignments/history');
 assert(ui.includes('savedGrades=m.grades||[]'),'UI grade columns must come only from backend grade definitions when they exist');
-assert(/Version CHƯA có grade definitions chính thức/.test(ui),'empty grade state must be explicit');
+assert(/Phiên bản CHƯA có tiêu chuẩn bậc chính thức/.test(ui),'empty grade state must be explicit');
 assert(/KHÔNG phải tiêu chuẩn đã được PHF duyệt/.test(ui),'the prefill warning must explicitly say this is not a PHF-approved standard until Admin saves');
 assert(!ui.includes("grades=m.grades.length?m.grades:[1,2,3,4]"),'UI must not synthesize B1..B4');
 assert(!ui.includes("foundationState.matrix.grades:[1,2,3,4]"),'save path must not synthesize B1..B4');
@@ -45,8 +45,8 @@ assert(!/pendingNewGrades\s*=\s*\[1,\s*2,\s*3,\s*4\]|pendingNewGrades\s*=\s*\[1,
 // đã lưu (không chỉ trạng thái pending trước khi lưu lần đầu), miễn version còn
 // mutable (DRAFT + chưa lock). Xóa bậc phải hỏi xác nhận trước khi submit.
 assert(!/pending\s*&&\s*mutable\?'<button type="button" class="phfk-btn-secondary" data-grade-add>/.test(ui),'add-grade control must not be hidden once a version already has saved grade definitions');
-assert(/interactive\?' <button type="button" class="phfk-mini-remove" data-grade-remove=/.test(ui),'remove-grade control must render for every grade column (saved or pending) while the version is mutable and not mid-save');
-assert(/data-grade-remove.*confirm\(/.test(ui)||/confirm\('Bỏ bậc/.test(ui),'removing a grade must ask for explicit confirmation before it can wipe saved requirements on next save');
+assert(/interactive\?'<button type="button" class="phfk-grade-remove-btn" data-grade-remove=/.test(ui),'remove-grade control must render for every grade column (saved or pending) while the version is mutable and not mid-save');
+assert(/openKnlConfirmModal\(\{/.test(ui)&&/foundationState\.gradeDirty=true;\s*rerenderGradeMatrixLocal\(root,id\);\s*\}\s*\}\);/.test(ui),'removing a grade must ask for explicit confirmation (via modal) before it can wipe saved requirements on next save');
 // 1.50.14 P0: Save phải luôn có loading -> success/error rõ ràng, không silent
 // fail (Admin báo bấm Lưu ma trận không có phản ứng gì sau 1.50.13).
 assert(/gradeSaving:false,gradeMessage:''/.test(ui),'foundationState must track an explicit saving/message state for the grade matrix Save button');

@@ -128,17 +128,64 @@
 /* KNL Batch 1 — framework/version and fully dynamic Draft structure. */
 .phfk-domain-tabs{display:flex;gap:6px;margin:0 0 16px;padding:4px;border:1px solid var(--phfk-line);border-radius:11px;background:#f8fbf9;width:max-content;max-width:100%}.phfk-domain-tabs button{border:0;border-radius:8px;background:transparent;padding:8px 12px;color:var(--phfk-muted);font-size:11px;font-weight:800;cursor:pointer}.phfk-domain-tabs button.active{background:#fff;color:var(--phfk-green-deep);box-shadow:0 1px 4px rgba(20,60,45,.12)}
 .phfk-batch-note{margin:-8px 0 16px;padding:10px 12px;border:1px solid #dce9e2;border-radius:10px;background:#f8fbf9;color:#60776d;font-size:11.5px}
-.phfk-framework-workspace{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px;align-items:start}
-.phfk-framework-list{margin-top:0;padding:12px;position:sticky;top:88px;max-height:calc(100vh - 108px);overflow:auto}
-.phfk-framework-card{padding:10px;border-bottom:1px solid #edf2ef}.phfk-framework-card:last-child{border-bottom:0}.phfk-framework-card>div:first-child b,.phfk-framework-card>div:first-child small{display:block}.phfk-framework-card>div:first-child b{font-size:12.5px;color:var(--phfk-green-deep)}.phfk-framework-card>div:first-child small{margin-top:3px;font-size:9.8px;color:var(--phfk-muted)}
-.phfk-framework-empty{padding:22px 8px;text-align:center;color:var(--phfk-muted);font-size:11.5px}.phfk-version-list{display:flex;flex-direction:column;gap:5px;margin-top:10px}.phfk-version-btn{border:1px solid var(--phfk-line);border-radius:9px;background:#fff;padding:8px 9px;text-align:left;color:#456158;font-size:11px;font-weight:700;cursor:pointer}.phfk-version-btn small{display:block;margin-top:3px;color:var(--phfk-muted);font-size:9.5px;font-weight:500}.phfk-version-btn.active{border-color:var(--phfk-green);background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
-.phfk-framework-detail{min-width:0;display:flex;flex-direction:column;gap:14px}.phfk-version-head{margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:16px}.phfk-version-head small{color:#789087;font-size:10px;font-weight:800;letter-spacing:.06em}.phfk-version-head h2{margin:5px 0;font-size:18px}.phfk-version-head p{margin:0;color:var(--phfk-muted);font-size:11px}
+.phfk-selector-bar{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.phfk-selector-bar .phfk-field{min-width:240px;max-width:360px}
+.phfk-breadcrumb{margin:0 0 16px;color:var(--phfk-muted);font-size:11px}
+.phfk-version-head{margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:16px}.phfk-version-head small{color:#789087;font-size:10px;font-weight:800;letter-spacing:.06em}.phfk-version-head h2{margin:5px 0;font-size:18px}.phfk-version-head p{margin:0;color:var(--phfk-muted);font-size:11px}
 .phfk-structure-panel{margin-top:0}.phfk-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.phfk-section-head small{display:block;font-size:9.5px;font-weight:800;color:#789087;letter-spacing:.08em}.phfk-section-head h2{margin:4px 0 0}
 .phfk-column-chips{display:flex;gap:8px;overflow:auto;padding-bottom:3px}.phfk-column-chip{min-width:150px;border:1px solid var(--phfk-line);border-radius:10px;padding:10px;background:#fbfdfc;display:flex;flex-direction:column;gap:9px}.phfk-column-chip b,.phfk-column-chip small{display:block}.phfk-column-chip b{font-size:11.5px;color:var(--phfk-green-deep)}.phfk-column-chip small{font-size:9.5px;color:var(--phfk-muted);margin-top:3px}
 .phfk-mini-actions{display:flex;flex-wrap:wrap;gap:4px}.phfk-mini-actions button{border:1px solid #d8e4de;background:#fff;border-radius:6px;padding:4px 6px;color:#527065;font-size:9.5px;font-weight:700;cursor:pointer}.phfk-mini-actions button:disabled{opacity:.35;cursor:default}.phfk-mini-actions button:hover:not(:disabled){background:var(--phfk-green-soft);border-color:#b8d7a5}
 .phfk-warning{padding:9px 11px;border:1px solid #ead9a4;background:#fff9e7;color:#7a6325;border-radius:9px;font-size:11px}.phfk-group-block{margin-top:12px;border:1px solid var(--phfk-line);border-radius:12px;overflow:hidden}.phfk-group-block>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;background:#f8fbf9}.phfk-group-block>header b,.phfk-group-block>header small{display:block}.phfk-group-block>header b{font-size:12.5px;color:var(--phfk-green-deep)}.phfk-group-block>header small{margin-top:2px;color:var(--phfk-muted);font-size:9.5px}
 .phfk-dynamic-table-wrap{overflow:auto}.phfk-dynamic-table{min-width:760px;width:100%;border-collapse:collapse;font-size:10.5px}.phfk-dynamic-table th{background:#fff;color:#657a71;text-align:left;padding:9px;border-bottom:1px solid var(--phfk-line);white-space:nowrap}.phfk-dynamic-table td{padding:8px 9px;border-bottom:1px solid #edf2ef;vertical-align:top;min-width:140px}.phfk-dynamic-table td:first-child{min-width:180px}.phfk-dynamic-table textarea{width:100%;min-height:70px;resize:vertical;border:1px solid #d8e4de;border-radius:7px;padding:7px;color:#334f45;font:inherit;line-height:1.45}.phfk-dynamic-table textarea:focus{outline:0;border-color:#a6cf8d;box-shadow:0 0 0 2px rgba(99,173,48,.1)}
-@media(max-width:900px){.phfk-framework-workspace{grid-template-columns:1fr}.phfk-framework-list{position:static;max-height:none}.phfk-version-head{align-items:flex-start;flex-direction:column}}
+@media(max-width:900px){.phfk-selector-bar{flex-direction:column}.phfk-selector-bar .phfk-field{max-width:none}.phfk-version-head{align-items:flex-start;flex-direction:column}}
+
+/* Modal dùng chung — thay confirm()/prompt() của browser. */
+.phfk-modal-overlay{position:fixed;inset:0;background:rgba(15,35,28,.42);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.phfk-modal{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 48px rgba(15,35,28,.28)}
+.phfk-modal h3{margin:0 0 10px;font-size:16px;color:var(--phfk-green-deep)}
+.phfk-modal p{margin:0 0 8px;font-size:12.5px;line-height:1.55;color:#456158}
+.phfk-modal-icon{width:36px;height:36px;border-radius:50%;background:#fdeceb;color:#c0392b;display:grid;place-items:center;font-weight:800;font-size:17px;margin-bottom:10px}
+.phfk-modal-note{color:var(--phfk-muted)!important;font-size:11px!important}
+.phfk-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.phfk-btn-danger{min-height:40px;padding:0 16px;border-radius:10px;border:1px solid #c0392b;background:#c0392b;color:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.phfk-btn-danger:hover{background:#a52f22}
+
+/* Tiêu chuẩn bậc — action xóa bậc rõ nghĩa, tách khỏi tên bậc. */
+.phfk-grade-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.phfk-grade-remove-btn{border:1px solid transparent;background:transparent;color:#9aa9a2;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;opacity:.6}
+.phfk-grade-remove-btn:hover{opacity:1;background:#fdeceb;border-color:#f0c9c6;color:#a23a3a}
+
+/* Gán & áp dụng — chuẩn bị dữ liệu summary + vai trò Bộ KNL radio. */
+.phfk-prep-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px}
+.phfk-prep-summary-card{padding:12px 14px;border-radius:10px;border:1px solid var(--phfk-line);background:#fbfdfc}
+.phfk-prep-summary-card b{display:block;font-size:14px;color:var(--phfk-green-deep)}
+.phfk-prep-summary-card small{display:block;margin-top:3px;color:var(--phfk-muted);font-size:10.5px}
+.phfk-prep-summary-card.is-review{background:#fffaf0;border-color:#f0dfa8}
+.phfk-assignment-form .phfk-radio{align-items:flex-start;padding:8px 2px}
+.phfk-assignment-form .phfk-radio span{display:flex;flex-direction:column;gap:2px}
+.phfk-radio small{display:block;font-weight:500;color:var(--phfk-muted);margin-top:2px}
+.phfk-assign-summary{margin:0;padding:10px 12px;border-radius:9px;background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-size:11.5px;font-weight:700;grid-column:1/-1}
+
+/* Phiên bản & lịch sử — workspace 2 cột (danh sách trái / chi tiết phải). */
+.phfk-vh-select{max-width:420px;margin-bottom:14px}
+.phfk-vh-workspace{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
+.phfk-vh-list-panel{margin-top:0;position:sticky;top:88px;max-height:calc(100vh - 108px);overflow:auto}
+.phfk-vh-list-panel h2{font-size:14px;margin:0 0 12px}
+.phfk-vh-list{display:flex;flex-direction:column;gap:8px}
+.phfk-vh-list-item{border:1px solid var(--phfk-line);border-radius:11px;background:#fff;padding:11px 12px;text-align:left;cursor:pointer}
+.phfk-vh-list-item:hover{background:#f8fbf9}
+.phfk-vh-list-item.active{border-color:var(--phfk-green);background:var(--phfk-green-soft)}
+.phfk-vh-list-item-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.phfk-vh-list-item-head b{font-size:12px;color:var(--phfk-green-deep)}
+.phfk-vh-list-item small{display:block;margin-top:4px;color:var(--phfk-muted);font-size:10px}
+.phfk-vh-detail{min-width:0}
+.phfk-vh-detail-head{margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.phfk-vh-detail-head h2{margin:0 0 6px;font-size:17px}
+.phfk-vh-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.phfk-vh-info-grid div{display:flex;flex-direction:column;gap:3px}
+.phfk-vh-info-grid small{color:var(--phfk-muted);font-size:9.5px;font-weight:800;letter-spacing:.05em}
+.phfk-vh-info-grid b{color:var(--phfk-ink);font-size:12.5px}
+@media(max-width:900px){.phfk-vh-workspace{grid-template-columns:1fr}.phfk-vh-list-panel{position:static;max-height:none}}
 
 /* KNL Batch 2 — source preview/seed and version assignment. */
 .phfk-source-panel{margin-top:0}.phfk-source-panel details{margin-top:12px}.phfk-source-panel summary{cursor:pointer;color:var(--phfk-green-deep);font-size:12px;font-weight:800;margin-bottom:8px}.phfk-source-status{display:inline-block;padding:4px 7px;border-radius:7px;font-size:9px;font-weight:800}.phfk-source-status.is-ready{background:#eef8ea;color:#4f8f2e}.phfk-source-status.is-review{background:#fff6dc;color:#8b681f}.phfk-source-excluded{margin:12px 0 0;color:#8a5d5d;font-size:10.5px}.phfk-assignment-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}.phfk-assignment-form>.phfk-check{min-height:40px}.phfk-success{margin:12px 0 0;padding:10px;border-radius:9px;background:#eef8ea;color:#467d2d;font-size:11px;font-weight:700}
