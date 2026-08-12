@@ -549,7 +549,7 @@
  * (text thô, không viền/nền). Chuẩn hoá nhẹ đúng ngôn ngữ đã có (viền mỏng,
  * không nền đặc, giống .phfk-source-status) — CHỈ presentation, KHÔNG đổi
  * state machine/wording nguồn (vẫn đọc GP_STATUS_LABELS như cũ). */
-.phfk-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:800;border:1px solid var(--phfk-line);background:var(--phfk-neutral-bg);color:var(--phfk-muted)}
+.phfk-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid var(--phfk-line);background:var(--phfk-neutral-bg);color:var(--phfk-muted)}
 .phfk-pill-pending{border-color:var(--phfk-amber);background:var(--phfk-amber-soft);color:var(--phfk-amber-deep)}
 .phfk-pill-approved{border-color:var(--phfk-green);background:var(--phfk-green-soft);color:var(--phfk-green-deep)}
 .phfk-pill-rejected{border-color:var(--phfk-red);background:#fdf1ef;color:var(--phfk-red-deep)}
@@ -570,8 +570,8 @@
  * routing_snapshot/current_step_index thật (mục 4 batch giám sát), KHÔNG
  * hardcode số tầng/tên người, KHÔNG progress %. */
 .phfk-gp-chain{display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:340px}
-.phfk-gp-chain-node{display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:3px 8px;border-radius:8px;font-size:10.5px;font-weight:700;line-height:1.3;border:1px solid transparent}
-.phfk-gp-chain-node i{font-style:normal;font-size:8.8px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.phfk-gp-chain-node{display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;line-height:1.3;border:1px solid transparent}
+.phfk-gp-chain-node i{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.01em;text-transform:uppercase}
 .phfk-gp-chain-node.is-done{color:var(--phfk-ink)}
 .phfk-gp-chain-node.is-done::after{content:'✓';margin-left:3px;color:var(--phfk-green)}
 .phfk-gp-chain-node.is-current{background:var(--phfk-amber-soft);border-color:var(--phfk-amber);color:var(--phfk-amber-deep)}
@@ -592,7 +592,7 @@
 .phfk-gp-wf-node.is-rejected .phfk-gp-wf-icon{border-color:var(--phfk-red);color:var(--phfk-red);background:#fdf1ef}
 .phfk-gp-wf-node.is-withdrawn .phfk-gp-wf-icon{border-color:var(--phfk-line);color:var(--phfk-muted)}
 .phfk-gp-wf-node b{display:block;font-size:12.5px;color:var(--phfk-ink)}
-.phfk-gp-wf-node small{display:block;margin-top:1px;font-size:10.5px;color:var(--phfk-muted);font-weight:700}
+.phfk-gp-wf-node small{display:block;margin-top:1px;font-size:11.5px;color:var(--phfk-muted);font-weight:700}
 .phfk-gp-wf-node.is-current small{color:var(--phfk-amber-deep)}
 .phfk-gp-wf-node.is-rejected small{color:var(--phfk-red-deep)}
 .phfk-gp-wf-node.is-future b,.phfk-gp-wf-node.is-future small{color:var(--phfk-muted)}
@@ -601,7 +601,7 @@
  * Scope RIÊNG (.phfk-gp-*), KHÔNG đổi .phfk-panel/.phfk-table dùng chung
  * toàn KNL — tránh ảnh hưởng các màn khác (Nhân sự/Compensation/Framework)
  * ngoài phạm vi batch này. */
-.phfk-gp-detail{max-width:720px}
+.phfk-gp-detail{width:100%;max-width:1200px;margin:0 auto}
 .phfk-gp-back{display:inline-block;margin-bottom:10px}
 .phfk-gp-detail-head{padding:20px}
 .phfk-gp-detail-title{margin:10px 0 6px;font-size:19px;line-height:1.25;font-weight:800;color:var(--phfk-ink);letter-spacing:-.005em}
@@ -610,7 +610,7 @@
 .phfk-gp-detail-grade b{color:var(--phfk-green-deep);font-size:16px}
 .phfk-gp-detail-meta{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--phfk-line)}
 .phfk-gp-detail-meta div{display:flex;flex-direction:column;gap:2px}
-.phfk-gp-detail-meta dt{margin:0;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--phfk-muted);text-transform:uppercase}
+.phfk-gp-detail-meta dt{margin:0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--phfk-muted);text-transform:uppercase}
 .phfk-gp-detail-meta dd{margin:0;font-size:13px;font-weight:700;color:var(--phfk-ink)}
 .phfk-gp-detail-reason{margin:14px 0 0;font-size:13px;line-height:1.55;color:var(--phfk-ink)}
 .phfk-gp-detail-reason b{color:var(--phfk-muted);font-weight:700}

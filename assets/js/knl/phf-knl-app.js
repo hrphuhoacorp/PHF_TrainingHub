@@ -2276,25 +2276,26 @@ function gpCreateFormHtml(){
     '</form>';
 }
 
-/* employeeCode "trông giống" mã PHF Organization Master chuẩn (vd "PHF012")
- * — dùng CHỈ để quyết định có hiển thị công khai employeeCode trong Lịch sử
- * xử lý hay không (mục 3.C: không hiện internal/legacy id kiểu "HV-xxxx" nếu
- * đã có employeeCode chuẩn). KHÔNG map/đoán giá trị — nếu không giống mã
- * chuẩn thì chỉ ẩn khỏi UI công khai, raw value vẫn giữ nguyên ở thuộc tính
- * title (dev-safe, không hiển thị) để không mất audit trail. */
-function gpLooksLikeStandardEmployeeCode(code){ return /^[A-Z]{2,8}[0-9]{2,6}$/.test(String(code||'').trim()); }
-
+/* Danh tính hiển thị (mục 3 batch visual cleanup): employeeCode CHUẨN
+ * (PHFxxx) giờ được BACKEND resolve sẵn từ user_accounts.employee_code
+ * (getGradePromotionProposalDetail()/listVisibleGradePromotionProposals(),
+ * lib/knl-grade-proposals.js) — createdByEmployeeCode/step.actorEmployeeCode
+ * nhận được ở đây LUÔN là mã chuẩn hoặc rỗng, KHÔNG BAO GIỜ còn là internal
+ * id (HV-xxx/emp-xxx) như trước batch này. Frontend vì vậy KHÔNG cần tự
+ * validate/lọc bằng regex nữa — chỉ render thẳng, rỗng thì không hiện gì
+ * (không tự bịa fallback). */
 function gpDetailHtml(){
   var d = gpState.detail; if(!d) return '';
   var p = d.proposal;
   var subjectMeta = [p.subjectEmployeeCode].filter(Boolean).join(' · ');
+  var creatorMeta = [p.createdByName, p.createdByEmployeeCode].filter(Boolean).join(' · ') || '—';
   var head = '<button type="button" class="phfk-link phfk-gp-back" data-gp-back>← Quay lại</button>'+
     '<section class="phfk-panel phfk-gp-detail-head">'+
     '<span class="phfk-pill phfk-pill-'+esc(p.status)+'">'+esc(GP_STATUS_LABELS[p.status]||p.status)+'</span>'+
     '<h1 class="phfk-gp-detail-title">'+esc(p.subjectEmployeeName)+' <small>'+esc(subjectMeta)+'</small></h1>'+
     '<div class="phfk-gp-detail-grade">'+esc(p.currentGradeCode||'—')+' <span aria-hidden="true">→</span> <b>'+esc(p.proposedGradeCode||'—')+'</b></div>'+
     '<dl class="phfk-gp-detail-meta">'+
-      '<div><dt>Người đề xuất</dt><dd>'+esc(p.createdByName||'—')+'</dd></div>'+
+      '<div><dt>Người đề xuất</dt><dd>'+esc(creatorMeta)+'</dd></div>'+
       '<div><dt>Ngày tạo</dt><dd>'+fmtDate(p.createdAt)+'</dd></div>'+
     '</dl>'+
     (p.reason?'<p class="phfk-gp-detail-reason"><b>Lý do:</b> '+esc(p.reason)+'</p>':'')+
@@ -2309,16 +2310,11 @@ function gpDetailHtml(){
   var historyOpen = steps.length<=3;
   var history = '<details class="phfk-panel phfk-gp-history"'+(historyOpen?' open':'')+'><summary>Lịch sử xử lý</summary><ol class="phfk-gp-timeline">'+steps.map(function(s){
     var line = esc(GP_ACTION_LABELS[s.action]||s.action);
-    var rawTitle = '';
     if(s.action==='reassign') line += ' — chuyển từ '+esc(s.reassignedFromEmployeeCode)+' sang '+esc(s.reassignedToEmployeeCode);
-    else if(s.actorName){
-      var codeIsStandard = s.actorEmployeeCode && gpLooksLikeStandardEmployeeCode(s.actorEmployeeCode);
-      line += ' bởi '+esc(s.actorName)+(codeIsStandard?' ('+esc(s.actorEmployeeCode)+')':'');
-      if(s.actorEmployeeCode && !codeIsStandard) rawTitle=' title="Mã nội bộ (chưa chuẩn hoá): '+esc(s.actorEmployeeCode)+'"';
-    }
+    else if(s.actorName) line += ' bởi '+esc(s.actorName)+(s.actorEmployeeCode?' ('+esc(s.actorEmployeeCode)+')':'');
     if(s.suggestedGradeCode) line += ' · bậc kiến nghị: '+esc(s.suggestedGradeCode);
     if(s.reason) line += ' · '+esc(s.reason);
-    return '<li'+rawTitle+'>'+line+'<small>'+fmtDate(s.actedAt)+'</small></li>';
+    return '<li>'+line+'<small>'+fmtDate(s.actedAt)+'</small></li>';
   }).join('')+'</ol></details>';
 
   var actions = '';

@@ -89,7 +89,7 @@ function makeTableFactory(rows, opts = {}) {
 const STATE = {
   grants: [], history: [], employees: [],
   ladders: [], versions: [], grades: [], assignments: [],
-  proposals: [], steps: [],
+  proposals: [], steps: [], accounts: [],
   simulateRpcFaultBeforeCommit: false
 };
 
@@ -179,6 +179,7 @@ function buildSupabaseMock() {
           if (table === 'knl_employee_compensation_assignments') return makeTableFactory(STATE.assignments)();
           if (table === 'knl_grade_promotion_proposals') return makeTableFactory(STATE.proposals, { beforeInsert: proposalUniquenessGuard })();
           if (table === 'knl_grade_promotion_proposal_steps') return makeTableFactory(STATE.steps)();
+          if (table === 'user_accounts') return makeTableFactory(STATE.accounts)();
           throw new Error('Unexpected table in KNL Grade Proposal mock: ' + table);
         },
         rpc(name, params) { return mockGradePromotionRpc(name, params); }
@@ -260,6 +261,11 @@ function session(role, opts) {
   return { role, account: { id: opts.id || '', name: opts.name || '', employeeCode: opts.employeeCode || '' }, employeeId: 'hv-test-' + (opts.id || ''), sub: opts.id || '' };
 }
 async function grant(accountId, employeeCode, presetCode, capabilities, peopleScope, reason) {
+  // Đăng ký luôn account->employeeCode vào mock user_accounts (mục "resolve
+  // employeeCode chuẩn qua account", batch visual cleanup 2026-08-12) — mọi
+  // actor dùng trong test đều được grant() nên đủ cho các case cần
+  // createdByEmployeeCode/actorEmployeeCode resolve đúng qua getDetail().
+  if (!STATE.accounts.some(a => a.id === accountId)) STATE.accounts.push({ id: accountId, employee_code: employeeCode });
   return upsertGrant(session('admin', { id: 'u-admin' }), { accountId, employeeCode, presetCode, capabilities, peopleScope, reason: reason || 'Thiết lập test' });
 }
 
