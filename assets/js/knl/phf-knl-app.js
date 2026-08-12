@@ -1545,13 +1545,21 @@ function compensationKpis(grades){
 function compensationContextBarHtml(ladder,version){
   return '<div class="phfk-comp-context-bar">'+
     '<div><small>NGẠCH</small><b>'+esc(ladder.code)+' · '+esc(ladder.name)+'</b></div>'+
-    '<div><small>VERSION</small><b>v'+version.version_number+' · '+esc(version.name)+'</b></div>'+
+    '<div><small>PHIÊN BẢN</small><b>v'+version.version_number+' · '+esc(version.name)+'</b></div>'+
     '<div><small>KỲ HIỆU LỰC</small><b>'+esc(version.effective_period||'—')+'</b></div>'+
-    '<div><small>TRẠNG THÁI</small><span class="phfk-source-status '+(version.status==='ACTIVE'?'is-ready':(version.status==='DRAFT'?'is-review':''))+'">'+esc(version.status)+'</span></div>'+
+    '<div><small>TRẠNG THÁI</small><span class="phfk-source-status '+(version.status==='ACTIVE'?'is-ready':(version.status==='DRAFT'?'is-review':''))+'">'+esc(lifecycleStatusLabel(version.status))+'</span></div>'+
     '</div><p class="phfk-batch-note">Đây là cấu hình cơ cấu tham chiếu theo Ngạch-Bậc, không phải bảng lương thực trả.</p>';
 }
+/* ladder.name lưu nguyên 1 chuỗi kiểu "CUNG ỨNG (Kho vận; Thu mua; Vận
+   chuyển)" — tách phần ngoặc cuối để trình bày 2 dòng (tiêu đề chính + mô tả
+   nhỏ), KHÔNG đổi/mutate ladder.name gốc, chỉ xử lý tại thời điểm render. */
+function compensationLadderTitle(ladder){
+  if(!ladder)return{main:'',detail:''};
+  var name=String(ladder.name||''),m=name.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+  return m?{main:m[1],detail:m[2].split(/\s*;\s*/).join(' · ')}:{main:name,detail:''};
+}
 function compensationLadderSelectorHtml(ladders,selectedId){return '<div class="phfk-mini-actions phfk-comp-ladder-select">'+ladders.map(function(l){return '<button type="button" class="'+(l.id===selectedId?'is-active':'')+'" data-comp-select-ladder="'+esc(l.id)+'">'+esc(l.code)+'</button>';}).join('')+'</div>';}
-function compensationVersionListHtml(ladder,selectedId){var versions=compensationSortedVersions(ladder);return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Version</th><th>Kỳ hiệu lực</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+versions.map(function(v){return '<tr'+(v.id===selectedId?' class="is-selected"':'')+'><td>v'+v.version_number+' · '+esc(v.name)+'</td><td>'+esc(v.effective_period||'—')+'</td><td><span class="phfk-source-status '+(v.status==='ACTIVE'?'is-ready':(v.status==='DRAFT'?'is-review':''))+'">'+esc(v.status)+'</span></td><td><button type="button" class="phfk-btn-secondary" data-comp-view-version="'+esc(v.id)+'">Xem</button></td></tr>';}).join('')+'</tbody></table></div>';}
+function compensationVersionListHtml(ladder,selectedId){var versions=compensationSortedVersions(ladder);return '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Phiên bản</th><th>Ký hiệu lực</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>'+versions.map(function(v){return '<tr'+(v.id===selectedId?' class="is-selected"':'')+'><td>v'+v.version_number+' · '+esc(v.name)+'</td><td>'+esc(v.effective_period||'—')+'</td><td><span class="phfk-source-status '+(v.status==='ACTIVE'?'is-ready':(v.status==='DRAFT'?'is-review':''))+'">'+esc(lifecycleStatusLabel(v.status))+'</span></td><td><button type="button" class="phfk-btn-secondary" data-comp-view-version="'+esc(v.id)+'">Xem</button></td></tr>';}).join('')+'</tbody></table></div>';}
 function compensationScenarioRows(g){
   var base=g.base_salary+g.hqcv;
   var scenarios=[
@@ -1614,8 +1622,9 @@ function compensationStructureHtml(){
   if(!ladders.length)return compensationDomainNav('ngach-bac-luong',true)+noAccessSection('Chưa có ngạch nào. Foundation chưa được seed.');
   var ladder=compensationSelectedLadder(),version=compensationSelectedVersion(ladder),rawGrades=compensationSortedGrades(version),grades=compensationDisplayGrades(rawGrades),kpi=compensationKpis(grades);
   var pendingCount=Object.keys(compensationState.pendingGrades).length,isDraft=version&&version.status==='DRAFT';
+  var ladderTitle=compensationLadderTitle(ladder);
   return compensationDomainNav('ngach-bac-luong',true)+
-    '<div class="phfk-page-head"><div><small>KNL · CƠ CẤU NGẠCH & BẬC</small><h1>'+esc(ladder?ladder.name:'')+' ('+esc(ladder?ladder.code:'')+')</h1></div>'+
+    '<div class="phfk-page-head"><div><small>KNL · CƠ CẤU NGẠCH & BẬC</small><h1>'+esc(ladderTitle.main)+'</h1>'+(ladderTitle.detail?'<p class="phfk-ladder-subtitle">'+esc(ladderTitle.detail)+'</p>':'')+(ladder?'<span class="phfk-source-status is-ready">Mã ngạch: '+esc(ladder.code)+'</span>':'')+'</div>'+
       '<div class="phfk-mini-actions">'+(version?'<button type="button" class="phfk-btn-secondary" data-comp-clone-version="'+esc(version.id)+'">Tạo phiên bản mới từ phiên bản này</button>':'')+'</div></div>'+
     compensationLadderSelectorHtml(ladders,ladder?ladder.id:'')+
     '<section class="phfk-panel"><div class="phfk-section-head"><div><small>PHIÊN BẢN</small><h2>Version & lịch sử hiệu lực</h2></div></div>'+compensationVersionListHtml(ladder,version?version.id:'')+'</section>'+
@@ -1666,8 +1675,57 @@ function bindCompensationStructure(root){
 }
 function renderCompensationBody(root){var body=root.querySelector('[data-knl-body]');body.innerHTML=compensationStructureHtml();bindCompensationStructure(root);}
 async function renderCompensationStructure(root){var body=root.querySelector('[data-knl-body]');try{if(!compensationState.standards)compensationState.standards=await apiPost('listKnlCompensationStandards');renderCompensationBody(root);}catch(e){body.innerHTML=compensationDomainNav('ngach-bac-luong',true)+noAccessSection(e.message);bindCompensationDomainNav(root);}}
-function incomePickerHtml(message){var people=foundationState.incomeTargets||[];return compensationDomainNav('co-cau-thu-nhap',foundationState.incomeIsAdmin)+'<div class="phfk-page-head"><div><small>KNL · THU NHẬP THAM CHIẾU</small><h1>Chọn nhân sự</h1><p>Danh sách được lọc theo quyền Thu nhập trên backend.</p></div></div>'+(message?'<p class="phfk-warning">'+esc(message)+'</p>':'')+'<section class="phfk-panel phfk-income-picker"><label class="phfk-field"><span>Tìm nhân sự</span><input type="search" class="phfk-input" data-knl-income-search placeholder="Mã NV, họ tên, phòng ban…"></label><div class="phfk-income-targets">'+people.map(function(p){return'<button type="button" data-knl-income-target="'+esc(p.employeeCode)+'" data-search="'+esc([p.employeeCode,p.employeeName,p.department,p.branch,p.title].join(' ').toLowerCase())+'"><b>'+esc(p.employeeName)+'</b><span>'+esc(p.employeeCode)+' · '+esc(p.title||p.department||'Nhân sự')+'</span><small>'+esc([p.department,p.branch].filter(Boolean).join(' · '))+'</small></button>';}).join('')+'</div>'+(people.length?'':'<p class="phfk-empty">Không có nhân sự nào trong phạm vi được phép xem.</p>')+'</section>';}
-function bindIncomePicker(root){var search=root.querySelector('[data-knl-income-search]');if(search)search.addEventListener('input',function(){var q=String(search.value||'').trim().toLowerCase();root.querySelectorAll('[data-knl-income-target]').forEach(function(row){row.hidden=!!(q&&String(row.dataset.search||'').indexOf(q)===-1);});});root.querySelectorAll('[data-knl-income-target]').forEach(function(row){row.addEventListener('click',function(){goIncomeEmployee(row.getAttribute('data-knl-income-target'));});});}
+/* Shared "Chọn nhân sự" picker — dùng chung giữa Hồ sơ thu nhập và Gán cho
+   nhân viên (mục 4/6 batch polish). Action sau khi click khác nhau theo
+   onSelect truyền vào từ nơi gọi, style/component dùng chung 100%. Filter
+   Phòng ban/Chi nhánh/Chức danh tính lại option theo facet của 2 filter còn
+   lại + search (không hardcode option, đúng data thật của danh sách đã được
+   backend lọc theo quyền). */
+var KNL_PEOPLE_FILTER_LABELS={department:'Phòng ban',branch:'Chi nhánh',title:'Chức danh'};
+function knlEmployeePickerHtml(opts){
+  var people=opts.people||[];
+  var filterBar='<div class="phfk-people-picker-filters"><input type="search" class="phfk-input" placeholder="Tìm theo tên hoặc mã nhân sự" data-picker-search="'+opts.ns+'">'+
+    Object.keys(KNL_PEOPLE_FILTER_LABELS).map(function(key){return '<select class="phfk-input" data-picker-filter="'+opts.ns+':'+key+'"><option value="">Tất cả '+KNL_PEOPLE_FILTER_LABELS[key]+'</option></select>';}).join('')+
+    '</div>';
+  var cards='<div class="phfk-people-grid">'+people.map(function(p){
+    return '<button type="button" class="phfk-people-card" data-picker-target="'+opts.ns+'" data-code="'+esc(p.employeeCode)+'" data-search="'+esc([p.employeeCode,p.employeeName,p.department,p.branch,p.title].join(' ').toLowerCase())+'" data-department="'+esc(p.department||'')+'" data-branch="'+esc(p.branch||'')+'" data-title="'+esc(p.title||'')+'">'+
+      '<b>'+esc(p.employeeName)+'</b><span>'+esc(p.employeeCode)+' · '+esc(p.title||p.department||'Nhân sự')+'</span><small>'+esc([p.department,p.branch].filter(Boolean).join(' · '))+'</small></button>';
+  }).join('')+'</div>';
+  return '<section class="phfk-panel phfk-people-picker">'+filterBar+
+    '<p class="phfk-people-picker-count" data-picker-count="'+opts.ns+'"></p>'+
+    (people.length?cards:'<p class="phfk-empty">'+esc(opts.emptyText||'Không có nhân sự phù hợp.')+'</p>')+
+    '</section>';
+}
+function bindKnlEmployeePicker(root,ns,onSelect){
+  var searchEl=root.querySelector('[data-picker-search="'+ns+'"]');if(!searchEl)return;
+  var filterSelects={};Object.keys(KNL_PEOPLE_FILTER_LABELS).forEach(function(key){filterSelects[key]=root.querySelector('[data-picker-filter="'+ns+':'+key+'"]');});
+  var cardEls=Array.prototype.slice.call(root.querySelectorAll('[data-picker-target="'+ns+'"]'));
+  function refresh(){
+    var q=String(searchEl.value||'').trim().toLowerCase();
+    var current={};Object.keys(filterSelects).forEach(function(key){current[key]=filterSelects[key]?filterSelects[key].value:'';});
+    function matches(el,exceptKey){
+      if(q&&el.dataset.search.indexOf(q)===-1)return false;
+      return Object.keys(current).every(function(k){if(k===exceptKey)return true;if(!current[k])return true;return el.dataset[k]===current[k];});
+    }
+    Object.keys(filterSelects).forEach(function(key){
+      var sel=filterSelects[key];if(!sel)return;
+      var eligible=cardEls.filter(function(el){return matches(el,key);});
+      var values=Array.from(new Set(eligible.map(function(el){return el.dataset[key];}).filter(Boolean))).sort();
+      if(current[key]&&values.indexOf(current[key])===-1)current[key]='';
+      sel.innerHTML='<option value="">Tất cả '+KNL_PEOPLE_FILTER_LABELS[key]+'</option>'+values.map(function(v){return '<option value="'+esc(v)+'"'+(v===current[key]?' selected':'')+'>'+esc(v)+'</option>';}).join('');
+      sel.value=current[key];
+    });
+    var count=0;
+    cardEls.forEach(function(el){var visible=matches(el,null);el.hidden=!visible;if(visible)count++;});
+    var countEl=root.querySelector('[data-picker-count="'+ns+'"]');if(countEl)countEl.textContent=count+' nhân sự phù hợp';
+  }
+  refresh();
+  searchEl.oninput=refresh;
+  Object.keys(filterSelects).forEach(function(key){if(filterSelects[key])filterSelects[key].onchange=refresh;});
+  cardEls.forEach(function(el){el.onclick=function(){onSelect(el.getAttribute('data-code'));};});
+}
+function incomePickerHtml(message){var people=foundationState.incomeTargets||[];return compensationDomainNav('co-cau-thu-nhap',foundationState.incomeIsAdmin)+'<div class="phfk-page-head"><div><small>KNL · THU NHẬP THAM CHIẾU</small><h1>Chọn nhân sự</h1><p>Danh sách được lọc theo quyền Thu nhập trên backend.</p></div></div>'+(message?'<p class="phfk-warning">'+esc(message)+'</p>':'')+knlEmployeePickerHtml({ns:'income',people:people,emptyText:'Không có nhân sự nào trong phạm vi được phép xem.'});}
+function bindIncomePicker(root){bindKnlEmployeePicker(root,'income',function(code){goIncomeEmployee(code);});}
 async function showIncomePicker(root,message){var body=root.querySelector('[data-knl-body]');try{if(!foundationState.incomeTargetsLoaded){var result=await apiPost('listKnlIncomeTargets');foundationState.incomeTargets=result.people||[];foundationState.incomeTargetsLoaded=true;}body.innerHTML=incomePickerHtml(message);bindIncomePicker(root);bindCompensationDomainNav(root);}catch(e){body.innerHTML=noAccessSection(e.message);}}
 function compensationInitials(name){var parts=String(name||'').trim().split(/\s+/);return parts.length&&parts[parts.length-1]?parts[parts.length-1][0].toUpperCase():'?';}
 function pad2(n){return n<10?'0'+n:''+n;}
@@ -2251,56 +2309,61 @@ function assignPreviewHtml(current,f,selectedGrade){
   var oldTotal=current?Number(current.totalReferenceIncome||0):0,delta=proposed.total-oldTotal;
   var retro=assignIsRetroactive(f.payrollPeriod);
   var samePeriodAsCurrent=current&&current.payrollPeriod===f.payrollPeriod;
-  return '<section class="phfk-panel phfk-income-card"><div class="phfk-section-head"><h2>Xem trước kỳ '+esc(f.payrollPeriod||'—')+'</h2></div>'+
+  return '<section class="phfk-panel phfk-income-card phfk-assign-block"><div class="phfk-section-head"><div><span class="phfk-assign-step">4</span><h2>Tóm tắt thay đổi (dự kiến) — kỳ '+esc(f.payrollPeriod||'—')+'</h2></div></div>'+
     (retro?('<p class="phfk-error">⚠ Kỳ áp dụng ('+esc(f.payrollPeriod)+') trước kỳ khuyến nghị ('+esc(assignRecommendedPeriod())+') — đây là điều chỉnh HỒI TỐ. Bắt buộc nhập lý do hồi tố ở ô "Lý do" bên dưới.</p>'):'')+
     (samePeriodAsCurrent?'<p class="phfk-batch-note">Kỳ '+esc(f.payrollPeriod)+' đã có cơ cấu đang áp dụng — lưu sẽ CẬP NHẬT (ghi đè) đúng bản ghi kỳ này, không tạo kỳ mới.</p>':'')+
     '<div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Khoản mục kỳ mới</th><th>Mức tiền (VND)</th></tr></thead><tbody>'+rows+
     '<tr class="phfk-comp-parts-subtotal"><td>Tổng kỳ mới</td><td><b>'+money(proposed.total)+'</b></td></tr>'+
     (current?(
       '<tr><td>Tổng kỳ hiện tại ('+esc(current.payrollPeriod)+')</td><td>'+money(oldTotal)+'</td></tr>'+
-      '<tr><td>Chênh lệch</td><td>'+(delta>=0?'+':'')+money(delta)+'</td></tr>'
+      '<tr><td>Chênh lệch</td><td><b class="'+(delta>0?'phfk-assign-delta-up':(delta<0?'phfk-assign-delta-down':''))+'">'+(delta>=0?'+':'')+money(delta)+'</b></td></tr>'
     ):'')+
     '</tbody></table></div></section>';
 }
 function assignExtraAllowanceRowsHtml(){var rows=assignState.form.extraAllowances||[];return rows.map(function(row,idx){return '<div class="phfk-comp-extra-row"><input type="text" class="phfk-input" data-assign-extra-name="'+idx+'" placeholder="Tên phụ cấp" value="'+esc(row.name||'')+'"><input type="number" min="0" step="1000" class="phfk-input" data-assign-extra-amount="'+idx+'" placeholder="Số tiền" value="'+esc(row.amount||'')+'"><button type="button" class="phfk-btn-secondary" data-assign-extra-remove="'+idx+'">Xoá</button></div>';}).join('')+(rows.length<3?'<button type="button" class="phfk-btn-secondary" data-assign-extra-add>+ Thêm phụ cấp khác ('+rows.length+'/3)</button>':'<p class="phfk-batch-note">Đã đạt tối đa 3 phụ cấp khác.</p>');}
-function assignPickerHtml(){var people=assignState.targets||[];return compensationDomainNav('gan-thu-nhap',true)+'<div class="phfk-page-head"><div><small>KNL · GÁN CHO NHÂN VIÊN</small><h1>Chọn nhân sự</h1><p>Chỉ nhân sự đang làm việc.</p></div></div><section class="phfk-panel phfk-income-picker"><label class="phfk-field"><span>Tìm nhân sự</span><input type="search" class="phfk-input" data-assign-search placeholder="Mã NV, họ tên, phòng ban…"></label><div class="phfk-income-targets">'+people.map(function(p){return '<button type="button" data-assign-target="'+esc(p.employeeCode)+'" data-search="'+esc([p.employeeCode,p.employeeName,p.department,p.branch,p.title].join(' ').toLowerCase())+'"><b>'+esc(p.employeeName)+'</b><span>'+esc(p.employeeCode)+' · '+esc(p.title||p.department||'Nhân sự')+'</span><small>'+esc([p.department,p.branch].filter(Boolean).join(' · '))+'</small></button>';}).join('')+'</div>'+(people.length?'':'<p class="phfk-empty">Không có nhân sự đang làm việc.</p>')+'</section>';}
-function bindAssignPicker(root){bindCompensationDomainNav(root);var search=root.querySelector('[data-assign-search]');if(search)search.addEventListener('input',function(){var q=String(search.value||'').trim().toLowerCase();root.querySelectorAll('[data-assign-target]').forEach(function(row){row.hidden=!!(q&&String(row.dataset.search||'').indexOf(q)===-1);});});root.querySelectorAll('[data-assign-target]').forEach(function(btn){btn.addEventListener('click',function(){assignState.selectedCode=btn.getAttribute('data-assign-target');assignState.current=null;assignState.form=assignDefaultForm();assignState.message='';assignState.error='';renderCompensationAssign(root);});});}
+function assignPickerHtml(){var people=assignState.targets||[];return compensationDomainNav('gan-thu-nhap',true)+'<div class="phfk-page-head"><div><small>KNL · GÁN CHO NHÂN VIÊN</small><h1>Chọn nhân sự</h1><p>Chỉ nhân sự đang làm việc.</p></div></div>'+knlEmployeePickerHtml({ns:'assign',people:people,emptyText:'Không có nhân sự đang làm việc.'});}
+function bindAssignPicker(root){bindCompensationDomainNav(root);bindKnlEmployeePicker(root,'assign',function(code){assignState.selectedCode=code;assignState.current=null;assignState.form=assignDefaultForm();assignState.message='';assignState.error='';renderCompensationAssign(root);});}
 function assignFormHtml(person){
   var f=assignState.form,current=assignState.current&&assignState.current.current,isOfficial=f.employmentType==='OFFICIAL';
   var versions=isOfficial?assignVersionsForLadder(f.ladderId):[],grades=isOfficial?assignGradesForVersion(f.ladderId,f.versionId):[],selectedGrade=grades.find(function(g){return g.id===f.gradeId;});
   var wasProbation=current&&current.employmentType==='PROBATION';
   var retro=assignIsRetroactive(f.payrollPeriod);
-  var currentCard=current?('<section class="phfk-panel phfk-income-card"><div class="phfk-section-head"><h2>Cơ cấu đang áp dụng</h2></div><div class="phfk-income-summary"><div><small>NGẠCH · BẬC</small><b>'+esc(current.ladderCode||'—')+' · '+esc(current.gradeCode||'—')+'</b></div><div><small>VERSION</small><b>v'+esc(current.versionNumber||'—')+'</b></div><div><small>KỲ LƯƠNG</small><b>'+esc(current.payrollPeriod)+'</b></div></div></section>'):'<p class="phfk-batch-note">Nhân sự này chưa có cơ cấu thu nhập nào.</p>';
+  var block1=current?('<section class="phfk-panel phfk-income-card phfk-assign-block"><div class="phfk-section-head"><div><span class="phfk-assign-step">1</span><h2>Cơ cấu hiện tại</h2></div></div><div class="phfk-income-summary"><div><small>NGẠCH · BẬC</small><b>'+esc(current.ladderCode||'—')+' · '+esc(current.gradeCode||'—')+'</b></div><div><small>PHIÊN BẢN</small><b>v'+esc(current.versionNumber||'—')+'</b></div><div><small>KỲ LƯƠNG</small><b>'+esc(current.payrollPeriod)+'</b></div></div></section>')
+    :('<section class="phfk-panel phfk-assign-block"><div class="phfk-section-head"><div><span class="phfk-assign-step">1</span><h2>Cơ cấu hiện tại</h2></div></div><p class="phfk-batch-note">Nhân sự này chưa có cơ cấu thu nhập nào.</p></section>');
   return compensationDomainNav('gan-thu-nhap',true)+
     '<div class="phfk-page-head"><div><small>KNL · GÁN CHO NHÂN VIÊN</small><h1>'+esc(person.employeeName)+' · '+esc(person.employeeCode)+'</h1></div><button type="button" class="phfk-btn-secondary" data-assign-change>Chọn nhân sự khác</button></div>'+
-    currentCard+
-    '<section class="phfk-panel"><div class="phfk-section-head"><h2>Gán cơ cấu kỳ mới</h2></div><form data-assign-form>'+
+    '<form data-assign-form>'+
+    block1+
+    '<section class="phfk-panel phfk-assign-block"><div class="phfk-section-head"><div><span class="phfk-assign-step">2</span><h2>Chọn cơ cấu mới</h2></div></div>'+
     '<div class="phfk-checklist" style="margin-bottom:12px">'+
       '<label class="phfk-check"><input type="radio" name="employmentTypeRadio" value="OFFICIAL" data-assign-type'+(isOfficial?' checked':'')+'> Chính thức</label>'+
       '<label class="phfk-check"><input type="radio" name="employmentTypeRadio" value="PROBATION" data-assign-type'+(!isOfficial?' checked':'')+'> Thử việc</label>'+
     '</div>'+
-    (isOfficial&&wasProbation?'<p class="phfk-batch-note">Nhân sự đang thử việc. Hệ thống gợi ý bắt đầu từ Bậc 1 phù hợp Ngạch/Version vừa chọn — vui lòng tự xác nhận lại Ngạch/Version/Bậc trước khi lưu, không mặc nhiên coi Bậc 1 là quyết định cuối.</p>':'')+
+    (isOfficial&&wasProbation?'<p class="phfk-batch-note">Nhân sự đang thử việc. Hệ thống gợi ý bắt đầu từ Bậc 1 phù hợp Ngạch/Phiên bản vừa chọn — vui lòng tự xác nhận lại Ngạch/Phiên bản/Bậc trước khi lưu, không mặc nhiên coi Bậc 1 là quyết định cuối.</p>':'')+
     '<div class="phfk-assignment-form">'+
-    '<label class="phfk-field"><span>Kỳ lương áp dụng (khuyến nghị '+esc(assignRecommendedPeriod())+')</span><input type="month" class="phfk-input" data-assign-period value="'+esc(f.payrollPeriod||'')+'" required></label>'+
     (isOfficial?(
       '<label class="phfk-field"><span>Ngạch</span><select class="phfk-input" data-assign-ladder><option value="">— Chọn ngạch —</option>'+assignLadderOptions(f.ladderId)+'</select></label>'+
-      '<label class="phfk-field"><span>Version</span><select class="phfk-input" data-assign-version'+(!f.ladderId?' disabled':'')+'><option value="">— Chọn version —</option>'+versions.map(function(v){return '<option value="'+esc(v.id)+'"'+(v.id===f.versionId?' selected':'')+'>v'+v.version_number+' · '+esc(v.status)+' · '+esc(v.effective_period)+'</option>';}).join('')+'</select></label>'+
+      '<label class="phfk-field"><span>Phiên bản</span><select class="phfk-input" data-assign-version'+(!f.ladderId?' disabled':'')+'><option value="">— Chọn phiên bản —</option>'+versions.map(function(v){return '<option value="'+esc(v.id)+'"'+(v.id===f.versionId?' selected':'')+'>v'+v.version_number+' · '+esc(lifecycleStatusLabel(v.status))+' · '+esc(v.effective_period)+'</option>';}).join('')+'</select></label>'+
       '<label class="phfk-field"><span>Bậc</span><select class="phfk-input" data-assign-grade'+(!f.versionId?' disabled':'')+'><option value="">— Chọn bậc —</option>'+grades.map(function(g){return '<option value="'+esc(g.id)+'"'+(g.id===f.gradeId?' selected':'')+'>'+esc(g.grade_code)+' · LCB '+money(g.base_salary)+' · HQCV '+money(g.hqcv)+'</option>';}).join('')+'</select></label>'+
       (selectedGrade?('<p class="phfk-batch-note">LCB '+money(selectedGrade.base_salary)+' · HQCV '+money(selectedGrade.hqcv)+' · PC nghiệp vụ chuẩn '+money(selectedGrade.professional_allowance)+' · PC QL/trách nhiệm chuẩn '+money(selectedGrade.management_allowance)+' (lookup master, không override cá nhân). Đã tick sẵn các khoản chuẩn — bỏ tick khoản nào không áp dụng cho nhân sự này.</p>'):'')+
       '<label class="phfk-check"><input type="checkbox" data-assign-prof'+(f.isProfessionalAllowance?' checked':'')+'> Hưởng PC nghiệp vụ</label>'+
       '<label class="phfk-check"><input type="checkbox" data-assign-mgmt'+(f.isManagementAllowance?' checked':'')+'> Hưởng PC quản lý/trách nhiệm</label>'+
-      '<label class="phfk-check"><input type="checkbox" data-assign-meal'+(f.isMealAllowance?' checked':'')+'> Hưởng tiền cơm</label>'+
-      '<label class="phfk-field"><span>Tiền cơm (gợi ý '+money(MEAL_SUGGESTION)+', cho phép ngoại lệ)</span><input type="number" min="0" step="1000" class="phfk-input" data-assign-meal-amount value="'+esc(f.mealOverride!=null?f.mealOverride:MEAL_SUGGESTION)+'"></label>'
+      '<label class="phfk-check"><input type="checkbox" data-assign-meal'+(f.isMealAllowance?' checked':'')+'> Hưởng tiền cơm</label>'
     ):(
       '<label class="phfk-field"><span>Mức lương thử việc (gợi ý '+money(PROBATION_SUGGESTION)+', cho phép điều chỉnh)</span><input type="number" min="1" step="1000" class="phfk-input" data-assign-probation-amount value="'+esc(f.probationAmount!=null?f.probationAmount:PROBATION_SUGGESTION)+'" required></label>'
-    ))+'</div>'+
+    ))+'</div></section>'+
+    '<section class="phfk-panel phfk-assign-block"><div class="phfk-section-head"><div><span class="phfk-assign-step">3</span><h2>Thời điểm &amp; khoản đi kèm</h2></div></div>'+
+    '<div class="phfk-assignment-form">'+
+    '<label class="phfk-field"><span>Kỳ lương áp dụng (khuyến nghị '+esc(assignRecommendedPeriod())+')</span><input type="month" class="phfk-input" data-assign-period value="'+esc(f.payrollPeriod||'')+'" required></label>'+
+    (isOfficial?'<label class="phfk-field"><span>Tiền cơm (gợi ý '+money(MEAL_SUGGESTION)+', cho phép ngoại lệ)</span><input type="number" min="0" step="1000" class="phfk-input" data-assign-meal-amount value="'+esc(f.mealOverride!=null?f.mealOverride:MEAL_SUGGESTION)+'"></label>':'')+
+    '</div>'+
     (isOfficial?('<div class="phfk-field"><span>Phụ cấp khác (tối đa 3)</span><div data-assign-extra-list>'+assignExtraAllowanceRowsHtml()+'</div></div>'):'')+
     '<label class="phfk-field"><span>Lý do / ghi chú'+(retro?' (BẮT BUỘC — điều chỉnh hồi tố)':' (tuỳ chọn)')+'</span><textarea class="phfk-input" data-assign-reason'+(retro?' required':'')+'>'+esc(f.reason||'')+'</textarea></label>'+
     '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-primary">Lưu cơ cấu kỳ này</button></div>'+
-    '</form>'+
     (assignState.message?'<p class="phfk-success">'+esc(assignState.message)+'</p>':'')+
     (assignState.error?'<p class="phfk-error">'+esc(assignState.error)+'</p>':'')+
     '</section>'+
+    '</form>'+
     assignPreviewHtml(current,f,selectedGrade);
 }
 function renderCompensationAssignBody(root,person){var body=root.querySelector('[data-knl-body]');body.innerHTML=assignFormHtml(person);bindAssignForm(root,person);}
@@ -2383,17 +2446,29 @@ async function renderCompensationAssign(root){
 function compensationAuditSummary(entry){
   if(entry.entityType==='compensation_version'){
     if(entry.action==='clone')return 'Tạo Draft mới từ v'+((entry.beforeData&&entry.beforeData.sourceVersionNumber)||'?');
-    if(entry.action==='schedule')return 'Đặt hiệu lực: '+((entry.afterData&&entry.afterData.status)||'')+' từ '+((entry.afterData&&entry.afterData.effectiveFrom)||'');
-    return entry.action;
+    if(entry.action==='schedule')return 'Đặt hiệu lực: '+lifecycleStatusLabel((entry.afterData&&entry.afterData.status)||'')+' từ '+((entry.afterData&&entry.afterData.effectiveFrom)||'');
+    return 'Cập nhật phiên bản';
   }
   return 'Sửa '+((entry.afterData&&entry.afterData.grades&&entry.afterData.grades.length)||0)+' bậc';
 }
+/* Schema chỉ có 1 field tên (actor_name/changed_by_name) — không có cột
+   "nguồn" riêng. Với record do batch/seed script ghi (tên kiểu mô tả kỹ
+   thuật, không phải tên người), tách trình bày thành "Hệ thống" + giữ
+   nguyên chuỗi gốc làm "Nguồn" (không bịa, không rewrite DB, chỉ khác cách
+   đọc 1 field có sẵn tại thời điểm render). */
+function compensationActorPresentation(rawName){
+  var name=String(rawName||'').trim();
+  if(!name)return{who:'Hệ thống',source:'Không có thông tin'};
+  if(/batch|script|seed|import|migration|automation|baseline|manifest/i.test(name))return{who:'Hệ thống',source:name};
+  return{who:name,source:'Thao tác thủ công'};
+}
+function compensationHistoryActorCell(rawName){var p=compensationActorPresentation(rawName);return '<b>'+esc(p.who)+'</b><small>'+esc(p.source)+'</small>';}
 function compensationHistoryHtml(){
-  var versionRows=historyState.versionAudit.map(function(e){return '<tr><td>'+esc(e.ladderCode||'—')+'</td><td>v'+esc(e.versionNumber||'—')+'</td><td>'+esc(compensationAuditSummary(e))+'</td><td>'+esc(e.actorName||'—')+'</td><td>'+esc(e.createdAt)+'</td></tr>';}).join('')||'<tr><td colspan="5">Chưa có thay đổi nào.</td></tr>';
-  var empRows=historyState.employeeHistory.map(function(h){var t=compensationChangeTransition(h);return '<tr><td>'+esc(h.employeeCode)+'</td><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(h.changedByName||'—')+'</td><td>'+esc(h.changedAt)+'</td></tr>';}).join('')||'<tr><td colspan="7">Chưa có thay đổi nào.</td></tr>';
+  var versionRows=historyState.versionAudit.map(function(e){return '<tr><td>'+esc(e.ladderCode||'—')+'</td><td>v'+esc(e.versionNumber||'—')+'</td><td>'+esc(compensationAuditSummary(e))+'</td><td class="phfk-history-actor">'+compensationHistoryActorCell(e.actorName)+'</td><td>'+esc(fmtKnlDateTime(e.createdAt))+'</td></tr>';}).join('')||'<tr><td colspan="5">Chưa có thay đổi nào.</td></tr>';
+  var empRows=historyState.employeeHistory.map(function(h){var t=compensationChangeTransition(h);return '<tr><td>'+esc(h.employeeCode)+'</td><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td class="phfk-history-actor">'+compensationHistoryActorCell(h.changedByName)+'</td><td>'+esc(fmtKnlDateTime(h.changedAt))+'</td></tr>';}).join('')||'<tr><td colspan="7">Chưa có thay đổi nào.</td></tr>';
   return compensationDomainNav('lich-su-thu-nhap',true)+
     '<div class="phfk-page-head"><div><small>KNL · LỊCH SỬ</small><h1>Lịch sử cơ cấu ngạch, bậc & thu nhập</h1></div></div>'+
-    '<section class="phfk-panel"><div class="phfk-section-head"><h2>Thay đổi cơ cấu ngạch & bậc (master)</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Ngạch</th><th>Version</th><th>Thay đổi</th><th>Người thực hiện</th><th>Thời điểm</th></tr></thead><tbody>'+versionRows+'</tbody></table></div></section>'+
+    '<section class="phfk-panel"><div class="phfk-section-head"><h2>Thay đổi cơ cấu ngạch & bậc (master)</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Ngạch</th><th>Phiên bản</th><th>Thay đổi</th><th>Người thực hiện</th><th>Thời điểm</th></tr></thead><tbody>'+versionRows+'</tbody></table></div></section>'+
     '<section class="phfk-panel"><div class="phfk-section-head"><div><small>NHÂN VIÊN</small><h2>Thay đổi cơ cấu thu nhập nhân viên</h2></div></div><label class="phfk-field" style="max-width:280px"><span>Lọc theo mã nhân viên</span><input type="text" class="phfk-input" data-history-employee-filter value="'+esc(historyState.employeeFilter)+'" placeholder="VD: PHF001"></label><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Mã NV</th><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Người thực hiện</th><th>Thời điểm</th></tr></thead><tbody>'+empRows+'</tbody></table></div></section>';
 }
 function bindCompensationHistory(root){bindCompensationDomainNav(root);var filter=root.querySelector('[data-history-employee-filter]');if(filter)filter.addEventListener('change',function(){historyState.employeeFilter=String(filter.value||'').trim().toUpperCase();renderCompensationHistory(root);});}
