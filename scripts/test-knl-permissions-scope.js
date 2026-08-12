@@ -149,7 +149,8 @@ STATE.employees.push(
 
 function session(role, opts) {
   opts = opts || {};
-  return { role, account: { id: opts.id || '', name: opts.name || '' }, employeeId: opts.employeeCode || '', sub: opts.id || '' };
+  // employeeCode PHẢI ở account.employeeCode (đúng session shape thật, xem trace 2026-08-12) — employeeId cố tình khác để bắt regression nếu actor() lại ưu tiên nhầm.
+  return { role, account: { id: opts.id || '', name: opts.name || '', employeeCode: opts.employeeCode || '' }, employeeId: 'hv-test-' + (opts.id || ''), sub: opts.id || '' };
 }
 
 let failures = 0;

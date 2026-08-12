@@ -108,7 +108,8 @@ STATE.employees.push(
   { employee_code: 'NVSALESGONE', full_name: 'NV Bán hàng Đã nghỉ', title: 'Nhân viên', department: 'Bộ phận bán hàng', branch: 'Phú Lợi', manager_employee_code: 'TIEN1', employment_status: 'inactive' }
 );
 
-function session(role, opts) { opts = opts || {}; return { role, account: { id: opts.id || '', name: opts.name || '' }, employeeId: opts.employeeCode || '', sub: opts.id || '' }; }
+// employeeCode PHẢI ở account.employeeCode (đúng session shape thật, xem trace 2026-08-12) — employeeId cố tình khác để bắt regression nếu actor() lại ưu tiên nhầm.
+function session(role, opts) { opts = opts || {}; return { role, account: { id: opts.id || '', name: opts.name || '', employeeCode: opts.employeeCode || '' }, employeeId: 'hv-test-' + (opts.id || ''), sub: opts.id || '' }; }
 async function grant(accountId, employeeCode, presetCode, capabilities, peopleScope) {
   return upsertGrant(session('admin', { id: 'admin-seed' }), { accountId, employeeCode, presetCode, capabilities, peopleScope, reason: 'approver-options test fixture' });
 }

@@ -254,7 +254,10 @@ STATE.assignments.push(
 
 function session(role, opts) {
   opts = opts || {};
-  return { role, account: { id: opts.id || '', name: opts.name || '' }, employeeId: opts.employeeCode || '', sub: opts.id || '' };
+  // employeeCode PHẢI ở account.employeeCode (đúng session shape thật của lib/auth.js
+  // readSession() — publicAccount().employeeCode), KHÔNG employeeId (internal
+  // linked-employee id kiểu "hv-xxxx", field khác hoàn toàn — xem trace 2026-08-12).
+  return { role, account: { id: opts.id || '', name: opts.name || '', employeeCode: opts.employeeCode || '' }, employeeId: 'hv-test-' + (opts.id || ''), sub: opts.id || '' };
 }
 async function grant(accountId, employeeCode, presetCode, capabilities, peopleScope, reason) {
   return upsertGrant(session('admin', { id: 'u-admin' }), { accountId, employeeCode, presetCode, capabilities, peopleScope, reason: reason || 'Thiết lập test' });
