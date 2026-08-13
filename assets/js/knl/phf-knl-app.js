@@ -379,7 +379,7 @@ function emptyPickerState(){ return { search:'', department:'', branch:'', rows:
 var permState = {
   grants:[], presets:[], accounts:[], loading:false,
   selectedAccountId:'', accountSearch:'', accountPage:0,
-  accountFilters:{department:'',branch:'',position:''},
+  accountFilters:{department:'',branch:'',position:''}, pickerExpanded:true,
   editing:null, saving:false, advancedOpen:false, incomeConfigOpen:false,
   subordinate: emptyPickerState(),
   incomeEmp: emptyPickerState(),
@@ -409,6 +409,9 @@ function selectAccount(root, accountId){
   permState.incomeEmp = emptyPickerState();
   permState.advancedOpen = false;
   permState.incomeConfigOpen = !!(g.capabilities && g.capabilities.income_view && g.capabilities.incomeScope);
+  /* Chọn xong -> thu gọn bước 1 thành summary bar, nhường toàn bộ chiều
+     rộng cho các bước cấu hình bên dưới (flow dọc full-width). */
+  permState.pickerExpanded = false;
   renderPermissionsBody(root);
   if(businessRoleForAccount(acc, g)==='tbp') loadSubordinates(root);
   if(g.capabilities && g.capabilities.income_view && g.capabilities.incomeScope){
@@ -543,13 +546,16 @@ function accountResultsHtml(){
   if(permState.accountPage >= totalPages) permState.accountPage = totalPages - 1;
   if(permState.accountPage < 0) permState.accountPage = 0;
   var pageItems = list.slice(permState.accountPage*ACCOUNT_PAGE_SIZE, permState.accountPage*ACCOUNT_PAGE_SIZE + ACCOUNT_PAGE_SIZE);
-  var rowsHtml = pageItems.length ? pageItems.map(function(a){
+  /* Grid card thay vì list dọc — tận dụng chiều ngang desktop khi flow đã
+     full-width (không còn bị bó trong cột sidebar 340px như trước). */
+  var cardsHtml = pageItems.length ? '<div class="phfk-perm-account-grid">' + pageItems.map(function(a){
     var selected = a.id === permState.selectedAccountId;
-    return '<button type="button" class="phfk-perm-account-row'+(selected?' is-selected':'')+'" data-knl-select-account="'+esc(a.id)+'">' +
-      '<span class="phfk-perm-account-main"><b>'+esc(a.name||a.email||'—')+'</b><small>'+esc(a.employeeCode||a.email||'')+(a.position?' · '+esc(a.position):'')+(a.department?' · '+esc(a.department):'')+'</small></span>' +
-      accountRoleBadgeHtml(a) +
+    return '<button type="button" class="phfk-perm-account-card'+(selected?' is-selected':'')+'" data-knl-select-account="'+esc(a.id)+'">' +
+      '<div class="phfk-perm-account-card-top"><b>'+esc(a.name||a.email||'—')+'</b>'+accountRoleBadgeHtml(a)+'</div>' +
+      '<small>'+esc(a.employeeCode||a.email||'')+(a.position?' · '+esc(a.position):'')+'</small>' +
+      (a.department?'<small class="phfk-perm-account-card-dept">'+esc(a.department)+(a.branch?' · '+esc(a.branch):'')+'</small>':'') +
     '</button>';
-  }).join('') : '<p class="phfk-perm-account-empty">Không tìm thấy nhân sự phù hợp.</p>';
+  }).join('') + '</div>' : '<p class="phfk-perm-account-empty">Không tìm thấy nhân sự phù hợp.</p>';
   var pagination = totalPages>1 ? (
     '<div class="phfk-perm-account-pagination">' +
       '<button type="button" data-knl-account-page="-1"'+(permState.accountPage<=0?' disabled':'')+'>‹ Trước</button>' +
@@ -562,7 +568,7 @@ function accountResultsHtml(){
       '<div class="phfk-perm-account-filters">' +
         accountFacetSelectHtml('department') + accountFacetSelectHtml('branch') + accountFacetSelectHtml('position') +
       '</div>' +
-      '<div class="phfk-perm-account-list">' + rowsHtml + '</div>' +
+      cardsHtml +
       pagination +
     '</div>';
 }
@@ -592,13 +598,38 @@ function bindAccountResults(root){
     });
   });
 }
-function accountPickerHtml(){
+function accountPickerExpandedHtml(){
   return '' +
     '<section class="phfk-panel phfk-perm-account-picker">' +
       '<div class="phfk-perm-picker-head"><small>1. CHỌN NHÂN SỰ</small></div>' +
       '<input type="search" class="phfk-input" placeholder="Tìm mã NV hoặc họ tên…" value="'+esc(permState.accountSearch)+'" data-knl-account-search>' +
       accountResultsHtml() +
     '</section>';
+}
+/* Sau khi đã chọn 1 người, thu gọn bước 1 thành 1 dòng summary + nút "Đổi
+   nhân sự" (mở lại picker đầy đủ) — KHÔNG xoá permState.selectedAccountId/
+   editing khi mở lại picker, để các bước cấu hình bên dưới vẫn giữ nguyên
+   cho tới khi Admin thật sự bấm chọn 1 người khác (selectAccount()). */
+function accountSummaryBarHtml(acc){
+  return '' +
+    '<section class="phfk-panel phfk-perm-account-summary">' +
+      '<div class="phfk-perm-picker-head"><small>1. NHÂN SỰ ĐANG CẤU HÌNH</small></div>' +
+      '<div class="phfk-perm-account-summary-row">' +
+        '<div class="phfk-perm-account-summary-main">' +
+          '<b>'+esc(acc.name||acc.email||'—')+'</b>' +
+          accountRoleBadgeHtml(acc) +
+          '<small>'+esc(acc.employeeCode||acc.email||'')+(acc.position?' · '+esc(acc.position):'')+(acc.department?' · '+esc(acc.department):'')+(acc.branch?' · '+esc(acc.branch):'')+'</small>' +
+        '</div>' +
+        '<button type="button" class="phfk-btn-secondary phfk-perm-change-account" data-knl-change-account>Đổi nhân sự</button>' +
+      '</div>' +
+    '</section>';
+}
+function accountStepHtml(){
+  if(!permState.pickerExpanded && permState.selectedAccountId){
+    var acc = permState.accounts.find(function(a){ return a.id===permState.selectedAccountId; });
+    if(acc) return accountSummaryBarHtml(acc);
+  }
+  return accountPickerExpandedHtml();
 }
 
 /* ---- Cột phải: cấu hình quyền cho tài khoản đang chọn ---- */
@@ -731,7 +762,7 @@ function incomeSectionHtml(g){
 }
 
 function permConfigPanel(){
-  if(!permState.selectedAccountId || !permState.editing) return '<section class="phfk-panel phfk-perm-config phfk-perm-config-empty"><p>Chọn một nhân sự bên trái để cấu hình quyền KNL.</p></section>';
+  if(!permState.selectedAccountId || !permState.editing) return '<section class="phfk-panel phfk-perm-config phfk-perm-config-empty"><p>Chọn một nhân sự ở bước 1 để cấu hình quyền KNL.</p></section>';
   var acc = permState.accounts.find(function(a){ return a.id===permState.selectedAccountId; });
   if(!acc) return '';
   var g = permState.editing;
@@ -777,12 +808,17 @@ function permConfigPanel(){
     '</section>';
 }
 
+/* Flow dọc full-width (không còn master-detail 2 cột): bước 1 trên cùng
+   (picker mở rộng hoặc summary bar khi đã chọn), các bước cấu hình quyền
+   chỉ render bên dưới khi đã có nhân sự đang chọn — không để lại khối
+   "Chọn một nhân sự để cấu hình" trống chiếm chỗ khi bước 1 đang mở sẵn. */
 function renderPermissionsBody(root){
   var body = root.querySelector('[data-knl-body]');
   if(!body) return;
+  var configHtml = (permState.selectedAccountId && permState.editing) ? permConfigPanel() : '';
   body.innerHTML = '' +
     '<div class="phfk-page-head"><div><small>KNL &middot; PHÂN QUYỀN</small><h1>Phân quyền KNL</h1></div></div>' +
-    (permState.loading ? '<div class="phfk-loading">Đang tải…</div>' : ('<div class="phfk-perm-workspace">' + accountPickerHtml() + permConfigPanel() + '</div>'));
+    (permState.loading ? '<div class="phfk-loading">Đang tải…</div>' : ('<div class="phfk-perm-flow">' + accountStepHtml() + configHtml + '</div>'));
   bindPermissionsForm(root);
 }
 
@@ -895,6 +931,11 @@ function bindPermissionsForm(root){
     refreshAccountResults(root);
   });
   bindAccountResults(root);
+  var changeAccountBtn = root.querySelector('[data-knl-change-account]');
+  if(changeAccountBtn) changeAccountBtn.addEventListener('click', function(){
+    permState.pickerExpanded = true;
+    renderPermissionsBody(root);
+  });
 
   /* Chỉ áp peopleScope mặc định theo vai trò khi vai trò THỰC SỰ đổi
      (roleChanged) — bấm lại đúng role card đang active (vd Admin chỉ đổi
@@ -1068,6 +1109,7 @@ async function loadPermissions(root){
      yêu cầu "không giữ state giả ở frontend"). */
   permState.selectedAccountId = '';
   permState.editing = null;
+  permState.pickerExpanded = true;
   renderPermissionsBody(root);
 }
 

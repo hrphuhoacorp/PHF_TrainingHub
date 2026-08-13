@@ -31,34 +31,41 @@
 @media(max-width:760px){.phfk-topbar{height:64px;grid-template-columns:48px minmax(0,1fr) auto;padding:0 12px;gap:8px}.phfk-brand-lockup strong{font-size:11px}.phfk-back span:not([aria-hidden]),.phfk-user-copy{display:none}.phfk-layout{display:block;min-height:calc(100vh - 64px)}.phfk-sidebar{position:static;height:auto;min-height:0;border-right:0;border-bottom:1px solid var(--phfk-line);padding:10px 12px}.phfk-sidebar-head,.phfk-guide{display:none}.phfk-nav{flex-direction:row;width:max-content}.phfk-nav-item{grid-template-columns:28px auto;padding:9px 11px;white-space:nowrap}.phfk-nav-item small{display:none}.phfk-nav-icon{width:28px;height:28px}.phfk-main{padding:18px 12px 32px}.phfk-page-head{align-items:flex-start;flex-direction:column}.phfk-page-head h1{font-size:23px}.phfk-filters{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.phfk-filters{grid-template-columns:1fr}}
 
-/* PHF KNL — Phân quyền: master-detail 2 cột (Chọn nhân sự trái / Cấu hình
-   quyền phải). "KNL PERMISSION UX POLISH + INCOME SCOPE" batch: spacing đều
-   qua 1 gap duy nhất trên .phfk-perm-config (không dùng margin rải rác ở
-   từng section), hierarchy rõ hơn qua thang chữ nhãn/nội dung, role selector
-   4 nút cùng kích thước (grid đều cột). Không đụng .phfk-layout (grid shell
-   topbar/sidebar/main chung) — đây chỉ là bố cục NỘI DUNG bên trong
-   <main data-knl-body> của tab Phân quyền. */
-/* Tỉ lệ 2 cột theo fr (không khoá 1 con số px cố định) — cột trái có sàn
-   360px để 3 filter Phòng ban/Chi nhánh/Chức danh đủ chỗ đứng ngang hàng,
-   nhưng vẫn giãn theo tỉ lệ 1:2 khi màn hình rộng hơn 1366/1440 thay vì bị
-   đứng yên ở 1 mốc cứng — cột phải (form cấu hình) luôn có sàn 480px. */
-.phfk-perm-workspace{display:grid;grid-template-columns:minmax(360px,1fr) minmax(480px,2fr);gap:20px;align-items:start}
+/* PHF KNL — Phân quyền: flow dọc full-width (không còn master-detail 2
+   cột). Bước 1 "Chọn nhân sự" full-width trên cùng (search+3 filter ngang
+   khi đủ chỗ + account render dạng grid card ngang) -> sau khi chọn, thu
+   gọn thành summary bar + nút "Đổi nhân sự" -> các bước cấu hình quyền
+   render full-width bên dưới. Spacing đều qua 1 gap duy nhất trên
+   .phfk-perm-config, hierarchy rõ qua thang chữ nhãn/nội dung. Không đụng
+   .phfk-layout (grid shell topbar/sidebar/main chung) — đây chỉ là bố cục
+   NỘI DUNG bên trong <main data-knl-body> của tab Phân quyền. */
+.phfk-perm-flow{display:flex;flex-direction:column;gap:18px}
 
-.phfk-perm-account-picker{margin-top:0;padding:16px;display:flex;flex-direction:column;gap:12px;position:sticky;top:88px;max-height:calc(100vh - 104px);overflow:auto}
+.phfk-perm-account-picker{margin-top:0;padding:18px;display:flex;flex-direction:column;gap:14px}
 .phfk-perm-picker-head small{display:block;color:#789087;font-weight:800;font-size:10px;letter-spacing:.08em}
-/* auto-fit: 3 filter tự nằm ngang khi đủ chỗ (>=~112px/cột), tự xuống dòng
-   khi cột trái bị thu hẹp (tablet/1100px) — không ép cứng 3 cột lẫn 2 cột. */
-.phfk-perm-account-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-bottom:10px}
+/* auto-fit: 3 filter tự nằm ngang khi đủ chỗ (gần như luôn đúng ở desktop
+   full-width), tự xuống dòng khi viewport hẹp lại — không ép cứng số cột. */
+.phfk-perm-account-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:2px}
 .phfk-perm-account-filters .phfk-input{height:38px;font-size:11px}
-.phfk-perm-account-list{display:flex;flex-direction:column;gap:6px}
-.phfk-perm-account-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:1px solid var(--phfk-line);background:#fff;border-radius:11px;padding:10px 12px;text-align:left;cursor:pointer;transition:border-color .12s ease,background .12s ease}
-.phfk-perm-account-row:hover{background:#f8fbf9;border-color:#cfe0d8}
-.phfk-perm-account-row.is-selected{border-color:var(--phfk-green);background:var(--phfk-green-soft)}
-.phfk-perm-account-row.is-selected .phfk-perm-account-main b{color:var(--phfk-green-deep)}
-.phfk-perm-account-main{display:flex;flex-direction:column;gap:2px;min-width:0}
-.phfk-perm-account-main b{font-size:12.5px;font-weight:700;color:var(--phfk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.phfk-perm-account-main small{font-size:10.5px;color:var(--phfk-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Grid card ngang cho danh sách nhân sự — tận dụng chiều rộng desktop thay
+   vì list dọc hẹp; auto-fill co giãn số cột/hàng theo viewport thực tế. */
+.phfk-perm-account-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.phfk-perm-account-card{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--phfk-line);background:#fff;border-radius:11px;padding:12px 14px;cursor:pointer;transition:border-color .12s ease,background .12s ease}
+.phfk-perm-account-card:hover{background:#f8fbf9;border-color:#cfe0d8}
+.phfk-perm-account-card.is-selected{border-color:var(--phfk-green);background:var(--phfk-green-soft)}
+.phfk-perm-account-card.is-selected b{color:var(--phfk-green-deep)}
+.phfk-perm-account-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.phfk-perm-account-card-top b{font-size:12.5px;font-weight:700;color:var(--phfk-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.phfk-perm-account-card small{font-size:10.8px;color:var(--phfk-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.phfk-perm-account-card-dept{color:#8a9c93}
 .phfk-perm-account-empty{padding:18px 4px;color:var(--phfk-muted);font-size:11.5px;text-align:center}
+
+/* Summary bar (bước 1 thu gọn sau khi đã chọn nhân sự). */
+.phfk-perm-account-summary{margin-top:0;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.phfk-perm-account-summary-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.phfk-perm-account-summary-main{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.phfk-perm-account-summary-main b{font-size:14.5px;font-weight:800;color:var(--phfk-green-deep)}
+.phfk-perm-account-summary-main small{font-size:11.5px;color:var(--phfk-muted)}
 .phfk-perm-account-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--phfk-muted)}
 .phfk-perm-account-pagination button{border:1px solid var(--phfk-line);background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;color:var(--phfk-green-deep);cursor:pointer}
 .phfk-perm-account-pagination button:disabled{opacity:.4;cursor:default}
@@ -142,11 +149,11 @@
 .phfk-perm-advanced[open] summary::before{content:"▾ "}
 .phfk-perm-advanced-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 
-@media(max-width:1100px){.phfk-perm-workspace{grid-template-columns:minmax(280px,1fr) minmax(360px,2fr);gap:16px}}
 @media(max-width:760px){
-  .phfk-perm-workspace{display:block}
-  .phfk-perm-account-picker{position:static;max-height:none;margin-bottom:16px}
+  .phfk-perm-account-grid{grid-template-columns:1fr}
   .phfk-perm-account-filters{grid-template-columns:1fr}
+  .phfk-perm-account-summary-row{flex-direction:column;align-items:stretch}
+  .phfk-perm-account-summary-row .phfk-perm-change-account{width:100%}
   .phfk-perm-picker-filters{grid-template-columns:1fr}
   .phfk-perm-subordinate-row{grid-template-columns:18px auto 1fr;gap:8px}
   .phfk-perm-subordinate-dept{display:none}
