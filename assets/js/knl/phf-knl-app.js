@@ -379,6 +379,7 @@ function emptyPickerState(){ return { search:'', department:'', branch:'', rows:
 var permState = {
   grants:[], presets:[], accounts:[], loading:false,
   selectedAccountId:'', accountSearch:'', accountPage:0,
+  accountFilters:{department:'',branch:'',position:''},
   editing:null, saving:false, advancedOpen:false, incomeConfigOpen:false,
   subordinate: emptyPickerState(),
   incomeEmp: emptyPickerState(),
@@ -479,12 +480,43 @@ function loadEmployeePicker(root, prefix, state, sectionSelector, refreshFn){
 }
 
 /* ---- Cột trái: Chọn nhân sự (tài khoản Hub) ---- */
+/* Filter cascading/facet — cùng kỹ thuật knlEmployeePickerHtml/
+   bindKnlEmployeePicker (batch c22dced): option của 1 filter luôn tính lại
+   từ tập tài khoản khớp CÁC filter/search KHÁC (trừ chính nó, exceptKey) —
+   không hard-code danh mục, không gọi API riêng vì listKnlAccountsForPermission
+   đã trả về toàn bộ tài khoản 1 lần. Không reuse thẳng component đó vì đây là
+   chọn-1-account-để-cấu-hình (không phải multi-select/navigate như 2 nơi kia)
+   — chỉ reuse logic facet, không copy nguyên implementation. */
+var ACCOUNT_FACET_LABELS = { department:'Phòng ban', branch:'Chi nhánh', position:'Chức danh' };
+function accountMatchesFilters(a, filters, exceptKey, search){
+  if(search){
+    var hay = (String(a.name)+' '+String(a.email)+' '+String(a.employeeCode)+' '+String(a.position)).toLowerCase();
+    if(hay.indexOf(search) === -1) return false;
+  }
+  if(exceptKey!=='department' && filters.department && a.department!==filters.department) return false;
+  if(exceptKey!=='branch' && filters.branch && a.branch!==filters.branch) return false;
+  if(exceptKey!=='position' && filters.position && a.position!==filters.position) return false;
+  return true;
+}
+function accountFacetOptions(key, filters, search){
+  var pool = permState.accounts.filter(function(a){ return accountMatchesFilters(a, filters, key, search); });
+  return Array.from(new Set(pool.map(function(a){ return a[key]; }).filter(Boolean))).sort();
+}
+/* Nếu 1 filter đang chọn không còn nằm trong tập option hợp lệ (do search/
+   filter khác vừa thu hẹp) thì tự bỏ chọn — tránh filter "chọn" 1 giá trị
+   nhưng danh sách kết quả luôn rỗng không rõ lý do. */
+function normalizeAccountFilters(){
+  var search = (permState.accountSearch||'').trim().toLowerCase();
+  var filters = permState.accountFilters;
+  Object.keys(ACCOUNT_FACET_LABELS).forEach(function(key){
+    if(!filters[key]) return;
+    if(accountFacetOptions(key, filters, search).indexOf(filters[key]) === -1) filters[key] = '';
+  });
+}
 function filteredAccounts(){
   var search = (permState.accountSearch||'').trim().toLowerCase();
-  if(!search) return permState.accounts;
-  return permState.accounts.filter(function(a){
-    return (String(a.name)+' '+String(a.email)+' '+String(a.employeeCode)+' '+String(a.position)).toLowerCase().indexOf(search) !== -1;
-  });
+  var filters = permState.accountFilters;
+  return permState.accounts.filter(function(a){ return accountMatchesFilters(a, filters, null, search); });
 }
 function accountRoleBadgeHtml(acc){
   if(String(acc.role).toLowerCase()==='admin') return '<span class="phfk-badge phfk-badge-role is-admin">Admin</span>';
@@ -493,7 +525,19 @@ function accountRoleBadgeHtml(acc){
   var label = BUSINESS_ROLE_LABELS[roleKeyFromPreset(grant.presetCode)];
   return label ? '<span class="phfk-badge phfk-badge-role">'+esc(label)+'</span>' : '';
 }
-function accountPickerHtml(){
+function accountFacetSelectHtml(key){
+  var search = (permState.accountSearch||'').trim().toLowerCase();
+  var filters = permState.accountFilters;
+  var current = filters[key] || '';
+  var options = accountFacetOptions(key, filters, search);
+  var opts = '<option value="">Tất cả '+esc(ACCOUNT_FACET_LABELS[key])+'</option>' +
+    options.map(function(v){ return '<option value="'+esc(v)+'"'+(v===current?' selected':'')+'>'+esc(v)+'</option>'; }).join('');
+  return '<select class="phfk-input" data-knl-account-filter="'+key+'">'+opts+'</select>';
+}
+/* Chỉ khối này refresh khi gõ tìm/đổi filter (không phải toàn bộ
+   .phfk-perm-account-picker) để KHÔNG mất focus ô tìm kiếm giữa lúc gõ. */
+function accountResultsHtml(){
+  normalizeAccountFilters();
   var list = filteredAccounts();
   var totalPages = Math.max(1, Math.ceil(list.length / ACCOUNT_PAGE_SIZE));
   if(permState.accountPage >= totalPages) permState.accountPage = totalPages - 1;
@@ -514,11 +558,46 @@ function accountPickerHtml(){
     '</div>'
   ) : '';
   return '' +
+    '<div data-knl-account-results>' +
+      '<div class="phfk-perm-account-filters">' +
+        accountFacetSelectHtml('department') + accountFacetSelectHtml('branch') + accountFacetSelectHtml('position') +
+      '</div>' +
+      '<div class="phfk-perm-account-list">' + rowsHtml + '</div>' +
+      pagination +
+    '</div>';
+}
+function refreshAccountResults(root){
+  var section = root.querySelector('[data-knl-account-results]');
+  if(!section) return;
+  var wrap = document.createElement('div');
+  wrap.innerHTML = accountResultsHtml();
+  section.replaceWith(wrap.firstElementChild);
+  bindAccountResults(root);
+}
+function bindAccountResults(root){
+  root.querySelectorAll('[data-knl-account-page]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      permState.accountPage += Number(btn.getAttribute('data-knl-account-page'));
+      refreshAccountResults(root);
+    });
+  });
+  root.querySelectorAll('[data-knl-select-account]').forEach(function(btn){
+    btn.addEventListener('click', function(){ selectAccount(root, btn.getAttribute('data-knl-select-account')); });
+  });
+  root.querySelectorAll('[data-knl-account-filter]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      permState.accountFilters[sel.getAttribute('data-knl-account-filter')] = sel.value;
+      permState.accountPage = 0;
+      refreshAccountResults(root);
+    });
+  });
+}
+function accountPickerHtml(){
+  return '' +
     '<section class="phfk-panel phfk-perm-account-picker">' +
       '<div class="phfk-perm-picker-head"><small>1. CHỌN NHÂN SỰ</small></div>' +
       '<input type="search" class="phfk-input" placeholder="Tìm mã NV hoặc họ tên…" value="'+esc(permState.accountSearch)+'" data-knl-account-search>' +
-      '<div class="phfk-perm-account-list">' + rowsHtml + '</div>' +
-      pagination +
+      accountResultsHtml() +
     '</section>';
 }
 
@@ -569,7 +648,7 @@ function incomeValuePickerHtml(scopeType){
   '</div>';
 }
 
-function advancedSectionHtml(g){
+function advancedSectionHtml(g, stepNum){
   var presetOptions = permState.presets.map(function(p){ return '<option value="'+esc(p.code)+'"'+(g.presetCode===p.code?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
   var capabilityKeys = Object.keys(CAPABILITY_LABELS);
   var capabilityBoxes = capabilityKeys.map(function(key){
@@ -583,7 +662,7 @@ function advancedSectionHtml(g){
   var scopeValuesLabel = scopeType==='employees' ? 'Mã nhân sự (ngăn cách bằng dấu phẩy)' : 'Phòng ban (ngăn cách bằng dấu phẩy)';
   return '' +
     '<details class="phfk-perm-advanced" data-knl-advanced'+(permState.advancedOpen?' open':'')+'>' +
-      '<summary>6. Thiết lập nâng cao</summary>' +
+      '<summary>'+stepNum+'. Thiết lập nâng cao</summary>' +
       '<div class="phfk-perm-advanced-body">' +
         '<label class="phfk-field"><span>Mẫu quyền</span><select class="phfk-input" data-knl-adv-preset>'+presetOptions+'</select></label>' +
         '<div class="phfk-field"><span>Năng lực</span><div class="phfk-checklist">'+capabilityBoxes+'</div></div>' +
@@ -622,6 +701,10 @@ function peopleScopeSectionHtml(roleKey, g){
    Tất cả nhân sự / Chọn nhân sự cụ thể -> (nếu specific) picker nhân sự.
    KHÔNG có trạng thái ngầm định "chưa chọn = tất cả" — cả 2 radio đều có
    thể để trống lúc mới bật, Lưu sẽ chặn (client + backend) tới khi chọn rõ. */
+/* "4. Phạm vi Thu nhập" gắn với income_view ĐANG BẬT (không gắn với việc
+   accordion đang mở/đóng) — đóng/mở "Thiết lập phạm vi" chỉ ẩn/hiện phần
+   radio chi tiết, KHÔNG được làm số bước 5/6 phía sau nhảy số theo trạng
+   thái mở/đóng đó. */
 function incomeSectionHtml(g){
   var incomeChecked = !!(g.capabilities && g.capabilities.income_view);
   var scopeObj = g.capabilities && g.capabilities.incomeScope;
@@ -630,10 +713,10 @@ function incomeSectionHtml(g){
     '<label class="phfk-check phfk-perm-income-check"><input type="checkbox" data-knl-income-view'+(incomeChecked?' checked':'')+'> Xem Thu nhập <span class="phfk-badge phfk-badge-warning">Nhạy cảm</span></label>' +
     '<p class="phfk-perm-income-helper">Cho phép xem thông tin thu nhập theo phạm vi được cấp.</p>';
   if(incomeChecked){
-    html += '<button type="button" class="phfk-link phfk-perm-income-toggle" data-knl-income-config-toggle>'+(permState.incomeConfigOpen?'Ẩn phạm vi ▴':'Thiết lập phạm vi ▾')+'</button>';
+    html += '<div class="phfk-perm-income-config-head"><small>4. PHẠM VI THU NHẬP</small>' +
+      '<button type="button" class="phfk-link phfk-perm-income-toggle" data-knl-income-config-toggle>'+(permState.incomeConfigOpen?'Ẩn phạm vi ▴':'Thiết lập phạm vi ▾')+'</button></div>';
     if(permState.incomeConfigOpen){
       html += '<div class="phfk-perm-income-config">' +
-        '<small>4. PHẠM VI THU NHẬP</small>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="all_company"'+(scopeType==='all_company'?' checked':'')+'> Toàn công ty</label>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="department"'+(scopeType==='department'?' checked':'')+'> Theo phòng ban</label>' +
         '<label class="phfk-radio"><input type="radio" name="knl-income-scope-type" data-knl-income-scope-type value="branch"'+(scopeType==='branch'?' checked':'')+'> Theo chi nhánh</label>' +
@@ -676,14 +759,21 @@ function permConfigPanel(){
   var scopeSection = (!isHubAdmin && roleKey) ? peopleScopeSectionHtml(roleKey, g) : '';
   var incomeSection = incomeSectionHtml(g);
   var activeSection = isHubAdmin ? '' : '<label class="phfk-check phfk-perm-active-toggle"><input type="checkbox" data-knl-active'+(g.isActive!==false?' checked':'')+'> Đang cấp quyền KNL</label>';
-  var reasonSection = '<label class="phfk-field phfk-perm-reason"><span>5. Lý do thay đổi quyền</span><textarea class="phfk-input" rows="2" placeholder="Nhập lý do thay đổi quyền..." data-knl-reason>'+esc(g.reason||'')+'</textarea></label>';
+  /* Numbering render đúng theo trạng thái thực tế — "4. Phạm vi Thu nhập"
+     chỉ tồn tại khi income_view đang bật (không phụ thuộc accordion mở/
+     đóng, xem incomeSectionHtml). Có mục đó thì Lý do/Nâng cao lùi xuống
+     5/6, không có thì giữ 4/5 — không fake bằng CSS. */
+  var hasIncomeStep = !!(g.capabilities && g.capabilities.income_view);
+  var reasonStepNum = hasIncomeStep ? 5 : 4;
+  var advancedStepNum = hasIncomeStep ? 6 : 5;
+  var reasonSection = '<label class="phfk-field phfk-perm-reason"><span>'+reasonStepNum+'. Lý do thay đổi quyền</span><textarea class="phfk-input" rows="2" placeholder="Nhập lý do thay đổi quyền..." data-knl-reason>'+esc(g.reason||'')+'</textarea></label>';
 
   return '' +
     '<section class="phfk-panel phfk-perm-config">' +
       head + roleSection + scopeSection + incomeSection + activeSection + reasonSection +
       '<p class="phfk-error" data-knl-form-error hidden></p>' +
       '<div class="phfk-form-actions"><button type="button" class="phfk-btn-primary" data-knl-save-grant'+(permState.saving?' disabled':'')+'>Lưu</button></div>' +
-      advancedSectionHtml(g) +
+      advancedSectionHtml(g, advancedStepNum) +
     '</section>';
 }
 
@@ -802,28 +892,31 @@ function bindPermissionsForm(root){
   if(accountSearch) accountSearch.addEventListener('input', function(){
     permState.accountSearch = accountSearch.value;
     permState.accountPage = 0;
-    renderPermissionsBody(root);
+    refreshAccountResults(root);
   });
-  root.querySelectorAll('[data-knl-account-page]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      permState.accountPage += Number(btn.getAttribute('data-knl-account-page'));
-      renderPermissionsBody(root);
-    });
-  });
-  root.querySelectorAll('[data-knl-select-account]').forEach(function(btn){
-    btn.addEventListener('click', function(){ selectAccount(root, btn.getAttribute('data-knl-select-account')); });
-  });
+  bindAccountResults(root);
 
+  /* Chỉ áp peopleScope mặc định theo vai trò khi vai trò THỰC SỰ đổi
+     (roleChanged) — bấm lại đúng role card đang active (vd Admin chỉ đổi
+     Xem Thu nhập/Lý do rồi lỡ chạm lại thẻ vai trò) KHÔNG được xoá scope
+     tuỳ biến đã cấu hình sẵn (vd Trợ lý Giám đốc với peopleScope theo danh
+     sách phòng ban cụ thể) — trước đây luôn ghi đè vô điều kiện, đây là bug
+     rủi ro mất cấu hình thật đã phát hiện qua trace. */
   root.querySelectorAll('[data-knl-role]').forEach(function(btn){
     btn.addEventListener('click', function(){
       var g = permState.editing; if(!g) return;
       var roleDef = BUSINESS_ROLES.find(function(r){ return r.key===btn.getAttribute('data-knl-role'); });
       if(!roleDef) return;
+      var roleChanged = roleKeyFromPreset(g.presetCode) !== roleDef.key;
       g.presetCode = roleDef.presetCode;
       g.capabilities = Object.assign({}, g.capabilities, { access_knl:true, view_people:true });
-      if(roleDef.key==='tbp') g.peopleScope = (g.peopleScope && g.peopleScope.type==='employees') ? g.peopleScope : { type:'employees', values:[] };
-      else if(roleDef.key==='assistant') g.peopleScope = { type:'all_company', values:[] };
-      else g.peopleScope = { type:'self', values:[] };
+      if(roleDef.key==='tbp'){
+        g.peopleScope = (g.peopleScope && g.peopleScope.type==='employees') ? g.peopleScope : { type:'employees', values:[] };
+      }else if(roleDef.key==='assistant'){
+        if(roleChanged) g.peopleScope = { type:'all_company', values:[] };
+      }else{
+        if(roleChanged) g.peopleScope = { type:'self', values:[] };
+      }
       renderPermissionsBody(root);
       if(roleDef.key==='tbp') loadSubordinates(root);
     });
