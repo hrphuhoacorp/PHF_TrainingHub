@@ -30,6 +30,7 @@ const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFr
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('./lib/knl-surveys');
 const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade } = require('./lib/knl-foundation');
+const { getKnlDashboardOverview } = require('./lib/knl-dashboard');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./lib/employee-import');
 const { runChatSandbox } = require('./lib/ai-sandbox');
@@ -795,6 +796,7 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='applyKnlCompensationFoundation')return sendJson(res,200,{ok:true,...await applyKnlCompensationFoundation(session,payload)});
       if(payload&&payload.action==='listKnlIncomeTargets')return sendJson(res,200,{ok:true,...await listKnlIncomeTargets(session)});
       if(payload&&payload.action==='getKnlEmployeeIncome')return sendJson(res,200,{ok:true,...await getKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='getKnlDashboardOverview')return sendJson(res,200,{ok:true,...await getKnlDashboardOverview(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeNextCompensationGrade')return sendJson(res,200,{ok:true,...await getKnlEmployeeNextCompensationGrade(session,payload)});
       if(payload&&payload.action==='saveKnlEmployeeIncome')return sendJson(res,200,{ok:true,...await saveKnlEmployeeIncome(session,payload)});
       if(payload&&payload.action==='listKnlCompensationAssignmentTargets')return sendJson(res,200,{ok:true,...await listKnlCompensationAssignmentTargets(session)});

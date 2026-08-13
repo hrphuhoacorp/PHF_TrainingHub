@@ -44,7 +44,7 @@ function sidebarRoleLabel(capabilities, isAdmin){
 var KNL_READ_CACHE_TTL = 30000;
 var knlReadCache = new Map();
 var knlAuthorizationSignature = '';
-var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject']);
+var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject','getKnlDashboardOverview']);
 var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal']);
 function knlCacheOwner(){var u=currentUser();return String(u.id||u.accountId||u.email||u.employeeCode||u.employee_code||roleHome())+'|'+knlAuthorizationSignature;}
 function clearKnlReadCache(){knlReadCache.clear();}
@@ -85,6 +85,7 @@ var CAPABILITY_LABELS = {
   manage_permissions:'Quản lý phân quyền KNL',
   income_view:'Truy cập mục Thu nhập',
   view_proposals:'Xem đề xuất nâng bậc',
+  dashboard_view:'Xem Dashboard KNL',
   propose:'Đề xuất năng lực (chưa mở nghiệp vụ)',
   agree_proposal:'Đồng ý đề xuất (chưa mở nghiệp vụ)',
   approve:'Duyệt (chưa mở nghiệp vụ)',
@@ -3405,17 +3406,25 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
 
 /* ===================== ENTRY ===================== */
 
-/* ===================== DASHBOARD KNL (Gate 1 — UI shell only) =====================
-   Chỉ dựng layout/hierarchy/component shell theo demo PHF đã duyệt. KHÔNG gọi
-   apiPost nào, KHÔNG aggregation, KHÔNG data thật/giả trông giống thật — mọi
-   KPI/chart/table đều ở trạng thái rỗng "—"/"Chưa nối dữ liệu" theo đúng yêu
-   cầu mục 21. Gate 2 mới nối dữ liệu thật + áp incomeScope/peopleScope. */
-function dashboardKpiTileHtml(icon, label, tone){
+/* ===================== DASHBOARD KNL (Gate 2 — dữ liệu thật) =====================
+   Gate 1 dựng shell rỗng theo demo PHF (đã duyệt UI, KHÔNG redesign lại ở
+   Gate 2). Gate 2 nối 1 aggregate action DUY NHẤT (getKnlDashboardOverview,
+   lib/knl-dashboard.js) — backend đã enforce people_scope/incomeScope, FE ở
+   đây chỉ render đúng những gì backend trả, KHÔNG filter thêm theo scope ở
+   trình duyệt. Panel AI vẫn là shell disabled — CHƯA nối DeepSeek (Gate 3). */
+var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'' }, openDept:'' };
+var DASH_PALETTE = ['#63AD30','#2f7d9d','#c08a2b','#8a4fbf','#c0392b','#2f9d84','#74877f'];
+
+function dashMoney(v){ return v==null ? '—' : money(v); }
+function dashPct(v){ return v==null ? '—' : ((v>0?'+':'')+v+'%'); }
+function dashDeltaClass(v){ return v==null ? '' : (v>0 ? 'phfk-dash-delta-up' : (v<0 ? 'phfk-dash-delta-down' : 'phfk-dash-delta-flat')); }
+
+function dashboardKpiTileHtml(icon, label, tone, value, deltaText){
   return '' +
     '<div class="phfk-dash-kpi">' +
       '<div class="phfk-dash-kpi-top"><span class="phfk-dash-kpi-icon is-'+(tone||'income')+'">'+icon+'</span><span class="phfk-dash-kpi-label">'+esc(label)+'</span></div>' +
-      '<div class="phfk-dash-kpi-value">—</div>' +
-      '<p class="phfk-dash-kpi-delta"><span class="phfk-dash-kpi-delta-dash" aria-hidden="true">–</span> Chưa nối dữ liệu</p>' +
+      '<div class="phfk-dash-kpi-value">'+esc(value==null?'—':value)+'</div>' +
+      '<p class="phfk-dash-kpi-delta"><span class="phfk-dash-kpi-delta-dash" aria-hidden="true">–</span> '+esc(deltaText)+'</p>' +
     '</div>';
 }
 function dashboardDonutSkeletonHtml(centerLabel){
@@ -3425,9 +3434,41 @@ function dashboardDonutSkeletonHtml(centerLabel){
       '<div class="phfk-dash-donut-center"><b>—</b><small>'+esc(centerLabel)+'</small></div>' +
     '</div>';
 }
-function dashboardBarSkeletonHtml(labels){
-  return '<div class="phfk-dash-bars">' + labels.map(function(l){
-    return '<div class="phfk-dash-bar-col"><div class="phfk-dash-bar-track"><span class="phfk-dash-bar-fill"></span></div><small>'+esc(l)+'</small></div>';
+/* Donut nhiều lát (stroke-dasharray theo chu vi vòng tròn) — tối đa 6 phòng
+   ban lớn nhất theo quỹ, phần còn lại gộp "Khác" để không vỡ layout/legend. */
+function dashboardDonutChartHtml(items, centerLabel){
+  var total = items.reduce(function(s,i){ return s+(i.value||0); }, 0);
+  if(!items.length || total<=0) return dashboardDonutSkeletonHtml(centerLabel||'Chưa có dữ liệu');
+  var top = items.slice(0,6);
+  if(items.length>6){
+    var restValue = items.slice(6).reduce(function(s,i){ return s+(i.value||0); }, 0);
+    top.push({ label:'Khác', value:restValue, pct:Math.round((restValue/total)*1000)/10 });
+  }
+  var r=46, c=2*Math.PI*r, offset=0, segs='';
+  top.forEach(function(it, idx){
+    var frac = (it.value||0)/total, len = frac*c;
+    var color = DASH_PALETTE[idx % DASH_PALETTE.length];
+    segs += '<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="16" ' +
+      'stroke-dasharray="'+len.toFixed(2)+' '+(c-len).toFixed(2)+'" stroke-dashoffset="'+(-offset).toFixed(2)+'" transform="rotate(-90 60 60)"/>';
+    offset += len;
+  });
+  var legend = top.map(function(it, idx){
+    return '<div class="phfk-dash-legend-row"><span class="phfk-dash-legend-dot" style="background:'+DASH_PALETTE[idx % DASH_PALETTE.length]+'"></span>' +
+      '<span class="phfk-dash-legend-label">'+esc(it.label)+'</span>' +
+      '<b>'+(it.pct==null?'—':it.pct+'%')+'</b></div>';
+  }).join('');
+  return '<div class="phfk-dash-donut-wrap"><svg viewBox="0 0 120 120" class="phfk-dash-donut" aria-hidden="true">'+segs+'</svg>' +
+    '<div class="phfk-dash-donut-center"><b>'+top.length+'</b><small>'+esc(centerLabel||'phòng ban')+'</small></div></div>' +
+    '<div class="phfk-dash-legend">'+legend+'</div>';
+}
+function dashboardBarChartHtml(items){
+  if(!items.length) return dashboardEmptyTableHtml(['Bậc KNL'], 'Chưa có nhân sự nào được gán Bậc KNL trong phạm vi này.');
+  var max = Math.max.apply(null, items.map(function(i){ return i.count; })) || 1;
+  return '<div class="phfk-dash-bars">' + items.map(function(it){
+    var pct = Math.round((it.count/max)*100);
+    return '<div class="phfk-dash-bar-col" title="'+esc(it.frameworkCode+' · '+it.label+': '+it.count+' người')+'">' +
+      '<div class="phfk-dash-bar-track"><span class="phfk-dash-bar-fill" style="height:'+pct+'%"></span></div>' +
+      '<small>'+esc(it.gradeCode)+'</small></div>';
   }).join('') + '</div>';
 }
 function dashboardEmptyTableHtml(headers, note){
@@ -3437,102 +3478,214 @@ function dashboardEmptyTableHtml(headers, note){
       '<tbody><tr><td colspan="'+headers.length+'" class="phfk-dash-table-empty">'+esc(note)+'</td></tr></tbody>' +
     '</table></div>';
 }
-/* Sparkline shell rỗng cho "Xu hướng theo thời gian" — 1 đường ngang phẳng
-   neutral (KHÔNG phải đường xu hướng giả), chỉ để khối không trông như
-   khoảng trắng thuần khi chưa có dữ liệu. Gate 2 thay path này bằng dữ liệu
-   thật. */
-function dashboardSparklineSkeletonHtml(){
-  return '<svg viewBox="0 0 280 60" class="phfk-dash-sparkline" aria-hidden="true"><line x1="4" y1="30" x2="276" y2="30" stroke="var(--phfk-line)" stroke-width="2" stroke-dasharray="4 5"/></svg>';
+function dashboardCompareTableHtml(rows, incomeVisible, openDept){
+  var headers = ['Phòng ban','Nhân sự','Quỹ thu nhập','Bình quân','Biến động','Bậc KNL','Xem'];
+  if(!rows.length) return dashboardEmptyTableHtml(headers, 'Không có phòng ban nào trong phạm vi được xem.');
+  var body = rows.map(function(r){
+    var isOpen = r.department===openDept;
+    return '<tr class="'+(isOpen?'is-open':'')+'">' +
+      '<td>'+esc(r.department)+'</td>' +
+      '<td>'+r.headcount+'</td>' +
+      '<td>'+dashMoney(r.fund)+'</td>' +
+      '<td>'+dashMoney(r.avgIncome)+'</td>' +
+      '<td class="'+dashDeltaClass(r.deltaPct)+'">'+dashPct(r.deltaPct)+'</td>' +
+      '<td>—</td>' +
+      '<td><button type="button" class="phfk-btn-secondary phfk-dash-drill-btn" data-dash-dept="'+esc(r.department)+'">'+(isOpen?'Ẩn':'Xem')+'</button></td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="phfk-table-wrap phfk-dash-table-wrap"><table class="phfk-table">' +
+    '<thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead>' +
+    '<tbody>'+body+'</tbody></table></div>';
 }
-function renderKnlDashboard(root){
+function dashboardDrillDownHtml(dept, rows){
+  var headers = ['Nhân sự','Chức danh','Bậc KNL','Tổng thu nhập','Biến động','Thao tác'];
+  if(!rows || !rows.length) return dashboardEmptyTableHtml(headers, 'Không có nhân sự nào trong phòng ban "'+dept+'" thuộc phạm vi được xem.');
+  var body = rows.map(function(r){
+    var grade = r.knlGrade ? (r.knlGrade.frameworkCode + ' · ' + r.knlGrade.label) : '—';
+    return '<tr>' +
+      '<td>'+esc(r.employeeName)+' <small>('+esc(r.employeeCode)+')</small></td>' +
+      '<td>'+esc(r.title||'—')+'</td>' +
+      '<td>'+esc(grade)+'</td>' +
+      '<td>'+dashMoney(r.currentIncome)+'</td>' +
+      '<td class="'+dashDeltaClass(r.deltaPct)+'">'+dashPct(r.deltaPct)+'</td>' +
+      '<td><button type="button" class="phfk-btn-secondary phfk-dash-profile-btn" data-dash-employee="'+esc(r.employeeCode)+'">Xem hồ sơ</button></td>' +
+    '</tr>';
+  }).join('');
+  return '<section class="phfk-panel phfk-dash-panel phfk-dash-drilldown">' +
+    '<div class="phfk-dash-panel-head"><h2>Nhân sự — '+esc(dept)+'</h2></div>' +
+    '<div class="phfk-table-wrap phfk-dash-table-wrap"><table class="phfk-table"><thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead><tbody>'+body+'</tbody></table></div>' +
+  '</section>';
+}
+function dashboardIncomeByGradeTableHtml(rows){
+  var headers = ['Bậc KNL','Nhân sự','Thu nhập bình quân','Biến động'];
+  if(!rows.length) return dashboardEmptyTableHtml(headers, 'Chưa đủ dữ liệu để nối bảng này.');
+  var body = rows.map(function(r){
+    return '<tr>' +
+      '<td>'+esc((r.frameworkCode?r.frameworkCode+' · ':'')+r.label)+'</td>' +
+      '<td>'+r.count+'</td>' +
+      '<td>'+dashMoney(r.avgIncome)+'</td>' +
+      '<td class="'+dashDeltaClass(r.avgDeltaPct)+'">'+dashPct(r.avgDeltaPct)+'</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="phfk-table-wrap phfk-dash-table-wrap"><table class="phfk-table"><thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function dashboardTrendTableHtml(trend){
+  var headers = ['Kỳ lương','Tổng quỹ','Nhân sự','Bình quân/người'];
+  if(!trend.length) return dashboardEmptyTableHtml(headers, 'Chưa có đủ lịch sử theo kỳ trong phạm vi được xem.');
+  var body = trend.map(function(t){
+    return '<tr><td>'+esc(t.period)+'</td><td>'+dashMoney(t.fund)+'</td><td>'+t.headcount+'</td><td>'+dashMoney(t.avgIncome)+'</td></tr>';
+  }).join('');
+  return '<div class="phfk-table-wrap phfk-dash-table-wrap"><table class="phfk-table"><thead><tr>' + headers.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('') + '</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function dashboardFilterSelect(name, label, options, selectedValue){
+  var opts = '<option value="">'+esc(label)+'</option>' + options.map(function(o){
+    var value = typeof o==='object' ? o.code : o;
+    var text = typeof o==='object' ? o.label : o;
+    return '<option value="'+esc(value)+'" '+(selectedValue===value?'selected':'')+'>'+esc(text)+'</option>';
+  }).join('');
+  return '<select class="phfk-input" data-dash-filter="'+esc(name)+'">'+opts+'</select>';
+}
+
+function renderKnlDashboardError(root, error){
   var body = root.querySelector('[data-knl-body]');
   if(!body) return;
-  var emptyNote = 'Chưa nối dữ liệu — sẽ hiển thị khi Dashboard KNL được nối dữ liệu thật (Gate 2).';
-  var disabledTitle = 'Sẽ hoạt động khi Dashboard được nối dữ liệu (Gate 2)';
+  body.innerHTML = '<div class="phfk-empty">Không tải được Dashboard KNL: '+esc((error&&error.message)||'Lỗi không xác định')+'</div>';
+}
+
+async function loadKnlDashboard(root){
+  var body = root.querySelector('[data-knl-body]');
+  if(body) body.innerHTML = '<div class="phfk-loading">Đang tải Dashboard KNL…</div>';
+  try{
+    var res = await apiPost('getKnlDashboardOverview', dashboardState.filters);
+    dashboardState.data = res;
+    dashboardState.loaded = true;
+    dashboardState.loadedAt = Date.now();
+    dashboardState.error = '';
+    renderKnlDashboardBody(root);
+  }catch(error){
+    dashboardState.error = (error && error.message) || 'Lỗi không xác định';
+    renderKnlDashboardError(root, error);
+  }
+}
+
+function renderKnlDashboardBody(root){
+  var body = root.querySelector('[data-knl-body]');
+  if(!body || !dashboardState.data) return;
+  var d = dashboardState.data, meta = d.meta||{}, kpis = d.kpis||{}, filterOptions = meta.filterOptions||{departments:[],branches:[],titles:[],knlGrades:[]};
+  var incomeVisible = meta.incomeVisible === true;
+  var scopeNoteHtml = meta.scopeNote ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Lưu ý: '+esc(meta.scopeNote)+'.</p>' : '';
+  var incomeOffNoteHtml = !incomeVisible ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Tài khoản chưa được cấp quyền "Truy cập mục Thu nhập" — các số liệu thu nhập hiển thị "—".</p>' : '';
   var aiPrompts = [
     'So sánh thu nhập và bậc KNL giữa các phòng ban',
     'Phòng ban nào có biến động thu nhập đáng chú ý?',
     'Phân tích nhóm nhân sự đang xem',
     'Chỉ ra các điểm cần xem xét trong cơ cấu nguồn lực'
   ];
-  var actionItems = ['Đề xuất nâng bậc đang xử lý', 'Nhân sự chưa có KNL', 'Khảo sát sắp hết hạn'];
-  var trendRanges = ['Tháng hiện tại', '3 tháng', '6 tháng', '12 tháng'];
+  var totalHeadcountShown = kpis.totalHeadcount!=null ? String(kpis.totalHeadcount) : '—';
+
+  var insightsHtml = (d.insights||[]).length
+    ? '<ul class="phfk-dash-insight-list">' + d.insights.map(function(i){ return '<li class="phfk-dash-insight is-'+esc(i.level)+'">'+esc(i.message)+'</li>'; }).join('') + '</ul>'
+    : '<p class="phfk-dash-empty-note">Chưa phát hiện điểm cần chú ý trong phạm vi và bộ lọc hiện tại.</p>';
+
+  var actionStats = d.actionStats || {};
+  var actionItems = [
+    { label:'Đề xuất nâng bậc đang xử lý', value: actionStats.proposalsPending },
+    { label:'Nhân sự chưa có KNL', value: actionStats.missingKnl },
+    { label:'Khảo sát sắp hết hạn', value: actionStats.surveysExpiringSoon }
+  ];
+
   body.innerHTML = '' +
     '<div class="phfk-dash">' +
       '<div class="phfk-page-head phfk-dash-head">' +
         '<div><small>KNL &middot; DASHBOARD</small><h1>Dashboard KNL</h1><p class="phfk-dash-subtitle">Tổng quan nguồn lực · Năng lực · Thu nhập</p></div>' +
         '<div class="phfk-dash-period">' +
-          '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tháng hiện tại</option></select>' +
-          '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Toàn công ty</option></select>' +
+          dashboardFilterSelect('period', 'Kỳ gần nhất có dữ liệu', meta.availablePeriods||[], dashboardState.filters.period) +
         '</div>' +
       '</div>' +
 
       '<div class="phfk-filters phfk-dash-filters">' +
-        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả phòng ban</option></select>' +
-        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả chi nhánh</option></select>' +
-        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả chức danh</option></select>' +
-        '<select class="phfk-input" disabled title="'+esc(disabledTitle)+'"><option>Tất cả bậc KNL</option></select>' +
+        dashboardFilterSelect('department', 'Tất cả phòng ban', filterOptions.departments||[], dashboardState.filters.department) +
+        dashboardFilterSelect('branch', 'Tất cả chi nhánh', filterOptions.branches||[], dashboardState.filters.branch) +
+        dashboardFilterSelect('title', 'Tất cả chức danh', filterOptions.titles||[], dashboardState.filters.title) +
+        dashboardFilterSelect('knlGradeCode', 'Tất cả bậc KNL', filterOptions.knlGrades||[], dashboardState.filters.knlGradeCode) +
       '</div>' +
-      '<p class="phfk-dash-empty-note phfk-dash-filters-note">Bộ lọc sẽ hoạt động khi Dashboard được nối dữ liệu thật (Gate 2).</p>' +
+      scopeNoteHtml + incomeOffNoteHtml +
 
       '<div class="phfk-dash-kpis">' +
-        dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income') +
-        dashboardKpiTileHtml('◍', 'Tổng nhân sự', 'people') +
-        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người', 'income') +
-        dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)', 'people') +
+        dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income', dashMoney(kpis.totalFund), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi') +
+        dashboardKpiTileHtml('◍', 'Tổng nhân sự', 'people', totalHeadcountShown, 'Trong phạm vi được xem') +
+        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người', 'income', dashMoney(kpis.avgIncome), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi') +
+        dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)', 'people', '—', 'Chưa có cách quy đổi bậc thống nhất giữa các Khung năng lực') +
       '</div>' +
 
       '<div class="phfk-dash-grid-main">' +
         '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact">' +
           '<div class="phfk-dash-panel-head"><h2>Cơ cấu quỹ thu nhập theo phòng ban</h2></div>' +
-          dashboardDonutSkeletonHtml('Chưa có dữ liệu') +
-          '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
+          (incomeVisible ? dashboardDonutChartHtml((d.deptComposition||[]).filter(function(x){return x.fund;}).map(function(x){ return {label:x.department, value:x.fund, pct:x.sharePct}; }), 'phòng ban')
+            : dashboardDonutSkeletonHtml('Không có quyền xem Thu nhập')) +
         '</section>' +
         '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact phfk-dash-ai-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Hỏi AI về dữ liệu này</h2><span class="phfk-badge phfk-badge-warning">Sắp ra mắt</span></div>' +
           '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
           '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" disabled>'+esc(p)+'</button>'; }).join('') + '</div>' +
           '<div class="phfk-dash-ai-result">' +
-            '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Chưa có nhận định — sẽ xuất hiện sau khi kết nối AI DeepSeek.</p></div>' +
+            '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Chưa có nhận định — sẽ xuất hiện sau khi kết nối AI DeepSeek (Gate 3).</p></div>' +
             '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>' +
           '</div>' +
-          '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" disabled title="Sẽ được kích hoạt ở bước kết nối dữ liệu.">Phân tích với AI</button>' +
-          '<p class="phfk-dash-empty-note">Sẽ được kích hoạt ở bước kết nối dữ liệu.</p>' +
+          '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" disabled title="Sẽ được kích hoạt ở Gate 3.">Phân tích với AI</button>' +
+          '<p class="phfk-dash-empty-note">Sẽ được kích hoạt ở Gate 3 (nối AI DeepSeek).</p>' +
         '</section>' +
       '</div>' +
 
       '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-primary">' +
         '<div class="phfk-dash-panel-head"><h2>So sánh phòng ban</h2></div>' +
-        dashboardEmptyTableHtml(['Phòng ban','Nhân sự','Quỹ thu nhập','Bình quân','Biến động','M3+','Xem'], emptyNote) +
+        dashboardCompareTableHtml(d.deptComparison||[], incomeVisible, dashboardState.openDept) +
       '</section>' +
+      (dashboardState.openDept ? dashboardDrillDownHtml(dashboardState.openDept, (d.drillDown||{})[dashboardState.openDept]) : '') +
 
       '<div class="phfk-dash-grid-secondary">' +
         '<section class="phfk-panel phfk-dash-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Phân bố bậc KNL</h2></div>' +
-          dashboardBarSkeletonHtml(['M1','M2','M3','M4','M5']) +
-          '<p class="phfk-dash-empty-note">Số mức hiển thị theo đúng framework thực tế của từng phòng ban ở Gate 2. '+esc(emptyNote)+'</p>' +
+          dashboardBarChartHtml(d.knlDistribution||[]) +
+          '<p class="phfk-dash-empty-note">Nhóm theo đúng bậc thật của từng Khung năng lực (không quy đổi chung M1–M5).</p>' +
         '</section>' +
         '<section class="phfk-panel phfk-dash-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Thu nhập theo bậc KNL</h2></div>' +
-          dashboardEmptyTableHtml(['Bậc KNL','Nhân sự','Thu nhập bình quân','Biến động'], emptyNote) +
+          (incomeVisible ? dashboardIncomeByGradeTableHtml(d.incomeByGrade||[]) : dashboardEmptyTableHtml(['Bậc KNL','Nhân sự','Thu nhập bình quân','Biến động'], 'Không có quyền xem Thu nhập.')) +
         '</section>' +
       '</div>' +
 
       '<div class="phfk-dash-grid-secondary">' +
         '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-attention">' +
           '<div class="phfk-dash-panel-head"><h2>Điểm cần chú ý</h2></div>' +
-          '<p class="phfk-dash-empty-note">Các điểm cần chú ý sẽ xuất hiện khi dữ liệu Dashboard được kết nối.</p>' +
+          insightsHtml +
         '</section>' +
         '<section class="phfk-panel phfk-dash-panel">' +
           '<div class="phfk-dash-panel-head"><h2>Xu hướng theo thời gian</h2></div>' +
-          '<div class="phfk-dash-trend-toggle">' + trendRanges.map(function(t,i){ return '<button type="button" class="'+(i===0?'active':'')+'" disabled>'+esc(t)+'</button>'; }).join('') + '</div>' +
-          dashboardSparklineSkeletonHtml() +
-          '<p class="phfk-dash-empty-note">'+esc(emptyNote)+'</p>' +
+          (incomeVisible ? dashboardTrendTableHtml(d.trend||[]) : dashboardEmptyTableHtml(['Kỳ lương','Tổng quỹ','Nhân sự','Bình quân/người'], 'Không có quyền xem Thu nhập.')) +
         '</section>' +
       '</div>' +
 
-      '<section class="phfk-dash-actionbar">' + actionItems.map(function(t){ return '<div class="phfk-dash-action-mini"><b>—</b><span>'+esc(t)+'</span></div>'; }).join('') + '</section>' +
+      '<section class="phfk-dash-actionbar">' + actionItems.map(function(t){ return '<div class="phfk-dash-action-mini"><b>'+esc(t.value==null?'—':String(t.value))+'</b><span>'+esc(t.label)+'</span></div>'; }).join('') + '</section>' +
     '</div>';
+
+  body.querySelectorAll('[data-dash-filter]').forEach(function(el){
+    el.addEventListener('change', function(){
+      dashboardState.filters[el.getAttribute('data-dash-filter')] = el.value;
+      dashboardState.openDept = '';
+      loadKnlDashboard(root);
+    });
+  });
+  body.querySelectorAll('[data-dash-dept]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var dept = el.getAttribute('data-dash-dept');
+      dashboardState.openDept = dashboardState.openDept===dept ? '' : dept;
+      renderKnlDashboardBody(root);
+    });
+  });
+  body.querySelectorAll('[data-dash-employee]').forEach(function(el){
+    el.addEventListener('click', function(){ goIncomeEmployee(el.getAttribute('data-dash-employee')); });
+  });
 }
 
 window.phfRenderKnl = async function(path){
@@ -3567,21 +3720,23 @@ window.phfRenderKnl = async function(path){
     frameworkState.loaded=false;
     assignmentState.loaded=false;
     surveyState.loaded=false;
+    dashboardState.loaded=false;
+    dashboardState.openDept='';
   }
   knlAuthorizationSignature=authorizationSignature;
   var canPeople = isAdmin || capabilities.access_knl;
   var canPermissions = isAdmin || capabilities.manage_permissions;
   var canFrameworks = isAdmin || capabilities.manage_framework;
   peopleCanViewIncome = isAdmin || capabilities.income_view === true;
-  /* Dashboard KNL (Gate 1, UI shell only): tạm thời gate theo đúng business
-     role KNL hiện có — Admin (đường cứu hộ) hoặc preset TRO_LY_GD (bao gồm
-     cả "Giám đốc" thật lẫn "Trợ lý Giám đốc", xem classify() trong
-     scripts/phf-knl-initial-permission-seed-2026-08.js: cả 2 chức danh cùng
-     rơi vào 1 preset TRO_LY_GD/'assistant' — hệ thống hiện KHÔNG phân biệt
-     2 chức danh này thành 2 preset riêng). KHÔNG hardcode employee_code,
-     KHÔNG thêm capability key mới (Gate 1 không đổi backend/CAPABILITY_KEYS).
-     Gate 2 sẽ quyết định gate chính thức (có thể cần capability riêng). */
-  var canDashboard = isAdmin || roleKeyFromPreset(capData.presetCode||'')==='assistant';
+  /* Dashboard KNL (Gate 2): gate CHÍNH THỨC bằng capability dashboard_view —
+     THAY THẾ hoàn toàn cách gate tạm theo tên preset ở Gate 1 (preset không
+     phản ánh đúng vai trò thật, xem lib/knl-permissions.js). Admin có mặc
+     định qua đường cứu hộ; Giám đốc/Trợ lý Tiên được PHF cấp thủ công qua
+     màn Phân quyền KNL — KHÔNG hardcode employee_code/tên/preset ở đây.
+     dashboard_view chỉ quyết định VÀO được Dashboard hay không; phạm vi dữ
+     liệu bên trong vẫn do people_scope/incomeScope enforce ở backend
+     (lib/knl-dashboard.js), không suy từ đây. */
+  var canDashboard = isAdmin || capabilities.dashboard_view === true;
 
   if(tab === 'phan-quyen' && !canPermissions){
     ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".'),canDashboard);
@@ -3639,7 +3794,7 @@ window.phfRenderKnl = async function(path){
   }else if(tab === 'de-xuat-nang-bac'){
     await renderGradePromotionSection(root, capabilities, isAdmin);
   }else if(tab === 'dashboard'){
-    renderKnlDashboard(root);
+    if(dashboardState.loaded && Date.now()-dashboardState.loadedAt<KNL_READ_CACHE_TTL) renderKnlDashboardBody(root); else await loadKnlDashboard(root);
   }else{
     if(peopleState.loaded&&Date.now()-peopleState.loadedAt<KNL_READ_CACHE_TTL)renderPeopleBody(root);else await loadPeople(root);
   }
