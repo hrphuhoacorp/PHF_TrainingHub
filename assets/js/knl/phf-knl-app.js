@@ -895,12 +895,25 @@ function permConfigPanel(){
   var advancedStepNum = hasIncomeStep ? 6 : 5;
   var reasonSection = '<label class="phfk-field phfk-perm-reason"><span>'+reasonStepNum+'. Lý do thay đổi quyền</span><textarea class="phfk-input" rows="2" placeholder="Nhập lý do thay đổi quyền..." data-knl-reason>'+esc(g.reason||'')+'</textarea></label>';
 
+  /* PHF UX fix (2026-08-13, smoke-test blocker): CHỈ MỘT save boundary cho
+     toàn bộ form (bước 2->6) — nút Lưu trước đây render TRƯỚC "6. Thiết lập
+     nâng cao" khiến người dùng hiểu nhầm Advanced là khối tách biệt/tự lưu
+     riêng (dù về mặt state, checkbox trong Advanced vẫn ghi thẳng vào đúng
+     permState.editing.capabilities mà saveGrant() đọc — đã verify round-trip
+     đúng ở cả backend lẫn DOM thật, xem scripts/test-knl-dashboard-view-
+     capability-roundtrip-2026-08.js và scripts/test-knl-permission-advanced-
+     save-boundary-2026-08.js). Fix ở đây thuần UX: chuyển "Hủy | Lưu thay
+     đổi" xuống CUỐI form, sau Advanced — không có CTA nào khác, không đổi
+     event wiring/permission contract. */
   return '' +
     '<section class="phfk-panel phfk-perm-config">' +
       head + roleSection + scopeSection + incomeSection + activeSection + reasonSection +
-      '<p class="phfk-error" data-knl-form-error hidden></p>' +
-      '<div class="phfk-form-actions"><button type="button" class="phfk-btn-primary" data-knl-save-grant'+(permState.saving?' disabled':'')+'>Lưu</button></div>' +
       advancedSectionHtml(g, advancedStepNum) +
+      '<p class="phfk-error" data-knl-form-error hidden></p>' +
+      '<div class="phfk-form-actions">' +
+        '<button type="button" class="phfk-btn-secondary" data-knl-cancel-grant'+(permState.saving?' disabled':'')+'>Hủy</button>' +
+        '<button type="button" class="phfk-btn-primary" data-knl-save-grant'+(permState.saving?' disabled':'')+'>Lưu thay đổi</button>' +
+      '</div>' +
     '</section>';
 }
 
@@ -1156,6 +1169,14 @@ function bindPermissionsForm(root){
 
   var saveBtn = root.querySelector('[data-knl-save-grant]');
   if(saveBtn) saveBtn.addEventListener('click', function(){ saveGrant(root); });
+  /* Hủy: bỏ mọi thay đổi CHƯA Lưu, nạp lại đúng permState.editing từ dữ liệu
+     đã lưu gần nhất (permState.grants, y hệt lúc chọn tài khoản lần đầu) —
+     tái dùng selectAccount() thay vì tạo khái niệm "revert" mới. */
+  var cancelBtn = root.querySelector('[data-knl-cancel-grant]');
+  if(cancelBtn) cancelBtn.addEventListener('click', function(){
+    if(!permState.selectedAccountId) return;
+    selectAccount(root, permState.selectedAccountId);
+  });
 }
 
 async function saveGrant(root){
