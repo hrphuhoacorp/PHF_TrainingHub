@@ -150,6 +150,8 @@ async function run() {
   check(adminDash.kpis.totalFund === 11000000 + 9000000 + 8000000 + 12500000, '1.3 Admin: totalFund = tổng quỹ kỳ hiện tại (2026-08) toàn công ty');
   check(adminDash.kpis.m3plus === null, '1.4 Admin: kpis.m3plus luôn null (STOP normalize M1-M5 đã chốt với PHF)');
   check(adminDash.meta.isFullCompanyIncome === true, '1.5 Admin: isFullCompanyIncome=true -> KHÔNG có scopeNote giới hạn');
+  const adminDrillCodes = Object.values(adminDash.drillDown).flat().map(row => String(row.employeeCode).toUpperCase());
+  check(new Set(adminDrillCodes).size === adminDrillCodes.length, '1.6 Admin: drillDown không có employeeCode trùng sau chuẩn hóa');
 
   // ========== 2. "Giám đốc" — custom grant all_company, dashboard_view thủ công ==========
   await grant('acct-phf002', 'PHF002', 'Trần Thu Thủy', 'CUSTOM',
@@ -201,6 +203,8 @@ async function run() {
   check(tienDash.actionStats.missingKnl === 2, '6.2 Tiên: missingKnl = 2 (PHF052 + PHF036 chưa có assignment active) — đúng trong phạm vi peopleScope');
   const missingInsight = tienDash.insights.find(i => i.code === 'MISSING_KNL');
   check(!!missingInsight && /2 nhân sự/.test(missingInsight.message), '6.3 Insight "Cần xem thêm" nêu đúng số lượng thiếu KNL, wording không kết luận đúng/sai');
+  const distributedCodes = Object.values(tienDash.drillDown).flat().filter(row => row.knlGrade).map(row => row.employeeCode).sort();
+  check(distributedCodes.join(',') === 'PHF051', '6.4 Nhân sự thiếu KNL không bị biến thành grade trong drillDown/ma trận; chỉ PHF051 có grade hợp lệ trong scope Tiên');
 
   // ========== 7. Previous-month missing — biến động null, không fake ==========
   const goiQuaRow = tienDash.deptComparison.find(d => d.department === 'Bộ phận Gói quà & Chế biến');
@@ -219,6 +223,7 @@ async function run() {
   check(noIncomeDash.deptComparison.every(d => d.fund === null && d.avgIncome === null), '8.3 income_view=false: mọi dòng "So sánh phòng ban" cột thu nhập đều null (không leak qua field khác)');
   check(noIncomeDash.incomeByGrade.length === 0 && noIncomeDash.trend.length === 0, '8.4 income_view=false: "Thu nhập theo bậc KNL" và "Xu hướng" đều rỗng, không tính ngầm');
   check(noIncomeDash.kpis.totalHeadcount === 2, '8.5 income_view=false: headcount (peopleScope) vẫn tính bình thường — độc lập với income_view (mục C)');
+  check(Object.values(noIncomeDash.drillDown).flat().every(row => row.currentIncome === null && row.previousIncome === null), '8.6 income_view=false: drillDown vẫn có nhân sự trong peopleScope nhưng không lộ thu nhập');
 
   // ========== 9. Direct call ngoài incomeScope vẫn bị chặn ở data layer (không phải chỉ UI) ==========
   const outsideDash = await getKnlDashboardOverview(tienSession, { department: 'Bộ phận kho vận' });

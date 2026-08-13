@@ -304,23 +304,39 @@
 
   function mount(root, options){
     var opts = options || {};
+    var isFloating = opts.variant === 'floating';
     var history = []; // {role:'user'|'assistant', content, result?, actions?}
     var pending = false;
     var conversationId = null;
     var historyOpen = false;
     var historyRawList = [];
 
+    var sendIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg>';
+    var floatingComposer =
+      '<form class="phf-ai-form phf-ai-floating-form" data-ai-form>' +
+        '<div class="phf-ai-composer-shell">' +
+          '<textarea class="phf-ai-input" data-ai-input rows="1" maxlength="' + MAX_MESSAGE_CHARS + '" placeholder="Nhắn PHF AI…"></textarea>' +
+          '<button type="submit" class="phf-ai-send" data-ai-send aria-label="Gửi câu hỏi" title="Gửi câu hỏi">' + sendIcon + '</button>' +
+        '</div>' +
+        '<div class="phf-ai-form-actions">' +
+          '<button type="button" class="phf-ai-new" data-ai-new aria-label="Tạo cuộc trò chuyện mới"><span aria-hidden="true">+</span> Cuộc trò chuyện mới</button>' +
+          '<span class="phf-ai-enter-hint">Enter để gửi</span>' +
+        '</div>' +
+      '</form>';
+    var standardComposer =
+      '<form class="phf-ai-form" data-ai-form>' +
+        '<textarea class="phf-ai-input" data-ai-input rows="2" maxlength="' + MAX_MESSAGE_CHARS + '" placeholder="Nhập câu hỏi... (Enter để gửi, Shift+Enter để xuống dòng)"></textarea>' +
+        '<div class="phf-ai-form-actions">' +
+          '<button type="button" class="phf-ai-new" data-ai-new>Cuộc trò chuyện mới</button>' +
+          '<button type="submit" class="phf-ai-send" data-ai-send>Gửi</button>' +
+        '</div>' +
+      '</form>';
+
     root.innerHTML =
       '<div class="phf-ai-chat-view" data-ai-chat-view>' +
         '<div class="phf-ai-thread" data-ai-thread aria-live="polite"></div>' +
         '<div class="phf-ai-error" data-ai-error hidden></div>' +
-        '<form class="phf-ai-form" data-ai-form>' +
-          '<textarea class="phf-ai-input" data-ai-input rows="2" maxlength="' + MAX_MESSAGE_CHARS + '" placeholder="Nhập câu hỏi... (Enter để gửi, Shift+Enter để xuống dòng)"></textarea>' +
-          '<div class="phf-ai-form-actions">' +
-            '<button type="button" class="phf-ai-new" data-ai-new>Cuộc trò chuyện mới</button>' +
-            '<button type="submit" class="phf-ai-send" data-ai-send>Gửi</button>' +
-          '</div>' +
-        '</form>' +
+        (isFloating ? floatingComposer : standardComposer) +
       '</div>' +
       '<div class="phf-ai-history-view" data-ai-history-view hidden>' +
         '<div class="phf-ai-history-head">' +
@@ -349,7 +365,29 @@
 
     function renderThread(){
       if (!history.length) {
-        thread.innerHTML = '<div class="phf-ai-empty"><div class="phf-ai-empty-title">Tôi có thể hỗ trợ gì cho bạn hôm nay?</div><div class="phf-ai-empty-sub">Hỏi về nghiệp vụ, dữ liệu và các chức năng trong PHF HR.</div></div>';
+        if (isFloating) {
+          var displayName = String(opts.displayName || '').replace(/\s+/g, ' ').trim();
+          var greeting = displayName ? 'Chào ' + escapeHtml(displayName) + ' <span aria-hidden="true">👋</span>' : 'Xin chào <span aria-hidden="true">👋</span>';
+          var suggestions = [
+            { icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>', text: 'Tóm tắt nhân sự hôm nay' },
+            { icon: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9l1.5 1.5L14 7m-5 8 1.5 1.5L14 13m2-4h1m-1 6h1"/>', text: 'Kiểm tra checklist kỳ hiện tại' },
+            { icon: '<path d="M4 20V10h4v10m4 0V4h4v16m4 0V7h-4"/><path d="m3 7 6-4 4 3 7-5"/>', text: 'Phân tích năng lực theo phạm vi của tôi' }
+          ];
+          thread.innerHTML = '<div class="phf-ai-empty phf-ai-floating-empty">' +
+            '<div class="phf-ai-empty-title">' + greeting + '</div>' +
+            '<div class="phf-ai-empty-sub">Hôm nay PHF AI có thể hỗ trợ về nhân sự, checklist hoặc khung năng lực.</div>' +
+            '<div class="phf-ai-suggestions">' + suggestions.map(function(item){
+              return '<button type="button" class="phf-ai-suggestion" data-ai-suggestion="' + escapeHtml(item.text) + '">' +
+                '<span class="phf-ai-suggestion-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + item.icon + '</svg></span>' +
+                '<span>' + escapeHtml(item.text) + '</span>' +
+                '<svg class="phf-ai-suggestion-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>' +
+              '</button>';
+            }).join('') + '</div>' +
+            '<div class="phf-ai-scope-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg><span>Dữ liệu nội bộ · Theo quyền truy cập</span></div>' +
+          '</div>';
+        } else {
+          thread.innerHTML = '<div class="phf-ai-empty"><div class="phf-ai-empty-title">Tôi có thể hỗ trợ gì cho bạn hôm nay?</div><div class="phf-ai-empty-sub">Hỏi về nghiệp vụ, dữ liệu và các chức năng trong PHF HR.</div></div>';
+        }
         return;
       }
       var html = history.map(function(msg){
@@ -379,6 +417,8 @@
       pending = next;
       sendBtn.disabled = pending;
       input.disabled = pending;
+      newBtn.disabled = pending;
+      if (isFloating) sendBtn.classList.toggle('is-loading', pending);
       renderThread();
     }
 
@@ -435,11 +475,11 @@
         return '<div class="phf-ai-history-group">' +
           '<div class="phf-ai-history-group-label">' + escapeHtml(s.label) + '</div>' +
           s.items.map(function(c){
-            return '<div class="phf-ai-history-item" data-ai-history-open="' + escapeHtml(c.id) + '">' +
-              '<div class="phf-ai-history-item-main">' +
+            return '<div class="phf-ai-history-item">' +
+              '<button type="button" class="phf-ai-history-item-main" data-ai-history-open="' + escapeHtml(c.id) + '">' +
                 '<div class="phf-ai-history-item-title">' + escapeHtml(c.title || 'Cuộc trò chuyện mới') + '</div>' +
                 '<div class="phf-ai-history-item-meta">' + (Number(c.messageCount) || 0) + ' tin nhắn · ' + escapeHtml(formatHistoryMeta(c.updatedAt)) + '</div>' +
-              '</div>' +
+              '</button>' +
               '<button type="button" class="phf-ai-history-item-delete" data-ai-history-delete="' + escapeHtml(c.id) + '" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">🗑</button>' +
             '</div>';
           }).join('') +
@@ -499,6 +539,7 @@
       var nextHistory = history.concat([{ role: 'user', content: trimmed }]);
       history = nextHistory;
       input.value = '';
+      resizeInput();
       setPending(true);
       fetch('/api/ai/chat', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
@@ -519,6 +560,7 @@
       }).catch(function(error){
         history = history.slice(0, -1);
         input.value = trimmed;
+        resizeInput();
         setError(friendlyError(error));
       }).finally(function(){
         setPending(false);
@@ -532,15 +574,25 @@
       setError('');
       renderThread();
       input.value = '';
+      resizeInput();
       input.focus();
+    }
+
+    function resizeInput(){
+      if (!isFloating) return;
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     }
 
     form.addEventListener('submit', function(evt){ evt.preventDefault(); sendMessage(input.value); });
     input.addEventListener('keydown', function(evt){
       if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); sendMessage(input.value); }
     });
+    if (isFloating) input.addEventListener('input', resizeInput);
     newBtn.addEventListener('click', newConversation);
     thread.addEventListener('click', function(evt){
+      var suggestion = evt.target && evt.target.closest ? evt.target.closest('[data-ai-suggestion]') : null;
+      if (suggestion) { sendMessage(suggestion.getAttribute('data-ai-suggestion')); return; }
       var btn = evt.target && evt.target.closest ? evt.target.closest('[data-ai-nav]') : null;
       if (!btn) return;
       var path = btn.getAttribute('data-ai-nav');

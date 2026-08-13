@@ -19,6 +19,16 @@
   }
 
   function markSvg(){ return (window.PHFAiEngine && window.PHFAiEngine.markSvg) || 'AI'; }
+  function iconSvg(path){
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + path + '</svg>';
+  }
+  function sessionDisplayName(){
+    try {
+      var user = (window.phfGetCurrentUser && window.phfGetCurrentUser()) ||
+        (window.phfGetAuthenticatedUser && window.phfGetAuthenticatedUser()) || {};
+      return String(user.fullName || user.full_name || user.name || user.displayName || user.display_name || '').replace(/\s+/g, ' ').trim();
+    } catch (e) { return ''; }
+  }
 
   /* ---- Mobile drag-to-reposition (khong dung cho desktop) ----
      Chi keo duoc icon khi: dang o mobile viewport (khop dung breakpoint
@@ -172,9 +182,9 @@
       '<div class="phf-ai-floating-panel" data-ai-floating-panel aria-hidden="true">' +
         '<div class="phf-ai-floating-panel-head">' +
           '<span class="phf-ai-mark" aria-hidden="true">' + markSvg() + '</span>' +
-          '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong></span>' +
-          '<button type="button" class="phf-ai-floating-history" data-ai-floating-history aria-label="Lịch sử hội thoại" title="Lịch sử hội thoại">🕘</button>' +
-          '<button type="button" class="phf-ai-floating-close" data-ai-floating-close aria-label="Đóng PHF AI">✕</button>' +
+          '<span class="phf-ai-floating-panel-title"><strong>PHF AI</strong><small>Trợ lý nhân sự PHF</small></span>' +
+          '<button type="button" class="phf-ai-floating-history" data-ai-floating-history aria-label="Lịch sử hội thoại" title="Lịch sử hội thoại">' + iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>') + '</button>' +
+          '<button type="button" class="phf-ai-floating-close" data-ai-floating-close aria-label="Đóng PHF AI" title="Đóng PHF AI">' + iconSvg('<path d="m6 6 12 12M18 6 6 18"/>') + '</button>' +
         '</div>' +
         '<div class="phf-ai-floating-panel-body" data-ai-floating-body></div>' +
       '</div>';
@@ -210,7 +220,10 @@
     if (document.body) document.body.classList.toggle('phf-ai-floating-open', open);
     if (open) {
       if (!controller && window.PHFAiEngine) {
-        controller = window.PHFAiEngine.mount(root.querySelector('[data-ai-floating-body]'), {});
+        controller = window.PHFAiEngine.mount(root.querySelector('[data-ai-floating-body]'), {
+          variant: 'floating',
+          displayName: sessionDisplayName()
+        });
       }
       if (controller) controller.focus();
     }

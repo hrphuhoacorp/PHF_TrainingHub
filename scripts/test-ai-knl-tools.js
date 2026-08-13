@@ -134,7 +134,7 @@ const { getKnlFrameworkForAi, getKnlGradeRequirementsForAi, getEmployeeKnlAssign
 const { buildStructuredResult } = require('../lib/ai-tool-registry');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' };
-const learnerSelfSession = { account: { id: 'learner-1' }, role: 'learner', employeeId: 'PHF010' };
+const learnerSelfSession = { account: { id: 'learner-1' }, role: 'learner', employeeCode: 'PHF010' };
 
 async function run() {
   // ---- T1: framework theo frameworkCode (Admin) ----
