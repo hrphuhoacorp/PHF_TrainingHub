@@ -384,7 +384,7 @@ var permState = {
   subordinate: emptyPickerState(),
   incomeEmp: emptyPickerState(),
   advEmployees: emptyPickerState(),
-  incomeValues: { rows:[], loading:false, error:'' }
+  incomeValues: { rows:[], loading:false, error:'', pendingCallbacks:[] }
 };
 var INCOME_VALUE_SCOPE_LABELS = { department:'phòng ban', branch:'chi nhánh', title:'chức danh' };
 
@@ -985,16 +985,34 @@ function refreshIncomeValueSection(root){
   section.replaceWith(wrap.firstElementChild);
   bindIncomeValueSection(root);
 }
+/* permState.incomeValues là roster DÙNG CHUNG cho nhiều picker độc lập (Phạm
+   vi Thu nhập VÀ Phạm vi nhân sự ở Thiết lập nâng cao — 2 field khác nhau,
+   cùng 1 nguồn Organization Master nên chỉ tải 1 lần). Một tài khoản có thể
+   cần CẢ HAI cùng lúc (vd Trợ lý Giám đốc có incomeScope.type=department VÀ
+   peopleScope.type=department) -> loadIncomeValues() bị gọi 2 lần liên tiếp
+   trong cùng 1 tick khi selectAccount() chạy. Nếu lượt gọi thứ 2 thấy
+   s.loading=true mà gọi onReady() ngay (fetch lượt 1 CHƯA XONG) thì picker
+   của lượt 2 sẽ chốt HTML "Đang tải…" và không bao giờ được refresh lại nữa
+   vì chỉ đúng 1 onReady (của lượt 1) được fetch .then() gọi khi xong — đây
+   chính là bug "Đang tải danh mục phòng ban…" bị kẹt dù values đã có sẵn.
+   Fix: xếp hàng onReady của các lượt gọi khi đang có fetch chạy dở, gọi lại
+   TẤT CẢ khi fetch thật sự xong (thành công lẫn lỗi). */
 function loadIncomeValues(root, onReady){
   var s = permState.incomeValues;
-  if(s.rows.length || s.loading){ if(onReady) onReady(); return; }
-  s.loading = true; s.error = '';
+  if(s.rows.length){ if(onReady) onReady(); return; }
+  if(s.loading){ if(onReady) s.pendingCallbacks.push(onReady); return; }
+  s.loading = true; s.error = ''; s.pendingCallbacks = [];
+  function settle(){
+    var callbacks = s.pendingCallbacks; s.pendingCallbacks = [];
+    if(onReady) onReady();
+    callbacks.forEach(function(cb){ cb(); });
+  }
   apiPost('listKnlPeople', { status:'active' }).then(function(data){
     s.rows = data.people || []; s.loading = false;
-    if(onReady) onReady();
+    settle();
   }).catch(function(e){
     s.error = e.message; s.loading = false;
-    if(onReady) onReady();
+    settle();
   });
 }
 function bindIncomeValueSection(root){
