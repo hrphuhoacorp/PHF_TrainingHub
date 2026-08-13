@@ -3433,7 +3433,8 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
    lib/knl-dashboard.js) — backend đã enforce people_scope/incomeScope, FE ở
    đây chỉ render đúng những gì backend trả, KHÔNG filter thêm theo scope ở
    trình duyệt. Panel AI vẫn là shell disabled — CHƯA nối DeepSeek (Gate 3). */
-var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'' }, openDept:'' };
+var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'' }, openDept:'',
+  ai:{ pending:false, error:'', reply:'', contextSummary:[], question:'', draft:'' } };
 var DASH_PALETTE = ['#63AD30','#2f7d9d','#c08a2b','#8a4fbf','#c0392b','#2f9d84','#74877f'];
 
 function dashMoney(v){ return v==null ? '—' : money(v); }
@@ -3567,6 +3568,84 @@ function dashboardFilterSelect(name, label, options, selectedValue){
   return '<select class="phfk-input" data-dash-filter="'+esc(name)+'">'+opts+'</select>';
 }
 
+/* AI panel — Gate 3. Render NGẮN GỌN đúng format mục 11 (kết luận + vài gạch
+   đầu dòng), KHÔNG cần markdown đầy đủ như AI Sandbox (assets/js/ai/phf-ai-
+   engine.js) — model đã được yêu cầu không dùng markdown phức tạp. Chỉ tách
+   đoạn theo dòng trống và nhận diện gạch đầu dòng "- "/"• " đơn giản. */
+function dashAiRenderReply(text){
+  var raw = String(text||'').replace(/\r\n/g,'\n').trim();
+  if(!raw) return '';
+  var blocks = raw.split(/\n{2,}/);
+  return blocks.map(function(block){
+    var lines = block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    if(!lines.length) return '';
+    var isList = lines.every(function(l){ return /^[-•]\s+/.test(l); });
+    if(isList) return '<ul class="phfk-dash-ai-list">'+lines.map(function(l){ return '<li>'+esc(l.replace(/^[-•]\s+/,''))+'</li>'; }).join('')+'</ul>';
+    return '<p>'+lines.map(esc).join('<br>')+'</p>';
+  }).join('');
+}
+function dashboardAiPanelHtml(){
+  var ai = dashboardState.ai;
+  var aiPrompts = [
+    'Phòng ban nào đang chiếm tỷ trọng thu nhập lớn nhất?',
+    'Thu nhập tháng này biến động thế nào?',
+    'Nhóm nào cần tôi xem kỹ hơn?',
+    'Tình hình KNL hiện tại có điểm gì đáng chú ý?',
+    'Phòng ban nào có thay đổi thu nhập đáng kể?'
+  ];
+  var resultHtml;
+  if(ai.pending){
+    resultHtml = '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Đang phân tích…</p></div>' +
+      '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>';
+  }else if(ai.error){
+    resultHtml = '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-ai-error" data-dash-ai-error>'+esc(ai.error)+'</p></div>' +
+      '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>';
+  }else if(ai.reply){
+    resultHtml = '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><div class="phfk-dash-ai-answer" data-dash-ai-answer>'+dashAiRenderReply(ai.reply)+'</div></div>' +
+      '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small>' +
+      (ai.contextSummary&&ai.contextSummary.length ? '<ul class="phfk-dash-ai-context-list">'+ai.contextSummary.map(function(l){ return '<li>'+esc(l)+'</li>'; }).join('')+'</ul>' : '<p class="phfk-dash-empty-note">—</p>') +
+      '</div>';
+  }else{
+    resultHtml = '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Chọn 1 câu hỏi gợi ý hoặc nhập câu hỏi của bạn bên dưới.</p></div>' +
+      '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>';
+  }
+  return '' +
+    '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact phfk-dash-ai-panel">' +
+      '<div class="phfk-dash-panel-head"><h2>Hỏi AI về dữ liệu này</h2></div>' +
+      '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
+      '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" data-dash-ai-prompt'+(ai.pending?' disabled':'')+'>'+esc(p)+'</button>'; }).join('') + '</div>' +
+      '<div class="phfk-dash-ai-result">' + resultHtml + '</div>' +
+      '<div class="phfk-dash-ai-custom">' +
+        '<textarea class="phfk-input phfk-dash-ai-input" rows="2" maxlength="600" placeholder="Hoặc nhập câu hỏi của bạn…" data-dash-ai-input'+(ai.pending?' disabled':'')+'>'+esc(ai.draft||'')+'</textarea>' +
+        '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" data-dash-ai-send'+(ai.pending?' disabled':'')+'>'+(ai.pending?'Đang gửi…':'Hỏi AI')+'</button>' +
+      '</div>' +
+    '</section>';
+}
+async function dashboardAskAi(root, question){
+  var ai = dashboardState.ai;
+  if(ai.pending) return;
+  var q = String(question||'').trim();
+  if(!q) return;
+  ai.pending = true; ai.error = ''; ai.reply = ''; ai.question = q;
+  renderKnlDashboardBody(root);
+  try{
+    var res = await apiPost('askKnlDashboardAi', { question:q, filters:dashboardState.filters });
+    ai.pending = false;
+    ai.reply = res.reply || '';
+    ai.contextSummary = res.contextSummary || [];
+    ai.draft = '';
+  }catch(error){
+    ai.pending = false;
+    var code = error && error.code;
+    if(code === 'KNL_DASHBOARD_AI_QUESTION_REQUIRED' || code === 'KNL_DASHBOARD_AI_QUESTION_TOO_LONG' || code === 'AI_RATE_LIMITED' || code === 'AI_REQUEST_IN_PROGRESS'){
+      ai.error = (error && error.message) || 'Không thể gửi câu hỏi lúc này.';
+    }else{
+      ai.error = 'Trợ lý AI tạm thời chưa phản hồi. Dữ liệu Dashboard vẫn được cập nhật bình thường.';
+    }
+  }
+  renderKnlDashboardBody(root);
+}
+
 function renderKnlDashboardError(root, error){
   var body = root.querySelector('[data-knl-body]');
   if(!body) return;
@@ -3596,12 +3675,6 @@ function renderKnlDashboardBody(root){
   var incomeVisible = meta.incomeVisible === true;
   var scopeNoteHtml = meta.scopeNote ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Lưu ý: '+esc(meta.scopeNote)+'.</p>' : '';
   var incomeOffNoteHtml = !incomeVisible ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Tài khoản chưa được cấp quyền "Truy cập mục Thu nhập" — các số liệu thu nhập hiển thị "—".</p>' : '';
-  var aiPrompts = [
-    'So sánh thu nhập và bậc KNL giữa các phòng ban',
-    'Phòng ban nào có biến động thu nhập đáng chú ý?',
-    'Phân tích nhóm nhân sự đang xem',
-    'Chỉ ra các điểm cần xem xét trong cơ cấu nguồn lực'
-  ];
   var totalHeadcountShown = kpis.totalHeadcount!=null ? String(kpis.totalHeadcount) : '—';
 
   var insightsHtml = (d.insights||[]).length
@@ -3635,7 +3708,7 @@ function renderKnlDashboardBody(root){
       '<div class="phfk-dash-kpis">' +
         dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income', dashMoney(kpis.totalFund), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi') +
         dashboardKpiTileHtml('◍', 'Tổng nhân sự', 'people', totalHeadcountShown, 'Trong phạm vi được xem') +
-        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người', 'income', dashMoney(kpis.avgIncome), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi') +
+        dashboardKpiTileHtml('◎', 'Thu nhập bình quân/người có dữ liệu', 'income', dashMoney(kpis.avgIncome), kpis.incomePopulation!=null?(kpis.incomePopulation+'/'+totalHeadcountShown+' người có dữ liệu thu nhập kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi') +
         dashboardKpiTileHtml('◔', 'Tỷ lệ nhân sự M3+ (KNL)', 'people', '—', 'Chưa có cách quy đổi bậc thống nhất giữa các Khung năng lực') +
       '</div>' +
 
@@ -3645,17 +3718,7 @@ function renderKnlDashboardBody(root){
           (incomeVisible ? dashboardDonutChartHtml((d.deptComposition||[]).filter(function(x){return x.fund;}).map(function(x){ return {label:x.department, value:x.fund, pct:x.sharePct}; }), 'phòng ban')
             : dashboardDonutSkeletonHtml('Không có quyền xem Thu nhập')) +
         '</section>' +
-        '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-compact phfk-dash-ai-panel">' +
-          '<div class="phfk-dash-panel-head"><h2>Hỏi AI về dữ liệu này</h2><span class="phfk-badge phfk-badge-warning">Sắp ra mắt</span></div>' +
-          '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
-          '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" disabled>'+esc(p)+'</button>'; }).join('') + '</div>' +
-          '<div class="phfk-dash-ai-result">' +
-            '<div class="phfk-dash-ai-result-block"><small>NHẬN ĐỊNH</small><p class="phfk-dash-empty-note">Chưa có nhận định — sẽ xuất hiện sau khi kết nối AI DeepSeek (Gate 3).</p></div>' +
-            '<div class="phfk-dash-ai-result-block"><small>SỐ LIỆU SỬ DỤNG</small><p class="phfk-dash-empty-note">—</p></div>' +
-          '</div>' +
-          '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" disabled title="Sẽ được kích hoạt ở Gate 3.">Phân tích với AI</button>' +
-          '<p class="phfk-dash-empty-note">Sẽ được kích hoạt ở Gate 3 (nối AI DeepSeek).</p>' +
-        '</section>' +
+        dashboardAiPanelHtml() +
       '</div>' +
 
       '<section class="phfk-panel phfk-dash-panel phfk-dash-panel-primary">' +
@@ -3694,6 +3757,7 @@ function renderKnlDashboardBody(root){
     el.addEventListener('change', function(){
       dashboardState.filters[el.getAttribute('data-dash-filter')] = el.value;
       dashboardState.openDept = '';
+      dashboardState.ai = { pending:false, error:'', reply:'', contextSummary:[], question:'', draft:dashboardState.ai.draft };
       loadKnlDashboard(root);
     });
   });
@@ -3707,6 +3771,13 @@ function renderKnlDashboardBody(root){
   body.querySelectorAll('[data-dash-employee]').forEach(function(el){
     el.addEventListener('click', function(){ goIncomeEmployee(el.getAttribute('data-dash-employee')); });
   });
+  body.querySelectorAll('[data-dash-ai-prompt]').forEach(function(el){
+    el.addEventListener('click', function(){ dashboardAskAi(root, el.textContent); });
+  });
+  var aiInput = body.querySelector('[data-dash-ai-input]');
+  if(aiInput) aiInput.addEventListener('input', function(){ dashboardState.ai.draft = aiInput.value; });
+  var aiSendBtn = body.querySelector('[data-dash-ai-send]');
+  if(aiSendBtn) aiSendBtn.addEventListener('click', function(){ dashboardAskAi(root, aiInput ? aiInput.value : ''); });
 }
 
 window.phfRenderKnl = async function(path){
@@ -3743,6 +3814,7 @@ window.phfRenderKnl = async function(path){
     surveyState.loaded=false;
     dashboardState.loaded=false;
     dashboardState.openDept='';
+    dashboardState.ai={ pending:false, error:'', reply:'', contextSummary:[], question:'', draft:'' };
   }
   knlAuthorizationSignature=authorizationSignature;
   var canPeople = isAdmin || capabilities.access_knl;

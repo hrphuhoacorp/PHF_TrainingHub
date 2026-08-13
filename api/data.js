@@ -28,6 +28,7 @@ const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, lis
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('../lib/knl-surveys');
 const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade } = require('../lib/knl-foundation');
 const { getKnlDashboardOverview } = require('../lib/knl-dashboard');
+const { askKnlDashboardAi } = require('../lib/knl-dashboard-ai');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('../lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('../lib/employee-import');
 const {
@@ -524,6 +525,7 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='listKnlIncomeTargets')return res.status(200).json({ok:true,...await listKnlIncomeTargets(session)});
       if(payload&&payload.action==='getKnlEmployeeIncome')return res.status(200).json({ok:true,...await getKnlEmployeeIncome(session,payload)});
       if(payload&&payload.action==='getKnlDashboardOverview')return res.status(200).json({ok:true,...await getKnlDashboardOverview(session,payload)});
+      if(payload&&payload.action==='askKnlDashboardAi')return res.status(200).json({ok:true,...await askKnlDashboardAi(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeNextCompensationGrade')return res.status(200).json({ok:true,...await getKnlEmployeeNextCompensationGrade(session,payload)});
       if(payload&&payload.action==='saveKnlEmployeeIncome')return res.status(200).json({ok:true,...await saveKnlEmployeeIncome(session,payload)});
       if(payload&&payload.action==='listKnlCompensationAssignmentTargets')return res.status(200).json({ok:true,...await listKnlCompensationAssignmentTargets(session)});
