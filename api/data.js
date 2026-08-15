@@ -11,6 +11,18 @@ const { listNotifications, saveNotification, markNotificationRead, markAllNotifi
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('../lib/classroom-settings');
 const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('../lib/checklist-templates');
+const {
+  recordManagerLateObservation,
+  listManagerLateObservations,
+  recordShiftLeadLateObservation,
+  listShiftLeadLateObservations,
+  previewBccUpload: previewChecklistLateBccUpload,
+  createBccImport: createChecklistLateBccImport,
+  reconcileBccImport: reconcileChecklistLateBccImport,
+  approveLateEvents: approveChecklistLateEvents,
+  createLinkedAdjustment: createChecklistLateLinkedAdjustment,
+  exportLateReconciliation: exportChecklistLateReconciliation
+} = require('../lib/checklist-late-reconciliation-service');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('../lib/checklist-violations');
 const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence } = require('../lib/checklist-evidence');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('../lib/checklist-tasks');
@@ -432,6 +444,36 @@ module.exports = async function handler(req, res) {
       if (payload && payload.action === 'saveChecklistTemplateLibrary') {
         const saved = await saveChecklistTemplateLibrary(session, payload.templates || []);
         return res.status(200).json({ok:true,...saved});
+      }
+      if (payload && payload.action === 'recordChecklistLateManagerObservation') {
+        return res.status(200).json({ok:true,...await recordManagerLateObservation(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'recordChecklistLateShiftLeadObservation') {
+        return res.status(200).json({ok:true,...await recordShiftLeadLateObservation(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'listChecklistLateManagerObservations') {
+        return res.status(200).json({ok:true,...await listManagerLateObservations(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'listChecklistLateShiftLeadObservations') {
+        return res.status(200).json({ok:true,...await listShiftLeadLateObservations(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'previewChecklistLateBccUpload') {
+        return res.status(200).json({ok:true,...await previewChecklistLateBccUpload(session, payload.rows || [])});
+      }
+      if (payload && payload.action === 'createChecklistLateBccImport') {
+        return res.status(200).json({ok:true,...await createChecklistLateBccImport(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'reconcileChecklistLateBccImport') {
+        return res.status(200).json({ok:true,...await reconcileChecklistLateBccImport(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'approveChecklistLateEvents') {
+        return res.status(200).json({ok:true,...await approveChecklistLateEvents(session, payload.decisions || [])});
+      }
+      if (payload && payload.action === 'createChecklistLateLinkedAdjustment') {
+        return res.status(200).json({ok:true,...await createChecklistLateLinkedAdjustment(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'exportChecklistLateReconciliation') {
+        return res.status(200).json({ok:true,...await exportChecklistLateReconciliation(session, payload.filters || {})});
       }
       if (payload && payload.action === 'listChecklistPermissionGrants') {
         return res.status(200).json({ok:true,...await listChecklistPermissionGrants(session,{includeInactive:payload.includeInactive===true})});

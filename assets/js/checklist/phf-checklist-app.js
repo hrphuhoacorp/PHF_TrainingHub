@@ -10,6 +10,11 @@
   function role(){try{return String((window.phfGetSessionRole&&window.phfGetSessionRole())||'').toLowerCase();}catch(e){return '';}}
   function canUseLateViolation(){return role()==='admin';}
   function canRecordViolationNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;return (roleWorkspaceState.data||{}).canRecordViolation===true;}
+  /* Workstream B (vòng cuối) — khu vực "Đi trễ" giờ dùng chung cho cả Admin (Đối soát BCC +
+     Nhập thủ công, không đổi) VÀ Trưởng ca (chỉ "Ghi nhận phát hiện đi trễ"). Quyền của Trưởng
+     ca LUÔN đọc từ capability server-declared (roleWorkspaceState.data.canRecordViolation, qua
+     canRecordViolationNow() đã có sẵn) — KHÔNG tự suy/hardcode role ở đây. */
+  function canUseLateWorkflowArea(){return canUseLateViolation()||(role()==='manager'&&canRecordViolationNow());}
   function canViewViolationsNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;var d=roleWorkspaceState.data||{};return d.canRecordViolation===true||d.canViewViolations===true;}
   function user(){try{return (window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||(window.phfGetCurrentUser&&window.phfGetCurrentUser())||null;}catch(e){return null;}}
   function currentChecklistGrant(){return roleWorkspaceState&&roleWorkspaceState.data&&roleWorkspaceState.data.grant||null;}
@@ -1090,7 +1095,7 @@
   function phfckConfirm(options){options=options||{};options.mode='confirm';return phfckDecisionModal(options);}
   function phfckPrompt(options){options=options||{};options.mode='prompt';return phfckDecisionModal(options);}
 
-  var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{},quickPersonMode:'single',quickMultiPersonRows:[],quickMultiPersonReviewOpen:false};
+  var violationUiState={employeeId:'',selectedEmployee:null,templateId:'',step:1,evidenceRequired:false,duplicateWarning:true,mode:'quick',query:'',group:'all',expandedGroups:{},selected:{},date:'',location:'',department:'all',branch:'all',moreFiltersOpen:false,employeeQuery:'',employeeChanging:false,employeeSearchReady:false,employeeSelectionToken:0,employeeSelectionStatus:'idle',sharedNote:'',sharedEvidence:false,multiRows:[],lateRows:[],lateInnerTab:'recon',detailCriterionId:'',detailNote:'',detailTime:'',detailEvidenceNote:'',detailDraftSavedAt:'',evidence:{},quickPersonMode:'single',quickMultiPersonRows:[],quickMultiPersonReviewOpen:false};
   var violationLogState={loading:false,loaded:false,error:'',records:[],employees:[],query:'',mode:'all',status:'all',workflowStatus:'all',dateFrom:'',dateTo:'',employeeCode:'',page:1,pageSize:30,total:0,permission:{canView:false,canRecord:false,canEditTest:false,canCancel:false},history:{},historyLoading:{},taskStatus:{},taskStatusLoading:{},taskHistory:{},taskHistoryLoading:{},taskHistoryError:{},autoOpenedFocusKey:''};
   function invalidateViolationLog(){violationLogState.loaded=false;violationLogState.page=1;violationLogState.history={};}
 
@@ -3402,7 +3407,16 @@
     var definition=chosen&&chosen.definition&&typeof chosen.definition==='object'?chosen.definition:null;
     if(!definition){var row=checklistTemplateDatabaseRow(ctx.templateId);definition=row&&row.definition&&typeof row.definition==='object'?row.definition:null;}
     if(!definition){var override=loadBulkOverride(ctx.templateId);definition=override?{groups:override.groups||[]}:null;}
-    return violationCriteriaFromDefinition(definition);
+    // Loại bỏ tiêu chí Đi trễ (mã chứa "DITRE", không phân biệt hoa/thường — khớp cả
+    // PHF-DITRE-01 và BH-DITRE-01) khỏi danh sách tiêu chí dùng chung cho Nhập nhanh/Ghi nhận
+    // chi tiết/Ghi nhận nhiều ngày (2026-08-15) — phòng thủ lớp 2 chống double-write: Đi trễ giờ
+    // CHỈ được ghi qua 1 đường duy nhất (module đối soát BCC/ghi nhận phát hiện ở
+    // assets/js/checklist/phf-checklist-late-workflow.js), không còn qua bất kỳ đường generic
+    // nào khác kể cả khi tiêu chí này còn tồn tại trong định nghĩa mẫu.
+    return violationCriteriaFromDefinition(definition).filter(function(c){
+      var code=String((c&&(c.code||c.id))||'').toUpperCase();
+      return code.indexOf('DITRE')<0;
+    });
   }
   function violationLiveCriteria(){return violationCriteriaForContext(violationAssignmentContext());}
   function violationCriteriaAt(eventDate){return violationCriteriaForContext(violationAssignmentContextAt(eventDate));}
@@ -3451,7 +3465,7 @@
       +'<button type="button" class="'+(violationUiState.mode==='quick'?'active':'')+'" data-phfck-violation-tab="quick"><span>⚡</span><div><b>Nhập nhanh</b><small>Chọn Không đạt và nhận xét ngay tại dòng</small></div></button>'
       +'<button type="button" class="'+(violationUiState.mode==='detail'?'active':'')+'" data-phfck-violation-tab="detail"><span>▤</span><div><b>Ghi nhận chi tiết</b><small>Dùng cho lỗi riêng lẻ hoặc cần nhiều minh chứng</small></div></button>'
       +'<button type="button" class="'+(violationUiState.mode==='multi'?'active':'')+'" data-phfck-violation-tab="multi"><span>▦</span><div><b>Ghi nhận nhiều ngày</b><small>Nhập bù nhiều sự việc cho cùng một nhân viên</small></div></button>'
-      +(canUseLateViolation()?'<button type="button" class="'+(violationUiState.mode==='late'?'active':'')+'" data-phfck-violation-tab="late"><span>◷</span><div><b>Đi trễ</b><small>Admin nhập dồn theo tuần hoặc cuối tháng</small></div></button>':'')
+      +(canUseLateWorkflowArea()?'<button type="button" class="'+(violationUiState.mode==='late'?'active':'')+'" data-phfck-violation-tab="late"><span>◷</span><div><b>Đi trễ</b><small>'+(canUseLateViolation()?'Đối soát BCC hoặc nhập thủ công':'Ghi nhận phát hiện đi trễ')+'</small></div></button>':'')
     +'</div>';
   }
   function violationExcelToolbarHtml(){
@@ -4134,6 +4148,14 @@
   function lateRule(minutes,dateValue){minutes=Math.max(1,Math.round(Number(minutes)||0));var policy=latePolicyForDateUi(dateValue),levels=policy&&Array.isArray(policy.levels)&&policy.levels.length?policy.levels:defaultLatePolicyUi().levels,matched=null,matchedIndex=0;levels.some(function(row,index){if(minutes>=Number(row.minMinutes||1)&&(row.maxMinutes==null||minutes<=Number(row.maxMinutes))){matched=row;matchedIndex=index;return true;}return false;});if(!matched){matched=levels[levels.length-1];matchedIndex=levels.length-1;}return {key:'level'+(matchedIndex+1),label:'Mức '+(matchedIndex+1),points:Number(matched.points||0),policyPeriod:policy.effectiveFromPeriod};}
   function recalcLateRow(row,resetPoints){var rule=lateRule(row.minutes,row.date);row.levelKey=rule.key;row.level=rule.label;row.suggested=rule.points;if(resetPoints||row.points===''||row.points==null){row.points=rule.points;if(resetPoints)row.adjustReason='';}row.points=Math.max(0,Number(row.points)||0);return row;}
   function latePerson(row){return violationEligibleEmployees().find(function(p){return String(p.id)===String(row.employee);})||null;}
+  /* DEAD CODE (2026-08-15) — chỉ còn được gọi từ lateValidation()/lateOfficialPayload(), cả 2
+     hàm đó chỉ được gọi từ các handler data-phfck-late-review/-submit của công cụ "Nhập thủ
+     công" đã RETIRED (xem ghi chú ở violationLateManualToolHtml() phía dưới) — không còn phần
+     tử DOM nào gắn được các handler đó nữa. Giữ nguyên không xóa để tránh vỡ chuỗi gọi nội bộ
+     của khối manual tool đã retired (rủi ro thấp hơn xóa). Fallback tạo cứng criterion DITRE ở
+     dưới (dòng kế tiếp) giờ sẽ LUÔN được dùng nếu hàm này lỡ được gọi lại, vì
+     violationCriteriaForContext() đã lọc bỏ mọi criterion có mã chứa "DITRE" (xem bộ lọc DITRE
+     thêm ở đó, phòng thủ lớp 2 cho Nhập nhanh/Ghi nhận chi tiết/Ghi nhận nhiều ngày). */
   function lateCriterionContext(row){
     var person=latePerson(row),eventDate=row.date||todayIso(),ctx=violationAssignmentContextForEmployee(person,eventDate),assigned=ctx&&ctx.assigned;
     if(!person)return {ok:false,person:null,ctx:ctx,message:'Chưa chọn nhân viên.'};
@@ -4180,7 +4202,104 @@
   function exportLateRows(){ensureLateRows();var people=checklistEmployees();var rows=[['Ma_nhan_vien','Ho_ten','Ngay','Ca_lam','So_phut_tre','Muc_vi_pham','Diem_chuan','Diem_ap_dung','Ghi_chu','Ly_do_khac_diem_chuan']];violationUiState.lateRows.forEach(function(r){recalcLateRow(r,false);var p=people.find(function(x){return String(x.id)===String(r.employee);})||{};rows.push([p.code||'',p.name||'',formatDateCsv(r.date),r.shift,r.minutes,r.level,r.suggested,r.points,r.note,r.adjustReason]);});downloadTextFile('PHF_DI_TRE_DANG_NHAP.csv',rows.map(function(r){return r.map(csvEscape).join(',');}).join('\n'));}
   function parseCsv(text){var rows=[],row=[],cell='',quoted=false;for(var i=0;i<text.length;i++){var c=text[i],n=text[i+1];if(c==='"'){if(quoted&&n==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(function(v){return String(v).trim();}))rows.push(row);row=[];cell='';}else cell+=c;}row.push(cell);if(row.some(function(v){return String(v).trim();}))rows.push(row);return rows;}
   function importLateCsv(file,root){var reader=new FileReader();reader.onload=function(){var rows=parseCsv(String(reader.result||''));if(rows.length<2){if(window.phfNotice)window.phfNotice('File chưa có dữ liệu để nhập.');return;}var headers=rows[0].map(function(x){return normalizeText(x).toLowerCase();});function col(name){return headers.indexOf(normalizeText(name).toLowerCase());}function colAny(names){for(var i=0;i<names.length;i++){var found=col(names[i]);if(found>=0)return found;}return -1;}var people=checklistEmployees(),result=[],errors=[];rows.slice(1).forEach(function(cols,idx){var code=String(cols[col('Ma_nhan_vien')]||'').trim(),name=String(cols[col('Ho_ten')]||'').trim();var person=people.find(function(p){return String(p.code||'').toLowerCase()===code.toLowerCase();})||people.find(function(p){return normalizeText(p.name).toLowerCase()===normalizeText(name).toLowerCase();});var date=parseDateCsv(cols[col('Ngay')]),shift=String(cols[col('Ca_lam')]||'Ca sáng').trim(),minutes=Math.max(0,Math.round(Number(cols[col('So_phut_tre')])||0)),pointsCol=colAny(['Diem_ap_dung','Diem_tru']),reasonCol=colAny(['Ly_do_khac_diem_chuan','Ly_do_dieu_chinh']),pointsRaw=String(pointsCol>=0?cols[pointsCol]||'':'').trim(),reason=String(reasonCol>=0?cols[reasonCol]||'':'').trim(),note=String(cols[col('Ghi_chu')]||'').trim();if(!person||!date||minutes<=0||!note){errors.push(idx+2);return;}var row=lateRowDefault();row.employee=person.id;row.date=date;row.shift=shift||'Ca sáng';row.minutes=minutes;recalcLateRow(row,true);if(pointsRaw!=='')row.points=Math.max(0,Math.min(100,Number(pointsRaw)||0));row.adjustReason=reason;row.note=note;result.push(row);});if(result.length){violationUiState.lateRows=result;renderViolationWorkspace(root,true);}if(window.phfNotice)window.phfNotice(result.length+' dòng hợp lệ đã được đưa vào màn xem trước'+(errors.length?'; bỏ qua dòng lỗi: '+errors.join(', '):'.'));};reader.readAsText(file,'utf-8');}
-  function violationLateHtml(){ensureLateRows();var total=lateTotalPoints();return '<section class="phfck-panel phfck-late-entry"><div class="phfck-panel-head"><div><small>CHỈ ADMIN</small><h3>Ghi nhận đi trễ theo danh sách</h3></div><span class="phfck-status">Nhập dồn</span></div><div class="phfck-late-note-top"><b>Tiêu chí chung · BH-DITRE-01</b><span>Nhập nhanh theo tuần hoặc cuối tháng.</span></div><div class="phfck-multi-head phfck-late-toolbar"><div><b>Danh sách đi trễ</b><small>Nhập trực tiếp hoặc dùng file mẫu từ hệ thống.</small></div><div class="phfck-late-actions"><button type="button" class="phfck-secondary" data-phfck-late-template>⇩ Tải file mẫu</button><button type="button" class="phfck-secondary" data-phfck-late-upload>⇧ Upload danh sách</button><button type="button" class="phfck-secondary" data-phfck-late-add>＋ Thêm dòng</button><input type="file" accept=".csv,text/csv" data-phfck-late-file hidden></div></div><div class="phfck-late-table-wrap">'+lateRowsHeaderHtml()+'<div class="phfck-late-list" data-phfck-late-list>'+lateRowsHtml()+'</div></div><div class="phfck-multi-footer is-sticky"><div><strong data-phfck-late-summary>'+violationUiState.lateRows.length+' trường hợp · Tổng dự kiến trừ '+total+' điểm</strong><small>Mọi dòng bắt buộc ghi chú; điểm áp dụng khác điểm chuẩn phải nêu lý do.</small></div><div><button type="button" class="phfck-secondary" data-phfck-late-export>⇩ Xuất dữ liệu</button><button type="button" class="phfck-secondary" data-phfck-late-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-late-review>Xem lại</button><button type="button" class="phfck-primary" data-phfck-late-submit>Ghi nhận</button></div></div></section>'; }
+  /* RETIRED (2026-08-15) — công cụ "Nhập thủ công/Nhập dồn" cho Đi trễ. KHÔNG còn bất kỳ đường
+     nào trong UI gọi tới hàm này nữa — violationLateHtml() (shell điều hướng khu vực Đi trễ, xem
+     bên dưới) đã bỏ hẳn tab con "Nhập thủ công" và luôn mount thẳng module đối soát BCC
+     (phf-checklist-late-workflow.js). Lý do rút lại: công cụ này ghi THẲNG bản ghi CHÍNH THỨC
+     cho tiêu chí Đi trễ (Admin gõ tay điểm, lưu ngay là official) độc lập hoàn toàn với pipeline
+     đối soát BCC mới — 2 đường ghi độc lập cùng 1 tiêu chí tạo rủi ro ghi đúp (double-write) 1
+     sự kiện đi trễ. Cố tình GIỮ LẠI code (không xóa) để giảm rủi ro đứt gãy import/tham chiếu
+     chéo (writeViolationExcel()/importLateCsv() nhánh mode==='late' vẫn dùng chung 1 số hàm ở
+     đây) — nhưng hàm này và toàn bộ handler data-phfck-late-* riêng của nó (template/upload/add/
+     remove/draft/review/submit/confirm/export — KHÁC HẲN data-phfck-latewf-* của module đối soát
+     BCC, KHÔNG được đụng) giờ là DEAD CODE, không có phần tử nào trong DOM còn gắn được tới các
+     handler này nữa (đã xác nhận bằng test real-route — xem
+     scripts/test-checklist-late-workflow-integration-2026-08.js). */
+  function violationLateManualToolHtml(){ensureLateRows();var total=lateTotalPoints();return '<section class="phfck-panel phfck-late-entry"><div class="phfck-panel-head"><div><small>CHỈ ADMIN</small><h3>Ghi nhận đi trễ theo danh sách</h3></div><span class="phfck-status">Nhập dồn</span></div><div class="phfck-late-note-top"><b>Tiêu chí chung · BH-DITRE-01</b><span>Nhập nhanh theo tuần hoặc cuối tháng.</span></div><div class="phfck-multi-head phfck-late-toolbar"><div><b>Danh sách đi trễ</b><small>Nhập trực tiếp hoặc dùng file mẫu từ hệ thống.</small></div><div class="phfck-late-actions"><button type="button" class="phfck-secondary" data-phfck-late-template>⇩ Tải file mẫu</button><button type="button" class="phfck-secondary" data-phfck-late-upload>⇧ Upload danh sách</button><button type="button" class="phfck-secondary" data-phfck-late-add>＋ Thêm dòng</button><input type="file" accept=".csv,text/csv" data-phfck-late-file hidden></div></div><div class="phfck-late-table-wrap">'+lateRowsHeaderHtml()+'<div class="phfck-late-list" data-phfck-late-list>'+lateRowsHtml()+'</div></div><div class="phfck-multi-footer is-sticky"><div><strong data-phfck-late-summary>'+violationUiState.lateRows.length+' trường hợp · Tổng dự kiến trừ '+total+' điểm</strong><small>Mọi dòng bắt buộc ghi chú; điểm áp dụng khác điểm chuẩn phải nêu lý do.</small></div><div><button type="button" class="phfck-secondary" data-phfck-late-export>⇩ Xuất dữ liệu</button><button type="button" class="phfck-secondary" data-phfck-late-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-late-review>Xem lại</button><button type="button" class="phfck-primary" data-phfck-late-submit>Ghi nhận</button></div></div></section>'; }
+  /* Shell cho toàn khu vực "Đi trễ" - một chỗ duy nhất, nội dung khác nhau theo capability do
+     BACKEND khai báo (roleWorkspaceState.data.canRecordViolation qua canRecordViolationNow(),
+     KHÔNG tự suy ở đây):
+       - Admin: CHỈ còn "Đối soát BCC" (module mount ở assets/js/checklist/
+         phf-checklist-late-workflow.js). Tab con "Nhập thủ công"/"Nhập dồn" (từng gọi
+         violationLateManualToolHtml()) đã bị RÚT LẠI khỏi UI (2026-08-15) — công cụ đó ghi
+         thẳng bản ghi CHÍNH THỨC cho tiêu chí Đi trễ độc lập với pipeline đối soát BCC mới,
+         tạo rủi ro ghi đúp (double-write) cùng 1 sự kiện đi trễ qua 2 đường khác nhau. Chỉ còn
+         1 mode nên KHÔNG cần tab-switcher nữa (data-phfck-late-inner-tab đã bị gỡ khỏi DOM).
+         violationLateManualToolHtml() và các handler data-phfck-late-* gắn riêng với nó (KHÁC
+         data-phfck-latewf-* của module đối soát BCC — KHÔNG đụng) vẫn còn trong file nhưng
+         KHÔNG còn đường nào trong UI gọi tới — xem ghi chú "RETIRED" ngay phía trên hàm đó.
+       - Người có quyền ghi nhận (record_violation+scope, không phải Admin — Trưởng ca CHỈ là 1
+         ví dụ, có thể là Trưởng bộ phận/Trợ lý Giám đốc/Giám đốc/vai trò khác): CHỈ mount module
+         mới ở chế độ "Ghi nhận phát hiện đi trễ" - không có tab, không thấy bất kỳ hành động
+         Admin nào (module tự gate theo ctx.isAdmin, xem buildLateWorkflowCtx()). */
+  function violationLateHtml(){
+    if(!canUseLateViolation()){
+      return '<section class="phfck-panel phfck-latewf-shell" data-phfck-latewf-shell="recorder"><div class="phfck-panel-head"><div><small>ĐI TRỄ</small><h3>Ghi nhận phát hiện đi trễ</h3></div></div><div data-phfck-latewf-mount class="phfck-latewf-mount"><div class="phfck-latewf-boot" role="status" aria-live="polite">Đang tải công cụ ghi nhận đi trễ…</div></div></section>';
+    }
+    return '<section class="phfck-panel phfck-latewf-shell" data-phfck-latewf-shell="admin">'
+      +'<div class="phfck-panel-head"><div><small>ĐI TRỄ</small><h3>Đối soát &amp; ghi nhận đi trễ</h3></div></div>'
+      +'<div data-phfck-latewf-mount class="phfck-latewf-mount"><div class="phfck-latewf-boot" role="status" aria-live="polite">Đang tải công cụ đối soát BCC…</div></div>'
+      +'</section>';
+  }
+  /* ensureLateWorkflowModule/syncLateWorkflowMount/buildLateWorkflowCtx: cầu nối DUY NHẤT giữa
+     app chính và module mới - không copy state, không tính điểm lại, chỉ truyền context đã có
+     sẵn (roleWorkspaceState.data, violationEligibleEmployees()) và gọi mount()/unmount() đúng
+     lúc DOM có/không còn [data-phfck-latewf-mount]. */
+  /* Release isolation (2026-08-15): CSS riêng của module Đi trễ (assets/css/
+     phf-checklist-late.css, tách khỏi phf-checklist.css để Đi trễ Phase-1 là 1 release
+     unit độc lập) được lazy-load ở ĐÂY — cùng phfAssetUrl() cache-busting, idempotent qua
+     data-phfck-latewf-css, giống hệt cách ensureLateWorkflowModule() đã lazy-load JS. KHÔNG
+     sửa assets/js/phf-url-router.js (ensureRouteCss/ROUTE_MODULES là hạ tầng dùng chung cho
+     Classroom+Checklist, không nên gánh thêm khái niệm "nhiều CSS/route" chỉ vì 1 module con).
+     Lỗi tải CSS không chặn mount JS (giống triết lý ensureRouteCss: thiếu style không phá
+     nghiệp vụ như thiếu renderer) — chỉ log, không reject promise của JS loader. */
+  function ensureLateWorkflowCss(){
+    if(document.querySelector('link[data-phfck-latewf-css]'))return;
+    var href=(typeof window.phfAssetUrl==='function'?window.phfAssetUrl('/assets/css/phf-checklist-late.css'):'/assets/css/phf-checklist-late.css');
+    var link=document.createElement('link');
+    link.rel='stylesheet';link.href=href;link.setAttribute('data-phfck-latewf-css','');
+    link.onerror=function(){console.error('[PHF Checklist] không tải được CSS module Đi trễ');link.remove();};
+    document.head.appendChild(link);
+  }
+  var lateWorkflowLoadPromise=null;
+  function ensureLateWorkflowModule(){
+    ensureLateWorkflowCss();
+    if(window.PhfChecklistLateWorkflow)return Promise.resolve(true);
+    if(lateWorkflowLoadPromise)return lateWorkflowLoadPromise;
+    lateWorkflowLoadPromise=new Promise(function(resolve){
+      var src=(typeof window.phfAssetUrl==='function'?window.phfAssetUrl('/assets/js/checklist/phf-checklist-late-workflow.js'):'/assets/js/checklist/phf-checklist-late-workflow.js');
+      var existing=document.querySelector('script[data-phfck-latewf-script]');
+      if(existing){existing.addEventListener('load',function(){resolve(true);});existing.addEventListener('error',function(){resolve(false);});setTimeout(function(){if(window.PhfChecklistLateWorkflow)resolve(true);},0);return;}
+      var s=document.createElement('script');
+      s.src=src;s.async=true;s.setAttribute('data-phfck-latewf-script','');
+      s.onload=function(){resolve(true);};
+      s.onerror=function(){console.error('[PHF Checklist] không tải được module Đi trễ');lateWorkflowLoadPromise=null;resolve(false);};
+      document.head.appendChild(s);
+    });
+    return lateWorkflowLoadPromise;
+  }
+  function buildLateWorkflowCtx(){
+    var isAdminNow=canUseLateViolation(),people=[];
+    try{people=(isAdminNow?violationEligibleEmployees():violationEligibleEmployees())||[];}catch(_e){people=[];}
+    var u=user()||{};
+    return {
+      isAdmin:isAdminNow,
+      canRecord:isAdminNow||canRecordViolationNow(),
+      actorEmployeeCode:currentSessionEmployeeCode(),
+      actorName:u.fullName||u.name||u.displayName||u.username||'',
+      people:people.map(function(p){return {code:p.code||'',name:p.name||'',department:p.department||'',branch:p.branch||''};})
+    };
+  }
+  function syncLateWorkflowMount(root){
+    var node=root&&root.querySelector('[data-phfck-latewf-mount]');
+    if(!node){if(window.PhfChecklistLateWorkflow)window.PhfChecklistLateWorkflow.unmount();return;}
+    if(node.getAttribute('data-phfck-latewf-mounted')==='1')return;
+    node.setAttribute('data-phfck-latewf-mounted','1');
+    ensureLateWorkflowModule().then(function(ok){
+      if(!ok||!node.isConnected||!window.PhfChecklistLateWorkflow)return;
+      window.PhfChecklistLateWorkflow.mount(node,buildLateWorkflowCtx());
+    });
+  }
 
   function openTimePicker(input){if(!input)return;document.querySelectorAll('.phfck-time-picker').forEach(function(x){x.remove();});var current=normalizeTime24(input.value,currentTime24()).split(':');var picker=document.createElement('div');picker.className='phfck-time-picker';picker.innerHTML='<div class="phfck-time-picker-head"><div><b>Chọn giờ 24 giờ</b><small>Nhập 4 số, ví dụ 1523 → 15:23</small></div><button type="button" data-phfck-time-now>Hiện tại</button></div><label class="phfck-time-direct"><span>Nhập nhanh</span><input type="text" inputmode="numeric" maxlength="5" value="'+esc(current.join(':'))+'" data-phfck-time-direct aria-label="Nhập giờ 24 giờ"></label><div class="phfck-time-picker-body"><div><small>Giờ</small><div class="phfck-time-options">'+Array.from({length:24},function(_,i){var v=String(i).padStart(2,'0');return '<button type="button" class="'+(v===current[0]?'active':'')+'" data-phfck-hour="'+v+'">'+v+'</button>';}).join('')+'</div></div><div><small>Phút nhanh</small><div class="phfck-time-options phfck-minute-options">'+['00','15','30','45'].map(function(v){return '<button type="button" class="'+(v===current[1]?'active':'')+'" data-phfck-minute="'+v+'">'+v+'</button>';}).join('')+'</div></div></div><div class="phfck-time-picker-foot"><span data-phfck-time-preview>'+esc(current.join(':'))+'</span><button type="button" class="phfck-primary" data-phfck-time-apply>Chọn</button></div>';document.body.appendChild(picker);var rect=input.getBoundingClientRect();picker.style.left=Math.max(10,Math.min(window.innerWidth-picker.offsetWidth-10,rect.left))+'px';picker.style.top=Math.min(window.innerHeight-picker.offsetHeight-10,rect.bottom+6)+'px';picker.__target=input;var direct=picker.querySelector('[data-phfck-time-direct]');if(direct){direct.focus();direct.select();}}
 
@@ -4347,7 +4466,7 @@
   function detailDraftBannerHtml(){var d=currentDetailDraft();if(!d)return '';return '<section class="phfck-draft-banner"><div><small>BẢN NHÁP CHI TIẾT</small><b>Lưu lúc '+esc(draftSavedLabel(d.savedAt))+'</b><span>Nháp theo đúng nhân sự và ngày đang chọn; chưa được lưu chính thức.</span></div><div><button type="button" class="phfck-secondary" data-phfck-detail-draft-restore>Tiếp tục</button><button type="button" class="phfck-danger-soft" data-phfck-detail-draft-delete>Xóa nháp</button></div></section>';}
   function violationDetailHtml(){var ctx=violationAssignmentContext(),criterion=detailSelectedCriterion();return '<div class="phfck-detail-workspace">'+detailDraftBannerHtml()+'<section class="phfck-panel phfck-detail-context">'+violationEmployeeSelectorHtml()+violationAssignmentCardHtml()+'</section><section class="phfck-panel phfck-detail-form"><div class="phfck-panel-head"><div><small>GHI NHẬN CHI TIẾT</small><h3>Một sự việc · đầy đủ bối cảnh</h3></div><span class="phfck-status">'+(ctx.ok?'Dữ liệu thật':'Chờ dữ liệu')+'</span></div><div class="phfck-detail-grid"><label><span>Ngày xảy ra <em>*</em></span><input type="date" value="'+esc(violationUiState.date||todayIso())+'" data-phfck-detail-date></label><label><span>Thời gian <em>*</em></span>'+timePickerButtonHtml(violationUiState.detailTime||currentTime24(),'data-phfck-detail-time')+'</label><label><span>Địa điểm <em>*</em></span><select data-phfck-detail-location>'+violationLocationOptions()+'</select></label><label class="is-wide"><span>Tiêu chí vi phạm <em>*</em></span><select data-phfck-detail-criterion '+(ctx.ok?'':'disabled')+'>'+detailCriterionOptions()+'</select><small>'+(criterion?esc(criterion.group)+' · '+esc(criterion.code)+' · Trừ '+esc(criterion.points)+' điểm':'Chỉ hiển thị tiêu chí thuộc đúng mẫu và phiên bản đang hiệu lực.')+'</small></label><label class="is-wide"><span>Nội dung sự việc <em>*</em></span><textarea rows="5" data-phfck-detail-note placeholder="Mô tả rõ sự việc, bối cảnh, hành vi và căn cứ phân biệt nếu phát sinh nhiều lần">'+esc(violationUiState.detailNote||'')+'</textarea><small>Tối thiểu 10 ký tự; tránh ghi chung chung như “sai” hoặc “không đạt”.</small></label><label class="is-wide"><span>Ghi chú bổ sung</span><textarea rows="2" data-phfck-detail-evidence placeholder="Thông tin liên quan (không thay cho file minh chứng)">'+esc(violationUiState.detailEvidenceNote||'')+'</textarea></label><div class="is-wide"><span class="phfck-detail-evidence-label">Minh chứng'+(criterion&&criterion.evidence==="required"?" <em>*</em>":"")+'</span>'+evidencePickerHtml("detail")+'</div></div><div class="phfck-detail-summary"><div><small>NHÂN SỰ</small><b>'+esc((ctx.person&&ctx.person.name)||'Chưa chọn')+'</b></div><div><small>TIÊU CHÍ</small><b>'+esc((criterion&&criterion.code)||'Chưa chọn')+'</b></div><div><small>ĐIỂM DỰ KIẾN</small><b>'+(criterion?'-'+esc(criterion.points)+' điểm':'—')+'</b></div></div><div class="phfck-detail-actions"><span>'+(violationUiState.detailDraftSavedAt?'Đã lưu nháp lúc '+esc(draftSavedLabel(violationUiState.detailDraftSavedAt)):'Dữ liệu chỉ được ghi nhận chính thức sau bước Xem lại.')+'</span><div><button type="button" class="phfck-secondary" data-phfck-detail-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-detail-review>Xem lại</button><button type="button" class="phfck-primary" data-phfck-detail-submit>Ghi nhận lỗi</button></div></div></section></div>';}
   function violationsHtml(){
-    if(violationUiState.mode==='late'&&!canUseLateViolation())violationUiState.mode='quick';
+    if(violationUiState.mode==='late'&&!canUseLateWorkflowArea())violationUiState.mode='quick';
     var canRecord=canRecordViolationNow();
     /* violationEffectiveView là nguồn duy nhất xác định create/log (PHẦN 1+2) - đọc thẳng từ URL
        hiện tại, mọi nơi điều hướng vào màn này đều đi qua đây trước khi dựng HTML. Không
@@ -5798,8 +5917,10 @@
       var logCancel=e.target.closest('[data-phfck-log-cancel]');if(logCancel){e.preventDefault();var oldc=root.querySelector('[data-phfck-submodal]');if(oldc)oldc.remove();appendSubmodal(root,violationLogCancelHtml(logCancel.getAttribute('data-phfck-log-cancel')));return;}
       var logCancelSave=e.target.closest('[data-phfck-log-cancel-save]');if(logCancelSave){e.preventDefault();var cid=logCancelSave.getAttribute('data-phfck-log-cancel-save'),reasonEl=root.querySelector('[data-phfck-log-cancel-reason]'),reason=String(reasonEl&&reasonEl.value||'').trim();if(reason.length<10){checklistToast('warning','Chưa thể hủy','Lý do hủy cần mô tả rõ tối thiểu 10 ký tự.',true);return;}violationLogAction(root,{action:'cancelChecklistViolation',id:cid,reason:reason},'Đã hủy bản ghi','Bản ghi được giữ lịch sử và không còn hiệu lực.');return;}
       var logDeleteOne=e.target.closest('[data-phfck-log-delete-one]');if(logDeleteOne){e.preventDefault();var did=logDeleteOne.getAttribute('data-phfck-log-delete-one');if(!await phfckConfirm({title:'Xóa bản ghi TEST',message:'Chỉ bản ghi thử nghiệm đang chọn bị xóa vĩnh viễn. Dữ liệu chính thức không bị ảnh hưởng.',confirmText:'Xóa bản ghi TEST',tone:'danger',note:'Thao tác này không thể hoàn tác.'}))return;violationLogAction(root,{action:'deleteChecklistTestViolation',id:did,reason:'Admin xóa một bản ghi TEST từ Nhật ký lỗi'},'Đã xóa bản ghi TEST','Chỉ bản ghi thử nghiệm đã chọn được xóa.');return;}
+      var lateInnerTab=e.target.closest('[data-phfck-late-inner-tab]');
+      if(lateInnerTab){e.preventDefault();var lt=lateInnerTab.getAttribute('data-phfck-late-inner-tab')==='manual'?'manual':'recon';if(violationUiState.lateInnerTab!==lt){violationUiState.lateInnerTab=lt;renderViolationWorkspace(root,true);requestAnimationFrame(function(){syncLateWorkflowMount(root);});}return;}
       var violationTab=e.target.closest('[data-phfck-violation-tab]');
-      if(violationTab){e.preventDefault();var vm=violationTab.getAttribute('data-phfck-violation-tab')||'quick';if(vm==='late'&&!canUseLateViolation()){violationUiState.mode='quick';checklistToast('warning','Không có quyền truy cập','Chức năng Đi trễ chỉ dành cho Admin.',true);return;}violationUiState.mode=(vm==='detail'||vm==='multi'||vm==='late'||vm==='log')?vm:'quick';renderViolationWorkspace(root,true);if(vm==='log')requestAnimationFrame(function(){loadViolationLog(root,false);});if(vm==='late')requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});return;}
+      if(violationTab){e.preventDefault();var vm=violationTab.getAttribute('data-phfck-violation-tab')||'quick';if(vm==='late'&&!canUseLateWorkflowArea()){violationUiState.mode='quick';checklistToast('warning','Không có quyền truy cập','Chức năng Đi trễ chỉ dành cho Admin hoặc tài khoản được cấp quyền ghi nhận lỗi.',true);return;}violationUiState.mode=(vm==='detail'||vm==='multi'||vm==='late'||vm==='log')?vm:'quick';renderViolationWorkspace(root,true);if(vm==='log')requestAnimationFrame(function(){loadViolationLog(root,false);});if(vm==='late'){if(canUseLateViolation())requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});requestAnimationFrame(function(){syncLateWorkflowMount(root);});}else requestAnimationFrame(function(){syncLateWorkflowMount(root);});return;}
       var violationExcelTemplate=e.target.closest('[data-phfck-violation-excel-template]');if(violationExcelTemplate){e.preventDefault();await runViolationExcelAction(violationExcelTemplate,'Đang tạo file mẫu…',function(){return writeViolationExcel(true);});return;}
       var violationExcelExport=e.target.closest('[data-phfck-violation-excel-export]');if(violationExcelExport){e.preventDefault();await runViolationExcelAction(violationExcelExport,'Đang xuất Excel…',function(){return writeViolationExcel(false);});return;}
       var violationExcelImport=e.target.closest('[data-phfck-violation-excel-import]');if(violationExcelImport){e.preventDefault();await runViolationExcelAction(violationExcelImport,'Đang chuẩn bị…',function(){var excelInput=root.querySelector('[data-phfck-violation-excel-file]');if(excelInput){excelInput.click();return true;}throw new Error('Không tìm thấy ô chọn file Excel.');});return;}
@@ -6273,7 +6394,8 @@
       }
     }
     if(view==='people')refreshPeopleWhenDataReady(root,false);else stopPeopleDataSync();
-    if(view==='violations'){initializeViolationsView(root);if(violationUiState.mode==='late')requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});}else stopViolationRefresh();
+    if(view==='violations'){initializeViolationsView(root);if(violationUiState.mode==='late'&&canUseLateViolation())requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});}else stopViolationRefresh();
+    requestAnimationFrame(function(){syncLateWorkflowMount(root);});
     if(view==='tasks'&&!taskUiState.loaded&&!taskUiState.loading)requestAnimationFrame(function(){loadChecklistTasks(root);});
     if(view==='overview'&&!overviewUiState.loading)requestAnimationFrame(function(){loadChecklistOverview(root,false);});
     if(view==='monthly')requestAnimationFrame(function(){loadMonthly(root,false);});
@@ -6912,6 +7034,7 @@
     if(active==='violations')requestAnimationFrame(function(){initializeViolationsView(root,false);});
     else if(active==='permissions')requestAnimationFrame(function(){ensureChecklistPermissionsOnSettings(root,true);});
     else leaveViolationLifecycle();
+    requestAnimationFrame(function(){syncLateWorkflowMount(root);});
     if(restoreY==null){try{content.scrollTop=0;window.scrollTo(0,0);}catch(_e){}}else restoreScroll(restoreY);
     return true;
   }

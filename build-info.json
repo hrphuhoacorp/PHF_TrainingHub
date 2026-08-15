@@ -1,7 +1,7 @@
 {
-  "version": "1.54.5",
-  "fingerprint": "1.54.5-knl-dashboard-final-closure",
-  "builtAt": "2026-08-13T23:29:47+07:00",
-  "notes": "1.54.5 — Dashboard Final Closure: hoàn thiện hierarchy/filter/visual consistency; chuyển ma trận sang phân bố bậc lương đúng assignment snapshot theo kỳ và incomeScope; giữ negative security gate khi thiếu dashboard_view/income_view; hoàn thiện PHF AI floating UI, composer, chat/history và accessibility; đồng bộ employee picker filters. Visual QA local đã được PHF xác nhận đạt. Không migration, không thay đổi vùng Hồ sơ thu nhập protected/frozen.",
-  "build": "1.54.5"
+  "version": "1.55.0",
+  "fingerprint": "1.55.0-checklist-late-reconciliation-phase1",
+  "builtAt": "2026-08-15T00:00:00+07:00",
+  "notes": "1.55.0 — Checklist Đi trễ Phase-1: manager observation (Duyệt/Không duyệt) + Admin upload/preview/reconcile BCC với 4 nhãn nghiệp vụ (Duyệt/Không duyệt/Chưa ghi nhận/Cần kiểm tra). Approve/officialize/adjustment/scoring CHƯA kích hoạt (LATE_APPROVAL_ENABLED=false backend, LATE_APPROVAL_UI_ENABLED=false frontend — cả hai đều khóa cứng). CSS module Đi trễ tách riêng assets/css/phf-checklist-late.css, lazy-load cùng JS module. Migration 1.55.0 đã chạy Production trước đó (PASS). Không đụng Retro/TSE/Total Row/Connection Gate.",
+  "build": "1.55.0"
 }
