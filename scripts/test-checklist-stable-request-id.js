@@ -61,6 +61,7 @@ const makeRuntime = new Function('assert', `
   function ensureViolationDefaults(){}
   function multiContextAt(){return {templateId:'tpl',version:'v1',meta:{name:'Mau'}};}
   function multiCriterionAt(row){return criteria.find(function(item){return item.id===row.criterion;})||null;}
+  function isLateCriterionItem(item){var code=String((item&&(item.code||item.id))||'').toUpperCase();return code.indexOf('DITRE')>=0;}
   ${productionSource}
   return {state:violationUiState,newId:newStableViolationRequestId,ensureQuick:ensureQuickRequestId,quickPayload:quickOfficialPayload,newMultiRow:multiDayRowDefault,multiPayload:multiOfficialPayload};
 `);

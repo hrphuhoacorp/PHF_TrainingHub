@@ -128,9 +128,12 @@ check('recordManagerLateObservation(): CHỈ insert/upsert vào MANAGER_OBSERVAT
 });
 
 /* ============================================================================
- * 4) DITRE exclusion filter — violationCriteriaForContext() (dùng chung cho Nhập nhanh/Ghi
- *    nhận chi tiết/Ghi nhận nhiều ngày) phải loại bỏ MỌI criterion có mã chứa "DITRE" (không
- *    phân biệt hoa/thường), khớp cả PHF-DITRE-01 và BH-DITRE-01.
+ * 4) DITRE restoration (Step 1, 2026-08-15) — violationCriteriaForContext() (dùng chung cho
+ *    Nhập nhanh/Ghi nhận chi tiết/Ghi nhận nhiều ngày) KHÔNG còn lọc bỏ criterion Đi trễ
+ *    (mã chứa "DITRE") — khôi phục đúng flow hiện hữu trước Workstream B. Test cũ ở đây từng
+ *    xác nhận điều NGƯỢC LẠI (bộ lọc loại bỏ DITRE); test này thay thế để khớp quyết định
+ *    nghiệp vụ mới — field Duyệt/Không duyệt bắt buộc được thêm trực tiếp vào từng form thay
+ *    vì tiếp tục chặn DITRE khỏi danh sách tiêu chí chung.
  * ============================================================================ */
 function extractFn(src, name) {
   const marker = 'function ' + name + '(';
@@ -141,7 +144,7 @@ function extractFn(src, name) {
   assert.ok(end > start, 'không tìm thấy điểm kết thúc function ' + name);
   return src.slice(start, end + closeMarker.length);
 }
-check('violationCriteriaForContext() loại bỏ criterion có mã chứa "DITRE" (không phân biệt hoa/thường) — kiểm chứng thật bằng cách chạy hàm thật (trích từ source, không phải giả lập lại logic)', () => {
+check('violationCriteriaForContext() KHÔNG còn lọc bỏ criterion Đi trễ (mã chứa "DITRE") — kiểm chứng thật bằng cách chạy hàm thật (trích từ source, không phải giả lập lại logic)', () => {
   assert.ok(APP_SRC.includes("['PHF-DITRE-01','Đi trễ so với giờ vào ca theo lịch',1]"), 'nguồn phải còn ví dụ PHF-DITRE-01 để test có ý nghĩa');
   assert.ok(APP_SRC.includes("['BH-DITRE-01','Đi trễ so với giờ vào ca theo lịch',1]"), 'nguồn phải còn ví dụ BH-DITRE-01 để test có ý nghĩa');
 
@@ -164,9 +167,11 @@ check('violationCriteriaForContext() loại bỏ criterion có mã chứa "DITRE
   vm.createContext(sandbox);
   vm.runInContext(fromDefinitionSrc + '\n' + forContextSrc + '\nthis.__result = violationCriteriaForContext({ ok: true, templateId: "T1", version: "v1" });', sandbox);
   const result = sandbox.__result;
-  assert.ok(Array.isArray(result) && result.length === 1, 'phải còn đúng 1 tiêu chí không phải DITRE sau khi lọc, thực tế: ' + JSON.stringify(result));
-  assert.strictEqual(result[0].code, 'PHF-TP-01');
-  assert.ok(!result.some(c => String(c.code).toUpperCase().indexOf('DITRE') >= 0), 'không được còn bất kỳ criterion nào có mã chứa DITRE');
+  assert.ok(Array.isArray(result) && result.length === 4, 'phải còn đủ 4 tiêu chí (kể cả DITRE) sau khi bỏ bộ lọc, thực tế: ' + JSON.stringify(result));
+  assert.ok(result.some(c => c.code === 'PHF-DITRE-01'), 'phải còn PHF-DITRE-01');
+  assert.ok(result.some(c => c.code === 'BH-DITRE-01'), 'phải còn BH-DITRE-01');
+  assert.ok(result.some(c => c.code === 'ditre-lowercase-01'), 'phải còn biến thể chữ thường ditre-lowercase-01');
+  assert.ok(result.some(c => c.code === 'PHF-TP-01'), 'tiêu chí không phải DITRE vẫn còn nguyên');
 });
 
 /* ============================================================================

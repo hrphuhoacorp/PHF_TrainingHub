@@ -113,6 +113,47 @@ const ASSIGNMENTS = [
   { employee_id: 'ID-EMP109', employee_code: 'EMP109', employee_name: 'NV 109', department: 'Bán hàng', title: 'NVBH', branch: 'CN1', manager_id: '', manager_code: 'QL01', manager_name: 'QL01', employee_status: 'Đang làm việc', template_id: 'tpl1', template_version: '', effective_date: '2020-01-01', updated_at: '2020-01-01T00:00:00Z' }
 ];
 
+// checklist_late_manager_observations: bang rieng cho quan sat Di tre (P0-2 2026-08-15) -
+// mutable, mo phong dung upsert onConflict:'request_id', ignoreDuplicates:true nhu bang
+// violation, cong voi fallback .eq('request_id',...).maybeSingle() ma
+// recordManagerLateObservation() (lib/checklist-late-reconciliation-service.js) dung.
+let OBSERVATION_ROWS = [];
+let obsSeq = 1;
+function observationsTable() {
+  const filters = [];
+  let mode = 'select';
+  let upsertRows = null;
+  let wantSingle = false;
+  const q = {
+    select() { return q; },
+    eq(field, value) { filters.push(r => String(r[field]) === String(value)); return q; },
+    order() { return q; },
+    limit() { return q; },
+    upsert(rows) { mode = 'upsert'; upsertRows = Array.isArray(rows) ? rows : [rows]; return q; },
+    maybeSingle() { wantSingle = true; return q; },
+    then(resolve, reject) {
+      try {
+        if (mode === 'upsert') {
+          const inserted = [];
+          for (const row of upsertRows) {
+            const conflicts = row.request_id != null && OBSERVATION_ROWS.some(r => r.request_id === row.request_id);
+            if (conflicts) continue;
+            const saved = { id: 'mlo' + (obsSeq++), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
+            OBSERVATION_ROWS.push(saved);
+            inserted.push(saved);
+          }
+          resolve({ data: inserted, error: null });
+          return;
+        }
+        const matched = OBSERVATION_ROWS.filter(r => filters.every(fn => fn(r)));
+        if (wantSingle) { resolve({ data: matched[0] || null, error: null }); return; }
+        resolve({ data: matched, error: null });
+      } catch (e) { (reject || (err => Promise.reject(err)))(e); }
+    }
+  };
+  return q;
+}
+
 const TEMPLATES = [
   { template_key: 'tpl1', name: 'Mẫu Bán hàng', status: 'active', template_type: 'sales' }
 ];
@@ -142,6 +183,7 @@ require.cache[supabasePath] = {
     createClient: () => ({
       from(table) {
         if (table === 'checklist_violation_records') return violationsTable();
+        if (table === 'checklist_late_manager_observations') return observationsTable();
         if (table === 'checklist_employee_assignments') return staticTable(() => ASSIGNMENTS);
         if (table === 'checklist_employee_assignment_history') return staticTable(() => []);
         if (table === 'checklist_templates') return staticTable(() => TEMPLATES);
@@ -280,18 +322,29 @@ async function run() {
   );
   check(countFor('EMP107') === 0 && countFor('EMP108') === 0, 'H. Khong dong nao trong batch duoc luu khi co 1 dong ngoai pham vi (permission check chay TRUOC khi cham DB, cho toan bo rows)');
 
-  console.log('== 15. Di tre: retry cung request_id khong tao doi; hai lan di tre THAT khac nhau van duoc ghi ==');
+  console.log('== 15. Di tre (P0-2 2026-08-15): KHONG con tao official violation - route qua checklist_late_manager_observations; request_id van la khoa idempotency ky thuat duy nhat cua bang do ==');
+  function observationCountFor(employeeCode) { return OBSERVATION_ROWS.filter(r => r.employee_code === employeeCode).length; }
   const lateRow = (overrides) => row(Object.assign({
     employeeCode: 'EMP109', criterionCode: 'PHF-DITRE-01', occurredTime: '00:00',
-    note: '10 phút | Theo lịch', evidenceRequired: false
+    note: '10 phút | Theo lịch', evidenceRequired: false,
+    // Step 1 (2026-08-15): flow Ghi nhận lỗi Đi trễ hiện hữu trước Workstream B đã khôi phục,
+    // bắt buộc field Duyệt/Không duyệt (managerDecision) ngay trong card — xem
+    // scripts/test-checklist-late-generic-entry-restore-2026-08.js cho bộ test đầy đủ của field
+    // này và của P0-1/P0-2 (quyền capability/scope thật + route qua
+    // checklist_late_manager_observations); ở đây chỉ cần set để không phá vỡ test idempotency.
+    managerDecision: 'rejected'
   }, overrides));
+  const violationsBefore15 = VIOLATION_ROWS.length;
   const rLateA = await saveChecklistViolations(admin1, [lateRow({ requestId: 'REQ-109-LATE-DAY1' })]);
-  check(rLateA.saved === 1 && rLateA.savedRows[0].isNew === true, '15. Di tre lan dau duoc ghi nhan');
+  check(rLateA.saved === 1 && rLateA.savedRows[0].isLateObservation === true, '15. Di tre lan dau duoc ghi nhan nhu mot late observation (khong phai official violation)');
+  const idFirst15 = rLateA.savedRows[0].id;
   const rLateRetry = await saveChecklistViolations(admin1, [lateRow({ requestId: 'REQ-109-LATE-DAY1' })]);
-  check(rLateRetry.savedRows[0].isNew === false && rLateRetry.savedRows[0].id === rLateA.savedRows[0].id, '15. Retry CUNG request_id Di tre KHONG tao ban ghi thu 2 (van la Admin-only, khong doi nghiep vu Di tre, chi chong retry ky thuat)');
+  check(rLateRetry.savedRows[0].id === idFirst15, '15. Retry CUNG request_id Di tre tra ve DUNG ban ghi observation da tao (idempotent ky thuat qua request_id, khong tao ban ghi thu 2)');
   const rLateDay2 = await saveChecklistViolations(admin1, [lateRow({ requestId: 'REQ-109-LATE-DAY2' })]);
-  check(rLateDay2.saved === 1 && rLateDay2.savedRows[0].isNew === true, '15. Lan Di tre THAT khac (request_id khac, du noi dung/gio giong het lan truoc vi Di tre luon occurred_time=00:00) van duoc ghi - khong bi fingerprint noi dung chan');
-  check(countFor('EMP109') === 2, '15. EMP109 co dung 2 record Di tre doc lap trong DB (lan dau + lan thuc su thu hai), retry khong tinh vao');
+  check(rLateDay2.saved === 1 && rLateDay2.savedRows[0].id !== idFirst15, '15. Lan Di tre THAT khac (request_id khac, du noi dung/gio giong het lan truoc vi Di tre luon occurred_time=00:00) van duoc ghi thanh 1 observation rieng - khong bi fingerprint noi dung chan');
+  check(observationCountFor('EMP109') === 2, '15. EMP109 co dung 2 ban ghi Di tre doc lap trong checklist_late_manager_observations (lan dau + lan thuc su thu hai), retry khong tinh vao');
+  check(VIOLATION_ROWS.length === violationsBefore15, '15. Xac nhan P0-2: toan bo cac lan ghi Di tre o muc 15 KHONG tao THEM bat ky dong nao trong checklist_violation_records (0 official violation moi)');
+  check(countFor('EMP109') === 0, '15. EMP109 khong co record nao trong checklist_violation_records (Di tre khong con tao official violation)');
 
   if (failures) {
     console.error('\n' + failures + ' check(s) failed.');
