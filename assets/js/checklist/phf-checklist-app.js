@@ -10,11 +10,11 @@
   function role(){try{return String((window.phfGetSessionRole&&window.phfGetSessionRole())||'').toLowerCase();}catch(e){return '';}}
   function canUseLateViolation(){return role()==='admin';}
   function canRecordViolationNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;return (roleWorkspaceState.data||{}).canRecordViolation===true;}
-  /* Workstream B (vòng cuối) — khu vực "Đi trễ" giờ dùng chung cho cả Admin (Đối soát BCC +
-     Nhập thủ công, không đổi) VÀ Trưởng ca (chỉ "Ghi nhận phát hiện đi trễ"). Quyền của Trưởng
-     ca LUÔN đọc từ capability server-declared (roleWorkspaceState.data.canRecordViolation, qua
-     canRecordViolationNow() đã có sẵn) — KHÔNG tự suy/hardcode role ở đây. */
-  function canUseLateWorkflowArea(){return canUseLateViolation()||(role()==='manager'&&canRecordViolationNow());}
+  /* Step 2A (2026-08-16) — khu vực/tab "Đi trễ" riêng (đối soát BCC, sau này) CHỈ dành cho
+     Admin. Quản lý/Trưởng ca có record+record_scope KHÔNG còn thấy tab này nữa — họ ghi
+     DITRE qua đúng flow "Ghi nhận lỗi" (Nhập nhanh/Chi tiết/Nhiều ngày) đã khôi phục ở Step 1,
+     vẫn gọi recordManagerLateObservation() y hệt, không đổi hành vi ghi nhận/quyền record. */
+  function canUseLateWorkflowArea(){return canUseLateViolation();}
   function canViewViolationsNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;var d=roleWorkspaceState.data||{};return d.canRecordViolation===true||d.canViewViolations===true;}
   function user(){try{return (window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||(window.phfGetCurrentUser&&window.phfGetCurrentUser())||null;}catch(e){return null;}}
   function currentChecklistGrant(){return roleWorkspaceState&&roleWorkspaceState.data&&roleWorkspaceState.data.grant||null;}
@@ -5925,7 +5925,7 @@
       var lateInnerTab=e.target.closest('[data-phfck-late-inner-tab]');
       if(lateInnerTab){e.preventDefault();var lt=lateInnerTab.getAttribute('data-phfck-late-inner-tab')==='manual'?'manual':'recon';if(violationUiState.lateInnerTab!==lt){violationUiState.lateInnerTab=lt;renderViolationWorkspace(root,true);requestAnimationFrame(function(){syncLateWorkflowMount(root);});}return;}
       var violationTab=e.target.closest('[data-phfck-violation-tab]');
-      if(violationTab){e.preventDefault();var vm=violationTab.getAttribute('data-phfck-violation-tab')||'quick';if(vm==='late'&&!canUseLateWorkflowArea()){violationUiState.mode='quick';checklistToast('warning','Không có quyền truy cập','Chức năng Đi trễ chỉ dành cho Admin hoặc tài khoản được cấp quyền ghi nhận lỗi.',true);return;}violationUiState.mode=(vm==='detail'||vm==='multi'||vm==='late'||vm==='log')?vm:'quick';renderViolationWorkspace(root,true);if(vm==='log')requestAnimationFrame(function(){loadViolationLog(root,false);});if(vm==='late'){if(canUseLateViolation())requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});requestAnimationFrame(function(){syncLateWorkflowMount(root);});}else requestAnimationFrame(function(){syncLateWorkflowMount(root);});return;}
+      if(violationTab){e.preventDefault();var vm=violationTab.getAttribute('data-phfck-violation-tab')||'quick';if(vm==='late'&&!canUseLateWorkflowArea()){violationUiState.mode='quick';checklistToast('warning','Không có quyền truy cập','Chức năng Đi trễ chỉ dành cho Admin.',true);return;}violationUiState.mode=(vm==='detail'||vm==='multi'||vm==='late'||vm==='log')?vm:'quick';renderViolationWorkspace(root,true);if(vm==='log')requestAnimationFrame(function(){loadViolationLog(root,false);});if(vm==='late'){if(canUseLateViolation())requestAnimationFrame(function(){loadLatePointsPolicy(root,false);});requestAnimationFrame(function(){syncLateWorkflowMount(root);});}else requestAnimationFrame(function(){syncLateWorkflowMount(root);});return;}
       var violationExcelTemplate=e.target.closest('[data-phfck-violation-excel-template]');if(violationExcelTemplate){e.preventDefault();await runViolationExcelAction(violationExcelTemplate,'Đang tạo file mẫu…',function(){return writeViolationExcel(true);});return;}
       var violationExcelExport=e.target.closest('[data-phfck-violation-excel-export]');if(violationExcelExport){e.preventDefault();await runViolationExcelAction(violationExcelExport,'Đang xuất Excel…',function(){return writeViolationExcel(false);});return;}
       var violationExcelImport=e.target.closest('[data-phfck-violation-excel-import]');if(violationExcelImport){e.preventDefault();await runViolationExcelAction(violationExcelImport,'Đang chuẩn bị…',function(){var excelInput=root.querySelector('[data-phfck-violation-excel-file]');if(excelInput){excelInput.click();return true;}throw new Error('Không tìm thấy ô chọn file Excel.');});return;}

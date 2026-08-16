@@ -141,11 +141,17 @@ async function buildDom() {
   // =========================================================================
   // B) Structural — phần Trưởng ca / route quản lý (xem lý do ở đầu file).
   // =========================================================================
-  check(/function canUseLateWorkflowArea\(\)\{return canUseLateViolation\(\)\|\|\(role\(\)==='manager'&&canRecordViolationNow\(\)\);\}/.test(code),
-    '5a. canUseLateWorkflowArea() đọc capability record_violation server-declared qua canRecordViolationNow() đã có sẵn (không hardcode preset/role mới)');
+  // Step 2A (2026-08-16): business owner đảo ngược quyết định cũ — khu/tab "Đi trễ" riêng CHỈ
+  // dành cho Admin. Manager/Trưởng ca dù có record+record_scope KHÔNG còn thấy tab này (họ ghi
+  // DITRE qua đúng flow "Ghi nhận lỗi" Nhập nhanh/Chi tiết/Nhiều ngày của Step 1, không đổi).
+  const gateFnBody = (code.match(/function canUseLateWorkflowArea\(\)\{([\s\S]*?)\}/) || [])[1] || '';
+  check(gateFnBody.trim() === 'return canUseLateViolation();',
+    '5a. canUseLateWorkflowArea() CHỈ còn return canUseLateViolation() (Admin-only) — không còn nhánh role()===\'manager\'&&canRecordViolationNow()');
+  check(!gateFnBody.includes('canRecordViolationNow'),
+    '5a2. canUseLateWorkflowArea() không còn đọc canRecordViolationNow() — hàm đó vẫn tồn tại nguyên vẹn ở nơi khác cho flow Ghi nhận lỗi DITRE, chỉ không còn dùng làm điều kiện mở tab Đi trễ riêng');
   const tabsBody = (code.match(/function violationTabsHtml\(\)\{([\s\S]*?)\n  \}/) || [])[1] || '';
-  check(tabsBody.includes('canUseLateWorkflowArea()') && !/canUseLateViolation\(\)\?'<button[^']*late/.test(tabsBody),
-    '5b. violationTabsHtml() dùng canUseLateWorkflowArea() (Admin + Trưởng ca đủ quyền) để quyết định hiện tab "Đi trễ", không còn admin-only');
+  check(tabsBody.includes('canUseLateWorkflowArea()'),
+    '5b. violationTabsHtml() vẫn gate tab "Đi trễ" bằng canUseLateWorkflowArea() (wiring không đổi) — kết hợp với 5a nghĩa là tab CHỈ hiện cho Admin, Manager có record cũng không còn thấy');
   check(/if\(!canUseLateViolation\(\)\)\{[\s\S]{0,260}?data-phfck-latewf-mount/.test(code),
     '5c. violationLateHtml() render riêng nhánh non-admin: KHÔNG có tab con, KHÔNG có violationLateManualToolHtml(), chỉ có mount container');
   const nonAdminBranch = (code.match(/function violationLateHtml\(\)\{[\s\S]*?if\(!canUseLateViolation\(\)\)\{([\s\S]*?)\n    \}/) || [])[1] || '';
@@ -169,9 +175,11 @@ async function buildDom() {
   check(/function updateAdminView\(root,path\)\{[\s\S]*?syncLateWorkflowMount\(root\);/.test(code),
     '5f. updateAdminView() (route Admin) cũng gọi syncLateWorkflowMount(root)');
   check(/vm==='late'&&!canUseLateWorkflowArea\(\)/.test(code),
-    '5g. Click handler tab Đi trễ backend-gate lại bằng canUseLateWorkflowArea() (không chỉ ẩn nút, còn chặn cả khi vm bị set thủ công)');
+    '5g. Click handler tab Đi trễ chặn lại bằng canUseLateWorkflowArea() — sau Step 2A đây chính là chặn Admin-only (không chỉ ẩn nút, còn chặn cả khi vm bị set thủ công/crafted)');
+  check(code.includes("checklistToast('warning','Không có quyền truy cập','Chức năng Đi trễ chỉ dành cho Admin.',true)"),
+    '5g2. Message cảnh báo click-guard đã cập nhật đúng rule mới: "Chức năng Đi trễ chỉ dành cho Admin." (không còn nhắc "tài khoản được cấp quyền ghi nhận lỗi")');
   check(/violationUiState\.mode==='late'&&!canUseLateWorkflowArea\(\)\)violationUiState\.mode='quick';/.test(code),
-    '5h. Guard khởi tạo view cũng dùng canUseLateWorkflowArea() (không còn admin-only)');
+    '5h. Guard khởi tạo view (fallback cho state/URL cũ mode=\'late\' của Manager) vẫn dùng canUseLateWorkflowArea() — sau Step 2A tự động fallback về \'quick\' cho MỌI non-Admin, kể cả Manager có record_scope, không cần code fallback mới');
 
   // buildLateWorkflowCtx(): capability/scope luôn đọc từ nguồn đã có (violationEligibleEmployees,
   // canRecordViolationNow, currentSessionEmployeeCode) - không tự phát minh scope/capability mới.
