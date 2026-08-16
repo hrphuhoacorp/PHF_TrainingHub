@@ -36,17 +36,21 @@ check('Có xin phép -> gợi ý 0 điểm', () => {
   assert.strictEqual(s.suggestedPoints, 0);
   assert.strictEqual(s.standardPoints, 6); // vẫn giữ điểm chuẩn tham khảo dù gợi ý áp dụng = 0
 });
-check('Không xin phép -> gợi ý trừ theo băng phút', () => {
+check('Có phiếu nhưng cấp trên Không duyệt -> gợi ý trừ theo băng REJECTED_BANDS (6/12/16/24, chốt 2026-08-16 — GẤP ĐÔI băng Không báo, không còn dùng chung băng 3/6/8/12)', () => {
   const shiftLead = [{ employeeCode: 'PHF002', occurredDate: '2026-08-10', managerDecision: 'rejected', createdAt: '2026-08-10T08:00:00Z' }];
-  const s = recon.computeSuggestion({ employeeCode: 'PHF002', occurredDate: '2026-08-10', minutesLate: 40 }, shiftLead);
+  const s = recon.computeSuggestion({ employeeCode: 'PHF002', occurredDate: '2026-08-10', shift: 'sáng', checkinTime: '08:40', minutesLate: 40 }, shiftLead);
   assert.strictEqual(s.managerDecision, 'rejected');
-  assert.strictEqual(s.suggestedPoints, 8);
+  assert.strictEqual(s.businessStatus, 'rejected');
+  assert.strictEqual(s.suggestedPoints, 16); // băng 31-45 phút của REJECTED_BANDS
+  assert.strictEqual(s.standardPoints, 8); // "Điểm chuẩn" tham khảo Không xin phép vẫn giữ nguyên (LATE_BANDS)
 });
-check('Không có ghi nhận Trưởng ca -> mặc định Không xin phép, nhãn rõ ràng', () => {
-  const s = recon.computeSuggestion({ employeeCode: 'PHF003', occurredDate: '2026-08-10', minutesLate: 10 }, []);
+check('Không có ghi nhận (Case A: không báo/không xin phép) -> mặc định dùng LATE_BANDS (3/6/8/12), nhãn KHÔNG được gọi nhầm thành "Không duyệt"', () => {
+  const s = recon.computeSuggestion({ employeeCode: 'PHF003', occurredDate: '2026-08-10', shift: 'sáng', checkinTime: '08:10', minutesLate: 10 }, []);
   assert.strictEqual(s.managerDecision, 'no_record');
+  assert.strictEqual(s.businessStatus, 'no_report');
   assert.strictEqual(s.suggestedPoints, 3);
   assert.ok(/không có ghi nhận/i.test(s.suggestionLabel));
+  assert.ok(!/không duyệt/i.test(s.suggestionLabel), 'Case A (không báo) không được gọi nhầm thành "Không duyệt" (Case B) — 2 business case khác nhau');
 });
 
 /* ================= Cảnh báo tần suất — THAM KHẢO, không bao giờ chặn/đổi điểm ================= */
@@ -231,8 +235,9 @@ check('2 người ghi nhận CÙNG kết quả (đều Không xin phép) -> gộ
   const s = recon.computeSuggestion(bccRow, managerRecords);
   assert.strictEqual(s.matchStatus, 'matched_agreed');
   assert.strictEqual(s.managerDecision, 'rejected');
-  // Đúng 1 kết quả điểm gợi ý (band 16-30 phút = 6đ) — KHÔNG bị nhân đôi vì có 2 người ghi nhận.
-  assert.strictEqual(s.suggestedPoints, 6);
+  // Đúng 1 kết quả điểm gợi ý (băng REJECTED_BANDS 16-30 phút = 12đ, chốt 2026-08-16) — KHÔNG bị
+  // nhân đôi vì có 2 người ghi nhận.
+  assert.strictEqual(s.suggestedPoints, 12);
   assert.strictEqual(s.recorders.length, 2, 'audit trail phải giữ đủ 2 người ghi nhận gốc, không chỉ mỗi kết quả gộp');
   assert.deepStrictEqual(s.recorders.map(r => r.recordedByName).sort(), ['Trưởng bộ phận B', 'Trưởng ca A']);
 });
@@ -266,7 +271,7 @@ check('isEligibleForBulkApprove: dòng conflict_needs_review KHÔNG BAO GIỜ đ
   assert.strictEqual(recon.isEligibleForBulkApprove(conflictSuggestion, null, null), false);
 });
 check('Chống double-deduction: 3 người ghi nhận cùng đồng ý "Không xin phép" cho CÙNG 1 sự kiện vẫn chỉ ra đúng 1 suggestedPoints (không cộng dồn theo số người ghi nhận)', () => {
-  const bccRow = { employeeCode: 'PHF023', occurredDate: '2026-08-17', shift: 'sáng', checkinTime: '08:00', minutesLate: 50 }; // band 12đ
+  const bccRow = { employeeCode: 'PHF023', occurredDate: '2026-08-17', shift: 'sáng', checkinTime: '08:00', minutesLate: 50 }; // băng REJECTED_BANDS 46+ phút = 24đ
   const managerRecords = [
     { employeeCode: 'PHF023', occurredDate: '2026-08-17', managerDecision: 'rejected', createdAt: '2026-08-17T08:05:00Z', createdByName: 'A' },
     { employeeCode: 'PHF023', occurredDate: '2026-08-17', managerDecision: 'rejected', createdAt: '2026-08-17T08:06:00Z', createdByName: 'B' },
@@ -274,7 +279,7 @@ check('Chống double-deduction: 3 người ghi nhận cùng đồng ý "Không 
   ];
   const s = recon.computeSuggestion(bccRow, managerRecords);
   assert.strictEqual(s.matchStatus, 'matched_agreed');
-  assert.strictEqual(s.suggestedPoints, 12, 'điểm gợi ý phải đúng 1 lần theo băng phút trễ, KHÔNG nhân theo số người ghi nhận (12 * 3 sẽ SAI)');
+  assert.strictEqual(s.suggestedPoints, 24, 'điểm gợi ý phải đúng 1 lần theo băng phút trễ, KHÔNG nhân theo số người ghi nhận (24 * 3 sẽ SAI)');
   assert.strictEqual(s.recorders.length, 3);
 });
 check('matchManagerRecords: chỉ khớp đúng nhân sự + đúng ngày, không lẫn ghi nhận của người/ngày khác', () => {
@@ -286,6 +291,100 @@ check('matchManagerRecords: chỉ khớp đúng nhân sự + đúng ngày, khôn
   ];
   const matched = recon.matchManagerRecords(bccRow, records);
   assert.strictEqual(matched.length, 1);
+});
+
+/* ================= Quota "4 lần Duyệt/nhân sự/tháng" (chốt 2026-08-16) ================= */
+function approvedRow(employeeCode, occurredDate, occurrenceNumber) {
+  const shiftLead = [{ employeeCode, occurredDate, managerDecision: 'approved', createdAt: occurredDate + 'T08:00:00Z' }];
+  return recon.computeSuggestion(
+    { employeeCode, occurredDate, shift: 'sáng', checkinTime: '08:10', minutesLate: 10 },
+    shiftLead,
+    { approvedOccurrenceNumber: occurrenceNumber }
+  );
+}
+check('Quota Duyệt: 4 lần đầu trong tháng đều miễn điểm (suggestedPoints=0), businessStatus=approved, không cảnh báo', () => {
+  [1, 2, 3, 4].forEach(n => {
+    const s = approvedRow('PHF030', '2026-08-1' + n, n);
+    assert.strictEqual(s.suggestedPoints, 0, 'lần thứ ' + n + ' phải miễn điểm');
+    assert.strictEqual(s.businessStatus, 'approved');
+    assert.strictEqual(s.approvedQuota.overQuota, false);
+    assert.strictEqual(s.approvedQuota.occurrenceNumber, n);
+  });
+});
+check('Quota Duyệt: lần thứ 5 trở đi trong CÙNG tháng -> approved_over_quota, suggestedPoints=null (KHÔNG tự đoán công thức điểm), KHÔNG được bulk-approve', () => {
+  const s5 = approvedRow('PHF031', '2026-08-20', 5);
+  assert.strictEqual(s5.businessStatus, 'approved_over_quota');
+  assert.strictEqual(s5.suggestedPoints, null);
+  assert.strictEqual(s5.approvedQuota.overQuota, true);
+  assert.ok(/vượt quá 4 lần/.test(s5.suggestionLabel));
+  assert.strictEqual(recon.isEligibleForBulkApprove(s5, null, null), false);
+
+  const s6 = approvedRow('PHF031', '2026-08-21', 6);
+  assert.strictEqual(s6.businessStatus, 'approved_over_quota');
+  assert.strictEqual(s6.approvedQuota.occurrenceNumber, 6);
+});
+check('Quota Duyệt: computeApprovedQuotaState() thuần — đúng ranh giới 4 (trong hạn mức) vs 5 (vượt)', () => {
+  assert.strictEqual(recon.computeApprovedQuotaState(4).overQuota, false);
+  assert.strictEqual(recon.computeApprovedQuotaState(5).overQuota, true);
+  assert.strictEqual(recon.computeApprovedQuotaState(1).overQuota, false);
+});
+check('Quota Duyệt: caller không truyền approvedOccurrenceNumber (test/caller cũ) -> mặc định coi là lần 1, KHÔNG vượt quota (không phá vỡ hành vi hiện hữu)', () => {
+  const shiftLead = [{ employeeCode: 'PHF032', occurredDate: '2026-08-10', managerDecision: 'approved', createdAt: '2026-08-10T08:00:00Z' }];
+  const s = recon.computeSuggestion({ employeeCode: 'PHF032', occurredDate: '2026-08-10', shift: 'sáng', checkinTime: '08:10', minutesLate: 10 }, shiftLead);
+  assert.strictEqual(s.suggestedPoints, 0);
+  assert.strictEqual(s.businessStatus, 'approved');
+});
+check('Ambiguous KHÔNG null hoá suggestedPoints (giữ nguyên hành vi cũ) — ambiguous chỉ đổi nhãn/chặn bulk-approve, không đổi số gợi ý theo managerDecision thật', () => {
+  const s = recon.computeSuggestion({ employeeCode: 'PHF033', occurredDate: '2026-08-10', minutesLate: 10 }, [
+    { employeeCode: 'PHF033', occurredDate: '2026-08-10', managerDecision: 'rejected', createdAt: '2026-08-10T08:00:00Z' }
+  ]);
+  assert.strictEqual(s.matchStatus, 'ambiguous_needs_review');
+  assert.strictEqual(s.businessStatus, 'ambiguous_needs_review');
+  assert.strictEqual(s.suggestedPoints, 6, 'ambiguous vẫn phải tính đúng REJECTED_BANDS(10 phút)=6, không null hoá');
+  assert.strictEqual(recon.isEligibleForBulkApprove(s, null, null), false, 'ambiguous vẫn không được bulk-approve dù có số gợi ý');
+});
+
+/* ================= evaluateApproveDecision — preflight validator thuần (2026-08-16) ================= */
+check('evaluateApproveDecision: dòng sạch (rejected) adminDecision hợp lệ -> ok=true, finalPoints đúng suggested_points', () => {
+  const importRow = { match_status: 'matched', manager_decision_suggested: 'rejected', standard_points: 3, suggested_points: 6, frequency_reference_snapshot: { businessStatus: 'rejected', standardRejectedPoints: 6 } };
+  const r = recon.evaluateApproveDecision(importRow, { adminDecision: 'apply_no_permission_points' });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.terminal, false);
+  assert.strictEqual(r.finalPoints, 6);
+});
+check('evaluateApproveDecision: adminDecision không hợp lệ -> ok=false, code CHECKLIST_LATE_RECON_DECISION_INVALID', () => {
+  const importRow = { match_status: 'matched', suggested_points: 6, frequency_reference_snapshot: {} };
+  const r = recon.evaluateApproveDecision(importRow, { adminDecision: 'not_a_real_decision' });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, 'CHECKLIST_LATE_RECON_DECISION_INVALID');
+});
+check('evaluateApproveDecision: adminDecision=not_applied -> ok=true, terminal=true (KHÔNG cần đủ điều kiện điểm/lý do như nhánh official)', () => {
+  const importRow = { match_status: 'matched', suggested_points: 6, frequency_reference_snapshot: {} };
+  const r = recon.evaluateApproveDecision(importRow, { adminDecision: 'not_applied' });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.terminal, true);
+});
+check('evaluateApproveDecision: adminDecision=hold_for_review -> ok=true, terminal=true', () => {
+  const importRow = { match_status: 'matched', suggested_points: 6, frequency_reference_snapshot: {} };
+  const r = recon.evaluateApproveDecision(importRow, { adminDecision: 'hold_for_review' });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.terminal, true);
+});
+check('evaluateApproveDecision: conflict thiếu reason -> ok=false CHECKLIST_LATE_RECON_CONFLICT_REASON_REQUIRED; over-quota thiếu appliedPoints -> ok=false CHECKLIST_LATE_RECON_QUOTA_POINTS_REQUIRED', () => {
+  const conflictRow = { match_status: 'conflict_needs_review', suggested_points: 0, frequency_reference_snapshot: { businessStatus: 'conflict_needs_review' } };
+  const r1 = recon.evaluateApproveDecision(conflictRow, { adminDecision: 'apply_no_permission_points' });
+  assert.strictEqual(r1.ok, false);
+  assert.strictEqual(r1.code, 'CHECKLIST_LATE_RECON_CONFLICT_REASON_REQUIRED');
+  const quotaRow = { match_status: 'matched', suggested_points: 0, frequency_reference_snapshot: { businessStatus: 'approved_over_quota' } };
+  const r2 = recon.evaluateApproveDecision(quotaRow, { adminDecision: 'apply_no_permission_points', reason: 'lý do đủ 5 ký tự' });
+  assert.strictEqual(r2.ok, false);
+  assert.strictEqual(r2.code, 'CHECKLIST_LATE_RECON_QUOTA_POINTS_REQUIRED');
+});
+check('evaluateApproveDecision: finalPoints ngoài khoảng 0-100 -> ok=false CHECKLIST_LATE_RECON_POINTS_INVALID', () => {
+  const importRow = { match_status: 'matched', manager_decision_suggested: 'rejected', suggested_points: 6, frequency_reference_snapshot: { businessStatus: 'rejected' } };
+  const r = recon.evaluateApproveDecision(importRow, { adminDecision: 'apply_no_permission_points', appliedPoints: 500, reason: 'lý do đủ 5 ký tự' });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, 'CHECKLIST_LATE_RECON_POINTS_INVALID');
 });
 
 console.log('\n' + passCount + ' bài kiểm tra Workstream B (Đi trễ BCC/ghi nhận từ bộ phận/Admin) đều PASS.');

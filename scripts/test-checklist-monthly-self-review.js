@@ -83,6 +83,7 @@ class FakeQuery {
   insert(payload) { this._operation = 'insert'; this._payload = clone(payload); return this; }
   eq(col, val) { this.filters.push(row => String(row[col]) === String(val)); return this; }
   neq(col, val) { this.filters.push(row => String(row[col]) !== String(val)); return this; }
+  is(col, val) { this.filters.push(row => val === null ? (row[col] == null) : row[col] === val); return this; }
   in(col, vals) { this.filters.push(row => vals.includes(row[col])); return this; }
   gte(col, val) { this.filters.push(row => String(row[col]) >= String(val)); return this; }
   lte(col, val) { this.filters.push(row => String(row[col]) <= String(val)); return this; }

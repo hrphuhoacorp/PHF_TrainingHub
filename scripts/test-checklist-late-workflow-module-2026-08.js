@@ -190,24 +190,26 @@ const PEOPLE = [
     check(!!mount.querySelector('[data-phfck-latewf-recon-table-card]'), '4d. Vào thẳng bảng đối soát để xem lại (phase-1: chỉ để xem, không phê duyệt)');
     check(!calls.some(c => c.action === 'approveChecklistLateEvents'), '4e. Vẫn CHƯA gọi approve tới khi người dùng thao tác (không có nút Phê duyệt trong phase-1)');
 
-    // FINAL UI GATE (2026-08-15): phase-1 KHÔNG expose Phê duyệt/officialize/adjustment/scoring
-    // input cho Admin — LATE_APPROVAL_UI_ENABLED=false ở module ẩn hẳn các phần tử này khỏi DOM
-    // (không chỉ disable). Logic approve/backend guard tương lai được test riêng ở
-    // scripts/test-checklist-late-approval-backend-guard-2026-08.js (guard) và
+    // LOCAL ACTIVATION (2026-08-16): LATE_APPROVAL_UI_ENABLED=true ở LOCAL — module hiện hiển thị
+    // Phê duyệt/officialize/adjustment/scoring input cho Admin (trước đây phase-1 ẩn hẳn khỏi DOM).
+    // Logic approve/backend guard/business logic vẫn test riêng ở
+    // scripts/test-checklist-late-approval-backend-guard-2026-08.js (guard),
+    // scripts/test-checklist-late-approval-activation-2026-08.js (runtime approve thật, mock DB) và
     // scripts/test-checklist-late-workstream-b-round2-2026-08.js (approveLateEvents business logic).
-    check(!mount.querySelector('[data-phfck-latewf-applied-points="row-1"]'), '4f. Phase-1: KHÔNG có input "Điểm áp dụng" (scoring input không dùng trong phase-1)');
-    check(!mount.querySelector('[data-phfck-latewf-row-reason="row-1"]'), '4g. Phase-1: KHÔNG có input "Lý do" gắn với approve');
-    check(!mount.querySelector('[data-phfck-latewf-approve-one="row-1"]'), '4h. Phase-1: KHÔNG có nút "Duyệt dòng này"');
-    check(!mount.querySelector('[data-phfck-latewf-row-check="row-1"]'), '4i. Phase-1: KHÔNG có checkbox chọn dòng (chỉ dùng cho bulk-approve, cũng đã ẩn)');
+    check(!!mount.querySelector('[data-phfck-latewf-applied-points="row-1"]'), '4f. LOCAL ACTIVATION: CÓ input "Điểm áp dụng"');
+    check(!!mount.querySelector('[data-phfck-latewf-row-reason="row-1"]'), '4g. LOCAL ACTIVATION: CÓ input "Lý do" gắn với approve');
+    check(!!mount.querySelector('[data-phfck-latewf-approve-one="row-1"]'), '4h. LOCAL ACTIVATION: CÓ nút "Duyệt dòng này"');
+    check(!!mount.querySelector('[data-phfck-latewf-row-check="row-1"]'), '4i. LOCAL ACTIVATION: CÓ checkbox chọn dòng (dùng cho bulk-approve)');
     check(mount.textContent.includes('3 điểm'), '4j. Điểm gợi ý (thông tin, không phải input) vẫn hiển thị đúng từ suggested_points server trả');
     window.PhfChecklistLateWorkflow.unmount();
   }
 
   // =========================================================================
-  // 5. Phase-1: override điểm/lý do (manual override) không còn đường vào UI — form/input
-  //    tương ứng không tồn tại trong DOM nên không thể submit. Logic override/reason-required
-  //    của approveLateEvents() vẫn được kiểm chứng ở tầng service (không qua UI), xem
-  //    scripts/test-checklist-late-workstream-b-round2-2026-08.js.
+  // 5. LOCAL ACTIVATION (2026-08-16): override điểm/lý do (manual override) CÓ đường vào UI —
+  //    form/input tương ứng tồn tại trong DOM. Logic override/reason-required của
+  //    approveLateEvents() vẫn được kiểm chứng độc lập ở tầng service, xem
+  //    scripts/test-checklist-late-workstream-b-round2-2026-08.js và
+  //    scripts/test-checklist-late-approval-activation-2026-08.js.
   // =========================================================================
   {
     const calls = [];
@@ -228,9 +230,9 @@ const PEOPLE = [
     click(window, mount.querySelector('[data-phfck-latewf-start-reconcile]'));
     await tick(50);
 
-    check(!mount.querySelector('[data-phfck-latewf-applied-points="row-1"]'), '5a. Phase-1: không có input điểm áp dụng để override');
-    check(!mount.querySelector('[data-phfck-latewf-row-reason="row-1"]'), '5b. Phase-1: không có input lý do gắn với approve');
-    check(!calls.some(c => c.action === 'approveChecklistLateEvents'), '5c. Không có đường nào trong UI gọi được approveChecklistLateEvents ở phase-1');
+    check(!!mount.querySelector('[data-phfck-latewf-applied-points="row-1"]'), '5a. LOCAL ACTIVATION: CÓ input điểm áp dụng để override');
+    check(!!mount.querySelector('[data-phfck-latewf-row-reason="row-1"]'), '5b. LOCAL ACTIVATION: CÓ input lý do gắn với approve');
+    check(!calls.some(c => c.action === 'approveChecklistLateEvents'), '5c. Chưa CLICK approve nên vẫn chưa gọi approveChecklistLateEvents (chỉ mount xong, chưa thao tác)');
     window.PhfChecklistLateWorkflow.unmount();
   }
 
@@ -309,10 +311,11 @@ const PEOPLE = [
   }
 
   // =========================================================================
-  // 7. Phase-1: bulk-approve không còn đường vào UI (checkbox chọn dòng + nút "Phê duyệt &
-  //    ghi nhận" đều đã ẩn khỏi bảng đối soát). Bảng chỉ dùng để XEM 4 nhãn nghiệp vụ. Logic
-  //    preselect dòng sạch/bulk revalidation của approveLateEvents() vẫn được kiểm chứng ở
-  //    tầng service, xem scripts/test-checklist-late-workstream-b-round2-2026-08.js.
+  // 7. LOCAL ACTIVATION (2026-08-16): bulk-approve CÓ đường vào UI (checkbox chọn dòng + nút
+  //    "Phê duyệt & ghi nhận" hiển thị trong bảng đối soát). Logic preselect dòng sạch/bulk
+  //    revalidation của approveLateEvents() vẫn được kiểm chứng độc lập ở tầng service, xem
+  //    scripts/test-checklist-late-workstream-b-round2-2026-08.js và
+  //    scripts/test-checklist-late-approval-activation-2026-08.js.
   // =========================================================================
   const ROW_CLEAN = Object.assign({}, IMPORT_ROW_CLEAN, { id: 'row-a' });
   const ROW_FREQ_WARN = Object.assign({}, IMPORT_ROW_CLEAN, { id: 'row-b', frequency_reference_snapshot: { overThreshold: true, message: 'Cảnh báo tham chiếu' } });
@@ -336,12 +339,12 @@ const PEOPLE = [
     click(window, mount.querySelector('[data-phfck-latewf-start-reconcile]'));
     await tick(50);
 
-    check(!mount.querySelector('[data-phfck-latewf-row-check="row-a"]'), '7a. Phase-1: không có checkbox chọn dòng cho row-a');
-    check(!mount.querySelector('[data-phfck-latewf-row-check="row-b"]'), '7b. Phase-1: không có checkbox chọn dòng cho row-b');
-    check(!mount.querySelector('[data-phfck-latewf-row-check="row-c"]'), '7c. Phase-1: không có checkbox chọn dòng cho row-c');
-    check(!mount.querySelector('[data-phfck-latewf-bulk-approve]'), '7d. Phase-1: không có nút "Phê duyệt & ghi nhận (đã chọn)"');
-    check(!mount.querySelector('[data-phfck-latewf-select-clean]'), '7e. Phase-1: không có nút "Chọn dòng sạch"');
-    check(!calls.some(c => c.action === 'approveChecklistLateEvents'), '7f. Không có đường nào trong UI gọi được approveChecklistLateEvents ở phase-1');
+    check(!!mount.querySelector('[data-phfck-latewf-row-check="row-a"]'), '7a. LOCAL ACTIVATION: CÓ checkbox chọn dòng cho row-a');
+    check(!!mount.querySelector('[data-phfck-latewf-row-check="row-b"]'), '7b. LOCAL ACTIVATION: CÓ checkbox chọn dòng cho row-b');
+    check(!!mount.querySelector('[data-phfck-latewf-row-check="row-c"]'), '7c. LOCAL ACTIVATION: CÓ checkbox chọn dòng cho row-c');
+    check(!!mount.querySelector('[data-phfck-latewf-bulk-approve]'), '7d. LOCAL ACTIVATION: CÓ nút "Phê duyệt & ghi nhận (đã chọn)"');
+    check(!!mount.querySelector('[data-phfck-latewf-select-clean]'), '7e. LOCAL ACTIVATION: CÓ nút chọn tất cả dòng đủ điều kiện');
+    check(!calls.some(c => c.action === 'approveChecklistLateEvents'), '7f. Chưa CLICK approve nên vẫn chưa gọi approveChecklistLateEvents (chỉ mount xong, chưa thao tác)');
     window.PhfChecklistLateWorkflow.unmount();
   }
 

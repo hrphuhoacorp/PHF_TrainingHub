@@ -113,7 +113,10 @@ check('Service: 4 field scoring còn lại (standard_points/suggested_points/adm
   assert.ok(/suggested_points:\s*r\.suggestedPoints/.test(SERVICE_SRC), 'createBccImport phải còn ghi suggested_points');
   assert.ok(/Number\(importRow\.suggested_points\)/.test(SERVICE_SRC), 'approveLateEvents phải còn đọc lại suggested_points để tính finalPoints');
   assert.ok(/admin_applied_points:\s*finalPoints/.test(SERVICE_SRC), 'approveLateEvents phải còn ghi admin_applied_points');
-  assert.ok(/frequency_reference_snapshot:\s*r\.frequencyWarning/.test(SERVICE_SRC), 'createBccImport phải còn ghi frequency_reference_snapshot');
+  // 2026-08-16: frequency_reference_snapshot mở rộng thành object spread (...r.frequencyWarning +
+  // businessStatus/approvedQuota/standardRejectedPoints, xem quota "4 lần Duyệt/tháng") thay vì
+  // gán thẳng r.frequencyWarning — vẫn PHẢI còn dùng r.frequencyWarning làm nguồn dữ liệu gốc.
+  assert.ok(/frequency_reference_snapshot:\s*\{[\s\S]{0,80}\.\.\.\(r\.frequencyWarning/.test(SERVICE_SRC), 'createBccImport phải còn ghi frequency_reference_snapshot từ r.frequencyWarning');
   assert.ok(/importRow\.frequency_reference_snapshot/.test(SERVICE_SRC), 'isEligibleForBulkApprove phải còn đọc frequency_reference_snapshot');
 });
 
@@ -208,7 +211,10 @@ check('businessStatusLabel() (UI) sinh ĐÚNG 4 nhãn nghiệp vụ cho đủ c�
   const cases = [
     [{ match_status: 'ambiguous_needs_review' }, 'Cần kiểm tra'],
     [{ match_status: 'conflict_needs_review' }, 'Cần kiểm tra'],
-    [{ match_status: 'unmatched_default_no_permission' }, 'Chưa ghi nhận'],
+    // 2026-08-16: đổi nhãn "Chưa ghi nhận" -> "Không có ghi nhận / Không báo" (Case A, chốt
+    // nghiệp vụ đợt hoàn thiện end-to-end) — rõ ràng hơn, KHÔNG được lẫn với "Không duyệt"
+    // (Case B, có phiếu nhưng cấp trên không duyệt — 2 business case dùng 2 băng điểm khác nhau).
+    [{ match_status: 'unmatched_default_no_permission' }, 'Không có ghi nhận / Không báo'],
     [{ match_status: 'matched', manager_decision_suggested: 'approved' }, 'Duyệt'],
     [{ match_status: 'matched', manager_decision_suggested: 'rejected' }, 'Không duyệt'],
     [{ match_status: 'matched_agreed', manager_decision_suggested: 'approved' }, 'Duyệt'],
@@ -220,8 +226,8 @@ check('businessStatusLabel() (UI) sinh ĐÚNG 4 nhãn nghiệp vụ cho đủ c�
     assert.strictEqual(got, expected, 'row ' + JSON.stringify(row) + ' phải ra nhãn "' + expected + '", thực tế "' + got + '"');
     seenLabels.add(got);
   });
-  assert.deepStrictEqual([...seenLabels].sort(), ['Chưa ghi nhận', 'Cần kiểm tra', 'Duyệt', 'Không duyệt'].sort(),
-    'toàn bộ các case chỉ được sinh ra ĐÚNG 4 nhãn nghiệp vụ, không thừa/thiếu nhãn nào');
+  assert.deepStrictEqual([...seenLabels].sort(), ['Không có ghi nhận / Không báo', 'Cần kiểm tra', 'Duyệt', 'Không duyệt'].sort(),
+    'toàn bộ các case chỉ được sinh ra ĐÚNG 4 nhãn nghiệp vụ, không thừa/thiếu nhãn nào (case "Duyệt — vượt quota" chỉ xuất hiện khi có frequency_reference_snapshot.approvedQuota thật — không nằm trong 4 case cơ bản này)');
 });
 check('UI đối soát Admin: không còn rò rỉ text kỹ thuật match_status thô (vd "matched_agreed", "conflict_needs_review") làm NHÃN HIỂN THỊ trong hàm render bảng chính — chỉ businessStatusLabel() (đã gộp 4 nhãn) được dùng ở cột trạng thái', () => {
   const rowFnSrc = extractFn(UI_SRC, 'reconciliationRowHtml');

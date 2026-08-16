@@ -17,6 +17,7 @@ const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibr
 const {
   recordManagerLateObservation,
   listManagerLateObservations,
+  listAdminLateManagerObservations: listAdminChecklistLateManagerObservations,
   recordShiftLeadLateObservation,
   listShiftLeadLateObservations,
   previewBccUpload: previewChecklistLateBccUpload,
@@ -736,6 +737,13 @@ const server = http.createServer(async (req, res) => {
         }
         if (payload && payload.action === 'listChecklistLateShiftLeadObservations') {
           return sendJson(res, 200, {ok:true,...await listShiftLeadLateObservations(session, payload.input || {})});
+        }
+        /* Admin-only THẬT (requireAdmin trong service, không chỉ gate ở route) — xem
+           lib/checklist-late-reconciliation-service.js#listAdminLateManagerObservations. Trợ lý
+           (view_scope=all_company) KHÔNG được dùng action này dù capability 'view' trùng phạm vi
+           — Trợ lý có action riêng listChecklistLateManagerObservations ở trên. */
+        if (payload && payload.action === 'listAdminChecklistLateManagerObservations') {
+          return sendJson(res, 200, {ok:true,...await listAdminChecklistLateManagerObservations(session, payload.input || {})});
         }
         if (payload && payload.action === 'previewChecklistLateBccUpload') {
           return sendJson(res, 200, {ok:true,...await previewChecklistLateBccUpload(session, payload.rows || [], payload.source)});

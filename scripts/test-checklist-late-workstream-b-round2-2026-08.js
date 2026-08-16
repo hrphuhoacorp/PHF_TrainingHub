@@ -17,6 +17,7 @@ function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + lab
 
 const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
 const SERVER_SRC = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
 
 /* ================= Gap 1: Excel 13 cột thật — nhận diện cột + validate dòng ================= */
 check('EXCEL_COLUMNS đúng 13 cột, đúng thứ tự theo spec PHF_MAU_GHI_NHAN_LOI_LATE_2026-08-14.xlsx', () => {
@@ -290,15 +291,24 @@ check('createBccImport: lưu recorders_snapshot (audit trail từng người ghi
   assert.ok(/recorders_snapshot/.test(fnSrc));
 });
 check('approveLateEvents: dòng Cần đối chiếu (conflict_needs_review) BẮT BUỘC có lý do (>=5 ký tự) VÀ Admin phải tự chọn resolvedManagerDecision rõ ràng — KHÔNG tự suy diễn theo thời điểm gần nhất/theo "cấp bậc" nào (grep-guard không có logic sort theo createdAt/role để chọn thắng-thua)', () => {
+  // 2026-08-16 (preflight refactor, residual bulk partial-write): validate logic (bao gồm 2 mã
+  // lỗi này) đã tách sang recon.evaluateApproveDecision() (lib/checklist-late-reconciliation.js)
+  // — dùng CHUNG cho cả preflight lẫn write, tránh 2 chỗ tính khác nhau. approveLateEvents ở
+  // service giờ CHỈ gọi lại recon.evaluateApproveDecision(), không còn validate inline nữa.
+  const evalFn = RECON_SRC.slice(RECON_SRC.indexOf('function evaluateApproveDecision'), RECON_SRC.indexOf('/* ============================================================================\n * 7)'));
+  assert.ok(/CHECKLIST_LATE_RECON_CONFLICT_REASON_REQUIRED/.test(evalFn));
+  assert.ok(/CHECKLIST_LATE_RECON_CONFLICT_RESOLUTION_REQUIRED/.test(evalFn));
+  assert.ok(!/\.sort\(/.test(evalFn), 'evaluateApproveDecision không được tự sắp xếp/chọn theo thời điểm để giải quyết mâu thuẫn — luôn cần Admin xác nhận tường minh');
+  assert.ok(/decision\.resolvedManagerDecision/.test(evalFn), 'evaluateApproveDecision vẫn phải đọc decision.resolvedManagerDecision');
   const approveFn = SERVICE_SRC.slice(SERVICE_SRC.indexOf('async function approveLateEvents'), SERVICE_SRC.indexOf('function cryptoRandomUuid'));
-  assert.ok(/CHECKLIST_LATE_RECON_CONFLICT_REASON_REQUIRED/.test(approveFn));
-  assert.ok(/CHECKLIST_LATE_RECON_CONFLICT_RESOLUTION_REQUIRED/.test(approveFn));
-  assert.ok(/decision\.resolvedManagerDecision/.test(approveFn));
-  assert.ok(!/\.sort\(/.test(approveFn), 'approveLateEvents không được tự sắp xếp/chọn theo thời điểm để giải quyết mâu thuẫn — luôn cần Admin xác nhận tường minh');
+  assert.ok(/recon\.evaluateApproveDecision\(/.test(approveFn), 'approveLateEvents phải gọi recon.evaluateApproveDecision() thay vì validate inline');
+  assert.ok(!/\.sort\(/.test(approveFn), 'approveLateEvents không được tự sắp xếp/chọn theo thời điểm để giải quyết mâu thuẫn');
 });
 check('approveLateEvents: bulk===true trên dòng conflict_needs_review vẫn bị chặn qua isEligibleForBulkApprove() (đã grep-guard ở test khác) — ở đây xác nhận thêm việc dòng conflict dùng effectiveSuggestedPoints tính lại theo resolvedManagerDecision, không dùng thẳng suggested_points placeholder (=0) đã lưu lúc preview', () => {
-  const approveFn = SERVICE_SRC.slice(SERVICE_SRC.indexOf('async function approveLateEvents'), SERVICE_SRC.indexOf('function cryptoRandomUuid'));
-  assert.ok(/effectiveSuggestedPoints/.test(approveFn));
+  // 2026-08-16: effectiveSuggestedPoints giờ được tính trong recon.evaluateApproveDecision()
+  // (lib/checklist-late-reconciliation.js), không còn inline trong service.
+  const evalFn = RECON_SRC.slice(RECON_SRC.indexOf('function evaluateApproveDecision'), RECON_SRC.indexOf('/* ============================================================================\n * 7)'));
+  assert.ok(/effectiveSuggestedPoints/.test(evalFn));
 });
 
 /* ================= Export — nhãn cột/sheet TỔNG QUÁT, không gắn tên vai trò cụ thể ================= */

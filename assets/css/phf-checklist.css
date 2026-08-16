@@ -1773,6 +1773,15 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-checklist-breakdown-body article>strong{flex:none;color:#b14e40;font-size:11.5px}
 .phfck-checklist-rule{margin:9px 0 0;color:#667d74;font-size:9.8px;line-height:1.45}
 .phfck-checklist-no-error{padding:8px 1px;color:#38705b;font-size:10px}
+/* phfck-checklist-breakdown-pending: "-1 điểm tạm tính" (2026-08-16) — cùng khuôn <article> với
+   lỗi chính thức nhưng tông màu vàng cảnh báo để phân biệt rõ đây CHƯA phải điểm chính thức. */
+.phfck-checklist-breakdown-pending{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:9px 2px;border-bottom:1px solid #e8efeb;background:#fffaf0}
+.phfck-checklist-breakdown-pending div{min-width:0}
+.phfck-checklist-breakdown-pending small{display:block;color:#8a7a3f;font-size:9px}
+.phfck-checklist-breakdown-pending b{display:block;margin-top:3px;color:#7f6000;font-size:10.8px}
+.phfck-checklist-breakdown-pending p{margin:3px 0 0;color:#8a7a3f;font-size:9.8px;line-height:1.4}
+.phfck-checklist-breakdown-pending>strong{flex:none;color:#7f6000;font-size:11.5px}
+.phfck-checklist-breakdown-pending>strong small{display:inline;color:#8a7a3f;font-size:8px;font-weight:600}
 .phfck-self-row.is-automatic{background:#f8fcf9}
 .phfck-auto-score{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:38px;border:1px solid #c8e1d4;border-radius:9px;background:#eaf6ee;padding:0 8px}
 .phfck-auto-score b{color:#176046;font-size:11.5px}
@@ -4927,3 +4936,125 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-score-detail-modal{max-width:640px}
 @media(max-width:1050px){.phfck-score-period-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.phfck-score-toolbar{grid-template-columns:1fr}.phfck-score-period-note{flex-wrap:wrap}}
+/* ============================================================================
+ * Workstream B (vòng cuối) — module Đi trễ mới: assets/js/checklist/
+ * phf-checklist-late-workflow.js. Toàn bộ selector bên dưới đều tiền tố
+ * .phfck-latewf- để tách biệt khỏi CSS hiện có, không đổi bất kỳ class nào
+ * đã dùng cho công cụ thủ công cũ (.phfck-late-*). Dùng lại đúng biến màu/
+ * spacing/font đã khai báo ở đầu file (--phfck-green/--phfck-line/--phfck-muted...).
+ * ============================================================================ */
+.phfck-latewf-shell .phfck-panel-head{margin-bottom:12px}
+.phfck-latewf-innertabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--phfck-line);flex-wrap:wrap}
+.phfck-latewf-innertabs button{border:none;background:none;padding:10px 14px;font:600 13px/1.3 "Segoe UI",Arial,sans-serif;color:var(--phfck-muted);cursor:pointer;border-bottom:2px solid transparent}
+.phfck-latewf-innertabs button.active{color:var(--phfck-green);border-bottom-color:var(--phfck-green)}
+.phfck-latewf-boot{padding:24px;text-align:center;color:var(--phfck-muted);font-size:13px}
+.phfck-latewf-mount{min-height:60px}
+.phfck-latewf-toast-host{position:relative;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.phfck-latewf-toast{border-radius:10px;padding:10px 14px;font-size:12.5px;border:1px solid var(--phfck-line);background:#fff;box-shadow:var(--phfck-shadow)}
+.phfck-latewf-toast b{display:block;margin-bottom:2px;color:var(--phfck-ink)}
+.phfck-latewf-toast.is-success{border-color:#7fb29b;background:#f1faf5}
+.phfck-latewf-toast.is-error{border-color:#e3a3a3;background:#fdf3f3}
+.phfck-latewf-toast.is-warning{border-color:#e9c77e;background:#fffaf0}
+
+.phfck-latewf-record-form{display:grid;gap:12px;max-width:560px}
+.phfck-latewf-record-form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--phfck-muted);font-weight:600}
+.phfck-latewf-record-form input,.phfck-latewf-record-form select,.phfck-latewf-record-form textarea{border:1px solid var(--phfck-line);border-radius:10px;padding:9px 11px;font:400 13.5px/1.4 "Segoe UI",Arial,sans-serif;color:var(--phfck-ink)}
+.phfck-latewf-permission-field{border:1px solid var(--phfck-line);border-radius:10px;padding:10px 12px;display:flex;gap:16px;flex-wrap:wrap}
+.phfck-latewf-permission-field legend{font-weight:700;color:var(--phfck-ink);padding:0 4px;font-size:12.5px}
+.phfck-latewf-radio{flex-direction:row!important;align-items:center;gap:6px!important;font-weight:500!important}
+.phfck-latewf-field-error{color:#9c2b2b;font-size:12px;font-weight:600}
+.phfck-latewf-field-ok{color:var(--phfck-green);font-size:12px;font-weight:600}
+.phfck-latewf-form-actions{display:flex;gap:10px;flex-wrap:wrap}
+.phfck-latewf-record-list{margin-top:22px}
+.phfck-latewf-record-list h4{margin:0 0 10px;font-size:13px;color:var(--phfck-ink)}
+.phfck-latewf-record-table{border:1px solid var(--phfck-line);border-radius:12px;overflow:hidden}
+.phfck-latewf-record-row{display:grid;grid-template-columns:1.4fr 1fr .9fr 1.6fr 1fr;gap:8px;padding:9px 12px;font-size:12.5px;border-top:1px solid var(--phfck-line)}
+.phfck-latewf-record-row:first-child{border-top:none}
+.phfck-latewf-record-head{background:var(--phfck-green-soft);font-weight:700;color:var(--phfck-ink)}
+.phfck-latewf-empty,.phfck-latewf-loading{padding:16px;color:var(--phfck-muted);font-size:12.5px}
+.phfck-latewf-error-box{border:1px solid #e3a3a3;background:#fdf3f3;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#7a2323}
+.phfck-latewf-error-box b{display:block;margin-bottom:4px}
+.phfck-latewf-note{font-size:11.5px;color:var(--phfck-muted);margin:8px 0 0}
+
+.phfck-latewf-steps{display:flex;gap:10px;list-style:none;margin:0 0 18px;padding:0;flex-wrap:wrap}
+.phfck-latewf-steps li{display:flex;align-items:center;gap:6px;border:1px solid var(--phfck-line);border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--phfck-muted)}
+.phfck-latewf-steps li span{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--phfck-line);font-size:10px}
+.phfck-latewf-steps li.is-active{border-color:var(--phfck-green);color:var(--phfck-green)}
+.phfck-latewf-steps li.is-active span{background:var(--phfck-green);color:#fff}
+.phfck-latewf-steps li.is-done span{background:#7fb29b;color:#fff}
+
+.phfck-latewf-card{border:1px solid var(--phfck-line);border-radius:14px;padding:16px;margin-bottom:16px;background:#fff}
+.phfck-latewf-upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.phfck-latewf-filename{font-size:12px;color:var(--phfck-muted)}
+.phfck-latewf-column-report{display:grid;gap:8px;margin:10px 0}
+.phfck-latewf-column-report div{border-radius:8px;padding:8px 10px;font-size:12px;background:var(--phfck-green-soft)}
+.phfck-latewf-column-report div.is-warn{background:#fffaf0;color:#7f6000}
+.phfck-latewf-column-report div.is-info{background:#eef4fb;color:#2c4c7a}
+.phfck-latewf-preview-summary{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:12px;font-weight:600;color:var(--phfck-ink)}
+.phfck-latewf-preview-summary span{border:1px solid var(--phfck-line);border-radius:999px;padding:4px 10px}
+.phfck-latewf-invalid-rows{margin:10px 0;font-size:12px;color:#7a2323}
+.phfck-latewf-invalid-rows ul{margin:6px 0 0;padding-left:18px}
+.phfck-latewf-band-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px}
+.phfck-latewf-band-table th,.phfck-latewf-band-table td{border:1px solid var(--phfck-line);padding:7px 10px;text-align:left}
+.phfck-latewf-band-table thead{background:var(--phfck-green-soft)}
+.phfck-latewf-band-table tr.is-exempt td{color:var(--phfck-green);font-weight:600}
+
+.phfck-latewf-bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
+.phfck-latewf-review-summary{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:12px;color:var(--phfck-muted)}
+.phfck-latewf-review-summary span{border:1px solid var(--phfck-line);border-radius:999px;padding:4px 10px}
+.phfck-latewf-review-summary span b{color:var(--phfck-ink)}
+.phfck-latewf-review-summary span.is-warn{border-color:#e9c77e;background:#fffaf0;color:#7f6000}
+.phfck-latewf-review-summary span.is-warn b{color:#7f6000}
+.phfck-latewf-review-summary span.is-danger{border-color:#e3a3a3;background:#fdf3f3;color:#7a2323}
+.phfck-latewf-review-summary span.is-danger b{color:#7a2323}
+.phfck-latewf-table-scroll{overflow-x:auto;border:1px solid var(--phfck-line);border-radius:12px}
+.phfck-latewf-recon-table{border-collapse:collapse;width:100%;min-width:1180px;font-size:12px}
+.phfck-latewf-recon-table th,.phfck-latewf-recon-table td{border-bottom:1px solid var(--phfck-line);padding:8px 10px;text-align:left;vertical-align:top}
+.phfck-latewf-recon-table thead{background:var(--phfck-green-soft);position:sticky;top:0}
+.phfck-latewf-recon-table input[type="number"],.phfck-latewf-recon-table input[type="text"]{width:100%;min-width:90px;border:1px solid var(--phfck-line);border-radius:8px;padding:5px 7px;font-size:12px}
+.phfck-latewf-row-note{color:#7a2323;font-size:11px;margin-top:3px}
+.phfck-latewf-freqwarn{display:inline-block;border:1px solid #e9c77e;background:#fffaf0;color:#7f6000;border-radius:999px;padding:2px 8px;font-size:11px;cursor:help}
+.phfck-latewf-freqwarn.is-quota-over{border-color:#e3a3a3;background:#fdf3f3;color:#7a2323;font-weight:700}
+.phfck-latewf-recon-table tr.is-conflict{background:#fff3f1}
+/* phfck-latewf-obs-table: bảng "Kiểm tra ghi nhận cấp trên" — chỉ 7 cột đơn giản, KHÔNG cần
+   min-width 1180px như bảng đối soát 15 cột (gây kéo ngang không cần thiết trên desktop). */
+.phfck-latewf-obs-table{min-width:760px}
+.phfck-latewf-obs-note-cell{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help}
+@media(max-width:640px){.phfck-latewf-obs-note-cell{max-width:140px}}
+.phfck-latewf-conflict-recorders{display:flex;flex-direction:column;gap:2px;font-size:11px}
+.phfck-latewf-conflict-recorders div{white-space:normal}
+.phfck-latewf-cards-mobile{display:none}
+.phfck-latewf-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700;border:1px solid var(--phfck-line)}
+.phfck-latewf-badge i{font-style:normal}
+.phfck-latewf-badge.is-neutral{color:var(--phfck-muted);background:var(--phfck-bg)}
+.phfck-latewf-badge.is-ok{color:var(--phfck-green);background:var(--phfck-green-soft);border-color:#7fb29b}
+.phfck-latewf-badge.is-warn{color:#7f6000;background:#fffaf0;border-color:#e9c77e}
+.phfck-latewf-badge.is-off{color:#8a9a94;background:#f2f5f3}
+.phfck-latewf-badge.is-error{color:#7a2323;background:#fdf3f3;border-color:#e3a3a3}
+
+.phfck-latewf-export-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.phfck-latewf-export-filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--phfck-muted);font-weight:600}
+.phfck-latewf-export-filters input{border:1px solid var(--phfck-line);border-radius:8px;padding:7px 9px;font-size:12.5px}
+
+.phfck-latewf-modal-layer{position:fixed;inset:0;z-index:100400;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,34,27,.45)}
+.phfck-latewf-modal{width:min(560px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:var(--phfck-shadow)}
+.phfck-latewf-modal-lg{width:min(820px,100%)}
+.phfck-latewf-conflict-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.phfck-latewf-conflict-summary div{border:1px solid var(--phfck-line);border-radius:10px;padding:10px;text-align:center}
+.phfck-latewf-conflict-summary small{display:block;color:var(--phfck-muted);font-size:10.5px}
+.phfck-latewf-conflict-summary b{font-size:18px;color:var(--phfck-ink)}
+.phfck-latewf-diff-table{width:100%;border-collapse:collapse;font-size:12px}
+.phfck-latewf-diff-table th,.phfck-latewf-diff-table td{border-bottom:1px solid var(--phfck-line);padding:8px;text-align:left}
+.phfck-latewf-diff-table label{margin-right:10px;font-size:12px}
+
+@media(max-width:860px){
+  .phfck-latewf-record-row{grid-template-columns:1fr}
+  .phfck-latewf-conflict-summary{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .phfck-latewf-table-scroll{display:none}
+  .phfck-latewf-cards-mobile{display:grid;gap:10px}
+  .phfck-latewf-recon-card{border:1px solid var(--phfck-line);border-radius:12px;padding:10px 12px}
+  .phfck-latewf-recon-card header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .phfck-latewf-recon-card p{margin:0;font-size:12px;color:var(--phfck-muted)}
+}

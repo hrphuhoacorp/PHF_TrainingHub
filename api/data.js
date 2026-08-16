@@ -14,6 +14,7 @@ const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibr
 const {
   recordManagerLateObservation,
   listManagerLateObservations,
+  listAdminLateManagerObservations: listAdminChecklistLateManagerObservations,
   recordShiftLeadLateObservation,
   listShiftLeadLateObservations,
   previewBccUpload: previewChecklistLateBccUpload,
@@ -456,6 +457,9 @@ module.exports = async function handler(req, res) {
       }
       if (payload && payload.action === 'listChecklistLateShiftLeadObservations') {
         return res.status(200).json({ok:true,...await listShiftLeadLateObservations(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'listAdminChecklistLateManagerObservations') {
+        return res.status(200).json({ok:true,...await listAdminChecklistLateManagerObservations(session, payload.input || {})});
       }
       if (payload && payload.action === 'previewChecklistLateBccUpload') {
         return res.status(200).json({ok:true,...await previewChecklistLateBccUpload(session, payload.rows || [])});

@@ -6502,8 +6502,24 @@
   function monthlyAutomaticSource(source,name){var s=normalizeMatchText(source),n=normalizeMatchText(name);return s==='checklist'||s==='he thong'||n.indexOf('tuan thu tieu chuan cong viec')>=0;}
   function monthlyWeight(value){var n=Number(String(value==null?'':value).replace('%','').replace(',','.').trim());return Number.isFinite(n)?n:0;}
   function monthlyTarget(value){return monthlyWeight(value);}
+  /* pendingLateProvisionalHtml (2026-08-16): "-1 điểm tạm tính" cho sự kiện Đi trễ Admin đã nhập
+     nhưng CHƯA Approve (form.pending_late_events, xem lib/checklist-monthly.js
+     pendingLateProvisional()). -1 CHỈ LÀ marker hiển thị — KHÔNG được cộng vào deduct/score (2 số
+     đó vẫn tính THUẦN từ b.totalPoints/form.checklist_score như cũ, không đụng ở đây). Sau khi
+     Admin Approve, linked_violation_id được set nên dòng này tự biến mất khỏi pending_late_events
+     VÀ xuất hiện thật trong b.violations (checklist_breakdown) ở lần tải lại kế tiếp — không có
+     lúc nào cả 2 cùng hiển thị cho cùng 1 sự kiện. */
+  function pendingLateProvisionalHtml(form){
+    var pending=form&&form.pending_late_events;
+    var items=pending&&Array.isArray(pending.items)?pending.items:[];
+    if(!items.length)return '';
+    return items.map(function(x){
+      return '<article class="phfck-checklist-breakdown-pending"><div><small>'+esc(x.occurredDate||'')+' · Đi trễ</small><b>Đang chờ đối soát/phê duyệt</b><p>'+esc(x.note||'Điểm tạm tính. Điểm chính thức sẽ được xác định sau khi đối soát và phê duyệt.')+'</p></div><strong>−1 <small>tạm tính</small></strong></article>';
+    }).join('');
+  }
   function roleMonthlyChecklistBreakdownHtml(form){
     var b=form&&form.checklist_breakdown||{},items=Array.isArray(b.violations)?b.violations:[],base=Number(b.baseScore==null?100:b.baseScore),deduct=Number(b.totalPoints||0),score=Number(form&&form.checklist_score||b.score||0);
+    var pendingItems=(form&&form.pending_late_events&&form.pending_late_events.items)||[];
     /* Batch 1.43.4 hotfix - đây chính là chỗ người dùng thật sự nhìn vào khi
        cần biết "lỗi nào" (theo evidence UAT Production), KHÔNG phải
        employeeTaskInboxHtml() - vì mục này luôn hiển thị đủ lỗi chính thức
@@ -6514,8 +6530,13 @@
        tạo cơ chế highlight thứ hai. */
     var focusIds=checklistNotificationFocusViolationIds(currentRouteKey());
     var hasFocus=!!(focusIds.length&&items.some(function(x){return focusIds.indexOf(String(x.id||''))>=0;}));
-    return '<details class="phfck-checklist-breakdown"'+(hasFocus?' open':'')+'><summary><div><small>ĐIỂM CHECKLIST TỰ ĐỘNG</small><b>'+base.toFixed(2)+' − '+deduct.toFixed(2)+' = '+score.toFixed(2)+' điểm</b><span>'+(items.length?items.length+' lỗi chính thức trong kỳ':'Không có lỗi chính thức trong kỳ')+'</span></div><strong>'+(items.length?'Xem '+items.length+' lỗi':'Đã đối chiếu')+'</strong></summary>'
-      +'<div class="phfck-checklist-breakdown-body">'+(items.length?items.map(function(x){var isFocus=focusIds.length>0&&focusIds.indexOf(String(x.id||''))>=0;return '<article'+(isFocus?' class="phfck-notification-focus" data-phfck-focus-violation="1"':'')+'><div><small>'+esc(x.occurredDate||'')+(x.occurredTime?' · '+esc(x.occurredTime):'')+(x.criterionCode?' · '+esc(x.criterionCode):'')+'</small><b>'+esc(x.criterionName||'Lỗi Checklist')+(isFocus?' <em class="phfck-notification-focus-tag">Từ thông báo</em>':'')+'</b><p>'+esc(x.note||'Không có mô tả')+'</p></div><strong>−'+Number(x.points||0).toFixed(2)+'</strong></article>';}).join(''):'<div class="phfck-checklist-no-error">Điểm giữ nguyên 100 vì không phát sinh lỗi chính thức.</div>')+'<p class="phfck-checklist-rule">Đây là điểm tự động và bị khóa trong phần nhân viên tự đánh giá. Người thẩm định được chấm một điểm riêng; nếu khác điểm này phải nhập lý do và không làm thay đổi dữ liệu lỗi gốc.</p></div></details>';
+    var summarySpan=items.length+' lỗi chính thức trong kỳ';
+    if(!items.length&&!pendingItems.length)summarySpan='Không có lỗi chính thức trong kỳ';
+    if(pendingItems.length)summarySpan+=' · '+pendingItems.length+' đang chờ đối soát (tạm tính)';
+    return '<details class="phfck-checklist-breakdown"'+((hasFocus||pendingItems.length)?' open':'')+'><summary><div><small>ĐIỂM CHECKLIST TỰ ĐỘNG</small><b>'+base.toFixed(2)+' − '+deduct.toFixed(2)+' = '+score.toFixed(2)+' điểm</b><span>'+summarySpan+'</span></div><strong>'+(items.length||pendingItems.length?'Xem chi tiết':'Đã đối chiếu')+'</strong></summary>'
+      +'<div class="phfck-checklist-breakdown-body">'+(items.length?items.map(function(x){var isFocus=focusIds.length>0&&focusIds.indexOf(String(x.id||''))>=0;return '<article'+(isFocus?' class="phfck-notification-focus" data-phfck-focus-violation="1"':'')+'><div><small>'+esc(x.occurredDate||'')+(x.occurredTime?' · '+esc(x.occurredTime):'')+(x.criterionCode?' · '+esc(x.criterionCode):'')+'</small><b>'+esc(x.criterionName||'Lỗi Checklist')+(isFocus?' <em class="phfck-notification-focus-tag">Từ thông báo</em>':'')+'</b><p>'+esc(x.note||'Không có mô tả')+'</p></div><strong>−'+Number(x.points||0).toFixed(2)+'</strong></article>';}).join(''):(pendingItems.length?'':'<div class="phfck-checklist-no-error">Điểm giữ nguyên 100 vì không phát sinh lỗi chính thức.</div>'))
+      +pendingLateProvisionalHtml(form)
+      +'<p class="phfck-checklist-rule">Đây là điểm tự động và bị khóa trong phần nhân viên tự đánh giá. Người thẩm định được chấm một điểm riêng; nếu khác điểm này phải nhập lý do và không làm thay đổi dữ liệu lỗi gốc.'+(pendingItems.length?' Mục "tạm tính" ở trên CHƯA được tính vào điểm chính thức phía trên — chỉ hiển thị để bạn biết trước, điểm thật sẽ cập nhật sau khi Admin đối soát và phê duyệt.':'')+'</p></div></details>';
   }
   function employeeMonthlyReviewResultHtml(f){
     if(['reviewed','locked'].indexOf(f.status)<0)return '';

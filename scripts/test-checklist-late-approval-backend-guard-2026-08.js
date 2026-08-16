@@ -1,11 +1,15 @@
 'use strict';
 /*
- * Regression Test — P0 backend guard (2026-08-15): approveLateEvents()/createLinkedAdjustment()
- * PHẢI bị khóa ở BACKEND khi LATE_APPROVAL_ENABLED=false (không chỉ ẩn nút UI) — không tạo
- * official violation, không ghi điểm. Môi trường chỉ có 1 project Supabase cấu hình và đó là
- * Production, nên test này KHÔNG gọi live network: guard phải chặn NGAY sau requireAdmin()/
- * requireDb(), TRƯỚC bất kỳ lệnh .from(...) nào chạm DB — kiểm chứng bằng cách gọi hàm thật
- * (không mock network) và xác nhận nó reject với đúng mã lỗi trước khi có cơ hội gọi Supabase.
+ * Regression Test — P0 backend guard (2026-08-15, UPDATED 2026-08-16 khi LATE_APPROVAL_ENABLED
+ * chuyển sang true ở LOCAL): xác nhận guard requireLateApprovalEnabled() TỒN TẠI ĐÚNG VỊ TRÍ
+ * trong approveLateEvents()/createLinkedAdjustment() (NGAY SAU requireAdmin()/requireDb(), TRƯỚC
+ * bất kỳ lệnh .from(...) nào chạm DB) — đây là cơ chế cho phép TẮT approve chỉ bằng 1 hằng số
+ * nếu cần rollback khẩn, không phụ thuộc UI. TOÀN BỘ test ở file này CHỈ đọc source (grep-guard),
+ * KHÔNG gọi hàm thật/network — vì flag nay = true, gọi hàm thật KHÔNG mock sẽ chạm thẳng
+ * Production Supabase (môi trường chỉ có 1 project và đó là Production). Test hành vi RUNTIME
+ * thật của approve khi bật (idempotency/re-approve/points/audit) nằm ở
+ * scripts/test-checklist-late-approval-activation-2026-08.js — dùng Supabase mock in-memory an
+ * toàn, không chạm DB thật.
  *   node scripts/test-checklist-late-approval-backend-guard-2026-08.js
  */
 const assert = require('assert');
@@ -20,8 +24,8 @@ async function checkAsync(label, fn) { await fn(); passCount++; console.log('✓
 const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
 
 async function main() {
-  check('LATE_APPROVAL_ENABLED mặc định = false (hằng số cứng, không đọc process.env)', () => {
-    assert.ok(/const LATE_APPROVAL_ENABLED = false;/.test(SERVICE_SRC), 'LATE_APPROVAL_ENABLED phải khai báo cứng = false');
+  check('LATE_APPROVAL_ENABLED = true (LOCAL activation 2026-08-16) — hằng số cứng, không đọc process.env (vẫn là quyết định nghiệp vụ có chủ đích, không phải cấu hình môi trường)', () => {
+    assert.ok(/const LATE_APPROVAL_ENABLED = true;/.test(SERVICE_SRC), 'LATE_APPROVAL_ENABLED phải khai báo cứng = true (đã kích hoạt LOCAL)');
     assert.ok(!/LATE_APPROVAL_ENABLED\s*=\s*.*process\.env/.test(SERVICE_SRC), 'LATE_APPROVAL_ENABLED không được đọc từ env — đây là quyết định nghiệp vụ có chủ đích');
   });
 
@@ -46,31 +50,26 @@ async function main() {
     assert.ok(/CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED/.test(guardFn), 'phải dùng đúng mã lỗi semantic CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED');
   });
 
-  /* Gọi hàm THẬT (không mock) với session admin hợp lệ — vì guard chạy trước mọi lệnh DB,
-     lời gọi này PHẢI reject ngay, không request Supabase Production, xác nhận bằng chứng sống
-     (không chỉ đọc source) rằng backend boundary thật sự chặn được ở runtime. */
-  await checkAsync('approveLateEvents(): gọi thật với session admin -> reject CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED, không tạo official violation', async () => {
-    const adminSession = { role: 'admin', account: { id: 'test-admin', name: 'Test Admin' } };
-    await assert.rejects(
-      () => service.approveLateEvents(adminSession, [{ importRowId: 'row-guard-test', adminDecision: 'apply_no_permission_points' }]),
-      (err) => {
-        assert.strictEqual(err.code, 'CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED');
-        assert.strictEqual(err.statusCode, 403);
-        return true;
-      }
-    );
-  });
-
-  await checkAsync('createLinkedAdjustment(): gọi thật với session admin -> reject CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED, không tạo bản ghi điều chỉnh', async () => {
-    const adminSession = { role: 'admin', account: { id: 'test-admin', name: 'Test Admin' } };
-    await assert.rejects(
-      () => service.createLinkedAdjustment(adminSession, { originalViolationId: 'v-guard-test', importRowId: 'row-guard-test', reason: 'Kiểm tra guard backend đủ 10 ký tự' }),
-      (err) => {
-        assert.strictEqual(err.code, 'CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED');
-        assert.strictEqual(err.statusCode, 403);
-        return true;
-      }
-    );
+  /* 2026-08-16: LATE_APPROVAL_ENABLED nay = true ở module đang load thật (service đã require() ở
+     đầu file) — KHÔNG được gọi service.approveLateEvents()/createLinkedAdjustment() thật ở đây
+     nữa (sẽ vượt qua guard và chạm thẳng Supabase Production, môi trường chỉ có 1 project). Thay
+     vào đó: verify CƠ CHẾ guard (hàm requireLateApprovalEnabled() + fail()) tự nó throw đúng mã
+     lỗi khi hằng số = false, bằng cách eval lại source trong vm sandbox với hằng số bị ép về
+     false — chứng minh guard code ĐÚNG (không chỉ đọc source tĩnh), độc lập với giá trị hiện tại
+     đang chạy thật trong process (=true). */
+  check('requireLateApprovalEnabled(): khi hằng số ép về false (mô phỏng), throw đúng CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED/403 — verify cơ chế guard bằng runtime thật (vm sandbox, không chạm network)', () => {
+    const vm = require('vm');
+    const failFnSrc = SERVICE_SRC.slice(SERVICE_SRC.indexOf('function fail('), SERVICE_SRC.indexOf('function fail(') + SERVICE_SRC.slice(SERVICE_SRC.indexOf('function fail(')).indexOf('\n}') + 2);
+    const guardFnSrc = SERVICE_SRC.slice(SERVICE_SRC.indexOf('function requireLateApprovalEnabled'), SERVICE_SRC.indexOf('function requireLateApprovalEnabled') + SERVICE_SRC.slice(SERVICE_SRC.indexOf('function requireLateApprovalEnabled')).indexOf('\n}') + 2);
+    const sandbox = { console };
+    vm.createContext(sandbox);
+    const src = 'const LATE_APPROVAL_ENABLED = false;\n' + failFnSrc + '\n' + guardFnSrc + '\nthis.__guard = requireLateApprovalEnabled;';
+    vm.runInContext(src, sandbox);
+    assert.throws(() => sandbox.__guard(), (err) => {
+      assert.strictEqual(err.code, 'CHECKLIST_LATE_APPROVAL_NOT_ACTIVATED');
+      assert.strictEqual(err.statusCode, 403);
+      return true;
+    });
   });
 
   check('recordManagerLateObservation/listManagerLateObservations KHÔNG bị đụng tới bởi guard (manager observation vẫn hoạt động bình thường ở phase-1)', () => {

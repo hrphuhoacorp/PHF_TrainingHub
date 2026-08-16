@@ -38,16 +38,13 @@
 (function () {
   var ROOT_ATTR = 'data-phfck-latewf-mount';
   var STORE = { node: null, ctx: null, state: null, listeners: [], timers: [] };
-  // Phase-1 (2026-08-15, FINAL UI GATE): "Phê duyệt & ghi nhận"/"Điều chỉnh (audit)" tạo
-  // official violation + trừ điểm — business owner CHƯA kích hoạt. Cờ này PHẢI khớp
-  // LATE_APPROVAL_ENABLED ở lib/checklist-late-reconciliation-service.js (nguồn thật quyết
-  // định — đổi ở backend trước, cờ UI này chỉ ẩn/hiện nút, KHÔNG phải nguồn kiểm soát bảo
-  // mật). Khi false: ẩn hẳn nút Phê duyệt/Điều chỉnh + input Điểm áp dụng/Lý do/checkbox chọn
-  // dòng khỏi bảng đối soát (không chỉ disable) — bảng chỉ còn dùng để XEM 4 nhãn nghiệp vụ.
-  // Toàn bộ hàm xử lý approve/adjust bên dưới (handleBulkApprove/handleApproveOne/handleAdjust/
-  // buildApproveDecision/runApprove) GIỮ NGUYÊN trong source cho lần kích hoạt sau — chỉ không
-  // còn phần tử DOM nào gọi tới chúng ở phase-1.
-  var LATE_APPROVAL_UI_ENABLED = false;
+  // LOCAL ACTIVATION (2026-08-16): "Phê duyệt & ghi nhận"/"Điều chỉnh (audit)" tạo official
+  // violation + trừ điểm. Cờ này PHẢI khớp LATE_APPROVAL_ENABLED ở
+  // lib/checklist-late-reconciliation-service.js (nguồn thật quyết định — backend tự chặn dù
+  // client/route nào gọi trực tiếp, cờ UI này CHỈ ẩn/hiện nút, KHÔNG phải nguồn kiểm soát bảo
+  // mật). Khi true: hiện checkbox chọn dòng/Điểm áp dụng/Lý do/nút Phê duyệt/Điều chỉnh trong
+  // bảng đối soát. CHỈ BẬT Ở LOCAL — xem scripts/test-checklist-late-approval-activation-2026-08.js.
+  var LATE_APPROVAL_UI_ENABLED = true;
 
   /* ============================== Tiện ích chung ============================== */
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -178,6 +175,8 @@
       /* ---- Người có quyền ghi nhận: ghi nhận phát hiện (Trưởng ca chỉ là 1 ví dụ) ---- */
       record: { employeeCode: '', date: todayIso(), managerDecision: '', note: '', saving: false, error: '', savedOk: '' },
       myObservations: { loading: false, loaded: false, error: '', records: [] },
+      /* ---- Admin: "Kiểm tra ghi nhận cấp trên" — Admin-only, read-only (xem observationsViewHtml) ---- */
+      adminObservations: { loading: false, loaded: false, error: '', records: [], filters: { dateFrom: '', dateTo: '', employeeCode: '', managerDecision: '' } },
       /* ---- Admin: state machine đối soát BCC (dùng chung cho cả 2 phương thức input) ---- */
       inputMode: 'excel', // 'excel'|'manual' — chỉ chọn NGUỒN dữ liệu nạp vào, KHÔNG rẽ nhánh pipeline
       manualRows: [manualRowDefault()],
@@ -222,6 +221,8 @@
   function afterRender(s) {
     if (!s.ctx.isAdmin) {
       if (!s.myObservations.loaded && !s.myObservations.loading) loadMyObservations();
+    } else if (s.inputMode === 'observations' && !s.adminObservations.loaded && !s.adminObservations.loading) {
+      loadAdminObservations();
     }
   }
 
@@ -412,20 +413,118 @@
   }
 
   /* observationsViewHtml: "Kiểm tra ghi nhận cấp trên" — Admin-only, read-only, KHÔNG scoring/
-     approve. CHƯA wire dữ liệu thật: listChecklistLateManagerObservations() hiện dùng
-     requireViolationPermission(session,'view') (lib/checklist-violations.js) — bất kỳ tài khoản
-     nào có capability xem đều gọi được, KHÔNG phải Admin-only thật; hàm cũng không tự lọc theo
-     scope khi gọi không kèm employeeCode (đọc toàn bộ observation, limit 500). Dùng tạm hàm này
-     coi như "Admin-only" sẽ sai — chỉ ẩn ở UI, không phải chặn ở backend. Giữ layout/selector
-     sẵn sàng, KHÔNG fake data — chờ 1 action Admin-only thật (requireAdmin + scope) ở batch sau. */
-  function observationsViewHtml() {
+     approve/sửa/xóa observation. Gọi action Admin-only thật listAdminChecklistLateManagerObservations
+     (requireAdmin trong lib/checklist-late-reconciliation-service.js#listAdminLateManagerObservations,
+     KHÔNG dùng chung capability 'view' như listChecklistLateManagerObservations — hàm đó là reviewer
+     shell riêng cho Trợ lý/Trưởng ca, lọc theo scope của caller, KHÔNG dùng cho màn Admin-only này). */
+  function observationsViewHtml(s) {
+    var o = s.adminObservations, f = o.filters;
     return '<div class="phfck-latewf-card" data-phfck-latewf-observations-card>'
       + '<div class="phfck-panel-head"><div><small>ADMIN · CHỈ XEM</small><h4>Kiểm tra ghi nhận cấp trên</h4></div></div>'
-      + '<div class="phfck-latewf-observations-gap">'
-      + '<b>Chưa sẵn sàng — thiếu API Admin-only</b>'
-      + '<p>Danh sách ghi nhận Duyệt/Không duyệt từ cấp trên hiện chỉ có action dùng chung quyền "xem" (không phân biệt Admin), và không tự giới hạn theo phạm vi khi xem toàn bộ. Để tránh lộ dữ liệu ngoài phạm vi Admin thật, màn này tạm giữ chỗ — chưa hiển thị dữ liệu cho tới khi có 1 action Admin-only (requireAdmin + lọc scope) riêng cho mục đích kiểm tra này.</p>'
+      + '<p class="phfck-latewf-note">Danh sách ghi nhận Duyệt/Không duyệt từ cấp trên (toàn công ty) — chỉ xem, không sửa/xóa, không scoring, không phê duyệt.</p>'
+      + '<div class="phfck-latewf-export-filters">'
+      + '<label><span>Từ ngày</span><input type="date" data-phfck-latewf-obs-field="dateFrom" value="' + esc(f.dateFrom) + '"></label>'
+      + '<label><span>Đến ngày</span><input type="date" data-phfck-latewf-obs-field="dateTo" value="' + esc(f.dateTo) + '"></label>'
+      + '<label><span>Mã nhân viên</span><input type="text" data-phfck-latewf-obs-field="employeeCode" value="' + esc(f.employeeCode) + '" placeholder="Để trống = tất cả"></label>'
+      + '<label><span>Kết quả</span><select data-phfck-latewf-obs-field="managerDecision">'
+      + '<option value="">— Tất cả —</option>'
+      + '<option value="approved"' + (f.managerDecision === 'approved' ? ' selected' : '') + '>Duyệt</option>'
+      + '<option value="rejected"' + (f.managerDecision === 'rejected' ? ' selected' : '') + '>Không duyệt</option>'
+      + '</select></label>'
       + '</div>'
+      + '<div class="phfck-latewf-form-actions">'
+      + '<button type="button" class="phfck-primary" data-phfck-latewf-obs-filter-run ' + (o.loading ? 'disabled' : '') + '>' + (o.loading ? 'Đang tải…' : 'Lọc') + '</button>'
+      + '<button type="button" class="phfck-secondary" data-phfck-latewf-obs-export ' + (!o.records.length ? 'disabled' : '') + '>⇩ Xuất Excel</button>'
+      + '</div>'
+      + observationsTableHtml(o)
       + '</div>';
+  }
+  function badgeForManagerDecision(decision) {
+    return decision === 'approved'
+      ? '<span class="phfck-latewf-badge is-ok">Duyệt</span>'
+      : '<span class="phfck-latewf-badge is-warn">Không duyệt</span>';
+  }
+  /* formatObsDate/formatObsTimestamp: format cố định dd/mm/yyyy [· HH:mm] theo đúng yêu cầu polish
+     UI (2026-08-16) — KHÔNG dùng toLocaleString('vi-VN') (kết quả phụ thuộc locale trình duyệt,
+     không đảm bảo luôn ra đúng khuôn dạng 2 chữ số/thứ tự dd-mm-yyyy mong muốn). */
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function formatObsDate(value) {
+    var s = t(value);
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (s || '—');
+  }
+  function formatObsTimestamp(v) {
+    if (!v) return '—';
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' · ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function observationsTableHtml(o) {
+    if (o.loading) return '<div class="phfck-latewf-loading" role="status">Đang tải danh sách…</div>';
+    if (o.error) return '<div class="phfck-latewf-error-box" role="alert"><b>Không tải được danh sách</b><p>' + esc(o.error) + '</p><button type="button" class="phfck-secondary" data-phfck-latewf-obs-filter-run>Thử lại</button></div>';
+    if (!o.loaded) return '';
+    if (!o.records.length) return '<div class="phfck-latewf-empty">Không có ghi nhận nào khớp bộ lọc.</div>';
+    return '<div class="phfck-latewf-table-scroll"><table class="phfck-latewf-recon-table phfck-latewf-obs-table"><thead><tr>'
+      + '<th>Mã NV</th><th>Họ tên</th><th>Ngày</th><th>Người ghi nhận</th><th>Kết quả</th><th>Ghi chú</th><th>Thời điểm ghi nhận</th>'
+      + '</tr></thead><tbody>'
+      + o.records.map(function (rec) {
+        var note = t(rec.note);
+        return '<tr><td>' + esc(rec.employee_code || '—') + '</td><td>' + esc(rec.employee_name || '—') + '</td><td>' + esc(formatObsDate(rec.occurred_date)) + '</td>'
+          + '<td>' + esc(rec.created_by_name || '—') + (rec.recorder_role_label ? '<br><small class="phfck-latewf-note">' + esc(rec.recorder_role_label) + '</small>' : '') + '</td>'
+          + '<td>' + badgeForManagerDecision(rec.manager_decision) + '</td>'
+          + '<td class="phfck-latewf-obs-note-cell"' + (note ? ' title="' + esc(note) + '"' : '') + '>' + esc(note || '—') + '</td>'
+          + '<td>' + esc(formatObsTimestamp(rec.created_at)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>'
+      + '<p class="phfck-latewf-note">' + o.records.length + ' dòng.</p>';
+  }
+  function loadAdminObservations() {
+    var s = STORE.state; if (!s) return;
+    var o = s.adminObservations;
+    o.loading = true; o.error = ''; render();
+    callApi('listAdminChecklistLateManagerObservations', { input: {
+      dateFrom: o.filters.dateFrom, dateTo: o.filters.dateTo,
+      employeeCode: o.filters.employeeCode, managerDecision: o.filters.managerDecision
+    } }).then(function (data) {
+      if (!isCurrent(s)) return;
+      o.records = Array.isArray(data.records) ? data.records : [];
+      o.loaded = true; o.loading = false;
+      render();
+    }).catch(function (err) {
+      if (!isCurrent(s)) return;
+      o.loading = false; o.loaded = true;
+      o.error = err && err.message || 'Không xác định.';
+      render();
+    });
+  }
+  function handleAdminObservationsFilterRun() {
+    var s = STORE.state;
+    s.adminObservations.loaded = false;
+    render();
+    loadAdminObservations();
+  }
+  function handleAdminObservationsExport() {
+    var o = STORE.state.adminObservations;
+    if (!o.records.length) return;
+    ensureXlsx().then(function (XLSX) {
+      var rows = o.records.map(function (rec) {
+        return {
+          'Mã nhân viên': rec.employee_code || '',
+          'Họ tên': rec.employee_name || '',
+          'Ngày': formatObsDate(rec.occurred_date),
+          'Người ghi nhận': rec.created_by_name || '',
+          'Chức danh người ghi nhận': rec.recorder_role_label || '',
+          'Kết quả': rec.manager_decision === 'approved' ? 'Duyệt' : 'Không duyệt',
+          'Ghi chú': rec.note || '',
+          'Thời điểm ghi nhận': formatObsTimestamp(rec.created_at)
+        };
+      });
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Ghi nhận cấp trên');
+      XLSX.writeFile(wb, 'PHF_GHI_NHAN_CAP_TREN_' + todayIso() + '.xlsx', { compression: true });
+    }).catch(function (err) {
+      toast(STORE.node, 'error', 'Không xuất được', err && err.message || '');
+    });
   }
 
   function uploadCardHtml(s) {
@@ -478,16 +577,20 @@
   function reconciliationTableCardHtml(s) {
     var rows = s.importRows || [];
     var results = s.approveResults;
+    var counts = reviewSummaryCounts(s);
     return '<div class="phfck-latewf-card" data-phfck-latewf-recon-table-card>'
       + '<div class="phfck-panel-head"><div><small>BƯỚC 3–4</small><h4>Bảng đối soát</h4></div>'
       + (LATE_APPROVAL_UI_ENABLED
-        ? ('<div class="phfck-latewf-bulk-actions"><button type="button" class="phfck-secondary" data-phfck-latewf-select-clean>Chọn dòng sạch</button><button type="button" class="phfck-primary" data-phfck-latewf-bulk-approve ' + (s.inFlight.approve ? 'disabled' : '') + '>' + (s.inFlight.approve ? 'Đang áp dụng…' : 'Phê duyệt &amp; ghi nhận (đã chọn)') + '</button></div>')
+        ? ('<div class="phfck-latewf-bulk-actions"><button type="button" class="phfck-secondary" data-phfck-latewf-select-clean>Chọn tất cả dòng đủ điều kiện</button><button type="button" class="phfck-secondary" data-phfck-latewf-deselect-all>Bỏ chọn tất cả</button><button type="button" class="phfck-primary" data-phfck-latewf-bulk-approve ' + (s.inFlight.approve ? 'disabled' : '') + '>' + (s.inFlight.approve ? 'Đang áp dụng…' : 'Phê duyệt &amp; ghi nhận (đã chọn)') + '</button></div>')
         : '')
       + '</div>'
+      + (LATE_APPROVAL_UI_ENABLED
+        ? ('<div class="phfck-latewf-review-summary"><span>' + counts.total + ' dòng</span><span><b>' + counts.selected + '</b> đang chọn</span><span><b>' + counts.eligible + '</b> đủ điều kiện</span><span' + (counts.needsReview ? ' class="is-warn"' : '') + '><b>' + counts.needsReview + '</b> cần kiểm tra</span><span' + (counts.overQuota ? ' class="is-danger"' : '') + '><b>' + counts.overQuota + '</b> vượt quota</span></div>')
+        : '')
       + '<div class="phfck-latewf-table-scroll"><table class="phfck-latewf-recon-table">'
       + '<thead><tr>'
       + (LATE_APPROVAL_UI_ENABLED ? '<th></th>' : '')
-      + '<th>Nhân sự</th><th>Phòng ban/CN</th><th>Ngày/ca/giờ</th><th>Phút trễ</th><th>Ghi nhận từ bộ phận</th><th>Kết quả khớp</th><th>Cảnh báo tần suất</th><th>Điểm gợi ý</th>'
+      + '<th>Nhân sự</th><th>Phòng ban/CN</th><th>Ngày/ca/giờ</th><th>Phút trễ</th><th>Ghi nhận từ bộ phận</th><th>Trạng thái nghiệp vụ</th><th>Cảnh báo quota Duyệt</th><th>Điểm gợi ý</th>'
       + (LATE_APPROVAL_UI_ENABLED ? '<th>Điểm áp dụng</th><th>Lý do</th>' : '')
       + '<th>Trạng thái</th>'
       + (LATE_APPROVAL_UI_ENABLED ? '<th>Hành động</th>' : '')
@@ -502,15 +605,22 @@
     return results.find(function (r) { return String(r.importRowId) === String(importRowId); }) || null;
   }
   /* businessStatusLabel: gộp match_status (chi tiết kỹ thuật — vẫn giữ nguyên trong data model
-     để audit, xem lib/checklist-late-reconciliation.js) thành ĐÚNG 4 nhãn nghiệp vụ Admin nhìn
-     thấy: Duyệt / Không duyệt / Chưa ghi nhận / Cần kiểm tra (brief 2026-08-15). 2 lý do kỹ
-     thuật khác nhau của "cần xem lại" (ambiguous_needs_review — thiếu định danh sự kiện;
-     conflict_needs_review — nhiều người ghi nhận mâu thuẫn) GỘP LÀM MỘT nhãn "Cần kiểm tra" ở
-     đây — Admin không cần phân biệt 2 lý do này qua nhãn, chi tiết vẫn xem được ở cột "Ghi nhận
-     từ bộ phận" (recorderCellHtml) khi cần. */
+     để audit, xem lib/checklist-late-reconciliation.js) thành nhãn nghiệp vụ Admin nhìn thấy:
+     Duyệt / Không duyệt / Không có ghi nhận / Không báo / Cần kiểm tra / Duyệt — vượt quota
+     (brief 2026-08-15, wording case A chỉnh lại 2026-08-16 — "Không có ghi nhận / Không báo"
+     KHÔNG được gọi nhầm thành "Không duyệt", đây là 2 business case khác nhau với 2 băng điểm
+     khác nhau, xem lib/checklist-late-reconciliation.js REJECTED_BANDS). 2 lý do kỹ thuật khác
+     nhau của "cần xem lại" (ambiguous_needs_review — thiếu định danh sự kiện; conflict_needs_review
+     — nhiều người ghi nhận mâu thuẫn) GỘP LÀM MỘT nhãn "Cần kiểm tra" ở đây — Admin không cần
+     phân biệt 2 lý do này qua nhãn, chi tiết vẫn xem được ở cột "Ghi nhận từ bộ phận"
+     (recorderCellHtml) khi cần. row.frequency_reference_snapshot.businessStatus (2026-08-16, xem
+     lib/checklist-late-reconciliation-service.js createBccImport) là nguồn CHÍNH XÁC cho case
+     "Duyệt — vượt quota"; khi thiếu (dữ liệu cũ/mock chưa có field này) rơi về đúng hành vi cũ. */
   function businessStatusLabel(row) {
+    var snapshotBusinessStatus = row.frequency_reference_snapshot && row.frequency_reference_snapshot.businessStatus;
     if (row.match_status === 'ambiguous_needs_review' || row.match_status === 'conflict_needs_review') return 'Cần kiểm tra';
-    if (row.match_status === 'unmatched_default_no_permission') return 'Chưa ghi nhận';
+    if (snapshotBusinessStatus === 'approved_over_quota') return 'Duyệt — vượt quota';
+    if (row.match_status === 'unmatched_default_no_permission') return 'Không có ghi nhận / Không báo';
     return row.manager_decision_suggested === 'approved' ? 'Duyệt' : 'Không duyệt';
   }
   /* recorderCellHtml: hiển thị TỪNG người đã ghi nhận sự kiện này (audit trail thật, không chỉ
@@ -531,6 +641,30 @@
     }
     return row.manager_decision_suggested === 'approved' ? 'Duyệt' : (row.match_status === 'unmatched_default_no_permission' ? 'Không có ghi nhận' : 'Không duyệt');
   }
+  /* quotaCellHtml: cột "Cảnh báo quota Duyệt" — ưu tiên hiển thị quota "4 lần Duyệt/tháng"
+     (2026-08-16, chính thức, xem lib/checklist-late-reconciliation.js computeApprovedQuotaState)
+     khi có dữ liệu (row.frequency_reference_snapshot.approvedQuota); nếu không (dòng Không báo/
+     Không duyệt, hoặc dữ liệu cũ chưa có field này) rơi về đúng badge tham khảo tần suất cũ —
+     GIỮ NGUYÊN text "Cảnh báo tham chiếu" (đã khoá bởi test hiện hữu), không xoá cơ chế cũ. */
+  function quotaCellHtml(row, freq) {
+    var snapshot = row.frequency_reference_snapshot || {};
+    var quota = snapshot.approvedQuota;
+    if (quota && quota.occurrenceNumber != null) {
+      if (quota.overQuota) {
+        return '<span class="phfck-latewf-freqwarn is-quota-over" title="Nhân viên đã vượt quá 4 lần Duyệt được miễn điểm trong tháng — cần Admin kiểm tra">Vượt quota (lần ' + esc(quota.occurrenceNumber) + '/' + esc(quota.limit) + ')</span>';
+      }
+      return '<span class="phfck-latewf-note">Lần ' + esc(quota.occurrenceNumber) + '/' + esc(quota.limit) + ' (trong hạn mức)</span>';
+    }
+    return freq.overThreshold ? '<span class="phfck-latewf-freqwarn" title="' + esc(freq.message) + '">Cảnh báo tham chiếu</span>' : '—';
+  }
+  /* suggestedPointsCellHtml: "Điểm gợi ý" — dòng Cần đối chiếu/Vượt quota KHÔNG có gợi ý xác định
+     (suggestedPoints lưu DB là 0 CHỈ LÀ placeholder NOT NULL, KHÔNG phải "gợi ý 0 điểm" thật —
+     xem service previewBccUpload) nên KHÔNG được hiển thị "0 điểm" gây hiểu lầm miễn điểm. */
+  function suggestedPointsCellHtml(row, isConflict) {
+    var snapshotBusinessStatus = row.frequency_reference_snapshot && row.frequency_reference_snapshot.businessStatus;
+    if (isConflict || snapshotBusinessStatus === 'approved_over_quota') return 'Cần kiểm tra';
+    return fmtPoints(row.suggested_points) + ' điểm';
+  }
   function reconciliationRowHtml(s, row, results) {
     var id = row.id;
     var res = rowResultFor(results, id);
@@ -547,8 +681,8 @@
       + '<td>' + esc(formatLateMinutesDisplay(row.minutes_late)) + '</td>'
       + '<td>' + recorderCellHtml(row) + '</td>'
       + '<td>' + esc(businessStatusLabel(row)) + '</td>'
-      + '<td>' + (freq.overThreshold ? '<span class="phfck-latewf-freqwarn" title="' + esc(freq.message) + '">Cảnh báo tham chiếu</span>' : '—') + '</td>'
-      + '<td>' + (isConflict ? 'Cần kiểm tra' : (fmtPoints(row.suggested_points) + ' điểm')) + '</td>'
+      + '<td>' + quotaCellHtml(row, freq) + '</td>'
+      + '<td>' + suggestedPointsCellHtml(row, isConflict) + '</td>'
       + (LATE_APPROVAL_UI_ENABLED ? (
         '<td><input type="number" min="0" max="100" step="1" data-phfck-latewf-applied-points="' + esc(id) + '" value="' + esc(override.appliedPoints != null ? override.appliedPoints : row.suggested_points) + '"></td>'
         + '<td>'
@@ -816,10 +950,34 @@
     var rows = s.importRows || [];
     s.selectedRowIds = {};
     rows.forEach(function (row) {
-      var freq = row.frequency_reference_snapshot || {};
-      var clean = row.match_status !== 'ambiguous_needs_review' && row.match_status !== 'conflict_needs_review' && !(freq && freq.overThreshold) && !row.linked_violation_id;
-      if (clean) s.selectedRowIds[row.id] = true;
+      if (isRowEligibleForBulk(row)) s.selectedRowIds[row.id] = true;
     });
+  }
+  /* isRowEligibleForBulk: TIÊU CHÍ auto-select "dòng sạch"/"chọn tất cả eligible" — dùng CHUNG
+     cho preselectCleanRows() và bảng tóm tắt (reviewSummaryCounts) để không lệch nhau giữa 2 nơi.
+     Vượt quota 4 lần Duyệt/tháng (2026-08-16) KHÔNG được auto-select — Admin phải tự mở dòng này
+     lên xem, không có công thức điểm mặc định (xem businessStatusLabel/quotaCellHtml). */
+  function isRowEligibleForBulk(row) {
+    var freq = row.frequency_reference_snapshot || {};
+    return row.match_status !== 'ambiguous_needs_review' && row.match_status !== 'conflict_needs_review'
+      && freq.businessStatus !== 'approved_over_quota' && !(freq && freq.overThreshold) && !row.linked_violation_id;
+  }
+  function deselectAllRows() {
+    STORE.state.selectedRowIds = {};
+  }
+  /* reviewSummaryCounts: tóm tắt cho Admin trước khi bấm Phê duyệt hàng loạt — số dòng đang
+     chọn/eligible/cần kiểm tra/vượt quota (yêu cầu brief 2026-08-16, mục 3). */
+  function reviewSummaryCounts(s) {
+    var rows = s.importRows || [];
+    var selected = 0, eligible = 0, needsReview = 0, overQuota = 0;
+    rows.forEach(function (row) {
+      var freq = row.frequency_reference_snapshot || {};
+      if (s.selectedRowIds[row.id]) selected++;
+      if (isRowEligibleForBulk(row)) eligible++;
+      if (row.match_status === 'ambiguous_needs_review' || row.match_status === 'conflict_needs_review') needsReview++;
+      if (freq.businessStatus === 'approved_over_quota') overQuota++;
+    });
+    return { total: rows.length, selected: selected, eligible: eligible, needsReview: needsReview, overQuota: overQuota };
   }
 
   function handleBulkApprove() {
@@ -840,6 +998,14 @@
     s.inFlight['approve_' + id] = true;
     runApprove([decision]);
   }
+  /* rejectedBandPointsFor: điểm chuẩn "TBP Không duyệt" (REJECTED_BANDS, GẤP ĐÔI băng "Không xin
+     phép") — dùng khi Cần đối chiếu được Admin kết luận Không duyệt. Ưu tiên
+     frequency_reference_snapshot.standardRejectedPoints (2026-08-16, service đã lưu đúng băng);
+     fallback về row.standard_points cho dòng staging cũ trước fix này (chưa có field mới). */
+  function rejectedBandPointsFor(row) {
+    var snapshot = row.frequency_reference_snapshot || {};
+    return snapshot.standardRejectedPoints != null ? Number(snapshot.standardRejectedPoints) : Number(row.standard_points || 0);
+  }
   function buildApproveDecision(id, bulk) {
     var s = STORE.state;
     var row = (s.importRows || []).find(function (r) { return String(r.id) === String(id); }) || {};
@@ -852,7 +1018,7 @@
       // tắt "giữ nguyên gợi ý" vì không có gợi ý nào cho tới khi Admin quyết định).
       if (override.resolvedManagerDecision !== 'approved' && override.resolvedManagerDecision !== 'rejected') return { __blocked: true };
       if (reason.length < 5) return { __blocked: true };
-      var resolvedPoints = override.appliedPoints != null ? Number(override.appliedPoints) : (override.resolvedManagerDecision === 'approved' ? 0 : Number(row.standard_points));
+      var resolvedPoints = override.appliedPoints != null ? Number(override.appliedPoints) : (override.resolvedManagerDecision === 'approved' ? 0 : rejectedBandPointsFor(row));
       return {
         importRowId: id,
         adminDecision: resolvedPoints === 0 ? 'accept_exempt' : 'apply_no_permission_points',
@@ -981,7 +1147,9 @@
       var rrow = (STORE.state.importRows || []).find(function (r) { return String(r.id) === String(rid); });
       if (rrow) {
         // Auto-điền điểm áp dụng theo kết luận vừa chọn — Admin vẫn có thể sửa tay ở ô Điểm áp dụng.
-        STORE.state.rowOverrides[rid].appliedPoints = resolveSel.value === 'approved' ? 0 : Number(rrow.standard_points || 0);
+        // Không duyệt PHẢI dùng băng "TBP Không duyệt" (REJECTED_BANDS, GẤP ĐÔI), KHÔNG phải
+        // standard_points thô (đó là băng "Không xin phép" — fix cùng bug với backend 2026-08-16).
+        STORE.state.rowOverrides[rid].appliedPoints = resolveSel.value === 'approved' ? 0 : rejectedBandPointsFor(rrow);
       }
       render();
       return;
@@ -990,6 +1158,12 @@
     if (rowDecision) { STORE.state.rowDecisions[rowDecision.getAttribute('data-phfck-latewf-row-decision')] = rowDecision.value; return; }
     var exportField = e.target.closest('[data-phfck-latewf-export-field]');
     if (exportField) { STORE.state.exportFilters[exportField.getAttribute('data-phfck-latewf-export-field')] = exportField.value; return; }
+    var obsField = e.target.closest('[data-phfck-latewf-obs-field]');
+    if (obsField) {
+      STORE.state.adminObservations.filters[obsField.getAttribute('data-phfck-latewf-obs-field')] = obsField.value;
+      if (obsField.tagName === 'SELECT') handleAdminObservationsFilterRun();
+      return;
+    }
   }
   function onInput(e) {
     var field = e.target.closest('[data-phfck-latewf-field]');
@@ -1028,11 +1202,14 @@
     if (choiceBtn) { e.preventDefault(); handleConflictChoice(choiceBtn.getAttribute('data-phfck-latewf-conflict-choice')); return; }
     if (e.target.closest('[data-phfck-latewf-bulk-approve]')) { e.preventDefault(); handleBulkApprove(); return; }
     if (e.target.closest('[data-phfck-latewf-select-clean]')) { e.preventDefault(); preselectCleanRows(); render(); return; }
+    if (e.target.closest('[data-phfck-latewf-deselect-all]')) { e.preventDefault(); deselectAllRows(); render(); return; }
     var approveOne = e.target.closest('[data-phfck-latewf-approve-one]');
     if (approveOne) { e.preventDefault(); handleApproveOne(approveOne.getAttribute('data-phfck-latewf-approve-one')); return; }
     var adjustBtn = e.target.closest('[data-phfck-latewf-adjust]');
     if (adjustBtn) { e.preventDefault(); handleAdjust(adjustBtn.getAttribute('data-phfck-latewf-adjust')); return; }
     if (e.target.closest('[data-phfck-latewf-export-run]')) { e.preventDefault(); handleExportRun(); return; }
+    if (e.target.closest('[data-phfck-latewf-obs-filter-run]')) { e.preventDefault(); handleAdminObservationsFilterRun(); return; }
+    if (e.target.closest('[data-phfck-latewf-obs-export]')) { e.preventDefault(); handleAdminObservationsExport(); return; }
   }
   function node0() { return STORE.node; }
   function onKeydown(e) {
