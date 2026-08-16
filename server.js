@@ -738,7 +738,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 200, {ok:true,...await listShiftLeadLateObservations(session, payload.input || {})});
         }
         if (payload && payload.action === 'previewChecklistLateBccUpload') {
-          return sendJson(res, 200, {ok:true,...await previewChecklistLateBccUpload(session, payload.rows || [])});
+          return sendJson(res, 200, {ok:true,...await previewChecklistLateBccUpload(session, payload.rows || [], payload.source)});
         }
         if (payload && payload.action === 'createChecklistLateBccImport') {
           return sendJson(res, 200, {ok:true,...await createChecklistLateBccImport(session, payload.input || {})});

@@ -156,7 +156,9 @@ check('server.js: các action Workstream B gọi ĐÚNG hàm service tương ứ
   assert.ok(/await listManagerLateObservations\(session, payload\.input \|\| \{\}\)/.test(SERVER_SRC));
   assert.ok(/await recordShiftLeadLateObservation\(session, payload\.input \|\| \{\}\)/.test(SERVER_SRC));
   assert.ok(/await listShiftLeadLateObservations\(session, payload\.input \|\| \{\}\)/.test(SERVER_SRC));
-  assert.ok(/await previewChecklistLateBccUpload\(session, payload\.rows \|\| \[\]\)/.test(SERVER_SRC));
+  // 2026-08-16 (fix source/identity Nhập trực tiếp): thêm tham số payload.source (forward
+  // xuống previewBccUpload) — KHÔNG phải action mới, chỉ mở rộng lời gọi action đã có.
+  assert.ok(/await previewChecklistLateBccUpload\(session, payload\.rows \|\| \[\], payload\.source\)/.test(SERVER_SRC));
   assert.ok(/await createChecklistLateBccImport\(session, payload\.input \|\| \{\}\)/.test(SERVER_SRC));
   assert.ok(/await reconcileChecklistLateBccImport\(session, payload\.input \|\| \{\}\)/.test(SERVER_SRC));
   assert.ok(/await approveChecklistLateEvents\(session, payload\.decisions \|\| \[\]\)/.test(SERVER_SRC));

@@ -5,9 +5,15 @@
  *     bao phủ nhân sự — Trưởng ca CHỈ là một ví dụ, có thể là Trưởng bộ phận, Trợ lý Giám
  *     đốc, Giám đốc, Admin,...): "Ghi nhận phát hiện đi trễ" (nhân sự picker theo scope +
  *     Có/Không xin phép).
- *   - Admin: "Đối soát BCC" (upload -> preview -> đối soát -> xem lại -> phê duyệt -> xuất Excel).
- * KHÔNG đụng tới công cụ "Nhập thủ công" đã có sẵn trong phf-checklist-app.js (đó là 1 tính
- * năng khác, đơn giản hơn, Admin gõ tay điểm — module này KHÔNG thay thế, KHÔNG merge vào nó).
+ *   - Admin: "Đối soát BCC" (upload -> preview -> đối soát -> xem lại -> phê duyệt -> xuất Excel),
+ *     CỘNG "Nhập trực tiếp" (2026-08-16) — phương thức input thứ 2 song song Excel, hội tụ vào
+ *     ĐÚNG 1 pipeline preview/staging/reconcile hiện có (previewChecklistLateBccUpload ->
+ *     createChecklistLateBccImport -> reconcileChecklistLateBccImport), KHÔNG tạo write-path
+ *     riêng, KHÔNG bao giờ gọi thẳng tới 1 API ghi official nào. Xem handleManualPreview().
+ * KHÔNG đụng tới công cụ "Nhập thủ công/Nhập dồn" cũ đã RETIRED trong phf-checklist-app.js (đó
+ * là 1 tính năng khác đã bị rút khỏi UI vì ghi thẳng bản ghi CHÍNH THỨC, độc lập với pipeline
+ * đối soát ở file này — xem comment RETIRED tại đó). "Nhập trực tiếp" ở ĐÂY là thiết kế mới,
+ * hoàn toàn khác: không ghi gì cho tới khi qua đúng staging + đối soát như Excel.
  *
  * Hợp đồng dữ liệu: gọi thẳng 8 action đã có ở server.js (POST /api/data), không tự tính điểm/
  * trạng thái chính thức — mọi "Điểm gợi ý" hiển thị đều lấy nguyên từ response server
@@ -49,6 +55,7 @@
   function todayIso() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function fmtPoints(n) { var v = Number(n); return Number.isFinite(v) ? v : 0; }
   function formatLateMinutesDisplay(value) { var n = Number(value); return (value == null || value === '' || !Number.isFinite(n)) ? 'Không có dữ liệu' : String(Math.round(n)); }
+  function manualRowDefault() { return { id: 'mrow-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), employeeCode: '', date: todayIso(), time: '', shift: '', minutes: '', note: '' }; }
 
   /* Bảng điểm CHUẨN "Không duyệt" — nguồn hiển thị duy nhất, đúng 4 mức đã chốt Nội quy.
      Đây CHỈ là bảng tra cứu để HIỂN THỊ cho người dùng hiểu quy tắc — KHÔNG dùng để tự tính
@@ -110,6 +117,7 @@
   }
 
   var EXCEL_COLUMNS = ['Mã nhân viên', 'Họ tên', 'Ngày', 'Giờ', 'Địa điểm', 'Mã tiêu chí', 'Nội dung tiêu chí', 'Nhận xét', 'Điểm', 'Phút trễ', 'Ca làm', 'Lý do điều chỉnh', 'Trạng thái'];
+  var MANUAL_SHIFT_OPTIONS = ['Ca sáng', 'Ca chiều', 'Ca tối'];
 
   /* Dữ liệu mẫu MINH HỌA thật (không lặp lại "20" ở mọi cột — lỗi đã bị review flag trước đó). */
   var TEMPLATE_SAMPLE_ROWS = [
@@ -170,7 +178,10 @@
       /* ---- Người có quyền ghi nhận: ghi nhận phát hiện (Trưởng ca chỉ là 1 ví dụ) ---- */
       record: { employeeCode: '', date: todayIso(), managerDecision: '', note: '', saving: false, error: '', savedOk: '' },
       myObservations: { loading: false, loaded: false, error: '', records: [] },
-      /* ---- Admin: state machine đối soát BCC ---- */
+      /* ---- Admin: state machine đối soát BCC (dùng chung cho cả 2 phương thức input) ---- */
+      inputMode: 'excel', // 'excel'|'manual' — chỉ chọn NGUỒN dữ liệu nạp vào, KHÔNG rẽ nhánh pipeline
+      manualRows: [manualRowDefault()],
+      manualError: '',
       fsm: 'idle', // idle|reading|file_error|preview_ready|reconciling|conflict|awaiting_approval|applying|done|error_retry
       fileName: '',
       fileError: '',
@@ -329,11 +340,55 @@
   }
   function adminBodyHtml(s) {
     var pieces = [];
-    pieces.push(uploadCardHtml(s));
+    pieces.push(inputModeSelectorHtml(s));
+    pieces.push(s.inputMode === 'manual' ? manualEntryCardHtml(s) : uploadCardHtml(s));
     if (s.preview) pieces.push(previewCardHtml(s));
     if (s.fsm === 'awaiting_approval' || s.fsm === 'applying' || s.fsm === 'done' || s.fsm === 'error_retry') pieces.push(reconciliationTableCardHtml(s));
     pieces.push(exportCardHtml(s));
     return pieces.join('');
+  }
+
+  /* inputModeSelectorHtml: chọn NGUỒN nạp dữ liệu — "Nhập trực tiếp" và "Nhập Excel" đều chỉ
+     là 2 cách tạo ra rows[] rồi gọi ĐÚNG 1 previewChecklistLateBccUpload (xem handleFileSelected
+     và handleManualPreview) — không có pipeline/API riêng cho từng phương thức. */
+  function inputModeSelectorHtml(s) {
+    return '<div class="phfck-latewf-input-mode" role="tablist" aria-label="Phương thức nhập dữ liệu Đi trễ">'
+      + '<button type="button" role="tab" aria-selected="' + (s.inputMode === 'manual' ? 'false' : 'true') + '" class="' + (s.inputMode === 'manual' ? '' : 'is-active') + '" data-phfck-latewf-input-mode="excel">Nhập Excel</button>'
+      + '<button type="button" role="tab" aria-selected="' + (s.inputMode === 'manual' ? 'true' : 'false') + '" class="' + (s.inputMode === 'manual' ? 'is-active' : '') + '" data-phfck-latewf-input-mode="manual">Nhập trực tiếp</button>'
+      + '</div>';
+  }
+
+  function manualRowHtml(row, index, people) {
+    return '<div class="phfck-latewf-manual-row" data-phfck-latewf-manual-row="' + esc(row.id) + '">'
+      + '<div class="phfck-latewf-manual-no">' + String(index + 1).padStart(2, '0') + '</div>'
+      + '<label><span>Nhân sự *</span><select data-phfck-latewf-manual-field="employeeCode" data-phfck-latewf-manual-row-id="' + esc(row.id) + '"><option value="">Chọn nhân sự…</option>'
+        + people.map(function (p) { return '<option value="' + esc(p.code) + '" ' + (row.employeeCode === p.code ? 'selected' : '') + '>' + esc(p.name) + (p.code ? ' · ' + esc(p.code) : '') + '</option>'; }).join('')
+      + '</select></label>'
+      + '<label><span>Ngày *</span><input type="date" data-phfck-latewf-manual-field="date" data-phfck-latewf-manual-row-id="' + esc(row.id) + '" value="' + esc(row.date) + '"></label>'
+      + '<label><span>Giờ</span><input type="time" data-phfck-latewf-manual-field="time" data-phfck-latewf-manual-row-id="' + esc(row.id) + '" value="' + esc(row.time) + '"></label>'
+      + '<label><span>Ca làm</span><select data-phfck-latewf-manual-field="shift" data-phfck-latewf-manual-row-id="' + esc(row.id) + '"><option value="">— Chọn ca —</option>'
+        + MANUAL_SHIFT_OPTIONS.map(function (sh) { return '<option value="' + esc(sh) + '" ' + (row.shift === sh ? 'selected' : '') + '>' + esc(sh) + '</option>'; }).join('')
+      + '</select></label>'
+      + '<label><span>Phút trễ *</span><input type="number" min="0" step="1" data-phfck-latewf-manual-field="minutes" data-phfck-latewf-manual-row-id="' + esc(row.id) + '" value="' + esc(row.minutes) + '"></label>'
+      + '<label class="phfck-latewf-manual-note"><span>Ghi chú</span><input type="text" data-phfck-latewf-manual-field="note" data-phfck-latewf-manual-row-id="' + esc(row.id) + '" value="' + esc(row.note) + '" placeholder="Không bắt buộc"></label>'
+      + '<button type="button" class="phfck-latewf-manual-remove" data-phfck-latewf-manual-remove="' + esc(row.id) + '" aria-label="Xóa dòng">×</button>'
+      + '</div>';
+  }
+
+  /* manualEntryCardHtml: KHÔNG có ô Điểm — điểm luôn do server tính lại ở bước Kiểm tra dữ liệu
+     (previewChecklistLateBccUpload), không nhận số Admin gõ tay làm căn cứ, đúng invariant đã
+     chốt ("không mang points làm source of truth"). */
+  function manualEntryCardHtml(s) {
+    var people = Array.isArray(s.ctx.people) ? s.ctx.people : [];
+    var rows = s.manualRows || [];
+    return '<div class="phfck-latewf-card" data-phfck-latewf-manual-card>'
+      + '<div class="phfck-panel-head"><div><small>BƯỚC 1–2</small><h4>Nhập trực tiếp danh sách đi trễ</h4></div></div>'
+      + '<div class="phfck-latewf-manual-list" data-phfck-latewf-manual-list>' + rows.map(function (row, index) { return manualRowHtml(row, index, people); }).join('') + '</div>'
+      + '<div class="phfck-latewf-manual-actions"><button type="button" class="phfck-secondary" data-phfck-latewf-manual-add>＋ Thêm dòng</button></div>'
+      + (s.manualError ? '<div class="phfck-latewf-error-box" role="alert"><b>Chưa thể xem trước</b><p>' + esc(s.manualError) + '</p></div>' : '')
+      + '<p class="phfck-latewf-note">Không nhập điểm ở bước này — hệ thống luôn tự tính điểm gợi ý ở bước Kiểm tra dữ liệu, không dùng số Admin gõ tay làm căn cứ chính thức.</p>'
+      + '<div class="phfck-latewf-form-actions"><button type="button" class="phfck-primary" data-phfck-latewf-manual-preview ' + (s.inFlight.manualPreview ? 'disabled' : '') + '>' + (s.inFlight.manualPreview ? 'Đang kiểm tra…' : 'Xem trước') + '</button></div>'
+      + '</div>';
   }
 
   function uploadCardHtml(s) {
@@ -564,6 +619,93 @@
     });
   }
 
+  function handleInputModeChange(mode) {
+    var s = STORE.state;
+    if (s.inputMode === mode) return;
+    s.inputMode = mode; s.manualError = '';
+    // Đổi phương thức nạp = bắt đầu lại từ bước Nhập dữ liệu — preview/staging của phương thức
+    // trước (nếu có) thuộc về input khác, không mang sang để tránh lẫn dữ liệu 2 nguồn.
+    s.preview = null; s.fileName = ''; s.fileError = '';
+    s.importRecord = null; s.importRows = null; s.reconcileActions = null; s.approveResults = null;
+    setFsm('idle'); render();
+  }
+  function handleManualAdd() {
+    var s = STORE.state;
+    s.manualRows = s.manualRows || [];
+    s.manualRows.push(manualRowDefault());
+    render();
+  }
+  function handleManualRemove(id) {
+    var s = STORE.state;
+    s.manualRows = (s.manualRows || []).filter(function (r) { return r.id !== id; });
+    if (!s.manualRows.length) s.manualRows.push(manualRowDefault());
+    render();
+  }
+  function manualFieldSet(rowId, field, value) {
+    var s = STORE.state;
+    var row = (s.manualRows || []).find(function (r) { return r.id === rowId; });
+    if (row) row[field] = value;
+  }
+  function validateManualRows(rows) {
+    var errors = [];
+    (rows || []).forEach(function (r, index) {
+      var n = index + 1;
+      if (!t(r.employeeCode)) errors.push('Dòng ' + n + ': chưa chọn nhân sự.');
+      if (!t(r.date)) errors.push('Dòng ' + n + ': thiếu ngày.');
+      var minutes = Number(r.minutes);
+      if (t(r.minutes) === '' || !Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes < 0) errors.push('Dòng ' + n + ': số phút trễ phải là số nguyên ≥ 0.');
+    });
+    return errors;
+  }
+  /* manualRowsToApiRows: build ĐÚNG object key tiếng Việt mà parseBccExcelRows() ở server đang
+     đọc (EXCEL_COLUMNS) — đây là điểm hội tụ với Excel: previewChecklistLateBccUpload không
+     phân biệt object đến từ đọc file hay gõ tay, miễn đúng shape này. */
+  function manualRowsToApiRows(rows, people) {
+    var byCode = {};
+    (people || []).forEach(function (p) { byCode[p.code] = p; });
+    return (rows || []).map(function (r) {
+      return {
+        'Mã nhân viên': r.employeeCode,
+        'Họ tên': (byCode[r.employeeCode] || {}).name || '',
+        'Ngày': r.date,
+        'Giờ': r.time,
+        'Địa điểm': '',
+        'Mã tiêu chí': '',
+        'Nội dung tiêu chí': '',
+        'Nhận xét': r.note,
+        'Điểm': '',
+        'Phút trễ': r.minutes,
+        'Ca làm': r.shift,
+        'Lý do điều chỉnh': '',
+        'Trạng thái': ''
+      };
+    });
+  }
+  function handleManualPreview() {
+    var s = STORE.state;
+    if (s.inFlight.manualPreview) return;
+    var errors = validateManualRows(s.manualRows);
+    if (errors.length) { s.manualError = errors.join(' '); render(); return; }
+    s.manualError = ''; s.inFlight.manualPreview = true; render();
+    var apiRows = manualRowsToApiRows(s.manualRows, s.ctx.people);
+    // source:'MANUAL' đi kèm NGAY trong request preview — server (previewBccUpload) dùng giá
+    // trị này TRƯỚC khi tính buildEventIdentity()/buildImportRowKey()/computeSuggestion(), nên
+    // identity/importRowKey trả về đã phản ánh đúng MANUAL ngay từ đầu. KHÔNG được sửa lại
+    // row.source ở client sau khi nhận response — làm vậy sẽ lệch khỏi identity/key đã bake.
+    callApi('previewChecklistLateBccUpload', { rows: apiRows, source: 'MANUAL' }).then(function (data) {
+      if (!isCurrent(s)) return;
+      s.inFlight.manualPreview = false;
+      s.fileName = ''; s.preview = data;
+      s.importRecord = null; s.importRows = null; s.reconcileActions = null; s.approveResults = null;
+      setFsm('preview_ready'); render();
+    }).catch(function (err) {
+      if (!isCurrent(s)) return;
+      s.inFlight.manualPreview = false;
+      s.manualError = err && err.message || 'Không kiểm tra được dữ liệu.';
+      render();
+    });
+  }
+
   function handleStartReconcile() {
     var s = STORE.state;
     if (s.inFlight.createImport || !s.preview) return;
@@ -787,6 +929,11 @@
     }
     var fileInput = e.target.closest('[data-phfck-latewf-file-input]');
     if (fileInput) { handleFileSelected(fileInput.files && fileInput.files[0]); return; }
+    var manualSelect = e.target.closest('[data-phfck-latewf-manual-field]');
+    if (manualSelect && manualSelect.tagName === 'SELECT') {
+      manualFieldSet(manualSelect.getAttribute('data-phfck-latewf-manual-row-id'), manualSelect.getAttribute('data-phfck-latewf-manual-field'), manualSelect.value);
+      return;
+    }
     var rowCheck = e.target.closest('[data-phfck-latewf-row-check]');
     if (rowCheck) { var id = rowCheck.getAttribute('data-phfck-latewf-row-check'); STORE.state.selectedRowIds[id] = rowCheck.checked; return; }
     var resolveSel = e.target.closest('[data-phfck-latewf-resolve]');
@@ -810,6 +957,11 @@
   function onInput(e) {
     var field = e.target.closest('[data-phfck-latewf-field]');
     if (field && field.tagName !== 'SELECT' && field.type !== 'radio') { STORE.state.record[field.getAttribute('data-phfck-latewf-field')] = field.value; return; }
+    var manualInput = e.target.closest('[data-phfck-latewf-manual-field]');
+    if (manualInput && manualInput.tagName !== 'SELECT') {
+      manualFieldSet(manualInput.getAttribute('data-phfck-latewf-manual-row-id'), manualInput.getAttribute('data-phfck-latewf-manual-field'), manualInput.value);
+      return;
+    }
     var pts = e.target.closest('[data-phfck-latewf-applied-points]');
     if (pts) { var id1 = pts.getAttribute('data-phfck-latewf-applied-points'); STORE.state.rowOverrides[id1] = STORE.state.rowOverrides[id1] || {}; STORE.state.rowOverrides[id1].appliedPoints = pts.value; return; }
     var reasonEl = e.target.closest('[data-phfck-latewf-row-reason]');
@@ -820,6 +972,12 @@
     if (e.target.closest('[data-phfck-latewf-reload-list]')) { e.preventDefault(); s.myObservations.loaded = false; render(); loadMyObservations(); return; }
     if (e.target.closest('[data-phfck-latewf-download-template]')) { e.preventDefault(); if (s.inFlight.template) return; s.inFlight.template = true; render(); downloadTemplateXlsx().catch(function (err) { toast(node0(), 'error', 'Không tạo được file mẫu', err && err.message || ''); }).then(function () { s.inFlight.template = false; render(); }); return; }
     if (e.target.closest('[data-phfck-latewf-choose-file]')) { e.preventDefault(); handleChooseFile(); return; }
+    var modeBtn = e.target.closest('[data-phfck-latewf-input-mode]');
+    if (modeBtn) { e.preventDefault(); handleInputModeChange(modeBtn.getAttribute('data-phfck-latewf-input-mode')); return; }
+    if (e.target.closest('[data-phfck-latewf-manual-add]')) { e.preventDefault(); handleManualAdd(); return; }
+    var manualRemoveBtn = e.target.closest('[data-phfck-latewf-manual-remove]');
+    if (manualRemoveBtn) { e.preventDefault(); handleManualRemove(manualRemoveBtn.getAttribute('data-phfck-latewf-manual-remove')); return; }
+    if (e.target.closest('[data-phfck-latewf-manual-preview]')) { e.preventDefault(); handleManualPreview(); return; }
     if (e.target.closest('[data-phfck-latewf-start-reconcile]')) { e.preventDefault(); handleStartReconcile(); return; }
     var conflictClose = e.target.closest('[data-phfck-latewf-conflict-close]');
     if (conflictClose) { e.preventDefault(); s.showConflictModal = false; render(); return; }
