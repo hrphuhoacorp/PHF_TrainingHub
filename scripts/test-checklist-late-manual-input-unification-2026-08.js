@@ -281,6 +281,51 @@ function previewResponseFor(rows, requestSource) {
       '5i. KHÔNG còn override row.source hậu-response trong handleManualPreview() (đã xoá logic override sau khi identity/key đã bake)');
   }
 
+  // =========================================================================
+  // 6. UI polish (2026-08-16): header, 3-entry selector, step label đổi tên, manual form không
+  //    mất field sau khi đổi CSS/layout, "Kiểm tra ghi nhận cấp trên" không fake data.
+  // =========================================================================
+  {
+    const dom = buildDom();
+    const { window } = dom;
+    window.fetch = async () => response({ ok: true });
+    const mount = window.document.getElementById('mount');
+    window.PhfChecklistLateWorkflow.mount(mount, { isAdmin: true, canRecord: true, actorEmployeeCode: 'ADM01', actorName: 'Admin', people: PEOPLE });
+    await tick();
+
+    check(!!mount.querySelector('.phfck-latewf-header'), '6a. Header "Đối soát đi trễ" hiển thị');
+    check(mount.querySelector('.phfck-latewf-header').textContent.indexOf('Đối soát đi trễ') !== -1, '6a2. Header đúng tiêu đề');
+
+    const tabButtons = mount.querySelectorAll('.phfck-latewf-mode-tabs button');
+    check(tabButtons.length === 3, '6b. Selector chính có đúng 3 mục (Nhập trực tiếp | Nhập Excel | Kiểm tra ghi nhận cấp trên)');
+    const tabTexts = Array.prototype.map.call(tabButtons, b => b.textContent.trim());
+    check(tabTexts.includes('Nhập trực tiếp') && tabTexts.includes('Nhập Excel') && tabTexts.includes('Kiểm tra ghi nhận cấp trên'), '6b2. Đúng 3 nhãn theo spec');
+
+    const stepLabels = Array.prototype.map.call(mount.querySelectorAll('.phfck-latewf-steps li b'), b => b.textContent.trim());
+    check(stepLabels[0] === 'Nhập dữ liệu', '6c. Bước 1 đổi nhãn "Nhập file" -> "Nhập dữ liệu"');
+    check(stepLabels.slice(1).join('|') === 'Kiểm tra dữ liệu|Đối soát|Xem lại|Phê duyệt', '6c2. 4 bước sau giữ nguyên nhãn/thứ tự, không đổi logic step');
+
+    click(window, mount.querySelector('[data-phfck-latewf-input-mode="manual"]'));
+    await tick();
+    const manualFields = ['employeeCode', 'date', 'time', 'shift', 'minutes', 'note'];
+    manualFields.forEach(f => check(!!mount.querySelector('[data-phfck-latewf-manual-field="' + f + '"]'), '6d. Field "' + f + '" vẫn còn sau redesign UI'));
+    check(!mount.querySelector('[data-phfck-latewf-manual-field="points"]'), '6d2. Vẫn không có ô Điểm sau redesign');
+    check(mount.querySelector('[data-phfck-latewf-manual-card]').textContent.indexOf('hệ thống luôn tự tính điểm gợi ý') !== -1,
+      '6d3. Vẫn còn text giải thích điểm do hệ thống tính ở bước kiểm tra');
+    check(!!mount.querySelector('[data-phfck-latewf-manual-add]'), '6e. Nút "+ Thêm dòng" còn nguyên vị trí dưới danh sách');
+    check(!!mount.querySelector('[data-phfck-latewf-manual-preview].phfck-primary'), '6f. "Xem trước" vẫn là CTA chính (class phfck-primary)');
+
+    click(window, mount.querySelector('[data-phfck-latewf-input-mode="observations"]'));
+    await tick();
+    check(!!mount.querySelector('[data-phfck-latewf-observations-card]'), '6g. Chọn "Kiểm tra ghi nhận cấp trên" -> hiện đúng card');
+    check(!mount.querySelector('[data-phfck-latewf-observations-card] table'), '6h. KHÔNG render bảng dữ liệu (chưa có API Admin-only phù hợp) — không fake data');
+    // Ở view observations, KHÔNG hiện stepper/upload/manual/preview/reconcile của luồng input.
+    check(!mount.querySelector('.phfck-latewf-steps'), '6i. View "Kiểm tra ghi nhận cấp trên" không hiện stepper (không thuộc luồng input)');
+    check(!mount.querySelector('[data-phfck-latewf-manual-card],[data-phfck-latewf-upload-card]'), '6j. View observations không lẫn card Nhập trực tiếp/Nhập Excel');
+
+    dom.window.close();
+  }
+
   console.log(`\n${passes} passed, ${failures} failed.`);
   process.exit(failures ? 1 : 0);
 })();

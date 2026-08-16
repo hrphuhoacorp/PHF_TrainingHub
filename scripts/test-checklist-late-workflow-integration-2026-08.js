@@ -76,6 +76,8 @@ async function buildDom() {
     await tick(60);
 
     check(!!root.querySelector('[data-phfck-latewf-shell="admin"]'), '1b. Vào Đi trễ hiện shell Admin');
+    check(!root.querySelector('[data-phfck-violation-excel-template],[data-phfck-violation-excel-export],[data-phfck-violation-excel-import]'),
+      '1b2. UI polish (2026-08-16): toolbar Excel generic (Tải file mẫu/Xuất Excel/Nhập Excel dùng chung cho quick/detail/multi/log) KHÔNG còn render khi mode=\'late\' — tránh trùng lặp với "Nhập Excel" bên trong Late Workflow module');
     check(!root.querySelector('[data-phfck-late-inner-tab]'), '1c. KHÔNG còn bất kỳ tab-switcher nào (data-phfck-late-inner-tab đã bị gỡ hẳn khỏi DOM) — chỉ còn 1 mode duy nhất nên không cần tab con nữa');
     check(!root.querySelector('[data-phfck-late-add],[data-phfck-late-submit],[data-phfck-late-review],[data-phfck-late-confirm],[data-phfck-late-draft],[data-phfck-late-template],[data-phfck-late-upload],[data-phfck-late-export]'),
       '1d. Công cụ "Nhập thủ công" thật sự KHÔNG THỂ TRUY CẬP qua route thật — không có bất kỳ phần tử data-phfck-late-* nào của công cụ đó trong DOM (không chỉ ẩn bằng CSS)');
@@ -126,6 +128,7 @@ async function buildDom() {
     check(!!root.querySelector('[data-phfck-violation-tab="quick"]'), '3a. Tab "Nhập nhanh" vẫn tồn tại');
     check(!!root.querySelector('[data-phfck-violation-tab="detail"]'), '3b. Tab "Ghi nhận chi tiết" vẫn tồn tại');
     check(!!root.querySelector('[data-phfck-violation-tab="multi"]'), '3c. Tab "Ghi nhận nhiều ngày" vẫn tồn tại');
+    check(!!root.querySelector('[data-phfck-violation-excel-template]'), '3c2. UI polish (2026-08-16): toolbar Excel generic VẪN hiển thị bình thường ở mode mặc định (quick) — chỉ ẩn riêng cho mode=\'late\', không mất chức năng ở quick/detail/multi/log');
 
     click(window, root.querySelector('[data-phfck-violation-tab="late"]'));
     await tick(60);
@@ -141,14 +144,24 @@ async function buildDom() {
   // =========================================================================
   // B) Structural — phần Trưởng ca / route quản lý (xem lý do ở đầu file).
   // =========================================================================
-  // Step 2A (2026-08-16): business owner đảo ngược quyết định cũ — khu/tab "Đi trễ" riêng CHỈ
+  // Step 2A (2026-08-15): business owner đảo ngược quyết định cũ — khu/tab "Đi trễ" riêng CHỈ
   // dành cho Admin. Manager/Trưởng ca dù có record+record_scope KHÔNG còn thấy tab này (họ ghi
   // DITRE qua đúng flow "Ghi nhận lỗi" Nhập nhanh/Chi tiết/Nhiều ngày của Step 1, không đổi).
+  // 2026-08-16 (Trợ lý thẩm định, KHÔNG đảo ngược Step 2A): thêm ĐÚNG 1 nhánh mới —
+  // canReviewChecklistLateArea() (quyền thẩm định Checklist hiện hữu, review_monthly +
+  // review_scope) — KHÔNG phải khôi phục lại nhánh canRecordViolationNow() cũ mà Step 2A đã gỡ.
+  // Trưởng ca thường (record nhưng không có review_monthly) vẫn KHÔNG thấy tab này, y hệt Step 2A.
   const gateFnBody = (code.match(/function canUseLateWorkflowArea\(\)\{([\s\S]*?)\}/) || [])[1] || '';
-  check(gateFnBody.trim() === 'return canUseLateViolation();',
-    '5a. canUseLateWorkflowArea() CHỈ còn return canUseLateViolation() (Admin-only) — không còn nhánh role()===\'manager\'&&canRecordViolationNow()');
+  check(gateFnBody.trim() === 'return canUseLateViolation()||canReviewChecklistLateArea();',
+    '5a. canUseLateWorkflowArea() = canUseLateViolation() OR canReviewChecklistLateArea() — Admin HOẶC người có quyền thẩm định hiện hữu, không có nhánh nào khác');
   check(!gateFnBody.includes('canRecordViolationNow'),
-    '5a2. canUseLateWorkflowArea() không còn đọc canRecordViolationNow() — hàm đó vẫn tồn tại nguyên vẹn ở nơi khác cho flow Ghi nhận lỗi DITRE, chỉ không còn dùng làm điều kiện mở tab Đi trễ riêng');
+    '5a2. canUseLateWorkflowArea() KHÔNG đọc canRecordViolationNow() — Trưởng ca có record nhưng không có review_monthly vẫn không thấy tab này (Step 2A giữ nguyên cho nhóm này)');
+  // Không dùng regex \{([\s\S]*?)\} ở đây — thân hàm có {} lồng nhau ((roleWorkspaceState.data||{}))
+  // khiến non-greedy match dừng sai chỗ. Check substring chính xác thay vì tách "thân hàm".
+  check(code.includes("function canReviewChecklistLateArea(){var r=role();if(r!=='manager')return false;return (roleWorkspaceState.data||{}).canReviewMonthly===true;}"),
+    '5a3. canReviewChecklistLateArea() đọc đúng field canReviewMonthly (đã expose từ getChecklistRoleWorkspace(), KHÔNG check preset_code/role string "assistant")');
+  check(!code.includes("role()==='assistant'") && !code.includes('role()==="assistant"'),
+    '5a4. Grep-guard: không có if(role===\'assistant\') hardcode nào được thêm vào — đúng yêu cầu reuse capability/scope hiện hữu');
   const tabsBody = (code.match(/function violationTabsHtml\(\)\{([\s\S]*?)\n  \}/) || [])[1] || '';
   check(tabsBody.includes('canUseLateWorkflowArea()'),
     '5b. violationTabsHtml() vẫn gate tab "Đi trễ" bằng canUseLateWorkflowArea() (wiring không đổi) — kết hợp với 5a nghĩa là tab CHỈ hiện cho Admin, Manager có record cũng không còn thấy');

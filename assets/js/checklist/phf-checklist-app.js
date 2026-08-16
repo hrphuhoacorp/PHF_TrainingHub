@@ -10,11 +10,21 @@
   function role(){try{return String((window.phfGetSessionRole&&window.phfGetSessionRole())||'').toLowerCase();}catch(e){return '';}}
   function canUseLateViolation(){return role()==='admin';}
   function canRecordViolationNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;return (roleWorkspaceState.data||{}).canRecordViolation===true;}
-  /* Step 2A (2026-08-16) — khu vực/tab "Đi trễ" riêng (đối soát BCC, sau này) CHỈ dành cho
-     Admin. Quản lý/Trưởng ca có record+record_scope KHÔNG còn thấy tab này nữa — họ ghi
-     DITRE qua đúng flow "Ghi nhận lỗi" (Nhập nhanh/Chi tiết/Nhiều ngày) đã khôi phục ở Step 1,
-     vẫn gọi recordManagerLateObservation() y hệt, không đổi hành vi ghi nhận/quyền record. */
-  function canUseLateWorkflowArea(){return canUseLateViolation();}
+  /* 2026-08-16 (Trợ lý thẩm định) — reuse ĐÚNG capability "thẩm định Checklist" hiện hữu
+     (review_monthly + review_scope, đã có sẵn cho preset Trợ lý Giám đốc) — KHÔNG hardcode
+     if(role==='assistant')/preset_code. canReviewMonthly do getChecklistRoleWorkspace() (lib/
+     checklist-permissions.js) trả về, mirror y hệt cách canRecordViolation đã dùng ở trên. */
+  function canReviewChecklistLateArea(){var r=role();if(r!=='manager')return false;return (roleWorkspaceState.data||{}).canReviewMonthly===true;}
+  /* Step 2A (2026-08-15) — khu vực/tab "Đi trễ" riêng (đối soát BCC) CHỈ dành cho Admin.
+     Quản lý/Trưởng ca có record+record_scope KHÔNG thấy tab này — họ ghi DITRE qua đúng flow
+     "Ghi nhận lỗi" (Nhập nhanh/Chi tiết/Nhiều ngày), vẫn gọi recordManagerLateObservation() y
+     hệt, không đổi hành vi ghi nhận/quyền record.
+     2026-08-16 (mở rộng, KHÔNG đảo ngược Step 2A) — thêm ĐÚNG 1 nhánh: người có quyền thẩm định
+     Checklist hiện hữu (canReviewChecklistLateArea(), vd Trợ lý Giám đốc) CŨNG thấy tab "Đi trễ",
+     nhưng module bên trong (phf-checklist-late-workflow.js) render view khác Admin — xem
+     buildLateWorkflowCtx() bên dưới (ctx.isReviewer). Quản lý/Trưởng ca thường (không có
+     review_monthly) KHÔNG bị ảnh hưởng — vẫn không thấy tab này, y hệt Step 2A. */
+  function canUseLateWorkflowArea(){return canUseLateViolation()||canReviewChecklistLateArea();}
   function canViewViolationsNow(){var r=role();if(r==='admin')return true;if(r!=='manager')return false;var d=roleWorkspaceState.data||{};return d.canRecordViolation===true||d.canViewViolations===true;}
   function user(){try{return (window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())||(window.phfGetCurrentUser&&window.phfGetCurrentUser())||null;}catch(e){return null;}}
   function currentChecklistGrant(){return roleWorkspaceState&&roleWorkspaceState.data&&roleWorkspaceState.data.grant||null;}
@@ -4295,6 +4305,12 @@
     var u=user()||{};
     return {
       isAdmin:isAdminNow,
+      // isReviewer: người có quyền thẩm định Checklist hiện hữu (KHÔNG phải Admin) — module dùng
+      // cờ này để render view thẩm định/lịch sử toàn công ty thay vì shell vận hành nguồn dữ liệu
+      // tổng của Admin. canRecord GIỮ NGUYÊN logic cũ (isAdminNow||canRecordViolationNow()) —
+      // Trợ lý vốn đã có canRecordViolation=true (record_violation, all_company) nên đã true sẵn,
+      // không cần đổi gì thêm ở đây.
+      isReviewer:!isAdminNow&&canReviewChecklistLateArea(),
       canRecord:isAdminNow||canRecordViolationNow(),
       actorEmployeeCode:currentSessionEmployeeCode(),
       actorName:u.fullName||u.name||u.displayName||u.username||'',
@@ -4515,7 +4531,7 @@
       +(embeddedManager?'':'<div class="phfck-page-head phfck-violation-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>'+(isLogView?'Nhật ký lỗi':'Ghi nhận lỗi')+'</h1><p>'+(isLogView?'Xem, lọc và rà toàn bộ bản ghi trong phạm vi.':'Chọn nhân viên, tiêu chí có lỗi và ghi nhận ngắn gọn.')+'</p></div>'+(isLogView?'':'<button class="phfck-secondary" type="button" data-phfck-view="tasks">Xem việc cần xử lý</button>')+'</div>')
       +checklistViolationModeBanner()
       +(isLogView?'':violationTabsHtml())
-      +(isLogView||!canRecord?'':violationExcelToolbarHtml())
+      +(isLogView||!canRecord||violationUiState.mode==='late'?'':violationExcelToolbarHtml())
       +(isLogView?violationLogHtml():(violationUiState.mode==='quick'?violationQuickHtml():(violationUiState.mode==='multi'?violationMultiHtml():(violationUiState.mode==='late'?violationLateHtml():violationDetailHtml()))))
       +(isLogView?'':'<section class="phfck-panel phfck-violation-policy" style="display:none"><div class="phfck-panel-head"><div><small>NGUYÊN TẮC ĐÃ CHỐT</small><h3>Điều kiện vận hành bắt buộc</h3></div></div><div class="phfck-policy-grid"><article><span>01</span><div><b>Nháp chưa trừ điểm</b><p>Chỉ khi ghi nhận chính thức mới tạo lỗi và trừ điểm tạm.</p></div></article><article><span>02</span><div><b>Không sửa âm thầm</b><p>Sau khi nhân viên đã xem, mọi thay đổi phải có lý do và lịch sử trước–sau.</p></div></article><article><span>03</span><div><b>Lỗi lặp lại không tự tăng hệ số</b><p>Chỉ cảnh báo, thống kê và đưa vào gợi ý đào tạo theo ngưỡng cấu hình.</p></div></article><article><span>04</span><div><b>Khóa dữ liệu tháng</b><p>Dữ liệu tháng trước nhập đến 23:59 ngày 4; sau đó chỉ Admin xử lý ngoại lệ.</p></div></article></div></section>')+'</div>';
   }

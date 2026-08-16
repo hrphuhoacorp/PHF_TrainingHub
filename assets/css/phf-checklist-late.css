@@ -25,6 +25,47 @@
 .phfck-latewf-toast.is-error{border-color:#e3a3a3;background:#fdf3f3}
 .phfck-latewf-toast.is-warning{border-color:#e9c77e;background:#fffaf0}
 
+/* 2026-08-16 (UI polish, Unified Admin Late Input) — header + segmented mode tabs + grid nhập
+   trực tiếp. Tái dùng đúng recipe pill-tab đã có ở .phfck-task-tabs/.phfck-monthly-tabs
+   (assets/css/phf-checklist.css) — không định nghĩa lại token, chỉ đổi tên class theo namespace
+   .phfck-latewf- của module này để không đụng file dùng chung. */
+.phfck-latewf-header{margin-bottom:14px}
+.phfck-latewf-header h3{margin:0 0 4px;font-size:17px;color:var(--phfck-ink)}
+.phfck-latewf-header p{margin:0;font-size:12.5px;color:var(--phfck-muted);line-height:1.5}
+
+.phfck-latewf-mode-tabs{display:flex;gap:4px;background:#f3f8f1;border:1px solid #dbe9d7;border-radius:13px;padding:4px;margin-bottom:16px;flex-wrap:wrap}
+.phfck-latewf-mode-tabs button{appearance:none;flex:1 1 160px;border:0;background:transparent;border-radius:10px;padding:10px 14px;font:600 12.5px/1.3 "Segoe UI",Arial,sans-serif;color:#1f4b3c;cursor:pointer;text-align:center;transition:.16s ease}
+.phfck-latewf-mode-tabs button:hover{background:rgba(255,255,255,.6)}
+.phfck-latewf-mode-tabs button.is-active{background:linear-gradient(135deg,#2d953f,#4caf39);color:#fff;box-shadow:0 7px 16px rgba(0,87,50,.17)}
+.phfck-latewf-mode-tabs button.is-active:hover{background:linear-gradient(135deg,#2d953f,#4caf39)}
+@media(max-width:640px){.phfck-latewf-mode-tabs{flex-direction:column}}
+
+.phfck-latewf-observations-gap{border:1px dashed #cfded7;background:#fbfdfc;border-radius:12px;padding:16px}
+.phfck-latewf-observations-gap b{display:block;margin-bottom:6px;color:#7f6000}
+.phfck-latewf-observations-gap p{margin:0;font-size:12.5px;color:var(--phfck-muted);line-height:1.55}
+
+.phfck-latewf-manual-list{display:grid;gap:10px}
+.phfck-latewf-manual-row{display:grid;grid-template-columns:28px minmax(200px,1.4fr) 138px 108px 128px 96px minmax(180px,1.3fr) 34px;gap:10px;align-items:end;padding:12px;border:1px solid var(--phfck-line);border-radius:12px;background:#fff}
+.phfck-latewf-manual-no{align-self:center;width:26px;height:26px;border-radius:8px;background:var(--phfck-green-soft);color:var(--phfck-green);display:grid;place-items:center;font-size:10.5px;font-weight:700}
+.phfck-latewf-manual-row label{display:grid;gap:5px;min-width:0}
+.phfck-latewf-manual-row label>span{font-size:10.5px;line-height:1.2;color:var(--phfck-muted);font-weight:700}
+.phfck-latewf-manual-row input,.phfck-latewf-manual-row select{width:100%;height:38px;border:1px solid var(--phfck-line);border-radius:9px;padding:0 9px;background:#fff;color:var(--phfck-ink);font-size:12px;box-sizing:border-box}
+.phfck-latewf-manual-note input{width:100%}
+.phfck-latewf-manual-remove{align-self:center;width:30px;height:30px;border:0;border-radius:9px;background:#f4e8e5;color:#a54f43;font-size:16px;cursor:pointer}
+.phfck-latewf-manual-remove:hover{background:#f0dcd8}
+.phfck-latewf-manual-actions{margin-top:12px}
+@media(max-width:1180px){
+  .phfck-latewf-manual-row{grid-template-columns:26px repeat(3,minmax(150px,1fr));overflow-x:visible}
+  .phfck-latewf-manual-note{grid-column:2/5}
+  .phfck-latewf-manual-remove{justify-self:end}
+}
+@media(max-width:640px){
+  .phfck-latewf-manual-row{grid-template-columns:26px 1fr;align-items:start}
+  .phfck-latewf-manual-row>label,.phfck-latewf-manual-note{grid-column:2}
+  .phfck-latewf-manual-no{grid-row:1}
+  .phfck-latewf-manual-remove{grid-column:2;justify-self:end}
+}
+
 .phfck-latewf-record-form{display:grid;gap:12px;max-width:560px}
 .phfck-latewf-record-form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--phfck-muted);font-weight:600}
 .phfck-latewf-record-form input,.phfck-latewf-record-form select,.phfck-latewf-record-form textarea{border:1px solid var(--phfck-line);border-radius:10px;padding:9px 11px;font:400 13.5px/1.4 "Segoe UI",Arial,sans-serif;color:var(--phfck-ink)}

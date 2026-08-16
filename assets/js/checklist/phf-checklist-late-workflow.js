@@ -225,10 +225,20 @@
     }
   }
 
-  /* ============================== TRƯỞNG CA: Ghi nhận phát hiện đi trễ ============================== */
+  /* ============================== Người có quyền ghi nhận / Trợ lý thẩm định ==============================
+     Dùng CHUNG 1 shell cho cả Trưởng ca (ghi nhận phạm vi mình) và Trợ lý/người có quyền thẩm
+     định Checklist (ctx.isReviewer, xem 105d820+ buildLateWorkflowCtx() ở app chính) — recordFormHtml()/
+     recordListHtml() KHÔNG đổi gì (vẫn đúng 1 hành động ghi nhận Duyệt/Không duyệt, vẫn đúng 1 API
+     listChecklistLateManagerObservations), scope rộng hay hẹp hoàn toàn do BACKEND enforce
+     (permission.scopeType/permissionEmployees() — xem lib/checklist-late-reconciliation-service.js),
+     KHÔNG suy diễn ở client. Chỉ đổi tiêu đề/mô tả cho đúng ngữ cảnh. */
   function recordOnlyShellHtml(s) {
+    var isReviewer = !!(s.ctx && s.ctx.isReviewer);
     return '<section class="phfck-panel phfck-latewf-record" data-phfck-latewf-record-shell>'
-      + '<div class="phfck-panel-head"><div><small>ĐI TRỄ</small><h3>Ghi nhận phát hiện đi trễ</h3></div></div>'
+      + '<div class="phfck-panel-head"><div><small>' + (isReviewer ? 'ĐI TRỄ · THẨM ĐỊNH' : 'ĐI TRỄ') + '</small>'
+      + '<h3>' + (isReviewer ? 'Ghi nhận &amp; thẩm định đi trễ' : 'Ghi nhận phát hiện đi trễ') + '</h3>'
+      + (isReviewer ? '<p class="phfck-latewf-note">Theo quyền thẩm định Checklist hiện có — xem và ghi nhận Duyệt/Không duyệt trên toàn phạm vi được cấp.</p>' : '')
+      + '</div></div>'
       + (s.ctx.canRecord ? recordFormHtml(s) : recordNoPermissionHtml())
       + (s.ctx.canRecord ? recordListHtml(s) : '')
       + '</section>';
@@ -262,7 +272,8 @@
     if (m.loading) return '<div class="phfck-latewf-loading" role="status">Đang tải danh sách đã ghi nhận…</div>';
     if (m.error) return '<div class="phfck-latewf-error-box" role="alert"><b>Không tải được danh sách</b><p>' + esc(m.error) + '</p><button type="button" class="phfck-secondary" data-phfck-latewf-reload-list>Thử lại</button></div>';
     if (!m.records.length) return '<div class="phfck-latewf-empty">Chưa có ghi nhận nào gần đây.</div>';
-    return '<div class="phfck-latewf-record-list"><h4>Đã ghi nhận gần đây</h4><div class="phfck-latewf-record-table">'
+    var heading = (s.ctx && s.ctx.isReviewer) ? 'Lịch sử ghi nhận đi trễ' : 'Đã ghi nhận gần đây';
+    return '<div class="phfck-latewf-record-list"><h4>' + esc(heading) + '</h4><div class="phfck-latewf-record-table">'
       + '<div class="phfck-latewf-record-row phfck-latewf-record-head"><span>Nhân sự</span><span>Ngày</span><span>Xin phép</span><span>Ghi chú</span><span>Trạng thái</span></div>'
       + m.records.map(function (rec) {
         var reconciled = rec.linked_violation_id || rec.matched_official ? 'Đã đối soát' : 'Chưa đối soát';
@@ -316,13 +327,17 @@
   /* ============================== ADMIN: Đối soát BCC + Nhập thủ công (mount) ============================== */
   function adminShellHtml(s) {
     return '<section class="phfck-panel phfck-latewf-admin" data-phfck-latewf-admin-shell>'
-      + adminStepsHtml(s)
-      + adminBodyHtml(s)
+      + adminHeaderHtml()
+      + inputModeSelectorHtml(s)
+      + (s.inputMode === 'observations' ? observationsViewHtml(s) : (adminStepsHtml(s) + adminBodyHtml(s)))
       + (s.showConflictModal ? conflictModalHtml(s) : '')
       + '</section>';
   }
+  function adminHeaderHtml() {
+    return '<div class="phfck-latewf-header"><h3>Đối soát đi trễ</h3><p>Nhập dữ liệu đi trễ thực tế và đối chiếu với ghi nhận của cấp trên.</p></div>';
+  }
   var STEP_ORDER = ['upload', 'check', 'reconcile', 'review', 'approve'];
-  var STEP_LABEL = { upload: 'Nhập file', check: 'Kiểm tra dữ liệu', reconcile: 'Đối soát', review: 'Xem lại', approve: 'Phê duyệt' };
+  var STEP_LABEL = { upload: 'Nhập dữ liệu', check: 'Kiểm tra dữ liệu', reconcile: 'Đối soát', review: 'Xem lại', approve: 'Phê duyệt' };
   function currentStepKey(s) {
     if (s.fsm === 'idle' || s.fsm === 'reading' || s.fsm === 'file_error') return 'upload';
     if (s.fsm === 'preview_ready') return 'check';
@@ -340,7 +355,6 @@
   }
   function adminBodyHtml(s) {
     var pieces = [];
-    pieces.push(inputModeSelectorHtml(s));
     pieces.push(s.inputMode === 'manual' ? manualEntryCardHtml(s) : uploadCardHtml(s));
     if (s.preview) pieces.push(previewCardHtml(s));
     if (s.fsm === 'awaiting_approval' || s.fsm === 'applying' || s.fsm === 'done' || s.fsm === 'error_retry') pieces.push(reconciliationTableCardHtml(s));
@@ -350,11 +364,17 @@
 
   /* inputModeSelectorHtml: chọn NGUỒN nạp dữ liệu — "Nhập trực tiếp" và "Nhập Excel" đều chỉ
      là 2 cách tạo ra rows[] rồi gọi ĐÚNG 1 previewChecklistLateBccUpload (xem handleFileSelected
-     và handleManualPreview) — không có pipeline/API riêng cho từng phương thức. */
+     và handleManualPreview) — không có pipeline/API riêng cho từng phương thức. "Kiểm tra ghi
+     nhận cấp trên" là 1 view riêng, read-only, KHÔNG đi qua staging/reconcile (xem
+     observationsViewHtml). */
+  var MODE_TAB_ORDER = ['manual', 'excel', 'observations'];
+  var MODE_TAB_LABEL = { manual: 'Nhập trực tiếp', excel: 'Nhập Excel', observations: 'Kiểm tra ghi nhận cấp trên' };
   function inputModeSelectorHtml(s) {
-    return '<div class="phfck-latewf-input-mode" role="tablist" aria-label="Phương thức nhập dữ liệu Đi trễ">'
-      + '<button type="button" role="tab" aria-selected="' + (s.inputMode === 'manual' ? 'false' : 'true') + '" class="' + (s.inputMode === 'manual' ? '' : 'is-active') + '" data-phfck-latewf-input-mode="excel">Nhập Excel</button>'
-      + '<button type="button" role="tab" aria-selected="' + (s.inputMode === 'manual' ? 'true' : 'false') + '" class="' + (s.inputMode === 'manual' ? 'is-active' : '') + '" data-phfck-latewf-input-mode="manual">Nhập trực tiếp</button>'
+    return '<div class="phfck-latewf-mode-tabs" role="tablist" aria-label="Phương thức nhập dữ liệu Đi trễ">'
+      + MODE_TAB_ORDER.map(function (key) {
+        var active = s.inputMode === key;
+        return '<button type="button" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" class="' + (active ? 'is-active' : '') + '" data-phfck-latewf-input-mode="' + key + '">' + esc(MODE_TAB_LABEL[key]) + '</button>';
+      }).join('')
       + '</div>';
   }
 
@@ -388,6 +408,23 @@
       + (s.manualError ? '<div class="phfck-latewf-error-box" role="alert"><b>Chưa thể xem trước</b><p>' + esc(s.manualError) + '</p></div>' : '')
       + '<p class="phfck-latewf-note">Không nhập điểm ở bước này — hệ thống luôn tự tính điểm gợi ý ở bước Kiểm tra dữ liệu, không dùng số Admin gõ tay làm căn cứ chính thức.</p>'
       + '<div class="phfck-latewf-form-actions"><button type="button" class="phfck-primary" data-phfck-latewf-manual-preview ' + (s.inFlight.manualPreview ? 'disabled' : '') + '>' + (s.inFlight.manualPreview ? 'Đang kiểm tra…' : 'Xem trước') + '</button></div>'
+      + '</div>';
+  }
+
+  /* observationsViewHtml: "Kiểm tra ghi nhận cấp trên" — Admin-only, read-only, KHÔNG scoring/
+     approve. CHƯA wire dữ liệu thật: listChecklistLateManagerObservations() hiện dùng
+     requireViolationPermission(session,'view') (lib/checklist-violations.js) — bất kỳ tài khoản
+     nào có capability xem đều gọi được, KHÔNG phải Admin-only thật; hàm cũng không tự lọc theo
+     scope khi gọi không kèm employeeCode (đọc toàn bộ observation, limit 500). Dùng tạm hàm này
+     coi như "Admin-only" sẽ sai — chỉ ẩn ở UI, không phải chặn ở backend. Giữ layout/selector
+     sẵn sàng, KHÔNG fake data — chờ 1 action Admin-only thật (requireAdmin + scope) ở batch sau. */
+  function observationsViewHtml() {
+    return '<div class="phfck-latewf-card" data-phfck-latewf-observations-card>'
+      + '<div class="phfck-panel-head"><div><small>ADMIN · CHỈ XEM</small><h4>Kiểm tra ghi nhận cấp trên</h4></div></div>'
+      + '<div class="phfck-latewf-observations-gap">'
+      + '<b>Chưa sẵn sàng — thiếu API Admin-only</b>'
+      + '<p>Danh sách ghi nhận Duyệt/Không duyệt từ cấp trên hiện chỉ có action dùng chung quyền "xem" (không phân biệt Admin), và không tự giới hạn theo phạm vi khi xem toàn bộ. Để tránh lộ dữ liệu ngoài phạm vi Admin thật, màn này tạm giữ chỗ — chưa hiển thị dữ liệu cho tới khi có 1 action Admin-only (requireAdmin + lọc scope) riêng cho mục đích kiểm tra này.</p>'
+      + '</div>'
       + '</div>';
   }
 

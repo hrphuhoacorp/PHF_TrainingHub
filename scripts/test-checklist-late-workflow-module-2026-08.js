@@ -425,6 +425,56 @@ const PEOPLE = [
     check(!/overThreshold[\s\S]{0,40}disabled/.test(code), '10g. Không có đoạn nào disable nút dựa trên overThreshold (grep-guard)');
   }
 
+  // =========================================================================
+  // 11. Trợ lý thẩm định (2026-08-16, ctx.isReviewer): reuse ĐÚNG shell ghi nhận (recordForm/
+  //     recordList), KHÔNG thấy shell Admin (upload/manual/reconcile/observations-tab). Tiêu đề
+  //     đổi để phản ánh đúng ngữ cảnh thẩm định, nhưng component/hành vi bên trong 100% giống
+  //     shell ghi nhận thường (Trưởng ca) — chỉ khác ctx do app chính truyền vào.
+  // =========================================================================
+  {
+    const dom = buildDom();
+    const { window } = dom;
+    window.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      if (body.action === 'listChecklistLateManagerObservations') return response({ records: [] });
+      return response({ ok: true });
+    };
+    const mount = window.document.getElementById('mount');
+    window.PhfChecklistLateWorkflow.mount(mount, { isAdmin: false, isReviewer: true, canRecord: true, actorEmployeeCode: 'TROLY01', actorName: 'Trợ lý', people: PEOPLE });
+    await tick();
+
+    check(!!mount.querySelector('[data-phfck-latewf-record-shell]'), '11a. ctx.isReviewer=true (không phải Admin) -> render shell ghi nhận (reuse), KHÔNG phải shell Admin');
+    check(!mount.querySelector('[data-phfck-latewf-admin-shell]'), '11b. KHÔNG render shell Admin cho Trợ lý (không mở khu vận hành nguồn dữ liệu tổng)');
+    check(!mount.querySelector('[data-phfck-latewf-upload-card],[data-phfck-latewf-manual-card],.phfck-latewf-mode-tabs'),
+      '11c. KHÔNG có "Nhập trực tiếp"/"Nhập Excel" tổng hay bất kỳ action upload Admin nào trong DOM cho Trợ lý');
+    check(!mount.querySelector('[data-phfck-latewf-choose-file],[data-phfck-latewf-download-template],[data-phfck-latewf-start-reconcile]'),
+      '11d. Không có nút chọn file/tải mẫu/đối soát nào lọt vào DOM của Trợ lý');
+    check(mount.textContent.includes('Ghi nhận & thẩm định đi trễ') || mount.textContent.includes('Ghi nhận và thẩm định đi trễ'),
+      '11e. Tiêu đề phản ánh đúng ngữ cảnh thẩm định (khác Trưởng ca thường)');
+    check(!!mount.querySelector('[data-phfck-latewf-record-form]'), '11f. Vẫn có form Ghi nhận (Duyệt/Không duyệt) — quyền ghi nhận Đi trễ hiện có giữ nguyên');
+    check(mount.querySelectorAll('select[data-phfck-latewf-field="employeeCode"] option').length === PEOPLE.length + 1,
+      '11g. Danh sách nhân sự trong form ghi nhận đến từ ctx.people (app chính truyền vào theo scope thật) — module không tự lọc lại/không tự suy scope');
+    window.PhfChecklistLateWorkflow.unmount();
+  }
+
+  // =========================================================================
+  // 12. Admin (ctx.isReviewer=false mặc định/không set) KHÔNG bị ảnh hưởng — vẫn shell Admin đầy
+  //     đủ upload/manual/reconcile, không lẫn tiêu đề/label của Trợ lý.
+  // =========================================================================
+  {
+    const dom = buildDom();
+    const { window } = dom;
+    const mount = window.document.getElementById('mount');
+    window.PhfChecklistLateWorkflow.mount(mount, { isAdmin: true, canRecord: true, actorEmployeeCode: 'ADM01', actorName: 'Admin', people: PEOPLE });
+    await tick();
+
+    check(!!mount.querySelector('[data-phfck-latewf-admin-shell]'), '12a. Admin vẫn render shell Admin đầy đủ (regression)');
+    check(!mount.querySelector('[data-phfck-latewf-record-shell]'), '12b. Admin KHÔNG render shell ghi nhận/thẩm định (đúng nhánh isAdmin)');
+    check(!mount.textContent.includes('Ghi nhận & thẩm định đi trễ'), '12c. Không lẫn tiêu đề Trợ lý vào shell Admin');
+    check(!!mount.querySelector('.phfck-latewf-mode-tabs'), '12d. Admin vẫn có đủ 3 tab (Nhập trực tiếp/Nhập Excel/Kiểm tra ghi nhận cấp trên) — không regression UI polish trước đó');
+    window.PhfChecklistLateWorkflow.unmount();
+  }
+
   console.log('\n' + passes + ' passed, ' + failures + ' failed.');
   if (failures > 0) process.exit(1);
 })();

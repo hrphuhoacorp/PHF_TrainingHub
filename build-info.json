@@ -1,7 +1,7 @@
 {
-  "version": "1.55.0",
-  "fingerprint": "1.55.0-checklist-late-reconciliation-phase1",
-  "builtAt": "2026-08-15T00:00:00+07:00",
-  "notes": "1.55.0 — Checklist Đi trễ Phase-1: manager observation (Duyệt/Không duyệt) + Admin upload/preview/reconcile BCC với 4 nhãn nghiệp vụ (Duyệt/Không duyệt/Chưa ghi nhận/Cần kiểm tra). Approve/officialize/adjustment/scoring CHƯA kích hoạt (LATE_APPROVAL_ENABLED=false backend, LATE_APPROVAL_UI_ENABLED=false frontend — cả hai đều khóa cứng). CSS module Đi trễ tách riêng assets/css/phf-checklist-late.css, lazy-load cùng JS module. Migration 1.55.0 đã chạy Production trước đó (PASS). Không đụng Retro/TSE/Total Row/Connection Gate.",
-  "build": "1.55.0"
+  "version": "1.55.2",
+  "fingerprint": "1.55.2-checklist-late-assistant-review-LOCAL-ONLY",
+  "builtAt": "2026-08-16T19:35:00+07:00",
+  "notes": "1.55.2 [LOCAL ONLY, CHƯA PUSH/DEPLOY]: Checklist Đi trễ — Trợ lý thẩm định (reuse capability review_monthly + reviewScope hiện có, KHÔNG tạo permission/scope mới): canReviewChecklistLateArea()/isReviewer (assets/js/checklist/phf-checklist-app.js), reviewer shell reuse recordForm/recordList (assets/js/checklist/phf-checklist-late-workflow.js), expose canReviewMonthly/reviewScope ở getChecklistRoleWorkspace() (lib/checklist-permissions.js), fix scope-filter listManagerLateObservations() (lib/checklist-late-reconciliation-service.js) — Admin-only input (Nhập trực tiếp/Nhập Excel/upload/reconcile/approve) không đổi, requireAdmin() giữ nguyên. Đây CHỈ là bump fingerprint để cache-busting phản ánh đúng các file JS/lib đã đổi — KHÔNG đổi business logic/permission thêm, KHÔNG migration. Approve/officialize/adjustment/scoring vẫn CHƯA kích hoạt (LATE_APPROVAL_ENABLED=false/LATE_APPROVAL_UI_ENABLED=false không đổi). RELEASE GATE: LOCAL ONLY — KHÔNG git push, KHÔNG deploy Vercel.",
+  "build": "1.55.2"
 }
