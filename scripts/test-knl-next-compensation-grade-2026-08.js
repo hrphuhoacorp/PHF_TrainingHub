@@ -158,7 +158,7 @@ async function run() {
 
   // PHF051: đang B2, có professional=true, management=FALSE (whitelist test chính).
   STATE.assignments.push({
-    id: 'a1', employee_code: 'PHF051', employee_name: 'Trịnh Thị Ngọc Linh', payroll_period: '2026-08', employment_type: 'OFFICIAL',
+    id: 'a1', employee_code: 'PHF051', employee_name: 'Trịnh Thị Ngọc Linh', payroll_period: '2026-08', employment_type: 'OFFICIAL', status: 'ACTIVE',
     compensation_grade_id: 'g-thumua-b2',
     has_professional_allowance: true, has_management_allowance: false, has_meal_allowance: true, meal_allowance: 30000,
     probation_amount: 0, extra_allowances: [], reference_total: 8800000,
@@ -166,7 +166,7 @@ async function run() {
   });
   // PHF036: đang B4 = bậc cao nhất trong version v1 -> isMaxGrade.
   STATE.assignments.push({
-    id: 'a2', employee_code: 'PHF036', employee_name: 'Trần Trung Hải', payroll_period: '2026-08', employment_type: 'OFFICIAL',
+    id: 'a2', employee_code: 'PHF036', employee_name: 'Trần Trung Hải', payroll_period: '2026-08', employment_type: 'OFFICIAL', status: 'ACTIVE',
     compensation_grade_id: 'g-thumua-b4',
     has_professional_allowance: true, has_management_allowance: true, has_meal_allowance: false, meal_allowance: 0,
     probation_amount: 0, extra_allowances: [], reference_total: 10850000,
@@ -174,7 +174,7 @@ async function run() {
   });
   // PHF099: Thử việc, chưa gán compensation_grade_id -> hasCurrentGrade=false.
   STATE.assignments.push({
-    id: 'a3', employee_code: 'PHF099', employee_name: 'Lê Văn Đỉnh', payroll_period: '2026-08', employment_type: 'PROBATION',
+    id: 'a3', employee_code: 'PHF099', employee_name: 'Lê Văn Đỉnh', payroll_period: '2026-08', employment_type: 'PROBATION', status: 'ACTIVE',
     compensation_grade_id: null,
     has_professional_allowance: false, has_management_allowance: false, has_meal_allowance: false, meal_allowance: 0,
     probation_amount: 6000000, extra_allowances: [], reference_total: 6000000,
