@@ -1,7 +1,7 @@
 {
-  "version": "1.59.0",
-  "fingerprint": "1.59.0-knl-full-module-ux-state",
-  "builtAt": "2026-08-17T21:39:58+07:00",
-  "notes": "1.59.0: KNL-08 Full-module UX state — loại bỏ toàn bộ 27 native browser popup (18 prompt/2 alert/7 confirm) trong assets/js/knl/phf-knl-app.js trên các màn Bộ KNL, Gán & áp dụng, Khảo sát Đợt, Kết quả khảo sát, Tiêu chuẩn bậc, Cơ cấu ngạch & bậc — thay bằng modal/toast nội bộ dựng trên openKnlModal/openKnlConfirmModal/window.phfToast sẵn có (openKnlPromptModal, knlToast, setKnlButtonBusy mới). Chuẩn hóa busy-state/chống double-submit cho các action async, thêm loading rõ khi đổi filter/nhân sự và retry cho Nhân sự khi load lỗi. Không đổi carry-forward, Dashboard range/quý/Excel export, compensation correction, AI permission, DB schema. Không migration, không đụng Checklist/Retro.",
-  "build": "1.59.0"
+  "version": "1.59.1",
+  "fingerprint": "1.59.1-knl-performance-cache-parallel-income",
+  "builtAt": "2026-08-17T22:08:24+07:00",
+  "notes": "1.59.1: KNL-09 P0 performance fix #1+#2. Fix#1: getKnlCapabilities thêm vào KNL_CACHEABLE_ACTIONS (assets/js/knl/phf-knl-app.js), reuse nguyên 30s TTL/signature/invalidation hiện có — loại bỏ 1 round-trip blocking khỏi mỗi lần chuyển tab/nav KNL. Audit phát hiện gap: upsertKnlPermissionGrant (ghi quyền) chưa nằm trong KNL_INVALIDATING_ACTIONS — đã thêm để capabilities không stale sau khi đổi quyền, PHF xác nhận trước khi cache. Fix#2: renderIncome() — 4/5 API call độc lập (nextCompensationGrade/competency/history/profile) đổi từ await tuần tự sang Promise.allSettled song song, giữ nguyên income làm gate đầu tiên (income lỗi vẫn chặn toàn màn như cũ, không gọi thừa 4 call kia). Audit phát hiện race thật khi đổi nhân sự nhanh (không có stale-response guard) — đã thêm token guard tối thiểu (knlIncomeLoadToken), test chứng minh race trước/sau fix. Không đổi payload/permission/business logic, không migration, không đụng Checklist/Retro, không mở AI permission.",
+  "build": "1.59.1"
 }

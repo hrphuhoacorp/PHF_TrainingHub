@@ -44,8 +44,11 @@ function sidebarRoleLabel(capabilities, isAdmin){
 var KNL_READ_CACHE_TTL = 30000;
 var knlReadCache = new Map();
 var knlAuthorizationSignature = '';
-var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject','getKnlDashboardOverview']);
-var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal','correctKnlEmployeeCompensationPeriod']);
+var KNL_CACHEABLE_ACTIONS = new Set(['getKnlCapabilities','listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject','getKnlDashboardOverview']);
+/* upsertKnlPermissionGrant phải nằm trong set này: getKnlCapabilities giờ
+ * được cache (KNL-09 fix#1) nên nếu thiếu, quyền vừa đổi có thể hiển thị
+ * capabilities cũ tới 30s (KNL_READ_CACHE_TTL) trên tab đang mở. */
+var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal','correctKnlEmployeeCompensationPeriod','upsertKnlPermissionGrant']);
 function knlCacheOwner(){var u=currentUser();return String(u.id||u.accountId||u.email||u.employeeCode||u.employee_code||roleHome())+'|'+knlAuthorizationSignature;}
 function clearKnlReadCache(){knlReadCache.clear();}
 function invalidateKnlViewState(action){
@@ -3152,6 +3155,7 @@ function bindIncomeSection(root){
   });
   bindCompetencyMatrix(root);
 }
+var knlIncomeLoadToken=0;
 async function renderIncome(root,isAdmin,capabilities){
   var body=root.querySelector('[data-knl-body]'),url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';
   foundationState.incomeIsAdmin=isAdmin===true;
@@ -3163,27 +3167,42 @@ async function renderIncome(root,isAdmin,capabilities){
   // im lặng trên màn hình cho tới khi toàn bộ chuỗi API tuần tự bên dưới trả
   // về — nay báo loading ngay khi bắt đầu tải hồ sơ mới.
   body.innerHTML='<div class="phfk-loading">Đang tải hồ sơ thu nhập…</div>';
+  // Token chặn stale response: nếu người dùng đổi nhân sự trước khi lượt
+  // tải này xong, lượt cũ phải không được ghi đè body của lượt mới hơn.
+  var myToken=++knlIncomeLoadToken;
+  var reqPayload=queryCode?{employeeCode:queryCode}:undefined;
   try{
-    foundationState.income=await apiPost('getKnlEmployeeIncome',queryCode?{employeeCode:queryCode}:undefined);
-    try{foundationState.nextCompensationGrade=await apiPost('getKnlEmployeeNextCompensationGrade',queryCode?{employeeCode:queryCode}:undefined);}catch(nge){foundationState.nextCompensationGrade=null;}
-    try{
-      foundationState.competency=await apiPost('getKnlEmployeeCompetencyStandard',queryCode?{employeeCode:queryCode}:undefined);
-      if(foundationState.competency&&foundationState.competency.hasAssignment){
-        var seqBuilt=buildCompetencyGradeSequence(foundationState.competency);
-        foundationState.competencyGradeSequence=seqBuilt;
-        var curIdx=seqBuilt.findIndex(function(n){return n.isRealCurrent;});
-        /* Mặc định: current↔next (curIdx). Nếu đang ở bậc cao nhất (không có
-         * next) thì không có gì để hiện bên phải -> mặc định lùi 1 bước để
-         * vẫn hiện được 1 cặp so sánh (previous↔current), đúng yêu cầu "current
-         * = B5 -> mặc định B4↔B5 HIỆN TẠI". */
-        foundationState.competencyWindowStart=foundationState.competency.isMaxGrade?Math.max(0,curIdx-1):curIdx;
-      }
-    }catch(ce){foundationState.competency=null;}
-    try{foundationState.competencyHistory=await apiPost('listKnlEmployeeCompetencyHistory',queryCode?{employeeCode:queryCode}:undefined);}catch(he){foundationState.competencyHistory=null;}
-    try{var profileResult=await apiPost('getKnlEmployeeProfile',queryCode?{employeeCode:queryCode}:undefined);foundationState.profile=profileResult.profile;}catch(pe){foundationState.profile=null;}
+    var incomeResult=await apiPost('getKnlEmployeeIncome',reqPayload);
+    if(myToken!==knlIncomeLoadToken)return; // response chậm của lượt tải cũ -> bỏ qua, không ghi vào foundationState
+    foundationState.income=incomeResult;
+    // 4 call còn lại độc lập với nhau và với income (không đọc dữ liệu của
+    // nhau trước khi dùng) -> chạy song song thay vì await tuần tự từng cái.
+    var settled=await Promise.allSettled([
+      apiPost('getKnlEmployeeNextCompensationGrade',reqPayload),
+      apiPost('getKnlEmployeeCompetencyStandard',reqPayload),
+      apiPost('listKnlEmployeeCompetencyHistory',reqPayload),
+      apiPost('getKnlEmployeeProfile',reqPayload)
+    ]);
+    if(myToken!==knlIncomeLoadToken)return;
+    var nextGradeSettled=settled[0],competencySettled=settled[1],historySettled=settled[2],profileSettled=settled[3];
+    foundationState.nextCompensationGrade=nextGradeSettled.status==='fulfilled'?nextGradeSettled.value:null;
+    foundationState.competency=competencySettled.status==='fulfilled'?competencySettled.value:null;
+    if(foundationState.competency&&foundationState.competency.hasAssignment){
+      var seqBuilt=buildCompetencyGradeSequence(foundationState.competency);
+      foundationState.competencyGradeSequence=seqBuilt;
+      var curIdx=seqBuilt.findIndex(function(n){return n.isRealCurrent;});
+      /* Mặc định: current↔next (curIdx). Nếu đang ở bậc cao nhất (không có
+       * next) thì không có gì để hiện bên phải -> mặc định lùi 1 bước để
+       * vẫn hiện được 1 cặp so sánh (previous↔current), đúng yêu cầu "current
+       * = B5 -> mặc định B4↔B5 HIỆN TẠI". */
+      foundationState.competencyWindowStart=foundationState.competency.isMaxGrade?Math.max(0,curIdx-1):curIdx;
+    }
+    foundationState.competencyHistory=historySettled.status==='fulfilled'?historySettled.value:null;
+    foundationState.profile=profileSettled.status==='fulfilled'?profileSettled.value.profile:null;
     body.innerHTML=incomeHtml();
     bindIncomeSection(root);
   }catch(e){
+    if(myToken!==knlIncomeLoadToken)return;
     if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED')await showIncomePicker(root,e.message);
     else body.innerHTML=noAccessSection(e.message);
   }
