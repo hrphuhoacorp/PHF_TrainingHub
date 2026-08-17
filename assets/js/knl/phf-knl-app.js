@@ -3642,7 +3642,7 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
    backend enforce people_scope/incomeScope, frontend chỉ trình bày payload
    được phép xem và không tự lọc/mở rộng scope. AI giữ action riêng hiện có. */
 var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'' }, openDept:'', compareDetailed:false, selectedFramework:'', selectedKnlDept:'', missingKnlOpen:false, matrixQuickView:null,
-  ai:{ pending:false, error:'', reply:'', contextSummary:[], question:'', draft:'' } };
+  ai:{ pending:false, error:'', reply:'', contextSummary:[], question:'' } };
 function dashMoney(v){ return v==null ? '—' : money(v); }
 function dashPct(v){ return v==null ? '—' : ((v>0?'+':'')+v+'%'); }
 function dashDeltaClass(v){ return v==null ? '' : (v>0 ? 'phfk-dash-delta-up' : (v<0 ? 'phfk-dash-delta-down' : 'phfk-dash-delta-flat')); }
@@ -3981,10 +3981,6 @@ function dashboardAiPanelHtml(){
       '<p class="phfk-dash-ai-helper">Gợi ý câu hỏi:</p>' +
       '<div class="phfk-dash-ai-prompts">' + aiPrompts.map(function(p){ return '<button type="button" class="phfk-dash-ai-prompt" data-dash-ai-prompt'+(ai.pending?' disabled':'')+'>'+esc(p)+'</button>'; }).join('') + '</div>' +
       (resultHtml?'<div class="phfk-dash-ai-result">' + resultHtml + '</div>':'') +
-      '<div class="phfk-dash-ai-custom">' +
-        '<textarea class="phfk-input phfk-dash-ai-input" rows="2" maxlength="600" placeholder="Hoặc nhập câu hỏi của bạn…" data-dash-ai-input'+(ai.pending?' disabled':'')+'>'+esc(ai.draft||'')+'</textarea>' +
-        '<button type="button" class="phfk-btn-primary phfk-dash-ai-cta" data-dash-ai-send'+(ai.pending?' disabled':'')+'>'+(ai.pending?'Đang gửi…':'Hỏi AI')+'</button>' +
-      '</div>' +
     '</section>';
 }
 async function dashboardAskAi(root, question){
@@ -3999,7 +3995,6 @@ async function dashboardAskAi(root, question){
     ai.pending = false;
     ai.reply = res.reply || '';
     ai.contextSummary = res.contextSummary || [];
-    ai.draft = '';
   }catch(error){
     ai.pending = false;
     var code = error && error.code;
@@ -4069,7 +4064,7 @@ function renderKnlDashboardBody(root){
     '<div class="phfk-dash">' +
       '<div class="phfk-page-head phfk-dash-head">' +
         '<div><h1>Tổng quan KNL</h1><p class="phfk-dash-subtitle">Nhân lực · Năng lực · Thu nhập</p></div>' +
-        '<div class="phfk-dash-head-actions"><div class="phfk-dash-period">' + dashboardFilterSelect('period', 'Kỳ dữ liệu', periodOptions, dashboardState.filters.period) + (generatedLabel?'<small>Cập nhật: '+esc(generatedLabel)+'</small>':'') + '</div><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Hỏi AI phân tích</button></div>' +
+        '<div class="phfk-dash-head-actions"><div class="phfk-dash-period">' + dashboardFilterSelect('period', 'Kỳ dữ liệu', periodOptions, dashboardState.filters.period) + (generatedLabel?'<small>Cập nhật: '+esc(generatedLabel)+'</small>':'') + '</div><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Gợi ý phân tích AI</button></div>' +
       '</div>' +
 
       '<div class="phfk-filters phfk-dash-filters">' +
@@ -4118,7 +4113,7 @@ function renderKnlDashboardBody(root){
       dashboardState.selectedFramework = '';
       dashboardState.missingKnlOpen = false;
       dashboardState.matrixQuickView = null;
-      dashboardState.ai = { pending:false, error:'', reply:'', contextSummary:[], question:'', draft:dashboardState.ai.draft };
+      dashboardState.ai = { pending:false, error:'', reply:'', contextSummary:[], question:'' };
       loadKnlDashboard(root);
     });
   });
@@ -4150,10 +4145,6 @@ function renderKnlDashboardBody(root){
   body.querySelectorAll('[data-dash-ai-prompt]').forEach(function(el){
     el.addEventListener('click', function(){ dashboardAskAi(root, el.textContent); });
   });
-  var aiInput = body.querySelector('[data-dash-ai-input]');
-  if(aiInput) aiInput.addEventListener('input', function(){ dashboardState.ai.draft = aiInput.value; });
-  var aiSendBtn = body.querySelector('[data-dash-ai-send]');
-  if(aiSendBtn) aiSendBtn.addEventListener('click', function(){ dashboardAskAi(root, aiInput ? aiInput.value : ''); });
 }
 
 window.phfRenderKnl = async function(path){
@@ -4195,7 +4186,7 @@ window.phfRenderKnl = async function(path){
     dashboardState.selectedFramework='';
     dashboardState.missingKnlOpen=false;
     dashboardState.matrixQuickView=null;
-    dashboardState.ai={ pending:false, error:'', reply:'', contextSummary:[], question:'', draft:'' };
+    dashboardState.ai={ pending:false, error:'', reply:'', contextSummary:[], question:'' };
   }
   knlAuthorizationSignature=authorizationSignature;
   var canPeople = isAdmin || capabilities.access_knl;
