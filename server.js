@@ -15,6 +15,14 @@ const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, li
 const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
 const {
+  copyTemplateVersion: copyChecklistTemplateVersion,
+  previewDiff: previewChecklistRetroDiff,
+  dryRunRetroactiveApply: dryRunChecklistRetroApply,
+  retroactiveApply: applyChecklistRetro,
+  retroactiveApplyReviewedForm: applyChecklistRetroReviewedForm,
+  simulateEmployeeImpactBatch: simulateChecklistRetroEmployeeImpact
+} = require('./lib/checklist-template-retroactive-service');
+const {
   recordManagerLateObservation,
   listManagerLateObservations,
   listAdminLateManagerObservations: listAdminChecklistLateManagerObservations,
@@ -42,7 +50,7 @@ const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, ge
 const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
 const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
 const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('./lib/knl-surveys');
-const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade } = require('./lib/knl-foundation');
+const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade, correctKnlEmployeeCompensationPeriod } = require('./lib/knl-foundation');
 const { getKnlDashboardOverview } = require('./lib/knl-dashboard');
 const { askKnlDashboardAi } = require('./lib/knl-dashboard-ai');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./lib/employee-master');
@@ -719,6 +727,24 @@ const server = http.createServer(async (req, res) => {
           const saved = await saveChecklistTemplateLibrary(session, payload.templates || []);
           return sendJson(res, 200, {ok:true,...saved});
         }
+        if (payload && payload.action === 'checklistRetroCopyVersion') {
+          return sendJson(res, 200, {ok:true,...await copyChecklistTemplateVersion(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'checklistRetroPreviewDiff') {
+          return sendJson(res, 200, {ok:true,...previewChecklistRetroDiff(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'checklistRetroDryRunApply') {
+          return sendJson(res, 200, {ok:true,...await dryRunChecklistRetroApply(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'checklistRetroApply') {
+          return sendJson(res, 200, {ok:true,...await applyChecklistRetro(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'checklistRetroApplyReviewedForm') {
+          return sendJson(res, 200, {ok:true,...await applyChecklistRetroReviewedForm(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'checklistRetroSimulateEmployeeImpact') {
+          return sendJson(res, 200, {ok:true,...await simulateChecklistRetroEmployeeImpact(session, payload.input || {})});
+        }
         /* Workstream B — Đi trễ BCC/ghi nhận từ bộ phận/Admin phê duyệt (Gap 3). Mọi hành động
            đều session-based + tự enforce quyền/scope trong chính service (requireViolationPermission
            với action='record' cho người ghi nhận — BẤT KỲ tài khoản nào có capability
@@ -858,6 +884,7 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='askKnlDashboardAi')return sendJson(res,200,{ok:true,...await askKnlDashboardAi(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeNextCompensationGrade')return sendJson(res,200,{ok:true,...await getKnlEmployeeNextCompensationGrade(session,payload)});
       if(payload&&payload.action==='saveKnlEmployeeIncome')return sendJson(res,200,{ok:true,...await saveKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='correctKnlEmployeeCompensationPeriod')return sendJson(res,200,{ok:true,...await correctKnlEmployeeCompensationPeriod(session,payload)});
       if(payload&&payload.action==='listKnlCompensationAssignmentTargets')return sendJson(res,200,{ok:true,...await listKnlCompensationAssignmentTargets(session)});
       if(payload&&payload.action==='cloneKnlCompensationVersion')return sendJson(res,200,{ok:true,...await cloneKnlCompensationVersion(session,payload)});
       if(payload&&payload.action==='saveKnlCompensationGrades')return sendJson(res,200,{ok:true,...await saveKnlCompensationGrades(session,payload)});

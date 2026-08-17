@@ -74,7 +74,7 @@ const COMPETENCY = EMPLOYEES.map((row, index) => ({
   grade_snapshot: { frameworkCode: index % 2 ? 'FW_B' : 'FW_A', frameworkName: 'Bộ KNL', gradeCode: index % 2 ? 'B2' : 'B1', label: index % 2 ? 'Bậc 2' : 'Bậc 1' }
 }));
 
-const STATE = { grants: [], employees: clone(EMPLOYEES), assignments: clone(ASSIGNMENTS), competency: clone(COMPETENCY), queries: [] };
+const STATE = { grants: [], employees: clone(EMPLOYEES), assignments: clone(ASSIGNMENTS).map(r => Object.assign({ status: 'ACTIVE' }, r)), competency: clone(COMPETENCY), queries: [] };
 
 function tableFactory(table, rows) {
   const filters = [];

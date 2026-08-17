@@ -92,7 +92,7 @@ const COMPETENCY = [
   // PHF052/PHF036 CỐ Ý không có assignment active -> case "Missing KNL".
 ];
 
-const STATE = { grants: [], grantHistory: [], employees: EMPLOYEES, assignments: clone(COMPENSATION), competency: clone(COMPETENCY) };
+const STATE = { grants: [], grantHistory: [], employees: EMPLOYEES, assignments: clone(COMPENSATION).map(r => Object.assign({ status: 'ACTIVE' }, r)), competency: clone(COMPETENCY) };
 
 function buildSupabaseMock() {
   return {

@@ -155,14 +155,16 @@ async function run() {
 
   // ---- Assignment cố định để test policy "đang hưởng mới hiện" ----
   STATE.assignments.push(
-    { id: 'a1', employee_code: 'PHF051', employee_name: 'Trịnh Thị Ngọc Linh', payroll_period: '2026-08', employment_type: 'OFFICIAL',
-      has_professional_allowance: true, has_management_allowance: true, has_meal_allowance: true, meal_allowance: 30000,
-      probation_amount: 0, extra_allowances: [], reference_total: 9000000,
-      structure_snapshot: { gradeCode: 'B2', gradeNumber: 2, ladderCode: 'THUMUA', ladderName: 'Ngạch Thu mua', versionId: 'v1', versionNumber: 1, effectivePeriod: '2026-08', baseSalary: 8000000, hqcv: 500000, professionalAllowance: 300000, managementAllowance: 200000 } },
-    { id: 'a2', employee_code: 'PHF036', employee_name: 'Trần Trung Hải', payroll_period: '2026-08', employment_type: 'OFFICIAL',
-      has_professional_allowance: false, has_management_allowance: false, has_meal_allowance: false, meal_allowance: 0,
-      probation_amount: 0, extra_allowances: [], reference_total: 8500000,
-      structure_snapshot: { gradeCode: 'B1', gradeNumber: 1, ladderCode: 'GOIQUA', ladderName: 'Ngạch Gói quà', versionId: 'v1', versionNumber: 1, effectivePeriod: '2026-08', baseSalary: 8000000, hqcv: 500000, professionalAllowance: 300000, managementAllowance: 200000 } }
+    ...[
+      { id: 'a1', employee_code: 'PHF051', employee_name: 'Trịnh Thị Ngọc Linh', payroll_period: '2026-08', employment_type: 'OFFICIAL',
+        has_professional_allowance: true, has_management_allowance: true, has_meal_allowance: true, meal_allowance: 30000,
+        probation_amount: 0, extra_allowances: [], reference_total: 9000000,
+        structure_snapshot: { gradeCode: 'B2', gradeNumber: 2, ladderCode: 'THUMUA', ladderName: 'Ngạch Thu mua', versionId: 'v1', versionNumber: 1, effectivePeriod: '2026-08', baseSalary: 8000000, hqcv: 500000, professionalAllowance: 300000, managementAllowance: 200000 } },
+      { id: 'a2', employee_code: 'PHF036', employee_name: 'Trần Trung Hải', payroll_period: '2026-08', employment_type: 'OFFICIAL',
+        has_professional_allowance: false, has_management_allowance: false, has_meal_allowance: false, meal_allowance: 0,
+        probation_amount: 0, extra_allowances: [], reference_total: 8500000,
+        structure_snapshot: { gradeCode: 'B1', gradeNumber: 1, ladderCode: 'GOIQUA', ladderName: 'Ngạch Gói quà', versionId: 'v1', versionNumber: 1, effectivePeriod: '2026-08', baseSalary: 8000000, hqcv: 500000, professionalAllowance: 300000, managementAllowance: 200000 } }
+    ].map(r => Object.assign({ status: 'ACTIVE' }, r))
   );
 
   // ============ SECTION 9.1: Self xem thu nhập của mình ============

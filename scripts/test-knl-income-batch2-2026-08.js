@@ -117,7 +117,7 @@ function buildSupabaseMock() {
               meal_allowance: Number(params.p_meal_amount || 0), probation_amount: Number(params.p_probation_amount || 0),
               extra_allowances: params.p_extra_allowances || [], organization_snapshot: params.p_organization_snapshot || {},
               structure_snapshot: isProbation ? { employmentType: 'PROBATION', probationAmount: Number(params.p_probation_amount || 0) } : {},
-              reference_total: total, reason: params.p_reason, updated_at: new Date().toISOString()
+              reference_total: total, reason: params.p_reason, updated_at: new Date().toISOString(), status: 'ACTIVE'
             });
             if (!existing) STATE.assignments.push(row);
             STATE.compHistory.push({ id: STATE.compHistory.length + 1, assignment_id: row.id, employee_code: code, payroll_period: period, action: existing ? 'UPDATE' : 'CREATE', before_data: before, after_data: Object.assign({}, row), reason: params.p_reason, changed_by: params.p_actor_id, changed_by_name: params.p_actor_name, changed_at: new Date().toISOString() });

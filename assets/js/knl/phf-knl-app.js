@@ -45,7 +45,7 @@ var KNL_READ_CACHE_TTL = 30000;
 var knlReadCache = new Map();
 var knlAuthorizationSignature = '';
 var KNL_CACHEABLE_ACTIONS = new Set(['listKnlFrameworks','getKnlGradeMatrix','listKnlCompensationStandards','previewKnlCompensationFoundation','listKnlIncomeTargets','getKnlEmployeeIncome','listKnlAssignmentTargets','listKnlFrameworkAssignments','listKnlSourceManifests','previewKnlSourceSeed','listKnlPeople','listKnlSurveyCampaigns','getKnlSurveySetup','listKnlCompensationAssignmentTargets','getKnlCompensationVersionAudit','listKnlEmployeeCompensationHistory','listMyKnlGradePromotionProposals','listKnlGradePromotionProposalsAwaitingMyAction','listVisibleKnlGradePromotionProposals','getKnlGradePromotionProposalDetail','getKnlGradeOptionsForSubject','getKnlDashboardOverview']);
-var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal']);
+var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal','correctKnlEmployeeCompensationPeriod']);
 function knlCacheOwner(){var u=currentUser();return String(u.id||u.accountId||u.email||u.employeeCode||u.employee_code||roleHome())+'|'+knlAuthorizationSignature;}
 function clearKnlReadCache(){knlReadCache.clear();}
 function invalidateKnlViewState(action){
@@ -252,6 +252,79 @@ function openKnlConfirmModal(opts){
   );
   overlay.querySelector('[data-modal-cancel]').onclick=closeKnlModal;
   overlay.querySelector('[data-modal-confirm]').onclick=function(){closeKnlModal();if(opts.onConfirm)opts.onConfirm();};
+}
+
+/* Batch 1D — "Điều chỉnh kỳ hiệu lực" (vd Huỳnh: 08/2026 lẽ ra 09/2026).
+ * Admin-only (nút chỉ render khi foundationState.incomeIsAdmin — backend
+ * correctKnlEmployeeCompensationPeriod cũng tự requireAdmin, UI không phải
+ * đường chặn duy nhất). KHÔNG bắt nhập lại LCB/HQCV/phụ cấp — RPC copy
+ * nguyên cơ cấu từ kỳ nguồn, modal chỉ hỏi kỳ mới + lý do. Preview read-only,
+ * không prompt/confirm/alert của browser. */
+var correctionState={pending:false,error:'',targetPeriod:'',reason:''};
+function correctionSummaryHtml(current){
+  var rows=[];
+  if(current.employmentType==='OFFICIAL'){
+    rows.push(['Lương cơ bản (LCB)',current.baseSalary]);
+    rows.push(['Hệ số chất lượng công việc (HQCV)',current.hqcv]);
+    if(current.isProfessionalAllowance)rows.push(['Phụ cấp nghiệp vụ',current.professionalAllowance]);
+    if(current.isManagementAllowance)rows.push(['Phụ cấp quản lý/trách nhiệm',current.managementAllowance]);
+    if(current.isMealAllowance)rows.push(['Tiền cơm',current.mealAllowance]);
+    (current.extraAllowances||[]).forEach(function(x){if(x&&x.name)rows.push(['Phụ cấp khác — '+x.name,x.amount]);});
+  }else{
+    rows.push(['Mức lương thử việc',current.probationAmount]);
+  }
+  return '<ul class="phfk-correction-summary">'+rows.map(function(r){return '<li>'+esc(r[0])+': <b>'+esc(money(r[1])+'/tháng')+'</b></li>';}).join('')+
+    '<li class="phfk-correction-summary-total">Tổng thu nhập: <b>'+esc(money(current.totalReferenceIncome)+'/tháng')+'</b></li></ul>';
+}
+function correctionPeriodWarningHtml(period){
+  if(!period)return '';
+  var nowYm=new Date().toISOString().slice(0,7);
+  if(period<nowYm)return '<p class="phfk-modal-note">Kỳ này đã qua. Điều chỉnh có thể ảnh hưởng báo cáo lịch sử.</p>';
+  if(period>nowYm)return '<p class="phfk-modal-note">Kỳ này chưa hiệu lực.</p>';
+  return '';
+}
+function renderCorrectionModal(root,current){
+  var targetLabel=correctionState.targetPeriod?dashPeriodText(correctionState.targetPeriod):'—';
+  var body=
+    '<h3>Điều chỉnh kỳ hiệu lực</h3>'+
+    '<div class="phfk-modal-fields">'+
+      '<label class="phfk-field"><span>Nhân viên</span><input class="phfk-input" value="'+esc((current.employeeName||current.employeeCode)+' · '+current.employeeCode)+'" disabled></label>'+
+      '<label class="phfk-field"><span>Kỳ hiện tại</span><input class="phfk-input" value="'+esc(dashPeriodText(current.payrollPeriod))+'" disabled></label>'+
+      '<label class="phfk-field"><span>Kỳ mới</span><input type="month" class="phfk-input" data-correction-target value="'+esc(correctionState.targetPeriod)+'"></label>'+
+      '<label class="phfk-field"><span>Lý do điều chỉnh</span><textarea class="phfk-input" data-correction-reason placeholder="VD: Nhập nhầm kỳ hiệu lực, đúng áp dụng từ kỳ mới.">'+esc(correctionState.reason)+'</textarea></label>'+
+    '</div>'+
+    '<div class="phfk-correction-preview"><p><small>HIỆN TẠI</small><b>'+esc(dashPeriodText(current.payrollPeriod))+'</b></p><span class="phfk-correction-arrow">→</span><p><small>SAU ĐIỀU CHỈNH</small><b>'+esc(targetLabel)+'</b></p></div>'+
+    '<p class="phfk-batch-note">Cơ cấu thu nhập được giữ nguyên, chỉ đổi kỳ hiệu lực:</p>'+
+    correctionSummaryHtml(current)+
+    correctionPeriodWarningHtml(correctionState.targetPeriod)+
+    (correctionState.error?'<p class="phfk-error">'+esc(correctionState.error)+'</p>':'')+
+    '<div class="phfk-modal-actions"><button type="button" class="phfk-btn-secondary" data-modal-cancel>Hủy</button><button type="button" class="phfk-btn-primary" data-correction-confirm'+(correctionState.pending?' disabled':'')+'>'+(correctionState.pending?'Đang lưu…':'Xác nhận điều chỉnh')+'</button></div>';
+  var overlay=openKnlModal(body);
+  overlay.querySelector('[data-modal-cancel]').onclick=closeKnlModal;
+  var targetInput=overlay.querySelector('[data-correction-target]');
+  if(targetInput)targetInput.onchange=function(){correctionState.targetPeriod=targetInput.value;correctionState.error='';renderCorrectionModal(root,current);};
+  var reasonInput=overlay.querySelector('[data-correction-reason]');
+  if(reasonInput)reasonInput.onchange=function(){correctionState.reason=reasonInput.value;};
+  var confirmBtn=overlay.querySelector('[data-correction-confirm]');
+  if(confirmBtn)confirmBtn.onclick=function(){submitCorrection(root,current);};
+}
+async function submitCorrection(root,current){
+  var targetPeriod=String(correctionState.targetPeriod||'').trim();
+  var reason=String(correctionState.reason||'').trim();
+  if(!targetPeriod){correctionState.error='Phải chọn kỳ mới.';renderCorrectionModal(root,current);return;}
+  if(targetPeriod===current.payrollPeriod){correctionState.error='Kỳ mới phải khác kỳ hiện tại.';renderCorrectionModal(root,current);return;}
+  if(reason.length<5){correctionState.error='Phải nhập lý do điều chỉnh (tối thiểu 5 ký tự).';renderCorrectionModal(root,current);return;}
+  correctionState.pending=true;correctionState.error='';renderCorrectionModal(root,current);
+  try{
+    await apiPost('correctKnlEmployeeCompensationPeriod',{employeeCode:current.employeeCode,sourcePeriod:current.payrollPeriod,targetPeriod:targetPeriod,reason:reason});
+    correctionState={pending:false,error:'',targetPeriod:'',reason:''};
+    closeKnlModal();
+    await renderIncome(root,true,{});
+  }catch(e){
+    correctionState.pending=false;
+    correctionState.error=(e&&e.message)||'Không thể điều chỉnh kỳ hiệu lực. Vui lòng thử lại.';
+    renderCorrectionModal(root,current);
+  }
 }
 
 function compensationDomainNav(activeTab,isAdmin){if(!isAdmin)return'';return '<nav class="phfk-domain-tabs" aria-label="Bậc & Cơ cấu thu nhập">'+
@@ -2054,15 +2127,21 @@ function computeSeniorityLabel(hireDateStr){
   return parts.join(' ');
 }
 function employmentStatusLabelVN(status){var s=String(status||'').toLowerCase();if(s==='active')return 'Đang làm việc';if(s==='inactive')return 'Đã nghỉ việc';return status||'—';}
+/* Nhận diện actor là batch/seed/baseline hệ thống — DÙNG CHUNG cho cả nhãn
+ * actor (friendlyActorLabel) lẫn phân loại event baseline/seed (Residual 2,
+ * competencyHistoryLabel/competencyHistoryHtml) để không có 2 định nghĩa
+ * "là hệ thống" khác nhau trong cùng màn. Chỉ nhận diện đúng pattern thật
+ * đang có trong DB (vd ACTOR_NAME='PHF KNL/Salary Baseline 08/2026 — batch
+ * script' ở scripts/phf-knl-employee-competency-assignment-baseline-2026-08.js)
+ * - không đoán; tên người thật hiển thị/xử lý nguyên văn, không đổi. */
+function isSystemBaselineActor(name){return /batch script|baseline|foundation \d|seed/i.test(String(name||'').trim());}
 /* Actor kỹ thuật/hệ thống -> nhãn thân thiện cho UI. KHÔNG sửa raw data
  * backend (changedByName gốc vẫn nguyên trong payload) - chỉ đổi cách hiển
- * thị. Chỉ nhận diện đúng các pattern hệ thống thật đang có trong DB (batch
- * script/seed/baseline/foundation) - không đoán; tên người thật (nhân sự/
- * admin) hiển thị nguyên tên, không đổi. */
+ * thị. Tên người thật (nhân sự/admin) hiển thị nguyên tên, không đổi. */
 function friendlyActorLabel(name){
   var s=String(name||'').trim();
   if(!s)return '—';
-  if(/batch script|baseline|foundation \d|seed/i.test(s))return 'Hệ thống (khởi tạo dữ liệu)';
+  if(isSystemBaselineActor(s))return 'Hệ thống (khởi tạo dữ liệu)';
   return s;
 }
 /* Tách level_content thành từng dòng riêng CHỈ khi chắc chắn là danh sách:
@@ -2157,6 +2236,116 @@ function compensationChangeTransition(h){
   if(beforeLabel===afterLabel)return{from:'—',to:'—'};
   return{from:beforeLabel,to:afterLabel};
 }
+/*
+ * Batch 1B FINAL REWORK — Lịch sử thay đổi cơ cấu thu nhập (màn cá nhân, mục 6
+ * incomeHtml()) đổi từ "audit diff before→after" sang "cơ cấu mới đang áp dụng
+ * theo từng kỳ" (user đã chốt lại nghiệp vụ). Mỗi entry chỉ đọc after_data của
+ * chính nó (full-row snapshot đã lưu — xem
+ * scripts/PHF_KNL_COMPETENCY_GRADE_COMPENSATION_FOUNDATION_1.50.0.sql:501-502)
+ * — KHÔNG còn đọc before_data để dựng arrow, nên residual "Chưa áp dụng →
+ * 910.000" lặp lại mỗi kỳ (do action=CREATE mỗi kỳ nhưng khoản không đổi) tự
+ * nhiên biến mất: mỗi kỳ chỉ nói "hiện đang có gì", không nói "trước đó có gì".
+ * reference_total dùng nguyên (đã tính sẵn bởi knl_save_employee_compensation(),
+ * KHÔNG tự cộng công thức khác). Không có % thay đổi, không before total (đã
+ * chốt bỏ ở presentation chính — mục 10).
+ *
+ * Event heading KHÔNG suy "Đổi ngạch/Nâng bậc/Giảm bậc" từ compensation
+ * snapshot (đó là domain Bậc KNL — mục 5 competencyHistoryHtml() mới là
+ * authoritative source, xem comment ở đó). Chỉ 2 heading an toàn: kỳ sớm nhất
+ * trong toàn bộ history = "Thiết lập cơ cấu thu nhập ban đầu", mọi kỳ khác =
+ * "Cơ cấu thu nhập áp dụng" — không kết luận lý do thay đổi nếu không có
+ * evidence rõ (reason field, nếu có, hiển thị riêng).
+ */
+function compensationMoneyMonthly(v){return money(v)+'/tháng';}
+/* Thứ tự nghiệp vụ cố định: LCB, HQCV, PC nghiệp vụ, PC quản lý, Tiền cơm, PC
+ * khác, Thử việc — chỉ render component ĐANG áp dụng trong chính snapshot này
+ * (has_*_allowance=true / employment_type tương ứng), không carry-forward từ
+ * kỳ khác, không render khoản không áp dụng. */
+function compensationSnapshotComponents(after){
+  var snap=after.structure_snapshot||{},type=after.employment_type||null,rows=[];
+  if(type==='OFFICIAL'){
+    rows.push({label:'Lương cơ bản (LCB)',value:compensationMoneyMonthly(snap.baseSalary||0)});
+    rows.push({label:'Hệ số chất lượng công việc (HQCV)',value:compensationMoneyMonthly(snap.hqcv||0)});
+    if(after.has_professional_allowance)rows.push({label:'Phụ cấp nghiệp vụ',value:compensationMoneyMonthly(snap.professionalAllowance||0)});
+    if(after.has_management_allowance)rows.push({label:'Phụ cấp quản lý/trách nhiệm',value:compensationMoneyMonthly(snap.managementAllowance||0)});
+    if(after.has_meal_allowance)rows.push({label:'Tiền cơm',value:compensationMoneyMonthly(after.meal_allowance||0)});
+    (Array.isArray(after.extra_allowances)?after.extra_allowances:[]).forEach(function(x){if(x&&x.name)rows.push({label:'Phụ cấp khác — '+x.name,value:compensationMoneyMonthly(x.amount||0)});});
+  }else if(type==='PROBATION'){
+    rows.push({label:'Mức lương thử việc',value:compensationMoneyMonthly(after.probation_amount||0)});
+  }
+  return rows;
+}
+/* Batch 1D — action='CORRECT_EFFECTIVE_PERIOD' là event AUTHORITATIVE ghi bởi
+ * RPC knl_correct_employee_compensation_period() (server tự suy, không tin
+ * client) khi Admin sửa kỳ hiệu lực sai. before_data.payroll_period = kỳ cũ
+ * thật (đã lưu lúc source còn ACTIVE), h.payrollPeriod = kỳ mới thật — dùng
+ * thẳng, KHÔNG suy diễn. Mọi action khác giữ nguyên logic isFirstEver hiện
+ * hữu (Batch 1B rework), KHÔNG đổi. */
+function buildCompensationCurrentEntry(h,isFirstEver){
+  var after=h.afterData||{};
+  var eventLabel;
+  if(h.action==='CORRECT_EFFECTIVE_PERIOD'){
+    var oldPeriod=(h.beforeData&&h.beforeData.payroll_period)||'';
+    eventLabel='Điều chỉnh kỳ hiệu lực: '+(oldPeriod?dashPeriodText(oldPeriod):'—')+' → '+dashPeriodText(h.payrollPeriod);
+  }else{
+    eventLabel=isFirstEver?'Thiết lập cơ cấu thu nhập ban đầu':'Cơ cấu thu nhập áp dụng';
+  }
+  return{
+    eventLabel:eventLabel,
+    payrollPeriod:h.payrollPeriod,components:compensationSnapshotComponents(after),
+    total:Number(after.reference_total||0),
+    reason:h.reason||'',changedByName:h.changedByName||'',changedAt:h.changedAt
+  };
+}
+/* Blocker fix (Release Gate recheck) — một assignment bị VOIDED bởi
+ * knl_correct_employee_compensation_period() vẫn có history row CREATE/UPDATE
+ * gốc của chính nó (ghi lúc còn ACTIVE) — nếu render thẳng, row đó hiện lại
+ * y hệt một kỳ "Cơ cấu thu nhập áp dụng" bình thường dù đã bị thay thế.
+ * Xác định deterministic (KHÔNG heuristic theo ngày/array-neighbor): mọi
+ * before_data/after_data đều là to_jsonb(row) đầy đủ nên LUÔN mang theo cột
+ * `id` (PK thật của assignment) — history row CORRECT_EFFECTIVE_PERIOD có
+ * before_data.id = id của chính assignment nguồn vừa bị void (xem RPC step 5,
+ * before_data=to_jsonb(v_source) chụp NGAY TRƯỚC khi update status='VOIDED').
+ * Bất kỳ history row nào khác (CREATE/UPDATE) mà after_data.id trùng đúng id
+ * đó chính là snapshot của assignment đã bị supersede -> suppress khỏi
+ * presentation "Cơ cấu thu nhập áp dụng", KHÔNG xoá khỏi payload/history gốc
+ * (audit vẫn nguyên vẹn ở server), chỉ không hiển thị lại như một kỳ current.
+ * Event CORRECT_EFFECTIVE_PERIOD tự nó KHÔNG bị suppress — đó chính là bằng
+ * chứng correction cần giữ hiển thị. Nếu before_data.id vắng mặt (payload cũ/
+ * thiếu field) thì KHÔNG suy đoán — record liên quan giữ nguyên hiển thị. */
+function supersededCompensationAssignmentIds(history){
+  var ids=new Set();
+  (history||[]).forEach(function(h){
+    if(h.action==='CORRECT_EFFECTIVE_PERIOD'&&h.beforeData&&h.beforeData.id)ids.add(h.beforeData.id);
+  });
+  return ids;
+}
+function compensationHistoryTimelineHtml(history){
+  var supersededIds=supersededCompensationAssignmentIds(history);
+  var visible=(history||[]).filter(function(h){
+    if(h.action==='CORRECT_EFFECTIVE_PERIOD')return true;
+    var ownId=h.afterData&&h.afterData.id;
+    return !(ownId&&supersededIds.has(ownId));
+  });
+  var periods=visible.map(function(h){return h.payrollPeriod;}).filter(Boolean);
+  var minPeriod=periods.length?periods.reduce(function(a,b){return a<b?a:b;}):null;
+  return visible.map(function(h){
+    var entry=buildCompensationCurrentEntry(h,Boolean(minPeriod)&&h.payrollPeriod===minPeriod);
+    var periodText='Áp dụng từ kỳ '+dashPeriodText(entry.payrollPeriod);
+    var componentsHtml=entry.components.length
+      ?entry.components.map(function(c){return '<p class="phfk-comp-history-transition">'+esc(c.label)+': <b>'+esc(c.value)+'</b></p>';}).join('')
+      :'<p class="phfk-comp-history-transition">Chưa có khoản thu nhập nào được ghi nhận trong kỳ này.</p>';
+    var reasonHtml=entry.reason?'<p class="phfk-comp-history-reason">Lý do: '+esc(entry.reason)+'</p>':'';
+    return '<div class="phfk-comp-history-item"><div class="phfk-comp-history-dot"></div><div class="phfk-comp-history-body">'+
+      '<div class="phfk-comp-history-head"><b>'+esc(dashPeriodText(entry.payrollPeriod))+' — '+esc(entry.eventLabel)+'</b></div>'+
+      '<p class="phfk-comp-history-meta">'+esc(periodText)+'</p>'+
+      componentsHtml+
+      '<p class="phfk-comp-history-transition"><b>Tổng thu nhập: '+esc(money(entry.total)+'/tháng')+'</b></p>'+
+      reasonHtml+
+      '<p class="phfk-comp-history-actor">Người thực hiện: '+esc(friendlyActorLabel(entry.changedByName))+' · '+esc(formatDateTimeVN(entry.changedAt))+'</p>'+
+      '</div></div>';
+  }).join('');
+}
 /* "Thu nhập tham chiếu Bậc lương kế tiếp" — PREVIEW thuần, đọc đúng
  * getKnlEmployeeNextCompensationGrade (hệ Compensation, KHÔNG liên quan
  * competency B1-B5). Whitelist cho PC nghiệp vụ/PC quản lý do BACKEND đã áp
@@ -2244,7 +2433,7 @@ function incomeHtml(){
   var head='<div class="phfk-page-head"><div><small>KNL · HỒ SƠ CÁ NHÂN</small><h1>'+esc((p&&p.fullName)||current.employeeName||current.employeeCode)+' · '+esc(current.employeeCode)+'</h1><p>Hồ sơ cá nhân, Bậc & Cơ cấu thu nhập và Khung năng lực đang áp dụng</p></div><div class="phfk-income-head-actions"><span class="phfk-source-status is-ready">Đang áp dụng</span>'+change+'</div></div>';
   var identity=profileCardHtml(p,current);
   var gradeRef=esc((current.ladderCode||'')+'-'+(current.gradeCode||''));
-  var cardHead='<div class="phfk-section-head"><h2>1. Bậc & Cơ cấu thu nhập hiện tại</h2><span class="phfk-source-status is-ready">Đang áp dụng</span></div>';
+  var cardHead='<div class="phfk-section-head"><h2>1. Bậc & Cơ cấu thu nhập hiện tại</h2><span class="phfk-source-status is-ready">Đang áp dụng</span>'+(foundationState.incomeIsAdmin?'<button type="button" class="phfk-btn-secondary" data-knl-correct-period>Điều chỉnh kỳ hiệu lực</button>':'')+'</div>';
   var card;
   if(!isOfficial){
     card='<section class="phfk-panel phfk-income-card">'+cardHead+'<div class="phfk-income-summary"><div><small>LOẠI</small><b>Thử việc</b></div><div><small>KỲ LƯƠNG ÁP DỤNG</small><b>'+esc(current.payrollPeriod)+'</b></div><div><small>MỨC LƯƠNG THỬ VIỆC</small><b>'+money(current.probationAmount)+'</b></div></div><p class="phfk-batch-note">Nhân sự thử việc chưa gán Ngạch/Bậc/PC; không dựng cơ cấu chính thức giả định.</p></section>';
@@ -2261,7 +2450,9 @@ function incomeHtml(){
       '<tr class="phfk-comp-final-total"><td colspan="2"><b>Tổng thu nhập hiện tại</b></td><td><b>'+money(current.totalReferenceIncome)+'</b></td><td></td></tr>'+
       '</tbody></table></div><p class="phfk-batch-note">Đây là cơ cấu thu nhập tham chiếu theo Ngạch-Bậc và chính sách hiện hành. Không phải bảng lương và không bao gồm OT, thưởng, khấu trừ hay các khoản payroll thực tế.</p></section>';
   }
-  var history='<section class="phfk-panel phfk-history-panel"><div class="phfk-section-head"><h2>6. Lịch sử thay đổi cơ cấu thu nhập</h2></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Kỳ</th><th>Loại thay đổi</th><th>Trước</th><th>Sau</th><th>Thời điểm</th><th>Người thực hiện</th></tr></thead><tbody>'+(i.history||[]).map(function(h){var t=compensationChangeTransition(h);return'<tr><td>'+esc(h.payrollPeriod)+'</td><td>'+esc(compensationChangeSummary(h))+'</td><td>'+esc(t.from)+'</td><td>'+esc(t.to)+'</td><td>'+esc(formatDateTimeVN(h.changedAt))+'</td><td>'+esc(friendlyActorLabel(h.changedByName))+'</td></tr>';}).join('')+'</tbody></table></div></section>';
+  var history=(i.history||[]).length
+    ?'<section class="phfk-panel phfk-history-panel"><div class="phfk-section-head"><h2>6. Lịch sử thay đổi cơ cấu thu nhập</h2></div><div class="phfk-comp-history-timeline">'+compensationHistoryTimelineHtml(i.history)+'</div></section>'
+    :'<section class="phfk-panel"><div class="phfk-section-head"><h2>6. Lịch sử thay đổi cơ cấu thu nhập</h2></div>'+noAccessSection('Chưa có lịch sử thay đổi cơ cấu thu nhập.')+'</section>';
   var historyGrid='<div class="phfk-history-grid">'+competencyHistoryHtml()+history+'</div>';
   return nav+head+identity+card+compensationNextGradeHtml()+incomeAdjustmentPolicyHtml()+competencyStandardHtml()+historyGrid;
 }
@@ -2513,21 +2704,33 @@ function bindCompetencyMatrix(root){
     });
   });
 }
-/* Lịch sử thay đổi bậc KNL — KHÔNG PHẢI Salary history. Dùng đúng
- * listKnlEmployeeCompetencyHistory hiện có (đọc timeline
- * knl_employee_competency_assignments, mọi kỳ kể cả đã đóng) — before/after
- * suy từ gradeSnapshot của kỳ liền trước theo effectiveFrom, cùng pattern
- * compensationChangeTransition đã dùng cho Income, không invent field. */
-function competencyHistoryLabel(before,after){
-  if(!before)return 'Bắt đầu áp dụng';
-  var bg=before.gradeSnapshot||{},ag=after.gradeSnapshot||{};
-  if(ag.frameworkCode&&bg.frameworkCode&&ag.frameworkCode!==bg.frameworkCode)return 'Đổi Khung năng lực';
-  if(ag.versionNumber&&bg.versionNumber&&ag.versionNumber!==bg.versionNumber)return 'Đổi phiên bản Khung năng lực';
-  if(ag.gradeCode&&bg.gradeCode&&ag.gradeCode!==bg.gradeCode){
-    return Number(ag.gradeNumber||0)>Number(bg.gradeNumber||0)?'Nâng bậc':'Giảm bậc';
+/* Batch 1C — Lịch sử thay đổi bậc KNL. Dùng listKnlEmployeeCompetencyHistory
+ * (đã bổ sung action/beforeGradeSnapshot từ knl_employee_competency_assignment_history
+ * — audit log AUTHORITATIVE ghi bởi RPC duy nhất knl_set_employee_competency_
+ * assignment(), server tự suy action, xem lib/knl-competency.js). KHÔNG còn so
+ * 2 phần tử liền kề trong mảng periods để "suy" nâng/giảm bậc — action và
+ * before_data.grade_snapshot đọc THẲNG từ chính event đã ghi lúc thao tác xảy
+ * ra, không suy diễn ở tầng UI. isBaselineSeed=true CHỈ khi action==='CREATE'
+ * (authoritative, không phụ thuộc vị trí trong mảng đã sort/limit) VÀ actor
+ * là pattern hệ thống/batch/seed đã xác nhận (isSystemBaselineActor). */
+function competencyEventTransitionHtml(p,isBaselineSeed){
+  var ag=p.gradeSnapshot||{},bg=p.beforeGradeSnapshot||null,toLabel=ag.gradeCode||'—';
+  if(isBaselineSeed)return '<p class="phfk-comp-history-transition">Trạng thái ban đầu khi khởi tạo hệ thống: <b>'+esc(toLabel)+'</b></p>';
+  if(p.action==='CREATE')return '<p class="phfk-comp-history-transition">Bắt đầu áp dụng bậc <b>'+esc(toLabel)+'</b></p>';
+  if(p.action==='CONFIRM')return '<p class="phfk-comp-history-transition">Xác nhận Chính thức: <b>'+esc(toLabel)+'</b></p>';
+  if(p.action==='SUPERSEDE'||p.action==='RETROACTIVE_CHANGE'){
+    var prefix=p.action==='RETROACTIVE_CHANGE'?'Điều chỉnh hồi tố — ':'';
+    if(bg&&ag.frameworkCode&&bg.frameworkCode&&ag.frameworkCode!==bg.frameworkCode){
+      return '<p class="phfk-comp-history-transition">'+esc(prefix+'Đổi Khung năng lực')+': <b>'+esc(bg.frameworkName||bg.frameworkCode||'—')+'</b> → <b>'+esc(ag.frameworkName||ag.frameworkCode||'—')+'</b></p>';
+    }
+    if(bg&&ag.gradeCode&&bg.gradeCode&&ag.gradeCode!==bg.gradeCode){
+      return '<p class="phfk-comp-history-transition">'+esc(prefix+'Chuyển bậc')+': <b>'+esc(bg.gradeCode)+'</b> → <b>'+esc(ag.gradeCode)+'</b></p>';
+    }
+    return '<p class="phfk-comp-history-transition">'+esc(prefix+'Cập nhật')+': <b>'+esc(toLabel)+'</b></p>';
   }
-  if(after.status==='CONFIRMED'&&before.status==='PROVISIONAL')return 'Xác nhận Chính thức';
-  return 'Cập nhật';
+  // action null/không khớp event nào (không có history row tương ứng) —
+  // KHÔNG suy nâng/giảm bậc từ snapshot, chỉ nói "Cập nhật" trung tính.
+  return '<p class="phfk-comp-history-transition">Cập nhật: <b>'+esc(toLabel)+'</b></p>';
 }
 function competencyHistoryHtml(){
   var periods=(foundationState.competencyHistory&&foundationState.competencyHistory.periods)||null;
@@ -2536,16 +2739,16 @@ function competencyHistoryHtml(){
   if(!sorted.length){
     return '<section class="phfk-panel"><div class="phfk-section-head"><h2>5. Lịch sử thay đổi bậc KNL</h2></div>'+noAccessSection('Chưa có lịch sử thay đổi Bậc KNL.')+'</section>';
   }
-  var rows=sorted.map(function(p,idx){
-    var before=idx>0?sorted[idx-1]:null;
-    var bg=before?before.gradeSnapshot||{}:null,ag=p.gradeSnapshot||{};
-    var fromLabel=bg?(bg.gradeCode||'—'):'—',toLabel=ag.gradeCode||'—';
+  var rows=sorted.map(function(p){
+    var ag=p.gradeSnapshot||{};
+    var actorRaw=p.updatedByName||p.createdByName;
+    var isBaselineSeed=p.action==='CREATE'&&isSystemBaselineActor(actorRaw);
     return '<div class="phfk-comp-history-item"><div class="phfk-comp-history-dot'+(p.isActive?' is-current':'')+'"></div><div class="phfk-comp-history-body">'+
-      '<div class="phfk-comp-history-head"><b>'+esc(formatDateVN(p.effectiveFrom))+'</b><span class="phfk-source-status '+(p.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(p.status))+'</span></div>'+
-      '<p class="phfk-comp-history-transition">'+esc(competencyHistoryLabel(before,p))+': <b>'+esc(fromLabel)+'</b> → <b>'+esc(toLabel)+'</b></p>'+
+      '<div class="phfk-comp-history-head"><b>'+esc(formatDateVN(p.effectiveFrom))+'</b>'+(isBaselineSeed?'<span class="phfk-source-status is-review">Mốc khởi tạo</span>':'')+'<span class="phfk-source-status '+(p.status==='CONFIRMED'?'is-ready':'is-review')+'">'+esc(competencyStatusLabel(p.status))+'</span></div>'+
+      competencyEventTransitionHtml(p,isBaselineSeed)+
       '<p class="phfk-comp-history-meta">'+esc(ag.frameworkName||'')+(ag.versionNumber?' · v'+esc(ag.versionNumber):'')+'</p>'+
       (p.reason?'<p class="phfk-comp-history-reason">Lý do: '+esc(p.reason)+'</p>':'')+
-      '<p class="phfk-comp-history-actor">Người thực hiện: '+esc(friendlyActorLabel(p.updatedByName||p.createdByName))+'</p>'+
+      '<p class="phfk-comp-history-actor">Người thực hiện: '+esc(friendlyActorLabel(actorRaw))+'</p>'+
       '</div></div>';
   }).reverse().join('');
   return '<section class="phfk-panel phfk-history-panel"><div class="phfk-section-head"><h2>5. Lịch sử thay đổi bậc KNL</h2></div><div class="phfk-comp-history-timeline">'+rows+'</div></section>';
@@ -2554,6 +2757,13 @@ function bindIncomeSection(root){
   bindCompensationDomainNav(root);
   var change=root.querySelector('[data-knl-change-income]');
   if(change)change.addEventListener('click',goIncomePicker);
+  var correctBtn=root.querySelector('[data-knl-correct-period]');
+  if(correctBtn)correctBtn.addEventListener('click',function(){
+    var current=foundationState.income&&foundationState.income.current;
+    if(!current)return;
+    correctionState={pending:false,error:'',targetPeriod:'',reason:''};
+    renderCorrectionModal(root,current);
+  });
   bindCompetencyMatrix(root);
 }
 async function renderIncome(root,isAdmin,capabilities){
@@ -3449,6 +3659,26 @@ function dashDirectionalText(value,formatter){
   return (value>0?'▲ ':value<0?'▼ ':'— ')+formatter(value);
 }
 function dashPeriodText(value){ var parts=String(value||'').split('-');return parts.length===2?parts[1]+'/'+parts[0]:String(value||''); }
+// Batch 1A.2: 1 banner duy nhất, ghép đúng ngữ nghĩa future/partial/empty từ
+// meta.currentPeriodStatus + expectedCount/coveredCount (deterministic, không %).
+function dashboardPeriodStatusNoteHtml(meta){
+  if(!meta.currentPeriod) return '';
+  var isFuture = meta.currentPeriodIsFuture===true;
+  var isShort = meta.currentPeriodStatus==='partial' || meta.currentPeriodStatus==='empty';
+  var label = dashPeriodText(meta.currentPeriod);
+  var coverageText = (meta.expectedCount!=null && meta.coveredCount!=null) ? (meta.coveredCount+'/'+meta.expectedCount+' nhân sự đã có cơ cấu thu nhập') : '';
+  var message;
+  if(isFuture && isShort && coverageText){
+    message = 'Kỳ '+label+' là kỳ tương lai và dữ liệu chưa đầy đủ ('+coverageText+').';
+  } else if(isFuture){
+    message = 'Kỳ '+label+' đang được chuẩn bị và chưa phải kỳ hiện hành.';
+  } else if(isShort && coverageText){
+    message = 'Dữ liệu kỳ '+label+' chưa đầy đủ: '+coverageText+'.';
+  } else {
+    return '';
+  }
+  return '<p class="phfk-dash-empty-note phfk-dash-scope-note">'+esc(message)+'</p>';
+}
 function dashboardShareCellHtml(value, tone){
   if(value==null) return '<span class="phfk-dash-share-empty">—</span>';
   var width=Math.max(0,Math.min(100,value));
@@ -3811,6 +4041,7 @@ function renderKnlDashboardBody(root){
   var incomeVisible = meta.incomeVisible === true;
   var scopeNoteHtml = meta.scopeNote ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Lưu ý: '+esc(meta.scopeNote)+'.</p>' : '';
   var incomeOffNoteHtml = !incomeVisible ? '<p class="phfk-dash-empty-note phfk-dash-scope-note">Tài khoản chưa được cấp quyền "Truy cập mục Thu nhập" — các số liệu thu nhập hiển thị "—".</p>' : '';
+  var periodStatusNoteHtml = dashboardPeriodStatusNoteHtml(meta);
   var totalHeadcountShown = kpis.totalHeadcount!=null ? String(kpis.totalHeadcount) : '—';
 
   var actionStats = d.actionStats || {};
@@ -3847,7 +4078,7 @@ function renderKnlDashboardBody(root){
         dashboardFilterSelect('title', 'Tất cả chức danh', filterOptions.titles||[], dashboardState.filters.title) +
         dashboardFilterSelect('knlGradeCode', 'Tất cả bậc KNL', knlFilterOptions, dashboardState.filters.knlGradeCode) +
       '</div>' +
-      scopeNoteHtml + incomeOffNoteHtml +
+      scopeNoteHtml + incomeOffNoteHtml + periodStatusNoteHtml +
 
       '<div class="phfk-dash-kpis">' +
         dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income', dashMoney(kpis.totalFund), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi',fundDelta,{series:fundSeries,sparkTone:'income',sparkLabel:'Tổng quỹ thu nhập'}) +
