@@ -1,7 +1,7 @@
 {
-  "version": "1.58.0",
-  "fingerprint": "1.58.0-knl-dashboard-excel-export",
-  "builtAt": "2026-08-17T16:26:19+07:00",
-  "notes": "1.58.0: Batch 2C KNL-07 Xuất Excel Dashboard KNL — nút \"Xuất Excel\" tạo workbook 5 sheet (01_Tổng quan/02_Phòng ban/03_Bậc lương/04_Chi tiết nhân sự/05_Thông tin báo cáo) trực tiếp từ dashboardState.data đang xem trên web (KHÔNG fetch lại, KHÔNG query DB, KHÔNG business logic khác Dashboard). Kiến trúc 2 lớp: buildKnlExportModel() thuần JS (test độc lập, không cần ExcelJS) quyết định toàn bộ mapping Web->Excel + permission hard gate; renderKnlExportWorkbook() chỉ build workbook/style/freeze/autofilter qua ExcelJS (assets/vendor/exceljs.min.js, lazy-load, không sửa Checklist). income_view=false loại bỏ hoàn toàn mọi field/cột thu nhập (totalFund/avgIncome/fund/sharePct/previousFund/deltaAmount/deltaPct/currentIncome/previousIncome) khỏi workbook, không chỉ để trống. Dùng nguyên snapshotPeriod/comparisonBase/periodCoverage/trend đã có (carry-forward 1.57.0), không tính lại/không cộng dồn monthly fund/headcount thành tổng. Genuinely-missing (vd PHF002-style) hiển thị rõ \"Thiếu dữ liệu — chưa có cơ cấu thu nhập hiệu lực đến kỳ này\", không phải 0. Không migration, không đổi dashboard_view/income_view/incomeScope/AI.",
-  "build": "1.58.0"
+  "version": "1.59.0",
+  "fingerprint": "1.59.0-knl-full-module-ux-state",
+  "builtAt": "2026-08-17T21:39:58+07:00",
+  "notes": "1.59.0: KNL-08 Full-module UX state — loại bỏ toàn bộ 27 native browser popup (18 prompt/2 alert/7 confirm) trong assets/js/knl/phf-knl-app.js trên các màn Bộ KNL, Gán & áp dụng, Khảo sát Đợt, Kết quả khảo sát, Tiêu chuẩn bậc, Cơ cấu ngạch & bậc — thay bằng modal/toast nội bộ dựng trên openKnlModal/openKnlConfirmModal/window.phfToast sẵn có (openKnlPromptModal, knlToast, setKnlButtonBusy mới). Chuẩn hóa busy-state/chống double-submit cho các action async, thêm loading rõ khi đổi filter/nhân sự và retry cho Nhân sự khi load lỗi. Không đổi carry-forward, Dashboard range/quý/Excel export, compensation correction, AI permission, DB schema. Không migration, không đụng Checklist/Retro.",
+  "build": "1.59.0"
 }

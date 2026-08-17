@@ -74,6 +74,22 @@ async function setupDom(gradeState,failSave,levelCount){
 
 function gradeBadge(root){const el=root.querySelector('[data-grade-status-badge]');if(!el)return null;const label=el.querySelector('.phfk-grade-savebar-label');return {text:label?label.textContent:'',cls:el.className};}
 
+// Batch 1E Phase B: "+ Thêm bậc" no longer uses native prompt() — it opens
+// openKnlPromptModal. Drive the real modal instead of relying on a stubbed
+// window.prompt (which is no longer called by production code at all).
+async function addGradeViaModal(window,root){
+  const addBtn=root.querySelector('[data-grade-add]');
+  assert(addBtn,'add-grade control must exist');
+  const clickPromise=addBtn.onclick();
+  await new Promise(r=>setTimeout(r,0));
+  const overlay=window.document.querySelector('.phfk-modal-overlay');
+  assert(overlay,'add-grade must open an in-app prompt modal, not the native browser prompt()');
+  const input=overlay.querySelector('[data-prompt-field="label"]');
+  if(input)input.value='Bậc mới';
+  overlay.querySelector('[data-modal-confirm]').click();
+  await clickPromise;
+}
+
 async function clickSaveAndObserve(root){
   const before=root.querySelector('[data-grade-save]');
   assert(before,'save button must exist in the DOM');
@@ -108,10 +124,10 @@ async function clickSaveAndObserve(root){
 
   // Case 2a: matrix đã lưu -> thêm bậc -> Save
   {
-    const {root,savedCalls}=await setupDom('saved',false);
+    const {window,root,savedCalls}=await setupDom('saved',false);
     const addBtn=root.querySelector('[data-grade-add]');
     assert(addBtn,'add-grade control must be available on an already-saved matrix (this was the P0 the previous commit fixed)');
-    addBtn.onclick();
+    await addGradeViaModal(window,root);
     await clickSaveAndObserve(root);
     assert.strictEqual(savedCalls.length,1);
     assert.strictEqual(savedCalls[0].grades.length,6,'add-grade case must submit the original 5 grades plus the new one');
@@ -173,9 +189,8 @@ async function clickSaveAndObserve(root){
   // Case 3c: đã lưu matrix rồi Admin thêm bậc mới -> bậc mới KHÔNG áp dụng diagonal
   // (rule chỉ áp dụng cho "grade matrix mới", không phải bậc thêm vào matrix đã có).
   {
-    const {root,savedCalls}=await setupDom('saved',false);
-    const addBtn=root.querySelector('[data-grade-add]');
-    addBtn.onclick();
+    const {window,root,savedCalls}=await setupDom('saved',false);
+    await addGradeViaModal(window,root);
     await clickSaveAndObserve(root);
     const newGradeReqs=savedCalls[0].requirements.filter(r=>r.gradeCode==='B6');
     assert(newGradeReqs.length>0,'the newly added B6 must still submit requirement rows');
