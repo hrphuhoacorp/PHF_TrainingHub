@@ -3141,7 +3141,7 @@ function gpListBodyHtml(capabilities,isAdmin){
 }
 
 function gpNormalizeSearch(v){
-  return String(v==null?'':v).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d');
+  return String(v==null?'':v).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
 }
 function gpFilterDirectory(list,query,excludeCode){
   var q=gpNormalizeSearch(query);
@@ -3641,7 +3641,7 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
    Dữ liệu chính chỉ đi qua getKnlDashboardOverview (lib/knl-dashboard.js):
    backend enforce people_scope/incomeScope, frontend chỉ trình bày payload
    được phép xem và không tự lọc/mở rộng scope. AI giữ action riêng hiện có. */
-var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', rangeError:'',
+var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', rangeError:'', exporting:false,
   filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'', periodFrom:'', periodTo:'', rangePreset:'', rangeChoice:'month' },
   openDept:'', compareDetailed:false, selectedFramework:'', selectedKnlDept:'', missingKnlOpen:false, matrixQuickView:null,
   ai:{ pending:false, error:'', reply:'', contextSummary:[], question:'' } };
@@ -4150,6 +4150,338 @@ async function loadKnlDashboard(root){
   }
 }
 
+/* ===================== Batch 2C / KNL-07 — Xuất Excel =====================
+ * Kiến trúc 2 lớp đã chốt:
+ *  - buildKnlExportModel(data,filters): PURE, không gọi ExcelJS, không DOM
+ *    side-effect, chứa TOÀN BỘ mapping Web -> Excel + permission hard gate
+ *    (income). Test độc lập không cần ExcelJS. Gắn lên window để test JSDOM
+ *    gọi trực tiếp (cùng convention window.phfRenderKnl đã có).
+ *  - renderKnlExportWorkbook(model): CHỈ build workbook/style/freeze/
+ *    autofilter/download qua ExcelJS, KHÔNG chứa business semantics nào —
+ *    mọi quyết định "có/không có field/sheet nào" đã chốt xong ở model.
+ * Export dùng TRỰC TIẾP dashboardState.data (đúng cái đang xem trên web),
+ * KHÔNG fetch lại, KHÔNG query DB, KHÔNG tính lại carry-forward — mọi giá
+ * trị (snapshotPeriod/comparisonBase/periodCoverage/trend/currentIncome...)
+ * lấy nguyên từ response getKnlDashboardOverview đã có sẵn. */
+function knlExportPeriodLabel(period){ return period ? dashPeriodText(period) : '—'; }
+function knlExportCoverageLabel(status, isFuture){
+  if(isFuture) return 'Kỳ tương lai';
+  if(status==='complete') return 'Đủ dữ liệu';
+  if(status==='partial') return 'Một phần';
+  if(status==='empty') return 'Chưa có dữ liệu';
+  return '—';
+}
+function knlExportFileName(meta, filters){
+  meta = meta || {}; filters = filters || {};
+  var rangeMode = meta.rangeMode || 'single';
+  var periodPart = (rangeMode==='range' && meta.rangeStart && meta.rangeEnd)
+    ? meta.rangeStart+'_'+meta.rangeEnd
+    : (meta.snapshotPeriod || meta.currentPeriod || 'khong-ky');
+  var deptSuffix = filters.department
+    ? '_'+String(filters.department).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^0-9A-Za-z]+/g,'_')
+    : '';
+  return 'PHF_KNL_Dashboard_'+periodPart+deptSuffix+'.xlsx';
+}
+function buildKnlExportModel(data, filters){
+  data = data || {}; filters = filters || {};
+  var meta = data.meta || {}, kpis = data.kpis || {};
+  var incomeVisible = meta.incomeVisible === true;
+  var rangeMode = meta.rangeMode || 'single';
+  var snapshotPeriod = meta.snapshotPeriod || meta.currentPeriod || null;
+  var comparisonBase = meta.comparisonBase || meta.previousPeriod || null;
+
+  var periodBlock = {
+    rangeMode: rangeMode,
+    rangeStart: meta.rangeStart || null,
+    rangeEnd: meta.rangeEnd || null,
+    snapshotPeriod: snapshotPeriod,
+    comparisonBase: comparisonBase,
+    snapshotDiffersFromRangeEnd: Boolean(rangeMode==='range' && meta.rangeEnd && snapshotPeriod && snapshotPeriod!==meta.rangeEnd)
+  };
+  var coverageBlock = {
+    status: meta.currentPeriodStatus || null,
+    isFuture: meta.currentPeriodIsFuture === true,
+    expectedCount: meta.expectedCount==null?null:meta.expectedCount,
+    coveredCount: meta.coveredCount==null?null:meta.coveredCount,
+    missingCount: meta.missingCount==null?null:meta.missingCount
+  };
+
+  // ---- 01 Tổng quan: KPI (chỉ headcount luôn có; tiền chỉ nếu incomeVisible) ----
+  var kpiRows = [{ label:'Tổng nhân sự trong phạm vi', value: kpis.totalHeadcount==null?null:kpis.totalHeadcount, isMoney:false }];
+  if(incomeVisible){
+    kpiRows.push({ label:'Tổng quỹ thu nhập (kỳ '+knlExportPeriodLabel(snapshotPeriod)+')', value: kpis.totalFund, isMoney:true });
+    kpiRows.push({ label:'Thu nhập bình quân/người', value: kpis.avgIncome, isMoney:true });
+    kpiRows.push({ label:'Số người có dữ liệu thu nhập', value: kpis.incomePopulation==null?null:kpis.incomePopulation, isMoney:false });
+  }
+  // Biến động — KHÔNG cộng dồn thành tổng (stock metric theo từng kỳ, không phải flow).
+  var trendRows = incomeVisible ? (data.trend||[]).map(function(row){
+    return { period: row.period, fund: row.fund, headcount: row.headcount, avgIncome: row.avgIncome, status: knlExportCoverageLabel(row.coverageStatus, row.isFuture) };
+  }) : [];
+
+  // ---- 02 Phòng ban ----
+  var deptComparisonByDept = {};
+  (data.deptComparison||[]).forEach(function(row){ deptComparisonByDept[row.department] = row; });
+  var departmentRows = (data.deptComposition||[]).map(function(row){
+    var cmp = deptComparisonByDept[row.department] || {};
+    var out = { department: row.department, headcount: row.headcount };
+    if(incomeVisible){
+      out.fund = row.fund; out.sharePct = row.sharePct;
+      out.avgIncome = cmp.avgIncome==null?null:cmp.avgIncome;
+      out.previousFund = cmp.previousFund==null?null:cmp.previousFund;
+      out.deltaAmount = cmp.deltaAmount==null?null:cmp.deltaAmount;
+      out.deltaPct = cmp.deltaPct==null?null:cmp.deltaPct;
+    }
+    return out;
+  });
+
+  // ---- 03 Bậc lương ----
+  var knlDistributionRows = (data.knlDistribution||[]).map(function(row){
+    return { frameworkName: row.frameworkName||row.frameworkCode||'', gradeLabel: row.label||row.gradeCode||'', count: row.count };
+  });
+  var incomeByGradeRows = incomeVisible ? (data.incomeByGrade||[]).map(function(row){
+    return { frameworkCode: row.frameworkCode||'', gradeLabel: row.label||row.gradeCode||'', count: row.count, avgIncome: row.avgIncome, avgDeltaPct: row.avgDeltaPct==null?null:row.avgDeltaPct };
+  }) : [];
+  var matrixRows = [];
+  if(incomeVisible && data.compensationGradeMatrix){
+    (data.compensationGradeMatrix.departments||[]).forEach(function(dept){
+      (dept.ladders||[]).forEach(function(ladder){
+        (ladder.grades||[]).forEach(function(grade){
+          matrixRows.push({ department: dept.department, ladderName: ladder.ladderName||ladder.ladderCode||'', gradeLabel: grade.gradeCode||'', count: (grade.people||[]).length });
+        });
+      });
+      if(dept.unassigned) matrixRows.push({ department: dept.department, ladderName: '(Chưa gán bậc)', gradeLabel: '—', count: dept.unassigned });
+    });
+  }
+
+  // ---- 04 Chi tiết nhân sự — LUÔN có (peopleScope, không phụ thuộc income_view),
+  // cột tiền/"Trạng thái dữ liệu" chỉ thêm khi incomeVisible. genuinely-missing
+  // (currentIncome===null dù incomeVisible=true) PHẢI ghi rõ "Thiếu dữ liệu",
+  // KHÔNG hiển thị 0/carry-forward giả — carry-forward THẬT đã nằm sẵn trong
+  // currentIncome nếu resolver tìm thấy, null chỉ còn nghĩa là genuinely missing. ----
+  var peopleRows = [];
+  var drillDown = data.drillDown || {};
+  Object.keys(drillDown).sort(function(a,b){return a.localeCompare(b,'vi');}).forEach(function(dept){
+    (drillDown[dept]||[]).forEach(function(person){
+      var row = {
+        department: dept, employeeCode: person.employeeCode, employeeName: person.employeeName,
+        title: person.title || '',
+        knlGrade: person.knlGrade ? ((person.knlGrade.frameworkName||person.knlGrade.frameworkCode||'')+' · '+(person.knlGrade.label||person.knlGrade.gradeCode||'')) : ''
+      };
+      if(incomeVisible){
+        row.currentIncome = person.currentIncome==null?null:person.currentIncome;
+        row.previousIncome = person.previousIncome==null?null:person.previousIncome;
+        row.deltaAmount = person.deltaAmount==null?null:person.deltaAmount;
+        row.deltaPct = person.deltaPct==null?null:person.deltaPct;
+        row.dataStatus = person.currentIncome==null
+          ? 'Thiếu dữ liệu — chưa có cơ cấu thu nhập hiệu lực đến kỳ này'
+          : 'Có dữ liệu';
+      }
+      peopleRows.push(row);
+    });
+  });
+
+  // ---- 05 Thông tin báo cáo ----
+  var filterRows = [
+    { label:'Phòng ban', value: filters.department || 'Tất cả' },
+    { label:'Chi nhánh', value: filters.branch || 'Tất cả' },
+    { label:'Chức danh', value: filters.title || 'Tất cả' },
+    { label:'Bậc KNL', value: filters.knlGradeCode || 'Tất cả' },
+    { label:'Chế độ thời gian', value: DASHBOARD_RANGE_MODE_LABELS[filters.rangeChoice] || filters.rangeChoice || 'Theo tháng' }
+  ];
+  var scopeRows = [
+    { label:'Phạm vi nhân sự', value: meta.peopleScopeType || '—' },
+    { label:'Phạm vi thu nhập', value: incomeVisible ? (meta.incomeScopeType || '—') : 'Không có quyền xem Thu nhập' },
+    { label:'Ghi chú phạm vi', value: meta.scopeNote || '' }
+  ];
+  var coverageRosterRows = (meta.periodCoverage||[]).map(function(p){
+    return { period: p.period, status: knlExportCoverageLabel(p.coverageStatus,p.isFuture), expectedCount: p.expectedCount, coveredCount: p.coveredCount, missingCount: p.missingCount };
+  });
+
+  return {
+    fileName: knlExportFileName(meta, filters),
+    incomeVisible: incomeVisible,
+    generatedAt: meta.generatedAt || null,
+    exportedByName: (typeof currentUserName==='function' ? currentUserName() : ''),
+    overview: { periodBlock: periodBlock, coverageBlock: coverageBlock, kpiRows: kpiRows, trendRows: trendRows },
+    department: { rows: departmentRows },
+    grade: { knlDistributionRows: knlDistributionRows, incomeByGradeRows: incomeByGradeRows, matrixRows: matrixRows },
+    people: { rows: peopleRows },
+    reportInfo: { filterRows: filterRows, scopeRows: scopeRows, coverageRosterRows: coverageRosterRows, availablePeriods: meta.availablePeriods||[] }
+  };
+}
+if(typeof window!=='undefined') window.buildKnlExportModel = buildKnlExportModel;
+
+function ensureKnlExcelJs(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(window.__phfKnlExcelJsLoadingPromise) return window.__phfKnlExcelJsLoadingPromise;
+  window.__phfKnlExcelJsLoadingPromise = new Promise(function(resolve,reject){
+    var script = document.createElement('script');
+    script.src = 'assets/vendor/exceljs.min.js?v=4.4.0_phf_knl_1.58.0';
+    script.async = true;
+    script.onload = function(){ window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error('Không khởi tạo được thư viện tạo Excel.')); };
+    script.onerror = function(){ reject(new Error('Không tải được thư viện tạo Excel.')); };
+    document.head.appendChild(script);
+  }).catch(function(error){ window.__phfKnlExcelJsLoadingPromise=null; throw error; });
+  return window.__phfKnlExcelJsLoadingPromise;
+}
+function knlExportSheetTitle(sheet, title, columnCount){
+  sheet.mergeCells(1,1,1,Math.max(2,columnCount));
+  var cell = sheet.getCell(1,1);
+  cell.value = title;
+  cell.font = { name:'Arial', size:15, bold:true, color:{argb:'FFFFFFFF'} };
+  cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0B5D47'} };
+  cell.alignment = { vertical:'middle' };
+  sheet.getRow(1).height = 30;
+}
+function knlExportHeaderRow(sheet, rowNumber, headers){
+  var row = sheet.getRow(rowNumber);
+  row.values = headers;
+  row.height = 24;
+  row.font = { name:'Arial', size:10, bold:true, color:{argb:'FFFFFFFF'} };
+  row.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0B5D47'} };
+  row.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+  sheet.autoFilter = { from:{row:rowNumber,column:1}, to:{row:rowNumber,column:headers.length} };
+  sheet.views = [{ state:'frozen', ySplit: rowNumber, showGridLines:false }];
+}
+function knlExportSetWidths(sheet, widths){ widths.forEach(function(w,i){ sheet.getColumn(i+1).width=w; }); }
+function knlExportDownloadBuffer(buffer, fileName){
+  var blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = fileName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+}
+async function renderKnlExportWorkbook(model){
+  var ExcelJS = await ensureKnlExcelJs();
+  var wb = new ExcelJS.Workbook();
+  wb.creator='PHF KNL'; wb.company='PHUHOA FRESH';
+  wb.created = model.generatedAt ? new Date(model.generatedAt) : new Date();
+  wb.modified = new Date();
+
+  var s1 = wb.addWorksheet('01_Tổng quan', {properties:{defaultRowHeight:20}});
+  knlExportSheetTitle(s1, 'PHF KNL · Báo cáo Tổng quan Dashboard', 5);
+  s1.mergeCells(2,1,2,5);
+  s1.getCell(2,1).value = 'Xuất lúc '+(model.generatedAt?new Date(model.generatedAt).toLocaleString('vi-VN'):'')+' · Người xuất: '+(model.exportedByName||'—');
+  s1.getCell(2,1).font = { italic:true, size:10, color:{argb:'FF527268'} };
+  var r = 4, pb = model.overview.periodBlock, cb = model.overview.coverageBlock;
+  function line(label,value){ s1.getCell(r,1).value=label; s1.getCell(r,1).font={bold:true}; s1.getCell(r,2).value=value; r++; }
+  line('Chế độ thời gian', pb.rangeMode==='range' ? ('Khoảng '+knlExportPeriodLabel(pb.rangeStart)+' → '+knlExportPeriodLabel(pb.rangeEnd)) : ('Theo tháng '+knlExportPeriodLabel(pb.snapshotPeriod)));
+  line('Kỳ dùng cho số liệu (snapshot)', knlExportPeriodLabel(pb.snapshotPeriod));
+  line('Kỳ so sánh biến động', pb.comparisonBase ? knlExportPeriodLabel(pb.comparisonBase) : 'Chưa đủ dữ liệu để so sánh');
+  if(pb.snapshotDiffersFromRangeEnd) line('Lưu ý', 'Kỳ cuối khoảng đang chọn ('+knlExportPeriodLabel(pb.rangeEnd)+') chưa đủ dữ liệu/là kỳ tương lai — số liệu dùng kỳ gần nhất đã hoàn chỉnh: '+knlExportPeriodLabel(pb.snapshotPeriod)+'.');
+  line('Trạng thái dữ liệu kỳ snapshot', knlExportCoverageLabel(cb.status, cb.isFuture));
+  if(cb.expectedCount!=null) line('Độ phủ dữ liệu', cb.coveredCount+'/'+cb.expectedCount+' nhân sự ('+cb.missingCount+' thiếu dữ liệu thật)');
+  r++;
+  knlExportHeaderRow(s1, r, ['Chỉ số','Giá trị']); r++;
+  model.overview.kpiRows.forEach(function(item){ var row=s1.getRow(r); row.getCell(1).value=item.label; row.getCell(2).value=item.value; if(item.isMoney) row.getCell(2).numFmt='#,##0'; r++; });
+  r+=1;
+  if(model.overview.trendRows.length){
+    s1.getCell(r,1).value='Biến động theo kỳ'; s1.getCell(r,1).font={bold:true,color:{argb:'FF0B5D47'}}; r++;
+    knlExportHeaderRow(s1, r, ['Kỳ','Tổng quỹ','Nhân sự','Bình quân/người','Trạng thái']); r++;
+    model.overview.trendRows.forEach(function(t){ var row=s1.getRow(r); row.values=[knlExportPeriodLabel(t.period),t.fund,t.headcount,t.avgIncome,t.status]; row.getCell(2).numFmt='#,##0'; row.getCell(4).numFmt='#,##0'; r++; });
+  }
+  s1.getCell(r+1,1).value='Ghi chú: số liệu "kỳ hiện tại" áp dụng cơ cấu ACTIVE gần nhất tính đến kỳ đó nếu nhân sự không có thay đổi trong kỳ (không phải kỳ bị thiếu dữ liệu).';
+  s1.getCell(r+1,1).font={italic:true,size:9,color:{argb:'FF789087'}};
+  knlExportSetWidths(s1, [34,26,16,20,18]);
+
+  var s2 = wb.addWorksheet('02_Phòng ban');
+  var deptHeaders = model.incomeVisible
+    ? ['Phòng ban','Tổng nhân sự','Quỹ thu nhập','Tỷ trọng quỹ (%)','Bình quân/người','Quỹ kỳ trước','Biến động (số tiền)','Biến động (%)']
+    : ['Phòng ban','Tổng nhân sự'];
+  knlExportSheetTitle(s2, '02 · So sánh phòng ban', deptHeaders.length);
+  knlExportHeaderRow(s2, 3, deptHeaders);
+  model.department.rows.forEach(function(row,i){
+    var excelRow = s2.getRow(4+i);
+    excelRow.values = model.incomeVisible
+      ? [row.department,row.headcount,row.fund,row.sharePct,row.avgIncome,row.previousFund,row.deltaAmount,row.deltaPct]
+      : [row.department,row.headcount];
+    if(model.incomeVisible){
+      [3,5,6,7].forEach(function(c){ excelRow.getCell(c).numFmt='#,##0'; });
+      [4,8].forEach(function(c){ excelRow.getCell(c).numFmt='0.0"%"'; });
+    }
+  });
+  knlExportSetWidths(s2, model.incomeVisible ? [22,14,18,16,18,18,18,14] : [26,16]);
+
+  var s3 = wb.addWorksheet('03_Bậc lương');
+  knlExportSheetTitle(s3, '03 · Phân bố & Ma trận bậc lương', 5);
+  var rr=3;
+  s3.getCell(rr,1).value='Phân bố bậc KNL (năng lực)'; s3.getCell(rr,1).font={bold:true,color:{argb:'FF0B5D47'}}; rr++;
+  knlExportHeaderRow(s3, rr, ['Bộ KNL','Bậc','Số người']); rr++;
+  model.grade.knlDistributionRows.forEach(function(g){ s3.getRow(rr).values=[g.frameworkName,g.gradeLabel,g.count]; rr++; });
+  rr+=1;
+  if(model.incomeVisible){
+    s3.getCell(rr,1).value='Thu nhập theo bậc KNL'; s3.getCell(rr,1).font={bold:true,color:{argb:'FF0B5D47'}}; rr++;
+    knlExportHeaderRow(s3, rr, ['Ngạch/Bộ','Bậc','Số người','Bình quân/người','Biến động TB (%)']); rr++;
+    model.grade.incomeByGradeRows.forEach(function(g){ var row=s3.getRow(rr); row.values=[g.frameworkCode,g.gradeLabel,g.count,g.avgIncome,g.avgDeltaPct]; row.getCell(4).numFmt='#,##0'; if(g.avgDeltaPct!=null)row.getCell(5).numFmt='0.0"%"'; rr++; });
+    rr+=1;
+    s3.getCell(rr,1).value='Ma trận bậc lương — tổng hợp theo phòng ban/ngạch/bậc'; s3.getCell(rr,1).font={bold:true,color:{argb:'FF0B5D47'}}; rr++;
+    knlExportHeaderRow(s3, rr, ['Phòng ban','Ngạch','Bậc','Số người']); rr++;
+    model.grade.matrixRows.forEach(function(m){ s3.getRow(rr).values=[m.department,m.ladderName,m.gradeLabel,m.count]; rr++; });
+  }
+  knlExportSetWidths(s3, [26,18,14,20,18]);
+
+  var s4 = wb.addWorksheet('04_Chi tiết nhân sự');
+  var peopleHeaders = model.incomeVisible
+    ? ['Phòng ban','Mã NV','Họ tên','Chức danh','Bậc KNL','Thu nhập kỳ hiện tại','Thu nhập kỳ so sánh','Biến động (số tiền)','Biến động (%)','Trạng thái dữ liệu']
+    : ['Phòng ban','Mã NV','Họ tên','Chức danh','Bậc KNL'];
+  knlExportSheetTitle(s4, '04 · Chi tiết nhân sự', peopleHeaders.length);
+  knlExportHeaderRow(s4, 3, peopleHeaders);
+  model.people.rows.forEach(function(p,i){
+    var row = s4.getRow(4+i);
+    row.values = model.incomeVisible
+      ? [p.department,p.employeeCode,p.employeeName,p.title,p.knlGrade,p.currentIncome,p.previousIncome,p.deltaAmount,p.deltaPct,p.dataStatus]
+      : [p.department,p.employeeCode,p.employeeName,p.title,p.knlGrade];
+    if(model.incomeVisible){
+      [6,7,8].forEach(function(c){ row.getCell(c).numFmt='#,##0'; });
+      if(p.deltaPct!=null) row.getCell(9).numFmt='0.0"%"';
+    }
+  });
+  knlExportSetWidths(s4, model.incomeVisible ? [22,12,24,20,26,18,18,18,14,42] : [24,12,24,20,26]);
+
+  var s5 = wb.addWorksheet('05_Thông tin báo cáo');
+  knlExportSheetTitle(s5, '05 · Thông tin báo cáo', 5);
+  var r5=3;
+  s5.getCell(r5,1).value='Bộ lọc áp dụng'; s5.getCell(r5,1).font={bold:true,color:{argb:'FF0B5D47'}}; r5++;
+  model.reportInfo.filterRows.forEach(function(f){ s5.getRow(r5).values=[f.label,f.value]; r5++; });
+  r5+=1;
+  s5.getCell(r5,1).value='Phạm vi quyền'; s5.getCell(r5,1).font={bold:true,color:{argb:'FF0B5D47'}}; r5++;
+  model.reportInfo.scopeRows.forEach(function(sc){ s5.getRow(r5).values=[sc.label,sc.value]; r5++; });
+  r5+=1;
+  if(model.reportInfo.coverageRosterRows.length){
+    s5.getCell(r5,1).value='Độ phủ dữ liệu theo từng kỳ trong phạm vi xuất'; s5.getCell(r5,1).font={bold:true,color:{argb:'FF0B5D47'}}; r5++;
+    knlExportHeaderRow(s5, r5, ['Kỳ','Trạng thái','Kỳ vọng','Đã có dữ liệu','Thiếu dữ liệu']); r5++;
+    model.reportInfo.coverageRosterRows.forEach(function(c){ s5.getRow(r5).values=[knlExportPeriodLabel(c.period),c.status,c.expectedCount,c.coveredCount,c.missingCount]; r5++; });
+    r5+=1;
+  }
+  s5.getCell(r5,1).value='Đây là bản xuất báo cáo quản trị đúng phạm vi/quyền/khoảng thời gian người xuất đang xem trên Dashboard tại thời điểm xuất — không phải database dump.';
+  s5.getCell(r5,1).font={italic:true,size:9,color:{argb:'FF789087'}};
+  knlExportSetWidths(s5, [30,40,16,16,16]);
+
+  [s1,s2,s3,s4,s5].forEach(function(sheet){
+    sheet.eachRow(function(row){ row.eachCell(function(cell){ cell.alignment=Object.assign({vertical:'middle'},cell.alignment||{}); if(!cell.font)cell.font={name:'Arial',size:10}; }); });
+  });
+
+  var buffer = await wb.xlsx.writeBuffer();
+  knlExportDownloadBuffer(buffer, model.fileName);
+}
+function knlExportToast(type,title,message){ if(typeof window.phfToast==='function') window.phfToast(type,title,message); }
+async function exportKnlDashboardWorkbook(root){
+  if(dashboardState.exporting || !dashboardState.data) return;
+  dashboardState.exporting = true;
+  renderKnlDashboardBody(root);
+  try{
+    var model = buildKnlExportModel(dashboardState.data, dashboardState.filters);
+    await renderKnlExportWorkbook(model);
+    knlExportToast('success','Đã tạo file Excel','Đã xuất đúng phạm vi/kỳ đang xem trên Dashboard ('+model.fileName+').');
+  }catch(error){
+    knlExportToast('error','Chưa thể xuất Excel',(error&&error.message)||'Vui lòng thử lại.');
+  }finally{
+    dashboardState.exporting = false;
+    renderKnlDashboardBody(root);
+  }
+}
+
 function renderKnlDashboardBody(root){
   var body = root.querySelector('[data-knl-body]');
   if(!body || !dashboardState.data) return;
@@ -4192,7 +4524,7 @@ function renderKnlDashboardBody(root){
             : (dashboardState.filters.rangeChoice==='month' ? dashboardFilterSelect('period', 'Kỳ dữ liệu', periodOptions, dashboardState.filters.period) : '')) +
           (generatedLabel?'<small>Cập nhật: '+esc(generatedLabel)+'</small>':'') +
           dashboardRangeErrorHtml(dashboardState.rangeError) +
-        '</div><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Gợi ý phân tích AI</button></div>' +
+        '</div><button type="button" class="phfk-btn-secondary" data-dash-export'+(dashboardState.exporting?' disabled':'')+'>'+(dashboardState.exporting?'Đang tạo Excel…':'Xuất Excel')+'</button><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Gợi ý phân tích AI</button></div>' +
       '</div>' +
 
       '<div class="phfk-filters phfk-dash-filters">' +
@@ -4303,6 +4635,8 @@ function renderKnlDashboardBody(root){
   if(rangeFromEl) rangeFromEl.addEventListener('change', function(){ dashboardState.filters.periodFrom = rangeFromEl.value; dashboardOnCustomRangeChange(); });
   var rangeToEl = body.querySelector('[data-dash-range-to]');
   if(rangeToEl) rangeToEl.addEventListener('change', function(){ dashboardState.filters.periodTo = rangeToEl.value; dashboardOnCustomRangeChange(); });
+  var exportBtn = body.querySelector('[data-dash-export]');
+  if(exportBtn) exportBtn.addEventListener('click', function(){ exportKnlDashboardWorkbook(root); });
 
   var compareDetails=body.querySelector('[data-dash-compare-details]');
   if(compareDetails) compareDetails.addEventListener('click',function(){ dashboardState.matrixQuickView=null;dashboardState.compareDetailed=!dashboardState.compareDetailed; renderKnlDashboardBody(root); });
