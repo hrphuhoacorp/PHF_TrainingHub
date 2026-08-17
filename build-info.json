@@ -1,7 +1,7 @@
 {
-  "version": "1.56.1",
-  "fingerprint": "1.56.1-knl-dashboard-ai-ui-cleanup",
-  "builtAt": "2026-08-17T14:35:10+07:00",
-  "notes": "1.56.1: Batch 2A / KNL-10 Dashboard AI UI cleanup — bỏ khung nhập câu hỏi tự do (textarea + nút 'Hỏi AI' gửi free-text) khỏi panel AI trong Dashboard KNL, giữ nguyên suggestion chips/cards (vẫn gọi chung dashboardAskAi()->askKnlDashboardAi, không đổi backend permission/model/context/rate-limit). Đổi nhãn nút header 'Hỏi AI phân tích' -> 'Gợi ý phân tích AI' cho đúng nghĩa (không còn free-text). Dọn CSS orphan selector .phfk-dash-ai-custom/.phfk-dash-ai-input/.phfk-dash-ai-cta. PHF AI chat chung (assets/js/ai/phf-ai-engine.js) không đổi, vẫn là nơi hỏi tự do. KHÔNG đụng KNL-02 (range/quý) và KNL-07 (Excel export) — chưa làm. KHÔNG migration.",
-  "build": "1.56.1"
+  "version": "1.57.0",
+  "fingerprint": "1.57.0-knl-dashboard-range-quarter",
+  "builtAt": "2026-08-17T15:07:19+07:00",
+  "notes": "1.57.0: Batch 2B KNL-02 Dashboard range/quý — thêm bộ chọn thời gian (Theo tháng/3 tháng gần nhất/Quý hiện tại/Quý trước/Tùy chỉnh) thay single-month-only. Backend (lib/knl-dashboard.js): resolveRangeWindow() resolve contract periodFrom/periodTo/rangePreset, backward-compatible tuyệt đối với filters.period cũ (mode 'single' khi không có field range nào, không đổi 1 dòng code cũ); snapshotPeriod=kỳ complete muộn nhất trong range (không bao giờ vọt ra ngoài biên), comparisonBase=kỳ complete sớm nhất trong range (biến động đầu-cuối range, không cộng dồn theo tháng); periodCoverage[] mỗi kỳ tự mang coverageStatus riêng; trend[] gắn thêm coverageStatus/isFuture/isComplete từng điểm. Frontend: chế độ chọn không tự tính business semantics (chỉ gửi rangePreset, backend tính), Tùy chỉnh validate from<=to/tối đa 12 tháng inline (không alert()), banner diễn giải rõ snapshotPeriod khác rangeEnd khi rangeEnd future/thiếu dữ liệu, trend đánh dấu điểm không complete. Không đổi dashboard_view/income_view/incomeScope. Chưa làm KNL-07 Excel. Không migration.",
+  "build": "1.57.0"
 }

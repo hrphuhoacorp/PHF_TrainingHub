@@ -827,6 +827,17 @@ body.phf-knl-mode:has(#phfKnlRoot .phfk-dash) .phf-ai-floating-btn img{width:49p
 .phfk-dash-period small{font-size:11px;color:var(--phfk-muted);text-align:right}
 .phfk-dash-ai-jump{height:36px;min-height:36px;padding:0 12px;border-radius:8px;white-space:nowrap;font-size:11.5px}
 .phfk-dash-period .phfk-input{height:36px;font-size:12px;min-width:168px;border-radius:8px}
+/* Batch 2B Phase 2 — range/quý control. */
+.phfk-dash-range{gap:6px}
+.phfk-dash-range-custom{display:flex;align-items:center;gap:6px}
+.phfk-dash-range-custom .phfk-input{min-width:104px}
+.phfk-dash-range-sep{color:var(--phfk-muted);font-size:12px}
+.phfk-dash-range-error{margin:2px 0 0;font-size:11.5px;line-height:1.4;color:var(--phfk-danger);text-align:right}
+.phfk-dash-range-summary .phfk-dash-scope-note{margin-top:4px}
+.phfk-dash-range-roster{margin:4px 2px 0;padding-left:16px;font-size:11.5px;line-height:1.5;color:var(--phfk-muted)}
+.phfk-dash-trend-flag{font-size:10px;font-weight:650;letter-spacing:.02em;color:var(--phfk-warning)}
+.phfk-dash-trend-labels span.is-incomplete{opacity:.72}
+.phfk-dash-period-compare>div.is-incomplete{opacity:.72}
 .phfk-dash-filters{padding:7px 8px;gap:9px;margin:2px 0 4px;background:#f8faf9;border:1px solid #edf2ef;border-radius:10px}
 .phfk-dash-filters .phfk-input{height:38px;font-size:12.5px;border-radius:8px;background:#fff}
 .phfk-dash-filters .phfk-input.is-active{border-color:var(--phfk-green);background:var(--phfk-green-soft);color:var(--phfk-green-deep);font-weight:650}

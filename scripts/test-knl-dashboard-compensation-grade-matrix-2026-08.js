@@ -3,6 +3,19 @@
 /*
  * Backend contract/security regression for Dashboard compensation-grade matrix.
  * In-memory Supabase only: no production/external access.
+ *
+ * Effective Snapshot / Carry-Forward (cập nhật): E6 chỉ có row OFFICIAL ở
+ * 2026-07, không có row 2026-08 — ĐÃ TỪNG là "unassigned" trong ma trận
+ * 08/2026 dưới logic exact-period cũ, giờ carry-forward đúng từ 07/2026 nên
+ * PHẢI resolve thành assigned (không đổi gì thật sự, nên không được coi là
+ * "thiếu"). Test cũ cho '2026-09' (kỳ hoàn toàn không ai ghi dòng mới,
+ * period > mọi dữ liệu) trước đây expect ma trận trống — giờ carry-forward
+ * đúng từ 08/2026, KHÔNG còn trống; test đã tách thành 2: 1 kỳ THẬT SỰ
+ * trước mọi dữ liệu ('2026-01', vẫn phải trống — không có gì để carry-forward
+ * từ trước khi hệ thống có dữ liệu) + 1 assertion mới xác nhận carry-forward
+ * hoạt động đúng cho '2026-09'. July vẫn giữ nguyên "không được áp ngược dữ
+ * liệu August" — đây chính là ranh giới an toàn bắt buộc của resolver
+ * (payroll_period <= selectedPeriod), không đổi.
  */
 process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
@@ -159,7 +172,7 @@ async function run() {
   const director = await getKnlDashboardOverview(session('director'));
   assert.deepStrictEqual(director.compensationGradeMatrix, admin.compensationGradeMatrix, 'Director all_company grant must match admin recovery scope');
   assert.deepStrictEqual(admin.compensationGradeMatrix.gradeNumbers, [1, 3, 5, 8], 'Dynamic grade headers must contain only actual grade numbers, sorted');
-  assert.strictEqual(admin.compensationGradeMatrix.unassignedCount, 1, 'Only E6 is unassigned in 2026-08');
+  assert.strictEqual(admin.compensationGradeMatrix.unassignedCount, 0, 'E6 has no 2026-08 row but carries forward its 2026-07 OFFICIAL grade unchanged — must NOT be unassigned');
   assert.strictEqual(admin.compensationGradeMatrix.departments.reduce((sum, row) => sum + row.total, 0), 7, 'Official matrix population excludes probation and case-variant duplicate');
   assert(admin.compensationGradeMatrix.departments.every(row => row.assigned + row.unassigned === row.total), 'Every department must reconcile assigned + unassigned = total');
 
@@ -167,6 +180,8 @@ async function run() {
   const warehouse = findDepartment(admin.compensationGradeMatrix, 'Kho vận');
   assert.strictEqual(sales.ladders.length, 2, 'Multi-ladder department must preserve separate ladder rows');
   assert.strictEqual(warehouse.ladders.length, 1, 'Single-ladder department must stay direct');
+  assert.deepStrictEqual(codes(findGrade(findLadder(warehouse, 'WAREHOUSE'), 1).people), ['E6'], 'E6 must appear in WAREHOUSE grade 1 via carry-forward from its 2026-07 assignment, not vanish from the matrix');
+  assert.deepStrictEqual(codes(findGrade(findLadder(warehouse, 'WAREHOUSE'), 8).people), ['E5'], 'E5 (explicit 2026-08 row) must still resolve normally alongside the carried-forward E6');
   assert.deepStrictEqual(codes(findGrade(findLadder(sales, 'SALE'), 5).people), ['E3'], 'SALE grade 5 must contain only E3');
   assert.deepStrictEqual(codes(findGrade(findLadder(sales, 'ONLINE'), 5).people), ['E4'], 'ONLINE grade 5 must contain only E4');
   assert.strictEqual(codes(findGrade(findLadder(sales, 'SALE'), 1).people).filter(code => code === 'E1').length, 1, 'Case-variant employee code must be deduped');
@@ -199,9 +214,21 @@ async function run() {
   assert.deepStrictEqual(july.compensationGradeMatrix.gradeNumbers, [3], 'July must use July snapshot and must not apply August grades backwards');
   assert.deepStrictEqual(codes(findGrade(findLadder(findDepartment(july.compensationGradeMatrix, 'Kinh doanh'), 'SALE'), 3).people), ['E1'], 'July grade tuple must resolve E1 only');
   assert.strictEqual(july.compensationGradeMatrix.unassignedCount, 3, 'July must not silently use each employee latest assignment');
-  const emptyPeriod = await getKnlDashboardOverview(session('tien'), { period: '2026-09' });
-  assert.strictEqual(emptyPeriod.compensationGradeMatrix.period, '2026-09', 'Empty requested period must not fall back');
-  assert.deepStrictEqual(emptyPeriod.compensationGradeMatrix.gradeNumbers, [], 'Empty requested period must have no invented grade headers');
+  // Kỳ THẬT SỰ trước mọi dữ liệu (2026-01, trước cả 2026-07) — không có gì để
+  // carry-forward, ma trận phải trống thật, không bịa.
+  const beforeAnyData = await getKnlDashboardOverview(session('tien'), { period: '2026-01' });
+  assert.strictEqual(beforeAnyData.compensationGradeMatrix.period, '2026-01', 'Requested period must be preserved exactly');
+  assert.deepStrictEqual(beforeAnyData.compensationGradeMatrix.gradeNumbers, [], 'Period before any data exists must have no invented grade headers — nothing to carry-forward from');
+  assert.deepStrictEqual(beforeAnyData.compensationGradeMatrix.departments.every(row => row.assigned === 0), true, 'Period before any data exists: everyone genuinely unassigned, not a carry-forward gap');
+
+  // 2026-09 — không ai ghi dòng mới, nhưng 2026-08 vẫn <= 2026-09 nên PHẢI
+  // carry-forward đúng (đây chính là rule đã chốt: không đổi gì = tiếp tục
+  // phản ánh cơ cấu cũ, KHÔNG phải "thiếu dữ liệu").
+  const carriedForward = await getKnlDashboardOverview(session('tien'), { period: '2026-09' });
+  assert.strictEqual(carriedForward.compensationGradeMatrix.period, '2026-09', 'Requested period must be preserved exactly');
+  assert.deepStrictEqual(carriedForward.compensationGradeMatrix.gradeNumbers, [1, 3, 5], 'No-change month must carry forward the same grades as the last real change (2026-08), not go empty');
+  assert.deepStrictEqual(codes(findGrade(findLadder(findDepartment(carriedForward.compensationGradeMatrix, 'Kinh doanh'), 'SALE'), 1).people), ['E1'], 'E1 must carry forward its 2026-08 grade (1) into 2026-09, not lose it');
+  assert.strictEqual(carriedForward.compensationGradeMatrix.unassignedCount, 0, '2026-09 must be fully resolved via carry-forward — nobody genuinely missing');
 
   const employeePayload = await getKnlDashboardOverview(session('employee'));
   assert.strictEqual(Object.prototype.hasOwnProperty.call(employeePayload, 'compensationGradeMatrix'), false, 'Direct employee endpoint call must not receive compensation grades');

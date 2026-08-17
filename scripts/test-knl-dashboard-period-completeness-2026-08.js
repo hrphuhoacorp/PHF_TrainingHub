@@ -1,13 +1,18 @@
 'use strict';
 
 /*
- * Batch 1A.2 — KNL Dashboard period completeness, DETERMINISTIC coverage
- * (lib/knl-dashboard.js:computePeriodCoverage). NO percentage threshold:
- * isComplete = expectedCount>0 && coveredCount===expectedCount, where
- * expectedCount/coveredCount is an exact set intersection against
- * incomeByEmployeeCodes (the same population the compensation KPI already
- * uses — active + incomeScopeAllows, independent of UI department/branch/
- * title/grade filters). In-memory Supabase mock only, không chạm Production.
+ * Batch 1A.2 (+ Effective Snapshot / Carry-Forward, cập nhật) — KNL Dashboard
+ * period completeness, DETERMINISTIC coverage (lib/knl-dashboard.js:
+ * computePeriodCoverage). NO percentage threshold: isComplete = expectedCount>0
+ * && coveredCount===expectedCount — coveredCount giờ đếm nhân sự RESOLVE ĐƯỢC
+ * effective compensation tại period đó (carry-forward từ row ACTIVE gần nhất
+ * <= period, qua resolveEffectiveCompensationMap), KHÔNG còn đòi hỏi row
+ * đúng payroll_period exact. Test 2/3/6 đã được VIẾT LẠI so với bản 1A.2 gốc
+ * vì premise cũ ("thiếu đúng row tháng này = partial") không còn đúng theo
+ * business rule đã chốt lại — coi carry-forward hợp lệ là "thiếu dữ liệu"
+ * chính là bug đã audit ra. Test 1/4/5/7/8 giữ nguyên vì không phụ thuộc
+ * exact-period (single-period data hoặc future-period, không có gì để
+ * carry-forward). In-memory Supabase mock only, không chạm Production.
  *
  * Periods are computed relative to the real host clock (not hard-coded
  * strings) so the future/past semantics stay correct regardless of when this
@@ -153,33 +158,43 @@ async function run() {
   assert(deptRow.deltaPct != null, 'Test 1: a real, non-null delta must be computable when both periods are complete');
   assert.strictEqual(Math.round(deptRow.deltaPct * 10) / 10, 10, 'Test 1: delta must be the real, deterministic +10% (11M vs 10M), not fabricated');
 
-  // ---- Test 2: 9/10 explicit partial period — banner data, no comparison ----
+  // ---- Test 2 (REWRITTEN): genuinely-missing employee (never assigned at
+  // ANY period, not just this one) must still report partial — coveredCount
+  // 9/10 is real, not a carry-forward artifact. Employee WH02 has NO row at
+  // PREV1 either, so there is nothing to carry forward from.
+  const MISSING_CODE = ALL_CODES[9]; // WH02
+  const PRESENT_CODES = ALL_CODES.filter(c => c !== MISSING_CODE);
   STATE.assignments = [].concat(
-    assignmentsForPeriod(PREV1, ALL_CODES, 10000000),
-    assignmentsForPeriod(CURRENT, ALL_CODES.slice(0, 9), 11000000) // 9 of 10 covered
+    assignmentsForPeriod(PREV1, PRESENT_CODES, 10000000),
+    assignmentsForPeriod(CURRENT, PRESENT_CODES, 11000000) // WH02 never assigned, ever
   );
   const t2 = await getKnlDashboardOverview(session('director'), { period: CURRENT });
   assert.strictEqual(t2.meta.currentPeriod, CURRENT, 'Test 2: explicit request must be honored');
-  assert.strictEqual(t2.meta.currentPeriodStatus, 'partial', 'Test 2: 9/10 coverage must report partial, not complete');
+  assert.strictEqual(t2.meta.currentPeriodStatus, 'partial', 'Test 2: genuinely-missing employee (no ACTIVE row at any period) must report partial, not complete');
   assert.strictEqual(t2.meta.expectedCount, 10, 'Test 2: expectedCount must stay the full scope population');
-  assert.strictEqual(t2.meta.coveredCount, 9, 'Test 2: coveredCount must be exactly 9');
-  assert.strictEqual(t2.meta.missingCount, 1, 'Test 2: missingCount must be exactly 1');
+  assert.strictEqual(t2.meta.coveredCount, 9, 'Test 2: coveredCount must be exactly 9 (WH02 never resolves via carry-forward — nothing to carry)');
+  assert.strictEqual(t2.meta.missingCount, 1, 'Test 2: missingCount must be exactly 1 — genuinely missing, not a carry-forward gap');
   assert.strictEqual(t2.meta.comparisonAvailable, false, 'Test 2: partial current period must disable comparison');
   assert.strictEqual(t2.meta.previousPeriod, null, 'Test 2: previousPeriod must be null when current is not complete');
   t2.deptComparison.forEach(d => assert.strictEqual(d.deltaPct, null, 'Test 2: no deltaPct anywhere while current period is partial'));
 
-  // ---- Test 3: 1/10 sparse period must never become the silent default ----
+  // ---- Test 3 (REWRITTEN — was "1/10 sparse must never become default";
+  // that premise is now WRONG under carry-forward and was exactly the bug
+  // this batch fixes). 1 employee has an explicit CURRENT change; the other
+  // 9 carry forward unchanged from PREV1 -> CURRENT is genuinely complete
+  // (10/10 resolvable) and MUST become the default, not be skipped. ----
   STATE.assignments = [].concat(
     assignmentsForPeriod(PREV1, ALL_CODES, 10000000),
-    assignmentsForPeriod(CURRENT, ALL_CODES.slice(0, 1), 500000) // 1 of 10
+    assignmentsForPeriod(CURRENT, ALL_CODES.slice(0, 1), 12000000) // only SALE01 changed this period
   );
   const t3 = await getKnlDashboardOverview(session('director'));
-  assert.strictEqual(t3.meta.currentPeriod, PREV1, 'Test 3: default must skip the sparse current period and fall back to the last complete one');
-  assert.strictEqual(t3.meta.currentPeriodStatus, 'complete', 'Test 3: the auto-selected default must genuinely be complete');
-  assert.notStrictEqual(t3.meta.currentPeriod, CURRENT, 'Test 3: 1/10 period must never silently become the default');
-  const t3Explicit = await getKnlDashboardOverview(session('director'), { period: CURRENT });
-  assert.strictEqual(t3Explicit.meta.coveredCount, 1, 'Test 3: explicit view of the sparse period must show real coveredCount=1');
-  assert.strictEqual(t3Explicit.meta.comparisonAvailable, false, 'Test 3: sparse period must never produce a comparison-looking delta');
+  assert.strictEqual(t3.meta.currentPeriod, CURRENT, 'Test 3: CURRENT must become the default — the other 9 carry-forward validly from PREV1, this is NOT a sparse/missing period');
+  assert.strictEqual(t3.meta.currentPeriodStatus, 'complete', 'Test 3: carry-forward makes CURRENT genuinely 10/10 complete');
+  assert.strictEqual(t3.meta.coveredCount, 10, 'Test 3: coveredCount must be 10 — 1 explicit + 9 carried forward, not 1');
+  assert.strictEqual(t3.meta.missingCount, 0, 'Test 3: nobody genuinely missing — carry-forward resolves the other 9');
+  assert.strictEqual(t3.kpis.totalFund, 12000000 + 9 * 10000000, 'Test 3: KPI must mix the 1 explicit new value with the 9 carried-forward values, not silently drop them');
+  const t3SaleRow = t3.drillDown['Kinh doanh'].find(r => r.employeeCode === 'SALE02');
+  assert.strictEqual(t3SaleRow.currentIncome, 10000000, 'Test 3: an unchanged employee (SALE02, no CURRENT row) must show their carried-forward PREV1 value in drillDown, not null/missing');
 
   // ---- Test 5: scope — expected/covered computed on actor's own incomeScope ----
   STATE.assignments = [].concat(
@@ -193,13 +208,17 @@ async function run() {
   const directorSameCurrent = await getKnlDashboardOverview(session('director'));
   assert.strictEqual(directorSameCurrent.meta.expectedCount, 10, 'Test 5: Director (all_company) expected population must be the full 10');
 
-  // ---- Test 6: UI department/branch/title/grade filter must NOT change completeness ----
+  // ---- Test 6: UI department/branch/title/grade filter must NOT change
+  // completeness. Kho vận (WH01/WH02) genuinely NEVER assigned at any period
+  // (not just missing this month) so carry-forward cannot mask it — the
+  // company-wide 8/10 partial is real and must stay real regardless of which
+  // department the UI filter is scoped to. ----
   STATE.assignments = [].concat(
-    assignmentsForPeriod(PREV1, ALL_CODES, 10000000),
-    assignmentsForPeriod(CURRENT, SALE_CODES, 11000000) // Kinh doanh (8) fully covered, Kho vận (2) missing -> company-wide partial 8/10
+    assignmentsForPeriod(PREV1, SALE_CODES, 10000000),
+    assignmentsForPeriod(CURRENT, SALE_CODES, 11000000) // Kinh doanh (8) fully covered, Kho vận (2) never assigned, ever
   );
   const unfiltered = await getKnlDashboardOverview(session('director'), { period: CURRENT });
-  assert.strictEqual(unfiltered.meta.currentPeriodStatus, 'partial', 'Test 6: unfiltered company view must be partial (8/10, Kho vận missing)');
+  assert.strictEqual(unfiltered.meta.currentPeriodStatus, 'partial', 'Test 6: unfiltered company view must be partial (8/10, Kho vận genuinely never assigned)');
   const filteredToSales = await getKnlDashboardOverview(session('director'), { period: CURRENT, department: 'Kinh doanh' });
   assert.strictEqual(filteredToSales.meta.currentPeriodStatus, 'partial', 'Test 6: filtering the UI to a fully-covered department must NOT flip company-wide period status to complete');
   assert.strictEqual(filteredToSales.meta.expectedCount, 10, 'Test 6: expectedCount must stay the full incomeScope population, unaffected by the department filter');

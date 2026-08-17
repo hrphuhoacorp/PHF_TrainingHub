@@ -3641,8 +3641,17 @@ async function renderGradePromotionSection(root, capabilities, isAdmin){
    Dữ liệu chính chỉ đi qua getKnlDashboardOverview (lib/knl-dashboard.js):
    backend enforce people_scope/incomeScope, frontend chỉ trình bày payload
    được phép xem và không tự lọc/mở rộng scope. AI giữ action riêng hiện có. */
-var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'' }, openDept:'', compareDetailed:false, selectedFramework:'', selectedKnlDept:'', missingKnlOpen:false, matrixQuickView:null,
+var dashboardState = { loaded:false, loadedAt:0, data:null, error:'', rangeError:'',
+  filters:{ department:'', branch:'', title:'', knlGradeCode:'', period:'', periodFrom:'', periodTo:'', rangePreset:'', rangeChoice:'month' },
+  openDept:'', compareDetailed:false, selectedFramework:'', selectedKnlDept:'', missingKnlOpen:false, matrixQuickView:null,
   ai:{ pending:false, error:'', reply:'', contextSummary:[], question:'' } };
+// rangeChoice là field UI-only ('month'|'last3'|'quarter_current'|'quarter_previous'|
+// 'custom'), KHÔNG gửi lên backend — dashboardRequestFilters() loại field này khỏi
+// payload, giữ đúng contract Phase 1 (periodFrom/periodTo/rangePreset).
+function dashboardRequestFilters(filters){
+  return { department:filters.department, branch:filters.branch, title:filters.title, knlGradeCode:filters.knlGradeCode,
+    period:filters.period, periodFrom:filters.periodFrom, periodTo:filters.periodTo, rangePreset:filters.rangePreset };
+}
 function dashMoney(v){ return v==null ? '—' : money(v); }
 function dashPct(v){ return v==null ? '—' : ((v>0?'+':'')+v+'%'); }
 function dashDeltaClass(v){ return v==null ? '' : (v>0 ? 'phfk-dash-delta-up' : (v<0 ? 'phfk-dash-delta-down' : 'phfk-dash-delta-flat')); }
@@ -3659,6 +3668,97 @@ function dashDirectionalText(value,formatter){
   return (value>0?'▲ ':value<0?'▼ ':'— ')+formatter(value);
 }
 function dashPeriodText(value){ var parts=String(value||'').split('-');return parts.length===2?parts[1]+'/'+parts[0]:String(value||''); }
+
+/* Batch 2B Phase 2 — range/quý control. KHÔNG tự tính business semantics ở
+   frontend: last3/quarter_current/quarter_previous chỉ gửi rangePreset,
+   backend (resolveRangeWindow, lib/knl-dashboard.js) mới là nguồn tính toán
+   duy nhất — UI chỉ trình bày lại kết quả (rangeStart/rangeEnd/snapshotPeriod/
+   comparisonBase/periodCoverage) trả về trong meta. Danh sách tháng cho 2
+   dropdown "Tùy chỉnh" dùng meta.generatedAt (đồng hồ SERVER, không phải
+   client) làm mốc, thuần để có đủ option cho <select> — không phải tính toán
+   nghiệp vụ (validate from<=to/12 tháng vẫn do backend chốt, client chỉ chặn
+   sớm để UX tốt hơn, không thay thế backend). */
+function dashboardYmAdd(ym, delta){
+  var parts=String(ym).split('-'); var y=Number(parts[0]), m=Number(parts[1]);
+  var total=y*12+(m-1)+delta; var ny=Math.floor(total/12), nm=((total%12)+12)%12+1;
+  return ny+'-'+(nm<10?'0'+nm:''+nm);
+}
+function dashboardYmDiffMonths(a,b){
+  var pa=String(a).split('-').map(Number), pb=String(b).split('-').map(Number);
+  return (pb[0]*12+pb[1])-(pa[0]*12+pa[1]);
+}
+function dashboardServerNowYm(meta){
+  var iso=meta&&meta.generatedAt, d=iso?new Date(iso):null;
+  if(d&&!isNaN(d.getTime())) return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');
+  var now=new Date(); return now.getUTCFullYear()+'-'+String(now.getUTCMonth()+1).padStart(2,'0');
+}
+function dashboardCustomRangeOptions(meta){
+  var now=dashboardServerNowYm(meta), out=[];
+  for(var i=-23;i<=3;i++){ var p=dashboardYmAdd(now,i); out.push({code:p,label:dashPeriodText(p)}); }
+  return out;
+}
+var DASHBOARD_RANGE_MODE_LABELS={month:'Theo tháng',last3:'3 tháng gần nhất',quarter_current:'Quý hiện tại',quarter_previous:'Quý trước',custom:'Tùy chỉnh'};
+function dashboardRangeModeSelectHtml(rangeChoice){
+  var opts=['month','last3','quarter_current','quarter_previous','custom'].map(function(v){
+    return '<option value="'+v+'" '+(rangeChoice===v?'selected':'')+'>'+esc(DASHBOARD_RANGE_MODE_LABELS[v])+'</option>';
+  }).join('');
+  return '<select class="phfk-input" data-dash-range-mode>'+opts+'</select>';
+}
+function dashboardRangeMonthSelectHtml(attr, label, options, selectedValue){
+  // Cố ý KHÔNG dùng data-dash-filter (generic filter listener) — cặp Từ
+  // tháng/Đến tháng cần validate (from<=to, tối đa 12 tháng) TRƯỚC khi
+  // refetch, khác hành vi "đổi filter là gọi ngay" của các dropdown khác.
+  var opts='<option value="">'+esc(label)+'</option>'+options.map(function(o){
+    return '<option value="'+esc(o.code)+'" '+(selectedValue===o.code?'selected':'')+'>'+esc(o.label)+'</option>';
+  }).join('');
+  return '<select class="phfk-input'+(selectedValue?' is-active':'')+'" data-dash-range-'+attr+'>'+opts+'</select>';
+}
+function dashboardCustomRangeControlsHtml(filters, meta){
+  var options=dashboardCustomRangeOptions(meta);
+  var fromSelect=dashboardRangeMonthSelectHtml('from','Từ tháng',options,filters.periodFrom);
+  var toSelect=dashboardRangeMonthSelectHtml('to','Đến tháng',options,filters.periodTo);
+  return '<div class="phfk-dash-range-custom">'+fromSelect+'<span class="phfk-dash-range-sep">→</span>'+toSelect+'</div>';
+}
+function dashboardRangeErrorHtml(message){
+  return message ? '<p class="phfk-dash-range-error" data-dash-range-error role="alert">'+esc(message)+'</p>' : '';
+}
+// Diễn giải rõ meta.rangeMode==='range': đang xem khoảng nào, KPI thật sự
+// dùng kỳ nào (snapshotPeriod, có thể KHÁC rangeEnd nếu rangeEnd future/thiếu
+// dữ liệu), so sánh biến động dùng cặp kỳ nào — không để nhãn KPI khiến người
+// dùng hiểu nhầm snapshot=rangeEnd. Đồng thời liệt kê mọi kỳ partial/future/
+// empty trong periodCoverage[] (mỗi kỳ tự mang coverageStatus riêng).
+function dashboardRangeSummaryHtml(meta){
+  if(!meta||meta.rangeMode!=='range') return '';
+  var parts=[];
+  var rangeLabel='Đang xem: '+dashPeriodText(meta.rangeStart)+' → '+dashPeriodText(meta.rangeEnd)+'.';
+  parts.push(rangeLabel);
+  if(meta.snapshotPeriod){
+    parts.push('Chỉ số nhanh (KPI) dùng số liệu kỳ '+dashPeriodText(meta.snapshotPeriod)+'.');
+    if(meta.snapshotPeriod!==meta.rangeEnd){
+      var why=meta.currentPeriodIsFuture?'là kỳ tương lai':'chưa đủ dữ liệu';
+      parts.push('Kỳ '+dashPeriodText(meta.rangeEnd)+' (cuối khoảng đang chọn) '+why+' — KPI đang dùng kỳ gần nhất đã hoàn chỉnh trong khoảng là '+dashPeriodText(meta.snapshotPeriod)+'.');
+    }
+  } else {
+    parts.push('Chưa có kỳ nào đủ dữ liệu trong khoảng đang chọn.');
+  }
+  if(meta.comparisonBase){
+    parts.push('So sánh biến động: kỳ '+dashPeriodText(meta.comparisonBase)+' → kỳ '+dashPeriodText(meta.snapshotPeriod)+'.');
+  } else if(meta.snapshotPeriod){
+    parts.push('Chưa đủ dữ liệu để so sánh biến động trong khoảng này.');
+  }
+  var roster=(meta.periodCoverage||[]).filter(function(p){return p.coverageStatus!=='complete';});
+  var rosterHtml='';
+  if(roster.length){
+    rosterHtml='<ul class="phfk-dash-range-roster">'+roster.map(function(p){
+      var label=dashPeriodText(p.period), text;
+      if(p.isFuture) text='Kỳ '+label+': kỳ tương lai, chưa có dữ liệu chính thức.';
+      else if(p.coverageStatus==='empty') text='Kỳ '+label+': chưa có dữ liệu.';
+      else text='Kỳ '+label+': dữ liệu một phần ('+p.coveredCount+'/'+p.expectedCount+' nhân sự).';
+      return '<li>'+esc(text)+'</li>';
+    }).join('')+'</ul>';
+  }
+  return '<div class="phfk-dash-range-summary" data-dash-range-summary><p class="phfk-dash-empty-note phfk-dash-scope-note">'+parts.map(esc).join(' ')+'</p>'+rosterHtml+'</div>';
+}
 // Batch 1A.2: 1 banner duy nhất, ghép đúng ngữ nghĩa future/partial/empty từ
 // meta.currentPeriodStatus + expectedCount/coveredCount (deterministic, không %).
 function dashboardPeriodStatusNoteHtml(meta){
@@ -3706,6 +3806,15 @@ function dashboardKpiTileHtml(icon, label, tone, value, subtitle, delta, options
       progress+spark+
     '</div>';
 }
+// Batch 2B Phase 2: mỗi điểm trend giờ mang coverageStatus/isFuture/isComplete
+// (backend, lib/knl-dashboard.js). KHÔNG redesign chart — chỉ đánh dấu nhãn
+// điểm không complete để người dùng không đọc nhầm xu hướng qua 1 điểm
+// partial/tương lai bị vẽ liền mạch không phân biệt.
+function dashboardTrendFlagHtml(row){
+  if(!row || row.isComplete !== false) return '';
+  var text = row.isFuture ? 'kỳ tương lai' : 'chưa đủ dữ liệu';
+  return ' <em class="phfk-dash-trend-flag" title="Kỳ '+esc(dashPeriodText(row.period))+' '+esc(text)+', không nên đọc như kỳ chuẩn">'+esc(text)+'</em>';
+}
 function dashboardIncomeMovementHtml(trend,meta){
   var rows=(trend||[]).filter(function(row){return row&&row.period&&row.fund!=null;});
   if(rows.length>=3){
@@ -3713,14 +3822,14 @@ function dashboardIncomeMovementHtml(trend,meta){
     var min=Math.min.apply(null,rows.map(function(row){return Number(row.fund)||0;}));
     var range=Math.max(1,max-min);
     var points=rows.map(function(row,index){var x=rows.length===1?50:4+(index/(rows.length-1))*92;var y=10+((max-Number(row.fund||0))/range)*64;return x.toFixed(2)+','+y.toFixed(2);}).join(' ');
-    return '<div class="phfk-dash-trend-visual"><svg viewBox="0 0 100 84" preserveAspectRatio="none" role="img" aria-label="Biến động tổng quỹ theo '+rows.length+' kỳ dữ liệu thật"><line x1="4" y1="74" x2="96" y2="74" class="phfk-dash-trend-axis"/><polyline points="'+points+'" class="phfk-dash-trend-line"/></svg><div class="phfk-dash-trend-labels">'+rows.map(function(row){return '<span><small>'+esc(row.period)+'</small><b>'+dashMoney(row.fund)+'</b></span>';}).join('')+'</div></div>';
+    return '<div class="phfk-dash-trend-visual"><svg viewBox="0 0 100 84" preserveAspectRatio="none" role="img" aria-label="Biến động tổng quỹ theo '+rows.length+' kỳ dữ liệu thật"><line x1="4" y1="74" x2="96" y2="74" class="phfk-dash-trend-axis"/><polyline points="'+points+'" class="phfk-dash-trend-line"/></svg><div class="phfk-dash-trend-labels">'+rows.map(function(row){return '<span class="'+(row.isComplete===false?'is-incomplete':'')+'"><small>'+esc(row.period)+'</small><b>'+dashMoney(row.fund)+'</b>'+dashboardTrendFlagHtml(row)+'</span>';}).join('')+'</div></div>';
   }
   if(rows.length===2){
     var previous=rows.find(function(row){return row.period===meta.previousPeriod;})||rows[0];
     var current=rows.find(function(row){return row.period===meta.currentPeriod;})||rows[1];
     var delta=dashDeltaOf(current.fund,previous.fund);
     var maxFund=Math.max(Number(previous.fund)||0,Number(current.fund)||0)||1;
-    return '<div class="phfk-dash-period-compare"><div><small>KỲ TRƯỚC · '+esc(dashPeriodText(previous.period))+'</small><b>'+dashMoney(previous.fund)+'</b><span class="phfk-dash-period-bar"><i style="width:'+Math.round((previous.fund/maxFund)*100)+'%"></i></span></div><span class="phfk-dash-period-arrow">→</span><div><small>KỲ HIỆN TẠI · '+esc(dashPeriodText(current.period))+'</small><b>'+dashMoney(current.fund)+'</b><span class="phfk-dash-period-bar is-current"><i style="width:'+Math.round((current.fund/maxFund)*100)+'%"></i></span></div><div class="phfk-dash-period-delta '+dashDeltaClass(delta.pct)+'"><span><small>THAY ĐỔI QUỸ</small><b>'+(delta.amount==null?'—':(delta.amount>0?'+':'')+dashMoney(delta.amount))+'</b></span><span><b>'+dashPct(delta.pct)+'</b><small>so với kỳ trước</small></span></div></div>';
+    return '<div class="phfk-dash-period-compare"><div class="'+(previous.isComplete===false?'is-incomplete':'')+'"><small>KỲ TRƯỚC · '+esc(dashPeriodText(previous.period))+'</small><b>'+dashMoney(previous.fund)+'</b><span class="phfk-dash-period-bar"><i style="width:'+Math.round((previous.fund/maxFund)*100)+'%"></i></span>'+dashboardTrendFlagHtml(previous)+'</div><span class="phfk-dash-period-arrow">→</span><div class="'+(current.isComplete===false?'is-incomplete':'')+'"><small>KỲ HIỆN TẠI · '+esc(dashPeriodText(current.period))+'</small><b>'+dashMoney(current.fund)+'</b><span class="phfk-dash-period-bar is-current"><i style="width:'+Math.round((current.fund/maxFund)*100)+'%"></i></span>'+dashboardTrendFlagHtml(current)+'</div><div class="phfk-dash-period-delta '+dashDeltaClass(delta.pct)+'"><span><small>THAY ĐỔI QUỸ</small><b>'+(delta.amount==null?'—':(delta.amount>0?'+':'')+dashMoney(delta.amount))+'</b></span><span><b>'+dashPct(delta.pct)+'</b><small>so với kỳ trước</small></span></div></div>';
   }
   return '<p class="phfk-dash-empty-note">Chưa đủ lịch sử thực tế để hiển thị biến động theo kỳ.</p>';
 }
@@ -4013,17 +4122,29 @@ function renderKnlDashboardError(root, error){
   body.innerHTML = '<div class="phfk-empty">Không tải được dữ liệu tổng quan KNL: '+esc((error&&error.message)||'Lỗi không xác định')+'</div>';
 }
 
+var DASHBOARD_RANGE_ERROR_CODES={KNL_DASHBOARD_RANGE_INVALID:1,KNL_DASHBOARD_RANGE_TOO_LONG:1};
 async function loadKnlDashboard(root){
   var body = root.querySelector('[data-knl-body]');
+  var hadPriorData = Boolean(dashboardState.loaded && dashboardState.data);
   if(body) body.innerHTML = '<div class="phfk-loading">Đang tải dữ liệu tổng quan KNL…</div>';
   try{
-    var res = await apiPost('getKnlDashboardOverview', dashboardState.filters);
+    var res = await apiPost('getKnlDashboardOverview', dashboardRequestFilters(dashboardState.filters));
     dashboardState.data = res;
     dashboardState.loaded = true;
     dashboardState.loadedAt = Date.now();
     dashboardState.error = '';
+    dashboardState.rangeError = '';
     renderKnlDashboardBody(root);
   }catch(error){
+    var code = error && error.code;
+    // Lỗi chọn khoảng thời gian (from>to/quá 12 tháng) là lỗi input, không
+    // phải lỗi hệ thống — hiển thị inline ngay cạnh bộ chọn, GIỮ NGUYÊN
+    // dashboard đang xem (không alert(), không xoá toàn bộ body).
+    if(DASHBOARD_RANGE_ERROR_CODES[code] && hadPriorData){
+      dashboardState.rangeError = (error && error.message) || 'Khoảng thời gian không hợp lệ.';
+      renderKnlDashboardBody(root);
+      return;
+    }
     dashboardState.error = (error && error.message) || 'Lỗi không xác định';
     renderKnlDashboardError(root, error);
   }
@@ -4064,7 +4185,14 @@ function renderKnlDashboardBody(root){
     '<div class="phfk-dash">' +
       '<div class="phfk-page-head phfk-dash-head">' +
         '<div><h1>Tổng quan KNL</h1><p class="phfk-dash-subtitle">Nhân lực · Năng lực · Thu nhập</p></div>' +
-        '<div class="phfk-dash-head-actions"><div class="phfk-dash-period">' + dashboardFilterSelect('period', 'Kỳ dữ liệu', periodOptions, dashboardState.filters.period) + (generatedLabel?'<small>Cập nhật: '+esc(generatedLabel)+'</small>':'') + '</div><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Gợi ý phân tích AI</button></div>' +
+        '<div class="phfk-dash-head-actions"><div class="phfk-dash-period phfk-dash-range">' +
+          dashboardRangeModeSelectHtml(dashboardState.filters.rangeChoice) +
+          (dashboardState.filters.rangeChoice==='custom'
+            ? dashboardCustomRangeControlsHtml(dashboardState.filters, meta)
+            : (dashboardState.filters.rangeChoice==='month' ? dashboardFilterSelect('period', 'Kỳ dữ liệu', periodOptions, dashboardState.filters.period) : '')) +
+          (generatedLabel?'<small>Cập nhật: '+esc(generatedLabel)+'</small>':'') +
+          dashboardRangeErrorHtml(dashboardState.rangeError) +
+        '</div><button type="button" class="phfk-btn-secondary phfk-dash-ai-jump" data-dash-ai-jump>✦&nbsp; Gợi ý phân tích AI</button></div>' +
       '</div>' +
 
       '<div class="phfk-filters phfk-dash-filters">' +
@@ -4073,7 +4201,7 @@ function renderKnlDashboardBody(root){
         dashboardFilterSelect('title', 'Tất cả chức danh', filterOptions.titles||[], dashboardState.filters.title) +
         dashboardFilterSelect('knlGradeCode', 'Tất cả bậc KNL', knlFilterOptions, dashboardState.filters.knlGradeCode) +
       '</div>' +
-      scopeNoteHtml + incomeOffNoteHtml + periodStatusNoteHtml +
+      scopeNoteHtml + incomeOffNoteHtml + periodStatusNoteHtml + dashboardRangeSummaryHtml(meta) +
 
       '<div class="phfk-dash-kpis">' +
         dashboardKpiTileHtml('◈', 'Tổng quỹ thu nhập', 'income', dashMoney(kpis.totalFund), meta.currentPeriod?('Kỳ '+meta.currentPeriod):'Chưa có kỳ lương nào trong phạm vi',fundDelta,{series:fundSeries,sparkTone:'income',sparkLabel:'Tổng quỹ thu nhập'}) +
@@ -4117,6 +4245,65 @@ function renderKnlDashboardBody(root){
       loadKnlDashboard(root);
     });
   });
+  function dashboardResetDrillState(){
+    dashboardState.openDept = '';
+    dashboardState.compareDetailed = false;
+    dashboardState.selectedKnlDept = '';
+    dashboardState.selectedFramework = '';
+    dashboardState.missingKnlOpen = false;
+    dashboardState.matrixQuickView = null;
+    dashboardState.ai = { pending:false, error:'', reply:'', contextSummary:[], question:'' };
+  }
+  var rangeModeEl = body.querySelector('[data-dash-range-mode]');
+  if(rangeModeEl) rangeModeEl.addEventListener('change', function(){
+    var mode = rangeModeEl.value;
+    dashboardState.filters.rangeChoice = mode;
+    dashboardState.rangeError = '';
+    dashboardResetDrillState();
+    if(mode==='month'){
+      dashboardState.filters.periodFrom = ''; dashboardState.filters.periodTo = ''; dashboardState.filters.rangePreset = '';
+      loadKnlDashboard(root);
+    } else if(mode==='last3' || mode==='quarter_current' || mode==='quarter_previous'){
+      // Gửi đúng contract Phase 1: chỉ rangePreset, KHÔNG tự tính periodFrom/
+      // periodTo ở frontend — backend (resolveRangeWindow) là nguồn duy nhất.
+      dashboardState.filters.period = ''; dashboardState.filters.periodFrom = ''; dashboardState.filters.periodTo = '';
+      dashboardState.filters.rangePreset = mode;
+      loadKnlDashboard(root);
+    } else if(mode==='custom'){
+      // Chưa đủ 2 đầu -> chỉ render lại control, KHÔNG gọi API cho tới khi
+      // người dùng chọn đủ Từ tháng/Đến tháng hợp lệ.
+      dashboardState.filters.rangePreset = '';
+      renderKnlDashboardBody(root);
+    }
+  });
+  function dashboardValidateCustomRange(from, to){
+    if(!from || !to) return null; // chưa đủ 2 đầu -> chưa validate, chưa gọi API
+    if(from > to) return 'Từ tháng phải trước hoặc bằng Đến tháng.';
+    var span = dashboardYmDiffMonths(from, to) + 1;
+    if(span > 12) return 'Khoảng thời gian tối đa 12 tháng.';
+    return null;
+  }
+  function dashboardOnCustomRangeChange(){
+    var from = dashboardState.filters.periodFrom, to = dashboardState.filters.periodTo;
+    var error = dashboardValidateCustomRange(from, to);
+    if(error){
+      dashboardState.rangeError = error;
+      renderKnlDashboardBody(root); // lỗi inline, KHÔNG alert(), KHÔNG gọi API với range sai
+      return;
+    }
+    dashboardState.rangeError = '';
+    if(from && to){
+      dashboardResetDrillState();
+      loadKnlDashboard(root);
+    } else {
+      renderKnlDashboardBody(root);
+    }
+  }
+  var rangeFromEl = body.querySelector('[data-dash-range-from]');
+  if(rangeFromEl) rangeFromEl.addEventListener('change', function(){ dashboardState.filters.periodFrom = rangeFromEl.value; dashboardOnCustomRangeChange(); });
+  var rangeToEl = body.querySelector('[data-dash-range-to]');
+  if(rangeToEl) rangeToEl.addEventListener('change', function(){ dashboardState.filters.periodTo = rangeToEl.value; dashboardOnCustomRangeChange(); });
+
   var compareDetails=body.querySelector('[data-dash-compare-details]');
   if(compareDetails) compareDetails.addEventListener('click',function(){ dashboardState.matrixQuickView=null;dashboardState.compareDetailed=!dashboardState.compareDetailed; renderKnlDashboardBody(root); });
   body.querySelectorAll('[data-dash-framework]').forEach(function(el){ el.addEventListener('click',function(){ dashboardState.matrixQuickView=null;dashboardState.selectedFramework=el.getAttribute('data-dash-framework'); renderKnlDashboardBody(root); }); });
