@@ -48,7 +48,7 @@ var KNL_CACHEABLE_ACTIONS = new Set(['getKnlCapabilities','listKnlFrameworks','g
 /* upsertKnlPermissionGrant phải nằm trong set này: getKnlCapabilities giờ
  * được cache (KNL-09 fix#1) nên nếu thiếu, quyền vừa đổi có thể hiển thị
  * capabilities cũ tới 30s (KNL_READ_CACHE_TTL) trên tab đang mở. */
-var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal','correctKnlEmployeeCompensationPeriod','upsertKnlPermissionGrant']);
+var KNL_INVALIDATING_ACTIONS = new Set(['createKnlFramework','saveKnlFramework','cloneKnlVersion','publishKnlVersion','saveKnlGroup','saveKnlItem','saveKnlColumn','deleteKnlStructure','disableKnlStructure','reorderKnlStructure','saveKnlLevelContent','saveKnlGradeMatrix','setKnlVersionEffectivity','applyKnlCompensationFoundation','saveKnlEmployeeIncome','seedKnlSourceManifest','saveKnlFrameworkAssignment','saveKnlSurveyCampaign','openKnlSurveyCampaign','closeKnlSurveyCampaign','cloneKnlSurveyVersionToDraft','cloneKnlCompensationVersion','saveKnlCompensationGrades','scheduleKnlCompensationVersion','createKnlGradePromotionProposal','agreeKnlGradePromotionProposal','rejectKnlGradePromotionProposal','withdrawKnlGradePromotionProposal','correctKnlEmployeeCompensationPeriod','upsertKnlPermissionGrant','setKnlEmployeeCompetencyAssignment']);
 function knlCacheOwner(){var u=currentUser();return String(u.id||u.accountId||u.email||u.employeeCode||u.employee_code||roleHome())+'|'+knlAuthorizationSignature;}
 function clearKnlReadCache(){knlReadCache.clear();}
 function invalidateKnlViewState(action){
@@ -1667,11 +1667,13 @@ function bindFrameworkEvents(root){
 /* ===================== SOURCE THẬT + ASSIGNMENT (BATCH 2) ===================== */
 
 var assignmentState={loading:false,loaded:false,loadedAt:0,subTab:'gan-cho-nhan-su',preview:null,manifests:[],targets:{people:[],positions:[],organizationConflict:null},assignments:[],frameworks:[],error:'',result:''};
+var competencyAssignState={selectedCode:'',current:null,loadingCurrent:false,grades:[],gradesVersionId:'',gradesLoading:false,requestSeq:0,gradesRequestSeq:0,message:'',error:''};
 function assignmentSubTabNav(active){
   return '<nav class="phfk-subtabs" aria-label="Gán & áp dụng">'+
     '<button type="button" class="'+(active==='gan-cho-nhan-su'?'active':'')+'" data-knl-assign-subtab="gan-cho-nhan-su">Gán cho nhân sự</button>'+
     '<button type="button" class="'+(active==='dang-ap-dung'?'active':'')+'" data-knl-assign-subtab="dang-ap-dung">Đang áp dụng</button>'+
     '<button type="button" class="'+(active==='chuan-bi-du-lieu'?'active':'')+'" data-knl-assign-subtab="chuan-bi-du-lieu">Chuẩn bị dữ liệu</button>'+
+    '<button type="button" class="'+(active==='bac-nang-luc'?'active':'')+'" data-knl-assign-subtab="bac-nang-luc">Gán bậc năng lực</button>'+
     '</nav>';
 }
 function assignmentFrameworkOptions(){return (assignmentState.frameworks||[]).map(function(f){return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>';}).join('');}
@@ -1711,9 +1713,52 @@ function assignmentFormHtml(){
 function assignmentAppliedHtml(){
   return '<section class="phfk-panel"><div class="phfk-section-head"><div><small>ĐANG ÁP DỤNG</small><h2>Bộ KNL đang áp dụng</h2></div></div><div class="phfk-table-wrap"><table class="phfk-table"><thead><tr><th>Bộ KNL</th><th>Phiên bản</th><th>Đối tượng</th><th>Vai trò</th><th>Trạng thái</th><th>Thu nhập</th></tr></thead><tbody>'+((assignmentState.assignments||[]).map(function(a){var snap=a.organizationSnapshot||{};return '<tr><td>'+esc(a.frameworkName||a.frameworkCode)+'</td><td>v'+esc(a.versionNumber)+'</td><td>'+esc(a.targetType==='employee'?(a.employeeCode+' · '+(snap.employeeName||'')):(snap.position||a.positionRef))+'</td><td>'+(a.isPrimary?'Bộ chính':'Bộ bổ sung')+'</td><td>'+assignmentStatusBadge(a.status)+'</td><td>'+(a.targetType==='employee'?'<button type="button" class="phfk-link" data-knl-assignment-income="'+esc(a.employeeCode)+'">Xem</button>':'—')+'</td></tr>';}).join('')||'<tr><td colspan="6">Chưa có Bộ KNL nào đang áp dụng.</td></tr>')+'</tbody></table></div></section>';
 }
+function competencyStatusLabel(v){return {PROVISIONAL:'Tạm thời',CONFIRMED:'Đã xác nhận'}[v]||(v||'—');}
+function findFrameworkIdForVersion(frameworkVersionId){
+  var match=(assignmentState.frameworks||[]).find(function(f){return (f.versions||[]).some(function(v){return v.id===frameworkVersionId;});});
+  return match?match.id:'';
+}
+function competencyGradeOptions(){
+  return (competencyAssignState.grades||[]).slice().sort(function(a,b){return Number(a.sortOrder||0)-Number(b.sortOrder||0);}).map(function(g){return '<option value="'+esc(g.id)+'">'+esc(g.label||g.gradeCode)+'</option>';}).join('');
+}
+function competencyCurrentSummaryHtml(){
+  var c=competencyAssignState;
+  if(!c.selectedCode)return '';
+  if(c.loadingCurrent)return '<p class="phfk-loading">Đang tải bậc năng lực hiện tại…</p>';
+  if(!c.current||c.current.hasAssignment===false)return '<p class="phfk-batch-note">Nhân sự này chưa có bậc năng lực nào được gán.</p>';
+  var a=c.current.assignment,fw=c.current.framework,g=c.current.currentGrade;
+  return '<div class="phfk-panel phfk-competency-current"><div class="phfk-section-head"><div><small>BẬC NĂNG LỰC HIỆN TẠI</small></div></div>'+
+    '<p><b>'+esc(fw.name)+'</b> · v'+esc(fw.versionNumber)+'</p>'+
+    '<p>Bậc: <b>'+esc(g.label||g.code)+'</b></p>'+
+    '<p>Trạng thái: <b>'+esc(competencyStatusLabel(a.status))+'</b></p>'+
+    '<p>Ngày hiệu lực: <b>'+esc(a.effectiveFrom||'—')+'</b></p></div>';
+}
+function competencyAssignFormHtml(){
+  var t=assignmentState.targets||{};
+  var peopleOptions=(t.people||[]).map(function(person){return '<option value="'+esc(person.employeeCode)+'"'+(competencyAssignState.selectedCode===person.employeeCode?' selected':'')+'>'+esc(person.employeeCode+' · '+person.employeeName+' · '+(person.title||'Chưa có chức danh'))+'</option>';}).join('');
+  var hasEmployee=!!competencyAssignState.selectedCode;
+  var todayStr=new Date().toISOString().slice(0,10);
+  return '<section class="phfk-panel"><div class="phfk-section-head"><div><small>GÁN BẬC NĂNG LỰC</small><h2>Gán / đổi / xác nhận bậc năng lực</h2></div></div>'+
+    '<label class="phfk-field"><span>Nhân sự</span><select class="phfk-input" data-comp-employee-select><option value="">Chọn nhân sự</option>'+peopleOptions+'</select></label>'+
+    competencyCurrentSummaryHtml()+
+    (!hasEmployee?'':(
+    '<form class="phfk-assignment-form" data-comp-assign-form>'+
+      '<label class="phfk-field"><span>Bộ KNL</span><select class="phfk-input" data-comp-assign-framework required><option value="">Chọn Bộ KNL</option>'+assignmentFrameworkOptions()+'</select></label>'+
+      '<label class="phfk-field"><span>Phiên bản</span><select class="phfk-input" data-comp-assign-version required><option value="">Chọn phiên bản</option></select></label>'+
+      '<label class="phfk-field"><span>Bậc năng lực</span><select class="phfk-input" data-comp-assign-grade required><option value="">Chọn bậc</option>'+competencyGradeOptions()+'</select></label>'+
+      '<label class="phfk-field"><span>Trạng thái</span><select class="phfk-input" data-comp-assign-status required><option value="PROVISIONAL">Tạm thời</option><option value="CONFIRMED">Đã xác nhận</option></select></label>'+
+      '<label class="phfk-field"><span>Ngày hiệu lực</span><input class="phfk-input" type="date" data-comp-assign-effective required min="'+todayStr+'" value="'+todayStr+'"></label>'+
+      '<label class="phfk-field"><span>Lý do</span><input class="phfk-input" data-comp-assign-reason required minlength="5" placeholder="Tối thiểu 5 ký tự"></label>'+
+      '<label class="phfk-field"><span>Ghi chú</span><input class="phfk-input" data-comp-assign-note placeholder="Không bắt buộc"></label>'+
+      '<button class="phfk-btn-primary" type="submit">Lưu bậc năng lực</button>'+
+    '</form>'))+
+    (competencyAssignState.message?'<p class="phfk-success">'+esc(competencyAssignState.message)+'</p>':'')+
+    (competencyAssignState.error?'<p class="phfk-error">'+esc(competencyAssignState.error)+'</p>':'')+
+    '</section>';
+}
 function assignmentPageHtml(){
   var sub=assignmentState.subTab||'gan-cho-nhan-su';
-  var content=sub==='dang-ap-dung'?assignmentAppliedHtml():(sub==='chuan-bi-du-lieu'?assignmentPrepHtml():assignmentFormHtml());
+  var content=sub==='dang-ap-dung'?assignmentAppliedHtml():(sub==='chuan-bi-du-lieu'?assignmentPrepHtml():(sub==='bac-nang-luc'?competencyAssignFormHtml():assignmentFormHtml()));
   return frameworkDomainNav('gan-ap-dung')+'<div class="phfk-page-head"><div><small>KNL · GÁN &amp; ÁP DỤNG</small><h1>Gán vị trí &amp; áp dụng</h1></div></div>'+
     assignmentSubTabNav(sub)+content+
     (assignmentState.result?'<p class="phfk-success">'+esc(assignmentState.result)+'</p>':'')+(assignmentState.error?'<p class="phfk-error">'+esc(assignmentState.error)+'</p>':'');
@@ -1725,6 +1770,7 @@ function bindAssignmentEvents(root){
   root.querySelectorAll('[data-knl-assign-subtab]').forEach(function(btn){btn.addEventListener('click',function(){
     assignmentState.subTab=btn.getAttribute('data-knl-assign-subtab');
     assignmentState.result='';assignmentState.error='';
+    competencyAssignState.message='';competencyAssignState.error='';
     renderAssignmentBody(root);
   });});
   root.querySelectorAll('[data-knl-assignment-income]').forEach(function(button){button.addEventListener('click',function(){goIncomeEmployee(button.getAttribute('data-knl-assignment-income'));});});
@@ -1753,6 +1799,139 @@ function bindAssignmentEvents(root){
   root.querySelectorAll('[data-knl-assign-version],[data-knl-assign-target],[data-knl-assign-role]').forEach(function(el){el.addEventListener('change',function(){updateAssignmentSummary(root);});});
   updateAssignmentSummary(root);
   var form=root.querySelector('[data-knl-assignment-form]');if(form)form.addEventListener('submit',async function(event){event.preventDefault();var data=new FormData(form),targetType=String(data.get('targetType')||'employee'),targetRef=targetType==='employee'?data.get('employeeRef'):data.get('positionRef');try{await apiPost('saveKnlFrameworkAssignment',{assignment:{versionId:data.get('versionId'),targetType:targetType,targetRef:targetRef,isPrimary:data.get('assignRole')==='primary',reason:data.get('reason')}});assignmentState.result='Đã gán Bộ KNL cho '+(targetType==='employee'?'nhân sự đã chọn':'vị trí đã chọn')+'.';assignmentState.error='';await loadAssignments(root);}catch(e){assignmentState.error=e.message;renderAssignmentBody(root);}});
+  bindCompetencyAssignEvents(root);
+}
+async function loadCompetencyCurrent(root,employeeCode){
+  var seq=++competencyAssignState.requestSeq;
+  competencyAssignState.loadingCurrent=true;
+  renderAssignmentBody(root);
+  try{
+    var result=await apiPost('getKnlEmployeeCompetencyStandard',{employeeCode:employeeCode});
+    if(seq!==competencyAssignState.requestSeq)return;
+    competencyAssignState.current=result;
+    competencyAssignState.loadingCurrent=false;
+    competencyAssignState.error='';
+    renderAssignmentBody(root);
+  }catch(e){
+    if(seq!==competencyAssignState.requestSeq)return;
+    competencyAssignState.loadingCurrent=false;
+    competencyAssignState.error=e.message;
+    renderAssignmentBody(root);
+  }
+}
+function updateCompetencyGradeSelect(root){
+  var gradeSelect=root.querySelector('[data-comp-assign-grade]');
+  if(!gradeSelect)return;
+  var keep=gradeSelect.value;
+  gradeSelect.disabled=false;
+  gradeSelect.innerHTML='<option value="">Chọn bậc</option>'+competencyGradeOptions();
+  if(keep)gradeSelect.value=keep;
+}
+function resetCompetencyGradeSelectLoading(root){
+  var gradeSelect=root.querySelector('[data-comp-assign-grade]');
+  if(!gradeSelect)return;
+  gradeSelect.disabled=true;
+  gradeSelect.innerHTML='<option value="">Đang tải…</option>';
+}
+function markCompetencyGradeSelectError(root){
+  var gradeSelect=root.querySelector('[data-comp-assign-grade]');
+  if(!gradeSelect)return;
+  gradeSelect.disabled=true;
+  gradeSelect.innerHTML='<option value="">Không tải được danh sách bậc</option>';
+}
+/* Đổi Phiên bản phải xóa option bậc cũ NGAY (không chờ response) để không bao
+ * giờ hiển thị bậc thuộc phiên bản khác đang được chọn — gradesRequestSeq
+ * chặn response trễ (đổi version nhanh 2 lần) ghi đè kết quả của lần chọn sau
+ * cùng, tương tự requestSeq đã dùng cho loadCompetencyCurrent. */
+async function loadCompetencyGradesForVersion(root,versionId){
+  var seq=++competencyAssignState.gradesRequestSeq;
+  if(!versionId){
+    competencyAssignState.grades=[];competencyAssignState.gradesVersionId='';competencyAssignState.gradesLoading=false;
+    updateCompetencyGradeSelect(root);
+    return;
+  }
+  if(competencyAssignState.gradesVersionId===versionId&&competencyAssignState.grades.length){
+    updateCompetencyGradeSelect(root);
+    return;
+  }
+  competencyAssignState.gradesLoading=true;
+  resetCompetencyGradeSelectLoading(root);
+  try{
+    var result=await apiPost('getKnlGradeMatrix',{versionId:versionId});
+    if(seq!==competencyAssignState.gradesRequestSeq)return;
+    competencyAssignState.grades=result.grades||[];
+    competencyAssignState.gradesVersionId=versionId;
+    competencyAssignState.gradesLoading=false;
+    updateCompetencyGradeSelect(root);
+  }catch(e){
+    if(seq!==competencyAssignState.gradesRequestSeq)return;
+    competencyAssignState.grades=[];
+    competencyAssignState.gradesVersionId='';
+    competencyAssignState.gradesLoading=false;
+    competencyAssignState.error=e.message;
+    markCompetencyGradeSelectError(root);
+  }
+}
+function applyCompetencyPrefill(root){
+  var c=competencyAssignState.current;
+  if(!c||c.hasAssignment===false)return;
+  var fwSelect=root.querySelector('[data-comp-assign-framework]'),verSelect=root.querySelector('[data-comp-assign-version]'),statusSelect=root.querySelector('[data-comp-assign-status]');
+  if(!fwSelect||!verSelect)return;
+  var frameworkId=findFrameworkIdForVersion(c.assignment.frameworkVersionId);
+  if(frameworkId){
+    fwSelect.value=frameworkId;
+    verSelect.innerHTML='<option value="">Chọn phiên bản</option>'+assignmentVersionOptionsForFramework(frameworkId);
+    verSelect.value=c.assignment.frameworkVersionId;
+    loadCompetencyGradesForVersion(root,c.assignment.frameworkVersionId).then(function(){
+      var gradeSelect=root.querySelector('[data-comp-assign-grade]');
+      if(gradeSelect)gradeSelect.value=c.assignment.competencyGradeId;
+    });
+  }
+  if(statusSelect)statusSelect.value=c.assignment.status==='CONFIRMED'?'CONFIRMED':'PROVISIONAL';
+}
+function bindCompetencyAssignEvents(root){
+  var empSelect=root.querySelector('[data-comp-employee-select]');
+  if(empSelect)empSelect.addEventListener('change',function(){
+    competencyAssignState.selectedCode=empSelect.value;
+    competencyAssignState.current=null;
+    competencyAssignState.message='';competencyAssignState.error='';
+    competencyAssignState.grades=[];competencyAssignState.gradesVersionId='';
+    if(competencyAssignState.selectedCode)loadCompetencyCurrent(root,competencyAssignState.selectedCode);
+    else renderAssignmentBody(root);
+  });
+  var fwSelect=root.querySelector('[data-comp-assign-framework]'),verSelect=root.querySelector('[data-comp-assign-version]'),gradeSelect=root.querySelector('[data-comp-assign-grade]');
+  if(fwSelect&&verSelect)fwSelect.addEventListener('change',function(){
+    verSelect.innerHTML='<option value="">Chọn phiên bản</option>'+assignmentVersionOptionsForFramework(fwSelect.value);
+    competencyAssignState.grades=[];competencyAssignState.gradesVersionId='';
+    updateCompetencyGradeSelect(root);
+  });
+  if(verSelect)verSelect.addEventListener('change',function(){loadCompetencyGradesForVersion(root,verSelect.value);});
+  var form=root.querySelector('[data-comp-assign-form]');
+  if(form)form.addEventListener('submit',async function(event){
+    event.preventDefault();
+    var btn=form.querySelector('button[type="submit"]');
+    var versionId=verSelect?verSelect.value:'',gradeId=gradeSelect?gradeSelect.value:'';
+    var status=root.querySelector('[data-comp-assign-status]').value;
+    var effectiveFrom=root.querySelector('[data-comp-assign-effective]').value;
+    var reason=root.querySelector('[data-comp-assign-reason]').value;
+    var note=root.querySelector('[data-comp-assign-note]').value;
+    if(!versionId||!gradeId){competencyAssignState.error='Vui lòng chọn Bộ KNL, phiên bản và bậc năng lực.';renderAssignmentBody(root);return;}
+    setKnlButtonBusy(btn,true,'Đang lưu…');
+    try{
+      await apiPost('setKnlEmployeeCompetencyAssignment',{employeeCode:competencyAssignState.selectedCode,frameworkVersionId:versionId,competencyGradeId:gradeId,status:status,effectiveFrom:effectiveFrom,reason:reason,note:note});
+      competencyAssignState.message='Đã lưu bậc năng lực cho nhân sự đã chọn.';
+      competencyAssignState.error='';
+      knlToast('success','Đã lưu bậc năng lực',competencyAssignState.message,3200,'knl-competency-assign');
+      await loadCompetencyCurrent(root,competencyAssignState.selectedCode);
+    }catch(e){
+      competencyAssignState.error=e.message;
+      renderAssignmentBody(root);
+      knlToast('error','Chưa thể lưu bậc năng lực',e.message||'Vui lòng thử lại.',4800,'knl-competency-assign');
+    }finally{
+      setKnlButtonBusy(btn,false);
+    }
+  });
+  applyCompetencyPrefill(root);
 }
 function updateAssignmentSummary(root){
   var summaryEl=root.querySelector('[data-knl-assign-summary]');if(!summaryEl)return;
