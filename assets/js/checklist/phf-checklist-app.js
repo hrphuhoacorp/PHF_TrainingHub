@@ -5020,6 +5020,21 @@
   function checklistScoreCellClass(v){var n=Number(v);if(v==null||!Number.isFinite(n)||n>=100)return '';return n<70?'is-danger':'is-warning';}
   function checklistScoreViolationCellHtml(count){var n=Number(count||0);return n>0?'<strong class="is-danger">'+n+'</strong>':'<span class="phfck-score-dash">—</span>';}
   function checklistScorePeriodStatusLabel(cell){return cell&&cell.hasForm?(reportStatusLabel(cell.status)||cell.status):'Không có phiếu';}
+  /*
+   * Hotfix "Theo kỳ" (2026-08-18) - Điểm cuối nay có thể tới từ lớp KẾT QUẢ
+   * AUTHORITATIVE checklist_monthly_results (cell.resultState) thay vì suy diễn
+   * từ Phiếu tháng. Cùng pattern hiển thị đã chứng minh ở checklistScoreAnnualCellHtml
+   * (Cả năm) - SCORED (kể cả 0) dùng lại checklistScoreValueHtml() y hệt các cột khác,
+   * chỉ thêm nhánh chữ cho NO_ASSESSMENT/PROBATION/NO_DATA. resultState=null (không có
+   * monthly_result cho ô này) giữ NGUYÊN hành vi cũ - không đổi gì.
+   */
+  function checklistScorePeriodFinalCellHtml(cell){
+    if(!cell||cell.resultState==null)return checklistScoreValueHtml(cell&&cell.finalScore);
+    if(cell.resultState==='SCORED')return checklistScoreValueHtml(cell.finalScore);
+    if(cell.resultState==='NO_ASSESSMENT')return '<span class="phfck-score-dash">Không đánh giá</span>';
+    if(cell.resultState==='PROBATION')return '<span class="phfck-score-dash">Thử việc</span>';
+    return '<span class="phfck-score-dash">—</span>';
+  }
   function scoreShiftMonth(value,delta){var parts=String(value||'').split('-').map(Number);if(parts.length!==2||!parts[0]||!parts[1])return value;var d=new Date(Date.UTC(parts[0],parts[1]-1+Number(delta||0),1));return String(d.getUTCFullYear()).padStart(4,'0')+'-'+String(d.getUTCMonth()+1).padStart(2,'0');}
   async function loadChecklistCurrentScore(root,force){
     var m=checklistScorePeriodValue(),key=[m,checklistScoreUiState.department,checklistScoreUiState.branch,checklistScoreUiState.managerCode,checklistScoreUiState.query].join('|');
@@ -5115,7 +5130,7 @@
       +'<tr><th>Mã NV</th><th>Họ tên</th><th>Phòng ban</th><th>Chi nhánh</th><th>Checklist</th><th>Tự đánh giá</th><th>Thẩm định</th><th>Điểm cuối</th></tr>'
       +'</thead><tbody>'
       +rows.map(function(emp){var cell=emp.periods[m]||{};return '<tr><td>'+esc(emp.employeeCode)+'</td><td>'+esc(emp.employeeName)+'</td><td>'+esc(cell.department||'—')+'</td><td>'+esc(cell.branch||'—')+'</td>'
-        +'<td>'+checklistScoreValueHtml(cell.checklistScore)+'</td><td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></td>'
+        +'<td>'+checklistScoreValueHtml(cell.checklistScore)+'</td><td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><strong>'+checklistScorePeriodFinalCellHtml(cell)+'</strong></td>'
         +'<td>'+esc(checklistScorePeriodStatusLabel(cell))+'</td>'
         +'<td><button type="button" class="phfck-secondary" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'">Xem chi tiết</button></td></tr>';}).join('')
       +'</tbody></table></div>';
@@ -5127,8 +5142,8 @@
     var headSub='<tr>'+periods.map(function(){return cols===3?'<th>Tự đánh</th><th>Thẩm định</th><th>Điểm cuối</th>':'<th>Điểm cuối</th>';}).join('')+'</tr>';
     var body=rows.map(function(emp){
       var cells=periods.map(function(m){var cell=emp.periods[m]||{};return cols===3
-        ?('<td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></button></td>')
-        :('<td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScoreValueHtml(cell.finalScore)+'</strong></button></td>');
+        ?('<td>'+checklistScoreValueHtml(cell.selfTotalScore)+'</td><td>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</td><td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScorePeriodFinalCellHtml(cell)+'</strong></button></td>')
+        :('<td><button type="button" class="phfck-score-final-cell" data-phfck-score-period-detail="'+esc(emp.employeeCode)+'|'+esc(m)+'"><strong>'+checklistScorePeriodFinalCellHtml(cell)+'</strong></button></td>');
       }).join('');
       return '<tr><td>'+esc(emp.employeeCode)+'</td><td>'+esc(emp.employeeName)+'</td>'+cells+'</tr>';
     }).join('');
@@ -5149,7 +5164,7 @@
       +'<div><span>Điểm Checklist</span><b>'+checklistScoreValueHtml(cell.checklistScore)+'</b></div>'
       +'<div><span>Tự đánh giá</span><b>'+checklistScoreValueHtml(cell.selfTotalScore)+'</b></div>'
       +'<div><span>Thẩm định</span><b>'+checklistScoreValueHtml(cell.reviewTotalScore)+'</b></div>'
-      +'<div><span>Điểm cuối</span><b>'+checklistScoreValueHtml(cell.finalScore)+'</b></div>'
+      +'<div><span>Điểm cuối</span><b>'+checklistScorePeriodFinalCellHtml(cell)+'</b></div>'
       +'<div><span>Người thẩm định</span><b>'+esc(cell.reviewerName||'Chưa phân công')+'</b></div>'
       +'<div><span>Ngày thẩm định/khóa</span><b>'+esc(cell.reviewSubmittedAt?new Date(cell.reviewSubmittedAt).toLocaleDateString('vi-VN'):'—')+'</b></div>'
       +'<div><span>Mẫu áp dụng</span><b>'+esc(cell.templateId||'—')+'</b></div>'
