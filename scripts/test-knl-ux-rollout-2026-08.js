@@ -138,7 +138,7 @@ async function setupDom(urlPath,fetchHandler,opts){
     await tick(10);
     let delOverlay=w2.document.querySelector('.phfk-modal-overlay');
     assert(delOverlay,'delete click must open the shared confirm modal, not native confirm()');
-    assert(/Xóa vật lý khỏi Draft/.test(delOverlay.textContent),'confirm modal must show the original delete message');
+    assert(/Xóa vật lý khỏi Dự thảo/.test(delOverlay.textContent),'confirm modal must show the original delete message (KNL-12: "Draft" localized to "Dự thảo")');
     const deleteCallsBefore=calls.filter(c=>c.action==='deleteKnlStructure').length;
     delOverlay.querySelector('[data-modal-confirm]').click();
     await tick(30);

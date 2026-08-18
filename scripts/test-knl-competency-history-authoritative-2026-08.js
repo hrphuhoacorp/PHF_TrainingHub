@@ -197,7 +197,7 @@ async function runFrontend() {
   const panelK1 = panelOf(rootK1);
   assert(!panelK1.textContent.includes('Bắt đầu áp dụng'), 'K1: baseline/seed must NOT be labeled as a real "Bắt đầu áp dụng" event');
   assert(!panelK1.textContent.includes('— →') && !panelK1.textContent.includes('—→'), 'K1: no "— → B1" arrow-from-nothing wording');
-  assert(panelK1.textContent.includes('Trạng thái ban đầu khi khởi tạo hệ thống'), 'K1: baseline presented as an initial-state marker');
+  assert(panelK1.textContent.includes('Trạng thái ban đầu khi thiết lập dữ liệu'), 'K1: baseline presented as an initial-state marker');
   assert(panelK1.textContent.includes('B1'), 'K1: recorded grade B1 still shown');
   console.log('PASS: K1 — baseline seed presented as initial-state marker, not a real event');
 
@@ -286,7 +286,7 @@ async function runFrontend() {
   const { root: rootK9 } = await renderIncomePage({ periods: [p9baseline, p9real] });
   const panelK9 = panelOf(rootK9);
   assert.strictEqual(panelK9.querySelectorAll('.phfk-comp-history-item').length, 2, 'K9: baseline + real event must both render, none dropped');
-  assert(panelK9.textContent.includes('Trạng thái ban đầu khi khởi tạo hệ thống'), 'K9: baseline entry present with distinct semantics');
+  assert(panelK9.textContent.includes('Trạng thái ban đầu khi thiết lập dữ liệu'), 'K9: baseline entry present with distinct semantics');
   assert(panelK9.textContent.includes('Chuyển bậc'), 'K9: real subsequent event present with distinct semantics');
   console.log('PASS: K9 — baseline and real event coexist with clearly different semantics');
 
