@@ -1683,6 +1683,16 @@ function assignmentSubTabNav(active){
 }
 function assignmentFrameworkOptions(selectedId){return (assignmentState.frameworks||[]).map(function(f){return '<option value="'+esc(f.id)+'"'+(selectedId&&f.id===selectedId?' selected':'')+'>'+esc(f.name)+'</option>';}).join('');}
 function assignmentVersionOptionsForFramework(frameworkId,selectedId){var f=(assignmentState.frameworks||[]).find(function(x){return x.id===frameworkId;});return (f&&f.versions||[]).slice().sort(function(a,b){return b.versionNumber-a.versionNumber;}).map(function(v){return '<option value="'+esc(v.id)+'"'+(selectedId&&v.id===selectedId?' selected':'')+'>v'+v.versionNumber+' · '+esc(statusLabel(v.status))+'</option>';}).join('');}
+/* Framework Assignment (Nhân sự cụ thể / Vị trí tổ chức / Nhiều nhân sự — cả
+ * 3 dùng chung 1 <select data-knl-assign-version>) chỉ được chọn version đã
+ * published + is_locked=true — đúng invariant Survey đang dùng
+ * (listPublishedVersions, lib/knl-surveys.js) và backend giờ đã enforce ở
+ * saveKnlFrameworkAssignment (KNL_ASSIGNMENT_VERSION_NOT_PUBLISHED). Đây là
+ * lớp prevention ở UI, backend vẫn là authoritative guard. KHÔNG dùng hàm
+ * này cho Competency Grade Assignment (data-comp-assign-version) — feature
+ * đó vẫn dùng assignmentVersionOptionsForFramework() nguyên trạng, ngoài
+ * scope của guard này. */
+function assignmentEligibleVersionOptionsForFramework(frameworkId,selectedId){var f=(assignmentState.frameworks||[]).find(function(x){return x.id===frameworkId;});return (f&&f.versions||[]).filter(function(v){return v.status==='published'&&v.isLocked===true;}).slice().sort(function(a,b){return b.versionNumber-a.versionNumber;}).map(function(v){return '<option value="'+esc(v.id)+'"'+(selectedId&&v.id===selectedId?' selected':'')+'>v'+v.versionNumber+' · '+esc(statusLabel(v.status))+'</option>';}).join('');}
 function assignmentStatusLabel(status){return status==='inactive'?'Ngưng áp dụng':'Đang áp dụng';}
 function assignmentStatusBadge(status){return '<span class="phfk-source-status '+(status==='inactive'?'is-review':'is-ready')+'">'+esc(assignmentStatusLabel(status))+'</span>';}
 function manifestCandidateLabel(v){return {READY:'Sẵn sàng',NEEDS_REVIEW:'Cần kiểm tra',EXCLUDED:'Không thuộc phạm vi'}[v]||(v||'—');}
@@ -1762,7 +1772,7 @@ function assignmentFormHtml(){
   var prefillFrameworkId=pv?findFrameworkIdForVersion(pv.versionId):'';
   return '<section class="phfk-panel"><div class="phfk-section-head"><div><small>GÁN BỘ KNL CHO NHÂN SỰ</small><h2>Gán Bộ KNL cho nhân sự hoặc vị trí</h2></div></div><form class="phfk-assignment-form" data-knl-assignment-form><fieldset'+(bulkAssignState.submitting?' disabled':'')+' style="display:contents">'+
     '<label class="phfk-field"><span>Bộ KNL</span><select class="phfk-input" name="frameworkId" data-knl-assign-framework required><option value="">Chọn Bộ KNL</option>'+assignmentFrameworkOptions(prefillFrameworkId)+'</select></label>'+
-    '<label class="phfk-field"><span>Phiên bản</span><select class="phfk-input" name="versionId" data-knl-assign-version required><option value="">Chọn phiên bản</option>'+(prefillFrameworkId?assignmentVersionOptionsForFramework(prefillFrameworkId,pv.versionId):'')+'</select></label>'+
+    '<label class="phfk-field"><span>Phiên bản</span><select class="phfk-input" name="versionId" data-knl-assign-version required><option value="">Chọn phiên bản</option>'+(prefillFrameworkId?assignmentEligibleVersionOptionsForFramework(prefillFrameworkId,pv.versionId):'')+'</select></label>'+
     '<label class="phfk-field"><span>Đối tượng</span><select class="phfk-input" name="targetType" data-knl-target-type>'+
       '<option value="employee"'+(mode==='employee'?' selected':'')+'>Nhân sự cụ thể</option>'+
       '<option value="position"'+(positionDisabled?' disabled':'')+(mode==='position'?' selected':'')+'>Vị trí tổ chức</option>'+
@@ -1884,7 +1894,7 @@ function bindAssignmentEvents(root){
     updateAssignmentSummary(root);
   });
   var fwSelect=root.querySelector('[data-knl-assign-framework]'),verSelect=root.querySelector('[data-knl-assign-version]');
-  if(fwSelect&&verSelect)fwSelect.addEventListener('change',function(){verSelect.innerHTML='<option value="">Chọn phiên bản</option>'+assignmentVersionOptionsForFramework(fwSelect.value);updateAssignmentSummary(root);});
+  if(fwSelect&&verSelect)fwSelect.addEventListener('change',function(){verSelect.innerHTML='<option value="">Chọn phiên bản</option>'+assignmentEligibleVersionOptionsForFramework(fwSelect.value);updateAssignmentSummary(root);});
   root.querySelectorAll('[data-knl-assign-version],[data-knl-assign-target],[data-knl-assign-role]').forEach(function(el){el.addEventListener('change',function(){updateAssignmentSummary(root);});});
   updateAssignmentSummary(root);
   var bulkSearch=root.querySelector('[data-knl-bulk-search]');if(bulkSearch){bulkSearch.addEventListener('input',function(){refreshBulkAssignFilter(root);});if(bulkAssignState.search)refreshBulkAssignFilter(root);}
@@ -1959,6 +1969,7 @@ function mapBulkAssignError(e){
   var code=String(e&&e.code||''),message=String(e&&e.message||'');
   if(code==='KNL_ASSIGNMENT_EMPLOYEE_NOT_FOUND')return 'Không tìm thấy nhân sự trong dữ liệu tổ chức hiện tại.';
   if(code==='23505'||/knl_assignment_primary_target_uq|duplicate key/i.test(message))return 'Nhân sự đã có Bộ KNL chính đang áp dụng.';
+  if(code==='KNL_ASSIGNMENT_VERSION_NOT_PUBLISHED')return message||'Phiên bản Bộ KNL này chưa ở trạng thái có thể áp dụng.';
   if(code==='KNL_ASSIGNMENT_VERSION_INVALID'||code==='KNL_ASSIGNMENT_VERSION_NOT_FOUND'||code==='KNL_ASSIGNMENT_REASON_REQUIRED'||code==='KNL_ORG_POSITION_UNAVAILABLE')return message||'Dữ liệu gán không hợp lệ.';
   if(/relation .* does not exist|Could not find the table|Could not find the function/i.test(message))return 'Hệ thống chưa sẵn sàng xử lý gán KNL. Vui lòng liên hệ kỹ thuật.';
   return 'Không thể xử lý nhân sự này. Vui lòng thử lại.';

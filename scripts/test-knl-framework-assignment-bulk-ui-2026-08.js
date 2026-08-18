@@ -55,7 +55,7 @@ function installQueueFetch(window, log) {
 }
 
 function fixtureFrameworks() {
-  return [{ id: 'fw1', code: 'KNL01', name: 'Khung Bán hàng', status: 'active', versions: [{ id: 'v1', versionNumber: 1, status: 'RELEASED' }] }];
+  return [{ id: 'fw1', code: 'KNL01', name: 'Khung Bán hàng', status: 'active', versions: [{ id: 'v1', versionNumber: 1, status: 'published', isLocked: true }] }];
 }
 function fixturePeople() {
   return [

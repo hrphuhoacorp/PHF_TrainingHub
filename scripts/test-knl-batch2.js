@@ -42,7 +42,7 @@ if(fs.existsSync(specPath)){const sourceHash=crypto.createHash('sha256').update(
 
 let uuidSeq=20;const uuid=()=>('00000000-0000-4000-8000-'+String(uuidSeq++).padStart(12,'0'));
 const versionA='00000000-0000-4000-8000-000000000001',versionB='00000000-0000-4000-8000-000000000002';
-const dbState={versions:[{id:versionA,framework_id:'f1',status:'draft'},{id:versionB,framework_id:'f2',status:'draft'}],assignments:[],seeded:new Map(),domain:{frameworks:0,versions:0,groups:0,items:0,contents:0},checklistWrites:0};
+const dbState={versions:[{id:versionA,framework_id:'f1',status:'published',is_locked:true},{id:versionB,framework_id:'f2',status:'published',is_locked:true}],assignments:[],seeded:new Map(),domain:{frameworks:0,versions:0,groups:0,items:0,contents:0},checklistWrites:0};
 class Query{
   constructor(table){this.table=table;this.mode='select';this.payload=null;this.filters=[];}
   select(){return this;}eq(key,value){this.filters.push([key,value]);return this;}order(){return this;}
