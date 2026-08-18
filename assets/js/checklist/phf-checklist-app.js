@@ -5060,6 +5060,7 @@
     return '<div class="phfck-monthly-tabs phfck-score-mode-tabs">'
       +'<button type="button" class="'+(checklistScoreUiState.mode==='current'?'active':'')+'" data-phfck-score-mode="current"><span>Hiện tại</span></button>'
       +'<button type="button" class="'+(checklistScoreUiState.mode==='period'?'active':'')+'" data-phfck-score-mode="period"><span>Theo kỳ</span></button>'
+      +'<button type="button" class="'+(checklistScoreUiState.mode==='annual'?'active':'')+'" data-phfck-score-mode="annual"><span>Cả năm</span></button>'
       +'</div>';
   }
   function checklistScoreCurrentFiltersHtml(){
@@ -5164,10 +5165,72 @@
     var body=d.periods.length===1?checklistScorePeriodSingleTableHtml(d):checklistScorePeriodMultiTableHtml(d);
     return filters+checklistScorePeriodSummaryHtml(d)+body+checklistScoreDetailModalHtml();
   }
+  /*
+   * "Cả năm" (2026-08-18, Phase 2 annual result report) - view thứ 3 trong
+   * dashboard "Điểm Checklist" đã có (Hiện tại / Theo kỳ), KHÔNG tạo route
+   * mới. Đọc lớp KẾT QUẢ AUTHORITATIVE checklist_monthly_results qua action
+   * getChecklistAnnualResultReport (lib/checklist-reports.js) - HOÀN TOÀN
+   * độc lập với checklist_monthly_forms (không đụng "Hiện tại"/"Theo kỳ").
+   * Cùng pattern fetch/dedupe-request/render như loadChecklistScorePeriod().
+   */
+  function checklistScoreAnnualYearValue(){return checklistScoreUiState.annualYear||String(new Date().getFullYear());}
+  async function loadChecklistAnnualResult(root,force){
+    var year=checklistScoreAnnualYearValue(),key=[year,checklistScoreUiState.annualDepartment,checklistScoreUiState.annualBranch,checklistScoreUiState.annualQuery].join('|');
+    if(checklistScoreUiState.annualLoading||(!force&&checklistScoreUiState.annualLoadedKey===key))return;
+    checklistScoreUiState.annualLoading=true;checklistScoreUiState.annualError='';
+    var workspace=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(workspace)workspace.innerHTML=reportsHtml();
+    try{
+      var response=await fetch('/api/data?checklistReport=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'getChecklistAnnualResultReport',year:year,department:checklistScoreUiState.annualDepartment,branch:checklistScoreUiState.annualBranch,query:checklistScoreUiState.annualQuery})});
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể tải Kết quả Checklist cả năm.');
+      checklistScoreUiState.annualData=data;checklistScoreUiState.annualLoadedKey=key;
+    }catch(err){checklistScoreUiState.annualData=null;checklistScoreUiState.annualError=err&&err.message?err.message:'Không thể kết nối dữ liệu.';}
+    finally{checklistScoreUiState.annualLoading=false;var ws=root&&(root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]'));if(ws)ws.innerHTML=reportsHtml();}
+  }
+  function checklistScoreAnnualFiltersHtml(){
+    var d=checklistScoreUiState.annualData,deptSet={},branchSet={};
+    ((d&&d.employees)||[]).forEach(function(emp){if(emp.department)deptSet[emp.department]=1;if(emp.branch)branchSet[emp.branch]=1;});
+    var departments=Object.keys(deptSet).sort(function(a,b){return a.localeCompare(b,'vi');}),branches=Object.keys(branchSet).sort(function(a,b){return a.localeCompare(b,'vi');});
+    return '<div class="phfck-monthly-toolbar phfck-score-toolbar phfck-score-period-toolbar">'
+      +'<label><span>Năm</span><input type="number" min="2020" max="2100" step="1" value="'+esc(checklistScoreAnnualYearValue())+'" data-phfck-score-annual-year></label>'
+      +'<label><span>Phòng ban</span><select data-phfck-score-annual-department><option value="">Tất cả phòng ban</option>'+departments.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.annualDepartment===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
+      +'<label><span>Chi nhánh</span><select data-phfck-score-annual-branch><option value="">Tất cả chi nhánh</option>'+branches.map(function(x){return '<option value="'+esc(x)+'" '+(checklistScoreUiState.annualBranch===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>'
+      +'<div class="phfck-search"><span>⌕</span><input type="search" placeholder="Tìm theo họ tên hoặc mã nhân viên" value="'+esc(checklistScoreUiState.annualQuery)+'" data-phfck-score-annual-search></div>'
+      +'<button type="button" class="phfck-secondary" data-phfck-score-annual-reload>↻ Làm mới</button>'
+      +'</div>';
+  }
+  // Quy tắc hiển thị theo result_state - KHÔNG BAO GIỜ đổi null-state thành 0
+  // và KHÔNG BAO GIỜ để điểm 0 thật rơi vào nhánh "—"/rỗng. Không lộ enum kỹ
+  // thuật (SCORED/NO_ASSESSMENT/...) ra text hiển thị - chỉ dùng để rẽ nhánh.
+  function checklistScoreAnnualCellHtml(cell){
+    if(!cell||!cell.hasResult)return '<span class="phfck-score-dash">—</span>';
+    if(cell.resultState==='SCORED'){var scoreClass=checklistScoreCellClass(cell.score);return '<strong class="phfck-score-cell'+(scoreClass?' '+scoreClass:'')+'">'+checklistScoreValueHtml(cell.score)+'</strong>';}
+    if(cell.resultState==='NO_ASSESSMENT')return '<span class="phfck-score-dash">Không đánh giá</span>';
+    if(cell.resultState==='PROBATION')return '<span class="phfck-score-dash">Thử việc</span>';
+    return '<span class="phfck-score-dash">—</span>';
+  }
+  function checklistScoreAnnualTableHtml(data){
+    var months=data.periods||[],rows=data.employees||[];
+    var head='<tr><th>Mã NV</th><th>Họ tên</th><th>Phòng ban</th><th>Chi nhánh</th>'+months.map(function(m){return '<th>'+esc('T'+Number(m.slice(5,7)))+'</th>';}).join('')+'<th>Bình quân</th></tr>';
+    var body=rows.map(function(emp){
+      var cells=months.map(function(m){return '<td>'+checklistScoreAnnualCellHtml((emp.periods||{})[m])+'</td>';}).join('');
+      return '<tr><td>'+esc(emp.employeeCode)+'</td><td>'+esc(emp.employeeName)+'</td><td>'+esc(emp.department||'—')+'</td><td>'+esc(emp.branch||'—')+'</td>'+cells+'<td><strong>'+(emp.average==null?'<span class="phfck-score-dash">—</span>':checklistScoreValueHtml(emp.average))+'</strong></td></tr>';
+    }).join('');
+    return '<div class="phfck-table-wrap phfck-score-period-scroll"><table class="phfck-table phfck-score-period-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'
+      +'<p class="phfck-report-rule">Không đánh giá / Thử việc / — (chưa có kết quả) không được tính là điểm 0. Bình quân chỉ tính trên các tháng đã có điểm chính thức.</p>';
+  }
+  function checklistScoreAnnualHtml(){
+    var filters=checklistScoreAnnualFiltersHtml(),d=checklistScoreUiState.annualData;
+    if(checklistScoreUiState.annualLoading&&!d)return filters+'<section class="phfck-panel phfck-report-loading"><span class="phfck-loading-spinner"></span><b>Đang tải Kết quả Checklist cả năm…</b></section>';
+    if(checklistScoreUiState.annualError&&!d)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa tải được dữ liệu cả năm',checklistScoreUiState.annualError)+'</section>';
+    if(!d)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa có dữ liệu','Bấm "↻ Làm mới" để tải kết quả cả năm.')+'</section>';
+    if(!d.employees||!d.employees.length)return filters+'<section class="phfck-panel">'+reportEmptyHtml('Chưa có kết quả trong phạm vi đang xem','Kiểm tra lại bộ lọc hoặc phạm vi quyền được cấp.')+'</section>';
+    return filters+'<div class="phfck-score-period-note"><span class="phfck-dot"></span><b>Kết quả Checklist theo tháng — '+esc(checklistScoreAnnualYearValue())+'</b><small>Nguồn kết quả chính thức theo từng tháng - độc lập với Phiếu đánh giá tháng</small></div>'+checklistScoreAnnualTableHtml(d);
+  }
   function checklistScoreDashboardHtml(){
     return '<div class="phfck-page-head phfck-report-head"><div><small>PHF CHECKLIST · ĐIỂM CHECKLIST</small><h1>Điểm Checklist</h1><p>Xem điểm vận hành hiện tại hoặc kết quả đã hình thành theo từng kỳ đánh giá.</p></div></div>'
       +checklistScoreModeTabsHtml()
-      +'<section class="phfck-panel">'+(checklistScoreUiState.mode==='current'?checklistScoreCurrentHtml():checklistScorePeriodHtml())+'</section>';
+      +'<section class="phfck-panel">'+(checklistScoreUiState.mode==='current'?checklistScoreCurrentHtml():(checklistScoreUiState.mode==='annual'?checklistScoreAnnualHtml():checklistScorePeriodHtml()))+'</section>';
   }
   function reportTopTabsHtml(){
     return '<div class="phfck-monthly-tabs phfck-report-top-tabs">'
@@ -5844,11 +5907,13 @@
       var reportView=e.target.closest('[data-phfck-report-view]');
       if(reportView){e.preventDefault();reportUiState.view=reportView.getAttribute('data-phfck-report-view')||'summary';if(reportUiState.view==='checklist-score'&&checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}renderChecklistReportIfCurrent(root);return;}
       var scoreMode=e.target.closest('[data-phfck-score-mode]');
-      if(scoreMode){e.preventDefault();checklistScoreUiState.mode=scoreMode.getAttribute('data-phfck-score-mode')||'current';if(checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}if(checklistScoreUiState.mode==='period'&&!checklistScoreUiState.periodData){loadChecklistScorePeriod(root);return;}renderChecklistReportIfCurrent(root);return;}
+      if(scoreMode){e.preventDefault();checklistScoreUiState.mode=scoreMode.getAttribute('data-phfck-score-mode')||'current';if(checklistScoreUiState.mode==='current'&&!checklistScoreUiState.data){loadChecklistCurrentScore(root);return;}if(checklistScoreUiState.mode==='period'&&!checklistScoreUiState.periodData){loadChecklistScorePeriod(root);return;}if(checklistScoreUiState.mode==='annual'&&!checklistScoreUiState.annualData){loadChecklistAnnualResult(root);return;}renderChecklistReportIfCurrent(root);return;}
       var scoreReload=e.target.closest('[data-phfck-score-reload]');
       if(scoreReload){e.preventDefault();loadChecklistCurrentScore(root,true);return;}
       var scorePeriodReload=e.target.closest('[data-phfck-score-period-reload]');
       if(scorePeriodReload){e.preventDefault();loadChecklistScorePeriod(root,true);return;}
+      var scoreAnnualReload=e.target.closest('[data-phfck-score-annual-reload]');
+      if(scoreAnnualReload){e.preventDefault();loadChecklistAnnualResult(root,true);return;}
       var scorePeriodShortcut=e.target.closest('[data-phfck-score-period-shortcut]');
       if(scorePeriodShortcut){e.preventDefault();var shortcutMonths=Number(scorePeriodShortcut.getAttribute('data-phfck-score-period-shortcut'))||3,shortcutTo=checklistScoreUiState.periodToMonth||todayIso().slice(0,7);checklistScoreUiState.periodToMonth=shortcutTo;checklistScoreUiState.periodFromMonth=scoreShiftMonth(shortcutTo,-(shortcutMonths-1));loadChecklistScorePeriod(root,true);return;}
       var scorePeriodView=e.target.closest('[data-phfck-score-period-view]');
@@ -6189,6 +6254,10 @@
       if(e.target&&e.target.matches('[data-phfck-score-period-department]')){checklistScoreUiState.periodDepartment=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-score-period-branch]')){checklistScoreUiState.periodBranch=e.target.value||'';loadChecklistScorePeriod(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-score-period-search]')){checklistScoreUiState.periodQuery=e.target.value||'';if(checklistScorePeriodSearchTimer)clearTimeout(checklistScorePeriodSearchTimer);checklistScorePeriodSearchTimer=setTimeout(function(){loadChecklistScorePeriod(root,true);},400);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-annual-year]')){checklistScoreUiState.annualYear=e.target.value||'';loadChecklistAnnualResult(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-annual-department]')){checklistScoreUiState.annualDepartment=e.target.value||'';loadChecklistAnnualResult(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-annual-branch]')){checklistScoreUiState.annualBranch=e.target.value||'';loadChecklistAnnualResult(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-score-annual-search]')){checklistScoreUiState.annualQuery=e.target.value||'';if(checklistScoreAnnualSearchTimer)clearTimeout(checklistScoreAnnualSearchTimer);checklistScoreAnnualSearchTimer=setTimeout(function(){loadChecklistAnnualResult(root,true);},400);return;}
       if(e.target&&e.target.matches('[data-phfck-quick-location]')) violationUiState.location=e.target.value||'';
       if(e.target&&e.target.matches('[data-phfck-score-policy-field="self"],[data-phfck-score-policy-field="review"]')){var scoreSelf=Number((root.querySelector('[data-phfck-score-policy-field="self"]')||{}).value),scoreReview=Number((root.querySelector('[data-phfck-score-policy-field="review"]')||{}).value),scoreLive={selfWeight:Number.isFinite(scoreSelf)?Math.max(0,scoreSelf):0,reviewWeight:Number.isFinite(scoreReview)?Math.max(0,scoreReview):0},scoreFormula=root.querySelector('[data-phfck-score-policy-formula]'),scoreTotal=root.querySelector('[data-phfck-score-policy-total]');if(scoreFormula)scoreFormula.textContent=monthlyScoreFormulaText(scoreLive);if(scoreTotal)scoreTotal.value=Math.round((scoreLive.selfWeight+scoreLive.reviewWeight)*100)/100;return;}
       if(e.target&&e.target.matches('[data-phfck-late-field]')){var lre=e.target.closest('[data-phfck-late-row]');var lrid=lre&&lre.getAttribute('data-phfck-late-row');var lrow=violationUiState.lateRows.find(function(r){return r.id===lrid;});if(lrow){var lf=e.target.getAttribute('data-phfck-late-field');lrow[lf]=e.target.value||'';e.target.classList.remove('is-validation-error');var lateLabel=e.target.closest('label');if(lateLabel)lateLabel.classList.remove('is-validation-error');if(lf==='minutes')recalcLateRow(lrow,true);}return;}
