@@ -1765,12 +1765,12 @@ function assignmentFormHtml(){
     '<label class="phfk-field"><span>Phiên bản</span><select class="phfk-input" name="versionId" data-knl-assign-version required><option value="">Chọn phiên bản</option>'+(prefillFrameworkId?assignmentVersionOptionsForFramework(prefillFrameworkId,pv.versionId):'')+'</select></label>'+
     '<label class="phfk-field"><span>Đối tượng</span><select class="phfk-input" name="targetType" data-knl-target-type>'+
       '<option value="employee"'+(mode==='employee'?' selected':'')+'>Nhân sự cụ thể</option>'+
-      '<option value="position"'+(positionDisabled?' disabled':'')+(mode==='position'?' selected':'')+'>Vị trí organization</option>'+
+      '<option value="position"'+(positionDisabled?' disabled':'')+(mode==='position'?' selected':'')+'>Vị trí tổ chức</option>'+
       '<option value="bulk"'+(bulkDisabled?' disabled':'')+(mode==='bulk'?' selected':'')+'>Nhiều nhân sự</option>'+
     '</select></label>'+
     '<label class="phfk-field" data-knl-employee-target'+(mode!=='employee'?' hidden':'')+'><span>Nhân sự</span><select class="phfk-input" name="employeeRef" data-knl-assign-target><option value="">Chọn nhân sự</option>'+peopleOptions+'</select></label>'+
     '<label class="phfk-field" data-knl-position-target'+(mode!=='position'?' hidden':'')+'><span>Vị trí</span><select class="phfk-input" name="positionRef" data-knl-assign-target><option value="">Chọn vị trí</option>'+positionOptions+'</select>'+
-      '<small class="phfk-batch-note">Vị trí organization hiện là một đối tượng gán riêng, không tự tạo gán cho từng nhân sự đang giữ vị trí này.</small></label>'+
+      '<small class="phfk-batch-note">Vị trí tổ chức hiện là một đối tượng gán riêng, không tự tạo gán cho từng nhân sự đang giữ vị trí này.</small></label>'+
     '<div class="phfk-field" data-knl-bulk-target'+(mode!=='bulk'?' hidden':'')+'><span>Nhiều nhân sự</span>'+
       '<input class="phfk-input" type="search" placeholder="Tìm theo tên hoặc mã nhân sự" data-knl-bulk-search value="'+esc(bulkAssignState.search)+'">'+
       '<p class="phfk-survey-target-count"><span data-knl-bulk-match-count>'+(t.people||[]).length+' nhân sự phù hợp</span> · <span data-knl-bulk-selected-count>Đã chọn '+bulkAssignState.selectedCodes.length+' nhân sự</span></p>'+

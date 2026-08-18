@@ -242,22 +242,33 @@ function fillCommonFields(window, root) {
     check(queue[0].body.assignment.targetType === 'employee' && queue[0].body.assignment.targetRef === 'E1', 'G2. Payload flow đơn employee giữ nguyên như trước');
   }
 
-  /* ---- TEST H: flow đơn Vị trí organization KHÔNG regression ---- */
+  /* ---- TEST H: flow đơn Vị trí tổ chức KHÔNG regression ---- */
   {
     const dom = makeDom(); const window = dom.window;
     const queue = installQueueFetch(window);
     const root = mountAssignmentPage(window);
     const typeSelect = root.querySelector('[data-knl-target-type]');
     typeSelect.value = 'position'; typeSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
-    check(root.querySelector('[data-knl-position-target]').hidden === false, 'H1. Chọn "Vị trí organization" vẫn hiện đúng block vị trí (không regression)');
+    check(root.querySelector('[data-knl-position-target]').hidden === false, 'H1. Chọn "Vị trí tổ chức" vẫn hiện đúng block vị trí (không regression)');
     const fwSelect = root.querySelector('[data-knl-assign-framework]'), verSelect = root.querySelector('[data-knl-assign-version]');
     fwSelect.value = 'fw1'; fwSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
     verSelect.value = 'v1';
     root.querySelector('[name="positionRef"]').value = 'pos1';
-    root.querySelector('[data-knl-assign-reason]').value = 'Gán theo vị trí organization';
+    root.querySelector('[data-knl-assign-reason]').value = 'Gán theo vị trí tổ chức';
     root.querySelector('[data-knl-assignment-form]').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
     await new Promise(r => setTimeout(r, 5));
     check(queue.length === 1 && queue[0].body.assignment.targetType === 'position' && queue[0].body.assignment.targetRef === 'pos1', 'H2. Flow đơn Vị trí vẫn gọi đúng payload cũ, không đổi hành vi position (vẫn KHÔNG tự propagate xuống nhân sự — không thuộc scope sửa ở đây)');
+  }
+
+  /* ---- TEST K: KNL-13 — wording đã Việt hóa, không còn "Vị trí organization" ---- */
+  {
+    const dom = makeDom(); const window = dom.window;
+    installQueueFetch(window);
+    const root = mountAssignmentPage(window);
+    const html = root.querySelector('[data-knl-body]').innerHTML;
+    check(html.includes('Vị trí tổ chức'), 'K1. (KNL-13) "Vị trí tổ chức" hiển thị đúng chỗ (option + note)');
+    check(!html.includes('Vị trí organization'), 'K2. (KNL-13) Không còn user-facing "Vị trí organization" (English leak) trong DOM đã render');
+    check(!/Vị trí organization/.test(rawCode), 'K3. (KNL-13) Không còn "Vị trí organization" trong toàn bộ source (đã thay bằng "Vị trí tổ chức")');
   }
 
   /* ---- TEST I: static checks — không Promise.all unbounded, không API mới, không native popup, Việt hóa ---- */
