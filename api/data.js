@@ -29,7 +29,7 @@ const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachCh
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('../lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace } = require('../lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle, getChecklistAssessmentProfile } = require('../lib/checklist-monthly');
-const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport } = require('../lib/checklist-reports');
+const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport, getChecklistAnnualResultReport } = require('../lib/checklist-reports');
 const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('../lib/checklist-recovery');
 const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('../lib/checklist-notifications');
 const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('../lib/knl-permissions');
@@ -521,6 +521,7 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='getChecklistMonthlyReport')return res.status(200).json({ok:true,...await getChecklistMonthlyReport(session,payload)});
       if(payload&&payload.action==='getChecklistCurrentScoreReport')return res.status(200).json({ok:true,...await getChecklistCurrentScoreReport(session,payload)});
       if(payload&&payload.action==='getChecklistScorePeriodReport')return res.status(200).json({ok:true,...await getChecklistScorePeriodReport(session,payload)});
+      if(payload&&payload.action==='getChecklistAnnualResultReport')return res.status(200).json({ok:true,...await getChecklistAnnualResultReport(session,payload)});
       if(payload&&payload.action==='getChecklistViolationWorkflowSummary')return res.status(200).json({ok:true,...await getChecklistViolationWorkflowSummary(session,payload)});
       if(payload&&payload.action==='inspectChecklistMonthlyRecovery')return res.status(200).json({ok:true,...await inspectMonthlyRecovery(session,payload)});
       if(payload&&payload.action==='createMissingChecklistMonthlyForms')return res.status(200).json({ok:true,...await createMissingMonthlyForms(session,payload)});
