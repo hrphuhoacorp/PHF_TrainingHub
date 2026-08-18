@@ -2046,7 +2046,7 @@ async function loadSurveyResults(root){
 
 /* ===================== GRADE + EFFECTIVE VERSION + REFERENCE INCOME ===================== */
 
-var foundationState={frameworks:[],detail:null,matrix:null,standards:null,preview:null,income:null,incomeTargets:[],incomeTargetsLoaded:false,incomeCanSelect:false,incomeIsAdmin:false,error:'',pendingNewGrades:[],gradeSaving:false,gradeMessage:'',gradeDirty:false,competency:null,competencyGradeSequence:[],competencyWindowStart:0,competencyHistory:null,profile:null};
+var foundationState={frameworks:[],detail:null,matrix:null,standards:null,preview:null,income:null,incomeLoading:false,incomeTargets:[],incomeTargetsLoaded:false,incomeCanSelect:false,incomeIsAdmin:false,error:'',pendingNewGrades:[],gradeSaving:false,gradeMessage:'',gradeDirty:false,competency:null,competencyGradeSequence:[],competencyWindowStart:0,competencyHistory:null,profile:null};
 var compensationState={standards:null,ladderId:'',versionId:'',pendingGrades:{},expandedGradeId:'',error:'',message:''};
 var assignState={targets:[],targetsLoaded:false,standards:null,selectedCode:'',current:null,form:null,error:'',message:''};
 var historyState={versionAudit:[],employeeHistory:[],employeeFilter:'',error:''};
@@ -2749,6 +2749,7 @@ function compensationHistoryTimelineHtml(history){
  * KHÔNG cần sửa schema/RPC (trace 2026-08-12, PHF mục 6). */
 function compensationNextGradeHtml(){
   var n=foundationState.nextCompensationGrade;
+  if(n===undefined)return '<section class="phfk-panel phfk-comp-next-grade"><div class="phfk-loading">Đang tải…</div></section>';
   if(!n||!n.hasCurrentGrade)return '';
   var head='<div class="phfk-section-head"><h2>2. Thu nhập tham chiếu Bậc lương kế tiếp</h2></div>';
   if(n.isMaxGrade){
@@ -2816,7 +2817,20 @@ function incomeAdjustmentPolicyHtml(){
 }
 function incomeHtml(){
   var i=foundationState.income,current=i&&i.current,nav=compensationDomainNav('co-cau-thu-nhap',foundationState.incomeIsAdmin),change=foundationState.incomeCanSelect?'<button type="button" class="phfk-btn-secondary" data-knl-change-income>Chọn nhân sự khác</button>':'';
-  if(!current)return nav+'<div class="phfk-page-head"><div><small>KNL · CÁ NHÂN</small><h1>Bậc & Cơ cấu thu nhập</h1><p>'+esc(i&&i.employeeCode||'')+'</p></div>'+change+'</div>'+noAccessSection('Chưa có cơ cấu thu nhập tham chiếu đang áp dụng.');
+  if(!current){
+    // KNL-09B: phân biệt "đang tải" (chưa có kết quả getKnlEmployeeIncome)
+    // với "đã tải xong nhưng thật sự không có cơ cấu" — tránh flash sai
+    // "Chưa có cơ cấu thu nhập" trong lúc income vẫn đang chạy song song
+    // với capabilities/profile (renderIncomeRoute). Header dùng tên đã biết
+    // (profile nếu có, không thì mã nhân sự từ route) để hiện ngay, không
+    // chờ income.
+    if(foundationState.incomeLoading){
+      var loadingQueryCode=String(new URL(location.href).searchParams.get('employee_code')||'').trim().toUpperCase();
+      var loadingName=(foundationState.profile&&foundationState.profile.fullName)||loadingQueryCode;
+      return nav+'<div class="phfk-page-head"><div><small>KNL · CÁ NHÂN</small><h1>'+esc(loadingName||'Bậc & Cơ cấu thu nhập')+'</h1><p></p></div>'+change+'</div>'+profileCardHtml(foundationState.profile,null)+'<section class="phfk-panel"><div class="phfk-loading">Đang tải dữ liệu thu nhập…</div></section>';
+    }
+    return nav+'<div class="phfk-page-head"><div><small>KNL · CÁ NHÂN</small><h1>Bậc & Cơ cấu thu nhập</h1><p>'+esc(i&&i.employeeCode||'')+'</p></div>'+change+'</div>'+noAccessSection('Chưa có cơ cấu thu nhập tham chiếu đang áp dụng.');
+  }
   var isOfficial=current.employmentType==='OFFICIAL',totalPosition=current.baseSalary+current.hqcv;
   var p=foundationState.profile;
   var head='<div class="phfk-page-head"><div><small>KNL · HỒ SƠ CÁ NHÂN</small><h1>'+esc((p&&p.fullName)||current.employeeName||current.employeeCode)+' · '+esc(current.employeeCode)+'</h1><p>Hồ sơ cá nhân, Bậc & Cơ cấu thu nhập và Khung năng lực đang áp dụng</p></div><div class="phfk-income-head-actions"><span class="phfk-source-status is-ready">Đang áp dụng</span>'+change+'</div></div>';
@@ -3033,6 +3047,7 @@ function competencyGradeTag(node,c){
 }
 function competencyStandardHtml(){
   var c=foundationState.competency;
+  if(c===undefined)return '<section class="phfk-panel phfk-competency-panel"><div class="phfk-loading">Đang tải…</div></section>';
   if(!c||!c.hasAssignment){
     return '<section class="phfk-panel phfk-competency-panel"><div class="phfk-section-head"><h2>3. KNL đang áp dụng</h2></div>'+noAccessSection('Chưa được thiết lập Khung năng lực.')+'</section>';
   }
@@ -3122,6 +3137,7 @@ function competencyEventTransitionHtml(p,isBaselineSeed){
   return '<p class="phfk-comp-history-transition">Cập nhật: <b>'+esc(toLabel)+'</b></p>';
 }
 function competencyHistoryHtml(){
+  if(foundationState.competencyHistory===undefined)return '<section class="phfk-panel"><div class="phfk-loading">Đang tải…</div></section>';
   var periods=(foundationState.competencyHistory&&foundationState.competencyHistory.periods)||null;
   if(!periods)return '';
   var sorted=periods.slice().sort(function(x,y){return x.effectiveFrom<y.effectiveFrom?-1:x.effectiveFrom>y.effectiveFrom?1:0;});
@@ -5077,28 +5093,11 @@ function renderKnlDashboardBody(root){
   });
 }
 
-window.phfRenderKnl = async function(path){
-  if(window.PHFAppShell) window.PHFAppShell.activateKnl(path);
-  var root = document.getElementById('phfKnlRoot');
-  if(!root) return false;
-  document.title = 'PHF Khung năng lực';
-  if(knlActivePath)knlScrollMemory[knlActivePath]=window.scrollY||0;
-  knlActivePath=path;
-  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/de-xuat-nang-bac$/.test(path) ? 'de-xuat-nang-bac' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : (/\/dashboard$/.test(path) ? 'dashboard' : 'nhan-su'))))))))))));
-  if(root.querySelector('.phf-knl-root-shell'))showKnlPanelLoading(root,tab);
-  else root.innerHTML = '<div class="phfk-loading">Đang tải…</div>';
-
-  var capData;
-  try{
-    capData = await apiPost('getKnlCapabilities');
-  }catch(e){
-    if(root.querySelector('.phf-knl-root-shell')){
-      var deniedBody=root.querySelector('[data-knl-body]');
-      if(deniedBody)deniedBody.innerHTML=noAccessSection(e.message);
-    }else root.innerHTML = '<main class="phf-knl-placeholder"><section>' + noAccessSection(e.message) + '</section></main>';
-    return true;
-  }
-
+/* Extract-method thuần từ phfRenderKnl (KNL-09B) — KHÔNG đổi logic, chỉ tách
+ * ra để renderIncomeRoute() (flow tải riêng cho income) dùng chung được,
+ * không phải copy lại xử lý capabilities/authorizationSignature/cache
+ * invalidation. Mọi tab khác vẫn gọi hàm này y hệt trước đây. */
+function applyKnlCapabilities(capData){
   var isAdmin = capData.isAdmin === true;
   knlLastIsAdmin = isAdmin;
   var capabilities = capData.capabilities || {};
@@ -5132,6 +5131,207 @@ window.phfRenderKnl = async function(path){
      liệu bên trong vẫn do people_scope/incomeScope enforce ở backend
      (lib/knl-dashboard.js), không suy từ đây. */
   var canDashboard = isAdmin || capabilities.dashboard_view === true;
+  return {isAdmin:isAdmin,capabilities:capabilities,canPeople:canPeople,canPermissions:canPermissions,canFrameworks:canFrameworks,canDashboard:canDashboard};
+}
+
+/* KNL-09B — flow tải riêng cho "Bậc & Cơ cấu thu nhập" (route co-cau-thu-nhap),
+ * thay cho việc đi qua dispatcher chung + renderIncome() tuần tự cũ (giữ
+ * nguyên renderIncome() bên dưới, chỉ dùng lại cho submitCorrection() refresh
+ * sau khi Admin điều chỉnh kỳ hiệu lực — KHÔNG đổi hành vi hàm đó).
+ *
+ * Patch 1 (bỏ blank flash): nếu đã có shell + đã biết employee_code, vẽ
+ * skeleton (incomeHtml() ở trạng thái incomeLoading=true) NGAY, tái dùng
+ * chrome hiện có — không đợi capabilities, không có bước body='' nào ở giữa.
+ * Patch 2 (gộp waterfall capabilities+income): 2 request này bắn cùng lúc
+ * ngay đầu hàm (income cũng cần biết employee_code, đã có sẵn từ URL, không
+ * cần đợi capabilities mới biết fetch ai — backend tự enforce quyền độc lập
+ * cho từng action). Nếu capabilities reject, kết quả income dù đã fetch xong
+ * KHÔNG được đọc vào foundationState/không render (không gắn .then() nào ở
+ * nhánh lỗi).
+ * Patch 3 (progressive): profile/income/nextGrade/competency/history mỗi cái
+ * tự cập nhật đúng phần DOM của nó ngay khi resolve, không đợi nhau — income
+ * vẫn là "gate" cho next grade/competency/history (giữ đúng test KNL-09 fix#2
+ * cũ: income lỗi -> KHÔNG bắn 3 call đó, y hệt trước) nhưng KHÔNG còn gate
+ * profile (profile bắn song song với income, cập nhật header độc lập).
+ * knlIncomeLoadToken (đã có từ KNL-09) bảo vệ MỌI progressive update ở đây,
+ * cộng thêm cờ incomeDenied cục bộ để chặn trường hợp profile resolve SAU khi
+ * income đã fail (không được vẽ đè lên noAccessSection vừa hiện). */
+async function renderIncomeRoute(root,tab){
+  var url=new URL(location.href),queryCode=String(url.searchParams.get('employee_code')||'').trim().toUpperCase(),choose=url.searchParams.get('choose_employee')==='1';
+  var myToken=++knlIncomeLoadToken;
+  var existingShell=root.querySelector('.phf-knl-root-shell');
+  var reqPayload=queryCode?{employeeCode:queryCode}:undefined;
+  var incomeDenied=false;
+
+  foundationState.income=null;
+  foundationState.incomeLoading=true;
+  foundationState.nextCompensationGrade=undefined;
+  foundationState.competency=undefined;
+  foundationState.competencyHistory=undefined;
+  foundationState.competencyGradeSequence=[];
+  foundationState.competencyWindowStart=0;
+  foundationState.profile=(queryCode&&foundationState.profile&&foundationState.profile.employeeCode===queryCode)?foundationState.profile:null;
+
+  var capPromise=apiPost('getKnlCapabilities');
+  var incomePromise=queryCode?apiPost('getKnlEmployeeIncome',reqPayload):null;
+  var profilePromise=queryCode?apiPost('getKnlEmployeeProfile',reqPayload):null;
+  if(incomePromise)incomePromise.catch(function(){});
+  if(profilePromise)profilePromise.catch(function(){});
+
+  if(existingShell&&queryCode){
+    setShellActiveTab(root,tab);
+    root.dataset.knlTab=tab;
+    var skelBody=root.querySelector('[data-knl-body]');
+    if(skelBody)skelBody.innerHTML=incomeHtml();
+  }
+
+  var capData;
+  try{
+    capData=await capPromise;
+  }catch(e){
+    if(myToken!==knlIncomeLoadToken)return true;
+    if(root.querySelector('.phf-knl-root-shell')){
+      var deniedBody=root.querySelector('[data-knl-body]');
+      if(deniedBody)deniedBody.innerHTML=noAccessSection(e.message);
+    }else root.innerHTML='<main class="phf-knl-placeholder"><section>'+noAccessSection(e.message)+'</section></main>';
+    return true;
+  }
+  if(myToken!==knlIncomeLoadToken)return true;
+
+  var capState=applyKnlCapabilities(capData);
+  var isAdmin=capState.isAdmin,capabilities=capState.capabilities,canDashboard=capState.canDashboard;
+
+  ensureKnlShell(root,tab,capabilities,isAdmin,incomeHtml(),canDashboard);
+  bindIncomeSection(root);
+
+  foundationState.incomeIsAdmin=isAdmin===true;
+  foundationState.incomeCanSelect=isAdmin===true||(capabilities&&capabilities.income_view===true);
+
+  if(!queryCode){
+    if(isAdmin||(choose&&foundationState.incomeCanSelect)){
+      foundationState.incomeLoading=false;
+      await showIncomePicker(root);
+      return true;
+    }
+    // Chưa biết employee lúc kick-off (cần capabilities mới biết đây là
+    // self-view, không phải picker) -> fetch bây giờ, đúng 1 lần, không
+    // duplicate (incomePromise/profilePromise trước đó vẫn null).
+    incomePromise=apiPost('getKnlEmployeeIncome',undefined);
+    profilePromise=apiPost('getKnlEmployeeProfile',undefined);
+    incomePromise.catch(function(){});
+    profilePromise.catch(function(){});
+  }
+
+  var pending=[];
+  pending.push(profilePromise.then(function(r){
+    if(myToken!==knlIncomeLoadToken||incomeDenied)return;
+    foundationState.profile=r.profile;
+    renderIncomeProgressive(root);
+  },function(){
+    if(myToken!==knlIncomeLoadToken||incomeDenied)return;
+    foundationState.profile=null;
+    renderIncomeProgressive(root);
+  }));
+
+  var incomeResult;
+  try{
+    incomeResult=await incomePromise;
+  }catch(e){
+    incomeDenied=true;
+    foundationState.incomeLoading=false;
+    if(myToken!==knlIncomeLoadToken)return true;
+    if(!queryCode&&foundationState.incomeCanSelect&&e.code==='KNL_EMPLOYEE_CODE_REQUIRED'){
+      await showIncomePicker(root,e.message);
+    }else{
+      var b=root.querySelector('[data-knl-body]');
+      if(b)b.innerHTML=noAccessSection(e.message);
+    }
+    return true;
+  }
+  if(myToken!==knlIncomeLoadToken)return true;
+  foundationState.income=incomeResult;
+  foundationState.incomeLoading=false;
+  renderIncomeProgressive(root);
+
+  pending.push(apiPost('getKnlEmployeeNextCompensationGrade',reqPayload).then(function(r){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.nextCompensationGrade=r;
+    renderIncomeProgressive(root);
+  },function(){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.nextCompensationGrade=null;
+    renderIncomeProgressive(root);
+  }));
+
+  pending.push(apiPost('getKnlEmployeeCompetencyStandard',reqPayload).then(function(r){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.competency=r;
+    if(r&&r.hasAssignment){
+      var seqBuilt=buildCompetencyGradeSequence(r);
+      foundationState.competencyGradeSequence=seqBuilt;
+      var curIdx=seqBuilt.findIndex(function(n){return n.isRealCurrent;});
+      foundationState.competencyWindowStart=r.isMaxGrade?Math.max(0,curIdx-1):curIdx;
+    }
+    renderIncomeProgressive(root);
+  },function(){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.competency=null;
+    renderIncomeProgressive(root);
+  }));
+
+  pending.push(apiPost('listKnlEmployeeCompetencyHistory',reqPayload).then(function(r){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.competencyHistory=r;
+    renderIncomeProgressive(root);
+  },function(){
+    if(myToken!==knlIncomeLoadToken)return;
+    foundationState.competencyHistory=null;
+    renderIncomeProgressive(root);
+  }));
+
+  await Promise.allSettled(pending);
+  return true;
+}
+function renderIncomeProgressive(root){
+  var body=root.querySelector('[data-knl-body]');
+  if(!body)return;
+  body.innerHTML=incomeHtml();
+  bindIncomeSection(root);
+}
+
+window.phfRenderKnl = async function(path){
+  if(window.PHFAppShell) window.PHFAppShell.activateKnl(path);
+  var root = document.getElementById('phfKnlRoot');
+  if(!root) return false;
+  document.title = 'PHF Khung năng lực';
+  if(knlActivePath)knlScrollMemory[knlActivePath]=window.scrollY||0;
+  knlActivePath=path;
+  var tab = /\/tieu-chuan-bac$/.test(path)?'tieu-chuan-bac':(/\/phien-ban-lich-su$/.test(path)?'phien-ban-lich-su':(/\/ngach-bac-luong$/.test(path)?'ngach-bac-luong':(/\/gan-thu-nhap$/.test(path)?'gan-thu-nhap':(/\/lich-su-thu-nhap$/.test(path)?'lich-su-thu-nhap':(/\/co-cau-thu-nhap$/.test(path)?'co-cau-thu-nhap':(/\/gan-ap-dung$/.test(path) ? 'gan-ap-dung' : (/\/bo-knl$/.test(path) ? 'bo-knl' : (/\/ket-qua-khao-sat$/.test(path) ? 'ket-qua-khao-sat' : (/\/khao-sat$/.test(path) ? 'khao-sat' : (/\/de-xuat-nang-bac$/.test(path) ? 'de-xuat-nang-bac' : (/\/phan-quyen$/.test(path) ? 'phan-quyen' : (/\/dashboard$/.test(path) ? 'dashboard' : 'nhan-su'))))))))))));
+  if(root.querySelector('.phf-knl-root-shell'))showKnlPanelLoading(root,tab);
+  else root.innerHTML = '<div class="phfk-loading">Đang tải…</div>';
+
+  /* KNL-09B: "co-cau-thu-nhap" (Bậc & Cơ cấu thu nhập / Hồ sơ thu nhập) có
+   * flow tải riêng (renderIncomeRoute) — capabilities + income + profile bắt
+   * đầu song song, render tiến triển từng phần thay vì đợi cả 5 API xong mới
+   * paint 1 lần. KHÔNG tab nào khác bị đụng — mọi tab còn lại vẫn đi qua
+   * đúng dispatcher chung bên dưới, không đổi. */
+  if(tab === 'co-cau-thu-nhap'){
+    return await renderIncomeRoute(root,tab);
+  }
+
+  var capData;
+  try{
+    capData = await apiPost('getKnlCapabilities');
+  }catch(e){
+    if(root.querySelector('.phf-knl-root-shell')){
+      var deniedBody=root.querySelector('[data-knl-body]');
+      if(deniedBody)deniedBody.innerHTML=noAccessSection(e.message);
+    }else root.innerHTML = '<main class="phf-knl-placeholder"><section>' + noAccessSection(e.message) + '</section></main>';
+    return true;
+  }
+
+  var capState = applyKnlCapabilities(capData);
+  var isAdmin = capState.isAdmin, capabilities = capState.capabilities, canPeople = capState.canPeople, canPermissions = capState.canPermissions, canFrameworks = capState.canFrameworks, canDashboard = capState.canDashboard;
 
   if(tab === 'phan-quyen' && !canPermissions){
     ensureKnlShell(root,tab,capabilities,isAdmin,noAccessSection('Bạn chưa được cấp quyền "Quản lý phân quyền KNL".'),canDashboard);
@@ -5161,9 +5361,7 @@ window.phfRenderKnl = async function(path){
 
   ensureKnlShell(root,tab,capabilities,isAdmin,'',canDashboard);
 
-  if(tab === 'co-cau-thu-nhap'){
-    await renderIncome(root,isAdmin,capabilities);
-  }else if(tab === 'tieu-chuan-bac'){
+  if(tab === 'tieu-chuan-bac'){
     await renderGradeMatrix(root);
   }else if(tab === 'phien-ban-lich-su'){
     await renderVersionHistory(root);
