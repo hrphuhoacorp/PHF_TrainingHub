@@ -174,7 +174,7 @@ function shellFrame(activeTab, capabilities, isAdmin, bodyHtml, canDashboard){
     '<header class="phfk-topbar">' +
       '<div class="phfk-top-left"><button type="button" class="phfk-back" data-knl-back><span aria-hidden="true">←</span><span>PHF HR / Home</span></button></div>' +
       '<div class="phfk-brand-lockup"><strong>PHF HR - KHUNG NĂNG LỰC</strong></div>' +
-      '<div class="phfk-top-actions"><span class="phfk-user-avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="phfk-user-copy"><b>'+esc(currentUserName())+'</b><small>'+esc(currentUserTitle())+'</small></span></div>' +
+      '<div class="phfk-top-actions"><span class="phfk-user-avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="phfk-user-copy"><b>'+esc(currentUserName())+'</b><small>'+esc(currentUserTitle())+'</small></span><div class="phfk-notif-wrap">'+knlNotifBellHtml()+knlNotifPanelHtml()+'</div></div>' +
     '</header>' +
     '<div class="phfk-layout">' +
       (navHtml ? '<aside class="phfk-sidebar"><div class="phfk-sidebar-head"><img src="assets/logo/phf-logo.png" alt="PHUHOA fresh"><strong>'+esc(sidebarRoleLabel(capabilities, isAdmin))+'</strong></div><nav class="phfk-nav">'+navHtml+'</nav><section class="phfk-guide"><b>Hướng dẫn</b><p>Quản lý danh sách nhân sự và phân quyền truy cập Khung năng lực.</p><button type="button" disabled>Xem hướng dẫn</button></section></aside>' : '') +
@@ -184,6 +184,120 @@ function shellFrame(activeTab, capabilities, isAdmin, bodyHtml, canDashboard){
 function bindShell(root){
   root.querySelectorAll('[data-knl-back]').forEach(function(el){ el.addEventListener('click', goHub); });
   root.querySelectorAll('[data-knl-tab]').forEach(function(el){ el.addEventListener('click', function(){ goTab(el.getAttribute('data-knl-tab')); }); });
+  bindKnlNotif(root);
+}
+
+/* ===================== KNL NOTIFICATION (Phase N1) =====================
+ * Thông báo nội bộ RIÊNG của module KNL — chỉ phục vụ Đề xuất nâng bậc.
+ * KHÔNG dùng chung UI/state với notification Checklist, KHÔNG hiện ngoài
+ * DOM/layout KNL (chuông + panel nằm HẲN trong .phfk-topbar, chỉ render khi
+ * shellFrame() của KNL được dựng). Recipient/permission hoàn toàn do backend
+ * (lib/knl-notifications.js) quyết định qua session — panel này chỉ hiển
+ * thị đúng những gì API trả về cho actor hiện tại, không tự lọc/mở rộng. */
+var KNL_NOTIF_EVENT_LABELS = {
+  GRADE_PROPOSAL_ACTION_REQUIRED: 'Cần bạn xử lý',
+  GRADE_PROPOSAL_APPROVED: 'Đã duyệt',
+  GRADE_PROPOSAL_REJECTED: 'Đã từ chối',
+  GRADE_PROPOSAL_WITHDRAWN: 'Đã rút',
+  GRADE_PROPOSAL_REASSIGNED: 'Đổi người xử lý'
+};
+var knlNotifState = { loading:false, loaded:false, loadedAt:0, notifications:[], unreadCount:0, open:false };
+var knlNotifLoadToken = 0;
+
+function knlNotifBellHtml(){
+  var count = knlNotifState.unreadCount;
+  return '<button type="button" class="phfk-notif-bell" data-knl-notif-toggle aria-label="Thông báo KNL" aria-expanded="'+(knlNotifState.open?'true':'false')+'">'+
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>'+
+    (count>0?'<span class="phfk-notif-badge">'+(count>99?'99+':count)+'</span>':'') +
+  '</button>';
+}
+function knlNotifPanelHtml(){
+  var list = knlNotifState.notifications, body;
+  if(knlNotifState.loading && !knlNotifState.loaded) body='<div class="phfk-notif-empty">Đang tải…</div>';
+  else if(!list.length) body='<div class="phfk-notif-empty">Không có thông báo nào.</div>';
+  else body = list.map(function(n){
+    return '<button type="button" class="phfk-notif-item'+(n.status==='new'?' unread':'')+'" data-knl-notif-item="'+esc(n.id)+'" data-knl-notif-proposal="'+esc(n.proposalId||'')+'">'+
+      '<span class="phfk-notif-item-tag">'+esc(KNL_NOTIF_EVENT_LABELS[n.eventCode]||'')+'</span>'+
+      '<span class="phfk-notif-item-title">'+esc(n.title)+'</span>'+
+      '<span class="phfk-notif-item-msg">'+esc(n.message)+'</span>'+
+      '<span class="phfk-notif-item-time">'+esc(fmtDate(n.createdAt))+'</span>'+
+    '</button>';
+  }).join('');
+  return '<div class="phfk-notif-panel" data-knl-notif-panel'+(knlNotifState.open?'':' hidden')+'>'+
+    '<div class="phfk-notif-panel-head"><b>Thông báo KNL</b>'+(knlNotifState.unreadCount>0?'<button type="button" data-knl-notif-mark-all>Đánh dấu đã đọc tất cả</button>':'')+'</div>'+
+    '<div class="phfk-notif-panel-body">'+body+'</div>'+
+  '</div>';
+}
+function goKnlNotifProposal(proposalId){
+  var path = knlPath('de-xuat-nang-bac') + '?proposal=' + encodeURIComponent(proposalId);
+  if(typeof window.phfNavigate==='function') window.phfNavigate(path);
+}
+function bindKnlNotifDomHandlers(root){
+  var wrap = root.querySelector('.phfk-notif-wrap');
+  if(!wrap) return;
+  var toggle = wrap.querySelector('[data-knl-notif-toggle]');
+  if(toggle) toggle.onclick = function(e){
+    e.stopPropagation();
+    knlNotifState.open = !knlNotifState.open;
+    renderKnlNotifDom(root);
+    if(knlNotifState.open) loadKnlNotifications(root, true);
+  };
+  wrap.querySelectorAll('[data-knl-notif-item]').forEach(function(el){
+    el.onclick = function(){
+      var id = el.getAttribute('data-knl-notif-item'), proposalId = el.getAttribute('data-knl-notif-proposal');
+      knlNotifState.open = false;
+      var n = knlNotifState.notifications.find(function(x){ return x.id===id; });
+      if(n && n.status==='new'){ n.status='read'; n.readAt=n.readAt||new Date().toISOString(); knlNotifState.unreadCount=Math.max(0,knlNotifState.unreadCount-1); }
+      renderKnlNotifDom(root);
+      apiPost('markKnlNotificationRead',{id:id}).catch(function(){});
+      if(proposalId) goKnlNotifProposal(proposalId);
+    };
+  });
+  var markAll = wrap.querySelector('[data-knl-notif-mark-all]');
+  if(markAll) markAll.onclick = function(ev){
+    ev.stopPropagation();
+    knlNotifState.notifications.forEach(function(n){ n.status='read'; n.readAt=n.readAt||new Date().toISOString(); });
+    knlNotifState.unreadCount = 0;
+    renderKnlNotifDom(root);
+    apiPost('markAllKnlNotificationsRead').catch(function(){});
+  };
+}
+function renderKnlNotifDom(root){
+  var wrap = root.querySelector('.phfk-notif-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = knlNotifBellHtml() + knlNotifPanelHtml();
+  bindKnlNotifDomHandlers(root);
+}
+function bindKnlNotif(root){
+  bindKnlNotifDomHandlers(root);
+  document.addEventListener('click', function(e){
+    if(!knlNotifState.open) return;
+    var wrap = root.querySelector('.phfk-notif-wrap');
+    if(wrap && !wrap.contains(e.target)){ knlNotifState.open=false; renderKnlNotifDom(root); }
+  });
+}
+/* loadKnlNotifications — fetch danh sách CỦA CHÍNH actor hiện tại (backend tự
+ * resolve từ session, xem lib/knl-notifications.js:actor()) — không truyền
+ * employee_code/account_id nào từ client. force=true bỏ qua TTL (dùng khi mở
+ * panel); không force thì tái dùng cache trong KNL_READ_CACHE_TTL, gọi lại
+ * mỗi lần shell KNL render (điều hướng tab) để badge không bị cũ quá lâu mà
+ * không cần dựng thêm 1 bộ polling/scheduler riêng. */
+async function loadKnlNotifications(root, force){
+  if(knlNotifState.loading) return;
+  if(!force && knlNotifState.loaded && Date.now()-knlNotifState.loadedAt<KNL_READ_CACHE_TTL) return;
+  knlNotifState.loading = true;
+  var myToken = ++knlNotifLoadToken;
+  renderKnlNotifDom(root);
+  try{
+    var r = await apiPostUncached('listMyKnlNotifications',{limit:30});
+    if(myToken!==knlNotifLoadToken) return;
+    knlNotifState.notifications = r.notifications||[];
+    knlNotifState.unreadCount = r.unreadCount||0;
+    knlNotifState.loaded = true; knlNotifState.loadedAt = Date.now();
+  }catch(e){ /* im lặng: bell không phải luồng nghiệp vụ chính, không chặn phần còn lại của KNL */ }
+  if(myToken!==knlNotifLoadToken) return;
+  knlNotifState.loading = false;
+  renderKnlNotifDom(root);
 }
 var knlActivePath = '';
 var knlScrollMemory = {};
@@ -209,6 +323,7 @@ function ensureKnlShell(root,tab,capabilities,isAdmin,bodyHtml,canDashboard){
     if(body&&bodyHtml!==undefined)body.innerHTML=bodyHtml;
   }
   root.dataset.knlTab=tab;
+  loadKnlNotifications(root, false); // fire-and-forget, không chặn render tab hiện tại
   return shell;
 }
 function showKnlPanelLoading(root,tab){

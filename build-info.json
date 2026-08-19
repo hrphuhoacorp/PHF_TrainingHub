@@ -1,7 +1,7 @@
 {
-  "version": "1.62.0",
-  "fingerprint": "1.62.0-knl-grade-promotion-criteria-snapshot",
-  "builtAt": "2026-08-19T15:20:00+07:00",
-  "notes": "1.62.0: HOTFIX - Bump index.html ?v= cache-busting tags cho assets/js/knl/phf-knl-app.js và assets/css/phf-knl.css (immutable 1 năm qua vercel.json) - commit 16394b1 đã thêm toàn bộ UI 'Đánh giá theo tiêu chí' (Step 03, Đề xuất nâng bậc Phase 2) nhưng quên bump 2 thẻ ?v= thủ công, khiến trình duyệt đã từng vào KNL trước đó tiếp tục giữ bundle cũ không có Step 03, dẫn tới submit thiếu assessment và bị backend chặn 'Vui lòng đánh giá đầy đủ tất cả tiêu chí...'. CHỈ đổi 2 thẻ ?v= trong index.html + build-info.json - không đổi JS/CSS/backend/database. Không migration. Không Production write. Không đụng Checklist/Retro/TSE WIP đang dở dang cục bộ (chưa commit).",
-  "build": "1.62.0"
+  "version": "1.64.0",
+  "fingerprint": "1.64.0-knl-notification-n1",
+  "builtAt": "2026-08-19T18:00:00+07:00",
+  "notes": "1.64.0: KNL Notification Phase N1 (Đề xuất nâng bậc) - chuông + panel thông báo RIÊNG của module KNL (bảng knl_notifications riêng, KHÔNG dùng chung checklist_notifications, KHÔNG hiện ở Hub/Checklist). Bump index.html ?v= cache-busting tags cho assets/js/knl/phf-knl-app.js và assets/css/phf-knl.css (immutable 1 năm qua vercel.json) cùng lúc để tránh lặp lại sự cố cache stale đã xảy ra ở hotfix 1.62.0. Migration scripts/PHF_KNL_NOTIFICATIONS_1.64.0.sql CHƯA apply Production - build-info này chỉ chuẩn bị cho Gate 2, chưa đại diện trạng thái Production hiện tại.",
+  "build": "1.64.0"
 }

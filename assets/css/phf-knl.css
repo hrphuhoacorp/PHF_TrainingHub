@@ -15,6 +15,30 @@
 .phfk-top-left{justify-self:start}.phfk-back{display:flex;align-items:center;gap:10px;border:0;background:transparent;color:#fff;font-weight:700;font-size:13px;cursor:pointer;padding:0}.phfk-back span[aria-hidden]{width:34px;height:34px;border:1px solid rgba(255,255,255,.55);border-radius:10px;display:grid;place-items:center;font-size:16px}.phfk-back:hover span[aria-hidden]{background:rgba(255,255,255,.12)}
 .phfk-brand-lockup{justify-self:center;text-align:center}.phfk-brand-lockup strong{font-size:13px;color:#fff;letter-spacing:.075em;line-height:1.1}
 .phfk-top-actions{justify-self:end;display:flex;align-items:center;gap:10px}.phfk-user-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.94);color:#4f962b;display:grid;place-items:center}.phfk-user-avatar svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2}.phfk-user-copy b{display:block;color:#fff;font-size:12px}.phfk-user-copy small{display:block;color:rgba(255,255,255,.88);font-size:10px;margin-top:3px}
+/* KNL Notification (Phase N1) — chuông + panel RIÊNG của KNL, chỉ nằm trong .phfk-topbar. */
+.phfk-notif-wrap{position:relative}
+.phfk-notif-bell{position:relative;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer}
+.phfk-notif-bell:hover{background:rgba(255,255,255,.26)}
+.phfk-notif-bell svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+.phfk-notif-badge{position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--phfk-danger);color:#fff;font-size:9px;font-weight:800;line-height:16px;text-align:center;box-shadow:0 0 0 2px #63AD30}
+.phfk-notif-panel{position:absolute;top:calc(100% + 10px);right:0;width:340px;max-width:min(340px,88vw);max-height:420px;background:#fff;border:1px solid var(--phfk-line);border-radius:14px;box-shadow:0 14px 34px rgba(20,50,38,.18);overflow:hidden;z-index:40;color:var(--phfk-ink);display:flex;flex-direction:column}
+.phfk-notif-panel[hidden]{display:none}
+.phfk-notif-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--phfk-line);background:#f8fbf9}
+.phfk-notif-panel-head b{font-size:12.5px;color:var(--phfk-green-deep)}
+.phfk-notif-panel-head button{border:0;background:transparent;color:#4f8f2e;font-weight:700;font-size:10.5px;cursor:pointer;padding:0}
+.phfk-notif-panel-head button:hover{text-decoration:underline}
+.phfk-notif-panel-body{overflow-y:auto;flex:1}
+.phfk-notif-empty{padding:26px 16px;text-align:center;color:var(--phfk-muted);font-size:11.5px}
+.phfk-notif-item{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;border:0;border-bottom:1px solid #edf2ef;background:#fff;padding:11px 14px;cursor:pointer}
+.phfk-notif-item:last-child{border-bottom:0}
+.phfk-notif-item:hover{background:#f8fbf9}
+.phfk-notif-item.unread{background:var(--phfk-green-soft)}
+.phfk-notif-item.unread:hover{background:#e7f3e0}
+.phfk-notif-item-tag{font-size:9px;font-weight:800;letter-spacing:.03em;color:#4f8f2e;text-transform:uppercase}
+.phfk-notif-item-title{font-size:12px;font-weight:750;color:var(--phfk-ink)}
+.phfk-notif-item-msg{font-size:11px;color:#5c6f67;line-height:1.4}
+.phfk-notif-item-time{font-size:9.5px;color:#96a49d;margin-top:2px}
+@media(max-width:760px){.phfk-notif-panel{position:fixed;top:64px;right:8px;left:8px;width:auto;max-width:none}}
 .phfk-layout{flex:1;display:grid;grid-template-columns:255px minmax(0,1fr);align-items:start;min-height:calc(100vh - 72px)}
 .phfk-sidebar{position:sticky;top:72px;min-height:calc(100vh - 72px);height:calc(100vh - 72px);overflow-x:hidden;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior-y:contain;background:#fff;border-right:1px solid var(--phfk-line);padding:20px 15px 18px;display:flex;flex-direction:column;color:var(--phfk-ink)}.phfk-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
 .phfk-sidebar-head{text-align:center;padding:8px 8px 20px;margin-bottom:14px;border-bottom:1px solid #edf2ef}.phfk-sidebar-head img{display:block;max-width:126px;max-height:54px;object-fit:contain;margin:0 auto 10px}.phfk-sidebar-head strong{display:block;color:var(--phfk-green-deep);font-size:17px;font-weight:800;letter-spacing:-.01em}
