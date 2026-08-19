@@ -4340,12 +4340,12 @@ async function loadGpGradeAndApproverOptions(root,employeeCode){
   }
 }
 
-async function loadGpCriteriaStandard(root,employeeCode,gradeCode){
+async function loadGpCriteriaStandard(root,employeeCode,gradeId){
   var c=gpState.create;
   c.criteriaLoading=true; c.criteriaError=''; c.criteriaStandard=null;
   renderGpBody(root);
   try{
-    var res=await apiPost('getKnlGradePromotionCriteriaStandard',{employeeCode:employeeCode,proposedGradeCode:gradeCode});
+    var res=await apiPost('getKnlGradePromotionCriteriaStandard',{employeeCode:employeeCode,proposedGradeId:gradeId});
     if(res.mapped===true){
       c.criteriaStandard=res;
       var assessment={};
@@ -4383,8 +4383,7 @@ function bindGpCreateForm(root){
   form.querySelectorAll('[data-gp-grade-radio]').forEach(function(radio){radio.addEventListener('change',function(){
     c.gradeSelectedId=radio.value; c.criteriaStandard=null; c.criteriaError=''; c.assessment={};
     renderGpBody(root);
-    var grade=(c.gradeOptions&&c.gradeOptions.nextGrades||[]).find(function(g){return g.id===c.gradeSelectedId;});
-    if(grade) loadGpCriteriaStandard(root, c.employeeSelected.employeeCode, grade.gradeCode);
+    if(c.gradeSelectedId) loadGpCriteriaStandard(root, c.employeeSelected.employeeCode, c.gradeSelectedId);
   });});
   form.querySelectorAll('[data-gp-criteria-result]').forEach(function(radio){radio.addEventListener('change',function(){
     var id=radio.getAttribute('data-gp-criteria-result');

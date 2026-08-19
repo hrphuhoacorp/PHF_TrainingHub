@@ -98,9 +98,21 @@ const STATE = {
   ladders: [], versions: [], grades: [], assignments: [],
   proposals: [], steps: [], accounts: [],
   frameworks: [], frameworkVersions: [], competencyAssignments: [],
-  gradeDefinitions: [], gradeRequirements: [], competencyGroups: [], competencyItems: [], structureColumns: [], itemLevelContents: []
+  gradeDefinitions: [], gradeRequirements: [], competencyGroups: [], competencyItems: [], structureColumns: [], itemLevelContents: [],
+  gradeMap: []
 };
 
+// Tái hiện unique(framework_version_id, compensation_grade_id) của
+// 1.63.0 — mock-level, dùng để CHỨNG MINH THIẾT KẾ đúng (không thay thế xác
+// nhận Postgres thật, migration 1.63.0 chưa apply DEV/Production ở batch này).
+function gradeMapUniquenessGuard(list, existingRows) {
+  for (const obj of list) {
+    if (existingRows.some(r => r.framework_version_id === obj.framework_version_id && r.compensation_grade_id === obj.compensation_grade_id)) {
+      return { code: '23505', message: 'duplicate key value violates unique constraint "knl_compensation_competency_grade_map_framework_version_id_compensation_grade_id_key"' };
+    }
+  }
+  return null;
+}
 function proposalUniquenessGuard(list, existingRows) {
   for (const obj of list) {
     if (obj.status === 'pending' && existingRows.some(r => r.subject_employee_code === obj.subject_employee_code && r.status === 'pending')) {
@@ -191,6 +203,7 @@ function buildSupabaseMock() {
           if (table === 'knl_competency_items') return makeTableFactory(STATE.competencyItems)();
           if (table === 'knl_structure_columns') return makeTableFactory(STATE.structureColumns)();
           if (table === 'knl_item_level_contents') return makeTableFactory(STATE.itemLevelContents)();
+          if (table === 'knl_compensation_competency_grade_map') return makeTableFactory(STATE.gradeMap, { beforeInsert: gradeMapUniquenessGuard })();
           throw new Error('Unexpected table in KNL Grade Proposal Criteria mock: ' + table);
         },
         rpc(name, params) { return mockGradePromotionRpc(name, params); }
@@ -229,9 +242,12 @@ const {
 
 // ---------------------------------------------------------------------------
 // Fixture — Organization Master tối thiểu + Compensation ladder B1..B4 +
-// Competency framework với requirements CHỈ ở B1->B2 (đủ cho valid mapping),
-// KHÔNG có definition cho B3 (grade_not_mapped) và có definition rỗng
-// requirements cho B4 (no_requirements).
+// Competency framework, nối qua EXPLICIT MAPPING (knl_compensation_competency_
+// grade_map) — KHÔNG so grade_code string (2 hệ độc lập, đúng constraint
+// thật: compensation "NSGQ-B1", competency "B1" — 2 format loại trừ nhau).
+// Mapping có cho B1/B2/B4 (grade-B2 -> gdef-B2 dùng cho valid mapping), KHÔNG
+// map cho B3 (test grade_not_mapped dù competency KHÔNG có definition cho
+// B3), B4 map nhưng requirements rỗng (test no_requirements).
 // ---------------------------------------------------------------------------
 STATE.employees.push(
   { employee_code: 'GD1', full_name: 'Giám Đốc Test', title: 'Giám đốc', department: 'Ban giám đốc', branch: 'Phú Lợi', manager_employee_code: '', employment_status: 'active' },
@@ -255,12 +271,38 @@ STATE.frameworkVersions.push({ id: 'fv-1', framework_id: 'fw-1', version_number:
 // NVKHO1 có framework active; NVKHO2 KHÔNG có (test no_framework_assignment).
 STATE.competencyAssignments.push({ employee_code: 'NVKHO1', framework_version_id: 'fv-1', is_active: true });
 
-// competency grade definitions: chỉ có B1, B2, B4 (KHÔNG có B3 -> grade_not_mapped khi đề xuất B3).
+// competency grade_code PHẢI đúng constraint thật '^B[1-9][0-9]*$' (bare,
+// KHÔNG tiền tố) — khác hẳn compensation grade_code 'NSGQ-Bx' (có tiền tố).
+// KHÔNG có definition cho B3 (grade-B3 compensation cũng không có mapping).
 STATE.gradeDefinitions.push(
-  { id: 'gdef-B1', version_id: 'fv-1', grade_code: 'NSGQ-B1', grade_number: 1, sort_order: 1, label: 'Bậc 1' },
-  { id: 'gdef-B2', version_id: 'fv-1', grade_code: 'NSGQ-B2', grade_number: 2, sort_order: 2, label: 'Bậc 2' },
-  { id: 'gdef-B4', version_id: 'fv-1', grade_code: 'NSGQ-B4', grade_number: 4, sort_order: 4, label: 'Bậc 4' }
+  { id: 'gdef-B1', version_id: 'fv-1', grade_code: 'B1', grade_number: 1, sort_order: 1, label: 'Bậc 1' },
+  { id: 'gdef-B2', version_id: 'fv-1', grade_code: 'B2', grade_number: 2, sort_order: 2, label: 'Bậc 2' },
+  { id: 'gdef-B4', version_id: 'fv-1', grade_code: 'B4', grade_number: 4, sort_order: 4, label: 'Bậc 4' }
 );
+// Explicit mapping (framework_version_id, compensation_grade_id) -> competency_grade_id
+// — nguồn DUY NHẤT xác định "bậc lương X ứng với bậc năng lực nào". KHÔNG map
+// grade-B3 (test grade_not_mapped: dù compensation grade tồn tại, thiếu dòng
+// mapping vẫn BLOCK).
+STATE.gradeMap.push(
+  { id: 'map-B1', framework_version_id: 'fv-1', compensation_grade_id: 'grade-B1', competency_grade_id: 'gdef-B1' },
+  { id: 'map-B2', framework_version_id: 'fv-1', compensation_grade_id: 'grade-B2', competency_grade_id: 'gdef-B2' },
+  { id: 'map-B4', framework_version_id: 'fv-1', compensation_grade_id: 'grade-B4', competency_grade_id: 'gdef-B4' }
+);
+
+// Framework THỨ 2 (fv-2) + compensation grade riêng (grade-B5) — dùng để test
+// "mapping trỏ sang bậc năng lực của framework KHÁC bị từ chối". Trong
+// Postgres thật, composite FK (competency_grade_id,framework_version_id) ->
+// knl_grade_definitions(id,version_id) sẽ CHẶN NGAY LÚC INSERT nếu cố gán
+// framework_version_id=fv-1 nhưng competency_grade_id thuộc fv-2 — không thể
+// tạo được dòng "hỏng" này qua DB thật. Ở đây ta CỐ Ý bơm thẳng 1 dòng như
+// vậy vào mock (bỏ qua composite FK mock không enforce) để chứng minh
+// resolver TỰ CÓ defense-in-depth thứ 2 (lọc .eq('version_id', fv.id) khi
+// đọc knl_grade_definitions) — không chỉ dựa vào DB constraint.
+STATE.frameworks.push({ id: 'fw-2', code: 'FW-OTHER', name: 'Framework Khác' });
+STATE.frameworkVersions.push({ id: 'fv-2', framework_id: 'fw-2', version_number: 1 });
+STATE.gradeDefinitions.push({ id: 'gdef2-B1', version_id: 'fv-2', grade_code: 'B1', grade_number: 1, sort_order: 1, label: 'Bậc 1 (framework khác)' });
+STATE.grades.push({ id: 'grade-B5', version_id: 'version-1', ladder_id: 'ladder-1', grade_code: 'NSGQ-B5', grade_number: 5 });
+STATE.gradeMap.push({ id: 'map-crossfw-bad', framework_version_id: 'fv-1', compensation_grade_id: 'grade-B5', competency_grade_id: 'gdef2-B1' });
 STATE.competencyGroups.push({ id: 'grp-1', version_id: 'fv-1', name: 'Kỹ năng chuyên môn', sort_order: 1 });
 STATE.competencyItems.push(
   { id: 'item-1', group_id: 'grp-1', version_id: 'fv-1', name: 'Vận hành máy đóng gói', sort_order: 1 },
@@ -313,18 +355,43 @@ async function run() {
   ];
 
   // ================= READ: getGradePromotionCriteriaStandard =================
-  let std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeCode: 'NSGQ-B2' });
-  check(std.mapped === true && std.groups.length === 1 && std.groups[0].items.length === 2, 'CASE READ-1. Valid mapping NVKHO1 -> NSGQ-B2 trả đúng 1 nhóm/2 tiêu chí');
+  // proposedGradeId là compensation_grade_id (grade-Bx) — resolver giờ nối
+  // sang competency qua explicit mapping (knl_compensation_competency_grade_
+  // map), KHÔNG so grade_code string.
+  let std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B2' });
+  check(std.mapped === true && std.groups.length === 1 && std.groups[0].items.length === 2, 'CASE READ-1. Valid mapping NVKHO1, compensation grade-B2 (qua explicit mapping) trả đúng 1 nhóm/2 tiêu chí');
   check(std.groups[0].items[0].content === 'Vận hành độc lập, không cần giám sát.', 'CASE READ-2. Nội dung tiêu chí (content) resolve đúng theo required_column_id');
 
-  std = await getCriteriaStandard(session('manager', { id: 'acc-gd', employeeCode: 'GD1' }), { employeeCode: 'NVKHO2', proposedGradeCode: 'NSGQ-B2' });
+  std = await getCriteriaStandard(session('manager', { id: 'acc-gd', employeeCode: 'GD1' }), { employeeCode: 'NVKHO2', proposedGradeId: 'grade-B2' });
   check(std.mapped === false && std.reason === 'no_framework_assignment', 'CASE READ-3. NVKHO2 không có framework active -> mapped=false, reason=no_framework_assignment');
 
-  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeCode: 'NSGQ-B3' });
-  check(std.mapped === false && std.reason === 'grade_not_mapped', 'CASE READ-4. Đề xuất B3 (không có knl_grade_definitions khớp) -> mapped=false, reason=grade_not_mapped');
+  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B3' });
+  check(std.mapped === false && std.reason === 'grade_not_mapped', 'CASE READ-4. compensation grade-B3 KHÔNG có dòng mapping tường minh nào -> mapped=false, reason=grade_not_mapped (dù grade-B3 compensation tồn tại thật)');
 
-  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeCode: 'NSGQ-B4' });
-  check(std.mapped === false && std.reason === 'no_requirements', 'CASE READ-5. B4 có definition nhưng KHÔNG có requirement nào -> mapped=false, reason=no_requirements');
+  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B4' });
+  check(std.mapped === false && std.reason === 'no_requirements', 'CASE READ-5. grade-B4 CÓ mapping (map-B4) nhưng competency grade B4 KHÔNG có requirement nào -> mapped=false, reason=no_requirements');
+
+  // ================= MAP INTEGRITY: cross-framework mapping bị resolver tự chặn =================
+  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B5' });
+  check(std.mapped === false && std.reason === 'grade_not_mapped', 'CASE MAP-CROSSFW-1. Dòng mapping "hỏng" (framework_version_id=fv-1 nhưng competency_grade_id thuộc fv-2 — bất khả thi qua composite FK thật, mock cố ý bơm để test) bị resolver TỰ CHẶN qua filter version_id -> vẫn grade_not_mapped, không lộ tiêu chí sai framework');
+
+  // ================= MAP INTEGRITY: duplicate mapping bị unique constraint chặn (mock-level, thiết kế — chưa verify Postgres thật vì 1.63.0 chưa apply) =================
+  const gradeMapTable = makeTableFactory(STATE.gradeMap, { beforeInsert: gradeMapUniquenessGuard })();
+  const dupInsertResult = await gradeMapTable.insert({ id: 'map-B2-dup-attempt', framework_version_id: 'fv-1', compensation_grade_id: 'grade-B2', competency_grade_id: 'gdef-B4' });
+  check(!!dupInsertResult.error && dupInsertResult.error.code === '23505', 'CASE MAP-DUP-1. Insert mapping thứ 2 cho CÙNG (fv-1, grade-B2) đã có map-B2 -> unique constraint chặn (23505), không cho 1 bậc lương map 2 bậc năng lực trong cùng framework version');
+
+  // ================= MAP INTEGRITY: resolve ĐÚNG chỉ nhờ có dòng mapping tường minh, không phải trùng tên chuỗi =================
+  // Xoá tạm map-B2 (compensation "NSGQ-B2" <-> competency "B2" — 2 chuỗi
+  // KHÁC NHAU hoàn toàn, không có logic string nào tự suy ra được) -> resolver
+  // PHẢI mất khả năng resolve, chứng minh việc resolve trước đó (CASE READ-1)
+  // là NHỜ dòng mapping, không phải nhờ trùng số "2".
+  const removedMapB2Index = STATE.gradeMap.findIndex(r => r.id === 'map-B2');
+  const removedMapB2 = STATE.gradeMap.splice(removedMapB2Index, 1)[0];
+  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B2' });
+  check(std.mapped === false && std.reason === 'grade_not_mapped', 'CASE MAP-DEPENDENCY-1. Xoá dòng mapping map-B2 -> compensation "NSGQ-B2" không còn resolve được competency "B2" dù 2 chuỗi trông "giống nhau" (cùng số 2) — chứng minh resolve KHÔNG dựa vào string/number, CHỈ dựa vào dòng mapping');
+  STATE.gradeMap.push(removedMapB2); // khôi phục cho các case dùng grade-B2 phía sau
+  std = await getCriteriaStandard(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { employeeCode: 'NVKHO1', proposedGradeId: 'grade-B2' });
+  check(std.mapped === true, 'CASE MAP-DEPENDENCY-2. Khôi phục lại map-B2 -> resolve lại được ngay — xác nhận toàn bộ hành vi chỉ phụ thuộc sự tồn tại của dòng mapping tường minh');
 
   // ================= BLOCK tạo/gửi proposal khi mapping fail =================
   await expectFail(createProposal(session('manager', { id: 'acc-gd', employeeCode: 'GD1' }), { employeeCode: 'NVKHO2', reason: 'Test thiếu framework', proposedGradeId: 'grade-B2', assessment: validAssessment }), 'KNL_PROPOSAL_CRITERIA_NO_FRAMEWORK_ASSIGNMENT', 'CASE BLOCK-1. Subject không có framework active -> BLOCK tạo proposal (không cho proposal rỗng lọt xuống DB)');
@@ -343,7 +410,10 @@ async function run() {
   check(created.status === 'pending', 'CASE VALID-1. Manager tạo proposal cho subordinate với assessment đầy đủ -> tạo thành công');
 
   let detail = await getDetail(session('manager', { id: 'acc-tbpkho', employeeCode: 'TBPKHO1' }), { proposalId: created.id });
-  check(!!detail.criteriaSnapshot && detail.criteriaSnapshot.gradeCode === 'NSGQ-B2', 'CASE VALID-2. Detail trả criteriaSnapshot đúng gradeCode');
+  // gradeCode trong snapshot là mã BẬC NĂNG LỰC ('B2', từ knl_grade_definitions
+  // qua mapping) — KHÁC mã bậc LƯƠNG đề xuất ('NSGQ-B2', proposal.proposedGradeCode)
+  // — đúng bản chất "2 hệ độc lập", không phải cùng 1 giá trị.
+  check(!!detail.criteriaSnapshot && detail.criteriaSnapshot.gradeCode === 'B2', 'CASE VALID-2. Detail trả criteriaSnapshot đúng gradeCode (bậc năng lực B2, qua mapping từ compensation grade-B2 — không phải chuỗi "NSGQ-B2")');
   check(detail.criteriaSnapshot.groups[0].items.find(it => it.id === 'item-1').result === 'met', 'CASE VALID-3. Snapshot lưu đúng result item-1=met');
   check(detail.criteriaSnapshot.groups[0].items.find(it => it.id === 'item-2').note === 'Còn để lẫn lô hàng lỗi, cần huấn luyện lại.', 'CASE VALID-4. Snapshot lưu đúng note item-2');
   check(!('proposal' in detail.criteriaSnapshot), 'CASE VALID-5. criteriaSnapshot KHÔNG lồng field proposal/technical thừa nào');
