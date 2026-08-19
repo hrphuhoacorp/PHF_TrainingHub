@@ -430,6 +430,34 @@ async function run() {
   let afterApprove = STATE.proposals.find(p => p.id === created.id);
   check(afterApprove.status === 'approved' && JSON.stringify(afterApprove.criteria_snapshot) === JSON.stringify(snapshotBeforeAgree), 'CASE IMMUTABLE-2. Sau approve() (Admin, tier cuối), criteria_snapshot VẪN BẤT BIẾN — agree/approve chỉ xem, không sửa được bảng tiêu chí');
 
+  // ================= HISTORICAL ACTOR VIEW (permission gap fix, 2026-08-19) =================
+  // Phát hiện qua DEV rehearsal thật (PHF-HR-DEV): người đã TRỰC TIẾP agree ở
+  // tầng trung gian (GD1, đã agree() cho `created` phía trên) mất quyền xem
+  // lại proposal NGAY khi proposal chuyển 'approved' — isMyTurn tự về false,
+  // GD1 không phải subject/creator, và GD1 KHÔNG có view_proposals (grant
+  // chỉ có view_proposals:true cho phạm vi all_company... — dùng lại đúng
+  // fixture gốc: grant 'acc-gd' KHÔNG set view_proposals, xem đầu file). Sửa
+  // getGradePromotionProposalDetail(): "đã có mặt trong audit trail
+  // (proposal_steps.actor_id)" => LUÔN xem lại được CHÍNH proposal đó, vĩnh
+  // viễn — KHÔNG mở proposalScope, KHÔNG cấp thêm quyền sửa.
+  const snapshotBeforeHistView = JSON.stringify(STATE.proposals.find(p => p.id === created.id));
+  const gdHistoricalDetail = await getDetail(session('manager', { id: 'acc-gd', employeeCode: 'GD1' }), { proposalId: created.id });
+  check(!!gdHistoricalDetail && gdHistoricalDetail.proposal.id === created.id, 'CASE HIST-1. GD1 (đã agree tầng trung gian, proposal giờ đã "approved", KHÔNG có view_proposals) vẫn xem lại được CHÍNH proposal mình từng xử lý — không cần view_proposals rộng');
+  check(gdHistoricalDetail.steps.some(s => s.action === 'agree' && s.actorEmployeeCode === 'GD1'), 'CASE HIST-1b. Detail trả đúng có bước agree của GD1 trong timeline (xác nhận đúng là proposal họ từng xử lý thật, không phải cấp nhầm quyền)');
+  check(!!gdHistoricalDetail.criteriaSnapshot && gdHistoricalDetail.criteriaSnapshot.gradeCode === 'B2', 'CASE HIST-1c. Historical actor vẫn xem được criteriaSnapshot đầy đủ (không bị che giấu, đúng nghiệp vụ "xem lại chính proposal đã xử lý")');
+  check(JSON.stringify(STATE.proposals.find(p => p.id === created.id)) === snapshotBeforeHistView, 'CASE HIST-2. Gọi detail() theo nhánh historical-actor KHÔNG ghi/đổi bất kỳ field nào của proposal (thuần read-path — snapshot/status/routing bất biến)');
+
+  let neverInvolvedThrew = null;
+  try { await getDetail(session('manager', { id: 'acc-noaccess', employeeCode: 'TBPKHO1' }), { proposalId: created.id }); }
+  catch (e) { neverInvolvedThrew = e; }
+  check(!!neverInvolvedThrew && neverInvolvedThrew.code === 'KNL_VIEW_PROPOSALS_DENIED', 'CASE HIST-3. Actor CHƯA TỪNG tham gia proposal này (access_knl=true nhưng không view_proposals, không phải subject/creator/historical actor) vẫn bị chặn đúng như cũ — historical-actor fix KHÔNG nới lỏng gì ngoài đúng proposal đã tham gia thật');
+
+  const subjectSelfHistDetail = await getDetail(session('learner', { id: 'acc-nvkho1', employeeCode: 'NVKHO1' }), { proposalId: created.id });
+  check(subjectSelfHistDetail.proposal.id === created.id, 'CASE HIST-4. Subject vẫn xem được proposal của chính mình như cũ (behavior subject/creator/admin không đổi bởi fix này)');
+
+  const adminHistDetail = await getDetail(session('admin', { id: 'u-admin' }), { proposalId: created.id });
+  check(adminHistDetail.proposal.id === created.id, 'CASE HIST-5. Admin (đường cứu hộ) vẫn xem được như cũ, không phụ thuộc nhánh historical-actor mới');
+
   // Sửa "framework" sau khi proposal đã tồn tại (mô phỏng Admin sửa nội dung
   // tiêu chí/level content sau này) -> snapshot cũ trên proposal ĐÃ APPROVED
   // không được phép đổi theo.
