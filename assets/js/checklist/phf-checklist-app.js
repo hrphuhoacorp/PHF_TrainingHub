@@ -1454,10 +1454,10 @@
   }
   var monthlyUiState={status:'all',month:'',department:'',branch:'',selectedId:'',loading:false,loadedMonth:'',error:'',period:null,forms:[],reviewerCandidates:[],query:'',creating:false,opening:false,locking:false,openingException:false,pilotOpening:false,pilotCode:'PHF012',changingReviewer:false,savingReview:false,exporting:false,recoveryLoading:false,recoverySyncing:false,recoveryPreview:null,recoveryIdempotencyKey:'',deletePreview:null,deleteLoading:false,deleteIdempotencyKey:''};
   var marketingKpiUiState={open:false,loading:false,saving:false,error:'',period:'',templateId:'tbp-mkt-1.0',data:null,rows:[],reason:''};
-  var reportUiState={view:'summary',month:'',branch:'',department:'',status:'',scoreBand:'',issue:'',showAllDepartments:false,loading:false,loadedMonth:'',error:'',data:null,request:null};
+  var reportUiState={view:'summary',fromMonth:'',toMonth:'',branch:'',department:'',status:'',scoreBand:'',issue:'',showAllDepartments:false,loading:false,loadedRangeKey:'',error:'',data:null,request:null};
   var checklistScoreUiState={mode:'current',month:'',department:'',branch:'',managerCode:'',query:'',loading:false,loadedKey:'',error:'',data:null,periodFromMonth:'',periodToMonth:'',periodDepartment:'',periodBranch:'',periodQuery:'',periodLoading:false,periodLoadedKey:'',periodError:'',periodData:null,periodFullView:false,periodDetail:null,annualYear:'',annualDepartment:'',annualBranch:'',annualQuery:'',annualLoading:false,annualLoadedKey:'',annualError:'',annualData:null};
   var checklistScoreSearchTimer=null,checklistScorePeriodSearchTimer=null,checklistScoreAnnualSearchTimer=null;
-  var reportWorkflowUiState={loading:false,loadedMonth:'',error:'',data:null,request:null};
+  var reportWorkflowUiState={loading:false,loadedRangeKey:'',error:'',data:null,request:null};
   var settingsUiState={section:'permissions',permissionQuery:'',permissionStatus:'all',permissionBusy:false,permissionLoading:false,permissionLoadedAt:0,permissionPeopleConfirmedAt:0,permissionPeopleAudit:null,permissionPeopleSyncing:false,pendingImport:null,monthlyPolicy:null,monthlyPolicyLoading:false,monthlyPolicySaving:false,monthlyCycle:null,monthlyCycleLoading:false,monthlyCycleSaving:false,monthlyCycleSyncing:false,deadlineEditing:false,deadlineSaving:false,latePolicy:null,latePolicies:[],latePolicyHistory:[],latePolicyLoading:false,latePolicySaving:false,latePolicyEditing:false,latePolicyDraft:null,repeatPolicy:null,repeatPolicies:[],repeatPolicyHistory:[],repeatPolicyLoading:false,repeatPolicySaving:false,repeatPolicyEditing:false,repeatPolicyDraft:null,repeatSuggestionPeriod:todayIso().slice(0,7),repeatSuggestions:null,repeatSuggestionLoading:false,scorePolicy:null,scorePolicies:[],scorePolicyHistory:[],scorePolicyLoading:false,scorePolicySaving:false,scorePolicyEditing:false,scorePolicyDraft:null,transitionRows:null,transitionFileName:'',transitionParseError:'',transitionPreview:null,transitionPreviewLoading:false,transitionPreviewError:'',transitionConfirming:false,transitionConfirmResult:null,transitionConfirmError:''};
   var notificationUiState={query:'',category:'all',rules:null,ready:false,loadingRules:false,loadingInbox:false,error:'',inboxError:'',inbox:[],unreadCount:0,inboxOpen:false};
   function checklistNotificationRequest(action,payload){
@@ -4893,10 +4893,27 @@
   }
 
 
+  /*
+   * "Từ tháng/Đến tháng" (2026-08-19) - reportFromMonthValue()/reportToMonthValue() thay cho
+   * reportPeriodValue() cũ. reportPeriodValue() được GIỮ LẠI (= reportToMonthValue()) vì các nơi
+   * khác (xuất Excel kỳ, panel "Tình trạng xử lý ghi nhận lỗi") CHỦ ĐÍCH vẫn chỉ dùng đúng 1 tháng
+   * (Đến tháng) - KHÔNG mở rộng theo range (đúng phạm vi đã chốt: range chỉ áp dụng cho Tổng hợp).
+   */
+  function reportFromMonthValue(){
+    return reportUiState.fromMonth||(reportUiState.data&&reportUiState.data.fromMonth)||todayIso().slice(0,7);
+  }
+  function reportToMonthValue(){
+    return reportUiState.toMonth||(reportUiState.data&&reportUiState.data.toMonth)||reportFromMonthValue();
+  }
   function reportPeriodValue(){
-    return reportUiState.month||(reportUiState.data&&reportUiState.data.month)||todayIso().slice(0,7);
+    return reportToMonthValue();
   }
   function reportMonthLabel(value){var month=String(value||'').split('-');return month.length===2?'Tháng '+month[1]+'/'+month[0]:String(value||'');}
+  function reportRangeLabel(fromValue,toValue){
+    var fromLabel=reportMonthLabel(fromValue).toLowerCase();
+    if(!toValue||fromValue===toValue)return fromLabel;
+    return 'từ '+fromLabel+' đến '+reportMonthLabel(toValue).toLowerCase();
+  }
   function renderChecklistReportIfCurrent(root){
     if(!root||!isChecklistReportPath(currentRouteKey()))return false;
     var workspace=root.querySelector('[data-phfck-workspace]')||root.querySelector('[data-phfck-manager-content]');
@@ -4904,30 +4921,42 @@
     workspace.innerHTML=reportsHtml();
     return true;
   }
-  function requestChecklistReport(monthValue){
-    return fetch('/api/data?checklistReport=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache, no-store'},body:JSON.stringify({action:'getChecklistMonthlyReport',month:monthValue||''})}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false){var error=new Error(data.message||data.error||'Không thể tải Báo cáo Checklist.');error.status=response.status;throw error;}return data;});});
+  function requestChecklistReport(fromMonthValue,toMonthValue){
+    return fetch('/api/data?checklistReport=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache, no-store'},body:JSON.stringify({action:'getChecklistMonthlyReport',fromMonth:fromMonthValue||'',toMonth:toMonthValue||fromMonthValue||''})}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false){var error=new Error(data.message||data.error||'Không thể tải Báo cáo Checklist.');error.status=response.status;throw error;}return data;});});
   }
   async function loadChecklistReport(root,force){
-    var requested=reportUiState.month||'';
+    var requestedFrom=reportUiState.fromMonth||'',requestedTo=reportUiState.toMonth||requestedFrom,rangeKey=requestedFrom+'..'+(requestedTo||requestedFrom);
     if(reportUiState.request){renderChecklistReportIfCurrent(root);return reportUiState.request;}
-    if(!force&&reportUiState.data&&reportUiState.loadedMonth===reportPeriodValue())return true;
+    if(!force&&reportUiState.data&&reportUiState.loadedRangeKey===rangeKey)return true;
     reportUiState.loading=true;reportUiState.error='';renderChecklistReportIfCurrent(root);
-    var request=(async function(){try{var data=await requestChecklistReport(requested);reportUiState.data=data;reportUiState.month=data.month||requested||todayIso().slice(0,7);reportUiState.loadedMonth=reportUiState.month;return true;}catch(error){reportUiState.error='Không thể tải báo cáo.';return false;}finally{reportUiState.loading=false;reportUiState.request=null;renderChecklistReportIfCurrent(root);}})();
+    var hadDataBefore=Boolean(reportUiState.data);
+    var request=(async function(){try{var data=await requestChecklistReport(requestedFrom,requestedTo);reportUiState.data=data;reportUiState.fromMonth=data.fromMonth||requestedFrom||todayIso().slice(0,7);reportUiState.toMonth=data.toMonth||requestedTo||reportUiState.fromMonth;reportUiState.loadedRangeKey=reportUiState.fromMonth+'..'+reportUiState.toMonth;return true;}catch(error){reportUiState.error=error&&error.message?error.message:'Không thể tải báo cáo.';
+      /* "Từ tháng/Đến tháng" (2026-08-19) - khi ĐÃ có dữ liệu cũ (vd đổi range sang from>to hoặc
+         >12 tháng), reportsHtml() chỉ hiện trang lỗi toàn màn hình lúc CHƯA từng có data - nếu
+         không báo thêm qua toast thì lỗi validate range sẽ ÂM THẦM bị nuốt (dữ liệu cũ vẫn hiển
+         thị, người dùng không biết range vừa chọn bị từ chối). checklistToast() đã dùng sẵn cho
+         đúng tình huống "lỗi khi đã có dữ liệu" ở nhiều màn khác (vd Transition Import). */
+      if(hadDataBefore)checklistToast('error','Chưa thể áp dụng khoảng thời gian',reportUiState.error,true);
+      return false;}finally{reportUiState.loading=false;reportUiState.request=null;renderChecklistReportIfCurrent(root);}})();
     reportUiState.request=request;return request;
   }
-  function requestChecklistViolationWorkflowSummary(monthValue){
-    return fetch('/api/data?checklistReport=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache, no-store'},body:JSON.stringify({action:'getChecklistViolationWorkflowSummary',month:monthValue||''})}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false)throw new Error('CHECKLIST_WORKFLOW_SUMMARY_FAILED');return data;});});
+  function requestChecklistViolationWorkflowSummary(fromMonthValue,toMonthValue){
+    return fetch('/api/data?checklistReport=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache, no-store'},body:JSON.stringify({action:'getChecklistViolationWorkflowSummary',fromMonth:fromMonthValue||'',toMonth:toMonthValue||fromMonthValue||''})}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'CHECKLIST_WORKFLOW_SUMMARY_FAILED');return data;});});
   }
   /* "Tình trạng xử lý ghi nhận lỗi" - dùng canReview/reviewScope (tái sử dụng
      đúng logic thẩm định phiếu tháng), KHÔNG dùng viewScope/reportScope của
      phần Nhật ký lỗi/Báo cáo điểm ở trên. Cùng cơ chế dedupe-request và
-     re-render qua renderChecklistReportIfCurrent như loadChecklistReport. */
+     re-render qua renderChecklistReportIfCurrent như loadChecklistReport.
+     "Từ tháng/Đến tháng" (2026-08-19, audit gap) - panel này giờ theo ĐÚNG cùng range với toàn
+     màn Tổng hợp (trước đây chỉ neo Đến tháng, gây hiểu lầm số liệu đại diện cả range trong khi
+     thực ra chỉ 1 tháng cuối). rangeKey dùng để cache đúng theo cặp from/to, không lẫn giữa các
+     range khác nhau có cùng Đến tháng. */
   async function loadChecklistViolationWorkflowSummary(root,force){
-    var requested=reportUiState.month||'';
+    var requestedFrom=reportFromMonthValue(),requestedTo=reportToMonthValue(),rangeKey=requestedFrom+'..'+requestedTo;
     if(reportWorkflowUiState.request){renderChecklistReportIfCurrent(root);return reportWorkflowUiState.request;}
-    if(!force&&reportWorkflowUiState.data&&reportWorkflowUiState.loadedMonth===reportPeriodValue())return true;
+    if(!force&&reportWorkflowUiState.data&&reportWorkflowUiState.loadedRangeKey===rangeKey)return true;
     reportWorkflowUiState.loading=true;reportWorkflowUiState.error='';renderChecklistReportIfCurrent(root);
-    var request=(async function(){try{var data=await requestChecklistViolationWorkflowSummary(requested);reportWorkflowUiState.data=data;reportWorkflowUiState.loadedMonth=data.month||requested||todayIso().slice(0,7);return true;}catch(error){reportWorkflowUiState.error='Không thể tải dữ liệu.';return false;}finally{reportWorkflowUiState.loading=false;reportWorkflowUiState.request=null;renderChecklistReportIfCurrent(root);}})();
+    var request=(async function(){try{var data=await requestChecklistViolationWorkflowSummary(requestedFrom,requestedTo);reportWorkflowUiState.data=data;reportWorkflowUiState.loadedRangeKey=(data.fromMonth||requestedFrom)+'..'+(data.toMonth||requestedTo);return true;}catch(error){reportWorkflowUiState.error='Không thể tải dữ liệu.';return false;}finally{reportWorkflowUiState.loading=false;reportWorkflowUiState.request=null;renderChecklistReportIfCurrent(root);}})();
     reportWorkflowUiState.request=request;return request;
   }
   function reportWorkflowDashboardHtml(){
@@ -4944,34 +4973,59 @@
       ['Đã chính thức',s.official,'','official'],
       ['Đã hủy',s.cancelled,'','cancelled']
     ];
-    var canGoto=canViewViolationsNow();
-    return '<section class="phfck-panel phfck-report-workflow"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div><span>Theo phạm vi được cấp xem (Nhật ký lỗi)</span></div><div class="phfck-exec-kpis">'+cards.map(function(c){var attrs=canGoto?' role="button" tabindex="0" data-phfck-report-workflow-goto="'+esc(c[3])+'"':'';return '<article class="'+c[2]+(canGoto?' is-clickable':'')+'"'+attrs+'><span>'+esc(c[0])+'</span><strong>'+c[1]+'</strong><small>Kỳ '+esc(reportMonthLabel(data.month||reportPeriodValue()).toLowerCase())+'</small></article>';}).join('')+'</div></section>';
+    var canGoto=canViewViolationsNow(),rangeLabel=reportRangeLabel(data.fromMonth||reportFromMonthValue(),data.toMonth||reportToMonthValue());
+    return '<section class="phfck-panel phfck-report-workflow"><div class="phfck-panel-head"><div><small>TÌNH TRẠNG XỬ LÝ</small><h3>Tình trạng xử lý ghi nhận lỗi</h3></div><span>Theo phạm vi được cấp xem (Nhật ký lỗi)</span></div><div class="phfck-exec-kpis">'+cards.map(function(c){var attrs=canGoto?' role="button" tabindex="0" data-phfck-report-workflow-goto="'+esc(c[3])+'"':'';return '<article class="'+c[2]+(canGoto?' is-clickable':'')+'"'+attrs+'><span>'+esc(c[0])+'</span><strong>'+c[1]+'</strong><small>Kỳ '+esc(rangeLabel)+'</small></article>';}).join('')+'</div></section>';
   }
   function reportCurrentDepartmentOf(row){return (row&&(row.currentDepartment||row.department))||'';}
   function reportCurrentBranchOf(row){return (row&&(row.currentBranch||row.branch))||'';}
   function reportCurrentTitleOf(row){return (row&&(row.currentTitle||row.title))||'';}
+  /*
+   * "Từ tháng/Đến tháng" (2026-08-19) - forms/scoreEntries lọc theo khoảng [from,to] (chuỗi
+   * YYYY-MM so sánh trực tiếp được vì cùng định dạng cố định). violations khớp theo ĐÚNG cặp
+   * employeeCode+periodMonth (không chỉ employeeCode như bản single-month cũ) để tránh rò rỉ
+   * giữa các tháng khi range > 1 tháng - vd nhân sự có phiếu tháng 7 nhưng KHÔNG có phiếu tháng 8
+   * thì vi phạm tháng 8 của người đó không được tính vào "population đang xem" chỉ vì họ có
+   * phiếu ở tháng khác trong range. Khi from===to (tương thích 100% hành vi cũ) cặp
+   * employeeCode+periodMonth suy biến đúng về employeeCode như trước.
+   */
   function reportData(){
-    var source=reportUiState.data||{forms:[],violations:[],repeatSuggestions:[],trend:[],trendForms:[],periods:[],scope:{}},month=reportPeriodValue();
+    var source=reportUiState.data||{forms:[],violations:[],repeatSuggestions:[],trend:[],trendForms:[],periods:[],scoreEntries:[],scope:{}},from=reportFromMonthValue(),to=reportToMonthValue();
     var forms=(source.forms||[]).filter(function(x){
-      if(x.periodMonth!==month)return false;
+      if(x.periodMonth<from||x.periodMonth>to)return false;
       if(reportUiState.branch&&reportCurrentBranchOf(x)!==reportUiState.branch)return false;
       if(reportUiState.department&&reportCurrentDepartmentOf(x)!==reportUiState.department)return false;
       if(reportUiState.status&&x.status!==reportUiState.status)return false;
       if(reportUiState.scoreBand){var score=Number(x.finalScore);if(reportUiState.scoreBand==='90'&&!(score>=90))return false;if(reportUiState.scoreBand==='80'&&!(score>=80&&score<90))return false;if(reportUiState.scoreBand==='70'&&!(score>=70&&score<80))return false;if(reportUiState.scoreBand==='low'&&!(x.finalScore!=null&&score<70))return false;if(reportUiState.scoreBand==='none'&&x.finalScore!=null)return false;}
       return true;
     });
-    var codes=new Set(forms.map(function(x){return x.employeeCode;}));
-    var violations=(source.violations||[]).filter(function(x){return x.periodMonth===month&&codes.has(x.employeeCode)&&(!reportUiState.issue||x.group===reportUiState.issue);});
+    var formKeys=new Set(forms.map(function(x){return x.employeeCode+'|'+x.periodMonth;})),codes=new Set(forms.map(function(x){return x.employeeCode;}));
+    var violations=(source.violations||[]).filter(function(x){return formKeys.has(x.employeeCode+'|'+x.periodMonth)&&(!reportUiState.issue||x.group===reportUiState.issue);});
     var repeatSuggestions=(source.repeatSuggestions||[]).filter(function(x){return codes.has(x.employeeCode);});
-    return {forms:forms,violations:violations,repeatSuggestions:repeatSuggestions,source:source};
+    var scoreEntries=(source.scoreEntries||[]).filter(function(x){
+      if(x.periodMonth<from||x.periodMonth>to)return false;
+      if(reportUiState.branch&&(x.currentBranch||'')!==reportUiState.branch)return false;
+      if(reportUiState.department&&(x.currentDepartment||'')!==reportUiState.department)return false;
+      if(reportUiState.scoreBand&&reportScoreBand(x.finalScore)[0]!==reportUiState.scoreBand)return false;
+      return true;
+    });
+    return {forms:forms,violations:violations,repeatSuggestions:repeatSuggestions,scoreEntries:scoreEntries,source:source};
   }
   function reportAverage(rows,key){var values=rows.map(function(x){return Number(x[key]);}).filter(Number.isFinite);return values.length?values.reduce(function(a,b){return a+b;},0)/values.length:0;}
   function reportStatusLabel(value){return {draft:'Phiếu nháp',waiting_self:'Chờ tự đánh giá',waiting_review:'Chờ thẩm định',reviewed:'Đã thẩm định',locked:'Đã khóa'}[value]||value;}
   function reportScoreBand(score){if(score==null)return ['none','Chưa có kết quả'];score=Number(score);if(score>=90)return ['90','Từ 90 điểm'];if(score>=80)return ['80','Từ 80 đến dưới 90'];if(score>=70)return ['70','Từ 70 đến dưới 80'];return ['low','Dưới 70 điểm'];}
   function reportEmptyHtml(title,message){return '<div class="phfck-report-empty"><div>▦</div><b>'+esc(title)+'</b><p>'+esc(message)+'</p></div>';}
+  /*
+   * "Từ tháng/Đến tháng" (2026-08-19) - thay <select> "Kỳ đánh giá" (1 tháng) bằng 2
+   * <input type="month"> ("Từ tháng"/"Đến tháng"), cùng ngôn ngữ hình ảnh với toolbar
+   * "Theo kỳ" (checklistScorePeriodToolbarHtml - phfck-score-period-toolbar). KHÔNG validate/
+   * clamp phía client (from>to hoặc >12 tháng) - để backend trả lỗi rõ ràng qua
+   * CHECKLIST_REPORT_RANGE_INVALID/CHECKLIST_REPORT_RANGE_TOO_WIDE và hiển thị qua
+   * reportUiState.error, đúng pattern đã dùng ở "Theo kỳ". Phòng ban/Chi nhánh/Trạng thái phiếu/
+   * Làm mới giữ NGUYÊN không đổi.
+   */
   function reportFiltersHtml(data){
-    var source=data.source||{},all=source.forms||[],departments=[...new Set(all.map(function(x){return reportCurrentDepartmentOf(x);}).filter(Boolean))].sort(),branchScope=reportUiState.department?all.filter(function(x){return reportCurrentDepartmentOf(x)===reportUiState.department;}):all,branches=[...new Set(branchScope.map(function(x){return reportCurrentBranchOf(x);}).filter(Boolean))].sort(),periods=source.periods||[];
-    return '<div class="phfck-exec-filters phfck-report-live-filters"><label><span>Kỳ đánh giá</span><select data-phfck-report-period>'+periods.map(function(row){return '<option value="'+esc(row.month)+'" '+(row.month===reportPeriodValue()?'selected':'')+'>'+esc(reportMonthLabel(row.month))+(row.status==='locked'?' · Đã khóa':'')+'</option>';}).join('')+'</select></label><label><span>Phòng ban</span><select data-phfck-report-department><option value="">Tất cả phòng ban</option>'+departments.map(function(x){return '<option value="'+esc(x)+'" '+(x===reportUiState.department?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label><label><span>Chi nhánh / địa điểm</span><select data-phfck-report-branch><option value="">Tất cả địa điểm</option>'+branches.map(function(x){return '<option value="'+esc(x)+'" '+(x===reportUiState.branch?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label><label><span>Trạng thái phiếu</span><select data-phfck-report-status><option value="">Tất cả trạng thái</option>'+['draft','waiting_self','waiting_review','reviewed','locked'].map(function(x){return '<option value="'+x+'" '+(x===reportUiState.status?'selected':'')+'>'+esc(reportStatusLabel(x))+'</option>';}).join('')+'</select></label><button type="button" class="phfck-secondary" data-phfck-report-reset>↻ Xóa bộ lọc</button></div>';
+    var source=data.source||{},all=source.forms||[],departments=[...new Set(all.map(function(x){return reportCurrentDepartmentOf(x);}).filter(Boolean))].sort(),branchScope=reportUiState.department?all.filter(function(x){return reportCurrentDepartmentOf(x)===reportUiState.department;}):all,branches=[...new Set(branchScope.map(function(x){return reportCurrentBranchOf(x);}).filter(Boolean))].sort();
+    return '<div class="phfck-exec-filters phfck-report-live-filters phfck-report-range-filters"><label><span>Từ tháng</span><input type="month" value="'+esc(reportFromMonthValue())+'" data-phfck-report-from></label><label><span>Đến tháng</span><input type="month" value="'+esc(reportToMonthValue())+'" data-phfck-report-to></label><label><span>Phòng ban</span><select data-phfck-report-department><option value="">Tất cả phòng ban</option>'+departments.map(function(x){return '<option value="'+esc(x)+'" '+(x===reportUiState.department?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label><label><span>Chi nhánh / địa điểm</span><select data-phfck-report-branch><option value="">Tất cả địa điểm</option>'+branches.map(function(x){return '<option value="'+esc(x)+'" '+(x===reportUiState.branch?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label><label><span>Trạng thái phiếu</span><select data-phfck-report-status><option value="">Tất cả trạng thái</option>'+['draft','waiting_self','waiting_review','reviewed','locked'].map(function(x){return '<option value="'+x+'" '+(x===reportUiState.status?'selected':'')+'>'+esc(reportStatusLabel(x))+'</option>';}).join('')+'</select></label><button type="button" class="phfck-secondary" data-phfck-report-reset>↻ Xóa bộ lọc</button></div>';
   }
   function reportDepartmentChart(forms){
     var departments=[...new Set(forms.map(function(x){return reportCurrentDepartmentOf(x);}).filter(Boolean))],rows=departments.map(function(department){var items=forms.filter(function(x){return reportCurrentDepartmentOf(x)===department;}),done=items.filter(function(x){return x.finalScore!=null;}),avg=reportAverage(done,'finalScore');return {department:department,count:items.length,done:done.length,avg:avg,attention:items.filter(function(x){return x.overdueApplied||x.adminException||x.reviewedAsOverride||(x.finalScore!=null&&Number(x.finalScore)<80)||['waiting_self','waiting_review'].includes(x.status);}).length};}).sort(function(a,b){return b.avg-a.avg;});
@@ -5258,14 +5312,22 @@
     if(reportUiState.loading&&!reportUiState.data)return reportTopTabsHtml()+'<div class="phfck-page-head"><div><small>PHF CHECKLIST · BÁO CÁO ĐIỀU HÀNH</small><h1>Đang tải dữ liệu báo cáo…</h1><p>Hệ thống đang đọc dữ liệu theo đúng phạm vi quyền.</p></div></div><section class="phfck-panel phfck-report-loading"><span class="phfck-loading-spinner"></span><b>Đang tổng hợp phiếu tháng và lỗi chính thức</b></section>';
     if(reportUiState.error&&!reportUiState.data)return reportTopTabsHtml()+'<div class="phfck-page-head"><div><small>PHF CHECKLIST · BÁO CÁO ĐIỀU HÀNH</small><h1>Chưa tải được báo cáo</h1><p>'+esc(reportUiState.error)+'</p></div><button class="phfck-primary" type="button" data-phfck-report-reload>↻ Thử lại</button></div><section class="phfck-panel">'+reportEmptyHtml('Dữ liệu chưa sẵn sàng','Kiểm tra quyền xem Báo cáo, kết nối dữ liệu và khởi động lại hệ thống nếu vừa cập nhật source.')+'</section>';
     if(!reportUiState.data)return reportTopTabsHtml()+'<div class="phfck-page-head"><div><small>PHF CHECKLIST · BÁO CÁO ĐIỀU HÀNH</small><h1>Báo cáo Phiếu đánh giá tháng</h1><p>Dữ liệu sẽ được tải theo phạm vi quyền của tài khoản.</p></div></div>';
-    var data=reportData(),forms=data.forms,done=forms.filter(function(x){return x.finalScore!=null&&['reviewed','locked'].includes(x.status);}),avg=reportAverage(done,'finalScore'),waitingSelf=forms.filter(function(x){return x.status==='waiting_self';}).length,waitingReview=forms.filter(function(x){return x.status==='waiting_review';}).length,exceptions=forms.filter(function(x){return x.adminException;}).length,complete=forms.length?done.length/forms.length*100:0,attentionRows=reportAttentionRows(forms,data.violations,data.repeatSuggestions),departmentNames=[...new Set(forms.map(function(x){return reportCurrentDepartmentOf(x);}).filter(Boolean))],departmentStats=departmentNames.map(function(name){var rows=done.filter(function(x){return reportCurrentDepartmentOf(x)===name;});return {name:name,avg:reportAverage(rows,'finalScore')};}).filter(function(x){return x.avg>0;}).sort(function(a,b){return b.avg-a.avg;}),insights=[];
-    insights.push(done.length+'/'+forms.length+' phiếu đã có kết quả trong phạm vi đang xem.');if(done.length)insights.push('Điểm trung bình hiện tại là '+avg.toFixed(1)+' điểm.');if(departmentStats.length)insights.push(departmentStats[0].name+' đang có điểm trung bình cao nhất.');if(waitingSelf||waitingReview)insights.push('Còn '+waitingSelf+' phiếu chờ tự đánh giá và '+waitingReview+' phiếu chờ thẩm định.');if(exceptions)insights.push(exceptions+' phiếu có lịch sử ngoại lệ sau khóa.');if(data.repeatSuggestions.length)insights.push(data.repeatSuggestions.length+' trường hợp đạt ngưỡng lỗi lặp cần xem xét.');
+    /*
+     * "Từ tháng/Đến tháng" (2026-08-19) - "completedForms" (hoàn thành, ĐÚNG như "done" cũ:
+     * status reviewed/locked VÀ có final_score) chỉ phục vụ KPI "Hoàn thành đánh giá" - KHÔNG
+     * đổi (đã CHỐT nghiệp vụ: monthly_result KHÔNG được coi là hoàn thành tự đánh giá/thẩm định).
+     * "scoreEntries" (trả từ reportData(), nguồn = data.scoreEntries phía backend) là quần thể
+     * RIÊNG cho KPI "Điểm trung bình"/dòng "đang có điểm trung bình cao nhất" - bình quân theo
+     * employee-month, ưu tiên monthly_result SCORED, fallback đúng completedForms khi không có.
+     */
+    var data=reportData(),forms=data.forms,scoreEntries=data.scoreEntries||[],completedForms=forms.filter(function(x){return x.finalScore!=null&&['reviewed','locked'].includes(x.status);}),avg=reportAverage(scoreEntries,'finalScore'),waitingSelf=forms.filter(function(x){return x.status==='waiting_self';}).length,waitingReview=forms.filter(function(x){return x.status==='waiting_review';}).length,exceptions=forms.filter(function(x){return x.adminException;}).length,complete=forms.length?completedForms.length/forms.length*100:0,attentionRows=reportAttentionRows(forms,data.violations,data.repeatSuggestions),departmentNames=[...new Set(scoreEntries.map(function(x){return x.currentDepartment||'';}).filter(Boolean))],departmentStats=departmentNames.map(function(name){var rows=scoreEntries.filter(function(x){return (x.currentDepartment||'')===name;});return {name:name,avg:reportAverage(rows,'finalScore')};}).filter(function(x){return x.avg>0;}).sort(function(a,b){return b.avg-a.avg;}),insights=[];
+    insights.push(completedForms.length+'/'+forms.length+' phiếu đã có kết quả trong phạm vi đang xem.');if(scoreEntries.length)insights.push('Điểm trung bình hiện tại là '+avg.toFixed(1)+' điểm.');if(departmentStats.length)insights.push(departmentStats[0].name+' đang có điểm trung bình cao nhất.');if(waitingSelf||waitingReview)insights.push('Còn '+waitingSelf+' phiếu chờ tự đánh giá và '+waitingReview+' phiếu chờ thẩm định.');if(exceptions)insights.push(exceptions+' phiếu có lịch sử ngoại lệ sau khóa.');if(data.repeatSuggestions.length)insights.push(data.repeatSuggestions.length+' trường hợp đạt ngưỡng lỗi lặp cần xem xét.');
     var canExport=data.source.scope&&data.source.scope.canExport===true,isManagerReport=routeRole(location.pathname)==='manager';
-    return reportTopTabsHtml()+'<div class="phfck-page-head phfck-report-head"><div><small>PHF CHECKLIST · BÁO CÁO ĐIỀU HÀNH</small><h1>Kết quả đánh giá '+esc(reportMonthLabel(reportPeriodValue()).toLowerCase())+'</h1><p>Dữ liệu thật theo phạm vi quyền; bấm biểu đồ để lọc đúng nhóm cần quan tâm.</p></div><div class="phfck-report-head-actions">'+(isManagerReport?'<button class="phfck-secondary" type="button" data-phfck-manager-report-back>← Checklist quản lý</button>':'')+(canExport?'<button class="phfck-primary" type="button" data-phfck-report-export>⇩ Xuất Excel kỳ</button>':'<span class="phfck-report-scope-chip">Chỉ xem báo cáo</span>')+'<button class="phfck-secondary" type="button" data-phfck-report-reload>↻ Làm mới</button></div></div>'
+    return reportTopTabsHtml()+'<div class="phfck-page-head phfck-report-head"><div><small>PHF CHECKLIST · BÁO CÁO ĐIỀU HÀNH</small><h1>Kết quả đánh giá '+esc(reportRangeLabel(reportFromMonthValue(),reportToMonthValue()))+'</h1><p>Dữ liệu thật theo phạm vi quyền; bấm biểu đồ để lọc đúng nhóm cần quan tâm.</p></div><div class="phfck-report-head-actions">'+(isManagerReport?'<button class="phfck-secondary" type="button" data-phfck-manager-report-back>← Checklist quản lý</button>':'')+(canExport?'<button class="phfck-primary" type="button" data-phfck-report-export>⇩ Xuất Excel kỳ</button>':'<span class="phfck-report-scope-chip">Chỉ xem báo cáo</span>')+'<button class="phfck-secondary" type="button" data-phfck-report-reload>↻ Làm mới</button></div></div>'
       +'<div class="phfck-report-live-note"><span></span><b>Dữ liệu cập nhật theo quyền</b><small>Phạm vi '+(data.source.scope&&data.source.scope.role==='admin'?'toàn công ty':'đã được Admin cấp')+' · cập nhật '+esc(data.source.generatedAt?new Date(data.source.generatedAt).toLocaleString('vi-VN'):'')+'</small></div>'
       +reportFiltersHtml(data)
       +reportWorkflowDashboardHtml()
-      +(forms.length?'<section class="phfck-exec-kpis"><article><span>Hoàn thành đánh giá</span><strong>'+done.length+'/'+forms.length+'</strong><small>'+complete.toFixed(0)+'% trong phạm vi xem</small></article><article><span>Điểm trung bình</span><strong>'+(done.length?avg.toFixed(1):'—')+'</strong><small>Chỉ tính phiếu đã có kết quả</small></article><article class="is-warning"><span>Đang chờ xử lý</span><strong>'+(waitingSelf+waitingReview)+'</strong><small>'+waitingSelf+' tự đánh giá · '+waitingReview+' thẩm định</small></article><article class="is-danger"><span>Nhân sự cần xem thêm</span><strong>'+attentionRows.length+'</strong><small>Điểm, lỗi, quá hạn hoặc ngoại lệ</small></article></section><section class="phfck-panel phfck-exec-insights"><div><small>NHẬN ĐỊNH NHANH</small><h3>Điều người điều hành cần biết</h3></div><ul>'+insights.slice(0,4).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></section><div class="phfck-exec-grid phfck-exec-grid-main">'+reportDepartmentChart(forms)+reportDistribution(forms)+'</div><div class="phfck-exec-grid">'+reportStatusPanel(forms)+reportTrend(data.source)+'</div><div class="phfck-exec-grid">'+reportIssues(data.violations)+'</div>'+reportTrainingSuggestions(data.repeatSuggestions,data.source)+reportAttentionTable(forms,data.violations,data.repeatSuggestions):'<section class="phfck-panel">'+reportEmptyHtml('Chưa có phiếu trong phạm vi đang xem','Thử đổi kỳ hoặc xóa bộ lọc. Báo cáo không tự tạo dữ liệu nếu kỳ chưa khởi tạo phiếu.')+'</section>');
+      +(forms.length?'<section class="phfck-exec-kpis"><article><span>Hoàn thành đánh giá</span><strong>'+completedForms.length+'/'+forms.length+'</strong><small>'+complete.toFixed(0)+'% trong phạm vi xem</small></article><article><span>Điểm trung bình</span><strong>'+(scoreEntries.length?avg.toFixed(1):'—')+'</strong><small>Ưu tiên kết quả chính thức · phiếu đã hoàn tất</small></article><article class="is-warning"><span>Đang chờ xử lý</span><strong>'+(waitingSelf+waitingReview)+'</strong><small>'+waitingSelf+' tự đánh giá · '+waitingReview+' thẩm định</small></article><article class="is-danger"><span>Nhân sự cần xem thêm</span><strong>'+attentionRows.length+'</strong><small>Điểm, lỗi, quá hạn hoặc ngoại lệ</small></article></section><section class="phfck-panel phfck-exec-insights"><div><small>NHẬN ĐỊNH NHANH</small><h3>Điều người điều hành cần biết</h3></div><ul>'+insights.slice(0,4).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></section><div class="phfck-exec-grid phfck-exec-grid-main">'+reportDepartmentChart(forms)+reportDistribution(forms)+'</div><div class="phfck-exec-grid">'+reportStatusPanel(forms)+reportTrend(data.source)+'</div><div class="phfck-exec-grid">'+reportIssues(data.violations)+'</div>'+reportTrainingSuggestions(data.repeatSuggestions,data.source)+reportAttentionTable(forms,data.violations,data.repeatSuggestions):'<section class="phfck-panel">'+reportEmptyHtml('Chưa có phiếu trong phạm vi đang xem','Thử đổi khoảng thời gian hoặc xóa bộ lọc. Báo cáo không tự tạo dữ liệu nếu kỳ chưa khởi tạo phiếu.')+'</section>');
   }
 
 
@@ -6491,7 +6553,8 @@
       if(e.target&&e.target.matches('[data-phfck-detail-time]')){violationUiState.detailTime=normalizeTime24(e.target.value,violationUiState.detailTime||currentTime24());e.target.value=violationUiState.detailTime;return;}
       if(e.target&&e.target.matches('[data-phfck-monthly-period]')){monthlyUiState.month=e.target.value||'';monthlyUiState.loadedMonth='';monthlyUiState.forms=[];loadMonthly(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-monthly-pilot-code]')){monthlyUiState.pilotCode=e.target.value||'';var pilotWorkspace=root.querySelector('[data-phfck-workspace]');if(pilotWorkspace)pilotWorkspace.innerHTML=monthlyHtml();return;}
-      if(e.target&&e.target.matches('[data-phfck-report-period]')){reportUiState.month=e.target.value||'';reportUiState.branch='';reportUiState.department='';reportUiState.status='';reportUiState.scoreBand='';reportUiState.issue='';loadChecklistReport(root,true);loadChecklistViolationWorkflowSummary(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-report-from]')){reportUiState.fromMonth=e.target.value||'';reportUiState.branch='';reportUiState.department='';reportUiState.status='';reportUiState.scoreBand='';reportUiState.issue='';loadChecklistReport(root,true);loadChecklistViolationWorkflowSummary(root,true);return;}
+      if(e.target&&e.target.matches('[data-phfck-report-to]')){reportUiState.toMonth=e.target.value||'';reportUiState.branch='';reportUiState.department='';reportUiState.status='';reportUiState.scoreBand='';reportUiState.issue='';loadChecklistReport(root,true);loadChecklistViolationWorkflowSummary(root,true);return;}
       if(e.target&&e.target.matches('[data-phfck-report-branch]')){reportUiState.branch=e.target.value||'';reportUiState.scoreBand='';reportUiState.issue='';renderChecklistReportIfCurrent(root);return;}
       if(e.target&&e.target.matches('[data-phfck-report-status]')){reportUiState.status=e.target.value||'';reportUiState.scoreBand='';reportUiState.issue='';renderChecklistReportIfCurrent(root);return;}
       if(e.target&&e.target.matches('[data-phfck-report-department]')){reportUiState.department=e.target.value||'';reportUiState.scoreBand='';reportUiState.issue='';var reportDeptForms=(reportUiState.data&&reportUiState.data.forms)||[],reportValidBranches=new Set(reportDeptForms.filter(function(x){return !reportUiState.department||reportCurrentDepartmentOf(x)===reportUiState.department;}).map(function(x){return reportCurrentBranchOf(x);}));if(reportUiState.branch&&!reportValidBranches.has(reportUiState.branch))reportUiState.branch='';renderChecklistReportIfCurrent(root);return;}
@@ -7384,7 +7447,7 @@
   function startRoleWorkspaceBackgroundLoads(root,ownerKey,force){
     if(roleWorkspaceState.ownerKey!==ownerKey||!roleWorkspaceState.loaded)return Promise.resolve(false);
     if(roleWorkspaceState.backgroundRequest&&!force)return roleWorkspaceState.backgroundRequest;
-    if(force){roleWorkspaceState.monthlyLoaded=false;roleWorkspaceState.reviewLoaded=false;roleWorkspaceState.taskLoaded=false;reportWorkflowUiState.data=null;reportWorkflowUiState.loadedMonth='';}
+    if(force){roleWorkspaceState.monthlyLoaded=false;roleWorkspaceState.reviewLoaded=false;roleWorkspaceState.taskLoaded=false;reportWorkflowUiState.data=null;reportWorkflowUiState.loadedRangeKey='';}
     roleWorkspaceState.monthlyLoading=!roleWorkspaceState.monthlyLoaded;
     roleWorkspaceState.reviewLoading=!roleWorkspaceState.reviewLoaded;
     roleWorkspaceState.taskLoading=!roleWorkspaceState.taskLoaded;
@@ -7610,7 +7673,7 @@
     /* Không giữ dữ liệu báo cáo của vai trò trước trong DOM/bộ nhớ khi đổi phiên đăng nhập.
        Backend vẫn kiểm tra lại phạm vi, lớp này chỉ ngăn giao diện cũ lóe lên trước khi request mới hoàn tất. */
     if(existingRole&&existingRole!==currentRole){
-      reportUiState.data=null;reportUiState.loadedMonth='';reportUiState.error='';reportUiState.loading=false;reportUiState.request=null;
+      reportUiState.data=null;reportUiState.loadedRangeKey='';reportUiState.error='';reportUiState.loading=false;reportUiState.request=null;
     }
     /* Nhân viên/quản lý chỉ xem và đánh giá không phải tải bộ xử lý Excel 0,9 MB.
        Admin tải nền khi thực sự vào Checklist để các nút Excel vẫn giữ nguyên. */
