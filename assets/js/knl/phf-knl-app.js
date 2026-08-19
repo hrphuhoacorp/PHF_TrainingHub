@@ -3827,9 +3827,15 @@ function gpCreateInitialState(){
   return { pool:null, poolLoading:false, poolLoaded:false, poolError:'',
     employeeQuery:'', employeeSelected:null,
     gradeOptions:null, gradeLoading:false, gradeSelectedId:'',
+    criteriaStandard:null, criteriaLoading:false, criteriaError:'', assessment:{},
     approverOptions:null, approverLoading:false, approverQuery:'', approverSelectedCode:'',
     reason:'', submitting:false, error:'' };
 }
+var GP_CRITERIA_MAPPING_ERROR_LABELS = {
+  no_framework_assignment: 'Nhân sự chưa có Khung năng lực (KNL) đang áp dụng — chưa thể tạo Đề xuất nâng bậc.',
+  grade_not_mapped: 'Bậc đề xuất không khớp với bất kỳ bậc nào trong Khung năng lực đang áp dụng của nhân sự — vui lòng liên hệ Admin kiểm tra mapping bậc lương/bậc năng lực.',
+  no_requirements: 'Bậc đề xuất chưa có tiêu chí năng lực nào được thiết lập trong Khung năng lực — chưa thể tạo Đề xuất nâng bậc.'
+};
 /* 3 dataset (awaiting/mine/visible) đều có loading/loaded/loadError RIÊNG —
  * bắt buộc để gpListBodyHtml() phân biệt được "chưa fetch bao giờ"/"đang
  * fetch" với "đã fetch xong và rỗng thật" (mục 4 báo cáo bug initial-load).
@@ -4008,14 +4014,51 @@ function gpGradeBlockHtml(){
     '</div></div>';
 }
 
-/* 03 — Người nhận xử lý: CHỈ render khi backend báo required=true (đúng điều
+/* 03 — Đánh giá theo tiêu chí bậc đề xuất (Phase 2, Assessment V1): hệ thống
+ * kéo đúng tiêu chí/chuẩn của bậc đề xuất qua getKnlGradePromotionCriteriaStandard
+ * (bridge compensation grade_code -> competency knl_grade_definitions, xem
+ * lib/knl-competency.js:resolveCompetencyStandardForGradeCode). Người khởi
+ * tạo đánh giá GỌN Đạt/Chưa đạt + ghi chú (bắt buộc khi Chưa đạt) từng tiêu
+ * chí — KHÔNG cho gửi khi chưa đánh giá đủ (xem gpCreateCanSubmit()). Không
+ * resolve được mapping / bậc chưa có tiêu chí nào -> BLOCK hẳn (không có
+ * checklist để render), đúng business decision đã chốt "không cho proposal
+ * rỗng". */
+function gpCriteriaBlockHtml(){
+  var c=gpState.create;
+  if(!c.gradeSelectedId)return '';
+  var head='<div class="phfk-gp-block-head"><span class="phfk-gp-step">03</span><h3>Đánh giá theo tiêu chí bậc đề xuất</h3></div>';
+  if(c.criteriaLoading)return '<div class="phfk-gp-block">'+head+'<p class="phfk-loading">Đang tải tiêu chí…</p></div>';
+  if(c.criteriaError)return '<div class="phfk-gp-block">'+head+'<p class="phfk-error">'+esc(c.criteriaError)+'</p></div>';
+  var std=c.criteriaStandard;
+  if(!std)return '';
+  var groupsHtml=(std.groups||[]).map(function(g){
+    var itemsHtml=(g.items||[]).map(function(it){
+      var a=c.assessment[it.id]||{result:'',note:''};
+      return '<div class="phfk-gp-criteria-item">'+
+        '<div class="phfk-gp-criteria-item-head"><b>'+esc(it.name)+'</b>'+(it.requiredColumnLabel?'<small>Yêu cầu: '+esc(it.requiredColumnLabel)+'</small>':'')+'</div>'+
+        (it.content?'<p class="phfk-gp-criteria-content">'+esc(it.content)+'</p>':'')+
+        '<div class="phfk-gp-criteria-toggle" role="group">'+
+          '<label class="'+(a.result==='met'?'is-active':'')+'"><input type="radio" name="gp-criteria-result-'+esc(it.id)+'" value="met" class="phfk-sr-only" data-gp-criteria-result="'+esc(it.id)+'"'+(a.result==='met'?' checked':'')+'>Đạt</label>'+
+          '<label class="'+(a.result==='not_met'?'is-active':'')+'"><input type="radio" name="gp-criteria-result-'+esc(it.id)+'" value="not_met" class="phfk-sr-only" data-gp-criteria-result="'+esc(it.id)+'"'+(a.result==='not_met'?' checked':'')+'>Chưa đạt</label>'+
+        '</div>'+
+        (a.result==='not_met'
+          ?'<textarea class="phfk-input phfk-gp-criteria-note" placeholder="Ghi chú/minh chứng (bắt buộc khi Chưa đạt)…" data-gp-criteria-note="'+esc(it.id)+'">'+esc(a.note)+'</textarea>'
+          :'<input type="text" class="phfk-input phfk-gp-criteria-note" placeholder="Ghi chú/minh chứng (không bắt buộc)…" data-gp-criteria-note="'+esc(it.id)+'" value="'+esc(a.note)+'">')+
+        '</div>';
+    }).join('');
+    return '<div class="phfk-gp-criteria-group"><h4>'+esc(g.name)+'</h4>'+itemsHtml+'</div>';
+  }).join('');
+  return '<div class="phfk-gp-block">'+head+'<p class="phfk-gp-hint">Khung: '+esc(std.framework?std.framework.name:'')+' · Bậc: '+esc(std.gradeCode)+'</p>'+groupsHtml+'</div>';
+}
+
+/* 04 — Người nhận xử lý: CHỈ render khi backend báo required=true (đúng điều
  * kiện cũ "thuộc Bán hàng và bản thân không phải Trưởng ca"). Picker chỉ từ
  * approverOptions.approvers (getKnlGradePromotionApproverOptions) — không
  * free text, không thể gõ mã tuỳ ý. */
 function gpApproverBlockHtml(){
   var c=gpState.create;
   if(!c.employeeSelected||!c.gradeOptions||c.gradeOptions.hasBaseline!==true)return '';
-  var head='<div class="phfk-gp-block-head"><span class="phfk-gp-step">03</span><h3>Người nhận xử lý</h3></div>';
+  var head='<div class="phfk-gp-block-head"><span class="phfk-gp-step">04</span><h3>Người nhận xử lý</h3></div>';
   if(c.approverLoading)return '<div class="phfk-gp-block">'+head+'<p class="phfk-loading">Đang kiểm tra người nhận xử lý…</p></div>';
   var ao=c.approverOptions;
   if(!ao||ao.required!==true)return '';
@@ -4039,22 +4082,34 @@ function gpApproverBlockHtml(){
   return '<div class="phfk-gp-block">'+head+'<p class="phfk-gp-hint">Bắt buộc — nhân sự thuộc Bán hàng và bản thân bạn không phải Trưởng ca.</p>'+body+'</div>';
 }
 
-/* 04 — Lý do đề xuất: textarea, chỉ thêm helper text hướng dẫn nhập liệu
+/* 05 — Lý do đề xuất: textarea, chỉ thêm helper text hướng dẫn nhập liệu
  * (không tự sinh nội dung), giữ nguyên validation backend (min 5 ký tự). */
 function gpReasonBlockHtml(){
   var c=gpState.create;
   if(!c.employeeSelected)return '';
-  return '<div class="phfk-gp-block"><div class="phfk-gp-block-head"><span class="phfk-gp-step">04</span><h3>Lý do đề xuất</h3></div>'+
+  return '<div class="phfk-gp-block"><div class="phfk-gp-block-head"><span class="phfk-gp-step">05</span><h3>Lý do đề xuất</h3></div>'+
     '<p class="phfk-gp-hint">Nêu kết quả công việc, sự phát triển năng lực, trách nhiệm hoặc căn cứ cho đề xuất nâng bậc.</p>'+
     '<textarea class="phfk-input phfk-gp-reason" data-gp-reason placeholder="Nhập lý do đề xuất…" minlength="5">'+esc(c.reason)+'</textarea>'+
     '</div>';
 }
 
+function gpCriteriaFlatItems(c){
+  var items=[]; (c.criteriaStandard&&c.criteriaStandard.groups||[]).forEach(function(g){items=items.concat(g.items||[]);});
+  return items;
+}
 function gpCreateCanSubmit(){
   var c=gpState.create;
   if(!c.employeeSelected)return false;
   if(!c.gradeOptions||c.gradeOptions.hasBaseline!==true)return false;
   if(!c.gradeSelectedId)return false;
+  if(!c.criteriaStandard)return false; // chưa resolve được mapping tiêu chí -> không cho gửi (BLOCK)
+  var items=gpCriteriaFlatItems(c);
+  if(!items.length)return false;
+  for(var i=0;i<items.length;i++){
+    var a=c.assessment[items[i].id];
+    if(!a||!a.result)return false;
+    if(a.result==='not_met'&&String(a.note||'').trim().length<3)return false;
+  }
   if(String(c.reason||'').trim().length<5)return false;
   if(c.approverOptions&&c.approverOptions.required===true){
     if(c.approverOptions.configured===false)return false;
@@ -4088,6 +4143,7 @@ function gpCreateFormHtml(){
   return '<form class="phfk-panel phfk-gp-create-form" data-gp-create-form>'+
     gpEmployeePickerHtml()+
     gpGradeBlockHtml()+
+    gpCriteriaBlockHtml()+
     gpApproverBlockHtml()+
     gpReasonBlockHtml()+
     gpSummaryBlockHtml()+
@@ -4125,6 +4181,7 @@ function gpDetailHtml(){
     '</section>';
 
   var workflowOverview = gpWorkflowOverviewHtml(d);
+  var criteriaSnapshotBlock = gpCriteriaSnapshotHtml(d.criteriaSnapshot);
 
   var steps = d.steps||[];
   var historyOpen = steps.length<=3;
@@ -4158,7 +4215,26 @@ function gpDetailHtml(){
       '<form data-gp-withdraw-form><label class="phfk-field"><span>Lý do rút đề xuất</span><textarea class="phfk-input" name="reason" minlength="5" required'+(wBusy?' disabled':'')+'></textarea></label>'+
       '<div class="phfk-form-actions"><button type="submit" class="phfk-btn-secondary"'+(wBusy?' disabled':'')+'>'+(wBusy?'Đang xử lý…':'Xác nhận rút đề xuất')+'</button></div></form></details>';
   }
-  return '<div class="phfk-gp-detail">'+head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+workflowOverview+history+actions+withdrawBlock+'</div>';
+  return '<div class="phfk-gp-detail">'+head+(gpState.error?'<p class="phfk-error">'+esc(gpState.error)+'</p>':'')+(gpState.message?'<p class="phfk-success">'+esc(gpState.message)+'</p>':'')+criteriaSnapshotBlock+workflowOverview+history+actions+withdrawBlock+'</div>';
+}
+
+/* Snapshot Đánh giá theo tiêu chí — READ-ONLY, người duyệt/thẩm định xem lại
+ * ĐÚNG bảng người tạo đã đánh giá lúc gửi (business decision: agree/approve
+ * CHỈ xem, không sửa — không có form nào ở đây). d.criteriaSnapshot đến từ
+ * getKnlGradePromotionProposalDetail() (lib/knl-grade-proposals.js), null nếu
+ * proposal cũ (tạo trước batch này, chưa có snapshot) hoặc chưa apply migration. */
+function gpCriteriaSnapshotHtml(snapshot){
+  if(!snapshot||!Array.isArray(snapshot.groups)||!snapshot.groups.length)return '';
+  var groupsHtml=snapshot.groups.map(function(g){
+    var itemsHtml=(g.items||[]).map(function(it){
+      var resLabel = it.result==='met' ? 'Đạt' : (it.result==='not_met' ? 'Chưa đạt' : '—');
+      var pillClass = it.result==='met' ? 'phfk-pill-approved' : 'phfk-pill-rejected';
+      return '<div class="phfk-gp-criteria-item is-readonly"><div class="phfk-gp-criteria-item-head"><b>'+esc(it.name)+'</b><span class="phfk-pill '+pillClass+'">'+esc(resLabel)+'</span></div>'+
+        (it.note?'<p class="phfk-gp-criteria-note-view">'+esc(it.note)+'</p>':'')+'</div>';
+    }).join('');
+    return '<div class="phfk-gp-criteria-group"><h4>'+esc(g.name)+'</h4>'+itemsHtml+'</div>';
+  }).join('');
+  return '<section class="phfk-panel phfk-gp-criteria-snapshot"><h2>Đánh giá theo tiêu chí ('+esc(snapshot.gradeCode||'')+')</h2>'+groupsHtml+'</section>';
 }
 
 /* "TIẾN TRÌNH XỬ LÝ" (mục 7 batch giám sát Admin) — tách biệt hoàn toàn khỏi
@@ -4264,6 +4340,25 @@ async function loadGpGradeAndApproverOptions(root,employeeCode){
   }
 }
 
+async function loadGpCriteriaStandard(root,employeeCode,gradeCode){
+  var c=gpState.create;
+  c.criteriaLoading=true; c.criteriaError=''; c.criteriaStandard=null;
+  renderGpBody(root);
+  try{
+    var res=await apiPost('getKnlGradePromotionCriteriaStandard',{employeeCode:employeeCode,proposedGradeCode:gradeCode});
+    if(res.mapped===true){
+      c.criteriaStandard=res;
+      var assessment={};
+      (res.groups||[]).forEach(function(g){(g.items||[]).forEach(function(it){assessment[it.id]={result:'',note:''};});});
+      c.assessment=assessment;
+    }else{
+      c.criteriaError=GP_CRITERIA_MAPPING_ERROR_LABELS[res.reason]||'Không thể xác định tiêu chí năng lực cho bậc đề xuất.';
+    }
+  }catch(e){ c.criteriaError=e.message; }
+  c.criteriaLoading=false;
+  renderGpBody(root);
+}
+
 function bindGpCreateForm(root){
   var form=root.querySelector('[data-gp-create-form]');
   if(!form)return;
@@ -4275,18 +4370,33 @@ function bindGpCreateForm(root){
     var pickedCode=btn.getAttribute('data-gp-employee-pick');
     var person=(c.pool||[]).find(function(p){return p.employeeCode===pickedCode;});
     if(!person)return;
-    c.employeeSelected=person; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
+    c.employeeSelected=person; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.criteriaStandard=null; c.criteriaError=''; c.assessment={}; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
     renderGpBody(root);
     loadGpGradeAndApproverOptions(root,person.employeeCode);
   });});
   var empClear=form.querySelector('[data-gp-employee-clear]');
   if(empClear)empClear.addEventListener('click',function(){
-    c.employeeSelected=null; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
+    c.employeeSelected=null; c.employeeQuery=''; c.gradeOptions=null; c.gradeSelectedId=''; c.criteriaStandard=null; c.criteriaError=''; c.assessment={}; c.approverOptions=null; c.approverSelectedCode=''; c.approverQuery=''; c.error='';
     renderGpBody(root);
   });
 
   form.querySelectorAll('[data-gp-grade-radio]').forEach(function(radio){radio.addEventListener('change',function(){
-    c.gradeSelectedId=radio.value; renderGpBody(root);
+    c.gradeSelectedId=radio.value; c.criteriaStandard=null; c.criteriaError=''; c.assessment={};
+    renderGpBody(root);
+    var grade=(c.gradeOptions&&c.gradeOptions.nextGrades||[]).find(function(g){return g.id===c.gradeSelectedId;});
+    if(grade) loadGpCriteriaStandard(root, c.employeeSelected.employeeCode, grade.gradeCode);
+  });});
+  form.querySelectorAll('[data-gp-criteria-result]').forEach(function(radio){radio.addEventListener('change',function(){
+    var id=radio.getAttribute('data-gp-criteria-result');
+    if(!c.assessment[id])c.assessment[id]={result:'',note:''};
+    c.assessment[id].result=radio.value;
+    renderGpBody(root);
+  });});
+  form.querySelectorAll('[data-gp-criteria-note]').forEach(function(input){input.addEventListener('input',function(){
+    var id=input.getAttribute('data-gp-criteria-note');
+    if(!c.assessment[id])c.assessment[id]={result:'',note:''};
+    c.assessment[id].note=input.value;
+    if(submitBtn)submitBtn.disabled=!gpCreateCanSubmit();
   });});
 
   var apprSearch=form.querySelector('[data-gp-approver-search]');
@@ -4310,11 +4420,16 @@ function bindGpCreateForm(root){
     c.submitting=true; c.error='';
     if(submitBtn){ submitBtn.disabled=true; submitBtn.textContent='Đang tạo…'; }
     try{
+      var assessment=gpCriteriaFlatItems(c).map(function(it){
+        var a=c.assessment[it.id]||{};
+        return {itemId:it.id, result:a.result, note:a.note||''};
+      });
       await apiPost('createKnlGradePromotionProposal',{proposal:{
         employeeCode:c.employeeSelected.employeeCode,
         reason:c.reason,
         proposedGradeId:c.gradeSelectedId,
-        selectedFirstApproverEmployeeCode:c.approverSelectedCode||undefined
+        selectedFirstApproverEmployeeCode:c.approverSelectedCode||undefined,
+        assessment:assessment
       }});
       gpState.message='Đã tạo Đề xuất nâng bậc.'; gpState.create=gpCreateInitialState(); gpState.view='mine';
       await loadGpMine(root);

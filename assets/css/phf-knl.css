@@ -686,6 +686,28 @@
   .phfk-gp-grade-arrow{transform:rotate(90deg)}
 }
 
+/* Đánh giá theo tiêu chí (Phase 2, Assessment V1) — checklist gọn Đạt/Chưa
+ * đạt + ghi chú, dùng lại đúng ngôn ngữ .phfk-gp-grade-card (toggle qua
+ * :has(input:checked)) và .phfk-pill-approved/.phfk-pill-rejected đã có. */
+.phfk-gp-criteria-group{margin-bottom:16px}
+.phfk-gp-criteria-group:last-child{margin-bottom:0}
+.phfk-gp-criteria-group h4{margin:0 0 8px;font-size:12px;font-weight:800;color:var(--phfk-muted);text-transform:uppercase;letter-spacing:.04em}
+.phfk-gp-criteria-item{padding:12px 14px;border:1px solid var(--phfk-line);border-radius:10px;background:#fff;margin-bottom:10px}
+.phfk-gp-criteria-item:last-child{margin-bottom:0}
+.phfk-gp-criteria-item-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.phfk-gp-criteria-item-head b{font-size:13px;color:var(--phfk-ink)}
+.phfk-gp-criteria-item-head small{color:var(--phfk-muted);font-size:11px}
+.phfk-gp-criteria-content{margin:0 0 10px;color:var(--phfk-muted);font-size:12px;line-height:1.5}
+.phfk-gp-criteria-toggle{display:flex;gap:8px;margin-bottom:8px}
+.phfk-gp-criteria-toggle label{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--phfk-line);border-radius:8px;background:#fff;cursor:pointer;font-weight:700;font-size:12.5px;color:var(--phfk-ink);transition:border-color .12s ease}
+.phfk-gp-criteria-toggle label:hover{border-color:#b7cfc1}
+.phfk-gp-criteria-toggle label.is-active{border-color:var(--phfk-green);color:var(--phfk-green-deep);box-shadow:inset 0 0 0 1px var(--phfk-green)}
+.phfk-gp-criteria-note{margin:0;min-height:auto}
+textarea.phfk-gp-criteria-note{min-height:64px;resize:vertical}
+.phfk-gp-criteria-item.is-readonly{background:var(--phfk-neutral-bg)}
+.phfk-gp-criteria-note-view{margin:0;color:var(--phfk-muted);font-size:12px;line-height:1.5}
+.phfk-gp-criteria-snapshot h2{margin:0 0 12px}
+
 /* Status pill (Đề xuất nâng bậc) — .phfk-pill trước đây chưa có style nào
  * (text thô, không viền/nền). Chuẩn hoá nhẹ đúng ngôn ngữ đã có (viền mỏng,
  * không nền đặc, giống .phfk-source-status) — CHỈ presentation, KHÔNG đổi
