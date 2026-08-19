@@ -5058,3 +5058,21 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
   .phfck-latewf-recon-card header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   .phfck-latewf-recon-card p{margin:0;font-size:12px;color:var(--phfck-muted)}
 }
+/* T08 Transition Import (2026-08-19) - reuse phfck-notice/phfck-table/phfck-settings-card sẵn có, chỉ thêm bố cục riêng cho khu upload/tổng hợp. */
+.phfck-notice.is-error{background:#fdf3f1;border-color:#e6c3ba}
+.phfck-notice.is-error b{color:#a04c40}
+.phfck-transition-upload{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.phfck-transition-upload-btn{cursor:pointer}
+.phfck-transition-filename{font-size:12px;color:#4e675e}
+.phfck-transition-filename.is-empty{color:#8a9a94}
+.phfck-transition-subhead{margin:20px 0 10px;color:#173f33;font-size:13px;font-weight:700}
+.phfck-transition-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.phfck-transition-summary article{border:1px solid var(--phfck-line);border-radius:12px;padding:10px 12px;background:#fbfdfc}
+.phfck-transition-summary article span{display:block;font-size:10.5px;color:#75877f}
+.phfck-transition-summary article b{display:block;font-size:18px;color:#2e4d43;margin-top:4px}
+.phfck-transition-summary article.is-ready{border-color:#bfe0cc;background:#f0f8f4}
+.phfck-transition-summary article.is-ready b{color:#1c6b47}
+.phfck-transition-summary article.is-exception{border-color:#e6c3ba;background:#fdf3f1}
+.phfck-transition-summary article.is-exception b{color:#a04c40}
+.phfck-transition-no-exception{color:#5f766d;font-size:12px}
+@media(max-width:900px){.phfck-transition-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}

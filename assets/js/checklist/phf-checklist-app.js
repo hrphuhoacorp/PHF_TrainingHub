@@ -1455,10 +1455,10 @@
   var monthlyUiState={status:'all',month:'',department:'',branch:'',selectedId:'',loading:false,loadedMonth:'',error:'',period:null,forms:[],reviewerCandidates:[],query:'',creating:false,opening:false,locking:false,openingException:false,pilotOpening:false,pilotCode:'PHF012',changingReviewer:false,savingReview:false,exporting:false,recoveryLoading:false,recoverySyncing:false,recoveryPreview:null,recoveryIdempotencyKey:'',deletePreview:null,deleteLoading:false,deleteIdempotencyKey:''};
   var marketingKpiUiState={open:false,loading:false,saving:false,error:'',period:'',templateId:'tbp-mkt-1.0',data:null,rows:[],reason:''};
   var reportUiState={view:'summary',month:'',branch:'',department:'',status:'',scoreBand:'',issue:'',showAllDepartments:false,loading:false,loadedMonth:'',error:'',data:null,request:null};
-  var checklistScoreUiState={mode:'current',month:'',department:'',branch:'',managerCode:'',query:'',loading:false,loadedKey:'',error:'',data:null,periodFromMonth:'',periodToMonth:'',periodDepartment:'',periodBranch:'',periodQuery:'',periodLoading:false,periodLoadedKey:'',periodError:'',periodData:null,periodFullView:false,periodDetail:null};
-  var checklistScoreSearchTimer=null,checklistScorePeriodSearchTimer=null;
+  var checklistScoreUiState={mode:'current',month:'',department:'',branch:'',managerCode:'',query:'',loading:false,loadedKey:'',error:'',data:null,periodFromMonth:'',periodToMonth:'',periodDepartment:'',periodBranch:'',periodQuery:'',periodLoading:false,periodLoadedKey:'',periodError:'',periodData:null,periodFullView:false,periodDetail:null,annualYear:'',annualDepartment:'',annualBranch:'',annualQuery:'',annualLoading:false,annualLoadedKey:'',annualError:'',annualData:null};
+  var checklistScoreSearchTimer=null,checklistScorePeriodSearchTimer=null,checklistScoreAnnualSearchTimer=null;
   var reportWorkflowUiState={loading:false,loadedMonth:'',error:'',data:null,request:null};
-  var settingsUiState={section:'permissions',permissionQuery:'',permissionStatus:'all',permissionBusy:false,permissionLoading:false,permissionLoadedAt:0,permissionPeopleConfirmedAt:0,permissionPeopleAudit:null,permissionPeopleSyncing:false,pendingImport:null,monthlyPolicy:null,monthlyPolicyLoading:false,monthlyPolicySaving:false,monthlyCycle:null,monthlyCycleLoading:false,monthlyCycleSaving:false,monthlyCycleSyncing:false,deadlineEditing:false,deadlineSaving:false,latePolicy:null,latePolicies:[],latePolicyHistory:[],latePolicyLoading:false,latePolicySaving:false,latePolicyEditing:false,latePolicyDraft:null,repeatPolicy:null,repeatPolicies:[],repeatPolicyHistory:[],repeatPolicyLoading:false,repeatPolicySaving:false,repeatPolicyEditing:false,repeatPolicyDraft:null,repeatSuggestionPeriod:todayIso().slice(0,7),repeatSuggestions:null,repeatSuggestionLoading:false,scorePolicy:null,scorePolicies:[],scorePolicyHistory:[],scorePolicyLoading:false,scorePolicySaving:false,scorePolicyEditing:false,scorePolicyDraft:null};
+  var settingsUiState={section:'permissions',permissionQuery:'',permissionStatus:'all',permissionBusy:false,permissionLoading:false,permissionLoadedAt:0,permissionPeopleConfirmedAt:0,permissionPeopleAudit:null,permissionPeopleSyncing:false,pendingImport:null,monthlyPolicy:null,monthlyPolicyLoading:false,monthlyPolicySaving:false,monthlyCycle:null,monthlyCycleLoading:false,monthlyCycleSaving:false,monthlyCycleSyncing:false,deadlineEditing:false,deadlineSaving:false,latePolicy:null,latePolicies:[],latePolicyHistory:[],latePolicyLoading:false,latePolicySaving:false,latePolicyEditing:false,latePolicyDraft:null,repeatPolicy:null,repeatPolicies:[],repeatPolicyHistory:[],repeatPolicyLoading:false,repeatPolicySaving:false,repeatPolicyEditing:false,repeatPolicyDraft:null,repeatSuggestionPeriod:todayIso().slice(0,7),repeatSuggestions:null,repeatSuggestionLoading:false,scorePolicy:null,scorePolicies:[],scorePolicyHistory:[],scorePolicyLoading:false,scorePolicySaving:false,scorePolicyEditing:false,scorePolicyDraft:null,transitionRows:null,transitionFileName:'',transitionParseError:'',transitionPreview:null,transitionPreviewLoading:false,transitionPreviewError:'',transitionConfirming:false,transitionConfirmResult:null,transitionConfirmError:''};
   var notificationUiState={query:'',category:'all',rules:null,ready:false,loadingRules:false,loadingInbox:false,error:'',inboxError:'',inbox:[],unreadCount:0,inboxOpen:false};
   function checklistNotificationRequest(action,payload){
     return fetch('/api/data?checklistNotifications=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify(Object.assign({action:action},payload||{}))}).then(function(response){return response.json().catch(function(){return {};}).then(function(data){if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể xử lý thông báo Checklist.');return data;});});
@@ -5269,7 +5269,7 @@
   }
 
 
-  var SETTINGS_TAB_DEFS=[['permissions','Phân quyền & phạm vi','Ai được làm gì, với ai'],['cycle','Kỳ đánh giá & khóa','Mốc xử lý và phiếu tháng'],['violationRules','Ghi nhận lỗi & điểm','Quy tắc, điểm trừ và cảnh báo'],['notifications','Thông báo','Nhắc đúng người, đúng việc']];
+  var SETTINGS_TAB_DEFS=[['permissions','Phân quyền & phạm vi','Ai được làm gì, với ai'],['cycle','Kỳ đánh giá & khóa','Mốc xử lý và phiếu tháng'],['violationRules','Ghi nhận lỗi & điểm','Quy tắc, điểm trừ và cảnh báo'],['notifications','Thông báo','Nhắc đúng người, đúng việc'],['transitionImport','Nhập điểm chuyển tiếp T08','Kết quả tháng 8/2026 cho đơn vị chưa vận hành live']];
   /* Tab "Phân quyền & phạm vi" thuộc capability quản lý phân quyền
      (canManageChecklistPermissions - admin hoặc TRO_LY_GD); 3 tab còn lại
      thuộc capability quản trị lõi (canManageChecklistCore - chỉ admin, khớp
@@ -5278,7 +5278,7 @@
   function allowedSettingsTabs(){
     var tabs=[];
     if(canManageChecklistPermissions())tabs.push('permissions');
-    if(canManageChecklistCore())tabs.push('cycle','violationRules','notifications');
+    if(canManageChecklistCore())tabs.push('cycle','violationRules','notifications','transitionImport');
     return tabs;
   }
   /* Nguồn duy nhất "tab nào đang thực sự hiển thị": nếu settingsUiState.section
@@ -5738,7 +5738,136 @@
   function auditSettingsHtml(){return '<section class="phfck-settings-grid"><article class="phfck-panel phfck-settings-card"><div class="phfck-panel-head"><div><small>NHẬT KÝ NGHIỆP VỤ</small><h3>Phải lưu trước–sau</h3></div></div>'+settingSwitch('Phân công và đổi mẫu','Lưu người đổi, thời gian, lý do và khoảng hiệu lực.',true,true)+settingSwitch('Điều chỉnh/hủy lỗi','Lưu giá trị cũ, mới và người phê duyệt.',true,true)+settingSwitch('Sửa sau khóa','Bắt buộc lý do và không được xóa lịch sử.',true,true)+'</article><article class="phfck-panel phfck-settings-card"><div class="phfck-panel-head"><div><small>XÓA & KHÔI PHỤC</small><h3>An toàn dữ liệu</h3></div></div>'+settingSwitch('Soft delete mặc định','Dữ liệu đã dùng báo cáo không xóa cứng trực tiếp.',true,true)+settingSwitch('Thùng rác có kiểm soát','Khôi phục hoặc xóa vĩnh viễn chỉ dành cho Admin được cấp quyền.',true,true)+'</article><article class="phfck-panel phfck-settings-card phfck-settings-wide"><div class="phfck-panel-head"><div><small>BẢO MẬT KHI NỐI DỮ LIỆU</small><h3>Điều kiện trước production</h3></div></div><div class="phfck-audit-checks"><div><span>✓</span><p><b>RLS/revoke ngay từ đầu</b><small>Mọi bảng checklist_* và Storage phải được bảo vệ server-side.</small></p></div><div><span>✓</span><p><b>Health kiểm tra DB thật</b><small>Lỗi kết nối phải trả 503, không báo xanh giả.</small></p></div><div><span>✓</span><p><b>Smoke test route và quyền</b><small>Cập nhật đồng thời khi thêm API hoặc route mới.</small></p></div><div><span>✓</span><p><b>Release sạch</b><small>Không chứa .env, private, backup hoặc node_modules.</small></p></div></div></article></section>';}
   function cycleSettingsHtml(){return '<div class="phfck-settings-combined">'+deadlinesSettingsHtml()+monthlySettingsHtml()+'</div>';}
   function violationRulesSettingsHtml(){return '<div class="phfck-settings-combined phfck-violation-rules-ui">'+violationsSettingsHtml()+scoringSettingsHtml()+'</div>';}
-  function settingsContentHtml(){var map={permissions:permissionsSettingsHtml,cycle:cycleSettingsHtml,violationRules:violationRulesSettingsHtml,notifications:notificationsSettingsHtml};return (map[settingsUiState.section]||permissionsSettingsHtml)();}
+  /*
+   * T08 Transition Import (2026-08-19) — màn Admin-only trong Cài đặt Checklist
+   * (canManageChecklistCore()===role()==='admin', không tạo permission mới).
+   * Upload → Xem trước → Tổng hợp → Dòng ngoại lệ → Xác nhận. CHỈ nhập kết quả
+   * cuối cùng cho các đơn vị CHƯA vận hành Checklist live trong T08 (Lái Thiêu/
+   * Ngô Quyền bị chặn ở tầng server - xem lib/checklist-monthly-results.js). Reuse
+   * NGUYÊN VẸN ensureChecklistXlsx()/violationExcelCell() đã có, không thêm
+   * dependency mới. Không alert()/confirm()/prompt() - dùng phfckConfirm()/
+   * checklistToast() sẵn có.
+   */
+  var TRANSITION_STATUS_LABELS={
+    READY:'Sẵn sàng nhập', SKIP_LT_NQ_LIVE:'Bỏ qua - chi nhánh đang vận hành live',
+    SKIP_NOT_CURRENT_EMPLOYEE:'Không còn trong hệ thống', SKIP_INACTIVE:'Không hoạt động',
+    MISSING_CODE:'Thiếu mã nhân viên', INVALID_SCORE:'Điểm ngoài khoảng hợp lệ',
+    NEED_REVIEW:'Cần kiểm tra thủ công', DUPLICATE:'Đã nhập trước đó (trùng)',
+    CONFLICT_SYSTEM_LIVE:'Xung đột - đã có kết quả live chính thức', CONFLICT:'Xung đột dữ liệu khác nguồn'
+  };
+  var TRANSITION_SUMMARY_ROWS=[
+    ['READY','Sẵn sàng nhập'],['SKIP_LT_NQ_LIVE','Bỏ qua chi nhánh live (LT/NQ)'],
+    ['SKIP_NOT_CURRENT_EMPLOYEE','Không còn trong hệ thống'],['SKIP_INACTIVE','Không hoạt động'],
+    ['MISSING_CODE','Thiếu mã nhân viên'],['INVALID_SCORE','Điểm không hợp lệ'],
+    ['NEED_REVIEW','Cần kiểm tra'],['DUPLICATE','Trùng'],
+    ['CONFLICT_SYSTEM_LIVE','Xung đột dữ liệu live'],['CONFLICT','Xung đột dữ liệu khác']
+  ];
+  function transitionStatusLabel(status){return TRANSITION_STATUS_LABELS[status]||status;}
+  function transitionParseCsv(text){
+    var rows=[],cur=[],field='',inQuotes=false;
+    for(var i=0;i<text.length;i++){var ch=text[i];
+      if(inQuotes){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++;}else inQuotes=false;}else field+=ch;}
+      else if(ch==='"')inQuotes=true;
+      else if(ch===','){cur.push(field);field='';}
+      else if(ch==='\r'){}
+      else if(ch==='\n'){cur.push(field);rows.push(cur);cur=[];field='';}
+      else field+=ch;
+    }
+    if(field.length||cur.length){cur.push(field);rows.push(cur);}
+    if(!rows.length)return [];
+    var header=rows[0].map(function(h){return String(h||'').trim();});
+    return rows.slice(1).filter(function(r){return r.some(function(c){return String(c||'').trim()!=='';});}).map(function(r){
+      var obj={};header.forEach(function(h,idx){obj[h]=r[idx]==null?'':r[idx];});return obj;
+    });
+  }
+  function transitionRowsFromSheetRows(sheetRows){
+    return sheetRows.map(function(r){
+      return {
+        employeeCode:String(violationExcelCell(r,['Mã nhân viên','Ma nhan vien','Ma_nhan_vien','employeeCode'])||'').trim(),
+        employeeName:String(violationExcelCell(r,['Họ tên','Ho ten','Ho_ten','employeeName'])||'').trim(),
+        rawValue:violationExcelCell(r,['Điểm T08','Diem T08','Điểm','Diem','rawValue'])
+      };
+    });
+  }
+  function parseTransitionImportFile(file){
+    return new Promise(function(resolve,reject){
+      if(/\.csv$/i.test(file.name)){
+        var csvReader=new FileReader();
+        csvReader.onload=function(){try{resolve(transitionRowsFromSheetRows(transitionParseCsv(String(csvReader.result||''))));}catch(err){reject(err);}};
+        csvReader.onerror=function(){reject(new Error('Không đọc được file CSV.'));};
+        csvReader.readAsText(file,'utf-8');
+        return;
+      }
+      if(!/\.xlsx?$/i.test(file.name)){reject(new Error('Chỉ chấp nhận file .xlsx, .xls hoặc .csv.'));return;}
+      ensureChecklistXlsx().then(function(){
+        var reader=new FileReader();
+        reader.onload=function(){try{
+          var wb=XLSX.read(reader.result,{type:'array',cellDates:false}),sheet=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
+          resolve(transitionRowsFromSheetRows(rows));
+        }catch(err){reject(err);}};
+        reader.onerror=function(){reject(new Error('Không đọc được file Excel.'));};
+        reader.readAsArrayBuffer(file);
+      }).catch(reject);
+    });
+  }
+  async function runChecklistTransitionPreview(root){
+    if(!settingsUiState.transitionRows||!settingsUiState.transitionRows.length)return;
+    settingsUiState.transitionPreviewLoading=true;settingsUiState.transitionPreviewError='';settingsUiState.transitionPreview=null;settingsUiState.transitionConfirmResult=null;settingsUiState.transitionConfirmError='';
+    var ws=root&&root.querySelector('[data-phfck-workspace]');if(ws)ws.innerHTML=settingsHtml();
+    try{
+      var response=await fetch('/api/data',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'previewChecklistTransitionImport',rows:settingsUiState.transitionRows})});
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể xem trước dữ liệu.');
+      settingsUiState.transitionPreview=data;
+    }catch(err){settingsUiState.transitionPreviewError=err&&err.message?err.message:'Không thể kết nối dữ liệu.';}
+    finally{settingsUiState.transitionPreviewLoading=false;var ws2=root&&root.querySelector('[data-phfck-workspace]');if(ws2)ws2.innerHTML=settingsHtml();}
+  }
+  async function runChecklistTransitionConfirm(root){
+    var p=settingsUiState.transitionPreview;if(!p||!p.counts||!p.counts.READY)return;
+    if(!await phfckConfirm({title:'Xác nhận nhập điểm chuyển tiếp T08',message:'Sẽ ghi chính thức '+p.counts.READY+' dòng "Sẵn sàng nhập" vào kết quả tháng 8/2026. Các dòng ngoại lệ sẽ không được nhập.',confirmText:'Xác nhận nhập',tone:'warning'}))return;
+    settingsUiState.transitionConfirming=true;settingsUiState.transitionConfirmError='';
+    var ws=root&&root.querySelector('[data-phfck-workspace]');if(ws)ws.innerHTML=settingsHtml();
+    try{
+      var response=await fetch('/api/data',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'confirmChecklistTransitionImport',rows:settingsUiState.transitionRows,batchId:p.batchId})});
+      var data=await response.json().catch(function(){return {};});
+      if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể xác nhận nhập.');
+      settingsUiState.transitionConfirmResult=data;settingsUiState.transitionPreview=null;settingsUiState.transitionRows=null;settingsUiState.transitionFileName='';
+      checklistToast('success','Đã nhập điểm chuyển tiếp T08',(data.inserted||0)+' dòng đã được ghi.');
+    }catch(err){settingsUiState.transitionConfirmError=err&&err.message?err.message:'Không thể kết nối dữ liệu.';checklistToast('error','Chưa thể xác nhận nhập',settingsUiState.transitionConfirmError,true);}
+    finally{settingsUiState.transitionConfirming=false;var ws2=root&&root.querySelector('[data-phfck-workspace]');if(ws2)ws2.innerHTML=settingsHtml();}
+  }
+  function transitionImportSummaryHtml(preview){
+    return '<div class="phfck-transition-summary">'+TRANSITION_SUMMARY_ROWS.map(function(pair){
+      var count=(preview.counts&&preview.counts[pair[0]])||0;
+      return '<article class="'+(pair[0]==='READY'?'is-ready':(count>0&&pair[0]!=='READY'?'is-exception':''))+'"><span>'+esc(pair[1])+'</span><b>'+count+'</b></article>';
+    }).join('')+'</div>';
+  }
+  function transitionImportExceptionsHtml(preview){
+    var rows=(preview.rows||[]).filter(function(r){return r.status!=='READY';});
+    if(!rows.length)return '<p class="phfck-transition-no-exception">Không có dòng ngoại lệ nào.</p>';
+    return '<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Trạng thái</th><th>Lý do</th></tr></thead><tbody>'
+      +rows.map(function(r){return '<tr><td>'+esc(r.employeeCode||r.employeeCodeInput||'—')+'</td><td>'+esc(r.employeeName||r.employeeNameInput||'—')+'</td><td>'+esc(transitionStatusLabel(r.status))+'</td><td>'+esc(r.reason||'')+'</td></tr>';}).join('')
+      +'</tbody></table></div>';
+  }
+  function transitionImportSettingsHtml(){
+    var rows=settingsUiState.transitionRows,preview=settingsUiState.transitionPreview,confirmResult=settingsUiState.transitionConfirmResult;
+    return '<section class="phfck-settings-grid phfck-transition-import-ui"><article class="phfck-panel phfck-settings-card phfck-settings-wide">'
+      +'<div class="phfck-panel-head"><div><small>NHẬP ĐIỂM CHUYỂN TIẾP THÁNG 8/2026</small><h3>Kết quả Checklist T08 cho đơn vị chưa vận hành live</h3></div></div>'
+      +'<div class="phfck-notice"><b>Chỉ áp dụng cho đơn vị chưa vận hành Checklist live trong T08</b><p>Lái Thiêu và Ngô Quyền đang vận hành Checklist live chính thức - hệ thống tự động bỏ qua 2 chi nhánh này dù có trong file. Chỉ nhập ĐÚNG kết quả cuối cùng theo mã nhân viên, không dựng lại tự đánh giá/thẩm định/lỗi vi phạm.</p></div>'
+      +'<div class="phfck-transition-upload"><label class="phfck-secondary phfck-transition-upload-btn">⇧ Chọn file (.xlsx, .xls, .csv)<input type="file" accept=".xlsx,.xls,.csv" data-phfck-transition-file hidden></label>'
+      +(settingsUiState.transitionFileName?'<span class="phfck-transition-filename">'+esc(settingsUiState.transitionFileName)+' · '+(rows?rows.length:0)+' dòng</span>':'<span class="phfck-transition-filename is-empty">Chưa chọn file. Cột bắt buộc: "Mã nhân viên", "Điểm T08".</span>')
+      +'<button type="button" class="phfck-primary" data-phfck-transition-preview '+(rows&&rows.length&&!settingsUiState.transitionPreviewLoading?'':'disabled')+'>'+(settingsUiState.transitionPreviewLoading?'Đang xem trước…':'Xem trước')+'</button></div>'
+      +(settingsUiState.transitionPreviewError?'<div class="phfck-notice is-error"><b>Chưa thể xem trước</b><p>'+esc(settingsUiState.transitionPreviewError)+'</p></div>':'')
+      +(confirmResult?'<div class="phfck-notice is-success"><b>Đã nhập thành công</b><p>'+(confirmResult.inserted||0)+' dòng kết quả T08 đã được ghi chính thức.</p></div>':'')
+      +(settingsUiState.transitionConfirmError?'<div class="phfck-notice is-error"><b>Chưa thể xác nhận nhập</b><p>'+esc(settingsUiState.transitionConfirmError)+'</p></div>':'')
+      +(preview?(
+        '<h4 class="phfck-transition-subhead">Tổng hợp ('+preview.total+' dòng)</h4>'+transitionImportSummaryHtml(preview)
+        +'<h4 class="phfck-transition-subhead">Dòng ngoại lệ</h4>'+transitionImportExceptionsHtml(preview)
+        +'<div class="phfck-modal-foot" style="border-top:0;padding:16px 0 0"><button type="button" class="phfck-primary" data-phfck-transition-confirm '+((preview.counts&&preview.counts.READY&&!settingsUiState.transitionConfirming)?'':'disabled')+'>'+(settingsUiState.transitionConfirming?'Đang xác nhận…':'Xác nhận nhập ('+((preview.counts&&preview.counts.READY)||0)+' dòng)')+'</button></div>'
+      ):'')
+      +'</article></section>';
+  }
+  function settingsContentHtml(){var map={permissions:permissionsSettingsHtml,cycle:cycleSettingsHtml,violationRules:violationRulesSettingsHtml,notifications:notificationsSettingsHtml,transitionImport:transitionImportSettingsHtml};return (map[settingsUiState.section]||permissionsSettingsHtml)();}
   function settingsHtml(){
     /* Nguồn duy nhất chỉnh settingsUiState.section trước khi dựng tab/nội
        dung - đọc capability tức thời của phiên đang render nên tự đúng khi
@@ -6138,6 +6267,8 @@
       var repeatPolicySave=e.target.closest('[data-phfck-repeat-policy-save]');if(repeatPolicySave){e.preventDefault();saveRepeatViolationPolicyUi(root);return;}
       var repeatSuggestionLoad=e.target.closest('[data-phfck-repeat-suggestion-load]');if(repeatSuggestionLoad){e.preventDefault();loadRepeatViolationSuggestions(root);return;}
       if(settingsTab){e.preventDefault();settingsUiState.deadlineEditing=false;var requestedSettingsTab=settingsTab.getAttribute('data-phfck-settings-tab')||'permissions';settingsUiState.section=allowedSettingsTabs().indexOf(requestedSettingsTab)>=0?requestedSettingsTab:settingsUiState.section;var settingsWorkspace=root.querySelector('[data-phfck-workspace]');if(settingsWorkspace)settingsWorkspace.innerHTML=settingsHtml();if(settingsUiState.section==='notifications')loadChecklistNotificationRules(root,true);if(settingsUiState.section==='cycle'){loadMonthlyCyclePolicy(root,true);loadMonthlyOverduePolicy(root,true);}if(settingsUiState.section==='violationRules'){loadLatePointsPolicy(root,true);loadRepeatViolationPolicy(root,true);loadMonthlyScorePolicy(root,true);}return;}
+      var transitionPreviewBtn=e.target.closest('[data-phfck-transition-preview]');if(transitionPreviewBtn){e.preventDefault();runChecklistTransitionPreview(root);return;}
+      var transitionConfirmBtn=e.target.closest('[data-phfck-transition-confirm]');if(transitionConfirmBtn){e.preventDefault();runChecklistTransitionConfirm(root);return;}
       var deadlineEdit=e.target.closest('[data-phfck-deadline-edit]');if(deadlineEdit){e.preventDefault();settingsUiState.deadlineEditing=true;var deadlineWorkspace=root.querySelector('[data-phfck-workspace]');if(deadlineWorkspace)deadlineWorkspace.innerHTML=settingsHtml();return;}
       var deadlineCancel=e.target.closest('[data-phfck-deadline-cancel]');if(deadlineCancel){e.preventDefault();settingsUiState.deadlineEditing=false;var deadlineCancelWorkspace=root.querySelector('[data-phfck-workspace]');if(deadlineCancelWorkspace)deadlineCancelWorkspace.innerHTML=settingsHtml();return;}
       var deadlineSave=e.target.closest('[data-phfck-deadline-save]');if(deadlineSave){e.preventDefault();saveDeadlineSettingsUi(root);return;}
@@ -6314,6 +6445,7 @@
       if(e.target&&e.target.matches('[data-phfck-permission-capability],[data-phfck-permission-value-for]')){refreshPermissionModalSummary(e.target.closest('[data-phfck-submodal]'));return;}
       if(e.target&&e.target.matches('[data-phfck-scope-search]')){var scopeSearchPanel=e.target.closest('[data-phfck-permission-values-panel]'),scopeNeedle=normalizeMatchText(e.target.value||'');if(scopeSearchPanel)scopeSearchPanel.querySelectorAll('[data-phfck-scope-choice]').forEach(function(choice){choice.hidden=scopeNeedle&&String(choice.getAttribute('data-phfck-scope-choice')||'').indexOf(scopeNeedle)<0;});return;}
       if(e.target&&e.target.matches('[data-phfck-violation-excel-file]')){var violationExcelInput=e.target,violationExcelFile=violationExcelInput.files&&violationExcelInput.files[0];if(violationExcelFile){ensureChecklistXlsx().then(function(){importViolationExcel(violationExcelFile,root);}).catch(function(excelLoadError){console.error('[PHF Checklist] Excel import library',excelLoadError);checklistToast('error','Chưa tải được Excel',excelLoadError&&excelLoadError.message?excelLoadError.message:'Không thể nạp thư viện Excel.',true);});}violationExcelInput.value='';return;}
+      if(e.target&&e.target.matches('[data-phfck-transition-file]')){var transitionInput=e.target,transitionFile=transitionInput.files&&transitionInput.files[0];if(transitionFile){parseTransitionImportFile(transitionFile).then(function(parsedRows){if(!parsedRows.length)throw new Error('File không có dòng dữ liệu nào.');settingsUiState.transitionRows=parsedRows;settingsUiState.transitionFileName=transitionFile.name;settingsUiState.transitionPreview=null;settingsUiState.transitionPreviewError='';settingsUiState.transitionConfirmResult=null;var tws=root.querySelector('[data-phfck-workspace]');if(tws)tws.innerHTML=settingsHtml();}).catch(function(parseErr){console.error('[PHF Checklist] transition import parse',parseErr);checklistToast('error','Không đọc được file',parseErr&&parseErr.message?parseErr.message:'Vui lòng kiểm tra định dạng file.',true);});}transitionInput.value='';return;}
       if(e.target&&e.target.matches('[data-phfck-log-mode],[data-phfck-log-workflow],[data-phfck-log-employee],[data-phfck-log-from],[data-phfck-log-to]')){if(e.target.matches('[data-phfck-log-mode]'))violationLogState.mode=e.target.value||'all';if(e.target.matches('[data-phfck-log-workflow]')){violationLogState.workflowStatus=e.target.value||'all';violationLogState.status=deriveDataStatusFromWorkflow(violationLogState.workflowStatus);}if(e.target.matches('[data-phfck-log-employee]'))violationLogState.employeeCode=e.target.value||'';if(e.target.matches('[data-phfck-log-from]'))violationLogState.dateFrom=e.target.value||'';if(e.target.matches('[data-phfck-log-to]'))violationLogState.dateTo=e.target.value||'';return;}
       if(e.target&&e.target.matches('[data-phfck-people-config-file]')){var pf=e.target.files&&e.target.files[0];if(pf){if(!window.XLSX||!/\.xlsx?$/i.test(pf.name)){pendingPeopleWorkbookImport={fileName:pf.name,changes:[],unchanged:0,errors:['Chỉ chấp nhận file Excel .xlsx/.xls được tải từ nút Tải cấu hình.']};appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}else{var pr=new FileReader();pr.onload=function(){try{var pwb=XLSX.read(pr.result,{type:'array',cellDates:false});pendingPeopleWorkbookImport=parsePeopleConfigurationWorkbook(pwb,pf.name);appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}catch(err){console.error('[PHF Checklist] people config import',err);pendingPeopleWorkbookImport={fileName:pf.name,changes:[],unchanged:0,errors:['Không đọc được file Excel. Vui lòng tải lại file cấu hình mới từ hệ thống và không đổi tên cột.']};appendSubmodal(root,peopleWorkbookPreviewHtml(pendingPeopleWorkbookImport));}};pr.readAsArrayBuffer(pf);}}e.target.value='';return;}
       if(e.target&&e.target.matches('[data-phfck-create-file]')){var cf=e.target.files&&e.target.files[0],cmodal=e.target.closest('[data-phfck-submodal]');if(cf&&cmodal){var resultBox=cmodal.querySelector('[data-phfck-create-import-result]');if(!window.XLSX||!/\.xlsx?$/i.test(cf.name)){if(resultBox){resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>Không thể đọc file</b><span>Chỉ chấp nhận file Excel .xlsx/.xls được tải từ chức năng Tạo mẫu.</span>';}}else{var creader=new FileReader();creader.onload=function(){try{var cwb=XLSX.read(creader.result,{type:'array',cellDates:false}),cres=parseNewTemplateWorkbook(cwb,cf.name);if(cres.errors.length){resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>File chưa hợp lệ</b><ul>'+cres.errors.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>';}else applyNewTemplateImport(cmodal,cres);}catch(err){console.error('[PHF Checklist] create template import',err);resultBox.hidden=false;resultBox.className='phfck-create-import-result is-error';resultBox.innerHTML='<b>Không đọc được file Excel</b><span>Vui lòng tải lại file chuẩn và không đổi tên sheet/cột.</span>';}};creader.readAsArrayBuffer(cf);}}e.target.value='';return;}
