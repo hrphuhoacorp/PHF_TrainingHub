@@ -4936,6 +4936,53 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-score-detail-modal{max-width:640px}
 @media(max-width:1050px){.phfck-score-period-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.phfck-score-toolbar{grid-template-columns:1fr}.phfck-score-period-note{flex-wrap:wrap}}
+/* Mẫu Checklist — scoped Total Score Editor */
+.phfck-tse-table td{vertical-align:top;padding:10px 12px}
+.phfck-tse-table th{padding:12px}
+.phfck-tse-table input,.phfck-tse-table select{width:100%;min-height:34px;font-size:12px;border:1px solid #cad5e2;border-radius:10px;padding:0 10px;background:#fff;color:#2c4c42;font:inherit;outline:0}
+.phfck-tse-table input:focus,.phfck-tse-table select:focus{border-color:#6da88f;box-shadow:0 0 0 3px #e8f5ef}
+/* Visual QA 2026-08-14: cột Nội dung đánh giá phải rộng nhất, Ghi chú thu hẹp lại
+   để nhường chỗ cho Nội dung đánh giá và Nguồn kết quả — không còn bị cắt chữ. */
+.phfck-tse-table{table-layout:fixed}
+.phfck-tse-table th:nth-child(1),.phfck-tse-table td:nth-child(1){width:36px}
+.phfck-tse-table th:nth-child(2),.phfck-tse-table td:nth-child(2){width:28%}
+.phfck-tse-table th:nth-child(3),.phfck-tse-table td:nth-child(3){width:88px}
+.phfck-tse-table th:nth-child(4),.phfck-tse-table td:nth-child(4){width:76px}
+.phfck-tse-table th:nth-child(5),.phfck-tse-table td:nth-child(5){width:96px}
+.phfck-tse-table th:nth-child(6),.phfck-tse-table td:nth-child(6){width:190px}
+.phfck-tse-table th:nth-child(7),.phfck-tse-table td:nth-child(7){width:13%}
+.phfck-tse-table th:nth-child(8),.phfck-tse-table td:nth-child(8){width:138px}
+.phfck-tse-action-cell{display:flex;gap:4px;flex-wrap:nowrap;white-space:nowrap}
+.phfck-tse-action-cell .phfck-table-action{flex:0 0 auto}
+.phfck-tse-action-cell .phfck-table-action-danger{border-color:#dfb9b2;background:#fff7f5;color:#a04c40}
+.phfck-tse-action-cell .phfck-table-action-danger:hover{background:#ffeae6}
+.phfck-tse-diff-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.phfck-tse-diff-col{border:1px solid var(--phfck-line);border-radius:12px;padding:12px}
+.phfck-tse-diff-col b{display:block;font-size:11px;color:#173f33;margin-bottom:6px}
+.phfck-tse-diff-col ul{margin:0;padding-left:16px;font-size:11px;color:#4e675e;line-height:1.6}
+.phfck-tse-diff-col small{color:#8a9a94}
+.phfck-tse-modal .phfck-table-wrap{overflow-x:auto}
+/* Modal rộng hơn để bảng có đủ chỗ hiển thị đầy đủ nội dung */
+.phfck-edit-layer>.phfck-modal.phfck-tse-modal{width:min(1240px,calc(100vw - 36px))}
+/* Tổng trọng số hiển thị nổi bật, ngay trên footer, luôn hiện (không nằm trong
+   vùng cuộn của phfck-modal-body) và cập nhật theo thời gian thực. */
+.phfck-tse-total-banner{flex:0 0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 20px;background:#f7fbf9;border-top:1px solid var(--phfck-line);font-size:12.5px}
+.phfck-tse-total-banner b{color:#173f33;font-size:13px}
+.phfck-tse-total-banner span{color:#5f766d}
+.phfck-tse-total-banner.is-missing{background:#fff9e8}
+.phfck-tse-total-banner.is-missing span{color:#86620f;font-weight:700}
+.phfck-tse-total-banner.is-over{background:#fff4f1}
+.phfck-tse-total-banner.is-over span{color:#a04c40;font-weight:700}
+.phfck-tse-total-banner.is-under{background:#fff9e8}
+.phfck-tse-total-banner.is-under span{color:#86620f;font-weight:700}
+.phfck-tse-total-banner.is-ok span{color:#1c6b47;font-weight:700}
+@media(max-width:760px){
+  .phfck-tse-table{table-layout:auto}
+  .phfck-tse-table th,.phfck-tse-table td{width:auto!important}
+  .phfck-tse-total-banner{padding:10px 12px}
+}
+@media(max-width:900px){.phfck-tse-diff-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.phfck-tse-diff-grid{grid-template-columns:1fr}}
 /* ============================================================================
  * Workstream B (vòng cuối) — module Đi trễ mới: assets/js/checklist/
  * phf-checklist-late-workflow.js. Toàn bộ selector bên dưới đều tiền tố

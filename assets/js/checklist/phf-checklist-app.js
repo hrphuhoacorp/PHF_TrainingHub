@@ -2699,11 +2699,11 @@
     var config=ASSISTANT_TEMPLATE_CONFIGS[item.id];if(!config)return '';var override=loadBulkOverride(item.id);var shownVersion=override&&override.version?override.version:config.version;
     return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal '+(templateUiState.salesFullscreen?'is-fullscreen':'')+'" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">'+esc(config.title)+'</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
-      +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(config.groupLabel||'Mẫu đánh giá')+' · '+esc(config.scope)+'</span><b>'+esc(shownVersion)+' <em>(thay đổi gần nhất)</em></b><small>Nguồn tham chiếu nội bộ: '+esc(config.source)+'</small></div></div>'
       +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(config.scope)+'</b></section><section><small>HIỆU LỰC</small><b>01/08/2026 · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>Khuyến khích</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(config.reason)+'</p></div>'
-      +(templateUiState.salesTab==='total'?(override?overrideTotalScoreHtml(item.id,config.title,config.policy):assistantTotalScoreHtml(config)):assistantTemplateTreeHtml(config)+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul>'+((config.rules||['File nguồn không có TCCV riêng; phần Checklist hiện áp dụng nhóm TACPHONG chung toàn công ty.','Tiêu chí ứng xử PHF giữ hệ số 10 và Đi trễ lấy từ thư viện chung.','Bảng tổng giữ nguyên toàn bộ chỉ tiêu, mục tiêu và trọng số trong file gốc.','Công thức chung: Thực đạt ×1, Thẩm định ×2, chia 3; sau đó quy đổi theo trọng số.']).map(function(x){return '<li>'+esc(x)+'</li>';}).join(''))+'</ul></div>')
+      +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):assistantTemplateTreeHtml(config)+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul>'+((config.rules||['File nguồn không có TCCV riêng; phần Checklist hiện áp dụng nhóm TACPHONG chung toàn công ty.','Tiêu chí ứng xử PHF giữ hệ số 10 và Đi trễ lấy từ thư viện chung.','Bảng tổng giữ nguyên toàn bộ chỉ tiêu, mục tiêu và trọng số trong file gốc.','Công thức chung: Thực đạt ×1, Thẩm định ×2, chia 3; sau đó quy đổi theo trọng số.']).map(function(x){return '<li>'+esc(x)+'</li>';}).join(''))+'</ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
   }
   function salesTotalScoreHtml(policyCode){
@@ -2728,13 +2728,13 @@
     var v=SALES_TEMPLATE_VERSION;
     return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal '+(templateUiState.salesFullscreen?'is-fullscreen':'')+'" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Nhân viên bán hàng</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
-      +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
         +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
-        +(templateUiState.salesTab==='total'?(loadBulkOverride('nv-ban-hang')?overrideTotalScoreHtml('nv-ban-hang','Nhân viên bán hàng','NVBH-TỔNG'):salesTotalScoreHtml(v.totalPolicyCode)):salesTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mỗi tháng, mỗi nhân viên Bán hàng áp dụng một mẫu.</li><li>Tất cả tiêu chí đều có cột Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa ít trên hệ thống, sửa nhiều bằng file chuẩn; cả hai đều tạo phiên bản mới.</li><li>Đổi nhóm cha/con phải tạo mã tiêu chí mới; tiêu chí cũ chỉ ngừng áp dụng.</li><li>Phiên bản mới tự áp dụng cho toàn bộ chức danh Bán hàng từ đầu tháng N+1.</li></ul></div>')
+        +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):salesTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mỗi tháng, mỗi nhân viên Bán hàng áp dụng một mẫu.</li><li>Tất cả tiêu chí đều có cột Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa ít trên hệ thống, sửa nhiều bằng file chuẩn; cả hai đều tạo phiên bản mới.</li><li>Đổi nhóm cha/con phải tạo mã tiêu chí mới; tiêu chí cũ chỉ ngừng áp dụng.</li><li>Phiên bản mới tự áp dụng cho toàn bộ chức danh Bán hàng từ đầu tháng N+1.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div>'
     +'</div></div>';
   }
@@ -2742,13 +2742,13 @@
     var v=SHIFT_LEAD_TEMPLATE_VERSION;
     return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal '+(templateUiState.salesFullscreen?'is-fullscreen':'')+'" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Trưởng ca/Phó ca bán hàng</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
-      +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
         +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
-        +(templateUiState.salesTab==='total'?salesTotalScoreHtml('TCP-BH-TỔNG-1.0'):shiftLeadTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mẫu dùng chung cho cả Trưởng ca và Phó ca bán hàng.</li><li>Kế thừa toàn bộ tiêu chí của Nhân viên bán hàng và bổ sung 6 tiêu chí Điều hành ca.</li><li>Tiêu chí “Tuân thủ nguyên tắc ứng xử PHF” là tiêu chí chung toàn công ty, hệ số 10.</li><li>Tất cả tiêu chí đều có Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa nội dung, hệ số hoặc cấu trúc phải tạo phiên bản mới và áp dụng từ tháng N+1.</li></ul></div>')
+        +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):shiftLeadTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mẫu dùng chung cho cả Trưởng ca và Phó ca bán hàng.</li><li>Kế thừa toàn bộ tiêu chí của Nhân viên bán hàng và bổ sung 6 tiêu chí Điều hành ca.</li><li>Tiêu chí “Tuân thủ nguyên tắc ứng xử PHF” là tiêu chí chung toàn công ty, hệ số 10.</li><li>Tất cả tiêu chí đều có Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa nội dung, hệ số hoặc cấu trúc phải tạo phiên bản mới và áp dụng từ tháng N+1.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div>'
     +'</div></div>';
   }
@@ -2774,11 +2774,11 @@
     var v=WAREHOUSE_TEMPLATE_VERSION;
     return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal '+(templateUiState.salesFullscreen?'is-fullscreen':'')+'" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Nhân viên Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
-      +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
       +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
-      +(templateUiState.salesTab==='total'?warehouseTotalScoreHtml():warehouseTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Giữ nguyên nội dung và hệ số theo file gốc Nhân viên Kho.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số 5% – 65% – 10% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
+      +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):warehouseTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Giữ nguyên nội dung và hệ số theo file gốc Nhân viên Kho.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số 5% – 65% – 10% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
   }
 
@@ -2805,11 +2805,11 @@
     var v=WAREHOUSE_MANAGER_TEMPLATE_VERSION;
     return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal '+(templateUiState.salesFullscreen?'is-fullscreen':'')+'" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Trưởng bộ phận Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
-      +'<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(templateUiState.salesTab==='criteria'?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button><button class="'+(templateUiState.salesTab==='total'?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
       +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
-      +(templateUiState.salesTab==='total'?warehouseManagerTotalScoreHtml():warehouseManagerTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Kế thừa toàn bộ tiêu chuẩn Nhân viên Kho và bổ sung 9 tiêu chí quản lý bộ phận.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số gốc 5% – 60% – 10% – 5% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
+      +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):warehouseManagerTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Kế thừa toàn bộ tiêu chuẩn Nhân viên Kho và bổ sung 9 tiêu chí quản lý bộ phận.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số gốc 5% – 60% – 10% – 5% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
   }
   function genericTemplateTreeHtml(groups){var no=0;return '<div class="phfck-detail-table-wrap"><table class="phfck-detail-table"><thead><tr><th>STT</th><th>Nhóm</th><th>Mã tiêu chí</th><th>Nội dung</th><th>Hệ số</th><th>Thao tác</th></tr></thead><tbody>'+flattenCriteria(groups).map(function(x){no+=1;return '<tr><td>'+no+'</td><td>'+esc(x.groupName+' / '+x.childName)+'</td><td><b>'+esc(x.code)+'</b></td><td>'+esc(x.content)+'</td><td>'+esc(x.factor)+'</td><td><button type="button" class="phfck-row-action" data-phfck-direct-edit-code="'+esc(x.code)+'">Sửa</button></td></tr>';}).join('')+'</tbody></table></div>';}
@@ -2820,12 +2820,23 @@
     if(item.id==='nv-kho')return warehouseTemplateDetailHtml(item);
     if(item.id==='tbp-kho')return warehouseManagerTemplateDetailHtml(item);
     if(ASSISTANT_TEMPLATE_CONFIGS[item.id])return assistantTemplateDetailHtml(item);
-    if(item.custom){var meta=viewWorkbookMeta(item.id),groups=selectedTemplateGroups(),count=flattenCriteria(groups).length;return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>MẪU TẠO TRÊN WEB</small><h2>'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal>×</button></div><div class="phfck-template-tabs"><button class="active" type="button">Tiêu chuẩn Checklist</button><button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div><div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(meta.version)+'</b><small>'+esc(item.source)+'</small></div></div><div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".xlsx,.xls" data-phfck-sales-file hidden></div><div class="phfck-template-detail-grid"><section><small>PHÒNG BAN/NHÓM</small><b>'+esc(item.group)+'</b></section><section><small>PHIÊN BẢN</small><b>'+esc(meta.version)+'</b></section><section><small>TIÊU CHÍ</small><b>'+count+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(item.effectiveFrom||'—')+'</b></section></div>'+genericTemplateTreeHtml(groups)+'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button></div></div></div>';}
+    if(item.custom){
+      var meta=viewWorkbookMeta(item.id),groups=selectedTemplateGroups(),count=flattenCriteria(groups).length;
+      var customCriteriaBody=genericTemplateTreeHtml(groups);
+      var customTotalBody=checklistTotalScoreTabHtml(item);
+      return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>MẪU TẠO TRÊN WEB</small><h2>'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal>×</button></div>'
+        +checklistTemplateTabsHtml(item,templateUiState.salesTab)
+        +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(meta.version)+'</b><small>'+esc(item.source)+'</small></div></div><div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".xlsx,.xls" data-phfck-sales-file hidden></div><div class="phfck-template-detail-grid"><section><small>PHÒNG BAN/NHÓM</small><b>'+esc(item.group)+'</b></section><section><small>PHIÊN BẢN</small><b>'+esc(meta.version)+'</b></section><section><small>TIÊU CHÍ</small><b>'+count+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(item.effectiveFrom||'—')+'</b></section></div>'
+        +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?customTotalBody:customCriteriaBody)
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button></div></div></div>';
+    }
+    var genericTotalBody=checklistTotalScoreTabHtml(item);
     return '<div class="phfck-modal-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal" role="dialog" aria-modal="true" aria-labelledby="phfckTemplateTitle">'
       +'<div class="phfck-modal-head"><div><small>CHI TIẾT BỘ MẪU</small><h2 id="phfckTemplateTitle">'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div>'
+      +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(item.name)+'</b><small>Nguồn nghiệp vụ đã chốt ngày 16/07/2026</small></div></div>'
         +'<div class="phfck-template-detail-grid"><section><small>NGUỒN MẪU</small><b>'+esc(item.source)+'</b></section><section><small>CƠ CHẾ CHECKLIST</small><b>'+(item.hasChecklist?'Có ghi nhận lỗi và trừ điểm':'Hiện chỉ có phiếu đánh giá tháng')+'</b></section><section><small>PHIÊN BẢN</small><b>Chưa chuẩn hóa</b></section><section><small>NGÀY HIỆU LỰC</small><b>Chưa phát hành</b></section></div>'
-        +'<div class="phfck-template-rules"><h3>Trạng thái</h3><ul><li>Mẫu này sẽ được rà từng bộ sau khi hoàn tất mẫu Nhân viên bán hàng.</li><li>Tên chuẩn sẽ dùng theo chức danh/nghiệp vụ; nguồn cá nhân chỉ hiển thị cho Admin đối chiếu.</li></ul></div>'
+        +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?genericTotalBody:'<div class="phfck-template-rules"><h3>Trạng thái</h3><ul><li>Mẫu này sẽ được rà từng bộ sau khi hoàn tất mẫu Nhân viên bán hàng.</li><li>Tên chuẩn sẽ dùng theo chức danh/nghiệp vụ; nguồn cá nhân chỉ hiển thị cho Admin đối chiếu.</li></ul></div>')
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button></div>'
     +'</div></div>';
   }
@@ -7825,5 +7836,335 @@
   document.addEventListener('click',function(e){var picker=e.target.closest('.phfck-time-picker');if(!picker){if(!e.target.closest('[data-phfck-time-trigger]'))document.querySelectorAll('.phfck-time-picker').forEach(function(x){x.remove();});return;}var target=picker.__target;if(!target)return;var direct=picker.querySelector('[data-phfck-time-direct]');if(e.target.closest('[data-phfck-time-now]')){var now=currentTime24();if(direct)direct.value=now;picker.querySelector('[data-phfck-time-preview]').textContent=now;}var hb=e.target.closest('[data-phfck-hour]');if(hb){picker.querySelectorAll('[data-phfck-hour]').forEach(function(x){x.classList.remove('active');});hb.classList.add('active');}var mb=e.target.closest('[data-phfck-minute]');if(mb){picker.querySelectorAll('[data-phfck-minute]').forEach(function(x){x.classList.remove('active');});mb.classList.add('active');}var h=(picker.querySelector('[data-phfck-hour].active')||{}).getAttribute?picker.querySelector('[data-phfck-hour].active').getAttribute('data-phfck-hour'):currentTime24().slice(0,2);var m=(picker.querySelector('[data-phfck-minute].active')||{}).getAttribute?picker.querySelector('[data-phfck-minute].active').getAttribute('data-phfck-minute'):'00';if(hb||mb){var combined=h+':'+m;if(direct)direct.value=combined;var pv=picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=combined;}if(e.target.closest('[data-phfck-time-apply]')){var chosen=normalizeTime24(direct&&direct.value?direct.value:h+':'+m,currentTime24());target.value=chosen;target.dispatchEvent(new Event('change',{bubbles:true}));picker.remove();}},true);document.addEventListener('input',function(e){if(!e.target.matches('[data-phfck-time-direct]'))return;var picker=e.target.closest('.phfck-time-picker');e.target.value=formatTime24Typing(e.target.value);var valid=normalizeTime24(e.target.value,'');if(valid){var pv=picker&&picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=valid;}},true);document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-time-direct]')||e.key!=='Enter')return;e.preventDefault();var picker=e.target.closest('.phfck-time-picker');var apply=picker&&picker.querySelector('[data-phfck-time-apply]');if(apply)apply.click();},true);
   document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScoreSearchTimer)clearTimeout(checklistScoreSearchTimer);loadChecklistCurrentScore(document.getElementById('phfChecklistRoot'),true);},true);
   document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-period-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScorePeriodSearchTimer)clearTimeout(checklistScorePeriodSearchTimer);loadChecklistScorePeriod(document.getElementById('phfChecklistRoot'),true);},true);
+
+  function tseTemplateItem(id){return templateCatalog().find(function(x){return x.id===id;})||null;}
+  /* Workstream A residual (2026-08-14) — hàm dựng definition hiệu lực DÙNG
+     CHUNG cho mọi nơi cần biết groups/totalRows/templateType thật của một
+     mẫu (tseOpen() và phần quyết định hiển thị tab "Bảng tổng điểm" dưới
+     đây). Tránh lặp lại logic này ở hai nơi. */
+  function checklistTemplateEffectiveDefinition(templateId,itemHint){
+    ensureChecklistTemplatesHydrated();
+    var row=checklistTemplateDbState.byId[templateId]||null;
+    var item=itemHint||tseTemplateItem(templateId)||{};
+    var raw=(row&&row.definition&&typeof row.definition==='object')?row.definition:{groups:baseTemplateGroups(templateId),totalRows:effectiveTotalRows(templateId),templateType:item.templateType||(item.hasChecklist?'checklist_detail':'score_summary')};
+    return {groups:Array.isArray(raw.groups)?raw.groups:[],totalRows:Array.isArray(raw.totalRows)?raw.totalRows:[],templateType:normalizeText(raw.templateType)||'checklist_detail'};
+  }
+  /*
+   * Quy tắc hiển thị tab "Bảng tổng điểm" — CHỈ dựa trên bằng chứng cấu
+   * trúc của definition, không so khớp theo tên/id mẫu:
+   *  - totalRows khác rỗng, HOẶC
+   *  - templateType==='checklist_detail' (mẫu có nhóm tiêu chí Checklist —
+   *    đúng điều kiện requiresChecklistTotalRow() trong
+   *    lib/checklist-templates.js, bản tương đương phía client đã dùng ở
+   *    tseValidate() bên dưới), HOẶC
+   *  - templateType==='score_summary' (loại mẫu tạo trên web CHỈ dùng cho
+   *    Bảng tổng điểm — xem saveNewTemplate()/createTemplateModalHtml()),
+   *    HOẶC
+   *  - groups khác rỗng (mẫu có tiêu chí Checklist ghi nhận lỗi tức có cơ
+   *    chế chấm điểm tháng đi kèm).
+   * Một mẫu chỉ bị ẩn tab khi CẢ BỐN điều kiện trên đều sai — tức không có
+   * bất kỳ bằng chứng cấu trúc nào cho thấy mẫu dùng Bảng tổng điểm/chấm
+   * điểm tháng.
+   */
+  function checklistTemplateHasTotalScoreMechanism(item){
+    if(!item)return false;
+    var def=checklistTemplateEffectiveDefinition(item.id,item);
+    return def.totalRows.length>0||def.templateType==='checklist_detail'||def.templateType==='score_summary'||def.groups.length>0;
+  }
+  function checklistTemplateHiddenReason(item){
+    if(!item)return 'Không tìm thấy mẫu trong templateCatalog().';
+    var def=checklistTemplateEffectiveDefinition(item.id,item);
+    return 'templateType='+JSON.stringify(def.templateType)+', totalRows.length='+def.totalRows.length+', groups.length='+def.groups.length+' — không có bằng chứng cấu trúc nào cho thấy mẫu dùng Bảng tổng điểm/chấm điểm tháng.';
+  }
+  function checklistTotalScoreEmptyStateHtml(templateId){
+    return '<div class="phfck-total-score phfck-total-empty"><div class="phfck-template-empty"><div>▤</div><b>Chưa có dòng nào trong Bảng tổng điểm</b><p>Thêm dòng đầu tiên để bắt đầu cấu hình chỉ tiêu, mục tiêu và trọng số.</p><button type="button" class="phfck-primary" data-phfck-tse-open="'+esc(templateId)+'">＋ Thêm dòng đầu tiên</button></div></div>';
+  }
+  /* Bảng minh họa cũ (đọc-only, chỉ hiển thị TRƯỚC KHI Admin từng sửa qua
+     "Sửa Bảng tổng điểm" — sau khi có bulk override, mọi nhánh đều dùng
+     chung overrideTotalScoreHtml() như cũ). Giữ nguyên các hàm minh họa đã
+     có (salesTotalScoreHtml/warehouseTotalScoreHtml/...) để KHÔNG đổi giao
+     diện đã chốt của 5 renderer chuyên biệt cũ; mẫu generic/custom không có
+     bảng minh họa riêng thì rơi về overrideTotalScoreHtml() — vốn đã đọc dữ
+     liệu thật (effectiveTotalRows/effectiveTemplateVersion) một cách hoàn
+     toàn tổng quát, không phân biệt loại mẫu.
+   */
+  var CHECKLIST_TOTAL_SCORE_LEGACY_DEMO_HTML={
+    'nv-ban-hang':function(){return salesTotalScoreHtml(SALES_TEMPLATE_VERSION.totalPolicyCode);},
+    'truong-ca-ban-hang':function(){return salesTotalScoreHtml('TCP-BH-TỔNG-1.0');},
+    'nv-kho':function(){return warehouseTotalScoreHtml();},
+    'tbp-kho':function(){return warehouseManagerTotalScoreHtml();}
+  };
+  function checklistTotalScoreLegacyDemoHtml(item){
+    var fn=CHECKLIST_TOTAL_SCORE_LEGACY_DEMO_HTML[item.id];
+    if(fn)return fn();
+    var cfg=ASSISTANT_TEMPLATE_CONFIGS[item.id];
+    if(cfg)return assistantTotalScoreHtml(cfg);
+    return overrideTotalScoreHtml(item.id,item.name,effectiveTemplateVersion(item.id));
+  }
+  /*
+   * HÀM DUY NHẤT dựng nội dung tab "Bảng tổng điểm" (nút "Sửa Bảng tổng
+   * điểm" + phần hiển thị/empty-state) — được gọi Y HỆT NHAU từ MỌI nhánh
+   * render chi tiết mẫu: salesTemplateDetailHtml, shiftLeadTemplateDetailHtml,
+   * warehouseTemplateDetailHtml, warehouseManagerTemplateDetailHtml,
+   * assistantTemplateDetailHtml, nhánh mẫu custom (item.custom) và nhánh
+   * generic cuối cùng trong templateDetailModalHtml(). Không nhánh nào được
+   * tự viết lại logic này. Trả về '' nếu mẫu không có cơ chế Bảng tổng điểm
+   * (xem checklistTemplateHasTotalScoreMechanism — điều kiện cấu trúc).
+   */
+  function checklistTotalScoreTabHtml(item){
+    if(!item||!checklistTemplateHasTotalScoreMechanism(item))return '';
+    var def=checklistTemplateEffectiveDefinition(item.id,item);
+    if(!def.totalRows.length)return tseButtonRowHtml(item.id)+checklistTotalScoreEmptyStateHtml(item.id);
+    return tseButtonRowHtml(item.id)+(loadBulkOverride(item.id)?overrideTotalScoreHtml(item.id,item.name,effectiveTemplateVersion(item.id)):checklistTotalScoreLegacyDemoHtml(item));
+  }
+  /* Tab-bar dùng chung: tab "Bảng tổng điểm" CHỈ xuất hiện khi mẫu có cơ chế
+     (structural, xem checklistTemplateHasTotalScoreMechanism) — không phụ
+     thuộc tên/id mẫu hay loại renderer. Dùng cho mọi nhánh có tab. */
+  function checklistTemplateTabsHtml(item,activeTab){
+    var showTotal=checklistTemplateHasTotalScoreMechanism(item);
+    var criteriaActive=activeTab!=='total'||!showTotal;
+    return '<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(criteriaActive?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button>'
+      +(showTotal?('<button class="'+(!criteriaActive?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button>'):'')
+      +'<button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>';
+  }
+  function tseNormalizeRow(row,index){
+    if(Array.isArray(row)){
+      return {id:normalizeText(row[8])||normalizeText(row[1])||('ROW-'+(index+1)),name:normalizeText(row[2]),target:Number(row[3])||0,unit:normalizeText(row[4])||'điểm',weight:Number(row[5])||0,source:{type:(row[7]&&row[7].type==='checklist_total')?'checklist_total':'manual'},note:normalizeText(row[9])};
+    }
+    return {id:normalizeText(row&&row.id)||normalizeText(row&&row.code)||('ROW-'+(index+1)),name:normalizeText(row&&(row.name||row.content))||'',target:Number(row&&row.target)||0,unit:normalizeText(row&&row.unit)||'điểm',weight:Number(row&&row.weight)||0,source:{type:(row&&row.source&&row.source.type==='checklist_total')?'checklist_total':'manual'},note:normalizeText(row&&row.note)||''};
+  }
+  function tseButtonRowHtml(templateId){
+    return '<div class="phfck-template-actionbar phfck-tse-actionbar"><button type="button" class="phfck-primary" data-phfck-tse-open="'+esc(templateId)+'">✎ Sửa Bảng tổng điểm</button></div>';
+  }
+  var checklistTseState=null;
+  function tseOpen(templateId){
+    ensureChecklistTemplatesHydrated();
+    var row=checklistTemplateDbState.byId[templateId]||null;
+    var baseDefinitionRaw=checklistTemplateEffectiveDefinition(templateId);
+    var normalizedRows=(Array.isArray(baseDefinitionRaw.totalRows)?baseDefinitionRaw.totalRows:[]).map(tseNormalizeRow);
+    checklistTseState={
+      templateId:templateId,
+      sourceVersion:(row&&row.version)||effectiveTemplateVersion(templateId)||'',
+      baseDefinition:{groups:baseDefinitionRaw.groups||[],totalRows:JSON.parse(JSON.stringify(normalizedRows)),templateType:baseDefinitionRaw.templateType||'checklist_detail'},
+      rows:JSON.parse(JSON.stringify(normalizedRows)),
+      groups:baseDefinitionRaw.groups||[],
+      templateType:baseDefinitionRaw.templateType||'checklist_detail',
+      newVersion:'',effectiveDate:todayIso(),reason:'',
+      previewing:false,previewError:'',preview:null,
+      publishing:false,publishError:'',published:null,
+      permissionError:''
+    };
+  }
+  function tseValidate(state){
+    var rows=(state&&state.rows)||[],errors=[],totalWeight=0,idSeen={},dupIds=[],missingContent=[];
+    if(!rows.length)errors.push('Bảng tổng điểm phải có ít nhất một dòng.');
+    rows.forEach(function(r){
+      var w=Number(r.weight);w=Number.isFinite(w)?w:0;totalWeight+=w;
+      if(!normalizeText(r.name))missingContent.push(r);
+      if(idSeen[r.id])dupIds.push(r.id);idSeen[r.id]=true;
+      if(!Number.isFinite(Number(r.target))||Number(r.target)<=0)errors.push('Mục tiêu dòng "'+(r.name||r.id)+'" phải là số lớn hơn 0.');
+      if(!Number.isFinite(w)||w<=0)errors.push('Trọng số dòng "'+(r.name||r.id)+'" phải lớn hơn 0. Dòng không áp dụng phải xóa khỏi mẫu.');
+    });
+    totalWeight=Math.round(totalWeight*100)/100;
+    if(rows.length&&Math.abs(totalWeight-100)>0.001)errors.push('Tổng trọng số phải bằng 100% (hiện tại '+totalWeight+'%).');
+    var requiresGate=(state&&state.templateType)==='checklist_detail'||((state&&state.groups)||[]).length>0;
+    var hasChecklistTotal=rows.some(function(r){return r.source&&r.source.type==='checklist_total';});
+    if(requiresGate&&!hasChecklistTotal)errors.push('Mẫu có nhóm tiêu chí Checklist nhưng Bảng tổng điểm chưa có dòng nhận điểm Checklist tự động. Hãy chọn "Điểm Checklist tự động" ở dòng phù hợp — hệ thống KHÔNG tự chọn trọng số thay Admin.');
+    if(missingContent.length)errors.push(missingContent.length+' dòng còn thiếu Nội dung đánh giá.');
+    if(dupIds.length)errors.push('Có dòng bị trùng ID ổn định — vui lòng tải lại và không tự chỉnh ID.');
+    return {errors:errors,totalWeight:totalWeight,requiresGate:requiresGate,hasChecklistTotal:hasChecklistTotal,dupIds:dupIds,missingContent:missingContent};
+  }
+  function tseValidationPanelHtml(v){
+    var diff=Math.round((100-v.totalWeight)*100)/100;
+    return '<div data-phfck-tse-validation class="phfck-notice '+(v.errors.length?'':'is-success')+'"><b>'+(v.errors.length?'Chưa hợp lệ':'Hợp lệ')+'</b><p>Tổng trọng số hiện tại: <b>'+v.totalWeight+'%</b> · Chênh lệch so với 100%: <b>'+diff+'%</b></p>'+(v.errors.length?('<ul>'+v.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>'):'<p>Có thể xem trước và tạo phiên bản mới.</p>')+'</div>';
+  }
+  function tseGateWarningHtml(){
+    return '<div data-phfck-tse-gate class="phfck-notice is-warning"><b>Bảng tổng điểm chưa nhận Điểm Checklist tự động</b><p>Hãy thêm một dòng, chọn nguồn Điểm Checklist tự động và nhập trọng số.</p><button type="button" class="phfck-secondary" data-phfck-tse-add-checklist-row>＋ Thêm dòng Điểm Checklist</button></div>';
+  }
+  function tseTotalWeightBannerHtml(v){
+    var tw=v.totalWeight;
+    var variant='ok',extra='';
+    if(v.requiresGate&&!v.hasChecklistTotal){
+      variant='missing';extra=' · Thiếu dòng Điểm Checklist';
+    }else{
+      var diff=Math.round((tw-100)*100)/100;
+      if(diff>0.001){variant='over';extra=' · Vượt '+diff+'% — cần điều chỉnh hoặc bấm Co giãn tỉ lệ';}
+      else if(diff<-0.001){variant='under';extra=' · Thiếu '+(Math.round(Math.abs(diff)*100)/100)+'% — cần điều chỉnh hoặc bấm Co giãn tỉ lệ';}
+    }
+    return '<div data-phfck-tse-total-banner class="phfck-tse-total-banner is-'+variant+'"><b>Tổng trọng số: '+tw+'%</b>'+(extra?('<span>'+esc(extra)+'</span>'):'')+'</div>';
+  }
+  function checklistTseEditorHtml(){
+    var state=checklistTseState;if(!state)return '';
+    var item=tseTemplateItem(state.templateId)||{};
+    var v=tseValidate(state);
+    var rowsHtml=state.rows.map(function(row,index){
+      return '<tr data-phfck-tse-row-id="'+esc(row.id)+'"><td>'+(index+1)+'</td>'
+        +'<td><input type="text" data-phfck-tse-field="name" value="'+esc(row.name)+'" placeholder="Nội dung đánh giá"></td>'
+        +'<td><input type="number" step="0.01" data-phfck-tse-field="target" value="'+esc(row.target)+'" style="width:84px"></td>'
+        +'<td><input type="text" data-phfck-tse-field="unit" value="'+esc(row.unit)+'" style="width:70px"></td>'
+        +'<td><input type="number" step="0.01" data-phfck-tse-field="weight" value="'+esc(row.weight)+'" style="width:80px"></td>'
+        +'<td><select data-phfck-tse-field="sourceType"><option value="manual" '+(row.source.type!=='checklist_total'?'selected':'')+'>Nhập đánh giá</option><option value="checklist_total" '+(row.source.type==='checklist_total'?'selected':'')+'>Điểm Checklist tự động</option></select></td>'
+        +'<td><input type="text" data-phfck-tse-field="note" value="'+esc(row.note||'')+'" placeholder="Ghi chú"></td>'
+        +'<td class="phfck-tse-action-cell"><button type="button" class="phfck-table-action" '+(index===0?'disabled':'')+' data-phfck-tse-move-up="'+index+'" aria-label="Đưa dòng lên" title="Đưa dòng lên">↑</button><button type="button" class="phfck-table-action" '+(index===state.rows.length-1?'disabled':'')+' data-phfck-tse-move-down="'+index+'" aria-label="Đưa dòng xuống" title="Đưa dòng xuống">↓</button><button type="button" class="phfck-table-action phfck-table-action-danger" data-phfck-tse-remove-row="'+index+'" aria-label="Xóa dòng" title="Xóa dòng">Xóa</button></td></tr>';
+    }).join('');
+    var offWeight=Math.round((100-v.totalWeight)*100)/100;
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-tse-modal" role="dialog" aria-modal="true" aria-labelledby="phfckTseTitle"><div class="phfck-modal-head"><div><small>SỬA BẢNG TỔNG ĐIỂM</small><h2 id="phfckTseTitle">'+esc(item.name||state.templateId)+' · '+esc(state.sourceVersion||'—')+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div>'
+      +'<div class="phfck-modal-body">'
+      +(state.rows.length?'':'<div class="phfck-notice"><b>Chưa có dòng nào</b><p>Bấm "＋ Thêm dòng" để bắt đầu.</p></div>')
+      +(v.requiresGate&&!v.hasChecklistTotal?tseGateWarningHtml():'')
+      +'<div class="phfck-table-wrap"><table class="phfck-table phfck-tse-table"><thead><tr><th>STT</th><th>Nội dung đánh giá</th><th>Mục tiêu</th><th>Đơn vị</th><th>Trọng số (%)</th><th>Nguồn kết quả</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:14px 0 0"><button type="button" class="phfck-secondary" data-phfck-tse-add-row>＋ Thêm dòng</button>'+(Math.abs(offWeight)>0.001&&state.rows.length?'<button type="button" class="phfck-secondary" data-phfck-tse-rescale>⇆ Co giãn tỉ lệ cho đủ 100%</button>':'')+'</div>'
+      +tseValidationPanelHtml(v)
+      +'</div>'
+      +tseTotalWeightBannerHtml(v)
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-secondary" data-phfck-tse-save-draft>Lưu nháp</button><button type="button" class="phfck-primary" '+(v.errors.length?'disabled':'')+' data-phfck-tse-preview>Xem trước & tạo phiên bản</button></div>'
+      +'</div></div>';
+  }
+  function tseSyncRowsFromDom(modal){
+    if(!modal||!checklistTseState)return;
+    var trs=modal.querySelectorAll('[data-phfck-tse-row-id]'),rows=[];
+    trs.forEach(function(tr){
+      var id=tr.getAttribute('data-phfck-tse-row-id');
+      function val(field){var el=tr.querySelector('[data-phfck-tse-field="'+field+'"]');return el?el.value:'';}
+      rows.push({id:id,name:val('name'),target:Number(val('target'))||0,unit:val('unit')||'điểm',weight:Number(val('weight'))||0,source:{type:val('sourceType')==='checklist_total'?'checklist_total':'manual'},note:val('note')||''});
+    });
+    checklistTseState.rows=rows;
+  }
+  function tsePatchValidation(modal){
+    if(!modal||!checklistTseState)return;
+    var v=tseValidate(checklistTseState);
+    var panel=modal.querySelector('[data-phfck-tse-validation]');
+    if(panel)panel.outerHTML=tseValidationPanelHtml(v);
+    var previewBtn=modal.querySelector('[data-phfck-tse-preview]');
+    if(previewBtn)previewBtn.disabled=!!v.errors.length;
+    var gate=modal.querySelector('[data-phfck-tse-gate]');
+    var wantGate=v.requiresGate&&!v.hasChecklistTotal;
+    var body=modal.querySelector('.phfck-modal-body');
+    if(wantGate&&!gate&&body)body.insertAdjacentHTML('afterbegin',tseGateWarningHtml());
+    else if(!wantGate&&gate)gate.remove();
+    var banner=modal.querySelector('[data-phfck-tse-total-banner]');
+    if(banner)banner.outerHTML=tseTotalWeightBannerHtml(v);
+  }
+  /* Thêm 1 dòng mới vào Bảng tổng điểm — dùng chung cho nút "Thêm dòng" thường
+     và nút tiện ích "Thêm dòng Điểm Checklist". overrides.source (nếu có) chỉ
+     đặt trước nguồn kết quả; KHÔNG bao giờ tự điền trọng số (giữ nguyên quyết
+     định nghiệp vụ: Admin phải tự nhập trọng số, hệ thống không tự chọn). */
+  function tseAddRow(overrides){
+    if(!checklistTseState)return null;
+    var row={id:tseUuid(),name:'',target:100,unit:'điểm',weight:0,source:{type:'manual'},note:''};
+    if(overrides&&overrides.source&&overrides.source.type)row.source={type:overrides.source.type};
+    checklistTseState.rows.push(row);
+    return row;
+  }
+  function tseRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTseEditorHtml());}
+  function tseRescale(){
+    var rows=(checklistTseState&&checklistTseState.rows)||[];if(!rows.length)return;
+    var total=rows.reduce(function(s,r){return s+(Number(r.weight)||0);},0);
+    if(total<=0){var even=Math.round((100/rows.length)*100)/100;rows.forEach(function(r){r.weight=even;});}
+    else{var factor=100/total;rows.forEach(function(r){r.weight=Math.round((Number(r.weight)||0)*factor*100)/100;});}
+    var sum=rows.reduce(function(s,r){return s+r.weight;},0),diff=Math.round((100-sum)*100)/100;
+    rows[rows.length-1].weight=Math.round((rows[rows.length-1].weight+diff)*100)/100;
+  }
+  function tseUuid(){try{if(window.crypto&&window.crypto.randomUUID)return window.crypto.randomUUID();}catch(_e){}return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
+  function tseDiffRow(row){return {code:row.id,name:row.name,weight:Number(row.weight)||0,sourceType:row.source&&row.source.type||'manual'};}
+  function tseBuildPreview(oldRows,newRows){
+    var before={},after={},added=[],removed=[],renamed=[],changed=[];
+    (oldRows||[]).forEach(function(row){before[row.id]=row;});
+    (newRows||[]).forEach(function(row){after[row.id]=row;});
+    Object.keys(after).forEach(function(id){
+      var next=after[id],previous=before[id];
+      if(!previous){added.push(tseDiffRow(next));return;}
+      if(normalizeText(previous.name)!==normalizeText(next.name))renamed.push({before:tseDiffRow(previous),after:tseDiffRow(next)});
+      var sourceBefore=previous.source&&previous.source.type||'manual',sourceAfter=next.source&&next.source.type||'manual';
+      if(Number(previous.weight)!==Number(next.weight)||sourceBefore!==sourceAfter)changed.push({before:tseDiffRow(previous),after:tseDiffRow(next),sourceChanged:sourceBefore!==sourceAfter});
+    });
+    Object.keys(before).forEach(function(id){if(!after[id])removed.push(tseDiffRow(before[id]));});
+    return {added:added,removed:removed,renamed:renamed,changed:changed,totalWeightBefore:Math.round((oldRows||[]).reduce(function(sum,row){return sum+(Number(row.weight)||0);},0)*100)/100,totalWeightAfter:Math.round((newRows||[]).reduce(function(sum,row){return sum+(Number(row.weight)||0);},0)*100)/100};
+  }
+  function tseDiffSummaryHtml(diff){
+    if(!diff)return '';
+    return '<div class="phfck-tse-diff-grid">'
+      +'<div class="phfck-tse-diff-col"><b>Thêm mới ('+diff.added.length+')</b>'+(diff.added.length?'<ul>'+diff.added.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+' ('+r.weight+'%, '+esc(r.sourceType||'manual')+')</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-tse-diff-col"><b>Gỡ bỏ ('+diff.removed.length+')</b>'+(diff.removed.length?'<ul>'+diff.removed.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-tse-diff-col"><b>Đổi tên ('+diff.renamed.length+')</b>'+(diff.renamed.length?'<ul>'+diff.renamed.map(function(r){return '<li>'+esc(r.before.name)+' → '+esc(r.after.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-tse-diff-col"><b>Đổi trọng số/nguồn ('+diff.changed.length+')</b>'+(diff.changed.length?'<ul>'+diff.changed.map(function(r){return '<li>'+esc(r.after.code)+': '+r.before.weight+'% → '+r.after.weight+'%'+(r.sourceChanged?' · nguồn '+esc(r.before.sourceType||'manual')+' → '+esc(r.after.sourceType||'manual'):'')+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'</div><div class="phfck-notice"><b>Tổng trọng số</b><p>Trước: '+diff.totalWeightBefore+'% · Sau: '+diff.totalWeightAfter+'%</p></div>';
+  }
+  function tseRowsForTemplateSave(rows){
+    return (rows||[]).map(function(row,index){return [index+1,row.id,row.name,Number(row.target)||0,row.unit||'điểm',Number(row.weight)||0,'Không',{type:row.source&&row.source.type==='checklist_total'?'checklist_total':'manual'},row.id,row.note||''];});
+  }
+  async function tsePersistPublishedVersion(state){
+    var item=tseTemplateItem(state&&state.templateId);
+    if(!item)throw new Error('Không tìm thấy mẫu cần phát hành.');
+    var payload={templateId:state.templateId,groups:deepClone(state.groups),totalRows:tseRowsForTemplateSave(state.rows),templateType:state.templateType,version:state.newVersion,sourceVersion:state.sourceVersion,effectiveDate:state.effectiveDate,reason:state.reason,updatedAt:new Date().toISOString(),changeType:'web-total-score'};
+    var data=await persistChecklistTemplateToDatabase(item,payload);
+    if(!saveBulkOverrideLocal(state.templateId,payload))throw new Error('Đã lưu trên máy chủ nhưng chưa cập nhật được bộ nhớ trình duyệt. Vui lòng tải lại trang.');
+    return {data:data,payload:payload,item:item};
+  }
+  function checklistTsePreviewHtml(){
+    var state=checklistTseState;if(!state)return '';
+    var item=tseTemplateItem(state.templateId)||{};
+    var body;
+    if(state.previewError)body='<div class="phfck-notice"><b>Chưa thể xem trước</b><p>'+esc(state.previewError)+'</p></div><div class="phfck-modal-foot" style="border-top:0;padding:0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button></div>';
+    else if(state.preview)body=tseDiffSummaryHtml(state.preview)
+      +'<div class="phfck-form-grid"><label><b>Phiên bản mới <em>*</em></b><input type="text" placeholder="vd: '+esc(state.sourceVersion)+'-r2" data-phfck-tse-new-version value="'+esc(state.newVersion)+'"></label><label><b>Ngày hiệu lực</b><input type="date" data-phfck-tse-effective-date value="'+esc(state.effectiveDate)+'"></label></div>'
+      +'<label><b>Lý do <em>*</em></b><input type="text" placeholder="vd: Cập nhật trọng số quý 3" data-phfck-tse-reason value="'+esc(state.reason)+'"></label>'
+      +(state.publishError?'<div class="phfck-notice"><b>Không tạo được phiên bản</b><p>'+esc(state.publishError)+'</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:14px 0 0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button><button type="button" class="phfck-primary" '+(state.publishing?'disabled':'')+' data-phfck-tse-confirm-publish>'+(state.publishing?'Đang tạo phiên bản…':'Xác nhận tạo phiên bản')+'</button></div>';
+    else body='<p>Chưa có dữ liệu xem trước.</p>';
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview phfck-tse-preview-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>XEM TRƯỚC PHIÊN BẢN MỚI</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.sourceVersion||'—')+' → '+esc(state.newVersion||'?')+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'+body+'</div></div></div>';
+  }
+  function tseRerenderPreview(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTsePreviewHtml());}
+  function tseOpenPreview(){
+    var state=checklistTseState;if(!state)return;
+    var v=tseValidate(state);if(v.errors.length)return;
+    state.previewError='';
+    state.preview=tseBuildPreview(state.baseDefinition.totalRows,state.rows);
+    tseRerenderPreview();
+  }
+  document.addEventListener('click',function(e){
+    var openBtn=e.target.closest('[data-phfck-tse-open]');
+    if(openBtn){e.preventDefault();var root=document.getElementById('phfChecklistRoot');if(!root)return;tseOpen(openBtn.getAttribute('data-phfck-tse-open')||'');appendSubmodal(root,checklistTseEditorHtml());return;}
+    var modal=e.target.closest('.phfck-tse-modal');
+    if(modal&&checklistTseState){
+      if(e.target.closest('[data-phfck-tse-add-row]')){tseSyncRowsFromDom(modal);tseAddRow();tseRerender();return;}
+      if(e.target.closest('[data-phfck-tse-add-checklist-row]')){tseSyncRowsFromDom(modal);tseAddRow({source:{type:'checklist_total'}});tseRerender();return;}
+      var rm=e.target.closest('[data-phfck-tse-remove-row]');
+      if(rm){tseSyncRowsFromDom(modal);checklistTseState.rows.splice(Number(rm.getAttribute('data-phfck-tse-remove-row')),1);tseRerender();return;}
+      var up=e.target.closest('[data-phfck-tse-move-up]');
+      if(up){tseSyncRowsFromDom(modal);var i1=Number(up.getAttribute('data-phfck-tse-move-up'));if(i1>0){var tmp=checklistTseState.rows[i1-1];checklistTseState.rows[i1-1]=checklistTseState.rows[i1];checklistTseState.rows[i1]=tmp;}tseRerender();return;}
+      var down=e.target.closest('[data-phfck-tse-move-down]');
+      if(down){tseSyncRowsFromDom(modal);var i2=Number(down.getAttribute('data-phfck-tse-move-down'));if(i2<checklistTseState.rows.length-1){var tmp2=checklistTseState.rows[i2+1];checklistTseState.rows[i2+1]=checklistTseState.rows[i2];checklistTseState.rows[i2]=tmp2;}tseRerender();return;}
+      if(e.target.closest('[data-phfck-tse-rescale]')){tseSyncRowsFromDom(modal);tseRescale();tseRerender();return;}
+      if(e.target.closest('[data-phfck-tse-save-draft]')){tseSyncRowsFromDom(modal);checklistToast('success','Đã lưu nháp','Bản nháp Bảng tổng điểm được giữ trong phiên làm việc này (chưa gửi máy chủ, chưa tạo phiên bản).');return;}
+      if(e.target.closest('[data-phfck-tse-preview]')){tseSyncRowsFromDom(modal);tseOpenPreview();return;}
+    }
+    var previewModal=e.target.closest('.phfck-tse-preview-modal');
+    if(previewModal&&checklistTseState){
+      if(e.target.closest('[data-phfck-tse-back-editor]')){tseRerender();return;}
+      if(e.target.closest('[data-phfck-tse-confirm-publish]')){
+        if(checklistTseState.publishing)return;
+        var nv=normalizeText((previewModal.querySelector('[data-phfck-tse-new-version]')||{}).value),ed=normalizeText((previewModal.querySelector('[data-phfck-tse-effective-date]')||{}).value)||todayIso(),rs=normalizeText((previewModal.querySelector('[data-phfck-tse-reason]')||{}).value);
+        if(!nv){checklistToast('warning','Thiếu phiên bản mới','Vui lòng nhập số phiên bản mới.',true);return;}
+        if(!rs){checklistToast('warning','Thiếu lý do','Vui lòng nhập lý do trước khi tạo phiên bản.',true);return;}
+        var state=checklistTseState;state.newVersion=nv;state.effectiveDate=ed;state.reason=rs;state.publishing=true;state.publishError='';tseRerenderPreview();
+        tsePersistPublishedVersion(state).then(function(result){
+          state.publishing=false;state.published=result.data;
+          addAudit({action:'Phát hành phiên bản từ web',area:'Bảng tổng điểm',object:result.item.name||state.templateId,source:'Web',impact:'Một mẫu',version:state.sourceVersion+' → '+state.newVersion,reason:state.reason});
+          var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();syncChecklistModalScrollLock();checklistTseState=null;if(root)refreshTemplatesWorkspace(root);
+          checklistToast('success','Đã tạo phiên bản mới','Phiên bản mới chỉ áp dụng cho Phiếu tháng tạo mới từ nay. Phiếu tháng hiện có giữ nguyên.');
+        }).catch(function(err){state.publishing=false;if(!state.publishError)state.publishError=err&&err.message||'Máy chủ chưa xác nhận phát hành.';tseRerenderPreview();});
+        return;
+      }
+    }
+  });
+  document.addEventListener('input',function(e){
+    var modal=e.target.closest('.phfck-tse-modal');
+    if(modal&&checklistTseState&&e.target.closest('[data-phfck-tse-field]')){tseSyncRowsFromDom(modal);tsePatchValidation(modal);return;}
+  });
+  document.addEventListener('change',function(e){
+    var modal=e.target.closest('.phfck-tse-modal');
+    if(modal&&checklistTseState&&e.target.closest('[data-phfck-tse-field]')){tseSyncRowsFromDom(modal);tsePatchValidation(modal);return;}
+  });
 
 })();
