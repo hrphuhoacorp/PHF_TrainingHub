@@ -1,7 +1,7 @@
 {
-  "version": "1.65.7",
-  "fingerprint": "1.65.7-task-core-api-wiring",
-  "builtAt": "2026-08-20T17:56:54+07:00",
-  "notes": "1.65.7: PHF Task Batch 2B — wire Task Core actions on Node/Vercel API surfaces; no UI, migration, DB write, recurring, notification or email.",
-  "build": "1.65.7"
+  "version": "1.65.8",
+  "fingerprint": "1.65.8-task-core-runtime-repair",
+  "builtAt": "2026-08-20T18:04:34+07:00",
+  "notes": "1.65.8: PHF Task Batch 2B — include missing Task Core runtime dependencies required by API wiring; no UI, migration, DB write, recurring, notification or email.",
+  "build": "1.65.8"
 }
