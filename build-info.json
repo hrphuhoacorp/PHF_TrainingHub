@@ -1,7 +1,7 @@
 {
-  "version": "1.64.1",
-  "fingerprint": "1.64.1-knl-notification-bell-position",
-  "builtAt": "2026-08-19T19:00:00+07:00",
-  "notes": "1.64.1: HOTFIX UI - đổi thứ tự DOM chuông KNL Notification trong .phfk-topbar từ avatar->user-copy->notif-wrap sang notif-wrap->avatar->user-copy (chuông bên trái khối user, đồng nhất layout module khác). CHỈ đổi thứ tự HTML string trong assets/js/knl/phf-knl-app.js (shellFrame()) - không đổi logic notification/API/permission/storage/workflow Grade Proposal. Bump index.html ?v= cho phf-knl-app.js và phf-knl.css (immutable 1 năm qua vercel.json) để tránh cache stale, dù CSS không đổi nội dung - giữ đồng bộ 2 tag theo đúng convention đã áp dụng ở hotfix 1.62.0. Không migration. Không Production DB write. Không đụng Checklist/Retro/TSE WIP đang dở dang cục bộ (chưa commit).",
-  "build": "1.64.1"
+  "version": "1.65.3",
+  "fingerprint": "1.65.3-checklist-build-cache-contract-fix",
+  "builtAt": "2026-08-20T13:52:33+07:00",
+  "notes": "1.65.3: CHK-P1-05 — đồng bộ X-PHF-Build với canonical build version; giữ nguyên immutable cache policy; không đổi business logic, migration hoặc Production DB.",
+  "build": "1.65.3"
 }
