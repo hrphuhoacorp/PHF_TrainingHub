@@ -15,6 +15,23 @@ const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, li
 const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
 const {
+  createTaskDraft,
+  updateTaskDraft,
+  publishTask,
+  getTaskDetail,
+  updateTaskProgress,
+  completeTask,
+  reopenTask,
+  cancelTask,
+  changeTaskDeadline,
+  transferTaskPrimary,
+  addTaskRelated,
+  removeTaskRelated,
+  addTaskComment,
+  addTaskLink,
+  removeTaskLink
+} = require('./lib/task-core');
+const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
   dryRunRetroactiveApply: dryRunChecklistRetroApply,
@@ -70,6 +87,74 @@ const {
 } = require('./lib/request-guard');
 const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./lib/production-hardening');
 const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./lib/auth');
+
+/* TASK_API_WIRING_START */
+const TASK_ACTION_MANIFEST = Object.freeze([
+  'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
+  'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
+  'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
+  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink'
+]);
+
+function copyTaskPayloadField(target, payload, publicName, coreName) {
+  if (Object.prototype.hasOwnProperty.call(payload, publicName)) target[coreName] = payload[publicName];
+}
+
+function taskCreateDraftInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'flow_type', 'flowType');
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(input, payload, 'deadline', 'deadline');
+  copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
+  return input;
+}
+
+function taskDraftPatch(payload) {
+  const patch = {};
+  copyTaskPayloadField(patch, payload, 'title', 'title');
+  copyTaskPayloadField(patch, payload, 'content', 'content');
+  copyTaskPayloadField(patch, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(patch, payload, 'priority', 'priority');
+  copyTaskPayloadField(patch, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(patch, payload, 'deadline', 'deadline');
+  return patch;
+}
+
+function rejectUnknownTaskAction(action) {
+  const error = new Error('Thao tác Task không hợp lệ: ' + action);
+  error.statusCode = 400;
+  error.code = 'TASK_ACTION_INVALID';
+  throw error;
+}
+
+async function dispatchTaskAction(session, payload) {
+  const action = String(payload && payload.action || '').trim();
+  switch (action) {
+    case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
+    case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
+    case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
+    case 'getTaskDetail': return { handled: true, result: await getTaskDetail(session, payload.task_id) };
+    case 'updateTaskProgress': return { handled: true, result: await updateTaskProgress(session, payload.task_id, payload.expected_row_version, payload.progress_percent, payload.progress_status) };
+    case 'completeTask': return { handled: true, result: await completeTask(session, payload.task_id, payload.expected_row_version, payload.result_text) };
+    case 'reopenTask': return { handled: true, result: await reopenTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
+    case 'cancelTask': return { handled: true, result: await cancelTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
+    case 'changeTaskDeadline': return { handled: true, result: await changeTaskDeadline(session, payload.task_id, payload.expected_row_version, payload.new_deadline, payload.reason) };
+    case 'transferTaskPrimary': return { handled: true, result: await transferTaskPrimary(session, payload.task_id, payload.expected_row_version, payload.new_primary_employee_code, payload.reason) };
+    case 'addTaskRelated': return { handled: true, result: await addTaskRelated(session, payload.task_id, payload.target_employee_code) };
+    case 'removeTaskRelated': return { handled: true, result: await removeTaskRelated(session, payload.task_id, payload.target_employee_code) };
+    case 'addTaskComment': return { handled: true, result: await addTaskComment(session, payload.task_id, payload.body) };
+    case 'addTaskLink': return { handled: true, result: await addTaskLink(session, payload.task_id, payload.side, payload.url, payload.label) };
+    case 'removeTaskLink': return { handled: true, result: await removeTaskLink(session, payload.task_id, payload.link_id) };
+    default:
+      if (/task/i.test(action)) rejectUnknownTaskAction(action);
+      return { handled: false, result: null };
+  }
+}
+/* TASK_API_WIRING_END */
 
 
 async function requireWebOperatorSession(req){
@@ -931,6 +1016,8 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='saveKnlSurveyTicket')return sendJson(res,200,{ok:true,...await saveKnlSurveyTicket(session,payload)});
       if(payload&&payload.action==='getKnlSurveyResults')return sendJson(res,200,{ok:true,...await getKnlSurveyResults(session,payload)});
       if(payload&&payload.action==='cloneKnlSurveyVersionToDraft')return sendJson(res,200,{ok:true,...await cloneKnlSurveyVersionToDraft(session,payload)});
+        const taskDispatch = await dispatchTaskAction(session, payload);
+        if (taskDispatch.handled) return sendJson(res, 200, {ok:true,result:taskDispatch.result});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;
