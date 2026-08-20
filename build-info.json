@@ -1,7 +1,7 @@
 {
-  "version": "1.65.4",
-  "fingerprint": "1.65.4-checklist-overview-warning-parity",
-  "builtAt": "2026-08-20T14:15:35+07:00",
-  "notes": "1.65.4: CHK-P1-01 — đấu nối cảnh báo Tổng quan Checklist vào dữ liệu hiện hữu của Báo cáo; điểm thấp dưới 80, lỗi lặp và gợi ý đào tạo dùng output Report; thiếu minh chứng hiển thị Chưa áp dụng; không đổi Report, backend, permission, migration hoặc Production DB.",
-  "build": "1.65.4"
+  "version": "1.65.5",
+  "fingerprint": "1.65.5-checklist-publish-confirmation",
+  "builtAt": "2026-08-20T14:53:05+07:00",
+  "notes": "1.65.5: CHK-P1-03 — chờ backend xác nhận phát hành phiên bản Checklist trước khi cập nhật localStorage, audit, render và thông báo thành công; không đổi backend, DB, migration hoặc immutable cache policy.",
+  "build": "1.65.5"
 }
