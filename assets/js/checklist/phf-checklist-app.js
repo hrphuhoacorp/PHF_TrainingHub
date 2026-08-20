@@ -305,8 +305,11 @@
     if(previousMonth===0){previousMonth=12;previousYear-=1;}
     return {current:String(month).padStart(2,'0')+'/'+year,previous:String(previousMonth).padStart(2,'0')+'/'+previousYear,cutoffTime:timing.monthlyCutoffTime,cutoffDay:String(timing.monthlyCutoffDay).padStart(2,'0'),lockStart:deadlineLockStartLabel(timing)};
   }
+  function overviewWarningSummaryFromReportData(source){source=source||{};var forms=Array.isArray(source.forms)?source.forms:[],repeatSuggestions=Array.isArray(source.repeatSuggestions)?source.repeatSuggestions:[];var summary={lowScore:forms.filter(function(row){return row&&row.finalScore!=null&&Number(row.finalScore)<80;}).length,repeatWarning:repeatSuggestions.filter(function(row){return row.warning===true;}).length,trainingSuggested:repeatSuggestions.filter(function(row){return row.trainingSuggested===true;}).length};summary.hasWarnings=summary.lowScore>0||summary.repeatWarning>0||summary.trainingSuggested>0;return summary;}
   function adminOverviewHtml(name){
     var period=overviewPeriodMeta(),taskSummary=overviewUiState.taskSummary||{},timing=timingPolicyValue(),overviewReady=overviewUiState.loaded&&!overviewUiState.loading&&!overviewUiState.error,waitingEmployee=overviewReady?Number(taskSummary.waitingEmployee||0):'—',waitingReviewer=overviewReady?Number(taskSummary.waitingReviewer||0):'—',waitingAdmin=overviewReady?Number(taskSummary.waitingAdmin||0):'—',due=overviewReady?(Number(taskSummary.due||0)+Number(taskSummary.overdue||0)):'—';
+    var warningSummary=overviewUiState.warningSummary,warningReady=overviewReady&&warningSummary&&overviewUiState.warningMonth===todayIso().slice(0,7),lowScore=warningReady?warningSummary.lowScore:'—',repeatWarning=warningReady?warningSummary.repeatWarning:'—',trainingSuggested=warningReady?warningSummary.trainingSuggested:'—';
+    var warningStatus=overviewUiState.loading?'Đang tải dữ liệu…':(overviewUiState.error?'Chưa tải được dữ liệu':(warningSummary&&warningSummary.hasWarnings?'Có cảnh báo':'Chưa có cảnh báo')),warningStatusClass='phfck-status'+(warningReady&&!warningSummary.hasWarnings?' phfck-status-muted':'');
     return '<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Tổng quan</h1><p>Ưu tiên công việc cần xử lý, cảnh báo và tình hình vận hành Checklist trong tháng.</p></div><button class="phfck-primary" type="button" data-phfck-view="violations">＋ Ghi nhận lỗi</button></div>'+checklistViolationModeBanner()
       +'<section class="phfck-overview-work" aria-label="Việc cần xử lý">'
         +'<div class="phfck-panel-head"><div><small>ƯU TIÊN HÔM NAY</small><h3>Việc cần xử lý</h3></div><button type="button" class="phfck-overview-link" data-phfck-view="tasks">Xem tất cả →</button></div>'
@@ -318,12 +321,12 @@
         +'</div>'
       +'</section>'
       +'<section class="phfck-overview-alerts phfck-panel">'
-        +'<div class="phfck-panel-head"><div><small>CẢNH BÁO CẦN CHÚ Ý</small><h3>Rủi ro và trường hợp cần theo dõi</h3></div><span class="phfck-status phfck-status-muted">Chưa có cảnh báo</span></div>'
+        +'<div class="phfck-panel-head"><div><small>CẢNH BÁO CẦN CHÚ Ý</small><h3>Rủi ro và trường hợp cần theo dõi</h3></div><span class="'+warningStatusClass+'">'+warningStatus+'</span></div>'
         +'<div class="phfck-overview-alert-grid">'
-          +'<button type="button" data-phfck-view="reports"><span>01</span><div><b>Điểm Checklist thấp</b><small>Nhân sự có điểm thấp hơn ngưỡng cảnh báo.</small></div><strong>0</strong></button>'
-          +'<button type="button" data-phfck-view="reports"><span>02</span><div><b>Lỗi lặp lại trong tháng</b><small>Cùng tiêu chí phát sinh từ lần thứ 2.</small></div><strong>0</strong></button>'
-          +'<button type="button" data-phfck-view="reports"><span>03</span><div><b>Đạt ngưỡng gợi ý đào tạo</b><small>Theo ngưỡng Admin đã cấu hình.</small></div><strong>0</strong></button>'
-          +'<button type="button" data-phfck-view="tasks"><span>04</span><div><b>Thiếu minh chứng bắt buộc</b><small>Vụ việc chưa đủ căn cứ theo cấu hình tiêu chí.</small></div><strong>0</strong></button>'
+          +'<button type="button" data-phfck-view="reports"><span>01</span><div><b>Điểm Checklist thấp</b><small>Nhân sự có điểm thấp hơn ngưỡng cảnh báo.</small></div><strong>'+lowScore+'</strong></button>'
+          +'<button type="button" data-phfck-view="reports"><span>02</span><div><b>Lỗi lặp lại trong tháng</b><small>Cùng tiêu chí phát sinh từ lần thứ 2.</small></div><strong>'+repeatWarning+'</strong></button>'
+          +'<button type="button" data-phfck-view="reports"><span>03</span><div><b>Đạt ngưỡng gợi ý đào tạo</b><small>Theo ngưỡng Admin đã cấu hình.</small></div><strong>'+trainingSuggested+'</strong></button>'
+          +'<button type="button" data-phfck-view="tasks"><span>04</span><div><b>Thiếu minh chứng bắt buộc</b><small>Chưa có nguồn dữ liệu và quy tắc áp dụng.</small></div><strong>Chưa áp dụng</strong></button>'
         +'</div>'
       +'</section>'
       +'<section class="phfck-kpis phfck-overview-kpis" aria-label="Tình hình tháng hiện tại">'
@@ -1341,7 +1344,7 @@
   function ensureViolationDefaults(){if(!violationUiState.date)violationUiState.date=todayIso();if(!Array.isArray(violationUiState.multiRows))violationUiState.multiRows=[];}
   function timePickerButtonHtml(value,attrs){return '<div class="phfck-time-field"><input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01]\\d|2[0-3]):[0-5]\\d" placeholder="HH:mm" aria-label="Giờ theo định dạng 24 giờ" value="'+esc(value||currentTime24())+'" data-phfck-time24 '+(attrs||'')+'><button type="button" class="phfck-time-trigger" data-phfck-time-trigger aria-label="Chọn giờ">◷</button></div>';}
   var taskUiState={scope:'all',status:'all',query:'',priority:'all',selectedId:'',selectedHistory:[],detailLoading:false,saving:false,loading:false,loaded:false,error:'',records:[],summary:{},scopeSummary:{},timingPolicy:{employeeResponseDays:3,reviewerResponseDays:3,monthlyCutoffDay:4,monthlyCutoffTime:'23:59',adminAfterLock:'controlled',effectiveFromPeriod:'2026-08'}};
-  var overviewUiState={loading:true,loaded:false,error:'',taskSummary:{},timingPolicy:{employeeResponseDays:3,reviewerResponseDays:3,monthlyCutoffDay:4,monthlyCutoffTime:'23:59',adminAfterLock:'controlled',effectiveFromPeriod:'2026-08'},loadedAt:0,requestId:0,request:null};
+  var overviewUiState={loading:true,loaded:false,error:'',taskSummary:{},warningSummary:null,warningMonth:'',timingPolicy:{employeeResponseDays:3,reviewerResponseDays:3,monthlyCutoffDay:4,monthlyCutoffTime:'23:59',adminAfterLock:'controlled',effectiveFromPeriod:'2026-08'},loadedAt:0,requestId:0,request:null};
   var overviewAuthReloadBound=false,overviewBootToken=0,overviewBootTimers=[];
   function clearChecklistOverviewBootTimers(){overviewBootTimers.forEach(function(timer){clearTimeout(timer);});overviewBootTimers=[];}
   function scheduleChecklistOverviewBootReload(reason){
@@ -1433,8 +1436,11 @@
         /* Lần mở đầu chờ một nhịp rồi xác nhận lại dữ liệu sau khi auth/session ổn định.
            Chỉ render kết quả cuối, tránh hiển thị tạm 0 rồi nhảy sang số thật. */
         if(!overviewUiState.loaded){await waitChecklistOverviewRetry(450);data=await requestChecklistOverview();}
+        var reportMonth=todayIso().slice(0,7),reportData=await requestChecklistReport(reportMonth,reportMonth);
         if(requestId!==overviewUiState.requestId)return false;
         overviewUiState.taskSummary=data.summary;
+        overviewUiState.warningSummary=overviewWarningSummaryFromReportData(reportData);
+        overviewUiState.warningMonth=reportMonth;
         overviewUiState.timingPolicy=data.timingPolicy||overviewUiState.timingPolicy;
         overviewUiState.loaded=true;
         overviewUiState.loadedAt=Date.now();
