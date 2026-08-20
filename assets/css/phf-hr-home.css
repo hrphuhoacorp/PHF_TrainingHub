@@ -7,10 +7,31 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-main{padding:24px clamp(24px,2.4vw,42px) 0;max-width:1600px;margin:0 auto}.phf-hr-hero{min-height:405px;display:grid;grid-template-columns:minmax(520px,.9fr) minmax(650px,1.35fr);align-items:stretch;border:1px solid #e0ebe3;border-radius:27px;background:linear-gradient(135deg,#fff 0,#fff 77%,#f2fbdd 100%);box-shadow:0 14px 34px rgba(18,70,45,.075);overflow:hidden;position:relative}.phf-hr-hero::before,.phf-hr-hero::after{content:"";position:absolute;border-radius:50%;background:radial-gradient(circle,#c6ef70 0,rgba(198,239,112,0) 70%);opacity:.19;pointer-events:none}.phf-hr-hero::before{width:260px;height:260px;right:-125px;top:-125px}.phf-hr-hero::after{width:210px;height:210px;left:-110px;bottom:-120px}.phf-hr-hero-copy{padding:42px 30px 38px 50px;position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center}.phf-hr-kicker{display:flex;align-items:center;gap:12px;color:#3b9b42;font-weight:900;font-size:18px;letter-spacing:.03em}.phf-hr-kicker i{display:block;width:38px;height:3px;border-radius:4px;background:#4da946}.phf-hr-hero-copy h1{font-size:clamp(38px,3.25vw,57px);line-height:1.14;letter-spacing:-.035em;color:#103f31;margin:22px 0 18px}.phf-hr-hero-copy>p{margin:0;color:#556861;font-size:16px;line-height:1.75}.phf-hr-manifest{display:flex;align-items:center;gap:16px;align-self:flex-start;margin-top:26px;padding:15px 22px;border-radius:15px;background:#edf7e8;color:#4b6157;line-height:1.55;font-size:14px}.phf-hr-manifest>span{font-size:28px}.phf-hr-manifest strong{font-weight:500}
 .phf-hr-journey{position:relative;min-height:405px;display:grid;grid-template-columns:repeat(4,1fr);padding:42px 25px 20px 0;align-items:start;z-index:1}.phf-hr-flow{position:absolute;width:96%;height:175px;left:1%;top:72px;overflow:visible}.phf-hr-step{text-align:center;position:relative;z-index:2;color:#0b694d}.phf-hr-step>b{display:block;font-size:14px;margin-bottom:7px}.phf-hr-step>strong{display:block;font-size:14px;min-height:34px}.phf-hr-journey-icon{width:82px;height:82px;margin:16px auto 78px;display:grid;place-items:center;border-radius:50%;background:#fff;border:1.8px solid currentColor;box-shadow:0 9px 25px rgba(23,76,51,.1)}.phf-hr-journey-icon svg{width:40px;height:40px}.phf-hr-step p{margin:0 auto;color:#5d6c66;font-size:12.5px;line-height:1.52;max-width:165px}.phf-hr-step.is-classroom{color:#128d79}.phf-hr-step.is-checklist{color:#bb830d}.phf-hr-step.is-knl{color:#2376ac}
 .phf-hr-modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:24px}.phf-hr-modules article{display:flex;flex-direction:column;min-height:292px;padding:20px;border:1px solid #dfe9e2;border-radius:21px;background:#fff;box-shadow:0 10px 25px rgba(18,66,43,.065);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}.phf-hr-modules article:hover{transform:translateY(-2px);box-shadow:0 16px 33px rgba(18,66,43,.1);border-color:#c7ddd0}.phf-hr-card-head{display:flex;align-items:center;gap:14px}.phf-hr-card-head>span{width:65px;height:65px;display:grid;place-items:center;border-radius:18px;background:#edf8e9;color:#08734e}.phf-hr-card-head svg{width:36px;height:36px}.phf-hr-card-head h2{margin:0 0 5px;color:#0b674b;font-size:23px}.phf-hr-card-head b{color:#3c9c45;font-size:14px}.phf-hr-modules article>p{color:#566861;line-height:1.55;font-size:14px;margin:18px 0 14px;flex:1}.phf-hr-card-status{min-height:47px;display:flex;align-items:center;padding:0 14px;border-radius:12px;background:#edf7e9;color:#477159;font-size:12.5px;margin-bottom:14px}.phf-hr-modules button{height:47px;border:0;border-radius:12px;background:linear-gradient(135deg,#08734e,#075c43);color:#fff;font-weight:800;font-size:14px;display:flex;justify-content:center;align-items:center;gap:18px;cursor:pointer}.phf-hr-modules button span{font-size:21px;line-height:1}.phf-hr-modules .is-classroom .phf-hr-card-head>span{background:#e8f7f3;color:#168a78}.phf-hr-modules .is-classroom .phf-hr-card-head b{color:#138b77}.phf-hr-modules .is-classroom .phf-hr-card-status{background:#eaf7f4;color:#39746b}.phf-hr-modules .is-checklist .phf-hr-card-head>span{background:#fff4d9;color:#b27800}.phf-hr-modules .is-checklist .phf-hr-card-head h2,.phf-hr-modules .is-checklist .phf-hr-card-head b{color:#af7600}.phf-hr-modules .is-checklist .phf-hr-card-status{background:#fff7e5;color:#8b6a24}.phf-hr-modules .is-knl .phf-hr-card-head>span{background:#edf5fd;color:#2675a9}.phf-hr-modules .is-knl .phf-hr-card-head h2,.phf-hr-modules .is-knl .phf-hr-card-head b{color:#236f9f}.phf-hr-modules .is-knl .phf-hr-card-status{background:#eef6fd;color:#367396}
+/* Hàng vận hành (PHF Task/Lịch làm việc & Chấm công/Quản trị tổng hợp) TÁI DÙNG
+   nguyên vẹn style card .phf-hr-modules (border/radius/shadow/padding/height/
+   icon/typography/CTA đã định nghĩa ở trên) — chỉ override số cột (3 thay vì 4)
+   và thêm trạng thái "Sắp triển khai" cho 2 card placeholder. Không tạo card
+   CSS riêng cho Task. */
+.phf-hr-modules-ops{grid-template-columns:repeat(3,minmax(0,1fr))}
+.phf-hr-modules-ops article.is-soon{background:#fbfcfd}.phf-hr-modules-ops article.is-soon .phf-hr-card-head>span{background:#f1f3f6;color:#6b7784}.phf-hr-modules-ops article.is-soon .phf-hr-card-head h2,.phf-hr-modules-ops article.is-soon .phf-hr-card-head b{color:#5f6d7a}.phf-hr-modules-ops .is-soon-btn{background:#fff6dc!important;color:#8b681f!important;cursor:pointer;box-shadow:none!important;border:1px dashed #f0dfa8!important}
 .phf-hr-quick{display:grid;grid-template-columns:repeat(4,1fr);margin-top:24px;border:1px solid #e0e9e3;border-radius:18px;background:#fff;box-shadow:0 8px 22px rgba(20,67,45,.05);overflow:hidden}.phf-hr-quick article{min-height:78px;padding:14px 28px;display:flex;align-items:center;gap:17px;position:relative}.phf-hr-quick article:not(:last-child)::after{content:"";position:absolute;right:0;top:20px;bottom:20px;width:1px;background:#dde7e1}.phf-hr-quick svg{width:28px;height:28px;color:#17845f}.phf-hr-quick span{display:flex;flex-direction:column;gap:4px}.phf-hr-quick strong{color:#176348;font-size:15px}.phf-hr-quick small{color:#687870;font-size:12px}.phf-hr-footer{text-align:center;padding:22px 20px;color:#77847e;font-size:12px}
-@media(max-width:1220px){.phf-hr-hero{grid-template-columns:1fr}.phf-hr-hero-copy{padding-bottom:18px}.phf-hr-journey{min-height:355px;padding-left:20px}.phf-hr-modules{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){.phf-hr-header{height:auto;min-height:82px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}.phf-hr-brand{gap:12px}.phf-hr-brand img{width:145px;height:48px}.phf-hr-brand-rule{height:42px}.phf-hr-brand strong{font-size:21px}.phf-hr-brand small{font-size:11px}.phf-hr-account>span:nth-child(2),.phf-hr-account i{display:none}.phf-hr-header-actions{gap:8px}.phf-hr-scope-chip{display:none!important}.phf-hr-main{padding:14px}.phf-hr-hero-copy{padding:28px 22px}.phf-hr-hero-copy h1{font-size:34px;line-height:1.22;letter-spacing:-.02em}.phf-hr-hero-copy>p br{display:none}.phf-hr-journey{grid-template-columns:1fr;gap:16px;padding:30px 20px 20px}.phf-hr-flow{display:none}.phf-hr-step{display:grid;grid-template-columns:58px 1fr;text-align:left;align-items:center;column-gap:28px;padding:16px;border:1px solid #e0ebe3;border-radius:16px;background:#fff}.phf-hr-step>b,.phf-hr-step>strong,.phf-hr-step p{grid-column:2;margin:0;max-width:none}.phf-hr-journey-icon{grid-column:1;grid-row:1/4;width:58px;height:58px;margin:0;align-self:center}.phf-hr-journey-icon svg{width:29px;height:29px}.phf-hr-modules,.phf-hr-quick{grid-template-columns:1fr}.phf-hr-quick article:not(:last-child)::after{top:auto;left:22px;right:22px;bottom:0;width:auto;height:1px}.phf-hr-modules article{min-height:auto}.phf-hr-footer{padding-bottom:calc(22px + env(safe-area-inset-bottom))}.phf-hr-step>strong{margin-top:5px!important}.phf-hr-step p{margin-top:6px!important}.phf-hr-card-head{gap:20px}.phf-hr-modules{gap:16px;margin-top:32px}}
-@media(max-width:480px){.phf-hr-main{padding:12px}.phf-hr-hero-copy{padding:22px 18px}.phf-hr-hero-copy h1{font-size:27px}.phf-hr-hero-copy>p{font-size:14px}.phf-hr-modules{gap:14px}.phf-hr-modules article{padding:18px}.phf-hr-quick{margin-top:16px}.phf-hr-journey{padding:14px;gap:10px}}
+/* Entry "Quản trị nhân sự" trong thanh tiện ích — thay chỗ "Hỗ trợ". Admin:
+   clickable (data-phf-hr-module="people" dùng chung wiring/route cũ). Non-admin:
+   KHÔNG có data-phf-hr-module (không phải chỉ ẩn bằng CSS) nên không có đường
+   điều hướng nào tồn tại trong DOM — khóa là do thiếu wiring, không phải chỉ
+   opacity/pointer-events. */
+.phf-hr-quick article.is-hr-admin-entry{cursor:pointer;transition:background-color .15s ease}
+.phf-hr-quick article.is-hr-admin-entry:hover,.phf-hr-quick article.is-hr-admin-entry:focus-visible{background:#f2faf5;outline:none}
+.phf-hr-quick article.is-hr-admin-entry.is-locked{cursor:not-allowed}
+.phf-hr-quick article.is-hr-admin-entry.is-locked:hover{background:transparent}
+.phf-hr-quick article.is-hr-admin-entry.is-locked svg{color:#9aa8a1}
+.phf-hr-quick article.is-hr-admin-entry.is-locked strong{color:#6b7a72}
+.phf-hr-quick article.is-hr-admin-entry.is-locked small{color:#8b968f}
+.phf-hr-lock-badge{position:absolute;left:47px;top:32px;width:18px;height:18px;display:grid;place-items:center;background:#fff;border-radius:50%;box-shadow:0 0 0 2px #fff}
+.phf-hr-lock-badge svg{width:13px;height:13px;color:#9aa8a1}
+@media(max-width:1220px){.phf-hr-hero{grid-template-columns:1fr}.phf-hr-hero-copy{padding-bottom:18px}.phf-hr-journey{min-height:355px;padding-left:20px}.phf-hr-modules{grid-template-columns:repeat(2,1fr)}.phf-hr-modules-ops{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.phf-hr-header{height:auto;min-height:82px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}.phf-hr-brand{gap:12px}.phf-hr-brand img{width:145px;height:48px}.phf-hr-brand-rule{height:42px}.phf-hr-brand strong{font-size:21px}.phf-hr-brand small{font-size:11px}.phf-hr-account>span:nth-child(2),.phf-hr-account i{display:none}.phf-hr-header-actions{gap:8px}.phf-hr-scope-chip{display:none!important}.phf-hr-main{padding:14px}.phf-hr-hero-copy{padding:28px 22px}.phf-hr-hero-copy h1{font-size:34px;line-height:1.22;letter-spacing:-.02em}.phf-hr-hero-copy>p br{display:none}.phf-hr-journey{grid-template-columns:1fr;gap:16px;padding:30px 20px 20px}.phf-hr-flow{display:none}.phf-hr-step{display:grid;grid-template-columns:58px 1fr;text-align:left;align-items:center;column-gap:28px;padding:16px;border:1px solid #e0ebe3;border-radius:16px;background:#fff}.phf-hr-step>b,.phf-hr-step>strong,.phf-hr-step p{grid-column:2;margin:0;max-width:none}.phf-hr-journey-icon{grid-column:1;grid-row:1/4;width:58px;height:58px;margin:0;align-self:center}.phf-hr-journey-icon svg{width:29px;height:29px}.phf-hr-modules,.phf-hr-modules-ops,.phf-hr-quick{grid-template-columns:1fr}.phf-hr-quick article:not(:last-child)::after{top:auto;left:22px;right:22px;bottom:0;width:auto;height:1px}.phf-hr-modules article,.phf-hr-modules-ops article{min-height:auto}.phf-hr-footer{padding-bottom:calc(22px + env(safe-area-inset-bottom))}.phf-hr-step>strong{margin-top:5px!important}.phf-hr-step p{margin-top:6px!important}.phf-hr-card-head{gap:20px}.phf-hr-modules{gap:16px;margin-top:32px}}
+@media(max-width:480px){.phf-hr-main{padding:12px}.phf-hr-hero-copy{padding:22px 18px}.phf-hr-hero-copy h1{font-size:27px}.phf-hr-hero-copy>p{font-size:14px}.phf-hr-modules,.phf-hr-modules-ops{gap:14px}.phf-hr-modules article,.phf-hr-modules-ops article{padding:18px}.phf-hr-quick{margin-top:16px}.phf-hr-journey{padding:14px;gap:10px}}
 
 /* PHF HR 1.7.18 - route shell, brand, journey and account polish */
 .phf-hr-brand img{width:238px;height:78px;object-fit:contain;object-position:left center}
@@ -28,10 +49,73 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-flow i{display:none}
 .phf-hr-step>strong{min-height:40px;display:flex;align-items:flex-start;justify-content:center}
 .phf-hr-journey-icon{margin:12px auto 58px;width:82px;height:82px;position:relative}
-.phf-hr-journey-icon::after{content:"";position:absolute;left:50%;bottom:-17px;width:10px;height:10px;border-radius:50%;background:currentColor;transform:translateX(-50%);box-shadow:0 0 0 5px #fff}
-.phf-hr-step p{font-size:13px;line-height:1.55;max-width:180px}
 @media(max-width:1220px){.phf-hr-journey{padding:34px 22px 28px}.phf-hr-flow{top:157px;left:12.5%;right:5%}}
-@media(max-width:760px){.phf-hr-flow{display:none}.phf-hr-journey-icon::after{display:none}.phf-hr-journey-icon{margin:0}.phf-hr-step>strong{min-height:auto;justify-content:flex-start}}
+@media(max-width:760px){.phf-hr-flow{display:none}.phf-hr-journey-icon{margin:0}.phf-hr-step>strong{min-height:auto;justify-content:flex-start}}
+
+/* PHF HR Home — roadmap transition zone (Bước 2 -> Compact Operations Hub ->
+   Bước 3), bám ảnh reference đã chốt: RAIL THẲNG LIỀN MẠCH DUY NHẤT (không
+   dip/cong SVG như bản trước — đã remove hoàn toàn .phf-hr-ops-transition/
+   -svg/-path, đây chính là nguồn "đường gạch thừa" cần fix). .phf-hr-flow là
+   MỘT rail liên tục xuyên suốt cả 4 bước, không đổi gì — hub chỉ là 1 element
+   nổi TRÊN rail (z-index cao hơn) tại đúng điểm giữa Bước 2-3, nối lên rail
+   bằng ĐÚNG 1 đoạn thẳng đứng ngắn (::before, không cong) — mắt nhìn thấy
+   "rail chạy xuyên qua hub" vì rail nằm dưới, không bị ngắt quãng ở bất kỳ
+   đâu. Animation KHÔNG đổi: rail scan (<i> tái dùng) + rail progress
+   (.phf-hr-flow::after) y hệt bản trước — hub không có animation riêng (đúng
+   yêu cầu "không tạo animation khiến hub tách khỏi journey").
+   KHÔNG đặt hub ngang hàng y-hệt tâm icon (dù ảnh reference vẽ vậy): đã đo
+   không gian thật — khoảng trống MÉP icon Bước 2 tới mép icon Bước 3 chỉ
+   ~53-128px tùy viewport (icon 82px, cột 194-215px ở desktop rộng, ~150-160px
+   ở ngưỡng 1221px), trong khi hub 2 cột ngang cần tối thiểu ~150-200px mới
+   đọc được — nếu đặt ngang hàng icon (cùng y) sẽ ĐÈ vào icon ở nhiều viewport,
+   vi phạm trực tiếp yêu cầu "không overlap". Do đó hub đặt THẤP hơn icon một
+   khoảng an toàn (y:220, hoàn toàn dưới đáy icon y:136 ở MỌI viewport vì đây
+   là toạ độ tuyệt đối không phụ thuộc bề rộng cột) rồi nối thẳng đứng lên
+   rail — vẫn giữ đúng tinh thần "flow liên tục, không cong", chỉ khác vị trí
+   Y so với ảnh mẫu vì lý do không gian thật đã đo, không phải bỏ qua yêu cầu. */
+@media(min-width:1221px){
+  .phf-hr-flow i{display:block;position:absolute;inset:0;width:24%;border-radius:99px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent);filter:blur(.3px);animation:phfHrRailScan 2.6s linear infinite;pointer-events:none}
+  .phf-hr-flow::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4%;border-radius:99px;background:linear-gradient(90deg,#59b84a,#28a68c,#d7ae35,#4197c6);box-shadow:0 0 14px rgba(40,166,140,.4);animation:phfHrRailProgress 6s ease-in-out infinite;pointer-events:none}
+  .phf-hr-step.is-classroom .phf-hr-journey-icon::before,.phf-hr-step.is-checklist .phf-hr-journey-icon::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:1.5px solid currentColor;opacity:.18;animation:phfHrIconPulse 2.4s ease-out infinite;pointer-events:none}
+  .phf-hr-step.is-classroom .phf-hr-journey-icon,.phf-hr-step.is-checklist .phf-hr-journey-icon{margin-bottom:148px}
+  .phf-hr-ops-hub{position:absolute;left:50%;top:236px;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 16px 9px;border-radius:20px;background:linear-gradient(180deg,#f6fbf9,#fdf9ef);border:1px solid rgba(23,120,80,.16);box-shadow:0 8px 18px rgba(20,91,62,.08);white-space:nowrap}
+  .phf-hr-ops-hub::before{content:"";position:absolute;left:50%;top:-35px;width:2px;height:35px;background:linear-gradient(180deg,rgba(40,166,140,.05),rgba(40,166,140,.45));transform:translateX(-50%)}
+  .phf-hr-ops-hub::after{content:"";position:absolute;left:50%;top:-37px;width:6px;height:6px;border-radius:50%;background:#28a68c;transform:translate(-50%,-50%);animation:phfHrOpsDot 2.4s ease-in-out infinite;pointer-events:none}
+  .phf-hr-ops-hub-label{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.04em;color:#0d6b4a}
+  .phf-hr-ops-hub-label svg{width:11px;height:11px}
+  .phf-hr-ops-hub-body{display:flex;align-items:center;gap:10px}
+  .phf-hr-ops-hub-col{display:flex;align-items:center;gap:6px}
+  .phf-hr-ops-hub-ico{width:22px;height:22px;flex:0 0 auto;display:grid;place-items:center;border-radius:8px;background:#e6f5ec;color:#0e7d48}
+  .phf-hr-ops-hub-ico svg{width:13px;height:13px}
+  .phf-hr-ops-hub-col-text{display:flex;flex-direction:column;line-height:1.25}
+  .phf-hr-ops-hub-col-text strong{font-size:11.5px;font-weight:700;color:#0d5c3f}
+  .phf-hr-ops-hub-col-text small{font-size:9px;font-weight:600;color:#7a8a82}
+  .phf-hr-ops-hub-divider{width:1px;align-self:stretch;background:rgba(23,120,80,.16)}
+}
+/* Ngưỡng desktop hẹp (1221-1450px): khoảng trống giữa 2 icon còn hẹp hơn nữa
+   -> compact hub theo đúng thứ tự ưu tiên đã yêu cầu: giảm subtitle trước,
+   rồi padding/gap/icon/font — không đụng Bước 2/3, không đổi grid. */
+@media(min-width:1221px) and (max-width:1450px){
+  .phf-hr-ops-hub-col-text small{display:none}
+  .phf-hr-ops-hub{padding:6px 12px 7px;gap:3px}
+  .phf-hr-ops-hub-body{gap:6px}
+  .phf-hr-ops-hub-col{gap:4px}
+  .phf-hr-ops-hub-ico{width:18px;height:18px;border-radius:7px}
+  .phf-hr-ops-hub-ico svg{width:11px;height:11px}
+  .phf-hr-ops-hub-col-text strong{font-size:10.5px}
+  .phf-hr-ops-hub-label{font-size:9px}
+}
+@media(max-width:1220px){.phf-hr-ops-hub{display:none}.phf-hr-step.is-classroom .phf-hr-journey-icon,.phf-hr-step.is-checklist .phf-hr-journey-icon{margin-bottom:58px}}
+@keyframes phfHrRailScan{from{transform:translateX(-120%)}to{transform:translateX(420%)}}
+@keyframes phfHrRailProgress{0%{width:4%}20%{width:34%}45%{width:52%}70%{width:78%}90%,100%{width:100%}}
+@keyframes phfHrIconPulse{0%{transform:scale(.92);opacity:.22}75%,100%{transform:scale(1.16);opacity:0}}
+@keyframes phfHrOpsDot{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.85)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}}
+@media(prefers-reduced-motion:reduce){
+  .phf-hr-flow i{animation:none!important;opacity:0}
+  .phf-hr-flow::after{animation:none!important;width:100%}
+  .phf-hr-step.is-classroom .phf-hr-journey-icon::before,.phf-hr-step.is-checklist .phf-hr-journey-icon::before{animation:none!important;opacity:0}
+  .phf-hr-ops-hub::after{animation:none!important;opacity:.85}
+}
 
 /* PHF HR Home 1.44.6: scientific line wrapping for hero copy */
 .phf-hr-hero-copy h1>span,.phf-hr-hero-copy>p>span{display:block}
@@ -39,3 +123,45 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-hero-copy>p>span:first-child{white-space:nowrap}
 @media(max-width:1220px){.phf-hr-hero-copy>p>span:first-child{white-space:normal}}
 @media(max-width:760px){.phf-hr-hero-copy h1>span,.phf-hr-hero-copy>p>span{display:inline}.phf-hr-hero-copy h1>span:not(:last-child)::after,.phf-hr-hero-copy>p>span:not(:last-child)::after{content:" "}.phf-hr-hero-copy .phf-hr-brand-name{white-space:normal}}
+@media (min-width:1221px){
+  .phf-hr-ops-hub{
+    top:250px;
+  }
+
+  .phf-hr-ops-hub::before{
+    top:-49px;
+    height:49px;
+  }
+
+  .phf-hr-ops-hub::after{
+    top:-51px;
+  }
+.phf-hr-flow{
+  height:5px;
+}
+}
+.phf-hr-flow{
+  overflow:visible;
+}
+
+.phf-hr-flow::after{
+  content:"";
+  position:absolute;
+  top:0;
+  left:-25%;
+  width:22%;
+  height:100%;
+  background:linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.9),
+    transparent
+  );
+  filter:blur(1px);
+  animation:phfHrRailLight 3.2s linear infinite;
+}
+
+@keyframes phfHrRailLight{
+  from{ left:-2%; }
+  to{ left:78%; }
+}
