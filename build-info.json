@@ -1,7 +1,7 @@
 {
-  "version": "1.65.5",
-  "fingerprint": "1.65.5-checklist-publish-confirmation",
-  "builtAt": "2026-08-20T14:53:05+07:00",
-  "notes": "1.65.5: CHK-P1-03 — chờ backend xác nhận phát hành phiên bản Checklist trước khi cập nhật localStorage, audit, render và thông báo thành công; không đổi backend, DB, migration hoặc immutable cache policy.",
-  "build": "1.65.5"
+  "version": "1.65.6",
+  "fingerprint": "1.65.6-checklist-total-score-editor-parity",
+  "builtAt": "2026-08-20T17:35:44+07:00",
+  "notes": "1.65.6: Mẫu Checklist — đồng bộ Bảng tổng điểm/TSE từ Local lên Production; không triển khai Retro/Wizard/Monthly remediation; không migration hoặc DB change.",
+  "build": "1.65.6"
 }
