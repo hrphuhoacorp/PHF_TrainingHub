@@ -3078,7 +3078,7 @@ window.__phfBootGuardTimer=setTimeout(function(){
     if(/^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(path))return 'checklist';
     if(/^\/(?:admin|ql|hv)\/knl(?:\/|$)/.test(path))return 'knl';
     if(/^\/admin\/ai-sandbox(?:\/|$)/.test(path))return 'ai-sandbox';
-    if(/^\/(?:admin|ql|hv)\/home$/.test(path)||path==='/admin/nhan-su')return 'hr';
+    if(/^\/(?:admin|ql|hv)\/home$/.test(path)||/^\/admin\/nhan-su(?:\/|$)/.test(path))return 'hr';
     return 'hub';
   }
   var shellObserver=null,shellRepairFrame=0;

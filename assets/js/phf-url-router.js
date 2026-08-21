@@ -389,8 +389,8 @@
     // PHF AI Sandbox v1: chi Admin, khong route tuong ung cho ql/hv (xem lib/ai-sandbox.js).
     '/admin/ai-sandbox':Object.freeze({area:'admin',screen:'ai-sandbox',roles:['admin']}),
     '/admin/nhan-su':Object.freeze({area:'admin',screen:'employee-master',roles:['admin']}),
+    '/admin/nhan-su/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
     '/admin/quan-tri':Object.freeze({area:'admin',screen:'workspace',roles:['admin']}),
-    '/admin/quan-tri/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
     '/admin/quan-tri/danh-muc':Object.freeze({area:'admin',screen:'catalogs',roles:['admin']}),
     '/admin/quan-tri/kiem-tra':Object.freeze({area:'admin',screen:'tests',roles:['admin']}),
     '/admin/quan-tri/cau-hinh':Object.freeze({area:'admin',screen:'settings',roles:['admin']}),
@@ -425,8 +425,8 @@
     public:['/','/login'],
     learner:['/hv','/hv/home','/hv/knl','/hv/knl/nhan-su','/hv/knl/khao-sat','/hv/knl/ket-qua-khao-sat','/hv/bai-hoc','/hv/ho-so','/hv/checklist','/hv/checklist/ho-so-danh-gia','/hv/classroom','/hv/classroom/lich','/hv/classroom/tai-lieu','/hv/classroom/bai-kiem-tra','/hv/classroom/ket-qua','/hv/classroom/de-xuat'],
     management:['/ql','/ql/home','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/knl/khao-sat','/ql/knl/ket-qua-khao-sat','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
-    admin:['/admin','/admin/home','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/knl/khao-sat','/admin/knl/ket-qua-khao-sat','/admin/ai-sandbox','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/tai-khoan','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
-    employeeMaster:['/admin/nhan-su'],
+    admin:['/admin','/admin/home','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/knl/khao-sat','/admin/knl/ket-qua-khao-sat','/admin/ai-sandbox','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
+    employeeMaster:['/admin/nhan-su','/admin/nhan-su/tai-khoan'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
     knl:['/hv/knl','/hv/knl/nhan-su','/hv/knl/khao-sat','/hv/knl/ket-qua-khao-sat','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/knl/khao-sat','/ql/knl/ket-qua-khao-sat','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/knl/khao-sat','/admin/knl/ket-qua-khao-sat'],
     hr:['/hv/home','/ql/home','/admin/home'],
@@ -454,7 +454,7 @@
     if(path==='/ql/quan-ly/noi-dung') return '/ql/noi-dung';
     if(path==='/ql/quan-ly/bao-cao') return '/ql/bao-cao';
     if(path==='/ql/quan-ly/de-xuat-dao-tao') return '/ql/de-xuat-dao-tao';
-    if(path==='/admin/tai-khoan'||path==='/admin/quan-tri/tai-khoan'||path==='/admin/accounts') return '/admin/nhan-su';
+    if(path==='/admin/tai-khoan'||path==='/admin/quan-tri/tai-khoan'||path==='/admin/accounts') return '/admin/nhan-su/tai-khoan';
     if(path==='/admin/danh-muc') return '/admin/quan-tri/danh-muc';
     if(path==='/admin/kiem-tra') return '/admin/quan-tri/kiem-tra';
     if(path==='/my-lessons') return '/hv/bai-hoc';
@@ -1088,10 +1088,21 @@
         await Promise.resolve(window.phfRenderEmployeeMaster());
         return true;
       }
-      if(path==='/admin/quan-tri'||path==='/admin/quan-tri/tai-khoan'||path==='/admin/quan-tri/danh-muc'||path==='/admin/quan-tri/kiem-tra'||path==='/admin/quan-tri/cau-hinh'){
+      if(path==='/admin/nhan-su/tai-khoan'){
+        /* Account Admin là sub-screen của PHF HR (Quản trị nhân sự), không phải
+           của khu Quản trị chung (Training Hub) /admin/quan-tri/*. Route này
+           phải nằm dưới /admin/nhan-su để PHFAppShell.shellFor() (index.html)
+           và main() trong phf-account-admin-safe.js cùng nhận diện đúng shell
+           PHF HR — cả hai nơi hiện chỉ nhận diện theo tiền tố /admin/nhan-su. */
         if(!requireRoles(['admin']))return false;
-        if(path==='/admin/quan-tri/tai-khoan'&&typeof window.phfRenderAccountAdminSafe==='function') await Promise.resolve(window.phfRenderAccountAdminSafe());
-        else if(path==='/admin/quan-tri/danh-muc'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Danh mục chung'));
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderAccountAdminSafe!=='function')throw new Error('PHF_ACCOUNT_ADMIN_RENDERER_MISSING');
+        await Promise.resolve(window.phfRenderAccountAdminSafe());
+        return true;
+      }
+      if(path==='/admin/quan-tri'||path==='/admin/quan-tri/danh-muc'||path==='/admin/quan-tri/kiem-tra'||path==='/admin/quan-tri/cau-hinh'){
+        if(!requireRoles(['admin']))return false;
+        if(path==='/admin/quan-tri/danh-muc'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Danh mục chung'));
         else if(path==='/admin/quan-tri/kiem-tra'&&typeof window.phfRenderDirectTrainingTestPage==='function') await Promise.resolve(window.phfRenderDirectTrainingTestPage());
         else if(path==='/admin/quan-tri/cau-hinh'&&typeof window.phfRenderAdminPlaceholder==='function') await Promise.resolve(window.phfRenderAdminPlaceholder('Cấu hình'));
         else await Promise.resolve(window.phfRenderAdminManagement&&window.phfRenderAdminManagement());
@@ -1212,7 +1223,7 @@
     commandWrap('phfGoDirectTrainingTest',function(){return role()==='admin'?'/admin/quan-tri/kiem-tra':'/direct-training-test';});
     commandWrap('phfRenderDirectTrainingTestPage',function(){return role()==='admin'?'/admin/quan-tri/kiem-tra':'/direct-training-test';});
     commandWrap('phfRenderAdminManagement',function(){return '/admin/quan-tri';});
-    commandWrap('phfRenderAccountAdminSafe',function(){return '/admin/nhan-su';});
+    commandWrap('phfRenderAccountAdminSafe',function(){return '/admin/nhan-su/tai-khoan';});
     commandWrap('phfTrainingRecordsOpen',function(view){return view==='employees'?(role()==='admin'?'/admin/hoc-vien':'/ql/hoc-vien'):'';});
     commandWrap('phfTrainingRecordsOpenEmployee',async function(id,tab){
       if(role()==='admin'){
