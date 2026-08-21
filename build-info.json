@@ -1,7 +1,7 @@
 {
-  "version": "1.65.8",
-  "fingerprint": "1.65.8-task-core-runtime-repair",
-  "builtAt": "2026-08-20T18:04:34+07:00",
-  "notes": "1.65.8: PHF Task Batch 2B — include missing Task Core runtime dependencies required by API wiring; no UI, migration, DB write, recurring, notification or email.",
-  "build": "1.65.8"
+  "version": "1.65.9",
+  "fingerprint": "1.65.9-checklist-retro-immutable-release",
+  "builtAt": "2026-08-21T15:45:00+07:00",
+  "notes": "1.65.9: Checklist — Account Admin loading stabilize (canonical route); Total Score Editor gọi đúng checklistRetroPreviewDiff/checklistRetroCopyVersion + hỏi Chỉ áp dụng phiếu mới/Cập nhật phiếu hiện có sau publish. Production migration 1.54.0 (template version immutable) và 1.53.0 (Retroactive Apply engine) đã áp dụng trước, post-check PASS. Không remediation 19/19 checklist_total trong release này — gate riêng.",
+  "build": "1.65.9"
 }
