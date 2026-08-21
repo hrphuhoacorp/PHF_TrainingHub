@@ -4936,7 +4936,29 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-score-detail-modal{max-width:640px}
 @media(max-width:1050px){.phfck-score-period-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.phfck-score-toolbar{grid-template-columns:1fr}.phfck-score-period-note{flex-wrap:wrap}}
-/* Mẫu Checklist — scoped Total Score Editor */
+/* Workstream A3 (2026-08-14) — wizard 8 bước Áp dụng lại mẫu Checklist. Tái dùng token/class
+   sẵn có (phfck-panel, phfck-tabs, phfck-table, phfck-chip-*, phfck-notice, phfck-form-grid) -
+   chỉ thêm phần bố cục riêng cho stepper và bảng diff. */
+.phfck-retro-steps{flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.phfck-retro-steps button{border:1px solid var(--phfck-line);background:#fff;color:var(--phfck-muted);border-radius:999px;padding:0 12px;min-height:32px;font-size:11px;font-weight:600;cursor:pointer}
+.phfck-retro-steps button.is-done:not(.active){border-color:#7fb29b;color:var(--phfck-green)}
+.phfck-retro-steps button:disabled{opacity:.45;cursor:not-allowed}
+.phfck-retro-panel h2{margin:0 0 6px;color:#173f33;font-size:18px}
+.phfck-retro-panel>p{margin:0 0 16px;color:#5f766d;font-size:12.5px;line-height:1.55}
+.phfck-retro-diff-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.phfck-retro-diff-col{border:1px solid var(--phfck-line);border-radius:12px;padding:12px}
+.phfck-retro-diff-col b{display:block;font-size:11px;color:#173f33;margin-bottom:6px}
+.phfck-retro-diff-col ul{margin:0;padding-left:16px;font-size:11px;color:#4e675e;line-height:1.6}
+.phfck-retro-diff-col small{color:#8a9a94}
+.phfck-retro-reviewed-panel{margin-top:18px;border:1px solid #f0c56b;background:#fffaf0;border-radius:14px;padding:16px}
+.phfck-retro-reviewed-panel h3{margin:0 0 6px;color:#7f6000;font-size:14px}
+@media(max-width:900px){.phfck-retro-diff-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.phfck-retro-diff-grid{grid-template-columns:1fr}}
+/* Workstream A UI reorg (2026-08-14) — editor "Sửa Bảng tổng điểm" (checklistTseState)
+   + modal 3 bước "Cập nhật Phiếu tháng hiện có" (checklistTraState), sống trong
+   màn Mẫu Checklist. Tái dùng token/class sẵn có (phfck-edit-modal, phfck-table,
+   phfck-notice, phfck-retro-steps, phfck-retro-reviewed-panel...) - chỉ thêm bố cục
+   riêng cho bảng có nút reorder và 2 lựa chọn sau khi phát hành. */
 .phfck-tse-table td{vertical-align:top;padding:10px 12px}
 .phfck-tse-table th{padding:12px}
 .phfck-tse-table input,.phfck-tse-table select{width:100%;min-height:34px;font-size:12px;border:1px solid #cad5e2;border-radius:10px;padding:0 10px;background:#fff;color:#2c4c42;font:inherit;outline:0}
@@ -4961,6 +4983,11 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-tse-diff-col b{display:block;font-size:11px;color:#173f33;margin-bottom:6px}
 .phfck-tse-diff-col ul{margin:0;padding-left:16px;font-size:11px;color:#4e675e;line-height:1.6}
 .phfck-tse-diff-col small{color:#8a9a94}
+/* Icon thao tác (lên/xuống/xóa) luôn nằm 1 hàng, không xuống dòng */
+.phfck-table-action-cell{display:flex;gap:4px;flex-wrap:nowrap;white-space:nowrap}
+.phfck-table-action-cell .phfck-table-action{flex:0 0 auto}
+.phfck-table-action.phfck-table-action-danger{border-color:#dfb9b2;background:#fff7f5;color:#a04c40}
+.phfck-table-action.phfck-table-action-danger:hover{background:#ffeae6}
 .phfck-tse-modal .phfck-table-wrap{overflow-x:auto}
 /* Modal rộng hơn để bảng có đủ chỗ hiển thị đầy đủ nội dung */
 .phfck-edit-layer>.phfck-modal.phfck-tse-modal{width:min(1240px,calc(100vw - 36px))}
@@ -4983,6 +5010,11 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 }
 @media(max-width:900px){.phfck-tse-diff-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.phfck-tse-diff-grid{grid-template-columns:1fr}}
+.phfck-postpublish-choices{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.phfck-postpublish-choices button{flex:1 1 220px;min-height:44px}
+.phfck-tse-postpublish-modal{max-width:520px}
+@media(max-width:720px){.phfck-postpublish-choices{flex-direction:column}.phfck-postpublish-choices button{width:100%}}
+
 /* ============================================================================
  * Workstream B (vòng cuối) — module Đi trễ mới: assets/js/checklist/
  * phf-checklist-late-workflow.js. Toàn bộ selector bên dưới đều tiền tố

@@ -89,7 +89,8 @@
     monthly:'/admin/checklist/phieu-danh-gia-thang',
     reports:'/admin/checklist/bao-cao',
     history:'/admin/checklist/lich-su',
-    settings:'/admin/checklist/cai-dat'
+    settings:'/admin/checklist/cai-dat',
+    retro:'/admin/checklist/ap-dung-lai-mau'
   });
   var ADMIN_ROUTE_VIEWS=Object.freeze(Object.keys(ADMIN_VIEW_ROUTES).reduce(function(map,key){map[ADMIN_VIEW_ROUTES[key]]=key;return map;},{}));
   function adminViewFromPath(path){return ADMIN_ROUTE_VIEWS[cleanPath(path)]||'overview';}
@@ -295,7 +296,7 @@
       +'<div class="phfck-layout">'
         +sidebar
         +'<main class="phfck-main" data-phfck-workspace>'
-          +(activeView==='overview'?adminOverviewHtml(name):(activeView==='people'?peopleHtml():(activeView==='templates'?templatesHtml():(activeView==='violations'?violationsHtml():(activeView==='tasks'?tasksHtml():(activeView==='monthly'?monthlyHtml():(activeView==='reports'?reportsHtml():(activeView==='history'?historyHtml():(activeView==='settings'?settingsHtml():placeholderHtml(activeView))))))))))
+          +(activeView==='overview'?adminOverviewHtml(name):(activeView==='people'?peopleHtml():(activeView==='templates'?templatesHtml():(activeView==='violations'?violationsHtml():(activeView==='tasks'?tasksHtml():(activeView==='monthly'?monthlyHtml():(activeView==='reports'?reportsHtml():(activeView==='history'?historyHtml():(activeView==='retro'?checklistRetroWizardHtml():(activeView==='settings'?settingsHtml():placeholderHtml(activeView)))))))))))
         +'</main>'
       +'</div>'
     +'</section>';
@@ -3081,12 +3082,59 @@
     return {name:'Nhân viên bán hàng',code:'BH',version:'BH-1.0',policy:'NVBH-TỔNG-1.0',source:'Mẫu chuẩn Nhân viên bán hàng',scope:'Áp dụng cho Nhân viên bán hàng'};
   }
   function viewWorkbookMeta(templateId){var base=viewWorkbookMetaBase(templateId);var override=loadBulkOverride(templateId);if(override&&override.version)base.version=override.version;return base;}
+  /* Workstream A1 (2026-08-14): mỗi dòng Bảng tổng điểm nay có id ổn định và
+     source.type tường minh ('checklist_total' | 'manual'). r[5]==='checklist_total'
+     trong cfg.rows đánh dấu dòng nhận điểm Checklist (checklist_violation_records) —
+     xem lib/checklist-templates.js requiresChecklistTotalRow()/isChecklistTotalRow(). */
+  /* Workstream A (2026-08-14) — 3 bộ fallback tĩnh bên dưới (nv-kho/tbp-kho/
+     mặc định bán hàng) trước đây trả mảng 7 phần tử KHÔNG có field source nên
+     rowSourceType() luôn đọc ra rỗng, khiến validateScoredDefinition() luôn
+     FAIL dù mẫu có dùng Checklist scoring thật (nv-ban-hang, truong-ca-ban-hang,
+     nv-kho, tbp-kho trong nhóm 13 mẫu bị audit phát hiện). Fix CHỈ thêm field
+     source tường minh {type:'manual'|'checklist_total'} và giữ NGUYÊN mã dòng
+     đã có từ trước (index 1) — KHÔNG đổi mã dòng hiện hữu (NVK-LAPPHIEU,
+     TBPK-..., HQCV-...) để không phá liên kết self_answers/review_answers của
+     phiếu tháng đang chạy đang keyed theo các mã này. Việc THÊM dòng
+     checklist_total mới cho các mẫu này KHÔNG còn nằm ở đây (xem note ngay
+     dưới viewWorkbookTotalRowsBase) — engine không tự chọn trọng số nữa; phải
+     qua wizard /admin/checklist/ap-dung-lai-mau với Admin nhập trọng số tường
+     minh. */
+  function fallbackTotalRow(index,code,name,target,unit,weight,sourceType){
+    return [index+1,code,name,target,unit,weight,'Không',{type:sourceType==='checklist_total'?'checklist_total':'manual'},code];
+  }
   function viewWorkbookTotalRowsBase(templateId){
     var cfg=ASSISTANT_TEMPLATE_CONFIGS[templateId];
-    if(cfg&&Array.isArray(cfg.rows))return cfg.rows.map(function(r,index){return [index+1,'CT-'+String(index+1).padStart(2,'0'),r[0],r[1],r[4]||'điểm',r[2],r[3]==='monthly'?'Có':'Không'];});
-    if(templateId==='nv-kho')return [[1,'NVK-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5,'Không'],[2,'NVK-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',65,'Không'],[3,'NVK-KIEMKE','Kiểm kê hàng hóa định kỳ',10,'điểm',10,'Không'],[4,'NVK-BAOCAO','Báo cáo công việc đúng quy định',10,'điểm',10,'Không'],[5,'NVK-CAPTren','Thực hiện công việc cấp trên giao',10,'điểm',10,'Không']];
-    if(templateId==='tbp-kho')return [[1,'TBPK-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5,'Không'],[2,'TBPK-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',60,'Không'],[3,'TBPK-KIEMKE','Kiểm kê tổng kho định kỳ',3,'lần',10,'Không'],[4,'TBPK-DAOTAO','Đào tạo nhân viên theo kế hoạch',1,'buổi',5,'Không'],[5,'TBPK-BAOCAO','Báo cáo công việc đúng quy định',10,'điểm',10,'Không'],[6,'TBPK-CAPTren','Thực hiện công việc cấp trên giao',10,'điểm',10,'Không']];
-    return [[1,'HQCV-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5,'Không'],[2,'HQCV-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',70,'Không'],[3,'HQCV-CAPTren','Công việc cấp trên giao',10,'điểm',25,'Không']];
+    if(cfg&&Array.isArray(cfg.rows))return cfg.rows.map(function(r,index){var code='CT-'+String(index+1).padStart(2,'0');return [index+1,code,r[0],r[1],r[4]||'điểm',r[2],r[3]==='monthly'?'Có':'Không',{type:r[5]==='checklist_total'?'checklist_total':'manual'},code];});
+    /* Workstream A FINAL SANITY GATE (2026-08-14): dòng checklist_total 10%
+       + co giãn tỉ lệ đã bị RÚT LẠI cho 4 mẫu fallback này (nv-kho, tbp-kho,
+       mặc định bán hàng) vì không tìm thấy bằng chứng nguồn (không migration
+       .sql, không policy, không mẫu tham chiếu nào từng dùng 10% cho dòng
+       checklist_total trước phiên này — xem ghi chú audit). Trọng số các dòng
+       thủ công giữ nguyên số gốc trước remediation; mẫu CHƯA có dòng
+       checklist_total (đúng lỗi ban đầu, chờ Admin cấu hình qua wizard
+       /admin/checklist/ap-dung-lai-mau). Giữ nguyên field source tường minh
+       {type:'manual'} — đây là fix hạ tầng đọc dòng, không phải quyết định
+       trọng số, không liên quan tới việc rút lại này. */
+    if(templateId==='nv-kho')return [
+      fallbackTotalRow(0,'NVK-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5),
+      fallbackTotalRow(1,'NVK-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',65),
+      fallbackTotalRow(2,'NVK-KIEMKE','Kiểm kê hàng hóa định kỳ',10,'điểm',10),
+      fallbackTotalRow(3,'NVK-BAOCAO','Báo cáo công việc đúng quy định',10,'điểm',10),
+      fallbackTotalRow(4,'NVK-CAPTren','Thực hiện công việc cấp trên giao',10,'điểm',10)
+    ];
+    if(templateId==='tbp-kho')return [
+      fallbackTotalRow(0,'TBPK-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5),
+      fallbackTotalRow(1,'TBPK-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',60),
+      fallbackTotalRow(2,'TBPK-KIEMKE','Kiểm kê tổng kho định kỳ',3,'lần',10),
+      fallbackTotalRow(3,'TBPK-DAOTAO','Đào tạo nhân viên theo kế hoạch',1,'buổi',5),
+      fallbackTotalRow(4,'TBPK-BAOCAO','Báo cáo công việc đúng quy định',10,'điểm',10),
+      fallbackTotalRow(5,'TBPK-CAPTren','Thực hiện công việc cấp trên giao',10,'điểm',10)
+    ];
+    return [
+      fallbackTotalRow(0,'HQCV-LAPPHIEU','Lập phiếu và đánh giá công việc tháng',5,'phiếu',5),
+      fallbackTotalRow(1,'HQCV-TUANTHU','Tuân thủ tiêu chuẩn công việc',100,'điểm',70),
+      fallbackTotalRow(2,'HQCV-CAPTren','Công việc cấp trên giao',10,'điểm',25)
+    ];
   }
   function setViewSheetWidths(ws,widths){ws['!cols']=widths.map(function(w){return {wch:w};});}
   function viewCellStyle(kind){
@@ -4811,7 +4859,7 @@
   }
   function refreshAdminReviewProgress(root){
     var f=adminMonthlyReviewForm(),modal=root&&root.querySelector('.phfck-admin-review-modal'),box=modal&&modal.querySelector('[data-phfck-admin-review-progress]');if(!f||!box)return;
-    var manual=roleMonthlyRows(f).filter(function(r){return !monthlyAutomaticSource(r.source,r.name);}),done=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()!=='';}).length,span=box.querySelector('div span'),bar=box.querySelector('i span');
+    var manual=roleMonthlyRows(f).filter(function(r){return !monthlyAutomaticSource(r.source,r.name,r.sourceType);}),done=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()!=='';}).length,span=box.querySelector('div span'),bar=box.querySelector('i span');
     if(span)span.textContent='Đã nhập '+done+'/'+manual.length+' tiêu chí';if(bar)bar.style.width=(manual.length?Math.round(done/manual.length*100):100)+'%';
   }
   function monthlyReviewHistoryHtml(form){
@@ -4825,12 +4873,12 @@
   }
   function adminMonthlyReviewModalHtml(){
     var f=adminMonthlyReviewForm();if(!f)return '';
-    var editable=f.status==='waiting_review',rows=roleMonthlyRows(f),self=f.self_answers||{},review=f.review_answers||{},reviewChecklist=f.checklist_review_score==null?Number(f.checklist_score||0):Number(f.checklist_review_score),manualRows=rows.filter(function(r){return !monthlyAutomaticSource(r.source,r.name);}),completed=manualRows.filter(function(r){var a=review[r.code]||{};return String(a.value==null?'':a.value).trim()!=='';}).length;
+    var editable=f.status==='waiting_review',rows=roleMonthlyRows(f),self=f.self_answers||{},review=f.review_answers||{},reviewChecklist=f.checklist_review_score==null?Number(f.checklist_score||0):Number(f.checklist_review_score),manualRows=rows.filter(function(r){return !monthlyAutomaticSource(r.source,r.name,r.sourceType);}),completed=manualRows.filter(function(r){var a=review[r.code]||{};return String(a.value==null?'':a.value).trim()!=='';}).length;
     return '<div class="phfck-modal-layer" data-phfck-modal-layer><div class="phfck-modal phfck-admin-review-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>ADMIN · THẨM ĐỊNH TOÀN CÔNG TY</small><h2>Phiếu của '+esc(f.employee_name)+' · '+esc(f.employee_code)+'</h2></div><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
       +(editable?'':'<div class="phfck-final-score-cards"><article><span>Tự đánh giá</span><strong>'+Number(f.self_total_score||0).toFixed(2)+'</strong><small>Sau quy đổi trọng số</small></article><article><span>Thẩm định</span><strong>'+Number(f.review_total_score||0).toFixed(2)+'</strong><small>Sau quy đổi trọng số</small></article><article class="is-final"><span>Kết quả cuối</span><strong>'+Number(f.final_score||0).toFixed(2)+'</strong><small>'+esc(monthlyScoreFormulaForForm(f))+'</small></article></div>')+'<div class="phfck-review-context"><div><small>Kỳ đánh giá</small><b>'+esc(f.period_month)+'</b></div><div><small>Người được phân công</small><b>'+esc(f.reviewer_name||'Chưa phân công')+'</b></div><div><small>Người thực tế thẩm định</small><b>'+esc(f.reviewed_by_name||'Chưa hoàn tất')+'</b></div></div>'
       +'<div class="phfck-notice phfck-admin-review-notice"><b>Admin được quyền xử lý thay mà không cần đổi người thẩm định</b><p>Phiếu vẫn giữ đúng người được phân công ban đầu. Hệ thống lưu riêng người Admin thực tế thao tác, thời gian và lý do.</p></div>'
       +'<div class="phfck-admin-review-progress" data-phfck-admin-review-progress><div><b>Tiến độ thẩm định</b><span>Đã nhập '+completed+'/'+manualRows.length+' tiêu chí</span></div><i><span style="width:'+(manualRows.length?Math.round(completed/manualRows.length*100):100)+'%"></span></i><small>Điểm Checklist được hệ thống điền tự động và không tính vào số ô cần nhập.</small></div>'
-      +'<div class="phfck-review-table"><div class="phfck-review-row is-head"><span>Chỉ tiêu</span><span>Nhân viên</span><span>Admin thẩm định</span><span>Ghi chú thẩm định</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value||'—'),reviewValue=automatic?reviewChecklist:String(ra.value==null?'':ra.value),maximum=monthlyTarget(r.target);return '<div class="phfck-review-row '+(automatic?'is-automatic':'')+'" data-phfck-admin-review-row="'+esc(r.code)+'" data-phfck-admin-review-name="'+esc(r.name)+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b><span>Mục tiêu '+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+' · Tối đa '+esc(maximum)+'</span></div><strong>'+esc(selfValue)+'</strong><label><input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(reviewValue)+'" placeholder="'+(automatic?'':'Tối đa '+maximum)+'" '+(automatic?'data-phfck-admin-review-checklist-score':'data-phfck-admin-review-value="'+esc(r.code)+'"')+' '+(!editable?'disabled':'')+'></label><label>'+(automatic?'<textarea rows="2" placeholder="Bắt buộc nếu sửa khác điểm tự động" data-phfck-admin-review-checklist-reason '+(!editable?'disabled':'')+'>'+esc(f.checklist_review_reason||'')+'</textarea>':'<input type="text" value="'+esc(ra.note||'')+'" placeholder="Ghi rõ khi cần" data-phfck-admin-review-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>'
+      +'<div class="phfck-review-table"><div class="phfck-review-row is-head"><span>Chỉ tiêu</span><span>Nhân viên</span><span>Admin thẩm định</span><span>Ghi chú thẩm định</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name,r.sourceType),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value||'—'),reviewValue=automatic?reviewChecklist:String(ra.value==null?'':ra.value),maximum=monthlyTarget(r.target);return '<div class="phfck-review-row '+(automatic?'is-automatic':'')+'" data-phfck-admin-review-row="'+esc(r.code)+'" data-phfck-admin-review-name="'+esc(r.name)+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b><span>Mục tiêu '+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+' · Tối đa '+esc(maximum)+'</span></div><strong>'+esc(selfValue)+'</strong><label><input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(reviewValue)+'" placeholder="'+(automatic?'':'Tối đa '+maximum)+'" '+(automatic?'data-phfck-admin-review-checklist-score':'data-phfck-admin-review-value="'+esc(r.code)+'"')+' '+(!editable?'disabled':'')+'></label><label>'+(automatic?'<textarea rows="2" placeholder="Bắt buộc nếu sửa khác điểm tự động" data-phfck-admin-review-checklist-reason '+(!editable?'disabled':'')+'>'+esc(f.checklist_review_reason||'')+'</textarea>':'<input type="text" value="'+esc(ra.note||'')+'" placeholder="Ghi rõ khi cần" data-phfck-admin-review-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>'
       +'<label class="phfck-self-note"><span>Nhận xét chung của Admin</span><textarea rows="3" data-phfck-admin-review-general '+(!editable?'disabled':'')+'>'+esc(f.review_note||'')+'</textarea></label>'
       +(editable||f.reviewed_as_override?'<label class="phfck-reviewer-field"><span>Lý do Admin xử lý thay <em>*</em></span><textarea rows="2" data-phfck-admin-review-override '+(!editable?'disabled':'')+'>'+esc(f.review_override_reason||(editable?'Admin thẩm định theo phân công vận hành của công ty':''))+'</textarea><small>Lưu cùng lịch sử phiếu; không thay đổi cấp trên hoặc người thẩm định đã phân công.</small></label>':'')
       +monthlyReviewHistoryHtml(f)
@@ -4841,7 +4889,7 @@
     var overrideReason=((modal.querySelector('[data-phfck-admin-review-override]')||{}).value||'').trim();
     if(overrideReason.length<10){checklistToast('warning','Chưa đủ lý do','Lý do Admin xử lý thay cần tối thiểu 10 ký tự.',true);return;}
     modal.querySelectorAll('.phfck-review-row.is-missing').forEach(function(row){row.classList.remove('is-missing');});
-    if(submit){var manual=roleMonthlyRows(f).filter(function(r){return !monthlyAutomaticSource(r.source,r.name);}),over=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()!==''&&Number(a.value)>monthlyTarget(r.target);}),missing=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()==='';}),problem=over.length?over:missing;if(problem.length){var first=problem[0],allRows=Array.prototype.slice.call(modal.querySelectorAll('[data-phfck-admin-review-row]')),row=allRows.find(function(el){return el.getAttribute('data-phfck-admin-review-row')===first.code;}),input=row&&row.querySelector('[data-phfck-admin-review-value]');problem.forEach(function(item){var missRow=allRows.find(function(el){return el.getAttribute('data-phfck-admin-review-row')===item.code;});if(missRow)missRow.classList.add('is-missing');});if(row)row.scrollIntoView({behavior:'smooth',block:'center'});if(input)setTimeout(function(){input.focus();},350);checklistToast('warning',over.length?'Điểm vượt mức tối đa':'Còn '+missing.length+' tiêu chí chưa có điểm',over.length?first.code+' – '+first.name+' tối đa '+monthlyTarget(first.target)+' theo Mục tiêu':first.code+' – '+first.name,true);return;}}
+    if(submit){var manual=roleMonthlyRows(f).filter(function(r){return !monthlyAutomaticSource(r.source,r.name,r.sourceType);}),over=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()!==''&&Number(a.value)>monthlyTarget(r.target);}),missing=manual.filter(function(r){var a=f.review_answers&&f.review_answers[r.code]||{};return String(a.value==null?'':a.value).trim()==='';}),problem=over.length?over:missing;if(problem.length){var first=problem[0],allRows=Array.prototype.slice.call(modal.querySelectorAll('[data-phfck-admin-review-row]')),row=allRows.find(function(el){return el.getAttribute('data-phfck-admin-review-row')===first.code;}),input=row&&row.querySelector('[data-phfck-admin-review-value]');problem.forEach(function(item){var missRow=allRows.find(function(el){return el.getAttribute('data-phfck-admin-review-row')===item.code;});if(missRow)missRow.classList.add('is-missing');});if(row)row.scrollIntoView({behavior:'smooth',block:'center'});if(input)setTimeout(function(){input.focus();},350);checklistToast('warning',over.length?'Điểm vượt mức tối đa':'Còn '+missing.length+' tiêu chí chưa có điểm',over.length?first.code+' – '+first.name+' tối đa '+monthlyTarget(first.target)+' theo Mục tiêu':first.code+' – '+first.name,true);return;}}
     if(submit&&!await phfckConfirm({title:'Hoàn tất thẩm định',message:'Xác nhận hoàn tất phiếu của '+f.employee_name+' với quyền Admin.',confirmText:'Hoàn tất thẩm định',tone:'warning',note:'Sau khi hoàn tất, kết quả và người thực hiện được lưu vào lịch sử.'}))return;
     monthlyUiState.savingReview=true;
     try{var response=await fetch('/api/data?checklistMonthlyReview=1&t='+Date.now(),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({action:'saveChecklistMonthlyReview',formId:f.id,answers:f.review_answers||{},note:f.review_note||'',checklistScore:f.checklist_review_score==null?f.checklist_score:f.checklist_review_score,checklistReason:f.checklist_review_reason||'',overrideReason:overrideReason,expectedUpdatedAt:f.updated_at||f.updatedAt||'',submit:submit===true})});var data=await response.json().catch(function(){return {};});if(!response.ok||data.ok===false)throw new Error(data.message||data.error||'Không thể lưu thẩm định.');monthlyUiState.selectedId='';monthlyUiState.loadedMonth='';checklistToast('success',submit?(f.admin_exception_open?'Đã xử lý ngoại lệ và khóa lại':'Admin đã hoàn tất thẩm định'):'Đã lưu nháp thẩm định',submit?(f.admin_exception_open?'Phiếu đã trở về trạng thái khóa; lịch sử được giữ đầy đủ.':'Phiếu đã chuyển sang trạng thái Đã thẩm định.'):'Admin có thể mở lại phiếu để tiếp tục.');await loadMonthly(root,true);}catch(err){checklistToast('error',submit?'Chưa thể hoàn tất thẩm định':'Chưa thể lưu thẩm định',err&&err.message?err.message:'Vui lòng thử lại.',true);}finally{monthlyUiState.savingReview=false;var workspace=root&&root.querySelector('[data-phfck-workspace]');if(workspace)workspace.innerHTML=monthlyHtml();}}
@@ -6742,7 +6790,7 @@
     if(workspace){
       var currentName=(user()||{}).fullName||(user()||{}).name||(user()||{}).displayName||(user()||{}).username||'Người dùng';
       try{
-        workspace.innerHTML=view==='overview'?adminOverviewHtml(currentName):(view==='people'?peopleHtml():(view==='templates'?templatesHtml():(view==='violations'?violationsHtml():(view==='tasks'?tasksHtml():(view==='monthly'?monthlyHtml():(view==='reports'?reportsHtml():(view==='history'?historyHtml():(view==='settings'?settingsHtml():placeholderHtml(view)))))))));
+        workspace.innerHTML=view==='overview'?adminOverviewHtml(currentName):(view==='people'?peopleHtml():(view==='templates'?templatesHtml():(view==='violations'?violationsHtml():(view==='tasks'?tasksHtml():(view==='monthly'?monthlyHtml():(view==='reports'?reportsHtml():(view==='history'?historyHtml():(view==='retro'?checklistRetroWizardHtml():(view==='settings'?settingsHtml():placeholderHtml(view))))))))));
       }catch(renderError){
         console.error('[PHF Checklist] admin view render failed',view,renderError);
         workspace.innerHTML='<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Chưa dựng được màn '+esc((adminMenu().find(function(item){return item[0]===view;})||[])[2]||view)+'</h1><p>Giao diện gặp lỗi khi dựng nội dung. URL và menu đã được giữ đúng để kiểm tra.</p></div><button type="button" class="phfck-primary" data-phfck-view="'+esc(view)+'">↻ Thử lại</button></div><section class="phfck-panel"><div class="phfck-notice"><b>Lỗi render</b><p>'+esc(renderError&&renderError.message||'Không xác định')+'</p></div></section>';
@@ -6808,11 +6856,27 @@
     return '<div class="phfck-own-checklist-summary"><article><span>Checklist đang áp dụng</span><b>'+esc(row.name||assignment.templateVersion||assignment.templateId)+'</b><small>'+esc(row.code||assignment.templateId)+(row.version?' · phiên bản '+esc(row.version):'')+'</small></article><article><span>Hiệu lực từ</span><b>'+(assignment.effectiveDate?esc(new Date(assignment.effectiveDate).toLocaleDateString('vi-VN')):'—')+'</b><small>Theo phân công hiện hành</small></article><article><span>Số tiêu chí</span><b>'+criteria.length+'</b><small>Áp dụng ghi nhận lỗi hằng ngày</small></article></div>'
       +'<details class="phfck-own-checklist-detail"><summary><span>Xem chi tiết</span><i>'+(criteria.length?criteria.length+' tiêu chí':'Chưa có tiêu chí')+'</i></summary><div class="phfck-own-checklist-body">'+(criteria.length?ownChecklistCriteriaGroupsHtml(criteria):'<p>Mẫu chưa có tiêu chí nào được cấu hình.</p>')+'</div></details>';
   }
+  /* Workstream A1 (2026-08-14): đọc field tường minh source.type trước (row dạng object
+     mới hoặc row dạng mảng có r[7]={type:...} do viewWorkbookTotalRowsBase() ghi); chuỗi
+     tên "tuân thủ tiêu chuẩn công việc" CHỈ còn dùng cho snapshot cũ chưa có field này —
+     phải khớp logic isAutomaticSource() phía server (lib/checklist-monthly.js). */
+  function rowSourceTypeOf(r){
+    var s=Array.isArray(r)?r[7]:(r&&r.source);
+    if(s&&typeof s==='object')return String(s.type||'');
+    if(r&&!Array.isArray(r)&&r.sourceType!==undefined)return String(r.sourceType||'');
+    return '';
+  }
   function roleMonthlyRows(form){
     var d=form&&form.template_snapshot&&form.template_snapshot.version&&form.template_snapshot.version.definition||{},rows=Array.isArray(d.totalRows)?d.totalRows:[];
-    return rows.map(function(r,i){var item=Array.isArray(r)?{code:String(r[1]||'ROW-'+(i+1)),name:String(r[2]||'Chỉ tiêu '+(i+1)),target:r[3],unit:r[4]||'điểm',weight:r[5],source:r[7]||'Nhập đánh giá'}:{code:String(r.code||'ROW-'+(i+1)),name:String(r.content||r.name||'Chỉ tiêu '+(i+1)),target:r.target,unit:r.unit||'điểm',weight:r.weight,source:r.source||'Nhập đánh giá'};if(normalizeMatchText(item.name).indexOf('tuan thu tieu chuan cong viec')>=0)item.source='Checklist';return item;});
+    return rows.map(function(r,i){
+      var sourceType=rowSourceTypeOf(r);
+      var legacySource=Array.isArray(r)?(sourceType?'':r[7]):(typeof r.source==='string'?r.source:'');
+      var item=Array.isArray(r)?{code:String(r[1]||'ROW-'+(i+1)),name:String(r[2]||'Chỉ tiêu '+(i+1)),target:r[3],unit:r[4]||'điểm',weight:r[5],source:legacySource||'Nhập đánh giá',sourceType:sourceType}:{code:String(r.code||'ROW-'+(i+1)),name:String(r.content||r.name||'Chỉ tiêu '+(i+1)),target:r.target,unit:r.unit||'điểm',weight:r.weight,source:legacySource||'Nhập đánh giá',sourceType:sourceType};
+      if(sourceType==='checklist_total'||normalizeMatchText(item.name).indexOf('tuan thu tieu chuan cong viec')>=0)item.source='Checklist';
+      return item;
+    });
   }
-  function monthlyAutomaticSource(source,name){var s=normalizeMatchText(source),n=normalizeMatchText(name);return s==='checklist'||s==='he thong'||n.indexOf('tuan thu tieu chuan cong viec')>=0;}
+  function monthlyAutomaticSource(source,name,sourceType){if(sourceType!==undefined)return sourceType==='checklist_total';var s=normalizeMatchText(source),n=normalizeMatchText(name);return s==='checklist'||s==='he thong'||n.indexOf('tuan thu tieu chuan cong viec')>=0;}
   function monthlyWeight(value){var n=Number(String(value==null?'':value).replace('%','').replace(',','.').trim());return Number.isFinite(n)?n:0;}
   function monthlyTarget(value){return monthlyWeight(value);}
   /* pendingLateProvisionalHtml (2026-08-16): "-1 điểm tạm tính" cho sự kiện Đi trễ Admin đã nhập
@@ -6855,7 +6919,7 @@
     if(['reviewed','locked'].indexOf(f.status)<0)return '';
     var rows=roleMonthlyRows(f),self=f.self_answers||{},review=f.review_answers||{},reviewChecklist=f.checklist_review_score==null?Number(f.checklist_score||0):Number(f.checklist_review_score),changed=Math.abs(reviewChecklist-Number(f.checklist_score||0))>0.001;
     return '<section class="phfck-employee-review-result"><div class="phfck-panel-head"><div><small>PHIẾU THÁNG · KẾT QUẢ THẨM ĐỊNH</small><h3>Kết quả thẩm định phiếu tháng</h3></div><span class="phfck-monthly-state reviewed">Chỉ xem</span></div><div class="phfck-final-score-cards"><article><span>Tự đánh giá</span><strong>'+Number(f.self_total_score||0).toFixed(2)+'</strong><small>Tổng điểm sau quy đổi</small></article><article><span>Thẩm định</span><strong>'+Number(f.review_total_score||0).toFixed(2)+'</strong><small>Tổng điểm sau quy đổi</small></article><article class="is-final"><span>Kết quả cuối</span><strong>'+Number(f.final_score||0).toFixed(2)+'</strong><small>'+esc(monthlyScoreFormulaForForm(f))+'</small></article></div><div class="phfck-review-context"><div><small>Người được phân công</small><b>'+esc(f.reviewer_name||'—')+'</b></div><div><small>Người thực tế thẩm định</small><b>'+esc(f.reviewed_by_name||f.reviewer_name||'—')+'</b></div><div><small>Hoàn tất lúc</small><b>'+esc(f.review_submitted_at?new Date(f.review_submitted_at).toLocaleString('vi-VN'):'—')+'</b></div></div>'
-      +'<div class="phfck-employee-result-table"><div class="phfck-employee-result-row is-head"><span>Chỉ tiêu</span><span>Điểm tự đánh giá<small>Do bạn nhập</small></span><span>Kết quả thẩm định<small>Do cấp trên chấm</small></span><span>Nhận xét</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value==null||sa.value===''?'—':sa.value),reviewValue=automatic?reviewChecklist:String(ra.value==null||ra.value===''?'—':ra.value),note=automatic?(changed?(f.checklist_review_reason||'Điểm được người thẩm định điều chỉnh'):'Giữ nguyên điểm Checklist tự động'):(ra.note||'—');return '<div class="phfck-employee-result-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+'</small><b>'+esc(r.name)+'</b></div><strong>'+esc(selfValue)+'</strong><strong>'+esc(reviewValue)+'</strong><span>'+esc(note)+'</span></div>';}).join('')+'</div>'
+      +'<div class="phfck-employee-result-table"><div class="phfck-employee-result-row is-head"><span>Chỉ tiêu</span><span>Điểm tự đánh giá<small>Do bạn nhập</small></span><span>Kết quả thẩm định<small>Do cấp trên chấm</small></span><span>Nhận xét</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name,r.sourceType),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value==null||sa.value===''?'—':sa.value),reviewValue=automatic?reviewChecklist:String(ra.value==null||ra.value===''?'—':ra.value),note=automatic?(changed?(f.checklist_review_reason||'Điểm được người thẩm định điều chỉnh'):'Giữ nguyên điểm Checklist tự động'):(ra.note||'—');return '<div class="phfck-employee-result-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+'</small><b>'+esc(r.name)+'</b></div><strong>'+esc(selfValue)+'</strong><strong>'+esc(reviewValue)+'</strong><span>'+esc(note)+'</span></div>';}).join('')+'</div>'
       +(f.review_note?'<div class="phfck-employee-review-note"><small>NHẬN XÉT CHUNG</small><p>'+esc(f.review_note)+'</p></div>':'')
       +'<div class="phfck-employee-history"><article><i></i><div><b>Bạn đã gửi tự đánh giá</b><span>'+esc(f.self_submitted_at?new Date(f.self_submitted_at).toLocaleString('vi-VN'):'—')+'</span></div></article><article><i></i><div><b>'+esc(f.reviewed_by_name||f.reviewer_name||'Người thẩm định')+' đã hoàn tất thẩm định</b><span>'+esc(f.review_submitted_at?new Date(f.review_submitted_at).toLocaleString('vi-VN'):'—')+'</span></div></article></div></section>';
   }
@@ -6864,7 +6928,7 @@
     if(roleWorkspaceState.monthlyError)return '<section class="phfck-panel phfck-self-monthly"><div class="phfck-role-note"><b>Chưa tải được phiếu tháng</b><p>'+esc(roleWorkspaceState.monthlyError)+'</p></div></section>';
     var f=roleWorkspaceState.monthlyForm;if(!f)return '<section class="phfck-panel phfck-self-monthly is-empty"><div><small>PHIẾU ĐÁNH GIÁ THÁNG</small><h3>Chưa có phiếu được mở cho bạn</h3><p>Phiếu nháp của Admin không hiển thị tại tài khoản nhân viên.</p></div></section>';
     var rows=roleMonthlyRows(f),answers=f.self_answers||{},selfWindow=f.self_edit_window||{},selfStatusEditable=['waiting_self','waiting_review'].indexOf(f.status)>=0,editable=selfStatusEditable&&selfWindow.canEdit!==false,expired=selfWindow.isExpired===true,submitted=['waiting_review','reviewed','locked'].indexOf(f.status)>=0,statusLabel=f.status==='waiting_self'?'Chờ tự đánh giá':(f.status==='waiting_review'?(editable?'Đã gửi · Còn hạn chỉnh sửa':'Đã gửi · Chờ thẩm định'):(f.status==='reviewed'?'Đã thẩm định':'Đã khóa'));
-    var body=rows.length?'<div class="phfck-self-table"><div class="phfck-self-row is-head"><span>Chỉ tiêu</span><span>Mục tiêu</span><span>Trọng số</span><span>Điểm tự đánh giá<small>Do bạn nhập</small></span><span>Ghi chú</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name),a=answers[r.code]||{},value=automatic?Number(f.checklist_score||0).toFixed(2):String(a.value||''),maximum=monthlyTarget(r.target);return '<div class="phfck-self-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b></div><span>'+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+'</span><span>'+esc(r.weight==null?'—':r.weight+'%')+'</span><label>'+(automatic?'<span class="phfck-auto-score"><b>'+esc(value)+'</b><small>Thang mục tiêu · Khóa tự động</small></span>':'<input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(value)+'" placeholder="Tối đa '+esc(maximum)+'" data-phfck-self-value="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label><label>'+(automatic?'<span class="phfck-auto-note">'+Number(f.checklist_breakdown&&f.checklist_breakdown.count||0)+' lỗi · Chuẩn hóa theo Mục tiêu '+maximum+'</span>':'<input type="text" value="'+esc(a.note||'')+'" placeholder="Ghi chú nếu cần" data-phfck-self-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>':'<div class="phfck-self-fallback"><b>Điểm Checklist tự động: '+Number(f.checklist_score||0).toFixed(2)+'</b><p>Mẫu này chưa có bảng chỉ tiêu tổng để nhập. Admin cần kiểm tra lại cấu trúc mẫu trước khi thử gửi.</p></div>';
+    var body=rows.length?'<div class="phfck-self-table"><div class="phfck-self-row is-head"><span>Chỉ tiêu</span><span>Mục tiêu</span><span>Trọng số</span><span>Điểm tự đánh giá<small>Do bạn nhập</small></span><span>Ghi chú</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name,r.sourceType),a=answers[r.code]||{},value=automatic?Number(f.checklist_score||0).toFixed(2):String(a.value||''),maximum=monthlyTarget(r.target);return '<div class="phfck-self-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b></div><span>'+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+'</span><span>'+esc(r.weight==null?'—':r.weight+'%')+'</span><label>'+(automatic?'<span class="phfck-auto-score"><b>'+esc(value)+'</b><small>Thang mục tiêu · Khóa tự động</small></span>':'<input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(value)+'" placeholder="Tối đa '+esc(maximum)+'" data-phfck-self-value="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label><label>'+(automatic?'<span class="phfck-auto-note">'+Number(f.checklist_breakdown&&f.checklist_breakdown.count||0)+' lỗi · Chuẩn hóa theo Mục tiêu '+maximum+'</span>':'<input type="text" value="'+esc(a.note||'')+'" placeholder="Ghi chú nếu cần" data-phfck-self-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>':'<div class="phfck-self-fallback"><b>Điểm Checklist tự động: '+Number(f.checklist_score||0).toFixed(2)+'</b><p>Mẫu này chưa có bảng chỉ tiêu tổng để nhập. Admin cần kiểm tra lại cấu trúc mẫu trước khi thử gửi.</p></div>';
     return '<section class="phfck-panel phfck-self-monthly"><div class="phfck-panel-head"><div><small>'+(f.pilot_opened_at?'MỞ THỬ AN TOÀN · ':'')+'KỲ '+esc(f.period_month)+'</small><h3>Tự đánh giá của tôi (Phiếu tháng)</h3><p class="phfck-self-heading-note">Nhập điểm tại cột <b>Điểm tự đánh giá</b>; các cột còn lại dùng để đối chiếu mục tiêu và kết quả thẩm định.</p></div><span class="phfck-monthly-state '+esc(f.status)+'">'+esc(statusLabel)+'</span></div><div class="phfck-self-context"><div><small>Mẫu áp dụng</small><b>'+esc(f.template_version||f.template_id)+'</b></div><div><small>'+(f.status==='reviewed'||f.status==='locked'?'Người thực tế thẩm định':'Người thẩm định')+'</small><b>'+esc((f.status==='reviewed'||f.status==='locked'?f.reviewed_by_name:f.reviewer_name)||'—')+'</b></div><div><small>Điểm Checklist</small><b>'+Number(f.checklist_score||0).toFixed(2)+'</b></div></div>'+roleMonthlyChecklistBreakdownHtml(f)+body+'<label class="phfck-self-note"><span>Ghi chú chung của nhân viên</span><textarea rows="3" data-phfck-self-general '+(!editable?'disabled':'')+'>'+esc(f.self_note||'')+'</textarea></label>'+employeeMonthlyReviewResultHtml(f)+(editable?'<div class="phfck-self-actions"><button type="button" class="phfck-secondary" data-phfck-self-save '+(roleWorkspaceState.savingMonthly?'disabled':'')+'>'+(submitted?'Lưu cập nhật':'Lưu nháp')+'</button><button type="button" class="phfck-primary" data-phfck-self-submit '+(roleWorkspaceState.savingMonthly?'disabled':'')+'>'+(submitted?'Gửi lại tự đánh giá':'Gửi tự đánh giá')+'</button></div>':(selfStatusEditable&&expired?'<div class="phfck-notice"><b>Đã hết thời gian tự đánh giá</b><p>Phiếu chỉ đọc; không thể lưu hoặc gửi lại sau hạn'+(selfWindow.dueAt?' '+esc(new Date(selfWindow.dueAt).toLocaleString('vi-VN')):'')+'.</p></div>':(f.status==='waiting_review'?'<div class="phfck-notice"><b>Phiếu đã gửi</b><p>Phiếu đang chờ người thẩm định xử lý.</p></div>':'<div class="phfck-notice"><b>Kết quả đã được công bố</b><p>Phiếu chỉ đọc. Nếu cần phản hồi về điểm Checklist, vui lòng sử dụng quy trình giải trình lỗi trong thời hạn quy định.</p></div>')))+'</section>';
   }
   async function saveRoleMonthly(root,submit){
@@ -6902,7 +6966,7 @@
     if(roleWorkspaceState.reviewDetailError)return '<section class="phfck-panel phfck-review-detail"><div class="phfck-role-note is-warning"><b>Chưa tải được chi tiết phiếu</b><p>'+esc(roleWorkspaceState.reviewDetailError)+'</p><button type="button" class="phfck-secondary" data-phfck-review-open="'+esc(roleWorkspaceState.selectedReviewId)+'">Thử lại</button></div></section>';
     var f=selectedMonthlyReview();if(!f||f.is_summary)return '';var editable=f.status==='waiting_review'&&!!(f.review_window&&f.review_window.canReview),rows=roleMonthlyRows(f),self=f.self_answers||{},review=f.review_answers||{},reviewChecklist=f.checklist_review_score==null?Number(f.checklist_score||0):Number(f.checklist_review_score),changed=Math.abs(reviewChecklist-Number(f.checklist_score||0))>0.001;
     return '<section class="phfck-panel phfck-review-detail"><div class="phfck-panel-head"><div><small>PHIẾU CỦA '+esc(f.employee_name)+' · '+esc(f.employee_code)+'</small><h3>Thẩm định kết quả tháng '+esc(f.period_month)+'</h3></div><button type="button" class="phfck-secondary" data-phfck-review-close>Đóng</button></div>'+(editable?'':'<div class="phfck-final-score-cards"><article><span>Tự đánh giá</span><strong>'+Number(f.self_total_score||0).toFixed(2)+'</strong><small>Sau quy đổi trọng số</small></article><article><span>Thẩm định</span><strong>'+Number(f.review_total_score||0).toFixed(2)+'</strong><small>Sau quy đổi trọng số</small></article><article class="is-final"><span>Kết quả cuối</span><strong>'+Number(f.final_score||0).toFixed(2)+'</strong><small>'+esc(monthlyScoreFormulaForForm(f))+'</small></article></div>')+'<div class="phfck-review-context"><div><small>Người được phân công</small><b>'+esc(f.reviewer_name||'—')+'</b></div><div><small>Người thực tế thẩm định</small><b>'+esc(f.reviewed_by_name||'Chưa hoàn tất')+'</b></div><div><small>Hoàn tất lúc</small><b>'+esc(f.review_submitted_at?new Date(f.review_submitted_at).toLocaleString('vi-VN'):'—')+'</b></div></div>'+roleMonthlyChecklistBreakdownHtml(f)
-      +'<div class="phfck-review-table"><div class="phfck-review-row is-head"><span>Chỉ tiêu</span><span>Nhân viên</span><span>Thẩm định</span><span>Ghi chú thẩm định</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value||'—'),reviewValue=automatic?reviewChecklist:String(ra.value==null?'':ra.value),maximum=monthlyTarget(r.target);return '<div class="phfck-review-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b><span>Mục tiêu '+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+' · Tối đa '+esc(maximum)+'</span></div><strong>'+esc(selfValue)+'</strong><label><input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(reviewValue)+'" placeholder="'+(automatic?'':'Tối đa '+maximum)+'" '+(automatic?'data-phfck-review-checklist-score':'data-phfck-review-value="'+esc(r.code)+'"')+' '+(!editable?'disabled':'')+'></label><label>'+(automatic?'<textarea rows="2" placeholder="Bắt buộc khi sửa khác '+Number(f.checklist_score||0).toFixed(2)+' điểm" data-phfck-review-checklist-reason '+(!editable?'disabled':'')+'>'+esc(f.checklist_review_reason||'')+'</textarea>':'<input type="text" value="'+esc(ra.note||'')+'" placeholder="Ghi rõ khi cần" data-phfck-review-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>'
+      +'<div class="phfck-review-table"><div class="phfck-review-row is-head"><span>Chỉ tiêu</span><span>Nhân viên</span><span>Thẩm định</span><span>Ghi chú thẩm định</span></div>'+rows.map(function(r){var automatic=monthlyAutomaticSource(r.source,r.name,r.sourceType),sa=self[r.code]||{},ra=review[r.code]||{},selfValue=automatic?Number(f.checklist_score||0).toFixed(2):String(sa.value||'—'),reviewValue=automatic?reviewChecklist:String(ra.value==null?'':ra.value),maximum=monthlyTarget(r.target);return '<div class="phfck-review-row '+(automatic?'is-automatic':'')+'"><div><small>'+esc(r.code)+' · '+esc(r.source)+'</small><b>'+esc(r.name)+'</b><span>Mục tiêu '+esc(r.target==null?'—':r.target)+' '+esc(r.unit||'')+' · Tối đa '+esc(maximum)+'</span></div><strong>'+esc(selfValue)+'</strong><label><input type="number" min="0" max="'+esc(maximum)+'" step="0.01" value="'+esc(reviewValue)+'" placeholder="'+(automatic?'':'Tối đa '+maximum)+'" '+(automatic?'data-phfck-review-checklist-score':'data-phfck-review-value="'+esc(r.code)+'"')+' '+(!editable?'disabled':'')+'></label><label>'+(automatic?'<textarea rows="2" placeholder="Bắt buộc khi sửa khác '+Number(f.checklist_score||0).toFixed(2)+' điểm" data-phfck-review-checklist-reason '+(!editable?'disabled':'')+'>'+esc(f.checklist_review_reason||'')+'</textarea>':'<input type="text" value="'+esc(ra.note||'')+'" placeholder="Ghi rõ khi cần" data-phfck-review-note="'+esc(r.code)+'" '+(!editable?'disabled':'')+'>')+'</label></div>';}).join('')+'</div>'
       +(changed?'<div class="phfck-review-warning"><b>Điểm thẩm định khác điểm Checklist tự động</b><p>Lý do là bắt buộc. Dữ liệu lỗi gốc vẫn được giữ nguyên.</p></div>':'')+'<label class="phfck-self-note"><span>Nhận xét chung của người thẩm định</span><textarea rows="3" data-phfck-review-general '+(!editable?'disabled':'')+'>'+esc(f.review_note||'')+'</textarea></label>'+monthlyReviewHistoryHtml(f)+(editable?'<div class="phfck-self-actions"><button type="button" class="phfck-secondary" data-phfck-review-save '+(roleWorkspaceState.savingReview?'disabled':'')+'>Lưu nháp thẩm định</button><button type="button" class="phfck-primary" data-phfck-review-submit '+(roleWorkspaceState.savingReview?'disabled':'')+'>Hoàn tất thẩm định</button></div>':'<div class="phfck-notice"><b>Phiếu chỉ đọc</b><p>Bạn đang xem lại kết quả đã thẩm định. Mọi thay đổi ngoại lệ phải do Admin thực hiện và lưu lý do.</p></div>')+'</section>';
   }
   async function saveRoleMonthlyReview(root,submit){
@@ -7691,9 +7755,27 @@
     }
   }
 
+  /* Workstream A UI reorg (2026-08-14) — wizard 8 bước "Áp dụng lại mẫu" đã
+     dissolve vào màn "Mẫu Checklist" (nút "Sửa Bảng tổng điểm" + modal 3 bước
+     "Cập nhật Phiếu tháng hiện có", xem checklistTseEditorHtml()/checklistTraDrawerHtml()
+     phía dưới). Route cũ /admin/checklist/ap-dung-lai-mau KHÔNG được phép còn
+     render trang wizard cũ (mồ côi/orphaned) — redirect an toàn ngay tại điểm
+     vào duy nhất của router (render()), cùng pattern với
+     normalizeManagerPermissionRoute() (history.replaceState rồi trả về route an
+     toàn) đã dùng cho manager. checklistRetroWizardHtml() và toàn bộ state/hàm
+     crw* bên dưới KHÔNG bị xóa — vẫn là engine thật cho UI mới, chỉ không còn
+     đường route/menu riêng trỏ thẳng vào trang 8 bước nữa. */
+  function normalizeAdminRetroRoute(path){
+    if(routeRole(path)!=='admin')return path;
+    if(cleanPath(path)!==ADMIN_VIEW_ROUTES.retro)return path;
+    var safe=ADMIN_VIEW_ROUTES.templates;
+    try{history.replaceState(history.state||{},'',safe);}catch(_e){}
+    return safe;
+  }
   function render(path){
     var routeKey=routeKeyFor(path||currentRouteKey());
-    var routePath=cleanPath(routeKey);
+    var routePath=normalizeAdminRetroRoute(cleanPath(routeKey));
+    if(routePath!==cleanPath(routeKey))routeKey=routePath;
     installChecklistShellGuard();
     enforceChecklistShell();
     var currentRole=routeRole(routePath);
@@ -7836,6 +7918,453 @@
   document.addEventListener('click',function(e){var picker=e.target.closest('.phfck-time-picker');if(!picker){if(!e.target.closest('[data-phfck-time-trigger]'))document.querySelectorAll('.phfck-time-picker').forEach(function(x){x.remove();});return;}var target=picker.__target;if(!target)return;var direct=picker.querySelector('[data-phfck-time-direct]');if(e.target.closest('[data-phfck-time-now]')){var now=currentTime24();if(direct)direct.value=now;picker.querySelector('[data-phfck-time-preview]').textContent=now;}var hb=e.target.closest('[data-phfck-hour]');if(hb){picker.querySelectorAll('[data-phfck-hour]').forEach(function(x){x.classList.remove('active');});hb.classList.add('active');}var mb=e.target.closest('[data-phfck-minute]');if(mb){picker.querySelectorAll('[data-phfck-minute]').forEach(function(x){x.classList.remove('active');});mb.classList.add('active');}var h=(picker.querySelector('[data-phfck-hour].active')||{}).getAttribute?picker.querySelector('[data-phfck-hour].active').getAttribute('data-phfck-hour'):currentTime24().slice(0,2);var m=(picker.querySelector('[data-phfck-minute].active')||{}).getAttribute?picker.querySelector('[data-phfck-minute].active').getAttribute('data-phfck-minute'):'00';if(hb||mb){var combined=h+':'+m;if(direct)direct.value=combined;var pv=picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=combined;}if(e.target.closest('[data-phfck-time-apply]')){var chosen=normalizeTime24(direct&&direct.value?direct.value:h+':'+m,currentTime24());target.value=chosen;target.dispatchEvent(new Event('change',{bubbles:true}));picker.remove();}},true);document.addEventListener('input',function(e){if(!e.target.matches('[data-phfck-time-direct]'))return;var picker=e.target.closest('.phfck-time-picker');e.target.value=formatTime24Typing(e.target.value);var valid=normalizeTime24(e.target.value,'');if(valid){var pv=picker&&picker.querySelector('[data-phfck-time-preview]');if(pv)pv.textContent=valid;}},true);document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-time-direct]')||e.key!=='Enter')return;e.preventDefault();var picker=e.target.closest('.phfck-time-picker');var apply=picker&&picker.querySelector('[data-phfck-time-apply]');if(apply)apply.click();},true);
   document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScoreSearchTimer)clearTimeout(checklistScoreSearchTimer);loadChecklistCurrentScore(document.getElementById('phfChecklistRoot'),true);},true);
   document.addEventListener('keydown',function(e){if(!e.target.matches('[data-phfck-score-period-search]')||e.key!=='Enter')return;e.preventDefault();if(checklistScorePeriodSearchTimer)clearTimeout(checklistScorePeriodSearchTimer);loadChecklistScorePeriod(document.getElementById('phfChecklistRoot'),true);},true);
+
+  /* ==========================================================================
+     Workstream A3 (2026-08-14) — Admin wizard 8 bước: version/mapping/
+     retroactive management cho Checklist. Gọi thẳng 5 action đã nối sẵn ở
+     server.js (checklistRetroCopyVersion/PreviewDiff/DryRunApply/Apply/
+     ApplyReviewedForm -> lib/checklist-template-retroactive-service.js).
+     KHÔNG dựng lại criteria/groups editor — bước 3 chỉ sửa Bảng tổng điểm
+     (totalRows/source), phần Nhóm tiêu chí dùng đúng màn "Mẫu Checklist" đã
+     có (nút mở nhanh sang đó), tránh trùng lặp UI/logic.
+     Route: /admin/checklist/ap-dung-lai-mau (mục 'retro' trong adminMenu()).
+     ========================================================================== */
+  var CRW_STEPS=[
+    {n:1,label:'Chọn version nguồn'},
+    {n:2,label:'Sao chép version mới'},
+    {n:3,label:'Cấu hình Bảng tổng điểm'},
+    {n:4,label:'Validate'},
+    {n:5,label:'Preview diff'},
+    {n:6,label:'Chọn kỳ/phạm vi'},
+    {n:7,label:'Dry-run'},
+    {n:8,label:'Xác nhận & báo cáo'}
+  ];
+  function crwUuid(){try{if(window.crypto&&window.crypto.randomUUID)return window.crypto.randomUUID();}catch(_e){}return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
+  function crwInitialState(){
+    return {
+      step:1,maxStep:1,
+      templateKey:'',sourceVersion:'',
+      newVersion:'',effectiveDate:todayIso(),copyReason:'',
+      copying:false,copyError:'',
+      sourceDefinition:null,workingDefinition:null,
+      clientErrors:[],
+      previewing:false,previewError:'',preview:null,
+      employeeImpactCodesInput:'',employeeImpactPeriod:'',employeeImpactLoading:false,employeeImpactError:'',employeeImpact:null,
+      periodMonthFrom:'',periodMonthTo:'',scopeReason:'',
+      dryRunning:false,dryRunError:'',dryRun:null,
+      batchId:'',
+      applying:false,applyError:'',applyResult:null,
+      reviewedForms:{},
+      permissionError:''
+    };
+  }
+  var checklistRetroWizardState=crwInitialState();
+  function crwReset(){checklistRetroWizardState=crwInitialState();}
+  /* Workstream A UI reorg (2026-08-14) — tách phần fetch/permission-403 dùng chung
+     ra khỏi crwApiCall() để "Sửa Bảng tổng điểm" (checklistTseState) và modal 3 bước
+     "Cập nhật Phiếu tháng hiện có" (checklistTraState) gọi ĐÚNG cùng 5 action server
+     đã có (checklistRetroCopyVersion/PreviewDiff/DryRunApply/Apply/ApplyReviewedForm),
+     không tự viết lại lời gọi mạng hay logic 403 lần 2. onPermissionError cho phép mỗi
+     UI ghi lỗi quyền vào state riêng của nó thay vì luôn ghi vào
+     checklistRetroWizardState (wizard cũ, không còn route riêng nữa). */
+  function checklistRetroApiCall(action,input,onPermissionError){
+    return fetch('/api/data',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:action,input:input||{}})})
+      .then(function(r){return r.json().catch(function(){return {ok:false,error:'Phản hồi không hợp lệ từ máy chủ.',code:'BAD_RESPONSE'};}).then(function(data){return {status:r.status,data:data||{}};});})
+      .then(function(res){
+        var data=res.data||{};
+        if(res.status===403||data.code==='CHECKLIST_RETRO_ADMIN_REQUIRED'){
+          var msg=data.error||'Bạn không có quyền Admin để dùng công cụ này.';
+          if(onPermissionError)onPermissionError(msg,data.code);
+          var permErr=new Error(msg);permErr.permission=true;permErr.code=data.code;throw permErr;
+        }
+        if(data.ok!==true){var e=new Error(data.error||'Thao tác thất bại.');e.code=data.code;throw e;}
+        return data;
+      });
+  }
+  function crwApiCall(action,input){
+    return checklistRetroApiCall(action,input,function(msg){checklistRetroWizardState.permissionError=msg;}).then(function(data){checklistRetroWizardState.permissionError='';return data;});
+  }
+  /* Mirror thuần client của validateScoredDefinition() (lib/checklist-templates.js) —
+     KHÔNG phải nguồn sự thật, chỉ chặn sớm cho UX; Bước 4/5 vẫn luôn gọi
+     checklistRetroPreviewDiff (server) để validate lại thật trước khi cho đi tiếp,
+     đúng yêu cầu "never trust only the client check". */
+  function crwClientValidate(definition){
+    var errors=[],rows=(definition&&Array.isArray(definition.totalRows))?definition.totalRows:[];
+    if(!rows.length){errors.push('Mẫu phải có ít nhất một tiêu chí áp dụng.');return errors;}
+    var totalWeight=0;
+    rows.forEach(function(row,index){
+      var target=Number(row.target),weight=Number(row.weight),label=row.code||('dòng '+(index+1));
+      if(!Number.isFinite(target)||target<=0)errors.push('Mục tiêu tiêu chí '+label+' phải là số lớn hơn 0.');
+      if(!Number.isFinite(weight)||weight<=0)errors.push('Trọng số tiêu chí '+label+' phải lớn hơn 0. Tiêu chí không áp dụng phải bỏ khỏi mẫu.');
+      totalWeight+=Number.isFinite(weight)?weight:0;
+    });
+    if(Math.abs(totalWeight-100)>0.001)errors.push('Tổng trọng số mẫu phải bằng 100% (hiện tại '+(Math.round(totalWeight*100)/100)+'%).');
+    var groups=(definition&&Array.isArray(definition.groups))?definition.groups:[];
+    var requiresGate=(definition&&definition.templateType)==='checklist_detail'||groups.length>0;
+    var hasTotalRow=rows.some(function(r){return r&&r.source&&r.source.type==='checklist_total';});
+    if(requiresGate&&!hasTotalRow)errors.push('Mẫu có nhóm tiêu chí Checklist nhưng Bảng tổng điểm chưa có dòng nhận điểm Checklist (source.type=checklist_total). Vui lòng thêm dòng Tuân thủ Checklist trước khi lưu.');
+    return errors;
+  }
+  function crwTemplateVersions(templateKey){
+    var row=checklistTemplateDbState.byId[templateKey];
+    return row&&Array.isArray(row.versions)?row.versions:[];
+  }
+  function crwFormStatusLabel(status){return {draft:'Phiếu nháp',waiting_self:'Chờ tự đánh giá',waiting_review:'Chờ thẩm định',reviewed:'Đã thẩm định',locked:'Đã khóa',cancelled:'Đã hủy'}[status]||status||'—';}
+  /* 4 nhóm trạng thái bắt buộc phân biệt trực quan (mục 4 đề bài), map trực tiếp từ outcome
+     do RPC phf_retroactive_apply_checklist_template trả (xem SQL 1.53.0). */
+  function crwOutcomeBadgeHtml(outcome){
+    var map={
+      'applied':['phfck-chip-success','Có thể tự động remap'],
+      'skipped-unmapped':['phfck-chip-danger','Bị chặn — không ánh xạ được'],
+      'requires-reviewed-adjustment':['phfck-chip-warning','Cần luồng riêng (đã thẩm định)'],
+      'skipped-locked':['phfck-chip-muted','Không thể áp dụng — đã khóa'],
+      'skipped-cancelled':['phfck-chip-muted','Không thể áp dụng — đã hủy'],
+      'skipped-unknown-status':['phfck-chip-muted','Ngoài phạm vi áp dụng']
+    };
+    var m=map[outcome]||['phfck-chip-muted',outcome||'—'];
+    return '<span class="phfck-chip '+m[0]+'">'+esc(m[1])+'</span>';
+  }
+  function crwDiffSummaryHtml(diff){
+    if(!diff)return '';
+    return '<div class="phfck-retro-diff-grid">'
+      +'<div class="phfck-retro-diff-col"><b>Thêm mới ('+diff.added.length+')</b>'+(diff.added.length?'<ul>'+diff.added.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+' ('+r.weight+'%, '+esc(r.sourceType||'manual')+')</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-retro-diff-col"><b>Gỡ bỏ ('+diff.removed.length+')</b>'+(diff.removed.length?'<ul>'+diff.removed.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-retro-diff-col"><b>Đổi tên ('+diff.renamed.length+')</b>'+(diff.renamed.length?'<ul>'+diff.renamed.map(function(r){return '<li>'+esc(r.before.name)+' → '+esc(r.after.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'<div class="phfck-retro-diff-col"><b>Đổi trọng số/nguồn ('+diff.changed.length+')</b>'+(diff.changed.length?'<ul>'+diff.changed.map(function(r){return '<li>'+esc(r.after.code)+': '+r.before.weight+'% → '+r.after.weight+'%'+(r.sourceChanged?' · nguồn '+esc(r.before.sourceType||'manual')+' → '+esc(r.after.sourceType||'manual'):'')+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
+      +'</div>'
+      +'<div class="phfck-notice"><b>Tổng trọng số</b><p>Trước: '+diff.totalWeightBefore+'% · Sau: '+diff.totalWeightAfter+'%</p></div>';
+  }
+  function crwCopyDefinitionForEdit(def){return def?JSON.parse(JSON.stringify(def)):{templateType:'checklist_detail',groups:[],totalRows:[]};}
+  function crwStepperHtml(){
+    var state=checklistRetroWizardState;
+    return '<div class="phfck-tabs phfck-retro-steps" role="tablist" aria-label="Các bước áp dụng lại mẫu">'+CRW_STEPS.map(function(s){
+      var reached=s.n<=state.maxStep,active=s.n===state.step;
+      return '<button type="button" class="'+(active?'active':'')+'" '+(reached?'data-phfck-retro-goto-step="'+s.n+'"':'disabled aria-disabled="true"')+'>'+s.n+'. '+esc(s.label)+'</button>';
+    }).join('')+'</div>';
+  }
+  function crwStep1Html(){
+    var state=checklistRetroWizardState,templates=templateCatalog(),versions=state.templateKey?crwTemplateVersions(state.templateKey):[];
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 1 · Chọn version nguồn</h2>'
+      +'<p>Chọn mẫu và phiên bản đang áp dụng để làm gốc sao chép sang phiên bản mới.</p>'
+      +'<div class="phfck-form-grid"><label><b>Mẫu Checklist</b><select data-phfck-retro-template><option value="">— Chọn mẫu —</option>'+templates.map(function(t){return '<option value="'+esc(t.id)+'" '+(state.templateKey===t.id?'selected':'')+'>'+esc(t.name)+' ('+esc(t.id)+')</option>';}).join('')+'</select></label>'
+      +'<label><b>Phiên bản nguồn</b><select data-phfck-retro-source-version '+(versions.length?'':'disabled')+'><option value="">— Chọn phiên bản —</option>'+versions.map(function(v){return '<option value="'+esc(v.version)+'" '+(state.sourceVersion===v.version?'selected':'')+'>'+esc(v.version)+' ('+esc(v.effectiveDate||'—')+')</option>';}).join('')+'</select></label></div>'
+      +(state.templateKey&&!versions.length?'<div class="phfck-notice"><b>Chưa có phiên bản nào trong CSDL</b><p>Mẫu này chưa có checklist_template_versions được lưu. Cần lưu mẫu ở màn "Mẫu Checklist" trước khi dùng công cụ Áp dụng lại.</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-primary" '+(state.templateKey&&state.sourceVersion?'':'disabled')+' data-phfck-retro-next-from-1>Tiếp tục</button></div>'
+      +'</div>';
+  }
+  function crwStep2Html(){
+    var state=checklistRetroWizardState;
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 2 · Sao chép version mới</h2>'
+      +'<p>Sao chép nguyên trạng phiên bản <b>'+esc(state.sourceVersion)+'</b> của mẫu <b>'+esc(state.templateKey)+'</b> sang một phiên bản mới để chỉnh sửa, không đụng phiên bản đang áp dụng.</p>'
+      +'<div class="phfck-form-grid"><label><b>Phiên bản mới</b><input type="text" placeholder="vd: '+esc(state.sourceVersion)+'-r2" data-phfck-retro-new-version value="'+esc(state.newVersion)+'"></label>'
+      +'<label><b>Ngày hiệu lực</b><input type="date" data-phfck-retro-effective-date value="'+esc(state.effectiveDate)+'"></label></div>'
+      +'<label><b>Lý do</b><input type="text" placeholder="vd: Cập nhật trọng số quý 3" data-phfck-retro-copy-reason value="'+esc(state.copyReason)+'"></label>'
+      +(state.copyError?'<div class="phfck-notice"><b>Không sao chép được</b><p>'+esc(state.copyError)+'</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="1">Quay lại</button><button type="button" class="phfck-primary" '+(state.copying?'disabled':'')+' data-phfck-retro-do-copy>'+(state.copying?'Đang sao chép…':'Sao chép version')+'</button></div>'
+      +'</div>';
+  }
+  function crwStep3Html(){
+    var state=checklistRetroWizardState,def=state.workingDefinition||crwCopyDefinitionForEdit(state.sourceDefinition),rows=def.totalRows||[];
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 3 · Cấu hình Bảng tổng điểm</h2>'
+      +'<p>Sửa dòng, trọng số và nguồn (source.type) cho phiên bản <b>'+esc(state.newVersion)+'</b>. Chỉnh Nhóm tiêu chí (câu hỏi Checklist chi tiết) dùng đúng màn <b>Mẫu Checklist</b> hiện có — công cụ này chỉ tập trung Bảng tổng điểm để tránh trùng lặp editor.</p>'
+      +'<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã</th><th>Tên tiêu chí</th><th>Mục tiêu</th><th>Đơn vị</th><th>Trọng số (%)</th><th>Nguồn</th><th></th></tr></thead><tbody>'
+      +rows.map(function(row,index){
+        return '<tr><td><input type="text" data-phfck-retro-row-field="code" data-phfck-retro-row-index="'+index+'" value="'+esc(row.code||'')+'"></td>'
+          +'<td><input type="text" data-phfck-retro-row-field="name" data-phfck-retro-row-index="'+index+'" value="'+esc(row.name||'')+'"></td>'
+          +'<td><input type="number" data-phfck-retro-row-field="target" data-phfck-retro-row-index="'+index+'" value="'+esc(row.target==null?'':row.target)+'"></td>'
+          +'<td><input type="text" data-phfck-retro-row-field="unit" data-phfck-retro-row-index="'+index+'" value="'+esc(row.unit||'điểm')+'"></td>'
+          +'<td><input type="number" data-phfck-retro-row-field="weight" data-phfck-retro-row-index="'+index+'" value="'+esc(row.weight==null?'':row.weight)+'"></td>'
+          +'<td><select data-phfck-retro-row-field="sourceType" data-phfck-retro-row-index="'+index+'"><option value="manual" '+((!row.source||row.source.type!=='checklist_total')?'selected':'')+'>manual</option><option value="checklist_total" '+(row.source&&row.source.type==='checklist_total'?'selected':'')+'>checklist_total</option></select></td>'
+          +'<td><button type="button" class="phfck-table-action" data-phfck-retro-remove-row="'+index+'">Xóa</button></td></tr>';
+      }).join('')
+      +'</tbody></table></div>'
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:14px 0"><button type="button" class="phfck-secondary" data-phfck-retro-add-row>＋ Thêm dòng</button></div>'
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="2">Quay lại</button><button type="button" class="phfck-primary" data-phfck-retro-next-from-3>Tiếp tục · Validate</button></div>'
+      +'</div>';
+  }
+  function crwStep4Html(){
+    var state=checklistRetroWizardState,errors=crwClientValidate(state.workingDefinition);
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 4 · Validate</h2>'
+      +'<p>Kiểm tra nhanh phía trình duyệt (tổng trọng số = 100%, có dòng nhận điểm Checklist nếu mẫu dùng Checklist). Đây chỉ là gợi ý sớm — hệ thống luôn validate lại thật ở máy chủ trước khi cho qua Bước 5.</p>'
+      +(errors.length?'<div class="phfck-notice"><b>'+errors.length+' lỗi cần sửa</b><ul>'+errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul></div>':'<div class="phfck-notice"><b>Hợp lệ phía trình duyệt</b><p>Có thể tiếp tục để máy chủ validate lại.</p></div>')
+      +(state.previewError?'<div class="phfck-notice"><b>Máy chủ từ chối</b><p>'+esc(state.previewError)+'</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="3">Quay lại</button><button type="button" class="phfck-primary" '+(errors.length||state.previewing?'disabled':'')+' data-phfck-retro-server-validate>'+(state.previewing?'Đang validate…':'Validate & Preview diff (máy chủ)')+'</button></div>'
+      +'</div>';
+  }
+  /* Residual A (2026-08-14) — Bước 5 nối thật vào action server
+     checklistRetroSimulateEmployeeImpact (lib/checklist-template-retroactive-
+     service.js: simulateEmployeeImpactBatch, gọi lại planEmployeeImpactBatch()
+     THUẦN + calculateMonthlyScore thật). KHÔNG tự tính điểm ở UI. Nhân sự
+     ngoài phạm vi hoặc chưa có phiếu tháng thật cho kỳ đã chọn hiển thị đúng
+     "Cần xử lý thủ công", không hiển thị số 0 giả định như dữ liệu thật. */
+  function crwEmployeeImpactResultHtml(){
+    var state=checklistRetroWizardState,result=state.employeeImpact;
+    if(!result)return '';
+    var rows=(result.results||[]).map(function(r){
+      return '<tr><td>'+esc(r.employeeCode)+'</td><td>'+esc(r.employeeName||'—')+'</td>'
+        +'<td>'+esc(String(r.checklistScore))+'</td>'
+        +'<td>'+esc(String(r.before.selfTotalScore))+' → '+esc(String(r.after.selfTotalScore))+' ('+(r.selfDelta>=0?'+':'')+r.selfDelta+')</td>'
+        +'<td>'+esc(String(r.before.reviewTotalScore))+' → '+esc(String(r.after.reviewTotalScore))+' ('+(r.reviewDelta>=0?'+':'')+r.reviewDelta+')</td></tr>';
+    }).join('');
+    var manualRows=(result.manual||[]).map(function(m){
+      return '<tr><td>'+esc(m.employeeCode)+'</td><td>'+esc(m.employeeName||'—')+'</td><td colspan="3"><span class="phfck-chip phfck-chip-warning">Cần xử lý thủ công</span> '+esc(m.reason||'')+'</td></tr>';
+    }).join('');
+    return '<div class="phfck-retro-impact-result">'
+      +(rows?'<table class="phfck-table"><thead><tr><th>Mã NV</th><th>Tên</th><th>Điểm Checklist</th><th>Tự đánh giá trước→sau</th><th>Thẩm định trước→sau</th></tr></thead><tbody>'+rows+'</tbody></table>':'<p>Không có nhân sự nào mô phỏng được bằng dữ liệu thật (xem danh sách "Cần xử lý thủ công" bên dưới).</p>')
+      +(manualRows?'<table class="phfck-table"><thead><tr><th>Mã NV</th><th>Tên</th><th colspan="3">Lý do</th></tr></thead><tbody>'+manualRows+'</tbody></table>':'')
+      +'</div>';
+  }
+  function crwStep5Html(){
+    var state=checklistRetroWizardState,preview=state.preview;
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 5 · Preview diff</h2>'
+      +(preview?crwDiffSummaryHtml(preview):'<p>Chưa có dữ liệu preview.</p>')
+      +'<div class="phfck-notice"><b>Mô phỏng tác động điểm theo từng nhân sự</b><p>Dùng dữ liệu phiếu tháng THẬT (self_answers/review_answers) và điểm Checklist thật (checklist_violation_records) cho đúng kỳ đã chọn. Nhân sự không thuộc phạm vi mẫu này hoặc chưa có phiếu tháng thật cho kỳ sẽ hiển thị "Cần xử lý thủ công" — không tự điền số liệu giả định.</p>'
+      +'<div class="phfck-form-grid"><label><b>Mã nhân sự (cách nhau bằng dấu phẩy)</b><input type="text" placeholder="vd: PHF001, PHF002" data-phfck-retro-impact-codes value="'+esc(state.employeeImpactCodesInput)+'"></label>'
+      +'<label><b>Kỳ (tháng)</b><input type="month" data-phfck-retro-impact-period value="'+esc(state.employeeImpactPeriod)+'"></label></div>'
+      +(state.employeeImpactError?'<div class="phfck-notice"><b>Máy chủ từ chối</b><p>'+esc(state.employeeImpactError)+'</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 14px"><button type="button" class="phfck-secondary" '+(state.employeeImpactLoading?'disabled':'')+' data-phfck-retro-run-impact>'+(state.employeeImpactLoading?'Đang mô phỏng…':'Chạy mô phỏng tác động điểm')+'</button></div>'
+      +crwEmployeeImpactResultHtml()
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="4">Quay lại</button><button type="button" class="phfck-primary" data-phfck-retro-goto-step="6">Tiếp tục · Chọn kỳ/phạm vi</button></div>'
+      +'</div>';
+  }
+  function crwStep6Html(){
+    var state=checklistRetroWizardState;
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 6 · Chọn kỳ/phạm vi</h2>'
+      +'<p>Giới hạn batch theo khoảng kỳ đánh giá (period_month, định dạng YYYY-MM). Để trống = không giới hạn.</p>'
+      +'<div class="phfck-form-grid"><label><b>Từ kỳ</b><input type="month" data-phfck-retro-period-from value="'+esc(state.periodMonthFrom)+'"></label>'
+      +'<label><b>Đến kỳ</b><input type="month" data-phfck-retro-period-to value="'+esc(state.periodMonthTo)+'"></label></div>'
+      +'<label><b>Lý do áp dụng lại</b><input type="text" placeholder="vd: Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc" data-phfck-retro-scope-reason value="'+esc(state.scopeReason)+'"></label>'
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="5">Quay lại</button><button type="button" class="phfck-primary" data-phfck-retro-next-from-6>Tiếp tục · Dry-run</button></div>'
+      +'</div>';
+  }
+  function crwCountsTableHtml(counts){
+    counts=counts||{};
+    var rows=[['applied','Có thể tự động remap'],['skippedUnmapped','Bị chặn — không ánh xạ được'],['requiresReviewedAdjustment','Cần luồng riêng (đã thẩm định)'],['skippedLocked','Không thể áp dụng — đã khóa'],['failed','Thất bại']];
+    return '<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Kết quả</th><th>Số phiếu</th></tr></thead><tbody>'
+      +rows.map(function(r){return '<tr><td>'+esc(r[1])+'</td><td>'+(Number(counts[r[0]]||0))+'</td></tr>';}).join('')
+      +'</tbody></table></div>';
+  }
+  function crwItemsListHtml(items){
+    items=Array.isArray(items)?items:[];
+    if(!items.length)return '<div class="phfck-notice"><b>Không có phiếu nào cần theo dõi thủ công</b><p>Mọi phiếu trong phạm vi đều tự động remap được (hoặc không có phiếu nào trong phạm vi).</p></div>';
+    return '<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Kỳ</th><th>Trạng thái kết quả</th><th>Lý do</th></tr></thead><tbody>'
+      +items.map(function(it){return '<tr><td>'+esc(it.employeeCode||'—')+'</td><td>'+esc(it.periodMonth||'—')+'</td><td>'+crwOutcomeBadgeHtml(it.outcome)+'</td><td>'+esc(it.reason||'')+'</td></tr>';}).join('')
+      +'</tbody></table></div>';
+  }
+  function crwStep7Html(){
+    var state=checklistRetroWizardState,dr=state.dryRun;
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 7 · Dry-run</h2>'
+      +'<p>Tính thử batch (batch_id='+esc(state.batchId)+') trên dữ liệu phiếu tháng thật, KHÔNG ghi bất kỳ thay đổi nào.</p>'
+      +(state.dryRunError?'<div class="phfck-notice"><b>Dry-run thất bại</b><p>'+esc(state.dryRunError)+'</p></div>':'')
+      +(dr?crwCountsTableHtml(dr.counts)+crwItemsListHtml(dr.items):'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 14px"><button type="button" class="phfck-primary" '+(state.dryRunning?'disabled':'')+' data-phfck-retro-do-dry-run>'+(state.dryRunning?'Đang tính…':'Chạy Dry-run')+'</button></div>')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="6">Quay lại</button>'+(dr?'<button type="button" class="phfck-primary" data-phfck-retro-goto-step="8">Tiếp tục · Xác nhận</button>':'')+'</div>'
+      +'</div>';
+  }
+  function crwStep8Html(){
+    var state=checklistRetroWizardState,result=state.applyResult,dr=state.dryRun||{};
+    var reviewedItems=((dr.items)||[]).filter(function(it){return it.outcome==='requires-reviewed-adjustment';});
+    return '<div class="phfck-panel phfck-retro-panel"><h2>Bước 8 · Xác nhận và xem báo cáo kết quả</h2>'
+      +(state.applyError?'<div class="phfck-notice"><b>Áp dụng thất bại</b><p>'+esc(state.applyError)+'</p></div>':'')
+      +(!result?(
+        '<div class="phfck-notice"><b>Xác nhận áp dụng batch thường</b><p>Áp dụng cho các phiếu draft/waiting_self/waiting_review đủ điều kiện remap tự động (xem lại kết quả Dry-run ở Bước 7). Phiếu đã thẩm định, đã khóa hoặc đã hủy KHÔNG bị đụng bởi nút này.</p></div>'
+        +'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 18px"><button type="button" class="phfck-primary" '+(state.applying?'disabled':'')+' data-phfck-retro-confirm-apply>'+(state.applying?'Đang áp dụng…':'Xác nhận áp dụng batch')+'</button></div>'
+      ):(
+        '<div class="phfck-notice"><b>Đã áp dụng — batch '+esc(result.batchId)+'</b><p>Idempotent replay: '+(result.idempotentReplay?'Có (đã áp dụng trước đó, không chạy lại)':'Không')+'</p></div>'
+        +crwCountsTableHtml(result.counts)
+        +crwItemsListHtml(result.items)
+      ))
+      +(reviewedItems.length?(
+        '<div class="phfck-panel phfck-retro-reviewed-panel"><h3>Phiếu đã thẩm định — cần xác nhận riêng</h3>'
+        +'<p>Các phiếu dưới đây đã ở trạng thái "Đã thẩm định" nên KHÔNG được đụng bởi nút xác nhận batch phía trên. Mỗi phiếu cần xác nhận + lý do (tối thiểu 10 ký tự) riêng.</p>'
+        +'<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Kỳ</th><th>Lý do điều chỉnh (≥10 ký tự)</th><th></th></tr></thead><tbody>'
+        +reviewedItems.map(function(it){
+          var rf=state.reviewedForms[it.formId]||{};
+          return '<tr><td>'+esc(it.employeeCode||'—')+'</td><td>'+esc(it.periodMonth||'—')+'</td>'
+            +'<td><input type="text" data-phfck-retro-reviewed-reason="'+esc(it.formId)+'" value="'+esc(rf.reason||'')+'" placeholder="Lý do điều chỉnh phiếu đã thẩm định"></td>'
+            +'<td><button type="button" class="phfck-table-action" '+(rf.applying?'disabled':'')+' data-phfck-retro-apply-reviewed="'+esc(it.formId)+'">'+(rf.applying?'Đang xử lý…':(rf.result?'Đã áp dụng':'Xác nhận riêng'))+'</button>'
+            +(rf.error?'<div><small style="color:#c43f3f">'+esc(rf.error)+'</small></div>':'')+'</td></tr>';
+        }).join('')
+        +'</tbody></table></div></div>'
+      ):'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-retro-goto-step="7">Quay lại Dry-run</button><button type="button" class="phfck-secondary" data-phfck-retro-restart>Bắt đầu lại (mẫu khác)</button></div>'
+      +'</div>';
+  }
+  function checklistRetroWizardHtml(){
+    var state=checklistRetroWizardState;
+    if(state.permissionError){
+      return '<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Áp dụng lại mẫu</h1><p>Sao chép phiên bản, cấu hình lại Bảng tổng điểm và áp dụng lại có kiểm soát cho các phiếu tháng.</p></div></div>'
+        +'<div class="phfck-notice"><b>Không có quyền truy cập</b><p>'+esc(state.permissionError)+'</p></div>';
+    }
+    var body=({1:crwStep1Html,2:crwStep2Html,3:crwStep3Html,4:crwStep4Html,5:crwStep5Html,6:crwStep6Html,7:crwStep7Html,8:crwStep8Html})[state.step]();
+    return '<div class="phfck-page-head"><div><small>PHF CHECKLIST · ADMIN</small><h1>Áp dụng lại mẫu</h1><p>Sao chép phiên bản, cấu hình lại Bảng tổng điểm và áp dụng lại có kiểm soát cho các phiếu tháng. Phiếu đã khóa hoặc đã hủy không bao giờ bị đụng.</p></div></div>'
+      +crwStepperHtml()+body;
+  }
+  function crwRerender(){var workspace=document.querySelector('[data-phfck-workspace]');if(workspace&&adminViewFromPath(location.pathname)==='retro')workspace.innerHTML=checklistRetroWizardHtml();}
+  function crwGotoStep(n){checklistRetroWizardState.step=n;checklistRetroWizardState.maxStep=Math.max(checklistRetroWizardState.maxStep,n);crwRerender();}
+
+  document.addEventListener('click',function(e){
+    var root=e.target.closest('[data-phfck-workspace]');
+    if(!root||adminViewFromPath(location.pathname)!=='retro')return;
+    var state=checklistRetroWizardState;
+    var gotoBtn=e.target.closest('[data-phfck-retro-goto-step]');
+    if(gotoBtn){crwGotoStep(Number(gotoBtn.getAttribute('data-phfck-retro-goto-step')));return;}
+    if(e.target.closest('[data-phfck-retro-restart]')){crwReset();crwRerender();return;}
+    if(e.target.closest('[data-phfck-retro-next-from-1]')){crwGotoStep(2);return;}
+    if(e.target.closest('[data-phfck-retro-add-row]')){
+      state.workingDefinition=state.workingDefinition||crwCopyDefinitionForEdit(state.sourceDefinition);
+      state.workingDefinition.totalRows=state.workingDefinition.totalRows||[];
+      state.workingDefinition.totalRows.push({code:'',name:'',target:100,unit:'điểm',weight:0,source:{type:'manual'}});
+      crwRerender();return;
+    }
+    var removeRow=e.target.closest('[data-phfck-retro-remove-row]');
+    if(removeRow){
+      var idx=Number(removeRow.getAttribute('data-phfck-retro-remove-row'));
+      if(state.workingDefinition&&Array.isArray(state.workingDefinition.totalRows))state.workingDefinition.totalRows.splice(idx,1);
+      crwRerender();return;
+    }
+    if(e.target.closest('[data-phfck-retro-next-from-3]')){crwGotoStep(4);return;}
+    if(e.target.closest('[data-phfck-retro-do-copy]')){
+      if(state.copying)return;
+      var newVersion=normalizeText(state.newVersion),effectiveDate=normalizeText(state.effectiveDate)||todayIso();
+      if(!newVersion){state.copyError='Cần nhập số phiên bản mới.';crwRerender();return;}
+      state.copying=true;state.copyError='';crwRerender();
+      crwApiCall('checklistRetroCopyVersion',{templateKey:state.templateKey,sourceVersion:state.sourceVersion,newVersion:newVersion,effectiveDate:effectiveDate,reason:state.copyReason}).then(function(data){
+        state.copying=false;state.newVersion=newVersion;state.effectiveDate=effectiveDate;
+        state.sourceDefinition=data.definition||state.sourceDefinition;
+        state.workingDefinition=crwCopyDefinitionForEdit(data.definition);
+        crwGotoStep(3);
+      }).catch(function(err){state.copying=false;if(!err.permission)state.copyError=err.message;crwRerender();});
+      return;
+    }
+    if(e.target.closest('[data-phfck-retro-server-validate]')){
+      if(state.previewing)return;
+      var clientErrors=crwClientValidate(state.workingDefinition);
+      if(clientErrors.length){crwRerender();return;}
+      state.previewing=true;state.previewError='';crwRerender();
+      crwApiCall('checklistRetroPreviewDiff',{oldDefinition:state.sourceDefinition,newDefinition:state.workingDefinition}).then(function(data){
+        state.previewing=false;
+        if(data.ok!==true||(data.errors&&data.errors.length)){
+          state.previewError=(data.errors&&data.errors.join(' ; '))||'Máy chủ từ chối cấu hình này.';
+          crwRerender();return;
+        }
+        state.preview=data;crwGotoStep(5);
+      }).catch(function(err){state.previewing=false;if(!err.permission)state.previewError=err.message;crwRerender();});
+      return;
+    }
+    if(e.target.closest('[data-phfck-retro-run-impact]')){
+      if(state.employeeImpactLoading)return;
+      var codes=String(state.employeeImpactCodesInput||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+      if(!codes.length){state.employeeImpactError='Nhập ít nhất 1 mã nhân sự.';crwRerender();return;}
+      if(!state.employeeImpactPeriod){state.employeeImpactError='Chọn kỳ (tháng) cần mô phỏng.';crwRerender();return;}
+      state.employeeImpactLoading=true;state.employeeImpactError='';crwRerender();
+      crwApiCall('checklistRetroSimulateEmployeeImpact',{templateKey:state.templateKey,periodMonth:state.employeeImpactPeriod,employeeCodes:codes,oldDefinition:state.sourceDefinition,newDefinition:state.workingDefinition}).then(function(data){
+        state.employeeImpactLoading=false;state.employeeImpact=data;crwRerender();
+      }).catch(function(err){state.employeeImpactLoading=false;if(!err.permission)state.employeeImpactError=err.message;crwRerender();});
+      return;
+    }
+    if(e.target.closest('[data-phfck-retro-next-from-6]')){
+      if(!state.batchId)state.batchId=crwUuid();
+      crwGotoStep(7);return;
+    }
+    if(e.target.closest('[data-phfck-retro-do-dry-run]')){
+      if(state.dryRunning)return;
+      state.dryRunning=true;state.dryRunError='';crwRerender();
+      crwApiCall('checklistRetroDryRunApply',{batchId:state.batchId,templateKey:state.templateKey,oldVersion:state.sourceVersion,newVersion:state.newVersion,periodMonthFrom:state.periodMonthFrom,periodMonthTo:state.periodMonthTo,reason:state.scopeReason}).then(function(data){
+        state.dryRunning=false;state.dryRun=data;crwRerender();
+      }).catch(function(err){state.dryRunning=false;if(!err.permission)state.dryRunError=err.message;crwRerender();});
+      return;
+    }
+    if(e.target.closest('[data-phfck-retro-confirm-apply]')){
+      if(state.applying)return;
+      phfckConfirm({title:'Xác nhận áp dụng lại mẫu',message:'Áp dụng batch '+state.batchId+' cho các phiếu draft/waiting_self/waiting_review đủ điều kiện trong phạm vi đã chọn. Không thể hoàn tác tự động — chỉ idempotent-replay nếu gọi lại đúng batch_id.',confirmText:'Xác nhận áp dụng',cancelText:'Hủy',tone:'danger'}).then(function(confirmed){
+        if(!confirmed)return;
+        state.applying=true;state.applyError='';crwRerender();
+        crwApiCall('checklistRetroApply',{batchId:state.batchId,templateKey:state.templateKey,oldVersion:state.sourceVersion,newVersion:state.newVersion,periodMonthFrom:state.periodMonthFrom,periodMonthTo:state.periodMonthTo,reason:state.scopeReason}).then(function(data){
+          state.applying=false;state.applyResult=data;crwRerender();
+        }).catch(function(err){state.applying=false;if(!err.permission)state.applyError=err.message;crwRerender();});
+      });
+      return;
+    }
+    var applyReviewedBtn=e.target.closest('[data-phfck-retro-apply-reviewed]');
+    if(applyReviewedBtn){
+      var formId=applyReviewedBtn.getAttribute('data-phfck-retro-apply-reviewed');
+      var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});
+      if(rf.applying||rf.result)return;
+      var reason=normalizeText(rf.reason);
+      if(reason.length<10){rf.error='Cần ghi lý do tối thiểu 10 ký tự.';crwRerender();return;}
+      phfckConfirm({title:'Điều chỉnh phiếu đã thẩm định',message:'Phiếu này đã thẩm định — điều chỉnh riêng, KHÔNG qua batch thường. Lý do: "'+reason+'". Tiếp tục?',confirmText:'Xác nhận điều chỉnh',cancelText:'Hủy',tone:'danger'}).then(function(confirmed){
+        if(!confirmed)return;
+        rf.applying=true;rf.error='';crwRerender();
+        crwApiCall('checklistRetroApplyReviewedForm',{formId:formId,newVersion:state.newVersion,confirm:true,reason:reason,batchId:state.batchId}).then(function(data){
+          rf.applying=false;rf.result=data;crwRerender();
+        }).catch(function(err){rf.applying=false;if(!err.permission)rf.error=err.message;crwRerender();});
+      });
+      return;
+    }
+  });
+  document.addEventListener('change',function(e){
+    var root=e.target.closest('[data-phfck-workspace]');
+    if(!root||adminViewFromPath(location.pathname)!=='retro')return;
+    var state=checklistRetroWizardState;
+    if(e.target.matches('[data-phfck-retro-template]')){state.templateKey=e.target.value;state.sourceVersion='';crwRerender();return;}
+    if(e.target.matches('[data-phfck-retro-source-version]')){state.sourceVersion=e.target.value;crwRerender();return;}
+    if(e.target.matches('[data-phfck-retro-new-version]')){state.newVersion=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-effective-date]')){state.effectiveDate=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-copy-reason]')){state.copyReason=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-period-from]')){state.periodMonthFrom=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-period-to]')){state.periodMonthTo=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-scope-reason]')){state.scopeReason=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-impact-codes]')){state.employeeImpactCodesInput=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-impact-period]')){state.employeeImpactPeriod=e.target.value;return;}
+    var reasonInput=e.target.closest('[data-phfck-retro-reviewed-reason]');
+    if(reasonInput){
+      var formId=reasonInput.getAttribute('data-phfck-retro-reviewed-reason');
+      var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});
+      rf.reason=reasonInput.value;rf.error='';return;
+    }
+    var rowField=e.target.closest('[data-phfck-retro-row-field]');
+    if(rowField){
+      var field=rowField.getAttribute('data-phfck-retro-row-field'),index=Number(rowField.getAttribute('data-phfck-retro-row-index'));
+      state.workingDefinition=state.workingDefinition||crwCopyDefinitionForEdit(state.sourceDefinition);
+      var row=state.workingDefinition.totalRows[index];if(!row)return;
+      if(field==='sourceType')row.source={type:rowField.value};
+      else if(field==='target'||field==='weight')row[field]=Number(rowField.value);
+      else row[field]=rowField.value;
+      return;
+    }
+  },true);
+  document.addEventListener('input',function(e){
+    var root=e.target.closest('[data-phfck-workspace]');
+    if(!root||adminViewFromPath(location.pathname)!=='retro')return;
+    var state=checklistRetroWizardState;
+    if(e.target.matches('[data-phfck-retro-new-version]')){state.newVersion=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-effective-date]')){state.effectiveDate=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-copy-reason]')){state.copyReason=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-period-from]')){state.periodMonthFrom=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-period-to]')){state.periodMonthTo=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-scope-reason]')){state.scopeReason=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-impact-codes]')){state.employeeImpactCodesInput=e.target.value;return;}
+    if(e.target.matches('[data-phfck-retro-impact-period]')){state.employeeImpactPeriod=e.target.value;return;}
+    var reasonInput=e.target.closest('[data-phfck-retro-reviewed-reason]');
+    if(reasonInput){
+      var formId=reasonInput.getAttribute('data-phfck-retro-reviewed-reason');
+      var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});
+      rf.reason=reasonInput.value;rf.error='';return;
+    }
+  });
+
+  /* ==========================================================================
+     Workstream A UI reorg (2026-08-14) — "Sửa Bảng tổng điểm" (checklistTseState)
+     + modal 3 bước "Cập nhật Phiếu tháng hiện có" (checklistTraState), sống bên
+     trong màn "Mẫu Checklist" (templatesHtml()/templateDetailModalHtml()), thay
+     cho wizard 8 bước độc lập cũ (checklistRetroWizardHtml(), vẫn giữ nguyên phía
+     trên — KHÔNG xóa — chỉ không còn route/menu riêng trỏ vào nữa, xem
+     normalizeAdminRetroRoute()). Toàn bộ backend call (checklistRetroCopyVersion/
+     PreviewDiff/DryRunApply/Apply/ApplyReviewedForm) và pure-helper (crwUuid,
+     crwDiffSummaryHtml, crwCountsTableHtml, crwItemsListHtml, crwOutcomeBadgeHtml,
+     crwCopyDefinitionForEdit, checklistRetroApiCall) được TÁI SỬ DỤNG y nguyên —
+     phần dưới đây chỉ là lớp UI/glue mới (state + render + event wiring).
+     ========================================================================== */
 
   function tseTemplateItem(id){return templateCatalog().find(function(x){return x.id===id;})||null;}
   /* Workstream A residual (2026-08-14) — hàm dựng definition hiệu lực DÙNG
@@ -8066,47 +8595,23 @@
     rows[rows.length-1].weight=Math.round((rows[rows.length-1].weight+diff)*100)/100;
   }
   function tseUuid(){try{if(window.crypto&&window.crypto.randomUUID)return window.crypto.randomUUID();}catch(_e){}return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
-  function tseDiffRow(row){return {code:row.id,name:row.name,weight:Number(row.weight)||0,sourceType:row.source&&row.source.type||'manual'};}
-  function tseBuildPreview(oldRows,newRows){
-    var before={},after={},added=[],removed=[],renamed=[],changed=[];
-    (oldRows||[]).forEach(function(row){before[row.id]=row;});
-    (newRows||[]).forEach(function(row){after[row.id]=row;});
-    Object.keys(after).forEach(function(id){
-      var next=after[id],previous=before[id];
-      if(!previous){added.push(tseDiffRow(next));return;}
-      if(normalizeText(previous.name)!==normalizeText(next.name))renamed.push({before:tseDiffRow(previous),after:tseDiffRow(next)});
-      var sourceBefore=previous.source&&previous.source.type||'manual',sourceAfter=next.source&&next.source.type||'manual';
-      if(Number(previous.weight)!==Number(next.weight)||sourceBefore!==sourceAfter)changed.push({before:tseDiffRow(previous),after:tseDiffRow(next),sourceChanged:sourceBefore!==sourceAfter});
-    });
-    Object.keys(before).forEach(function(id){if(!after[id])removed.push(tseDiffRow(before[id]));});
-    return {added:added,removed:removed,renamed:renamed,changed:changed,totalWeightBefore:Math.round((oldRows||[]).reduce(function(sum,row){return sum+(Number(row.weight)||0);},0)*100)/100,totalWeightAfter:Math.round((newRows||[]).reduce(function(sum,row){return sum+(Number(row.weight)||0);},0)*100)/100};
-  }
-  function tseDiffSummaryHtml(diff){
-    if(!diff)return '';
-    return '<div class="phfck-tse-diff-grid">'
-      +'<div class="phfck-tse-diff-col"><b>Thêm mới ('+diff.added.length+')</b>'+(diff.added.length?'<ul>'+diff.added.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+' ('+r.weight+'%, '+esc(r.sourceType||'manual')+')</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
-      +'<div class="phfck-tse-diff-col"><b>Gỡ bỏ ('+diff.removed.length+')</b>'+(diff.removed.length?'<ul>'+diff.removed.map(function(r){return '<li>'+esc(r.code)+' — '+esc(r.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
-      +'<div class="phfck-tse-diff-col"><b>Đổi tên ('+diff.renamed.length+')</b>'+(diff.renamed.length?'<ul>'+diff.renamed.map(function(r){return '<li>'+esc(r.before.name)+' → '+esc(r.after.name)+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
-      +'<div class="phfck-tse-diff-col"><b>Đổi trọng số/nguồn ('+diff.changed.length+')</b>'+(diff.changed.length?'<ul>'+diff.changed.map(function(r){return '<li>'+esc(r.after.code)+': '+r.before.weight+'% → '+r.after.weight+'%'+(r.sourceChanged?' · nguồn '+esc(r.before.sourceType||'manual')+' → '+esc(r.after.sourceType||'manual'):'')+'</li>';}).join('')+'</ul>':'<small>Không có</small>')+'</div>'
-      +'</div><div class="phfck-notice"><b>Tổng trọng số</b><p>Trước: '+diff.totalWeightBefore+'% · Sau: '+diff.totalWeightAfter+'%</p></div>';
-  }
-  function tseRowsForTemplateSave(rows){
-    return (rows||[]).map(function(row,index){return [index+1,row.id,row.name,Number(row.target)||0,row.unit||'điểm',Number(row.weight)||0,'Không',{type:row.source&&row.source.type==='checklist_total'?'checklist_total':'manual'},row.id,row.note||''];});
-  }
+  /* Publish phải tái dùng đúng RPC Retro (checklistRetroCopyVersion, cùng cơ chế wizard
+     8 bước cũ dùng) thay vì lưu thẳng qua saveChecklistTemplate — đây là cách duy nhất
+     giữ version cũ bất biến (1.54.0) và để bước "Cập nhật Phiếu tháng hiện có" sau đó
+     nhận đúng oldVersion/newVersion đã tồn tại thật trong checklist_template_versions. */
   async function tsePersistPublishedVersion(state){
     var item=tseTemplateItem(state&&state.templateId);
     if(!item)throw new Error('Không tìm thấy mẫu cần phát hành.');
-    var payload={templateId:state.templateId,groups:deepClone(state.groups),totalRows:tseRowsForTemplateSave(state.rows),templateType:state.templateType,version:state.newVersion,sourceVersion:state.sourceVersion,effectiveDate:state.effectiveDate,reason:state.reason,updatedAt:new Date().toISOString(),changeType:'web-total-score'};
-    var data=await persistChecklistTemplateToDatabase(item,payload);
-    if(!saveBulkOverrideLocal(state.templateId,payload))throw new Error('Đã lưu trên máy chủ nhưng chưa cập nhật được bộ nhớ trình duyệt. Vui lòng tải lại trang.');
-    return {data:data,payload:payload,item:item};
+    var definition={groups:deepClone(state.groups),totalRows:tseRowsForDefinition(state.rows),templateType:state.templateType};
+    var data=await checklistRetroApiCall('checklistRetroCopyVersion',{templateKey:state.templateId,sourceVersion:state.sourceVersion,newVersion:state.newVersion,effectiveDate:state.effectiveDate,reason:state.reason,definition:definition});
+    return {data:data,item:item};
   }
   function checklistTsePreviewHtml(){
     var state=checklistTseState;if(!state)return '';
     var item=tseTemplateItem(state.templateId)||{};
     var body;
     if(state.previewError)body='<div class="phfck-notice"><b>Chưa thể xem trước</b><p>'+esc(state.previewError)+'</p></div><div class="phfck-modal-foot" style="border-top:0;padding:0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button></div>';
-    else if(state.preview)body=tseDiffSummaryHtml(state.preview)
+    else if(state.preview)body=crwDiffSummaryHtml(state.preview)
       +'<div class="phfck-form-grid"><label><b>Phiên bản mới <em>*</em></b><input type="text" placeholder="vd: '+esc(state.sourceVersion)+'-r2" data-phfck-tse-new-version value="'+esc(state.newVersion)+'"></label><label><b>Ngày hiệu lực</b><input type="date" data-phfck-tse-effective-date value="'+esc(state.effectiveDate)+'"></label></div>'
       +'<label><b>Lý do <em>*</em></b><input type="text" placeholder="vd: Cập nhật trọng số quý 3" data-phfck-tse-reason value="'+esc(state.reason)+'"></label>'
       +(state.publishError?'<div class="phfck-notice"><b>Không tạo được phiên bản</b><p>'+esc(state.publishError)+'</p></div>':'')
@@ -8115,13 +8620,101 @@
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview phfck-tse-preview-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>XEM TRƯỚC PHIÊN BẢN MỚI</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.sourceVersion||'—')+' → '+esc(state.newVersion||'?')+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'+body+'</div></div></div>';
   }
   function tseRerenderPreview(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTsePreviewHtml());}
+  function tseRowsForDefinition(rows){
+    return (rows||[]).map(function(r){return {id:r.id,code:r.id,name:r.name,target:r.target,unit:r.unit,weight:r.weight,source:{type:r.source&&r.source.type==='checklist_total'?'checklist_total':'manual'},note:r.note||''};});
+  }
   function tseOpenPreview(){
     var state=checklistTseState;if(!state)return;
     var v=tseValidate(state);if(v.errors.length)return;
-    state.previewError='';
-    state.preview=tseBuildPreview(state.baseDefinition.totalRows,state.rows);
-    tseRerenderPreview();
+    state.previewError='';state.previewing=true;state.preview=null;tseRerenderPreview();
+    // Bước 4 luôn gọi checklistRetroPreviewDiff (server) để tính/validate lại diff từ
+    // definition thật đã sửa — không được tính diff thuần client rồi coi là kết quả cuối,
+    // đúng yêu cầu "never trust only the client check" (xem crwClientValidate ở trên).
+    var newDefinition={groups:deepClone(state.groups),totalRows:tseRowsForDefinition(state.rows),templateType:state.templateType};
+    checklistRetroApiCall('checklistRetroPreviewDiff',{oldDefinition:state.baseDefinition,newDefinition:newDefinition}).then(function(data){
+      state.previewing=false;
+      if(data&&data.errors&&data.errors.length){state.previewError=data.errors.join(' ');state.preview=null;}
+      else{state.preview=data;state.previewError='';}
+      tseRerenderPreview();
+    }).catch(function(err){state.previewing=false;state.previewError=err&&err.message||'Chưa thể xem trước.';state.preview=null;tseRerenderPreview();});
   }
+  function checklistTsePostPublishHtml(){
+    var state=checklistTseState;if(!state||!state.published)return '';
+    var item=tseTemplateItem(state.templateId)||{};
+    return '<div class="phfck-modal-layer phfck-decision-layer" data-phfck-modal-layer data-phfck-submodal data-phfck-tse-postpublish><div class="phfck-modal phfck-tse-postpublish-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>ĐÃ TẠO PHIÊN BẢN MỚI</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
+      +'<p>Phiên bản mới đã được tạo. Anh/chị muốn áp dụng như thế nào?</p>'
+      +'<div class="phfck-postpublish-choices"><button type="button" class="phfck-primary" data-phfck-tse-only-new>Chỉ áp dụng cho Phiếu tháng tạo mới</button><button type="button" class="phfck-secondary" data-phfck-tse-open-retro>Cập nhật Phiếu tháng hiện có</button></div>'
+      +'<p class="phfck-muted-line">Phiên bản cũ ('+esc(state.sourceVersion)+') vẫn được giữ nguyên cho mọi phiếu đang dùng nó. "Chỉ áp dụng cho Phiếu tháng tạo mới" là lựa chọn an toàn/mặc định — không đụng phiếu đã có.</p>'
+      +'</div></div></div>';
+  }
+
+  /* --- Modal 3 bước "Cập nhật Phiếu tháng hiện có" (checklistTraState) ---
+     Tái sử dụng đúng crwCountsTableHtml/crwItemsListHtml/crwOutcomeBadgeHtml
+     (thuần, không phụ thuộc state cụ thể) + 3 action server thật:
+     checklistRetroDryRunApply (bước 2 xem tác động, dryRun:true qua RPC),
+     checklistRetroApply (bước 3 xác nhận thật), checklistRetroApplyReviewedForm
+     (đường riêng cho phiếu đã thẩm định — KHÔNG bao giờ gộp vào batch thường). */
+  var checklistTraState=null;
+  function traOpenFromPublish(){
+    var s=checklistTseState;if(!s||!s.published)return;
+    checklistTraState={
+      templateId:s.templateId,oldVersion:s.sourceVersion,newVersion:s.newVersion,
+      step:1,periodMonthFrom:'',periodMonthTo:'',scopeReason:'',batchId:'',
+      dryRunning:false,dryRunError:'',dryRun:null,
+      applying:false,applyError:'',applyResult:null,
+      reviewedForms:{},permissionError:''
+    };
+  }
+  function traGotoStep(n){if(!checklistTraState)return;checklistTraState.step=n;traRerender();}
+  function traRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTraDrawerHtml());}
+  function traStep1Html(){
+    var state=checklistTraState;
+    return '<p>Phạm vi áp dụng lại cho mẫu <b>'+esc((tseTemplateItem(state.templateId)||{}).name||state.templateId)+'</b>, từ phiên bản <b>'+esc(state.oldVersion)+'</b> sang <b>'+esc(state.newVersion)+'</b> (đã điền sẵn từ bước tạo phiên bản, không cần chọn lại).</p>'
+      +'<div class="phfck-form-grid"><label><b>Từ kỳ</b><input type="month" data-phfck-tra-period-from value="'+esc(state.periodMonthFrom)+'"></label><label><b>Đến kỳ</b><input type="month" data-phfck-tra-period-to value="'+esc(state.periodMonthTo)+'"></label></div>'
+      +'<label><b>Lý do áp dụng lại</b><input type="text" placeholder="vd: Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc" data-phfck-tra-scope-reason value="'+esc(state.scopeReason)+'"></label>'
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-primary" data-phfck-tra-next-from-1>Tiếp tục · Xem tác động</button></div>';
+  }
+  function traStep2Html(){
+    var state=checklistTraState;
+    if(state.permissionError)return '<div class="phfck-notice"><b>Không có quyền truy cập</b><p>'+esc(state.permissionError)+'</p></div>';
+    return (state.dryRunError?'<div class="phfck-notice"><b>Chưa thể xác định</b><p>'+esc(state.dryRunError)+'</p></div>':'')
+      +(state.dryRun?(crwCountsTableHtml(state.dryRun.counts)+crwItemsListHtml(state.dryRun.items)):'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 14px"><button type="button" class="phfck-primary" '+(state.dryRunning?'disabled':'')+' data-phfck-tra-run-preview>'+(state.dryRunning?'Đang tính tác động…':'Xem tác động (dữ liệu thật, chưa ghi)')+'</button></div>')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-tra-goto="1">Quay lại</button>'+(state.dryRun?'<button type="button" class="phfck-primary" data-phfck-tra-goto="3">Tiếp tục · Xác nhận</button>':'')+'</div>';
+  }
+  function traStep3Html(){
+    var state=checklistTraState,dr=state.dryRun||{};
+    var reviewedItems=((dr.items)||[]).filter(function(it){return it.outcome==='requires-reviewed-adjustment';});
+    return (state.applyError?'<div class="phfck-notice"><b>Áp dụng thất bại</b><p>'+esc(state.applyError)+'</p></div>':'')
+      +(!state.applyResult?(
+        '<div class="phfck-notice"><b>Xác nhận áp dụng batch (batch_id='+esc(state.batchId)+')</b><p>Áp dụng cho phiếu draft/waiting_self/waiting_review đủ điều kiện remap tự động, đúng phạm vi đã xem ở Bước 2. Phiếu đã thẩm định/đã khóa/đã hủy KHÔNG bị đụng bởi nút này.</p></div>'
+        +'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 18px"><button type="button" class="phfck-primary" '+(state.applying?'disabled':'')+' data-phfck-tra-confirm-apply>'+(state.applying?'Đang áp dụng…':'Xác nhận áp dụng batch')+'</button></div>'
+      ):(
+        '<div class="phfck-notice"><b>Đã áp dụng — batch '+esc(state.applyResult.batchId)+'</b><p>Idempotent replay: '+(state.applyResult.idempotentReplay?'Có (đã áp dụng trước đó, không chạy lại)':'Không')+'</p></div>'
+        +crwCountsTableHtml(state.applyResult.counts)+crwItemsListHtml(state.applyResult.items)
+      ))
+      +(reviewedItems.length?(
+        '<div class="phfck-panel phfck-retro-reviewed-panel"><h3>Phiếu đã thẩm định — cần xác nhận riêng</h3><p>KHÔNG được đụng bởi nút xác nhận batch phía trên. Mỗi phiếu cần xác nhận + lý do (≥10 ký tự) riêng.</p>'
+        +'<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Kỳ</th><th>Lý do điều chỉnh (≥10 ký tự)</th><th></th></tr></thead><tbody>'
+        +reviewedItems.map(function(it){
+          var rf=state.reviewedForms[it.formId]||{};
+          return '<tr><td>'+esc(it.employeeCode||'—')+'</td><td>'+esc(it.periodMonth||'—')+'</td>'
+            +'<td><input type="text" data-phfck-tra-reviewed-reason="'+esc(it.formId)+'" value="'+esc(rf.reason||'')+'" placeholder="Lý do điều chỉnh phiếu đã thẩm định"></td>'
+            +'<td><button type="button" class="phfck-table-action" '+(rf.applying?'disabled':'')+' data-phfck-tra-apply-reviewed="'+esc(it.formId)+'">'+(rf.applying?'Đang xử lý…':(rf.result?'Đã áp dụng':'Xác nhận riêng'))+'</button>'
+            +(rf.error?'<div><small style="color:#c43f3f">'+esc(rf.error)+'</small></div>':'')+'</td></tr>';
+        }).join('')
+        +'</tbody></table></div></div>'
+      ):'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-secondary" data-phfck-tra-goto="2">Quay lại Bước 2</button></div>';
+  }
+  function checklistTraDrawerHtml(){
+    var state=checklistTraState;if(!state)return '';
+    var item=tseTemplateItem(state.templateId)||{};
+    var body=state.step===1?traStep1Html():(state.step===2?traStep2Html():traStep3Html());
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-tra-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT PHIẾU THÁNG HIỆN CÓ</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.oldVersion)+' → '+esc(state.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div>'
+      +'<div class="phfck-tabs phfck-retro-steps" role="tablist" aria-label="3 bước cập nhật phiếu tháng hiện có"><button type="button" class="'+(state.step===1?'active':'')+'" '+(state.step>=1?'data-phfck-tra-goto="1"':'disabled')+'>1. Chọn phạm vi</button><button type="button" class="'+(state.step===2?'active':'')+'" '+(state.dryRun||state.step>=2?'data-phfck-tra-goto="2"':'disabled')+'>2. Xem tác động</button><button type="button" class="'+(state.step===3?'active':'')+'" '+(state.dryRun?'data-phfck-tra-goto="3"':'disabled')+'>3. Xác nhận</button></div>'
+      +'<div class="phfck-modal-body">'+body+'</div></div></div>';
+  }
+
   document.addEventListener('click',function(e){
     var openBtn=e.target.closest('[data-phfck-tse-open]');
     if(openBtn){e.preventDefault();var root=document.getElementById('phfChecklistRoot');if(!root)return;tseOpen(openBtn.getAttribute('data-phfck-tse-open')||'');appendSubmodal(root,checklistTseEditorHtml());return;}
@@ -8151,9 +8744,64 @@
         tsePersistPublishedVersion(state).then(function(result){
           state.publishing=false;state.published=result.data;
           addAudit({action:'Phát hành phiên bản từ web',area:'Bảng tổng điểm',object:result.item.name||state.templateId,source:'Web',impact:'Một mẫu',version:state.sourceVersion+' → '+state.newVersion,reason:state.reason});
-          var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();syncChecklistModalScrollLock();checklistTseState=null;if(root)refreshTemplatesWorkspace(root);
-          checklistToast('success','Đã tạo phiên bản mới','Phiên bản mới chỉ áp dụng cho Phiếu tháng tạo mới từ nay. Phiếu tháng hiện có giữ nguyên.');
+          var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();
+          // Bắt buộc hỏi Admin lựa chọn phạm vi áp dụng (chỉ phiếu mới / cập nhật phiếu hiện có)
+          // trước khi coi phiên bản là đã xử lý xong — không được tự chọn "chỉ phiếu mới" thay Admin.
+          if(root){refreshTemplatesWorkspace(root);appendSubmodal(root,checklistTsePostPublishHtml());}
         }).catch(function(err){state.publishing=false;if(!state.publishError)state.publishError=err&&err.message||'Máy chủ chưa xác nhận phát hành.';tseRerenderPreview();});
+        return;
+      }
+    }
+    if(e.target.closest('[data-phfck-tse-only-new]')){
+      var sm1=e.target.closest('[data-phfck-submodal]');if(sm1)sm1.remove();syncChecklistModalScrollLock();
+      var root1=document.getElementById('phfChecklistRoot');checklistTseState=null;if(root1)refreshTemplatesWorkspace(root1);
+      checklistToast('success','Đã tạo phiên bản mới','Phiên bản mới chỉ áp dụng cho Phiếu tháng tạo mới từ nay. Phiếu tháng hiện có giữ nguyên.');
+      return;
+    }
+    if(e.target.closest('[data-phfck-tse-open-retro]')){
+      traOpenFromPublish();
+      var sm2=e.target.closest('[data-phfck-submodal]');if(sm2)sm2.remove();
+      traRerender();
+      return;
+    }
+    var traRoot=e.target.closest('.phfck-tra-modal');
+    if(traRoot&&checklistTraState){
+      var state=checklistTraState;
+      var gotoBtn=e.target.closest('[data-phfck-tra-goto]');if(gotoBtn){traGotoStep(Number(gotoBtn.getAttribute('data-phfck-tra-goto')));return;}
+      if(e.target.closest('[data-phfck-tra-next-from-1]')){if(!state.batchId)state.batchId=crwUuid();traGotoStep(2);return;}
+      if(e.target.closest('[data-phfck-tra-run-preview]')){
+        if(state.dryRunning)return;
+        state.dryRunning=true;state.dryRunError='';traRerender();
+        checklistRetroApiCall('checklistRetroDryRunApply',{batchId:state.batchId,templateKey:state.templateId,oldVersion:state.oldVersion,newVersion:state.newVersion,periodMonthFrom:state.periodMonthFrom,periodMonthTo:state.periodMonthTo,reason:state.scopeReason},function(msg){state.permissionError=msg;}).then(function(data){
+          state.dryRunning=false;state.dryRun=data;traRerender();
+        }).catch(function(err){state.dryRunning=false;if(!err.permission)state.dryRunError=err.message;traRerender();});
+        return;
+      }
+      if(e.target.closest('[data-phfck-tra-confirm-apply]')){
+        if(state.applying)return;
+        phfckConfirm({title:'Xác nhận cập nhật Phiếu tháng hiện có',message:'Áp dụng batch '+state.batchId+' cho các phiếu draft/waiting_self/waiting_review đủ điều kiện trong phạm vi đã xem ở Bước 2. Không thể hoàn tác tự động — chỉ idempotent-replay nếu gọi lại đúng batch_id.',confirmText:'Xác nhận áp dụng',cancelText:'Hủy',tone:'danger'}).then(function(confirmed){
+          if(!confirmed)return;
+          state.applying=true;state.applyError='';traRerender();
+          checklistRetroApiCall('checklistRetroApply',{batchId:state.batchId,templateKey:state.templateId,oldVersion:state.oldVersion,newVersion:state.newVersion,periodMonthFrom:state.periodMonthFrom,periodMonthTo:state.periodMonthTo,reason:state.scopeReason},function(msg){state.permissionError=msg;}).then(function(data){
+            state.applying=false;state.applyResult=data;traRerender();
+          }).catch(function(err){state.applying=false;if(!err.permission)state.applyError=err.message;traRerender();});
+        });
+        return;
+      }
+      var applyReviewedBtn=e.target.closest('[data-phfck-tra-apply-reviewed]');
+      if(applyReviewedBtn){
+        var formId=applyReviewedBtn.getAttribute('data-phfck-tra-apply-reviewed');
+        var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});
+        if(rf.applying||rf.result)return;
+        var reason=normalizeText(rf.reason);
+        if(reason.length<10){rf.error='Cần ghi lý do tối thiểu 10 ký tự.';traRerender();return;}
+        phfckConfirm({title:'Điều chỉnh phiếu đã thẩm định',message:'Phiếu này đã thẩm định — điều chỉnh riêng, KHÔNG qua batch thường. Lý do: "'+reason+'". Tiếp tục?',confirmText:'Xác nhận điều chỉnh',cancelText:'Hủy',tone:'danger'}).then(function(confirmed){
+          if(!confirmed)return;
+          rf.applying=true;rf.error='';traRerender();
+          checklistRetroApiCall('checklistRetroApplyReviewedForm',{formId:formId,newVersion:state.newVersion,confirm:true,reason:reason,batchId:state.batchId},function(msg){state.permissionError=msg;}).then(function(data){
+            rf.applying=false;rf.result=data;traRerender();
+          }).catch(function(err){rf.applying=false;if(!err.permission)rf.error=err.message;traRerender();});
+        });
         return;
       }
     }
@@ -8161,10 +8809,26 @@
   document.addEventListener('input',function(e){
     var modal=e.target.closest('.phfck-tse-modal');
     if(modal&&checklistTseState&&e.target.closest('[data-phfck-tse-field]')){tseSyncRowsFromDom(modal);tsePatchValidation(modal);return;}
+    var traModal=e.target.closest('.phfck-tra-modal');
+    if(traModal&&checklistTraState){
+      var state=checklistTraState;
+      if(e.target.matches('[data-phfck-tra-period-from]')){state.periodMonthFrom=e.target.value;return;}
+      if(e.target.matches('[data-phfck-tra-period-to]')){state.periodMonthTo=e.target.value;return;}
+      if(e.target.matches('[data-phfck-tra-scope-reason]')){state.scopeReason=e.target.value;return;}
+      var reasonInput=e.target.closest('[data-phfck-tra-reviewed-reason]');
+      if(reasonInput){var formId=reasonInput.getAttribute('data-phfck-tra-reviewed-reason');var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});rf.reason=reasonInput.value;rf.error='';return;}
+    }
   });
   document.addEventListener('change',function(e){
     var modal=e.target.closest('.phfck-tse-modal');
     if(modal&&checklistTseState&&e.target.closest('[data-phfck-tse-field]')){tseSyncRowsFromDom(modal);tsePatchValidation(modal);return;}
+    var traModal=e.target.closest('.phfck-tra-modal');
+    if(traModal&&checklistTraState){
+      var state=checklistTraState;
+      if(e.target.matches('[data-phfck-tra-period-from]')){state.periodMonthFrom=e.target.value;return;}
+      if(e.target.matches('[data-phfck-tra-period-to]')){state.periodMonthTo=e.target.value;return;}
+      if(e.target.matches('[data-phfck-tra-scope-reason]')){state.scopeReason=e.target.value;return;}
+    }
   });
 
 })();
