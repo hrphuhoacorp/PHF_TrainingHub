@@ -4,22 +4,24 @@ require('dotenv').config();
 const crypto=require('crypto');
 const {createClient}=require('@supabase/supabase-js');
 const {listChecklistAssignments}=require('./checklist-assignments');
+const {invalidateOrgCache:invalidateTaskPeopleCache}=require('./task-employee-scope');
 
 const configured=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());
 const db=configured?createClient(String(process.env.SUPABASE_URL).trim(),String(process.env.SUPABASE_SECRET_KEY).trim(),{auth:{persistSession:false,autoRefreshToken:false}}):null;
-const PROFILE_FIELDS=['full_name','birth_date','gender','phone','work_email'];
+const PROFILE_FIELDS=['full_name','employment_status','birth_date','gender','phone','work_email'];
 const PRIVATE_FIELDS=['citizen_id','citizen_issued_date','citizen_issued_place','nationality','ethnicity','personal_tax_code','social_insurance_code'];
 const PROFILE_SNAPSHOT_FIELDS=['employee_id','employee_code','full_name','employment_status','avatar_url','birth_date','gender','phone','work_email','personal_email','hire_date','official_date','note'];
 const PRIVATE_SNAPSHOT_FIELDS=['citizen_id','citizen_issued_date','citizen_issued_place','citizen_expiry_date','permanent_address','current_address','nationality','ethnicity','personal_tax_code','social_insurance_code'];
 const FIELD_MAP={
   fullName:['profile','full_name'],companyEmail:['profile','work_email'],gender:['profile','gender'],dateOfBirth:['profile','birth_date'],phone:['profile','phone'],
-  identityNumber:['private','citizen_id'],identityIssuedDate:['private','citizen_issued_date'],identityIssuedPlace:['private','citizen_issued_place'],nationality:['private','nationality'],ethnicity:['private','ethnicity'],socialInsuranceNumber:['private','social_insurance_code'],personalTaxCode:['private','personal_tax_code']
+  workStatus:['profile','employment_status'],identityNumber:['private','citizen_id'],identityIssuedDate:['private','citizen_issued_date'],identityIssuedPlace:['private','citizen_issued_place'],nationality:['private','nationality'],ethnicity:['private','ethnicity'],socialInsuranceNumber:['private','social_insurance_code'],personalTaxCode:['private','personal_tax_code']
 };
-const ORG_MAP={department:'department',title:'title',position:'position',workStatus:'employeeStatus'};
+const ORG_MAP={department:'department',title:'title',position:'position'};
 
 function text(v){return String(v==null?'':v).trim();}
 function code(v){return text(v).toUpperCase();}
 function comparable(v){return text(v).normalize('NFC').toLocaleLowerCase('vi-VN');}
+function normalizeEmploymentStatus(value){const key=text(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/\s+/g,' ');if(!key)return'';if(['active','dang lam','dang lam viec'].includes(key))return'active';if(['inactive','nghi viec','da nghi viec'].includes(key))return'inactive';return null;}
 function fail(message,statusCode,codeValue){const e=new Error(message);e.statusCode=statusCode||400;e.code=codeValue||'EMPLOYEE_IMPORT_INVALID';throw e;}
 function requireAdmin(session){if(!session||String(session.role||'').toLowerCase()!=='admin')fail('Chỉ Admin được nhập hồ sơ nhân sự.',403,'EMPLOYEE_IMPORT_ADMIN_REQUIRED');}
 function requireDb(){if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');}
@@ -45,6 +47,7 @@ function validateRow(row){
   if(!row.employeeCode)errors.push('Mã nhân viên là bắt buộc.');else if(!/^[A-Z0-9][A-Z0-9._\/-]{0,63}$/.test(row.employeeCode))errors.push('Mã nhân viên chỉ gồm chữ, số, dấu chấm, gạch ngang, gạch dưới hoặc dấu /.');
   for(const key of ['dateOfBirth','identityIssuedDate'])if(row[key]){const parsed=strictDate(row[key]);if(!parsed)errors.push((key==='dateOfBirth'?'Ngày sinh':'Ngày cấp')+' không hợp lệ.');else row[key]=parsed;}
   if(row.gender){const gender=normalizeGender(row.gender);if(!gender)errors.push('Giới tính phải là Nam, Nữ hoặc Khác.');else row.gender=gender;}
+  if(row.workStatus){const status=normalizeEmploymentStatus(row.workStatus);if(!status)errors.push('Tình trạng công tác phải là Đang làm hoặc Nghỉ việc.');else row.workStatus=status;}
   if(row.identityNumber&&!/^(?:\d{9}|\d{12})$/.test(row.identityNumber))errors.push('CMND/CCCD phải gồm 9 hoặc 12 chữ số.');
   if(row.socialInsuranceNumber&&!/^\d{10}$/.test(row.socialInsuranceNumber))errors.push('Mã số BHXH phải gồm 10 chữ số.');
   if(row.personalTaxCode&&!/^(?:\d{10}|\d{12})$/.test(row.personalTaxCode))errors.push('MST cá nhân phải gồm 10 hoặc 12 chữ số.');
@@ -107,8 +110,9 @@ async function commitEmployeeImport(session,input){
       historyRows.push({employee_profile_id:profile.id,domain:'excel_import',action:created?'create':'update',before_data:created?null:{profile:profileById.get(item.existingProfileId)||null,privateProfile:privateBefore},after_data:{employeeCode:item.employeeCode,profilePatch:item.profilePatch,privatePatch:item.privatePatch},reason:'Employee Master Excel Import V1',changed_by:text(session.account?.id||session.sub),changed_by_name:text(session.account?.name||session.account?.email||session.email)||'Admin'});
     }
     let historyIds=[];if(historyRows.length){const saved=await db.from('employee_master_history').insert(historyRows).select('id');if(saved.error)throw saved.error;historyIds=(saved.data||[]).map(x=>x.id);}
+    invalidateTaskPeopleCache();
     return{committed:true,summary:preview.summary,written:historyRows.length,organizationConflicts:preview.rows.reduce((n,x)=>n+x.organizationConflicts.length,0)};
   }catch(error){try{await rollback(applied,[]);}catch(rollbackError){const fatal=new Error('Import lỗi và hoàn tác không hoàn tất. Cần kiểm tra audit ngay.');fatal.statusCode=500;fatal.code='EMPLOYEE_IMPORT_ROLLBACK_FAILED';fatal.cause=rollbackError;throw fatal;}throw error;}
 }
 
-module.exports={previewEmployeeImport,commitEmployeeImport,buildPreview,strictDate,normalizeGender,PROFILE_FIELDS,PRIVATE_FIELDS};
+module.exports={previewEmployeeImport,commitEmployeeImport,buildPreview,strictDate,normalizeGender,normalizeEmploymentStatus,PROFILE_FIELDS,PRIVATE_FIELDS};

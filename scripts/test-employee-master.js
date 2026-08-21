@@ -9,10 +9,12 @@ const router=read('assets/js/phf-url-router.js');
 const api=read('api/data.js');
 const server=read('server.js');
 const service=read('api/_lib/employee-master.js');
+const taskScope=read('api/_lib/task-employee-scope.js');
 const migration=read('scripts/PHF_EMPLOYEE_MASTER_1.46.0.sql');
 const ui=read('assets/js/phf-employee-master.js');
 const accountUi=read('assets/js/phf-account-admin-safe.js');
 const index=read('index.html');
+const {mergeSources}=require('../api/_lib/employee-master');
 assert(router.includes("'/admin/nhan-su'"),'Missing canonical Employee Master route.');
 /* Regression guard: Account Admin was briefly wired to /admin/quan-tri/tai-khoan,
    a path that belongs to the Training Hub's own "Quản trị chung" workspace
@@ -29,10 +31,13 @@ assert(!router.includes("path==='/admin/quan-tri/tai-khoan'&&typeof window.phfRe
 assert(router.includes("commandWrap('phfRenderAccountAdminSafe',function(){return '/admin/nhan-su/tai-khoan';});"),"phfRenderAccountAdminSafe's declared route must match the URL the router actually dispatches it from, or the router's applyingRoute guard silently skips the render.");
 assert(api.includes('employeeMasterMode')&&server.includes('employeeMasterMode'),'Both API runtimes must support Employee Master.');
 assert(service.includes('requireAdmin(session)')&&service.includes('EMPLOYEE_MASTER_ADMIN_REQUIRED'),'Backend must fail closed for non-admin sessions.');
+assert(service.includes("EMPLOYMENT_STATUSES=Object.freeze(['active','inactive'])")&&service.includes('EMPLOYMENT_STATUS_INVALID'),'People Master must enforce the binary employment-status contract.');
+assert(!service.includes("source.assignments.forEach")&&service.includes("employmentStatus:'employee_profiles.employment_status'"),'Checklist status must not override People Master employment status.');
 assert(migration.includes('employee_private_profiles')&&migration.includes('employee_compensation')&&migration.includes('employee_master_history'),'Migration must keep sensitive and history tables separated.');
 assert(/revoke all on table public\.employee_compensation from anon,authenticated/i.test(migration),'Compensation must remain unavailable to client roles.');
 assert(ui.includes('Thông tin cá nhân và thu nhập chỉ hiển thị khi mở hồ sơ.'),'Employee list must explain sensitive-data visibility.');
 assert(!service.includes('password_hash')&&!service.includes('password_salt'),'Employee Master must not read password fields.');
+assert(service.includes('loadCanonicalEmployeeProfiles')&&taskScope.includes("require('./employee-master')")&&taskScope.includes('loadCanonicalEmployeeProfiles('),'Task and Employee Master must share one canonical employee_profiles reader/client/environment.');
 assert(index.includes("nhan-su(?:\\/|$)"),'Shell ownership (PHFAppShell.shellFor in index.html) must recognize every /admin/nhan-su/* path as PHF HR via a prefix match — an exact-match-only rule leaves sub-routes like Account Admin falling through to the default Training Hub shell.');
 assert(ui.includes('PHF HR</span><i>›</i><span>Quản trị nhân sự')&&ui.includes('Tài khoản &amp; Hồ sơ nhân sự'),'Employee Master breadcrumb identity is missing.');
 assert(['Công việc','Cá nhân','Hợp đồng','Thu nhập','Tài khoản'].every(label=>ui.includes("'"+label+"'"))&&!ui.includes("['history','Lịch sử']"),'Employee detail must expose exactly the five requested top-level sections.');
@@ -45,6 +50,11 @@ assert(accountUi.includes('activateHr({clear:false,restoreTitle:false})'),'Accou
    second half of why the screen rendered inside the Hub shell even after the
    route itself pointed at the right URL. */
 assert(accountUi.includes("/^\\/admin\\/nhan-su(?:\\/|$)/.test(location.pathname)"),"Account Admin's main() must mount into phfHrRoot for every /admin/nhan-su/* path via a prefix match, not only the exact /admin/nhan-su URL.");
+assert(ui.includes('id="emEmploymentStatus"')&&ui.includes('Xác nhận chuyển nhân sự sang Nghỉ việc?'),'Employee detail must edit status and confirm before marking an employee inactive.');
+const merged=mergeSources({employees:[{id:'emp-1',employee_code:'LEGACY001',full_name:'Nhân sự cũ'}],accounts:[],assignments:[{employeeCode:'NV001',employeeStatus:'Đang làm việc'}],profiles:[{id:'profile-1',employee_id:'emp-1',employee_code:'NV001',full_name:'Nhân sự cũ',employment_status:'inactive',department:'Kho',title:'Nhân viên kho',position:'',branch:'Phú Lợi',manager_employee_code:'QL001'},{id:'profile-2',employee_id:'emp-2',employee_code:'QL001',full_name:'Quản lý kho',employment_status:'active',department:'Kho',title:'Trưởng bộ phận',position:'',branch:'Phú Lợi',manager_employee_code:''}]});
+const inactive=merged.find(row=>row.employeeCode==='NV001');
+assert(!!inactive&&inactive.employmentStatus==='inactive','Inactive People Master record must remain present and canonical.');
+assert(inactive.department==='Kho'&&inactive.title==='Nhân viên kho'&&inactive.branch==='Phú Lợi'&&inactive.managerCode==='QL001'&&inactive.managerName==='Quản lý kho','Canonical employee code/organization/title/manager data must be preserved.');
 /* Regression guard: some navigation paths into the Tài khoản tab (e.g. the
    internal tab bar inside Account Admin itself) call renderAccounts()
    directly rather than going through window.phfRenderAccountAdminSafe.

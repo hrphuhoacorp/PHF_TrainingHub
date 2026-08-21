@@ -20,6 +20,10 @@ preview=buildPreview([{employeeCode:'PHF003',fullName:'Sai ngày',dateOfBirth:'3
 assert(preview.summary['Lỗi']===1&&/Ngày sinh/.test(preview.rows[0].errors.join(' ')),'Invalid date must fail validation.');
 preview=buildPreview([{employeeCode:'PHF001',department:'Kho vận'}],profiles,privateProfiles,assignments);
 assert(preview.rows[0].organizationConflicts.length===1&&preview.rows[0].action==='Không đổi','Organization conflict must be reported without writing a second source.');
+preview=buildPreview([{employeeCode:'PHF001',workStatus:'Nghỉ việc'}],profiles,privateProfiles,assignments);
+assert(preview.rows[0].profilePatch.employment_status==='inactive'&&preview.rows[0].action==='Cập nhật','Employment status import must write the canonical People Master field.');
+preview=buildPreview([{employeeCode:'PHF001',workStatus:'Nghỉ dài hạn'}],profiles,privateProfiles,assignments);
+assert(preview.rows[0].action==='Lỗi'&&/Đang làm hoặc Nghỉ việc/.test(preview.rows[0].errors.join(' ')),'Employment status import must reject values outside the V1 contract.');
 assert(strictDate('29/02/2024')==='2024-02-29'&&strictDate('29/02/2023')===null,'Date parser must validate leap days.');
 const service=read('api/_lib/employee-import.js'),api=read('api/data.js'),server=read('server.js'),ui=read('assets/js/phf-employee-master.js'),ai=read('api/_lib/ai-sandbox.js');
 assert(service.includes("EMPLOYEE_IMPORT_ADMIN_REQUIRED")&&service.includes("String(session.role||'').toLowerCase()!=='admin'"),'Sensitive import endpoints must fail closed for non-admin.');
