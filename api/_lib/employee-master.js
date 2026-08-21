@@ -2,10 +2,10 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { listChecklistAssignments } = require('./checklist-assignments');
 
 const configured=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());
 const db=configured?createClient(String(process.env.SUPABASE_URL).trim(),String(process.env.SUPABASE_SECRET_KEY).trim(),{auth:{persistSession:false,autoRefreshToken:false}}):null;
+const EMPLOYMENT_STATUSES=Object.freeze(['active','inactive']);
 
 function text(value){return String(value==null?'':value).trim();}
 function code(value){return text(value).toUpperCase();}
@@ -17,6 +17,7 @@ function requireAdmin(session){if(!session||String(session.role||'').toLowerCase
 function requireDb(){if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');}
 function actor(session){return{id:text(session?.account?.id||session?.sub),name:text(session?.account?.name||session?.account?.email||session?.email)||'Admin'};}
 function normalizeKey(value){return text(value).toLowerCase();}
+function normalizeEmploymentStatus(value){const normalized=text(value).toLowerCase();return EMPLOYMENT_STATUSES.includes(normalized)?normalized:null;}
 function yearsSince(value){if(!value)return null;const start=new Date(value+'T00:00:00Z');if(Number.isNaN(start.getTime()))return null;const now=new Date();let years=now.getUTCFullYear()-start.getUTCFullYear(),months=now.getUTCMonth()-start.getUTCMonth();if(now.getUTCDate()<start.getUTCDate())months--;if(months<0){years--;months+=12;}years=Math.max(0,years);months=Math.max(0,months);return{years,months,label:(years?years+' năm ':'')+months+' tháng'};}
 
 async function safeRows(table,select='*'){
@@ -25,33 +26,44 @@ async function safeRows(table,select='*'){
   return{rows:result.data||[],ready:true};
 }
 
+// Canonical People Master reader shared by Employee Master and PHF Task.
+// Keeping the client and environment here prevents module-specific roster
+// paths from silently drifting to another Supabase project or query contract.
+async function loadCanonicalEmployeeProfiles(select='*'){
+  requireDb();
+  return safeRows('employee_profiles',select);
+}
+
+function invalidateTaskPeopleCache(){
+  const taskScope=require('./task-employee-scope');
+  if(taskScope&&typeof taskScope.invalidateOrgCache==='function')taskScope.invalidateOrgCache();
+}
+
 async function sources(){
   requireDb();
-  const [employees,accounts,assignments,profiles]=await Promise.all([
+  const [employees,accounts,profiles]=await Promise.all([
     safeRows('employees','*'),
     safeRows('user_accounts','id,employee_id,employee_code,name,email,phone,role,status,branch,department,position,training_audience,default_program,hub_assignment_status,metadata,updated_at'),
-    listChecklistAssignments(),
-    safeRows('employee_profiles','*')
+    loadCanonicalEmployeeProfiles('*')
   ]);
-  return{employees:employees.rows,accounts:accounts.rows,assignments:assignments.assignments||[],profiles:profiles.rows,schemaReady:profiles.ready,organizationReady:assignments.ready===true,organizationError:assignments.error||''};
+  return{employees:employees.rows,accounts:accounts.rows,profiles:profiles.rows,schemaReady:profiles.ready,organizationReady:profiles.ready,organizationError:profiles.ready?'':'EMPLOYEE_MASTER_SCHEMA_MISSING'};
 }
 
 function mergeSources(source){
   const records=[],aliases=new Map();
-  function locate(keys){for(const key of keys.map(normalizeKey).filter(Boolean)){if(aliases.has(key))return aliases.get(key);}const row={employeeId:'',employeeCode:'',fullName:'',status:'',avatarUrl:'',phone:'',email:'',hireDate:'',department:'',title:'',position:'',branch:'',managerId:'',managerCode:'',managerName:'',profileId:'',account:null,hasEmployeeRecord:false,organizationSource:'',profileSource:''};records.push(row);return row;}
+  function locate(keys){for(const key of keys.map(normalizeKey).filter(Boolean)){if(aliases.has(key))return aliases.get(key);}const row={employeeId:'',employeeCode:'',fullName:'',employmentStatus:'',status:'',avatarUrl:'',phone:'',email:'',hireDate:'',department:'',title:'',position:'',branch:'',managerId:'',managerCode:'',managerName:'',profileId:'',account:null,hasEmployeeRecord:false,organizationSource:'',profileSource:''};records.push(row);return row;}
   function bind(row,keys){keys.map(normalizeKey).filter(Boolean).forEach(key=>aliases.set(key,row));}
   source.employees.forEach(item=>{const id=text(item.id),employeeCode=code(item.employee_code||item.code||(id&&!/^emp-/i.test(id)?id:'')),row=locate([id,employeeCode]);row.employeeId=row.employeeId||id;row.employeeCode=row.employeeCode||employeeCode;row.fullName=row.fullName||text(item.full_name||item.name);row.phone=row.phone||text(item.phone);row.avatarUrl=row.avatarUrl||text(item.avatar_url);row.hireDate=row.hireDate||text(item.hire_date||item.study_start_date);row.email=row.email||text(item.email);row.hasEmployeeRecord=true;row.profileSource='employees';bind(row,[id,employeeCode]);});
-  source.assignments.forEach(item=>{const id=text(item.employeeId),employeeCode=code(item.employeeCode),row=locate([id,employeeCode,item.employeeKey]);row.employeeId=row.employeeId||id;row.employeeCode=row.employeeCode||employeeCode;row.fullName=text(item.employeeName)||row.fullName;row.status=text(item.employeeStatus)||row.status;row.department=text(item.department);row.title=text(item.title);row.position=text(item.position);row.branch=text(item.branch);row.managerId=text(item.managerId);row.managerCode=code(item.managerCode);row.managerName=text(item.managerName);row.organizationSource='checklist_employee_assignments';bind(row,[id,employeeCode,item.employeeKey]);});
   source.accounts.forEach(item=>{const id=text(item.employee_id),employeeCode=code(item.employee_code),row=locate([id,employeeCode]);row.employeeId=row.employeeId||id;row.employeeCode=row.employeeCode||employeeCode;row.fullName=row.fullName||text(item.name);row.phone=row.phone||text(item.phone);row.email=row.email||text(item.email);row.account={id:item.id||'',email:item.email||'',role:item.role||'',status:item.status||'',hubAssignmentStatus:item.hub_assignment_status||'',defaultProgram:item.default_program||'',accountType:item.metadata?.accountType||'employee'};bind(row,[id,employeeCode]);});
-  source.profiles.forEach(item=>{const id=text(item.employee_id),employeeCode=code(item.employee_code),row=locate([id,employeeCode,item.id]);row.profileId=text(item.id);row.employeeId=row.employeeId||id;row.employeeCode=row.employeeCode||employeeCode;row.fullName=text(item.full_name)||row.fullName;row.status=row.status||text(item.employment_status);row.avatarUrl=text(item.avatar_url)||row.avatarUrl;row.phone=text(item.phone)||row.phone;row.email=text(item.work_email)||text(item.personal_email)||row.email;row.hireDate=text(item.hire_date);row.profileSource='employee_profiles';if(text(item.department)||text(item.title)||text(item.branch)||text(item.manager_employee_code)){row.department=text(item.department)||row.department;row.title=text(item.title)||row.title;row.position=text(item.position)||row.position;row.branch=text(item.branch)||row.branch;row.managerCode=code(item.manager_employee_code)||row.managerCode;row.organizationSource='employee_profiles';}bind(row,[id,employeeCode,item.id]);});
+  source.profiles.forEach(item=>{const id=text(item.employee_id),employeeCode=code(item.employee_code),row=locate([id,employeeCode,item.id]),employmentStatus=normalizeEmploymentStatus(item.employment_status)||'unsynced';row.profileId=text(item.id);row.employeeId=row.employeeId||id;row.employeeCode=employeeCode||row.employeeCode;row.fullName=text(item.full_name)||row.fullName;row.employmentStatus=employmentStatus;row.status=employmentStatus;row.avatarUrl=text(item.avatar_url)||row.avatarUrl;row.phone=text(item.phone)||row.phone;row.email=text(item.work_email)||text(item.personal_email)||row.email;row.hireDate=text(item.hire_date);row.department=text(item.department);row.title=text(item.title);row.position=text(item.position);row.branch=text(item.branch);row.managerCode=code(item.manager_employee_code);row.organizationSource='employee_profiles';row.profileSource='employee_profiles';bind(row,[id,employeeCode,item.id]);});
   const byCode=new Map(records.filter(r=>r.employeeCode).map(r=>[r.employeeCode,r]));
   records.forEach(row=>{if(row.managerCode&&!row.managerName){const manager=byCode.get(row.managerCode);if(manager)row.managerName=manager.fullName;}});
-  return records.filter(row=>(row.employeeId||row.employeeCode||row.profileId)&&!(row.account&&row.account.accountType==='system_admin')&&!(!row.hasEmployeeRecord&&!row.profileId&&/^(ADMIN|SYSTEM)$/.test(row.employeeCode))).map(row=>({...row,status:row.status||'Chưa đồng bộ',seniority:yearsSince(row.hireDate),hasAccount:!!row.account,hasProfile:!!row.profileId})).sort((a,b)=>a.fullName.localeCompare(b.fullName,'vi'));
+  return records.filter(row=>(row.employeeId||row.employeeCode||row.profileId)&&!(row.account&&row.account.accountType==='system_admin')&&!(!row.hasEmployeeRecord&&!row.profileId&&/^(ADMIN|SYSTEM)$/.test(row.employeeCode))).map(row=>({...row,employmentStatus:row.employmentStatus||'',status:row.employmentStatus||'unsynced',seniority:yearsSince(row.hireDate),hasAccount:!!row.account,hasProfile:!!row.profileId})).sort((a,b)=>a.fullName.localeCompare(b.fullName,'vi'));
 }
 
 async function listEmployeeMaster(session){
   requireAdmin(session);const source=await sources();
-  return{employees:mergeSources(source),schemaReady:source.schemaReady,organizationReady:source.organizationReady,organizationError:source.organizationError,fieldSources:{identity:'employees + user_accounts + employee_profiles',organization:'employee_profiles (Organization Master — department, title, position, branch, manager)',account:'user_accounts',personal:'employee_profiles / employee_private_profiles',contracts:'employee_contracts',compensation:'employee_compensation'},generatedAt:new Date().toISOString()};
+  return{employees:mergeSources(source),schemaReady:source.schemaReady,organizationReady:source.organizationReady,organizationError:source.organizationError,fieldSources:{identity:'employees + user_accounts + employee_profiles',organization:'employee_profiles (People Master — department, title, position, branch, manager)',employmentStatus:'employee_profiles.employment_status',account:'user_accounts',personal:'employee_profiles / employee_private_profiles',contracts:'employee_contracts',compensation:'employee_compensation'},generatedAt:new Date().toISOString()};
 }
 
 async function findProfile(input){
@@ -78,8 +90,8 @@ async function getEmployeeMasterDetail(session,input){
 }
 
 async function saveProfile(session,input){
-  requireAdmin(session);requireDb();const existing=await ensureProfile(input),has=key=>Object.prototype.hasOwnProperty.call(input,key),patch={employee_id:text(input.employeeId)||existing.employee_id||null,employee_code:code(input.employeeCode)||existing.employee_code||'',full_name:text(input.fullName)||existing.full_name||'',employment_status:has('employmentStatus')?(text(input.employmentStatus)||'active'):existing.employment_status,avatar_url:has('avatarUrl')?text(input.avatarUrl):existing.avatar_url,birth_date:has('birthDate')?date(input.birthDate):existing.birth_date,gender:has('gender')?text(input.gender):existing.gender,phone:has('phone')?text(input.phone):existing.phone,work_email:has('workEmail')?text(input.workEmail):existing.work_email,personal_email:has('personalEmail')?text(input.personalEmail):existing.personal_email,hire_date:has('hireDate')?date(input.hireDate):existing.hire_date,official_date:has('officialDate')?date(input.officialDate):existing.official_date,note:has('note')?text(input.note):existing.note,department:has('department')?text(input.department):existing.department,title:has('title')?text(input.title):existing.title,position:has('position')?(text(input.position)||null):existing.position,branch:has('branch')?text(input.branch):existing.branch,manager_employee_code:has('managerEmployeeCode')?code(input.managerEmployeeCode):existing.manager_employee_code};
-  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');const result=await db.from('employee_profiles').update(patch).eq('id',existing.id).select('*').single();if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');return{profile:result.data};
+  requireAdmin(session);requireDb();const existing=await ensureProfile(input),has=key=>Object.prototype.hasOwnProperty.call(input,key);let employmentStatus=existing.employment_status;if(has('employmentStatus')){employmentStatus=normalizeEmploymentStatus(input.employmentStatus);if(!employmentStatus)fail('Trạng thái làm việc chỉ nhận active hoặc inactive.',400,'EMPLOYMENT_STATUS_INVALID');}const patch={employee_id:text(input.employeeId)||existing.employee_id||null,employee_code:code(input.employeeCode)||existing.employee_code||'',full_name:text(input.fullName)||existing.full_name||'',employment_status:employmentStatus,avatar_url:has('avatarUrl')?text(input.avatarUrl):existing.avatar_url,birth_date:has('birthDate')?date(input.birthDate):existing.birth_date,gender:has('gender')?text(input.gender):existing.gender,phone:has('phone')?text(input.phone):existing.phone,work_email:has('workEmail')?text(input.workEmail):existing.work_email,personal_email:has('personalEmail')?text(input.personalEmail):existing.personal_email,hire_date:has('hireDate')?date(input.hireDate):existing.hire_date,official_date:has('officialDate')?date(input.officialDate):existing.official_date,note:has('note')?text(input.note):existing.note,department:has('department')?text(input.department):existing.department,title:has('title')?text(input.title):existing.title,position:has('position')?(text(input.position)||null):existing.position,branch:has('branch')?text(input.branch):existing.branch,manager_employee_code:has('managerEmployeeCode')?code(input.managerEmployeeCode):existing.manager_employee_code};
+  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');const result=await db.from('employee_profiles').update(patch).eq('id',existing.id).select('*').single();if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');invalidateTaskPeopleCache();return{profile:result.data};
 }
 
 async function savePrivateProfile(session,input){
@@ -94,4 +106,4 @@ async function saveCompensation(session,input){
   requireAdmin(session);requireDb();const profile=await ensureProfile(input),currentResult=await db.from('employee_compensation').select('*').eq('employee_profile_id',profile.id).is('effective_to',null).order('effective_from',{ascending:false}).limit(1).maybeSingle();if(currentResult.error)throw currentResult.error;const current=currentResult.data||null;let result;if(current)result=await db.from('employee_compensation').update({base_salary:money(input.baseSalary)}).eq('id',current.id).select('*').single();else result=await db.from('employee_compensation').insert({employee_profile_id:profile.id,base_salary:money(input.baseSalary),allowances:0,currency:'VND',effective_from:new Date().toISOString().slice(0,10),effective_to:null,note:''}).select('*').single();if(result.error)throw result.error;await history(session,profile.id,'compensation',current?'update':'create',current,result.data,input.reason||'Cập nhật mức lương hiện tại');return{compensation:result.data};
 }
 
-module.exports={listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation};
+module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation};

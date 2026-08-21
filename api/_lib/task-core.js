@@ -11,25 +11,29 @@
  * validate expected row_version, (4) ghi qua RPC atomic khi cần 2+ statement
  * (xem scripts/PHF_TASK_CORE_RPC_1.67.0.sql — LOCAL CANDIDATE, CHƯA APPLY).
  *
- * ATOMICITY: publish/progress/complete/reopen/cancel/deadline_change/transfer
- * đi qua RPC (1 transaction thật). createDraft/updateDraft là 1 statement
- * PostgREST duy nhất nên tự atomic, không cần RPC. addRelated/removeRelated/
- * addComment/addLink/removeLink là 2 call rời (ghi bảng con + ghi task_events)
- * — CHƯA fully atomic, xem Output mục F (Atomicity analysis) — chấp nhận cho
- * batch này vì không nằm trong danh sách "Critical" của yêu cầu Batch 2.
+ * ATOMICITY: createDraft(+initial primary), publish/progress/complete/reopen/
+ * cancel/deadline_change/transfer/addRelated/addLink đi qua RPC (1 transaction
+ * thật). updateDraft là 1 PostgREST statement nên tự atomic. removeRelated/
+ * addComment/removeLink vẫn là 2 call rời theo phạm vi Batch 2 hiện hữu.
  */
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { resolveActorContext, loadOrgRows, findByCode } = require('./task-employee-scope');
+const { resolveActorContext, resolveActorContextForRecord, loadOrgRows, findByCode } = require('./task-employee-scope');
 const {
+  resolveBaseTaskScope,
   resolveEffectiveTaskScope,
+  resolveEffectiveTaskScopeForActorContext,
+  resolveEffectiveTaskScopesForActorContexts,
+  TASK_PRESET_CODES,
   requireTaskCapability,
   classifyTaskRelation,
   canViewTask,
   canAssignTaskTo,
+  listTaskAssignableEmployees: listAssignableEmployeesFromPeopleMaster,
   subjectMatchesTaskScope
 } = require('./task-permissions');
+const { listHubAccountSummaries } = require('./auth');
 
 const configured = Boolean(String(process.env.SUPABASE_URL || '').trim() && String(process.env.SUPABASE_SECRET_KEY || '').trim());
 const supabase = configured
@@ -44,9 +48,24 @@ const EVENTS_TABLE = 'task_events';
 const COMMENTS_TABLE = 'task_comments';
 const LINKS_TABLE = 'task_links';
 const CATEGORIES_TABLE = 'task_categories';
+const PERMISSION_GRANTS_TABLE = 'task_permission_grants';
+const PERMISSION_GRANT_HISTORY_TABLE = 'task_permission_grant_history';
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 function code(value) { return text(value).toUpperCase(); }
+function isoTimestamp(value, fieldName, required) {
+  const raw = text(value);
+  if (!raw) {
+    if (required) fail(fieldName + ' là bắt buộc.', 400, fieldName === 'Deadline' ? 'TASK_DEADLINE_REQUIRED' : 'TASK_START_REQUIRED');
+    return null;
+  }
+  if (raw.includes('T') && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(raw)) {
+    fail(fieldName + ' phải kèm timezone rõ ràng.', 400, fieldName === 'Deadline' ? 'TASK_DEADLINE_INVALID' : 'TASK_START_INVALID');
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) fail(fieldName + ' không hợp lệ.', 400, fieldName === 'Deadline' ? 'TASK_DEADLINE_INVALID' : 'TASK_START_INVALID');
+  return parsed.toISOString();
+}
 function fail(message, statusCode, errorCode) {
   const e = new Error(message);
   e.statusCode = statusCode || 400;
@@ -84,11 +103,20 @@ const RPC_ERROR_MAP = {
   TASK_CANCEL_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi hủy task.'],
   TASK_CANCELLED_IMMUTABLE: [409, 'Task đã hủy — không thể đổi deadline.'],
   TASK_DEADLINE_REQUIRED: [400, 'Deadline mới là bắt buộc.'],
+  TASK_CATEGORY_NOT_FOUND: [400, 'Category không tồn tại.'],
+  TASK_CATEGORY_INACTIVE: [400, 'Category đã ngừng dùng và không thể chọn cho Task mới.'],
+  TASK_DATE_ORDER_INVALID: [400, 'Ngày bắt đầu không được sau deadline.'],
+  TASK_RELATED_TARGET_REQUIRED: [400, 'Thiếu nhân sự liên quan.'],
+  TASK_RELATED_IS_PRIMARY: [400, 'Không thể thêm primary hiện hành làm related.'],
   TASK_DEADLINE_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi đổi deadline.'],
   TASK_TRANSFER_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi chuyển người phụ trách.'],
   TASK_TRANSFER_TARGET_REQUIRED: [400, 'Thiếu người phụ trách mới.'],
   TASK_PRIMARY_NOT_FOUND: [409, 'Task hiện chưa có primary active để chuyển.'],
-  TASK_TRANSFER_SAME_EMPLOYEE: [400, 'Người phụ trách mới trùng người hiện tại.']
+  TASK_TRANSFER_SAME_EMPLOYEE: [400, 'Người phụ trách mới trùng người hiện tại.'],
+  TASK_PERMISSION_ASSIGNMENT_TARGET_REQUIRED: [400, 'Thiếu nhân sự nhận Task preset.'],
+  TASK_PERMISSION_PRESET_INVALID: [400, 'Task preset không hợp lệ.'],
+  TASK_PERMISSION_REASON_REQUIRED: [400, 'Lý do thay đổi Task preset là bắt buộc.'],
+  TASK_PERMISSION_ACTOR_REQUIRED: [401, 'Không xác định được tài khoản thực hiện thay đổi Task preset.']
 };
 
 function throwRpc(error) {
@@ -109,7 +137,474 @@ async function callRpc(fnName, params) {
   return data;
 }
 
-function actorFrom(actorContext) { return actorContext.employeeCode; }
+function actorAuditToken(actorContext) { return actorContext.employeeCode || actorContext.accountId; }
+function actorAuditColumns(actorContext, accountColumn, employeeColumn) {
+  return {
+    [accountColumn]: actorContext.accountId || null,
+    [employeeColumn]: actorContext.employeeCode || null
+  };
+}
+function actorOwnsTask(actorContext, taskRow) {
+  return !!(
+    (actorContext.accountId && text(taskRow && taskRow.created_by_account_id) === actorContext.accountId) ||
+    (actorContext.employeeCode && code(taskRow && taskRow.created_by_employee_code) === actorContext.employeeCode)
+  );
+}
+
+async function listTaskAssignableEmployees(session) {
+  return { employees: await listAssignableEmployeesFromPeopleMaster(session) };
+}
+
+const TASK_ACTOR_TYPE_LABELS = Object.freeze({
+  admin: 'Admin',
+  giam_doc: 'Giám đốc',
+  tro_ly_gd: 'Trợ lý Giám đốc',
+  truong_bo_phan: 'Trưởng bộ phận',
+  truong_ca: 'Trưởng ca',
+  nhan_vien: 'Nhân viên'
+});
+
+function taskPeopleScopeLabel(scope) {
+  const value = scope && scope.peopleScope ? scope.peopleScope : (scope || {});
+  const count = Array.isArray(value.values) ? value.values.length : 0;
+  switch (value.type) {
+    case 'all_company': return 'Toàn công ty';
+    case 'sales_all_branches_task': return 'Bán hàng tại 3 chi nhánh Task';
+    case 'department': return 'Theo phòng ban' + (count ? ' (' + count + ')' : '');
+    case 'branch': return 'Theo chi nhánh' + (count ? ' (' + count + ')' : '');
+    case 'employees': return 'Nhóm nhân sự quản lý (' + count + ')';
+    case 'self':
+    default: return 'Bản thân';
+  }
+}
+
+function taskAccountStatus(account) {
+  if (!account) return { code: 'missing', label: 'Chưa có tài khoản' };
+  const status = text(account.status).toLowerCase();
+  if (status === 'active') return { code: 'active', label: 'Đang hoạt động' };
+  if (status === 'locked') return { code: 'locked', label: 'Đã khóa' };
+  if (status === 'inactive') return { code: 'inactive', label: 'Ngừng sử dụng' };
+  return { code: status || 'unknown', label: 'Không xác định' };
+}
+
+function taskPermissionGrantDto(grant) {
+  const rawScope = grant && grant.people_scope && typeof grant.people_scope === 'object' ? grant.people_scope : {};
+  const scopeType = text(rawScope.type).toLowerCase() || 'self';
+  const scopeValues = Array.from(new Set((Array.isArray(rawScope.values) ? rawScope.values : []).map(code).filter(Boolean)));
+  const rawCapabilities = grant && grant.capabilities && typeof grant.capabilities === 'object' ? grant.capabilities : {};
+  const capabilities = {};
+  ['view', 'assign', 'update', 'manage'].forEach(key => {
+    if (typeof rawCapabilities[key] === 'boolean') capabilities[key] = rawCapabilities[key];
+  });
+  return {
+    id: text(grant && grant.id),
+    grantee_employee_code: code(grant && grant.grantee_employee_code),
+    grant_type: text(grant && grant.grant_type).toLowerCase(),
+    people_scope: { type: scopeType, values: scopeValues },
+    people_scope_label: taskPeopleScopeLabel({ peopleScope: { type: scopeType, values: scopeValues } }),
+    capabilities,
+    reason: text(grant && grant.reason),
+    is_active: grant && grant.is_active === true,
+    effective_from: text(grant && grant.effective_from),
+    effective_to: text(grant && grant.effective_to) || null,
+    created_by_account_id: text(grant && grant.created_by_account_id),
+    created_by_employee_code: code(grant && grant.created_by_employee_code),
+    created_at: text(grant && grant.created_at),
+    can_revoke: text(grant && grant.grant_type).toLowerCase() === 'extend' && grant && grant.is_active === true
+  };
+}
+
+function taskPermissionAdjustmentPolicy(employmentStatus, baseScopeType) {
+  if (employmentStatus !== 'active' || baseScopeType === 'all_company') {
+    return { can_create_extend: false, supported_scope_types: [] };
+  }
+  if (baseScopeType === 'self' || baseScopeType === 'employees') {
+    return { can_create_extend: true, supported_scope_types: ['employees', 'all_company'] };
+  }
+  if (baseScopeType === 'sales_all_branches_task') {
+    return { can_create_extend: true, supported_scope_types: ['all_company'] };
+  }
+  return { can_create_extend: false, supported_scope_types: [] };
+}
+
+async function requireTaskPermissionAdmin(session) {
+  const requester = await resolveEffectiveTaskScope(session);
+  if (requester.actorContext.actorType !== 'admin') {
+    fail('Chỉ Admin PHF Task được điều chỉnh quyền.', 403, 'TASK_PERMISSION_ADMIN_REQUIRED');
+  }
+  requireTaskCapability(requester, 'manage');
+  return requester.actorContext;
+}
+
+function validateTaskPermissionReason(value) {
+  const reason = text(value);
+  if (!reason) fail('Lý do điều chỉnh quyền là bắt buộc.', 400, 'TASK_PERMISSION_REASON_REQUIRED');
+  if (reason.length > 500) fail('Lý do điều chỉnh quyền không được vượt quá 500 ký tự.', 400, 'TASK_PERMISSION_REASON_TOO_LONG');
+  return reason;
+}
+
+function validateExtendCapabilityInput(input) {
+  const capabilities = input && input.capabilities;
+  if (capabilities == null) return;
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {
+    fail('Capability grant không hợp lệ.', 400, 'TASK_PERMISSION_CAPABILITY_INVALID');
+  }
+  if (Object.keys(capabilities).length) {
+    fail('V1 chỉ mở Extend theo phạm vi nhân sự; chưa mở capability hoặc Restrict.', 400, 'TASK_PERMISSION_CAPABILITY_NOT_SUPPORTED');
+  }
+}
+
+function normalizeExtendPeopleScope(input, baseScopeType, orgRows) {
+  const raw = input && input.peopleScope;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    fail('Phạm vi Extend là bắt buộc.', 400, 'TASK_PERMISSION_SCOPE_REQUIRED');
+  }
+  const scopeType = text(raw.type).toLowerCase();
+  const policy = taskPermissionAdjustmentPolicy('active', baseScopeType);
+  if (!policy.supported_scope_types.includes(scopeType)) {
+    fail('Phạm vi Extend không được engine V1 hỗ trợ an toàn cho vai trò này.', 400, 'TASK_PERMISSION_SCOPE_NOT_SUPPORTED');
+  }
+  if (scopeType === 'all_company') return { type: 'all_company', values: [] };
+  const values = Array.from(new Set((Array.isArray(raw.values) ? raw.values : []).map(code).filter(Boolean)));
+  if (!values.length) fail('Cần chọn ít nhất một nhân sự để mở rộng phạm vi.', 400, 'TASK_PERMISSION_SCOPE_VALUES_REQUIRED');
+  if (values.length > 100) fail('Mỗi grant chỉ được chọn tối đa 100 nhân sự.', 400, 'TASK_PERMISSION_SCOPE_VALUES_TOO_MANY');
+  values.forEach(employeeCode => {
+    const person = findByCode(orgRows, employeeCode);
+    if (!person) fail('Nhân sự trong phạm vi không tồn tại: ' + employeeCode, 400, 'TASK_PERMISSION_SCOPE_EMPLOYEE_NOT_FOUND');
+    if (text(person.status).toLowerCase() !== 'active') {
+      fail('Không thể mở rộng quyền tới nhân sự đã nghỉ: ' + employeeCode, 400, 'TASK_PERMISSION_SCOPE_EMPLOYEE_INACTIVE');
+    }
+  });
+  return { type: 'employees', values };
+}
+
+async function createTaskPermissionGrant(session, input) {
+  ensureDb();
+  const admin = await requireTaskPermissionAdmin(session);
+  const grantType = text(input && input.grantType).toLowerCase() || 'extend';
+  if (grantType !== 'extend') {
+    fail('V1 chỉ cho phép tạo grant Extend.', 400, 'TASK_PERMISSION_GRANT_TYPE_NOT_SUPPORTED');
+  }
+  validateExtendCapabilityInput(input);
+  const [orgRows, accounts] = await Promise.all([loadOrgRows(), listHubAccountSummaries()]);
+  const granteeEmployeeCode = code(input && input.granteeEmployeeCode);
+  const granteeRecord = findByCode(orgRows, granteeEmployeeCode);
+  if (!granteeRecord) fail('Nhân sự nhận quyền không tồn tại trong People Master.', 404, 'TASK_PERMISSION_GRANTEE_NOT_FOUND');
+  if (text(granteeRecord.status).toLowerCase() !== 'active') {
+    fail('Không thể cấp quyền mới cho nhân sự đã nghỉ.', 400, 'TASK_PERMISSION_GRANTEE_INACTIVE');
+  }
+  const granteeAccount = (accounts || []).find(account => code(account && account.employeeCode) === granteeEmployeeCode);
+  const grantee = resolveActorContextForRecord({ account: { id: granteeAccount ? granteeAccount.id : '', role: granteeAccount ? granteeAccount.role : '' } }, granteeRecord, orgRows);
+  const granteeEffective = await resolveEffectiveTaskScopeForActorContext(grantee);
+  const peopleScope = normalizeExtendPeopleScope(input, granteeEffective.scope.peopleScope.type, orgRows);
+  const reason = validateTaskPermissionReason(input && input.reason);
+  const now = new Date().toISOString();
+  const insertRow = {
+    grantee_employee_code: granteeEmployeeCode,
+    grant_type: 'extend',
+    people_scope: peopleScope,
+    capabilities: {},
+    effective_from: now,
+    effective_to: null,
+    reason,
+    is_active: true,
+    ...actorAuditColumns(admin, 'created_by_account_id', 'created_by_employee_code'),
+    ...actorAuditColumns(admin, 'updated_by_account_id', 'updated_by_employee_code'),
+    updated_at: now
+  };
+  const { data: grant, error: grantError } = await supabase.from(PERMISSION_GRANTS_TABLE).insert(insertRow).select('*').single();
+  if (grantError) throwDb(grantError);
+  const { error: historyError } = await supabase.from(PERMISSION_GRANT_HISTORY_TABLE).insert({
+    grant_id: grant.id,
+    changed_field: 'created',
+    old_value: null,
+    new_value: taskPermissionGrantDto(grant),
+    ...actorAuditColumns(admin, 'changed_by_account_id', 'changed_by_employee_code'),
+    reason
+  });
+  if (historyError) {
+    const { error: compensationError } = await supabase.from(PERMISSION_GRANTS_TABLE)
+      .update({ is_active: false, ...actorAuditColumns(admin, 'updated_by_account_id', 'updated_by_employee_code'), updated_at: new Date().toISOString() })
+      .eq('id', grant.id).eq('is_active', true);
+    if (compensationError) fail('Không ghi được audit và không thể vô hiệu hóa grant vừa tạo.', 500, 'TASK_PERMISSION_AUDIT_COMPENSATION_FAILED');
+    throwDb(historyError);
+  }
+  return { grant: taskPermissionGrantDto(grant) };
+}
+
+async function revokeTaskPermissionGrant(session, grantIdInput, reasonInput) {
+  ensureDb();
+  const admin = await requireTaskPermissionAdmin(session);
+  const grantId = text(grantIdInput);
+  if (!grantId || grantId.length > 120) fail('Grant ID không hợp lệ.', 400, 'TASK_PERMISSION_GRANT_ID_INVALID');
+  const reason = validateTaskPermissionReason(reasonInput);
+  const { data: existing, error: readError } = await supabase.from(PERMISSION_GRANTS_TABLE).select('*').eq('id', grantId).maybeSingle();
+  if (readError) throwDb(readError);
+  if (!existing) fail('Không tìm thấy grant.', 404, 'TASK_PERMISSION_GRANT_NOT_FOUND');
+  if (text(existing.grant_type).toLowerCase() !== 'extend') {
+    fail('V1 chỉ cho phép thu hồi grant Extend.', 400, 'TASK_PERMISSION_REVOKE_TYPE_NOT_SUPPORTED');
+  }
+  if (existing.is_active !== true) fail('Grant đã được thu hồi trước đó.', 409, 'TASK_PERMISSION_GRANT_ALREADY_REVOKED');
+  const now = new Date().toISOString();
+  const { data: revoked, error: updateError } = await supabase.from(PERMISSION_GRANTS_TABLE)
+    .update({ is_active: false, ...actorAuditColumns(admin, 'updated_by_account_id', 'updated_by_employee_code'), updated_at: now })
+    .eq('id', grantId).eq('is_active', true).select('*').maybeSingle();
+  if (updateError) throwDb(updateError);
+  if (!revoked) fail('Grant vừa thay đổi ở nơi khác. Vui lòng tải lại.', 409, 'TASK_PERMISSION_GRANT_CONFLICT');
+  const { error: historyError } = await supabase.from(PERMISSION_GRANT_HISTORY_TABLE).insert({
+    grant_id: grantId,
+    changed_field: 'is_active',
+    old_value: true,
+    new_value: false,
+    ...actorAuditColumns(admin, 'changed_by_account_id', 'changed_by_employee_code'),
+    reason
+  });
+  if (historyError) {
+    const { error: compensationError } = await supabase.from(PERMISSION_GRANTS_TABLE)
+      .update({ is_active: true, ...actorAuditColumns(admin, 'updated_by_account_id', 'updated_by_employee_code'), updated_at: new Date().toISOString() })
+      .eq('id', grantId).eq('is_active', false);
+    if (compensationError) fail('Không ghi được audit và không thể khôi phục grant vừa thu hồi.', 500, 'TASK_PERMISSION_AUDIT_COMPENSATION_FAILED');
+    throwDb(historyError);
+  }
+  return { revoked: true, grant_id: grantId, grantee_employee_code: code(existing.grantee_employee_code) };
+}
+
+function taskPermissionAssignmentDto(assignment) {
+  if (!assignment) return null;
+  return {
+    id: text(assignment.id),
+    account_id: text(assignment.account_id),
+    employee_code: code(assignment.employee_code),
+    preset_code: code(assignment.preset_code),
+    effective_from: text(assignment.effective_from),
+    effective_to: text(assignment.effective_to) || null,
+    is_active: assignment.is_active === true,
+    reason: text(assignment.reason),
+    updated_at: text(assignment.updated_at)
+  };
+}
+
+async function saveTaskPermissionAssignment(session, input) {
+  const admin = await requireTaskPermissionAdmin(session);
+  const presetCode = code(input && input.presetCode);
+  if (!TASK_PRESET_CODES.includes(presetCode)) fail('Task preset không hợp lệ.', 400, 'TASK_PERMISSION_PRESET_INVALID');
+  const reason = validateTaskPermissionReason(input && input.reason);
+  const employeeCode = code(input && input.employeeCode);
+  const [orgRows, accounts] = await Promise.all([loadOrgRows(), listHubAccountSummaries()]);
+  const person = findByCode(orgRows, employeeCode);
+  if (!person) fail('Nhân sự nhận Task preset không tồn tại trong People Master.', 404, 'TASK_PERMISSION_GRANTEE_NOT_FOUND');
+  if (text(person.status).toLowerCase() !== 'active') fail('Không thể gán Task preset mới cho nhân sự đã nghỉ.', 400, 'TASK_PERMISSION_GRANTEE_INACTIVE');
+  const account = (accounts || []).find(row => code(row && row.employeeCode) === employeeCode) || null;
+  const assignment = await callRpc('task_set_permission_assignment', {
+    p_target_account_id: account ? text(account.id) || null : null,
+    p_target_employee_code: employeeCode,
+    p_preset_code: presetCode,
+    p_reason: reason,
+    p_actor_account_id: admin.accountId || null,
+    p_actor_employee_code: admin.employeeCode || null
+  });
+  return { assignment: taskPermissionAssignmentDto(assignment) };
+}
+
+async function listTaskAdminPeople(session) {
+  const requester = await resolveEffectiveTaskScope(session);
+  if (requester.actorContext.actorType !== 'admin') fail('Chỉ Admin PHF Task được xem Nhân sự & phân quyền.', 403, 'TASK_ADMIN_PEOPLE_DENIED');
+  requireTaskCapability(requester, 'manage');
+
+  const [orgRows, accounts] = await Promise.all([loadOrgRows(), listHubAccountSummaries()]);
+  const accountByEmployee = new Map();
+  (accounts || []).forEach(account => {
+    const employeeCode = code(account && account.employeeCode);
+    if (employeeCode && !accountByEmployee.has(employeeCode)) accountByEmployee.set(employeeCode, account);
+  });
+  const actorContexts = (orgRows || []).map(person => {
+    const account = accountByEmployee.get(code(person.employeeCode));
+    return resolveActorContextForRecord({ account: { id: account ? account.id : '', role: account ? account.role : '' } }, person, orgRows);
+  });
+  let effectiveRows = null;
+  let permissionSchemaError = null;
+  try {
+    effectiveRows = await resolveEffectiveTaskScopesForActorContexts(actorContexts);
+  } catch (error) {
+    if (error && error.code === 'TASK_SCHEMA_MISSING') permissionSchemaError = error;
+    else throw error;
+  }
+  const permissionSchemaReady = !permissionSchemaError;
+  const people = (effectiveRows || actorContexts.map(actorContext => ({ actorContext, assignment: null, grants: [], scope: null }))).map(effective => {
+    const actorContext = effective.actorContext;
+    const person = findByCode(orgRows, actorContext.employeeCode);
+    const account = accountByEmployee.get(actorContext.employeeCode) || null;
+    const accountStatus = taskAccountStatus(account);
+    const baseScope = permissionSchemaReady ? resolveBaseTaskScope(actorContext) : null;
+    const employmentStatus = text(person && person.status).toLowerCase() === 'inactive' ? 'inactive' : 'active';
+    return {
+      employee_code: actorContext.employeeCode,
+      full_name: actorContext.fullName,
+      department: actorContext.department,
+      title: actorContext.title,
+      position: text(person && person.position),
+      branch: actorContext.branch,
+      manager_employee_code: actorContext.managerCode,
+      employment_status: employmentStatus,
+      employment_status_label: employmentStatus === 'active' ? 'Đang làm' : 'Nghỉ việc',
+      has_account: !!account,
+      account_status: accountStatus.code,
+      account_status_label: accountStatus.label,
+      task_actor_type: permissionSchemaReady ? actorContext.actorType : '',
+      task_preset_code: permissionSchemaReady ? actorContext.taskPresetCode : '',
+      task_preset_source: permissionSchemaReady ? (effective.assignment ? 'assignment' : (actorContext.actorType === 'admin' ? 'admin_system' : 'default')) : 'unavailable',
+      task_role_label: permissionSchemaReady ? (TASK_ACTOR_TYPE_LABELS[actorContext.actorType] || TASK_ACTOR_TYPE_LABELS.nhan_vien) : 'Chưa khả dụng',
+      task_assignment: permissionSchemaReady ? taskPermissionAssignmentDto(effective.assignment) : null,
+      base_scope_type: permissionSchemaReady ? baseScope.peopleScope.type : '',
+      base_scope_label: permissionSchemaReady ? taskPeopleScopeLabel(baseScope) : 'Chưa khả dụng',
+      base_capabilities: {
+        view: permissionSchemaReady && baseScope.capabilities.view === true,
+        assign: permissionSchemaReady && baseScope.capabilities.assign === true,
+        update: permissionSchemaReady && baseScope.capabilities.update === true,
+        manage: permissionSchemaReady && baseScope.capabilities.manage === true
+      },
+      effective_scope_type: permissionSchemaReady ? effective.scope.peopleScope.type : '',
+      effective_scope_label: permissionSchemaReady ? taskPeopleScopeLabel(effective.scope) : 'Chưa khả dụng',
+      capabilities: {
+        view: permissionSchemaReady && effective.scope.capabilities.view === true,
+        assign: permissionSchemaReady && effective.scope.capabilities.assign === true,
+        update: permissionSchemaReady && effective.scope.capabilities.update === true,
+        manage: permissionSchemaReady && effective.scope.capabilities.manage === true
+      },
+      has_active_grant: permissionSchemaReady && effective.grants.length > 0,
+      active_grant_count: permissionSchemaReady ? effective.grants.length : 0,
+      active_grants: permissionSchemaReady ? effective.grants.map(taskPermissionGrantDto) : [],
+      can_receive_new_tasks: employmentStatus === 'active',
+      permission_adjustment: permissionSchemaReady ? Object.assign(
+        taskPermissionAdjustmentPolicy(employmentStatus, baseScope.peopleScope.type),
+        { can_set_base_preset: employmentStatus === 'active' }
+      ) : { can_create_extend: false, supported_scope_types: [], can_set_base_preset: false }
+    };
+  }).sort((a, b) => a.full_name.localeCompare(b.full_name, 'vi') || a.employee_code.localeCompare(b.employee_code));
+
+  return {
+    identity_ready: true,
+    identity_status: 'READY',
+    identity_message: '',
+    permission_schema_ready: permissionSchemaReady,
+    permission_schema_error: permissionSchemaError ? permissionSchemaError.code : '',
+    permission_schema_message: permissionSchemaError ? permissionSchemaError.message : '',
+    people,
+    summary: {
+      total: people.length,
+      active: people.filter(person => person.employment_status === 'active').length,
+      inactive: people.filter(person => person.employment_status === 'inactive').length,
+      with_account: people.filter(person => person.has_account).length
+    }
+  };
+}
+
+function categoryDto(row) {
+  if (!row) return null;
+  return {
+    category_code: code(row.category_code),
+    display_name: text(row.display_name),
+    description: text(row.description),
+    color: text(row.color) || '#64748B',
+    is_active: row.is_active === true
+  };
+}
+
+async function listTaskCategories(session) {
+  await resolveActorContext(session);
+  ensureDb();
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .select('category_code,display_name,description,color,is_active')
+    .eq('is_active', true)
+    .order('display_name', { ascending: true });
+  if (error) throwDb(error);
+  return { categories: (data || []).map(categoryDto) };
+}
+
+async function requireTaskAdmin(session) {
+  const actorContext = await resolveActorContext(session);
+  if (actorContext.actorType !== 'admin') fail('Chỉ Admin được quản lý danh mục PHF Task.', 403, 'TASK_CATEGORY_ADMIN_REQUIRED');
+  return actorContext;
+}
+
+async function listAdminTaskCategories(session) {
+  await requireTaskAdmin(session);
+  ensureDb();
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .select('category_code,display_name,description,color,is_active')
+    .order('display_name', { ascending: true });
+  if (error) throwDb(error);
+  return { categories: (data || []).map(categoryDto) };
+}
+
+function validateCategoryCode(value) {
+  const categoryCode = code(value);
+  if (!/^[A-Z0-9_]+$/.test(categoryCode)) fail('Mã category chỉ gồm A-Z, 0-9 và dấu gạch dưới.', 400, 'TASK_CATEGORY_CODE_INVALID');
+  return categoryCode;
+}
+
+function validateCategoryName(value) {
+  const displayName = text(value);
+  if (!displayName) fail('Tên category là bắt buộc.', 400, 'TASK_CATEGORY_NAME_REQUIRED');
+  if (displayName.length > 120) fail('Tên category không được vượt quá 120 ký tự.', 400, 'TASK_CATEGORY_NAME_TOO_LONG');
+  return displayName;
+}
+
+async function createTaskCategory(session, input) {
+  const actorContext = await requireTaskAdmin(session);
+  ensureDb();
+  const categoryCode = validateCategoryCode(input && input.categoryCode);
+  const displayName = validateCategoryName(input && input.displayName);
+  const { data, error } = await supabase.from(CATEGORIES_TABLE).insert({
+    category_code: categoryCode,
+    display_name: displayName,
+    is_active: true,
+    ...actorAuditColumns(actorContext, 'created_by_account_id', 'created_by_employee_code'),
+    ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
+    updated_at: new Date().toISOString()
+  }).select('*').single();
+  if (error) {
+    if (text(error.code) === '23505') fail('Mã category đã tồn tại và không được đổi sau khi sử dụng.', 409, 'TASK_CATEGORY_CODE_EXISTS');
+    throwDb(error);
+  }
+  return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+async function renameTaskCategory(session, categoryCodeInput, displayNameInput) {
+  const actorContext = await requireTaskAdmin(session);
+  ensureDb();
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  const displayName = validateCategoryName(displayNameInput);
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .update({
+      display_name: displayName,
+      ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
+      updated_at: new Date().toISOString()
+    })
+    .eq('category_code', categoryCode)
+    .select('*').maybeSingle();
+  if (error) throwDb(error);
+  if (!data) fail('Category không tồn tại: ' + categoryCode, 404, 'TASK_CATEGORY_NOT_FOUND');
+  return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+async function setTaskCategoryActive(session, categoryCodeInput, isActive) {
+  const actorContext = await requireTaskAdmin(session);
+  ensureDb();
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  if (typeof isActive !== 'boolean') fail('Trạng thái active của category không hợp lệ.', 400, 'TASK_CATEGORY_ACTIVE_INVALID');
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .update({
+      is_active: isActive,
+      ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
+      updated_at: new Date().toISOString()
+    })
+    .eq('category_code', categoryCode)
+    .select('*').maybeSingle();
+  if (error) throwDb(error);
+  if (!data) fail('Category không tồn tại: ' + categoryCode, 404, 'TASK_CATEGORY_NOT_FOUND');
+  return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
 
 async function loadTaskRow(taskId) {
   ensureDb();
@@ -131,7 +626,10 @@ function toRelationAssignees(rows) {
 }
 
 async function requireView(session, taskRow, assigneeRows) {
-  const relationTask = { createdByEmployeeCode: taskRow.created_by_employee_code };
+  const relationTask = {
+    createdByAccountId: taskRow.created_by_account_id,
+    createdByEmployeeCode: taskRow.created_by_employee_code
+  };
   const allowed = await canViewTask(session, relationTask, toRelationAssignees(assigneeRows));
   if (!allowed) fail('Không có quyền xem task này.', 403, 'TASK_VIEW_DENIED');
 }
@@ -145,8 +643,8 @@ async function categoryActive(categoryCode) {
 }
 
 // ---------------------------------------------------------------------------
-// 1) CREATE DRAFT — single INSERT, tự atomic, KHÔNG event (draft = pre-audit,
-//    đúng chủ ý Foundation: event_type enum bắt đầu từ 'published').
+// 1) CREATE DRAFT — Task + initial primary atomic qua task_create_draft().
+//    KHÔNG event (draft = pre-audit, đúng chủ ý Foundation hiện hữu).
 // ---------------------------------------------------------------------------
 async function createTaskDraft(session, input) {
   ensureDb();
@@ -160,8 +658,11 @@ async function createTaskDraft(session, input) {
   await categoryActive(categoryCode);
   const priority = text(input.priority) || 'thuong';
   if (!['thuong', 'quan_trong', 'khan_cap'].includes(priority)) fail('priority không hợp lệ.', 400, 'TASK_PRIORITY_INVALID');
-  const deadline = text(input.deadline);
-  if (!deadline) fail('Deadline là bắt buộc.', 400, 'TASK_DEADLINE_REQUIRED');
+  const startAt = isoTimestamp(input.startAt, 'Ngày bắt đầu', false);
+  const deadline = isoTimestamp(input.deadline, 'Deadline', true);
+  if (startAt && new Date(startAt).getTime() > new Date(deadline).getTime()) {
+    fail('Ngày bắt đầu không được sau deadline.', 400, 'TASK_DATE_ORDER_INVALID');
+  }
 
   const primaryEmployeeCode = input.primaryEmployeeCode ? code(input.primaryEmployeeCode) : '';
   if (primaryEmployeeCode) {
@@ -171,28 +672,17 @@ async function createTaskDraft(session, input) {
     if (!allowed) fail('Không có quyền giao task cho nhân sự này.', 403, 'TASK_ASSIGN_DENIED');
   }
 
-  const row = {
-    flow_type: flowType,
-    status: 'draft',
-    title,
-    content: text(input.content),
-    category_code: categoryCode,
-    priority,
-    start_at: input.startAt ? text(input.startAt) : null,
-    deadline,
-    created_by_employee_code: actorContext.employeeCode
-  };
-  const { data, error } = await supabase.from(TASKS_TABLE).insert(row).select('*').single();
-  if (error) throwDb(error);
-
-  if (primaryEmployeeCode) {
-    const { error: assigneeError } = await supabase.from(ASSIGNEES_TABLE).insert({
-      task_id: data.id, employee_code: primaryEmployeeCode, role: 'primary', assigned_by_employee_code: actorContext.employeeCode
-    });
-    if (assigneeError) throwDb(assigneeError);
-  }
-
-  return data;
+  return callRpc('task_create_draft', {
+    p_flow_type: flowType,
+    p_title: title,
+    p_content: text(input.content),
+    p_category_code: categoryCode,
+    p_priority: priority,
+    p_start_at: startAt,
+    p_deadline: deadline,
+    p_actor_employee_code: actorAuditToken(actorContext),
+    p_primary_employee_code: primaryEmployeeCode || null
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +694,7 @@ async function updateTaskDraft(session, taskId, expectedRowVersion, patch) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (current.status !== 'draft') fail('Chỉ sửa được task đang ở trạng thái draft.', 409, 'TASK_NOT_DRAFT');
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
@@ -252,12 +742,12 @@ async function updateTaskDraft(session, taskId, expectedRowVersion, patch) {
 async function publishTask(session, taskId, expectedRowVersion) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'assign');
   }
   return callRpc('task_publish', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext)
   });
 }
 
@@ -270,14 +760,17 @@ async function getTaskDetail(session, taskId) {
   await requireView(session, task, assigneeRows);
 
   ensureDb();
-  const [commentsRes, linksRes, eventsRes] = await Promise.all([
+  const [commentsRes, linksRes, eventsRes, categoryRes, orgRows] = await Promise.all([
     supabase.from(COMMENTS_TABLE).select('*').eq('task_id', taskId).order('created_at', { ascending: true }),
     supabase.from(LINKS_TABLE).select('*').eq('task_id', taskId).order('created_at', { ascending: true }),
-    supabase.from(EVENTS_TABLE).select('*').eq('task_id', taskId).order('occurred_at', { ascending: false })
+    supabase.from(EVENTS_TABLE).select('*').eq('task_id', taskId).order('occurred_at', { ascending: false }),
+    supabase.from(CATEGORIES_TABLE).select('category_code,display_name,description,color,is_active').eq('category_code', task.category_code).maybeSingle(),
+    loadOrgRows()
   ]);
   if (commentsRes.error) throwDb(commentsRes.error);
   if (linksRes.error) throwDb(linksRes.error);
   if (eventsRes.error) throwDb(eventsRes.error);
+  if (categoryRes.error) throwDb(categoryRes.error);
 
   // "Xóa" link = ghi event payload.action='remove' (KHÔNG hard-delete row,
   // KHÔNG cần cột soft-delete mới — xem lib/task-core.js:removeTaskLink()).
@@ -288,11 +781,27 @@ async function getTaskDetail(session, taskId) {
       .map(e => e.payload.link_id)
   );
   const activeLinks = (linksRes.data || []).filter(l => !removedLinkIds.has(l.id));
+  const peopleByCode = new Map((orgRows || []).map(person => [code(person.employeeCode), person]));
+  const enrichAssignee = row => {
+    if (!row) return null;
+    const person = peopleByCode.get(code(row.employee_code));
+    return {
+      ...row,
+      employee_code: code(row.employee_code),
+      full_name: person ? person.fullName : '',
+      department: person ? person.department : '',
+      title: person ? person.title : '',
+      position: person ? person.position : '',
+      branch: person ? person.branch : '',
+      employment_status: person ? person.status : ''
+    };
+  };
 
   return {
     task,
-    primary: assigneeRows.find(a => a.role === 'primary' && a.is_active) || null,
-    related: assigneeRows.filter(a => a.role === 'related' && a.is_active),
+    category: categoryDto(categoryRes.data) || { category_code: code(task.category_code), display_name: code(task.category_code), description: '', color: '#64748B', is_active: false },
+    primary: enrichAssignee(assigneeRows.find(a => a.role === 'primary' && a.is_active) || null),
+    related: assigneeRows.filter(a => a.role === 'related' && a.is_active).map(enrichAssignee),
     comments: commentsRes.data || [],
     links: activeLinks,
     events: eventsRes.data || []
@@ -310,7 +819,7 @@ async function updateTaskProgress(session, taskId, expectedRowVersion, progressP
     fail('Chỉ primary hiện hành mới cập nhật tiến độ.', 403, 'TASK_PROGRESS_ACTOR_DENIED');
   }
   return callRpc('task_update_progress', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode,
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_progress_percent: progressPercent, p_progress_status: progressStatus
   });
 }
@@ -326,7 +835,7 @@ async function completeTask(session, taskId, expectedRowVersion, resultText) {
     fail('Chỉ primary hiện hành mới bấm Hoàn thành.', 403, 'TASK_COMPLETE_ACTOR_DENIED');
   }
   return callRpc('task_complete', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode,
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_result_text: resultText
   });
 }
@@ -337,12 +846,12 @@ async function completeTask(session, taskId, expectedRowVersion, resultText) {
 async function reopenTask(session, taskId, expectedRowVersion, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
   return callRpc('task_reopen', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode, p_reason: reason
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
   });
 }
 
@@ -352,12 +861,12 @@ async function reopenTask(session, taskId, expectedRowVersion, reason) {
 async function cancelTask(session, taskId, expectedRowVersion, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
   return callRpc('task_cancel', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode, p_reason: reason
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
   });
 }
 
@@ -367,12 +876,12 @@ async function cancelTask(session, taskId, expectedRowVersion, reason) {
 async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadline, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
   return callRpc('task_change_deadline', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode,
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_new_deadline: newDeadline, p_reason: reason
   });
 }
@@ -383,27 +892,26 @@ async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadli
 async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
   const allowedTarget = await canAssignTaskTo(session, newPrimaryEmployeeCode);
   if (!allowedTarget) fail('Người phụ trách mới nằm ngoài phạm vi giao việc của bạn.', 403, 'TASK_TRANSFER_TARGET_DENIED');
   return callRpc('task_transfer_primary', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorContext.employeeCode,
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_new_primary_employee_code: code(newPrimaryEmployeeCode), p_reason: reason
   });
 }
 
 // ---------------------------------------------------------------------------
-// 11) RELATED PEOPLE — 2 call rời (insert/deactivate + event), CHƯA fully
-//     atomic (không nằm trong danh sách Critical — xem Output mục F).
+// 11) RELATED PEOPLE — add atomic/idempotent qua RPC; remove giữ command cũ.
 // ---------------------------------------------------------------------------
 async function addTaskRelated(session, taskId, targetEmployeeCode) {
   ensureDb();
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
@@ -416,28 +924,18 @@ async function addTaskRelated(session, taskId, targetEmployeeCode) {
   const allowedTarget = await canAssignTaskTo(session, target);
   if (!allowedTarget) fail('Nhân sự này nằm ngoài phạm vi của bạn.', 403, 'TASK_RELATED_TARGET_DENIED');
 
-  const { data, error } = await supabase.from(ASSIGNEES_TABLE).insert({
-    task_id: taskId, employee_code: target, role: 'related', assigned_by_employee_code: actorContext.employeeCode
-  }).select('*').single();
-  if (error) {
-    if (String(error.code) === '23505') fail('Nhân sự này đã là related active trên task.', 409, 'TASK_RELATED_DUPLICATE');
-    throwDb(error);
-  }
-
-  const { error: evError } = await supabase.from(EVENTS_TABLE).insert({
-    task_id: taskId, event_type: 'assignment', actor_employee_code: actorContext.employeeCode,
-    payload: { action: 'add', role: 'related', employee_code: target }
+  return callRpc('task_add_related', {
+    p_task_id: taskId,
+    p_target_employee_code: target,
+    p_actor_employee_code: actorAuditToken(actorContext)
   });
-  if (evError) throwDb(evError);
-
-  return data;
 }
 
 async function removeTaskRelated(session, taskId, targetEmployeeCode) {
   ensureDb();
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (current.created_by_employee_code !== actorContext.employeeCode) {
+  if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'update');
   }
@@ -450,7 +948,8 @@ async function removeTaskRelated(session, taskId, targetEmployeeCode) {
   if (!data) fail('Không tìm thấy related active để gỡ.', 404, 'TASK_RELATED_NOT_FOUND');
 
   const { error: evError } = await supabase.from(EVENTS_TABLE).insert({
-    task_id: taskId, event_type: 'assignment', actor_employee_code: actorContext.employeeCode,
+    task_id: taskId, event_type: 'assignment',
+    ...actorAuditColumns(actorContext, 'actor_account_id', 'actor_employee_code'),
     payload: { action: 'remove', role: 'related', employee_code: target }
   });
   if (evError) throwDb(evError);
@@ -473,12 +972,15 @@ async function addTaskComment(session, taskId, body) {
   if (!trimmed) fail('Nội dung comment không được rỗng.', 400, 'TASK_COMMENT_BODY_REQUIRED');
 
   const { data, error } = await supabase.from(COMMENTS_TABLE).insert({
-    task_id: taskId, author_employee_code: actorContext.employeeCode, body: trimmed
+    task_id: taskId,
+    ...actorAuditColumns(actorContext, 'author_account_id', 'author_employee_code'),
+    body: trimmed
   }).select('*').single();
   if (error) throwDb(error);
 
   const { error: evError } = await supabase.from(EVENTS_TABLE).insert({
-    task_id: taskId, event_type: 'comment', actor_employee_code: actorContext.employeeCode,
+    task_id: taskId, event_type: 'comment',
+    ...actorAuditColumns(actorContext, 'actor_account_id', 'actor_employee_code'),
     payload: { comment_id: data.id }
   });
   if (evError) throwDb(evError);
@@ -487,7 +989,8 @@ async function addTaskComment(session, taskId, body) {
 }
 
 // ---------------------------------------------------------------------------
-// 13) LINKS — "xóa" = event payload.action='remove', KHÔNG hard-delete row
+// 13) LINKS — add atomic/idempotent qua RPC. "Xóa" = event action='remove',
+//     KHÔNG hard-delete row
 //     (giữ đúng "không được làm mất dấu rằng link từng tồn tại" mà KHÔNG cần
 //     thêm cột soft-delete/migration mới — xem getTaskDetail() lọc theo event).
 // ---------------------------------------------------------------------------
@@ -505,18 +1008,13 @@ async function addTaskLink(session, taskId, side, url, label) {
   if (!LINK_SIDES.includes(side)) fail('side không hợp lệ.', 400, 'TASK_LINK_SIDE_INVALID');
   if (!isValidUrl(url)) fail('URL không hợp lệ.', 400, 'TASK_LINK_URL_INVALID');
 
-  const { data, error } = await supabase.from(LINKS_TABLE).insert({
-    task_id: taskId, side, url: text(url), label: label ? text(label) : null, added_by_employee_code: actorContext.employeeCode
-  }).select('*').single();
-  if (error) throwDb(error);
-
-  const { error: evError } = await supabase.from(EVENTS_TABLE).insert({
-    task_id: taskId, event_type: 'link', actor_employee_code: actorContext.employeeCode,
-    payload: { action: 'add', link_id: data.id, side, url: data.url }
+  return callRpc('task_add_link', {
+    p_task_id: taskId,
+    p_side: side,
+    p_url: text(url),
+    p_label: label ? text(label) : null,
+    p_actor_employee_code: actorAuditToken(actorContext)
   });
-  if (evError) throwDb(evError);
-
-  return data;
 }
 
 async function removeTaskLink(session, taskId, linkId) {
@@ -531,7 +1029,8 @@ async function removeTaskLink(session, taskId, linkId) {
   if (!link) fail('Không tìm thấy link.', 404, 'TASK_LINK_NOT_FOUND');
 
   const { error: evError } = await supabase.from(EVENTS_TABLE).insert({
-    task_id: taskId, event_type: 'link', actor_employee_code: actorContext.employeeCode,
+    task_id: taskId, event_type: 'link',
+    ...actorAuditColumns(actorContext, 'actor_account_id', 'actor_employee_code'),
     payload: { action: 'remove', link_id: link.id, side: link.side, url: link.url }
   });
   if (evError) throwDb(evError);
@@ -540,6 +1039,16 @@ async function removeTaskLink(session, taskId, linkId) {
 }
 
 module.exports = {
+  listTaskAssignableEmployees,
+  listTaskAdminPeople,
+  saveTaskPermissionAssignment,
+  createTaskPermissionGrant,
+  revokeTaskPermissionGrant,
+  listTaskCategories,
+  listAdminTaskCategories,
+  createTaskCategory,
+  renameTaskCategory,
+  setTaskCategoryActive,
   createTaskDraft,
   updateTaskDraft,
   publishTask,

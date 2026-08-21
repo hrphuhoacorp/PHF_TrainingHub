@@ -12,6 +12,16 @@ const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, li
 const { listChecklistAssignments, saveChecklistAssignments } = require('./_lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./_lib/checklist-templates');
 const {
+  listTaskAssignableEmployees,
+  listTaskAdminPeople,
+  saveTaskPermissionAssignment,
+  createTaskPermissionGrant,
+  revokeTaskPermissionGrant,
+  listTaskCategories,
+  listAdminTaskCategories,
+  createTaskCategory,
+  renameTaskCategory,
+  setTaskCategoryActive,
   createTaskDraft,
   updateTaskDraft,
   publishTask,
@@ -74,6 +84,9 @@ const { requireSession, authorizePayload, listHubAccountSummaries } = require('.
 
 /* TASK_API_WIRING_START */
 const TASK_ACTION_MANIFEST = Object.freeze([
+  'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment', 'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
+  'listTaskCategories', 'listAdminTaskCategories',
+  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
@@ -108,6 +121,31 @@ function taskDraftPatch(payload) {
   return patch;
 }
 
+function taskCategoryCreateInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'display_name', 'displayName');
+  return input;
+}
+
+function taskPermissionGrantInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'grantee_employee_code', 'granteeEmployeeCode');
+  copyTaskPayloadField(input, payload, 'grant_type', 'grantType');
+  copyTaskPayloadField(input, payload, 'people_scope', 'peopleScope');
+  copyTaskPayloadField(input, payload, 'capabilities', 'capabilities');
+  copyTaskPayloadField(input, payload, 'reason', 'reason');
+  return input;
+}
+
+function taskPermissionAssignmentInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'employee_code', 'employeeCode');
+  copyTaskPayloadField(input, payload, 'preset_code', 'presetCode');
+  copyTaskPayloadField(input, payload, 'reason', 'reason');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
@@ -118,6 +156,16 @@ function rejectUnknownTaskAction(action) {
 async function dispatchTaskAction(session, payload) {
   const action = String(payload && payload.action || '').trim();
   switch (action) {
+    case 'listTaskAssignableEmployees': return { handled: true, result: await listTaskAssignableEmployees(session) };
+    case 'listTaskAdminPeople': return { handled: true, result: await listTaskAdminPeople(session) };
+    case 'saveTaskPermissionAssignment': return { handled: true, result: await saveTaskPermissionAssignment(session, taskPermissionAssignmentInput(payload)) };
+    case 'createTaskPermissionGrant': return { handled: true, result: await createTaskPermissionGrant(session, taskPermissionGrantInput(payload)) };
+    case 'revokeTaskPermissionGrant': return { handled: true, result: await revokeTaskPermissionGrant(session, payload.grant_id, payload.reason) };
+    case 'listTaskCategories': return { handled: true, result: await listTaskCategories(session) };
+    case 'listAdminTaskCategories': return { handled: true, result: await listAdminTaskCategories(session) };
+    case 'createTaskCategory': return { handled: true, result: await createTaskCategory(session, taskCategoryCreateInput(payload)) };
+    case 'renameTaskCategory': return { handled: true, result: await renameTaskCategory(session, payload.category_code, payload.display_name) };
+    case 'setTaskCategoryActive': return { handled: true, result: await setTaskCategoryActive(session, payload.category_code, payload.is_active) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
     case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
