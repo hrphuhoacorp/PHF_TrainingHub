@@ -97,9 +97,9 @@ const fakeChecklistPermissions = {
 
 // ---------- 5. Chặn require() theo đúng đường dẫn thật (không theo chuỗi tương đối) ----------
 const ROOT = path.join(__dirname, '..');
-const REQUEST_GUARD_PATH = path.join(ROOT, 'lib', 'request-guard.js');
-const AUTH_PATH = path.join(ROOT, 'lib', 'auth.js');
-const PERMISSIONS_PATH = path.join(ROOT, 'lib', 'checklist-permissions.js');
+const REQUEST_GUARD_PATH = path.join(ROOT, 'api', '_lib', 'request-guard.js');
+const AUTH_PATH = path.join(ROOT, 'api', '_lib', 'auth.js');
+const PERMISSIONS_PATH = path.join(ROOT, 'api', '_lib', 'checklist-permissions.js');
 
 const originalLoad = Module._load;
 const originalResolve = Module._resolveFilename;

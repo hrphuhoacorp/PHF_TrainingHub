@@ -14,7 +14,7 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const LIB_PATHS = ['../lib/checklist-permissions', '../lib/checklist-scope', '../lib/checklist-reports'].map(p => require.resolve(p));
+const LIB_PATHS = ['../api/_lib/checklist-permissions', '../api/_lib/checklist-scope', '../api/_lib/checklist-reports'].map(p => require.resolve(p));
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 let queryLog = [];
@@ -93,7 +93,7 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getChecklistAnnualResultReport } = require('../lib/checklist-reports');
+const { getChecklistAnnualResultReport } = require('../api/_lib/checklist-reports');
 
 const adminSession = { account: { id: 'admin-1', name: 'Admin' }, role: 'admin' };
 const managerSession = { account: { id: 'mgr-1', name: 'Manager' }, role: 'manager' };

@@ -21,9 +21,9 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const violationsPath = require.resolve('../lib/checklist-violations');
-const reportsPath = require.resolve('../lib/checklist-reports');
-const permissionsPath = require.resolve('../lib/checklist-permissions');
+const violationsPath = require.resolve('../api/_lib/checklist-violations');
+const reportsPath = require.resolve('../api/_lib/checklist-reports');
+const permissionsPath = require.resolve('../api/_lib/checklist-permissions');
 
 // ---------------------------------------------------------------------------
 // Minimal in-memory Postgrest-like query engine (eq/neq/in/gte/lte/or as real

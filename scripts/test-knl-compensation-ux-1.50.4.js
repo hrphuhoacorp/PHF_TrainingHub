@@ -5,7 +5,7 @@ const fs=require('fs');
 const path=require('path');
 const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
-const lib=read('lib/knl-foundation.js');
+const lib=read('api/_lib/knl-foundation.js');
 const ui=read('assets/js/knl/phf-knl-app.js');
 const css=read('assets/css/phf-knl.css');
 const check=read('scripts/phf-check-js.js');

@@ -1,7 +1,7 @@
 'use strict';
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const lib = require('../lib/knl-competency');
+const lib = require('../api/_lib/knl-competency');
 
 const db = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
 

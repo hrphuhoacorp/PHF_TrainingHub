@@ -86,7 +86,7 @@ Module._load = function (request, parent, isMain) {
   }
   return originalLoad.apply(this, arguments);
 };
-const reportsLib = require(path.join(__dirname, '..', 'lib', 'checklist-reports.js'));
+const reportsLib = require(path.join(__dirname, '..', 'api', '_lib', 'checklist-reports.js'));
 Module._load = originalLoad;
 
 const ADMIN_SESSION = { role: 'admin', account: { id: 'admin-1', name: 'Test Admin' }, sub: 'admin-1' };

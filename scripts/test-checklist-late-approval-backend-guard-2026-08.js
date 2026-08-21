@@ -15,13 +15,13 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const service = require('../lib/checklist-late-reconciliation-service');
+const service = require('../api/_lib/checklist-late-reconciliation-service');
 
 let passCount = 0;
 function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + label); }
 async function checkAsync(label, fn) { await fn(); passCount++; console.log('✓ PASS — ' + label); }
 
-const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
 
 async function main() {
   check('LATE_APPROVAL_ENABLED = true (LOCAL activation 2026-08-16) — hằng số cứng, không đọc process.env (vẫn là quyết định nghiệp vụ có chủ đích, không phải cấu hình môi trường)', () => {

@@ -13,8 +13,8 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const permissionsPath = require.resolve('../lib/checklist-permissions');
-const reportsPath = require.resolve('../lib/checklist-reports');
+const permissionsPath = require.resolve('../api/_lib/checklist-permissions');
+const reportsPath = require.resolve('../api/_lib/checklist-reports');
 
 let grantRows = [];
 let assignmentRows = [];

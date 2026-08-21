@@ -13,9 +13,9 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const peoplePath = require.resolve('../lib/knl-people');
-const permissionsPath = require.resolve('../lib/knl-permissions');
-const scopePath = require.resolve('../lib/knl-scope');
+const peoplePath = require.resolve('../api/_lib/knl-people');
+const permissionsPath = require.resolve('../api/_lib/knl-permissions');
+const scopePath = require.resolve('../api/_lib/knl-scope');
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
 

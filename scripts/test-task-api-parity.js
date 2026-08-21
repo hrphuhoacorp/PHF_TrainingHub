@@ -154,7 +154,7 @@ const expectedCoreArgs = {
     pass(true, surface.name + ' swallowed Task Core business error');
   }
 
-  const coreSource = fs.readFileSync(path.join(root, 'lib', 'task-core.js'), 'utf8');
+  const coreSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-core.js'), 'utf8');
   for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(coreSource), 'Task Core export missing ' + action);
   console.log('PHF Task API parity: ' + passed + '/' + passed + ' PASS');
 })().catch(error => {

@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
-const { validateScoredDefinition, requiresChecklistTotalRow, isChecklistTotalRow } = require('../lib/checklist-templates');
+const { validateScoredDefinition, requiresChecklistTotalRow, isChecklistTotalRow } = require('../api/_lib/checklist-templates');
 
 const appPath = path.resolve(__dirname, '..', 'assets/js/checklist/phf-checklist-app.js');
 const code = fs.readFileSync(appPath, 'utf8');

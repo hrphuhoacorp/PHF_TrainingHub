@@ -4,10 +4,10 @@ const {
   assertSameOrigin,
   assertJsonContentType,
   assertContentLength
-} = require('../../lib/request-guard');
-const { requireSession } = require('../../lib/auth');
-const { send, sendError, requestBody } = require('../../lib/api-response');
-const { runChatSandbox } = require('../../lib/ai-sandbox');
+} = require('../_lib/request-guard');
+const { requireSession } = require('../_lib/auth');
+const { send, sendError, requestBody } = require('../_lib/api-response');
+const { runChatSandbox } = require('../_lib/ai-sandbox');
 
 /* PHF AI Sandbox - Vercel serverless function. Chi Admin duoc truy cap.
    AI co the doc (KHONG ghi) Checklist/Nhan su/KNL/

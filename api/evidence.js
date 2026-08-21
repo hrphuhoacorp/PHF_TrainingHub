@@ -1,7 +1,7 @@
 'use strict';
-const { requireSession } = require('../lib/auth');
-const { streamChecklistEvidenceDownload } = require('../lib/checklist-evidence');
-const { sendError } = require('../lib/api-response');
+const { requireSession } = require('./_lib/auth');
+const { streamChecklistEvidenceDownload } = require('./_lib/checklist-evidence');
+const { sendError } = require('./_lib/api-response');
 
 /**
  * Branded evidence viewer: GET /evidence/:id (rewritten by vercel.json to

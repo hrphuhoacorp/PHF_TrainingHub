@@ -1,7 +1,7 @@
 'use strict';
 
 const assert=require('assert');
-const {SCORE_FORMULA_VERSION,normalizeCriterion,calculateMonthlyScore}=require('../lib/checklist-score-engine');
+const {SCORE_FORMULA_VERSION,normalizeCriterion,calculateMonthlyScore}=require('../api/_lib/checklist-score-engine');
 
 assert.strictEqual(normalizeCriterion(2,2),10);
 assert.strictEqual(normalizeCriterion(8,10),8);

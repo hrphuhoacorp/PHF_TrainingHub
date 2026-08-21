@@ -27,7 +27,7 @@ const path = require('path');
 const Module = require('module');
 
 const ROOT = path.join(__dirname, '..');
-const AUTH_PATH = path.join(ROOT, 'lib', 'auth.js');
+const AUTH_PATH = path.join(ROOT, 'api', '_lib', 'auth.js');
 
 const calls = []; // {table, op, detail}
 

@@ -17,8 +17,8 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
 const LIB_PATHS = [
-  '../lib/knl-permissions', '../lib/knl-frameworks', '../lib/knl-foundation', '../lib/knl-assignments',
-  '../lib/knl-surveys', '../lib/knl-people', '../lib/ai-knl-framework-tools', '../lib/ai-tool-registry'
+  '../api/_lib/knl-permissions', '../api/_lib/knl-frameworks', '../api/_lib/knl-foundation', '../api/_lib/knl-assignments',
+  '../api/_lib/knl-surveys', '../api/_lib/knl-people', '../api/_lib/ai-knl-framework-tools', '../api/_lib/ai-tool-registry'
 ].map(p => require.resolve(p));
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
@@ -102,8 +102,8 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getKnlGradeRequirementsForAi, getKnlFrameworkForAi } = require('../lib/ai-knl-framework-tools');
-const { buildStructuredResult, ALLOWED_TOOL_NAMES } = require('../lib/ai-tool-registry');
+const { getKnlGradeRequirementsForAi, getKnlFrameworkForAi } = require('../api/_lib/ai-knl-framework-tools');
+const { buildStructuredResult, ALLOWED_TOOL_NAMES } = require('../api/_lib/ai-tool-registry');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' }; // KHONG co employeeCode - dung mo phong tai khoan Admin/demo that
 const learnerNoGrant = { account: { id: 'u-1' }, role: 'learner' };

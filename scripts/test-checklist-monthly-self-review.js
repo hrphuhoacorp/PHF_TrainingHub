@@ -144,7 +144,7 @@ const fakePermissions = {
 // ---------- 5. Chặn require() theo đường dẫn thật ----------
 const ROOT = path.join(__dirname, '..');
 const SUPABASE_JS = '@supabase/supabase-js';
-const PERMISSIONS_PATH = path.join(ROOT, 'lib', 'checklist-permissions.js');
+const PERMISSIONS_PATH = path.join(ROOT, 'api', '_lib', 'checklist-permissions.js');
 const originalLoad = Module._load;
 const originalResolve = Module._resolveFilename;
 Module._load = function (request, parent, isMain) {
@@ -156,7 +156,7 @@ Module._load = function (request, parent, isMain) {
   }
   return originalLoad.apply(this, arguments);
 };
-const monthlyLib = require(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'));
+const monthlyLib = require(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'));
 Module._load = originalLoad;
 
 const ADMIN_SESSION = { role: 'admin', employeeCode: 'ADM1', account: { id: 'ADM1-ID', name: 'Admin Test', employeeCode: 'ADM1' }, sub: 'ADM1-ID' };

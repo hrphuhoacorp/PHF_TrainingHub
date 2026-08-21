@@ -7,7 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 const PRIVATE_DIR = path.resolve(
   String(process.env.PHF_PRIVATE_DIR || '').trim() || path.join(ROOT, 'private')
 );

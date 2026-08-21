@@ -14,13 +14,13 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const recon = require('../lib/checklist-late-reconciliation');
+const recon = require('../api/_lib/checklist-late-reconciliation');
 
 let passCount = 0;
 function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + label); }
 
-const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
-const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation.js'), 'utf8');
+const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
 const UI_SRC = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'checklist', 'phf-checklist-late-workflow.js'), 'utf8');
 const APP_SRC = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'checklist', 'phf-checklist-app.js'), 'utf8');
 const SQL = fs.readFileSync(path.join(__dirname, 'PHF_CHECKLIST_LATE_BCC_RECONCILIATION_1.55.0.sql'), 'utf8');

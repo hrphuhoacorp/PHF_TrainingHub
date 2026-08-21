@@ -229,7 +229,7 @@ function extractTopLevelFnSource(source, name) {
   const m = source.match(re);
   return m ? m[0] : null;
 }
-const violationsLibPath = path.resolve(__dirname, '..', 'lib/checklist-violations.js');
+const violationsLibPath = path.resolve(__dirname, '..', 'api/_lib/checklist-violations.js');
 const violationsLib = fs.readFileSync(violationsLibPath, 'utf8');
 const normalizeCanonicalSrc = extractTopLevelFnSource(violationsLib, 'normalizeCanonical');
 check(!!normalizeCanonicalSrc, '13a. normalizeCanonical() found in lib/checklist-violations.js');
@@ -243,7 +243,7 @@ if (normalizeCanonicalSrc) {
   check(/const rowDetails = \(extra\) => Object\.assign\(\{ index, requestId: rawRequestId \}, extra \|\| \{\}\);/.test(normalizeCanonicalSrc),
     '13d. rowDetails() helper merges {index, requestId} into any extra details, exact shape verified');
 }
-const requestGuardPath = path.resolve(__dirname, '..', 'lib/request-guard.js');
+const requestGuardPath = path.resolve(__dirname, '..', 'api/_lib/request-guard.js');
 const requestGuard = fs.readFileSync(requestGuardPath, 'utf8');
 check(/\.\.\.\(err\.details\s*\?\s*\{\s*details:\s*err\.details\s*\}\s*:\s*\{\}\)/.test(requestGuard),
   '13e. publicError() (lib/request-guard.js) spreads err.details into the response body only when present (additive, no shape change for errors that never set .details)');

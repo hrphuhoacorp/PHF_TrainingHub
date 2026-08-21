@@ -20,7 +20,7 @@
 require('dotenv').config();
 const assert=require('assert');
 const {createClient}=require('@supabase/supabase-js');
-const {saveProfile}=require('../lib/employee-master');
+const {saveProfile}=require('../api/_lib/employee-master');
 
 const url=String(process.env.SUPABASE_URL||'').trim();
 const secret=String(process.env.SUPABASE_SECRET_KEY||'').trim();

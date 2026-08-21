@@ -16,8 +16,8 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { JSDOM } = require('jsdom');
-const { validateScoredDefinition, requiresChecklistTotalRow, isChecklistTotalRow, rowSourceType } = require('../lib/checklist-templates');
-const { rowWeight } = require('../lib/checklist-template-retroactive');
+const { validateScoredDefinition, requiresChecklistTotalRow, isChecklistTotalRow, rowSourceType } = require('../api/_lib/checklist-templates');
+const { rowWeight } = require('../api/_lib/checklist-template-retroactive');
 
 const appRelPath = 'assets/js/checklist/phf-checklist-app.js';
 const appAbsPath = path.resolve(__dirname, '..', appRelPath);

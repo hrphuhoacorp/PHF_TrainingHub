@@ -2,7 +2,7 @@
 
 require('dotenv').config();
 const assert=require('assert');
-const {listKnlIncomeTargets,getKnlEmployeeIncome,incomeScopeAllows}=require('../lib/knl-foundation');
+const {listKnlIncomeTargets,getKnlEmployeeIncome,incomeScopeAllows}=require('../api/_lib/knl-foundation');
 
 (async()=>{
   const own=await getKnlEmployeeIncome({role:'employee',sub:'PHF091',account:{id:'PHF091',employeeCode:'PHF091',name:'Phan Thị Cẩm Tiên'}},{});

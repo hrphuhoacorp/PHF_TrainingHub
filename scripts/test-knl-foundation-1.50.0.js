@@ -7,9 +7,9 @@ const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const sql=read('scripts/PHF_KNL_COMPETENCY_GRADE_COMPENSATION_FOUNDATION_1.50.0.sql');
 const api=read('api/data.js'),ui=read('assets/js/knl/phf-knl-app.js'),router=read('assets/js/phf-url-router.js');
-const manifest=require('./data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
-const {reconcile}=require('./phf-knl-foundation-reconciliation');
-const {incomeScopeAllows,incomeTargetRows}=require('../lib/knl-foundation');
+const manifest=require('../api/_lib/data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
+const {reconcile}=require('../api/_lib/phf-knl-foundation-reconciliation');
+const {incomeScopeAllows,incomeTargetRows}=require('../api/_lib/knl-foundation');
 
 function has(source,value,label){assert(source.includes(value),label||('missing '+value));}
 [

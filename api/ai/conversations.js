@@ -4,12 +4,12 @@ const {
   assertSameOrigin,
   assertJsonContentType,
   assertContentLength
-} = require('../../lib/request-guard');
-const { requireSession } = require('../../lib/auth');
-const { send, sendError, requestBody } = require('../../lib/api-response');
+} = require('../_lib/request-guard');
+const { requireSession } = require('../_lib/auth');
+const { send, sendError, requestBody } = require('../_lib/api-response');
 const {
   listConversations, getConversation, createConversation, appendMessages, deleteConversation
-} = require('../../lib/ai-conversations');
+} = require('../_lib/ai-conversations');
 
 /* PHF AI - Lich su hoi thoai (Batch C), Vercel serverless function. Chi
    Admin duoc truy cap giong /api/ai/chat. 1 endpoint, dispatch theo body.action -

@@ -10,7 +10,7 @@ process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://fake-project.sup
 process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || 'fake-secret-key';
 const assert = require('assert');
 const { classify, SALES_DEPARTMENT } = require('./phf-knl-initial-permission-seed-2026-08.js');
-const { SALES_ALL_BRANCHES_DEPARTMENT } = require('../lib/knl-scope');
+const { SALES_ALL_BRANCHES_DEPARTMENT } = require('../api/_lib/knl-scope');
 
 assert.strictEqual(SALES_DEPARTMENT, SALES_ALL_BRANCHES_DEPARTMENT, 'seed script and lib/knl-scope.js must agree on the real Sales department string — they must never drift apart');
 

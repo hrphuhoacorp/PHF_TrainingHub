@@ -41,7 +41,7 @@
      node scripts/PHF_KNL_LIBRARY_CLEANUP_1.50.13.js --apply   (writes)
 */
 require('dotenv').config();
-const { saveKnlFramework, listKnlFrameworks } = require('../lib/knl-frameworks');
+const { saveKnlFramework, listKnlFrameworks } = require('../api/_lib/knl-frameworks');
 
 const SESSION = { account: { id: 'system-knl-cleanup-2026-08-10', name: 'PHF KNL Library Cleanup 2026-08-10' }, role: 'admin' };
 

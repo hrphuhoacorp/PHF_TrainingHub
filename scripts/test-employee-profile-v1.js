@@ -5,8 +5,8 @@ const assert=require('assert');
 const root=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const migration=read('scripts/PHF_HR_EMPLOYEE_PROFILE_V1_1.46.2.sql');
-const service=read('lib/employee-master.js');
-const assignments=read('lib/checklist-assignments.js');
+const service=read('api/_lib/employee-master.js');
+const assignments=read('api/_lib/checklist-assignments.js');
 const ui=read('assets/js/phf-employee-master.js');
 const checklistUi=read('assets/js/checklist/phf-checklist-app.js');
 

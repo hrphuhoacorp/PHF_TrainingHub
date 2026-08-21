@@ -1,7 +1,7 @@
 'use strict';
 
 const assert=require('assert');
-const {reportScoreSummary}=require('../lib/checklist-reports');
+const {reportScoreSummary}=require('../api/_lib/checklist-reports');
 
 const form={
   template_snapshot:{version:{definition:{totalRows:[

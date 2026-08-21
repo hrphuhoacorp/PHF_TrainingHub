@@ -3,8 +3,8 @@
 require('dotenv').config();
 const assert=require('assert');
 const {createClient}=require('@supabase/supabase-js');
-const manifest=require('./data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
-const {reconcile}=require('./phf-knl-foundation-reconciliation');
+const manifest=require('../api/_lib/data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
+const {reconcile}=require('../api/_lib/phf-knl-foundation-reconciliation');
 
 const PERIOD='2026-07';
 const EXPECTED={ladders:8,versions:8,grades:88,assignments:36,official:34,probation:2,history:36,seedRuns:1};

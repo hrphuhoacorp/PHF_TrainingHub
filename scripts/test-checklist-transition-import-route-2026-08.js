@@ -15,7 +15,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const authPath = require.resolve('../lib/auth');
+const authPath = require.resolve('../api/_lib/auth');
 const apiDataPath = require.resolve('../api/data');
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }

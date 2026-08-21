@@ -19,8 +19,8 @@
  */
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const frameworksLib = require('../lib/knl-frameworks');
-const { saveKnlGradeMatrix } = require('../lib/knl-foundation');
+const frameworksLib = require('../api/_lib/knl-frameworks');
+const { saveKnlGradeMatrix } = require('../api/_lib/knl-foundation');
 
 const db = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
 const SESSION = { role: 'admin', account: { id: 'system-knl-content-baseline-2026-08', name: 'PHF KNL Content Baseline 08/2026' }, sub: 'system-knl-content-baseline-2026-08' };

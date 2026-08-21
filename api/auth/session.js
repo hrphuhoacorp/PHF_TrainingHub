@@ -1,7 +1,7 @@
 'use strict';
 
-const { readSession } = require('../../lib/auth');
-const { send, sendError } = require('../../lib/api-response');
+const { readSession } = require('../_lib/auth');
+const { send, sendError } = require('../_lib/api-response');
 
 module.exports = async function handler(req, res) {
   try {

@@ -1,8 +1,8 @@
 'use strict';
 
-const { assertSameOrigin } = require('../../lib/request-guard');
-const { clearCookieHeader } = require('../../lib/auth');
-const { send, sendError } = require('../../lib/api-response');
+const { assertSameOrigin } = require('../_lib/request-guard');
+const { clearCookieHeader } = require('../_lib/auth');
+const { send, sendError } = require('../_lib/api-response');
 
 module.exports = async function handler(req, res) {
   try {

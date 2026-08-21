@@ -30,8 +30,8 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const violationsPath = require.resolve('../lib/checklist-violations');
-const requestGuardPath = require.resolve('../lib/request-guard');
+const violationsPath = require.resolve('../api/_lib/checklist-violations');
+const requestGuardPath = require.resolve('../api/_lib/request-guard');
 
 // ---------------------------------------------------------------------------
 // Bang tinh (assignments/templates/grants...): read-only.

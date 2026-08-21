@@ -53,10 +53,10 @@ class Query{
 }
 const mockDb={from(table){return new Query(table);},rpc(name,args){assert.equal(name,'knl_seed_source_candidate');const c=args.p_candidate,prior=dbState.seeded.get(c.manifestKey);if(c.candidateStatus!=='READY')return Promise.resolve({data:{manifestKey:c.manifestKey,status:'SKIPPED'},error:null});if(prior)return Promise.resolve({data:{manifestKey:c.manifestKey,status:'UNCHANGED'},error:null});dbState.seeded.set(c.manifestKey,true);dbState.domain.frameworks++;dbState.domain.versions++;dbState.domain.groups+=c.counts.groups;dbState.domain.items+=c.counts.items;dbState.domain.contents+=c.counts.contents;return Promise.resolve({data:{manifestKey:c.manifestKey,status:'SEEDED'},error:null});}};
 process.env.SUPABASE_URL='https://unit.test';process.env.SUPABASE_SECRET_KEY='unit-secret';
-const supabasePath=require.resolve('@supabase/supabase-js'),peoplePath=require.resolve('../lib/knl-people'),servicePath=require.resolve('../lib/knl-assignments');
+const supabasePath=require.resolve('@supabase/supabase-js'),peoplePath=require.resolve('../api/_lib/knl-people'),servicePath=require.resolve('../api/_lib/knl-assignments');
 require.cache[supabasePath]={id:supabasePath,filename:supabasePath,loaded:true,exports:{createClient:()=>mockDb}};
 require.cache[peoplePath]={id:peoplePath,filename:peoplePath,loaded:true,exports:{listKnlAssignmentTargets:async()=>({people:[{employeeCode:'E1',employeeName:'Employee One',title:'Nhân viên',position:'',department:'Sales',branch:'A'}],positions:[],organizationConflict:{code:'KNL_ORG_POSITION_UNAVAILABLE',message:'position missing'}}),resolveKnlAssignmentTarget:async(type,ref)=>{if(type==='position'){const e=new Error('position missing');e.code='KNL_ORG_POSITION_UNAVAILABLE';throw e;}if(type!=='employee'||ref!=='E1'){const e=new Error('employee missing');e.code='KNL_ASSIGNMENT_EMPLOYEE_NOT_FOUND';throw e;}return{targetType:'employee',targetRef:'E1',employeeCode:'E1',positionRef:null,snapshot:{employeeCode:'E1',employeeName:'Employee One',title:'Nhân viên',position:'',department:'Sales',branch:'A'}};}}};
-delete require.cache[servicePath];const service=require('../lib/knl-assignments');const admin={role:'admin',sub:'admin',account:{id:'admin',name:'Admin'}};
+delete require.cache[servicePath];const service=require('../api/_lib/knl-assignments');const admin={role:'admin',sub:'admin',account:{id:'admin',name:'Admin'}};
 
 (async()=>{
   const first=await service.seedKnlSourceManifest(admin),snapshot={...dbState.domain};const second=await service.seedKnlSourceManifest(admin);
@@ -71,6 +71,6 @@ delete require.cache[servicePath];const service=require('../lib/knl-assignments'
   let invalidEmployee=false;try{await service.saveKnlFrameworkAssignment(admin,{versionId:versionA,targetType:'employee',targetRef:'BAD',reason:'Invalid employee'});}catch(error){invalidEmployee=error.code==='KNL_ASSIGNMENT_EMPLOYEE_NOT_FOUND';}check(invalidEmployee,'Invalid employee bị reject');
   let invalidPosition=false;try{await service.saveKnlFrameworkAssignment(admin,{versionId:versionA,targetType:'position',targetRef:'free-text',reason:'Invalid position'});}catch(error){invalidPosition=error.code==='KNL_ORG_POSITION_UNAVAILABLE';}check(invalidPosition,'Position trống ở source báo conflict, không suy title/free text');
   let managerDenied=false;try{await service.seedKnlSourceManifest({role:'manager',account:{id:'m1'}});}catch(error){managerDenied=error.code==='KNL_ADMIN_REQUIRED';}check(managerDenied,'TBP/NV không được seed hoặc chỉnh assignment');
-  check(dbState.checklistWrites===0&&!/\.from\(['"]checklist_employee_assignments['"]\)\.(insert|update|upsert|delete)/.test(fs.readFileSync(path.join(root,'lib','knl-people.js'),'utf8')),'Organization adapter read-only, không ghi Checklist');
+  check(dbState.checklistWrites===0&&!/\.from\(['"]checklist_employee_assignments['"]\)\.(insert|update|upsert|delete)/.test(fs.readFileSync(path.join(root,'api','_lib', 'knl-people.js'),'utf8')),'Organization adapter read-only, không ghi Checklist');
   console.log('\nKNL Batch 2:',passed,'checks passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

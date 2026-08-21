@@ -2,8 +2,8 @@
 
 require('dotenv').config();
 const {createClient}=require('@supabase/supabase-js');
-const manifest=require('../scripts/data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
-const {reconcile}=require('../scripts/phf-knl-foundation-reconciliation');
+const manifest=require('./data/PHF_KNL_COMPENSATION_FOUNDATION_2026_07.json');
+const {reconcile}=require('./phf-knl-foundation-reconciliation');
 const {resolveActorGrant,requireManageFrameworkForSession,incomeScopeAllows}=require('./knl-permissions');
 const {loadKnlOrganizationRows}=require('./knl-people');
 

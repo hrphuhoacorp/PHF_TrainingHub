@@ -23,12 +23,12 @@ const assert = require('assert');
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const peoplePath = require.resolve('../lib/knl-people');
-const permissionsPath = require.resolve('../lib/knl-permissions');
-const scopePath = require.resolve('../lib/knl-scope');
-const foundationPath = require.resolve('../lib/knl-foundation');
-const dashboardPath = require.resolve('../lib/knl-dashboard');
-const gradeProposalsPath = require.resolve('../lib/knl-grade-proposals');
+const peoplePath = require.resolve('../api/_lib/knl-people');
+const permissionsPath = require.resolve('../api/_lib/knl-permissions');
+const scopePath = require.resolve('../api/_lib/knl-scope');
+const foundationPath = require.resolve('../api/_lib/knl-foundation');
+const dashboardPath = require.resolve('../api/_lib/knl-dashboard');
+const gradeProposalsPath = require.resolve('../api/_lib/knl-grade-proposals');
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 function uid() { return 'id-' + Math.random().toString(36).slice(2); }

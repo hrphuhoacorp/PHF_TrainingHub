@@ -12,8 +12,8 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 const { Writable } = require('stream');
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const violationsPath = require.resolve('../lib/checklist-violations');
-const evidencePath = require.resolve('../lib/checklist-evidence');
+const violationsPath = require.resolve('../api/_lib/checklist-violations');
+const evidencePath = require.resolve('../api/_lib/checklist-evidence');
 
 let evidenceRow = null;
 let violationRow = null;

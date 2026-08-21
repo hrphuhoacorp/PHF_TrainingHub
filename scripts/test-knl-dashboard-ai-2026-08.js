@@ -25,12 +25,12 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 process.env.DEEPSEEK_API_KEY = 'fake-deepseek-key-for-test-only';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const permissionsPath = require.resolve('../lib/knl-permissions');
-const peoplePath = require.resolve('../lib/knl-people');
-const scopePath = require.resolve('../lib/knl-scope');
-const dashboardPath = require.resolve('../lib/knl-dashboard');
-const aiSandboxPath = require.resolve('../lib/ai-sandbox');
-const dashboardAiPath = require.resolve('../lib/knl-dashboard-ai');
+const permissionsPath = require.resolve('../api/_lib/knl-permissions');
+const peoplePath = require.resolve('../api/_lib/knl-people');
+const scopePath = require.resolve('../api/_lib/knl-scope');
+const dashboardPath = require.resolve('../api/_lib/knl-dashboard');
+const aiSandboxPath = require.resolve('../api/_lib/ai-sandbox');
+const dashboardAiPath = require.resolve('../api/_lib/knl-dashboard-ai');
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 

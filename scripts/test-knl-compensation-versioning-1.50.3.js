@@ -6,7 +6,7 @@ const path=require('path');
 const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const sql=read('scripts/PHF_KNL_COMPENSATION_VERSIONING_CRUD_1.50.3.sql');
-const lib=read('lib/knl-foundation.js');
+const lib=read('api/_lib/knl-foundation.js');
 const server=read('server.js');
 const api=read('api/data.js');
 const ui=read('assets/js/knl/phf-knl-app.js');

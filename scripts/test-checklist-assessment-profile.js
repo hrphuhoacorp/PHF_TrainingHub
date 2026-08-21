@@ -213,7 +213,7 @@ Module._load = function (request, parent, isMain) {
   }
   return originalLoad.apply(this, arguments);
 };
-const monthlyLib = require(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'));
+const monthlyLib = require(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'));
 Module._load = originalLoad;
 
 const NV001_SESSION = { role: 'learner', employeeCode: 'NV001', employeeId: 'id-nv001', account: { id: 'id-nv001', name: 'Nhân Viên 1' }, sub: 'id-nv001' };

@@ -4,10 +4,10 @@ const {
   assertSameOrigin,
   assertJsonContentType,
   assertContentLength
-} = require('../../lib/request-guard');
-const { login, cookieHeader } = require('../../lib/auth');
-const { send, sendError, requestBody } = require('../../lib/api-response');
-const { assertLoginAllowed, recordLoginFailure, clearLoginFailures } = require('../../lib/production-hardening');
+} = require('../_lib/request-guard');
+const { login, cookieHeader } = require('../_lib/auth');
+const { send, sendError, requestBody } = require('../_lib/api-response');
+const { assertLoginAllowed, recordLoginFailure, clearLoginFailures } = require('../_lib/production-hardening');
 
 module.exports = async function handler(req, res) {
   try {

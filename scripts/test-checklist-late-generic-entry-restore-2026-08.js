@@ -29,8 +29,8 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const fs = require('fs');
 const path = require('path');
-const supabasePath = require.resolve('../lib/checklist-violations') && require.resolve('@supabase/supabase-js');
-const violationsPath = require.resolve('../lib/checklist-violations');
+const supabasePath = require.resolve('../api/_lib/checklist-violations') && require.resolve('@supabase/supabase-js');
+const violationsPath = require.resolve('../api/_lib/checklist-violations');
 
 function parseOrClause(clauseStr, row) {
   const clauses = String(clauseStr || '').split(',').map(c => c.trim()).filter(Boolean);
@@ -233,7 +233,7 @@ function normalRow(overrides) {
 }
 
 const APP_SRC = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'checklist', 'phf-checklist-app.js'), 'utf8');
-const LIB_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-violations.js'), 'utf8');
+const LIB_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-violations.js'), 'utf8');
 
 async function run() {
   console.log('== 1. Duyệt lưu đúng — DITRE + managerDecision=approved -> observation, KHÔNG official violation ==');

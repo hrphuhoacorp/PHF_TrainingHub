@@ -3,8 +3,8 @@
 require('dotenv').config();
 const assert=require('assert');
 const {createClient}=require('@supabase/supabase-js');
-const {subjectMatchesScope}=require('../lib/knl-scope');
-const {getKnlSurveyResults}=require('../lib/knl-surveys');
+const {subjectMatchesScope}=require('../api/_lib/knl-scope');
+const {getKnlSurveyResults}=require('../api/_lib/knl-surveys');
 
 const url=String(process.env.SUPABASE_URL||'').trim();
 const secret=String(process.env.SUPABASE_SECRET_KEY||'').trim();

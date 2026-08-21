@@ -6,7 +6,7 @@ const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const sql=read('scripts/PHF_KNL_SURVEY_V1_1.49.0.sql');
-const service=read('lib/knl-surveys.js');
+const service=read('api/_lib/knl-surveys.js');
 const api=read('api/data.js');
 const server=read('server.js');
 const ui=read('assets/js/knl/phf-knl-app.js');
@@ -49,7 +49,7 @@ assert(!/(income|compensation).*(insert|update|upsert)/i.test(service),'Survey m
 assert(!/employeeCode:text\(session\?\.employeeId/.test(service),'actor() không được còn ưu tiên session.employeeId (legacy Training Hub internal id) trước employeeCode chuẩn — SURVEY IDENTITY RESIDUAL 2026-08-12');
 has(service,/employeeCode:text\(session\?\.employeeCode\|\|session\?\.employee_code\|\|session\?\.account\?\.employeeCode\|\|session\?\.account\?\.employee_code\)\.toUpperCase\(\)/,'actor() phải resolve employeeCode theo đúng canonical pattern (employeeCode/employee_code/account.employeeCode/account.employee_code)');
 {
-  const { actor } = require('../lib/knl-surveys');
+  const { actor } = require('../api/_lib/knl-surveys');
   // Case A — account resolve được employeeCode chuẩn dù session còn mang legacy employeeId.
   assert(
     actor({ employeeId: 'hv-0934510194', account: { id: 'acct1', employeeCode: 'phf012' }, role: 'employee' }).employeeCode === 'PHF012',
@@ -92,7 +92,7 @@ has(ui,/d\.levels\.map/,'dynamic N levels missing');
 has(ui,/data-needs-review/,'needs-review aggregation filter missing');
 ['/hv/knl/khao-sat','/ql/knl/khao-sat','/admin/knl/khao-sat','/hv/knl/ket-qua-khao-sat','/ql/knl/ket-qua-khao-sat','/admin/knl/ket-qua-khao-sat'].forEach(route=>has(router,new RegExp(route.replace(/\//g,'\\/')),'route missing '+route));
 
-const {normalizeResponses}=require('../lib/knl-surveys');
+const {normalizeResponses}=require('../api/_lib/knl-surveys');
 assert.throws(()=>normalizeResponses([{itemId:'00000000-0000-4000-8000-000000000001',suitability:'UNCLEAR',comment:''}]),e=>e.code==='KNL_SURVEY_COMMENT_REQUIRED');
 assert.strictEqual(normalizeResponses([{itemId:'00000000-0000-4000-8000-000000000001',suitability:'SUITABLE',comment:''}])[0].suitability,'SUITABLE');
 

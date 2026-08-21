@@ -48,7 +48,7 @@
  */
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { upsertKnlPermissionGrant } = require('../lib/knl-permissions');
+const { upsertKnlPermissionGrant } = require('../api/_lib/knl-permissions');
 
 const url = String(process.env.SUPABASE_URL || '').trim();
 const secret = String(process.env.SUPABASE_SECRET_KEY || '').trim();

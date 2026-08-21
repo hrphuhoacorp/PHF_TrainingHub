@@ -28,7 +28,7 @@
  */
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { upsertKnlPermissionGrant } = require('../lib/knl-permissions');
+const { upsertKnlPermissionGrant } = require('../api/_lib/knl-permissions');
 
 const APPLY = process.argv.includes('--apply');
 const db = createClient(String(process.env.SUPABASE_URL).trim(), String(process.env.SUPABASE_SECRET_KEY).trim(), { auth: { persistSession: false, autoRefreshToken: false } });

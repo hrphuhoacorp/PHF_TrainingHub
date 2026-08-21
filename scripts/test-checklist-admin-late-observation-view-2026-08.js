@@ -92,7 +92,7 @@ require.cache[supabasePath] = {
   }
 };
 
-const service = require('../lib/checklist-late-reconciliation-service');
+const service = require('../api/_lib/checklist-late-reconciliation-service');
 
 let failures = 0, passes = 0;
 function check(condition, message) { if (!condition) { console.error('FAIL: ' + message); failures++; } else { passes++; console.log('PASS: ' + message); } }

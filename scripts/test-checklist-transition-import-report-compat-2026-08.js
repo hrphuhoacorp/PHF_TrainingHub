@@ -12,7 +12,7 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const LIB_PATHS = ['../lib/checklist-permissions', '../lib/checklist-scope', '../lib/checklist-reports'].map(p => require.resolve(p));
+const LIB_PATHS = ['../api/_lib/checklist-permissions', '../api/_lib/checklist-scope', '../api/_lib/checklist-reports'].map(p => require.resolve(p));
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 function makeTableFactory(tableName, rows) {
@@ -72,7 +72,7 @@ const STATE = {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: { createClient() { return { from(table) { if (!(table in STATE)) throw new Error('Unexpected table: ' + table); return makeTableFactory(table, STATE[table])(); } }; } } };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getChecklistAnnualResultReport, getChecklistScorePeriodReport } = require('../lib/checklist-reports');
+const { getChecklistAnnualResultReport, getChecklistScorePeriodReport } = require('../api/_lib/checklist-reports');
 const adminSession = { account: { id: 'admin-1', name: 'Admin' }, role: 'admin' };
 
 let passes = 0;

@@ -10,7 +10,7 @@
  * lệch quyền như trước khi gộp.
  */
 
-const { assertSameOrigin, assertJsonContentType, assertContentLength } = require('../../lib/request-guard');
+const { assertSameOrigin, assertJsonContentType, assertContentLength } = require('../_lib/request-guard');
 const {
   requireSession,
   createAccountByAdmin,
@@ -21,9 +21,9 @@ const {
   resetPasswordByAdmin,
   getAccountById,
   clearCookieHeader
-} = require('../../lib/auth');
-const { requireChecklistWebOperator, isChecklistWebOperator } = require('../../lib/checklist-permissions');
-const { send, sendError, requestBody } = require('../../lib/api-response');
+} = require('../_lib/auth');
+const { requireChecklistWebOperator, isChecklistWebOperator } = require('../_lib/checklist-permissions');
+const { send, sendError, requestBody } = require('../_lib/api-response');
 
 async function requireWebOperatorSession(req) {
   const session = await requireSession(req, ['manager', 'admin']);

@@ -12,7 +12,7 @@
 
    Chay thu cong: node scripts/test-ai-conversational-ux-contract.js */
 const assert = require('assert');
-const { runChatSandbox, SYSTEM_PROMPT } = require('../lib/ai-sandbox');
+const { runChatSandbox, SYSTEM_PROMPT } = require('../api/_lib/ai-sandbox');
 assert.ok(typeof SYSTEM_PROMPT === 'string' && SYSTEM_PROMPT.length > 500, 'SYSTEM_PROMPT phai la chuoi noi dung day du');
 
 // Prompt duoc noi dong bang \n de de doc trong source (~80 ky tu/dong), nen

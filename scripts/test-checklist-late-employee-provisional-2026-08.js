@@ -68,7 +68,7 @@ require.cache[supabasePath] = {
   }
 };
 
-const monthly = require('../lib/checklist-monthly');
+const monthly = require('../api/_lib/checklist-monthly');
 
 let failures = 0, passes = 0;
 async function checkAsync(label, fn) { try { await fn(); passes++; console.log('PASS: ' + label); } catch (e) { failures++; console.error('FAIL: ' + label + ' :: ' + (e && e.message || e)); } }
@@ -91,20 +91,20 @@ function check(condition, message) { if (!condition) { console.error('FAIL: ' + 
     assert.strictEqual(r.hasPending, false);
   });
   check((() => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'), 'utf8');
     const fnSrc = src.slice(src.indexOf('async function pendingLateProvisional'), src.indexOf('async function refreshUnlockedChecklistScore'));
     return /\.select\('occurred_date,row_status'\)/.test(fnSrc);
   })(), 'J1d. Grep-guard: pendingLateProvisional() CHỈ select occurred_date,row_status — KHÔNG select suggested_points/standard_points/frequency_reference_snapshot/admin_decision/recorders_snapshot (không lộ dữ liệu nội bộ Admin)');
   check((() => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'), 'utf8');
     return /const pendingLatePromise=pendingLateProvisional\(form\.employee_code,form\.period_month\)/.test(src);
   })(), 'J2a. Grep-guard: myMonthlyForm() lấy employeeCode từ form.employee_code (identity đã resolve qua actor(session)), KHÔNG tin input.employeeCode nào từ client');
   check((() => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'), 'utf8');
     return /pending_late_events:pendingLate/.test(src);
   })(), 'J2b. Grep-guard: myMonthlyForm() gắn pending_late_events vào response form');
   check((() => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'), 'utf8');
     // checklistBreakdown (điểm chính thức) và pendingLateProvisional (tạm tính) phải là 2 hàm
     // hoàn toàn tách biệt — không có dòng nào cộng points của pending vào totalPoints/score.
     const start = src.indexOf('async function checklistBreakdown');

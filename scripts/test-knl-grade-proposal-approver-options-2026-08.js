@@ -13,10 +13,10 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const permissionsPath = require.resolve('../lib/knl-permissions');
-const peoplePath = require.resolve('../lib/knl-people');
-const scopePath = require.resolve('../lib/knl-scope');
-const proposalsPath = require.resolve('../lib/knl-grade-proposals');
+const permissionsPath = require.resolve('../api/_lib/knl-permissions');
+const peoplePath = require.resolve('../api/_lib/knl-people');
+const scopePath = require.resolve('../api/_lib/knl-scope');
+const proposalsPath = require.resolve('../api/_lib/knl-grade-proposals');
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
 function uid(prefix) { return prefix + '-' + Math.random().toString(36).slice(2); }

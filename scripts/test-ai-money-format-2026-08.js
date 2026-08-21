@@ -15,8 +15,8 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
 const LIB_PATHS = [
-  '../lib/knl-foundation', '../lib/knl-competency', '../lib/knl-permissions', '../lib/knl-people',
-  '../lib/ai-knl-income-tools', '../lib/ai-tool-registry'
+  '../api/_lib/knl-foundation', '../api/_lib/knl-competency', '../api/_lib/knl-permissions', '../api/_lib/knl-people',
+  '../api/_lib/ai-knl-income-tools', '../api/_lib/ai-tool-registry'
 ].map(p => require.resolve(p));
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
@@ -75,8 +75,8 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getEmployeeIncomeForAi } = require('../lib/ai-knl-income-tools');
-const { buildStructuredResult } = require('../lib/ai-tool-registry');
+const { getEmployeeIncomeForAi } = require('../api/_lib/ai-knl-income-tools');
+const { buildStructuredResult } = require('../api/_lib/ai-tool-registry');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' };
 

@@ -30,8 +30,8 @@ function stubSupabaseRows(rows) {
     loaded: true,
     exports: { createClient: () => ({ from: () => fakeQuery }) }
   };
-  delete require.cache[require.resolve('../lib/org-directory')];
-  delete require.cache[require.resolve('../lib/ai-employee-tools')];
+  delete require.cache[require.resolve('../api/_lib/org-directory')];
+  delete require.cache[require.resolve('../api/_lib/ai-employee-tools')];
 }
 
 // Row shape THAT dung tren Supabase (snake_case) - khop dung cot
@@ -57,9 +57,9 @@ function fixtureRows(total) {
 async function run() {
   // ---- A. Employee grounding guard (P0 "38 nhan vien" repro) ----
   stubSupabaseRows(fixtureRows(38));
-  const { searchEmployees } = require('../lib/ai-employee-tools');
-  const { buildStructuredResult } = require('../lib/ai-tool-registry');
-  const { enforceGrounding } = require('../lib/ai-sandbox');
+  const { searchEmployees } = require('../api/_lib/ai-employee-tools');
+  const { buildStructuredResult } = require('../api/_lib/ai-tool-registry');
+  const { enforceGrounding } = require('../api/_lib/ai-sandbox');
 
   // Session hoc vien thuong (KHONG phai admin, KHONG co grant Checklist
   // nao) - xac nhan chinh sach "Organization Directory mo cho TAT CA role"
@@ -94,7 +94,7 @@ async function run() {
   console.log('[PASS] A3: search_employees loc dung theo title+branch (Truong ca Phu Loi), tai khoan hoc vien thuong van goi duoc (khong can grant Checklist)');
 
   // ---- B. Training Hub 43 vs 120 (P1) ----
-  const { getTrainingProgramOverview } = require('../lib/ai-training-tools');
+  const { getTrainingProgramOverview } = require('../api/_lib/ai-training-tools');
 
   const defaultOverview = await getTrainingProgramOverview(null, {});
   assert.strictEqual(defaultOverview.commonLessons, 43, 'Giai doan 1 hoi nhap chung phai la 43 bai');

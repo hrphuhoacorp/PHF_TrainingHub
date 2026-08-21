@@ -20,9 +20,9 @@
  * Chạy: node scripts/test-checklist-retro-employee-impact-2026-08.js
  */
 const assert = require('assert');
-const { planEmployeeImpactBatch } = require('../lib/checklist-template-retroactive');
-const { calculateMonthlyScore } = require('../lib/checklist-score-engine');
-const { simulateEmployeeImpactBatch } = require('../lib/checklist-template-retroactive-service');
+const { planEmployeeImpactBatch } = require('../api/_lib/checklist-template-retroactive');
+const { calculateMonthlyScore } = require('../api/_lib/checklist-score-engine');
+const { simulateEmployeeImpactBatch } = require('../api/_lib/checklist-template-retroactive-service');
 
 let passCount = 0;
 function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + label); }

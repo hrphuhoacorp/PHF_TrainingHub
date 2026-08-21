@@ -70,7 +70,7 @@ async function checkSupabaseHealth(options = {}) {
   const url = String(process.env.SUPABASE_URL || '').trim();
   const secret = String(process.env.SUPABASE_SECRET_KEY || '').trim();
   const sessionSecret = String(process.env.PHF_SESSION_SECRET || '').trim();
-  const privateSecretPath = path.join(__dirname, '..', 'private', 'session-secret.txt');
+  const privateSecretPath = path.join(__dirname, '..', '..', 'private', 'session-secret.txt');
   const hasSessionSecret = Boolean(sessionSecret || fs.existsSync(privateSecretPath));
   if (!url || !secret || !hasSessionSecret) {
     return { ok: false, code: 'ENV_NOT_CONFIGURED', storage: 'not-configured', accounts: 'not-configured' };

@@ -39,8 +39,8 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { saveProfile, ensureProfile } = require('../lib/employee-master');
-const { text, code, mapEmploymentStatus, resolveManager, buildUniverse, classifySeedRow } = require('../lib/org-master-cutover');
+const { saveProfile, ensureProfile } = require('../api/_lib/employee-master');
+const { text, code, mapEmploymentStatus, resolveManager, buildUniverse, classifySeedRow } = require('../api/_lib/org-master-cutover');
 
 const url = String(process.env.SUPABASE_URL || '').trim();
 const secret = String(process.env.SUPABASE_SECRET_KEY || '').trim();

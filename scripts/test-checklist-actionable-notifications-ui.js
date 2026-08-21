@@ -98,7 +98,7 @@ for (const [label, source] of [['api/data.js', apiData], ['server.js', serverJs]
 // Batch "notification-violation-detail-modal" - reuse getChecklistTaskHistory
 // pattern (đã có sẵn) thay vì tạo permission/API engine mới.
 // ================================================================
-const tasksLib = fs.readFileSync(path.join(root, 'lib/checklist-tasks.js'), 'utf8');
+const tasksLib = fs.readFileSync(path.join(root, 'api/_lib/checklist-tasks.js'), 'utf8');
 check(tasksLib.indexOf('async function getChecklistViolationDetail(session,input={})') >= 0,
   'C1. lib/checklist-tasks.js có getChecklistViolationDetail() - đặt cùng file với getChecklistTaskHistory() để tái dùng actor/isSubject/isCreator/sameActor, không tạo permission engine riêng');
 check(/allowed=a\.role==='admin'\|\|isSubject\(violation,a\)\|\|isCreator\(violation,a\)\|\|\(task&&sameActor\(task,a\)\)/.test(tasksLib),

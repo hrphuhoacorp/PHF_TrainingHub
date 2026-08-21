@@ -43,7 +43,7 @@ function stubSupabase(STATE) {
     id: SUPABASE_MODULE_PATH, filename: SUPABASE_MODULE_PATH, loaded: true,
     exports: { createClient: () => ({ from: (t) => tableApi(t), rpc }) }
   };
-  delete require.cache[require.resolve('../lib/checklist-assignments')];
+  delete require.cache[require.resolve('../api/_lib/checklist-assignments')];
 }
 
 function t(name, fn) { return fn().then(() => console.log('PASS', name)).catch(e => { console.error('FAIL', name, '-', e.message); process.exitCode = 1; }); }
@@ -61,7 +61,7 @@ async function run() {
     ]
   };
   stubSupabase(STATE);
-  const { listChecklistAssignments, saveChecklistAssignments } = require('../lib/checklist-assignments');
+  const { listChecklistAssignments, saveChecklistAssignments } = require('../api/_lib/checklist-assignments');
   const adminSession = { role: 'admin', account: { id: 'admin-1', name: 'Admin' } };
 
   await t('1. Client gửi mutation org field (department/title/branch/manager) bị bỏ qua, ghi đúng giá trị Employee Master', async () => {

@@ -64,7 +64,7 @@ function check(cond, msg) { assert.ok(cond, msg); passed++; console.log('PASS', 
   const mockDb = { from(table) { return new Query(table); } };
 
   process.env.SUPABASE_URL = 'https://unit.test'; process.env.SUPABASE_SECRET_KEY = 'unit-secret';
-  const supabasePath = require.resolve('@supabase/supabase-js'), peoplePath = require.resolve('../lib/knl-people'), servicePath = require.resolve('../lib/knl-assignments');
+  const supabasePath = require.resolve('@supabase/supabase-js'), peoplePath = require.resolve('../api/_lib/knl-people'), servicePath = require.resolve('../api/_lib/knl-assignments');
   require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: { createClient: () => mockDb } };
   require.cache[peoplePath] = {
     id: peoplePath, filename: peoplePath, loaded: true, exports: {
@@ -75,7 +75,7 @@ function check(cond, msg) { assert.ok(cond, msg); passed++; console.log('PASS', 
       }
     }
   };
-  delete require.cache[servicePath]; const service = require('../lib/knl-assignments');
+  delete require.cache[servicePath]; const service = require('../api/_lib/knl-assignments');
   const admin = { role: 'admin', sub: 'admin', account: { id: 'admin', name: 'Admin' } };
 
   // 1. published + locked -> ACCEPT

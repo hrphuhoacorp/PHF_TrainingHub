@@ -42,7 +42,7 @@ Module._load=function(request,parent,isMain){
 };
 
 (async()=>{
- const {inspectMonthlyRecovery,createMissingMonthlyForms,getMonthlyDeletePreview,deleteMonthlyFormException}=require('../lib/checklist-recovery');
+ const {inspectMonthlyRecovery,createMissingMonthlyForms,getMonthlyDeletePreview,deleteMonthlyFormException}=require('../api/_lib/checklist-recovery');
  const result=await inspectMonthlyRecovery({role:'admin'},{month:'2026-07'});
  assert.strictEqual(result.counts.existing,1);
  assert.strictEqual(result.counts.readyToCreate,1);

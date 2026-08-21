@@ -7,7 +7,7 @@
    stops rather than guesses, and conflict-safe idempotent classification. */
 
 const assert = require('assert');
-const { mapEmploymentStatus, resolveManager, buildUniverse, classifySeedRow } = require('../lib/org-master-cutover');
+const { mapEmploymentStatus, resolveManager, buildUniverse, classifySeedRow } = require('../api/_lib/org-master-cutover');
 
 function t(name, fn) { try { fn(); console.log('PASS', name); } catch (e) { console.error('FAIL', name, '-', e.message); process.exitCode = 1; } }
 

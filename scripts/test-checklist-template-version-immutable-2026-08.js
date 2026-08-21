@@ -83,8 +83,8 @@ supabaseJs.createClient = function () {
   };
 };
 
-delete require.cache[require.resolve('../lib/checklist-templates')];
-const { saveChecklistTemplate } = require('../lib/checklist-templates');
+delete require.cache[require.resolve('../api/_lib/checklist-templates')];
+const { saveChecklistTemplate } = require('../api/_lib/checklist-templates');
 supabaseJs.createClient = originalCreateClient; // khôi phục ngay sau khi module đã bắt được bản giả
 
 const adminSession = { role: 'admin', account: { id: 'admin-1', name: 'Admin' } };

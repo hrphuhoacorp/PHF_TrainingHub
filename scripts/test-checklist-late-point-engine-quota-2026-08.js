@@ -105,8 +105,8 @@ require.cache[supabasePath] = {
   }
 };
 
-const service = require('../lib/checklist-late-reconciliation-service');
-const recon = require('../lib/checklist-late-reconciliation');
+const service = require('../api/_lib/checklist-late-reconciliation-service');
+const recon = require('../api/_lib/checklist-late-reconciliation');
 
 let failures = 0, passes = 0;
 async function checkAsync(label, fn) { try { await fn(); passes++; console.log('PASS: ' + label); } catch (e) { failures++; console.error('FAIL: ' + label + ' :: ' + (e && e.message || e)); } }
@@ -169,8 +169,8 @@ function excelRow(employeeCode, occurredDate, minutesLate, shift, checkinTime) {
   //    và bắt buộc Admin tự nhập điểm/lý do cho approved_over_quota (runtime bị chặn bởi
   //    LATE_APPROVAL_ENABLED=false nên chỉ verify được bằng source ở đây).
   // =========================================================================
-  const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
-  const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
+  const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+  const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation.js'), 'utf8');
   // 2026-08-16 (preflight refactor, residual bulk partial-write): validate logic (band-selection
   // fix + quota gates) tách sang recon.evaluateApproveDecision() dùng CHUNG cho preflight lẫn
   // write — service chỉ còn gọi lại, không validate inline nữa.

@@ -33,8 +33,8 @@ process.env.DEEPSEEK_API_KEY = 'test-fake-key-not-used-network-stubbed';
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
 const LIB_PATHS = [
-  '../lib/knl-foundation', '../lib/knl-competency', '../lib/knl-permissions', '../lib/knl-people',
-  '../lib/org-directory', '../lib/ai-employee-tools', '../lib/ai-knl-income-tools', '../lib/ai-tool-registry', '../lib/ai-sandbox'
+  '../api/_lib/knl-foundation', '../api/_lib/knl-competency', '../api/_lib/knl-permissions', '../api/_lib/knl-people',
+  '../api/_lib/org-directory', '../api/_lib/ai-employee-tools', '../api/_lib/ai-knl-income-tools', '../api/_lib/ai-tool-registry', '../api/_lib/ai-sandbox'
 ].map(p => require.resolve(p));
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
@@ -107,9 +107,9 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getEmployeeIncomeForAi, getEmployeeCompetencyStatusForAi } = require('../lib/ai-knl-income-tools');
-const { buildStructuredResult, ALLOWED_TOOL_NAMES } = require('../lib/ai-tool-registry');
-const { runChatSandbox } = require('../lib/ai-sandbox');
+const { getEmployeeIncomeForAi, getEmployeeCompetencyStatusForAi } = require('../api/_lib/ai-knl-income-tools');
+const { buildStructuredResult, ALLOWED_TOOL_NAMES } = require('../api/_lib/ai-tool-registry');
+const { runChatSandbox } = require('../api/_lib/ai-sandbox');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' };
 const managerSession = { account: { id: 'manager-1' }, role: 'manager' };

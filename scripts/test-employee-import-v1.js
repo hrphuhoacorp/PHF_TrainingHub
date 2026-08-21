@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('fs'),path=require('path');
 const root=path.resolve(__dirname,'..'),read=file=>fs.readFileSync(path.join(root,file),'utf8');
-const {buildPreview,strictDate,previewEmployeeImport}=require('../lib/employee-import');
+const {buildPreview,strictDate,previewEmployeeImport}=require('../api/_lib/employee-import');
 let passed=0;function assert(value,message){if(!value)throw new Error(message);passed++;}
 const profiles=[{id:'p1',employee_code:'PHF001',full_name:'Nguyễn An',work_email:'an@phf.vn',gender:'Nam',birth_date:'1990-01-02',phone:'0900000000'}];
 const privateProfiles=[{employee_profile_id:'p1',citizen_id:'001090000001',citizen_issued_date:'2020-01-01',citizen_issued_place:'Cục CSQLHC',nationality:'Việt Nam',ethnicity:'Kinh',social_insurance_code:'0123456789',personal_tax_code:'0123456789'}];
@@ -21,7 +21,7 @@ assert(preview.summary['Lỗi']===1&&/Ngày sinh/.test(preview.rows[0].errors.jo
 preview=buildPreview([{employeeCode:'PHF001',department:'Kho vận'}],profiles,privateProfiles,assignments);
 assert(preview.rows[0].organizationConflicts.length===1&&preview.rows[0].action==='Không đổi','Organization conflict must be reported without writing a second source.');
 assert(strictDate('29/02/2024')==='2024-02-29'&&strictDate('29/02/2023')===null,'Date parser must validate leap days.');
-const service=read('lib/employee-import.js'),api=read('api/data.js'),server=read('server.js'),ui=read('assets/js/phf-employee-master.js'),ai=read('lib/ai-sandbox.js');
+const service=read('api/_lib/employee-import.js'),api=read('api/data.js'),server=read('server.js'),ui=read('assets/js/phf-employee-master.js'),ai=read('api/_lib/ai-sandbox.js');
 assert(service.includes("EMPLOYEE_IMPORT_ADMIN_REQUIRED")&&service.includes("String(session.role||'').toLowerCase()!=='admin'"),'Sensitive import endpoints must fail closed for non-admin.');
 assert(service.includes('await rollback(applied,[])')&&service.includes('EMPLOYEE_IMPORT_ROLLBACK_FAILED'),'Commit path must provide compensating rollback/fail-safe.');
 assert(service.includes("query=query.eq('updated_at',profile.updated_at)")&&service.includes("query=query.eq('updated_at',privateBefore.updated_at)"),'Commit must use optimistic conflict guards for current data.');

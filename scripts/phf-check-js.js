@@ -71,13 +71,13 @@ assert(/revoke all on function public\.phf_disable_checklist_permission_grant\(u
 assert(/CHECKLIST_MONTHLY_OVERDUE_SCORE_CHANGED/i.test(sql),'Xử lý quá hạn phải kiểm tra lại ledger lỗi trong transaction.');
 assert(/phf_checklist_template_global/i.test(sql)&&/phf_checklist_assignment_global/i.test(sql),'Khởi tạo kỳ phải khóa đồng bộ cả phân công và thư viện mẫu.');
 
-const monthly=read('lib/checklist-monthly.js');
+const monthly=read('api/_lib/checklist-monthly.js');
 assert(monthly.includes("db.rpc('phf_save_checklist_monthly_self'"),'Tự đánh giá phải lưu qua RPC transaction.');
 assert(monthly.includes("db.rpc('phf_save_checklist_monthly_review'"),'Thẩm định phải lưu qua RPC transaction.');
 assert(monthly.includes('p_source_revision:sourceRevision'),'Khởi tạo kỳ phải gửi revision snapshot phân công và thư viện mẫu.');
 assert(monthly.includes("readAllRows('checklist_employee_assignment_history'"),'Lịch sử phân công phải được đọc phân trang đầy đủ.');
 
-const recoveryBackend=read('lib/checklist-recovery.js');
+const recoveryBackend=read('api/_lib/checklist-recovery.js');
 const recoverySyncSql=read('scripts/PHF_CHECKLIST_RECOVERY_SYNC_1.40.0.sql');
 const recoveryDeleteSql=read('scripts/PHF_CHECKLIST_RECOVERY_DELETE_1.40.1.sql');
 assert(recoveryBackend.includes("db.rpc('phf_recovery_create_missing_monthly_forms'"),'Recovery đồng bộ phải ghi qua RPC transaction riêng.');
@@ -92,10 +92,10 @@ assert(/delete from public\.checklist_notifications[\s\S]*delete from public\.ch
 assert(/exception when others[\s\S]*admin_delete_monthly_form_failed/i.test(recoveryDeleteSql),'RPC xóa thiếu rollback subtransaction và failed audit.');
 assert(!/delete from public\.checklist_violation_records|delete from public\.checklist_violation_tasks/i.test(recoveryDeleteSql),'Recovery xóa không được tác động violation hoặc task.');
 
-const assignmentBackend=read('lib/checklist-assignments.js');
-const templateBackend=read('lib/checklist-templates.js');
-const permissionBackend=read('lib/checklist-permissions.js');
-const taskBackend=read('lib/checklist-tasks.js');
+const assignmentBackend=read('api/_lib/checklist-assignments.js');
+const templateBackend=read('api/_lib/checklist-templates.js');
+const permissionBackend=read('api/_lib/checklist-permissions.js');
+const taskBackend=read('api/_lib/checklist-tasks.js');
 assert(assignmentBackend.includes('expected_absent'),'Phân công thiếu optimistic-lock cho trường hợp bản ghi chưa tồn tại.');
 assert(templateBackend.includes('expected_absent'),'Mẫu thiếu optimistic-lock cho trường hợp bản ghi chưa tồn tại.');
 assert(permissionBackend.includes('expected_updated_at'),'Phân quyền thiếu optimistic-lock theo updated_at.');

@@ -9,9 +9,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const recon = require('../lib/checklist-late-reconciliation');
-const { PRESETS } = require('../lib/checklist-permissions');
-const { subjectMatchesScope } = require('../lib/checklist-scope');
+const recon = require('../api/_lib/checklist-late-reconciliation');
+const { PRESETS } = require('../api/_lib/checklist-permissions');
+const { subjectMatchesScope } = require('../api/_lib/checklist-scope');
 
 let passCount = 0;
 function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + label); }
@@ -79,7 +79,7 @@ check('Không vượt ngưỡng tham khảo -> không có message cảnh báo', 
   assert.strictEqual(warning.message, '');
 });
 check('KHÔNG có bất kỳ hàm nào trong module thực hiện chặn theo số lần (grep-guard chống hồi quy "if count >= N block")', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation.js'), 'utf8');
   assert.ok(!/suggestedPoints\s*=\s*0.*overThreshold/i.test(src));
   assert.ok(!/fail\(.*(qu(á|a) ng(ư|u)(ỡ|o)ng|vư(ợ|o)t ng(ư|u)(ỡ|o)ng)/i.test(src));
 });
@@ -197,7 +197,7 @@ check('TRUONG_CA_BH record_scope (department_branch) cho phép nhân sự đúng
   assert.strictEqual(outOfScopeBranch, false);
 });
 check('Service ghi nhận nhanh (BẤT KỲ ai có quyền, không riêng Trưởng ca) KHÔNG hardcode requireAdmin() — dùng requireViolationPermission() thật (grep-guard chống hồi quy)', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
   const fnStart = src.indexOf('async function recordManagerLateObservation');
   const fnEnd = src.indexOf('\n// Bí danh tương thích ngược');
   assert.ok(fnStart > -1 && fnEnd > fnStart);
@@ -207,8 +207,8 @@ check('Service ghi nhận nhanh (BẤT KỲ ai có quyền, không riêng Trư�
   assert.ok(!/role\s*===\s*['"]truong_ca['"]/i.test(fnBody), 'không được so khớp cứng theo role string cụ thể nào');
 });
 check('Grep-guard: domain logic (lib/checklist-late-reconciliation*.js) không hardcode "Trưởng ca"/"truong_ca" làm ĐIỀU KIỆN quyền — chỉ được nhắc tới (nếu có) như ví dụ minh hoạ trong comment', () => {
-  const reconSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
-  const serviceSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+  const reconSrc = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation.js'), 'utf8');
+  const serviceSrc = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
   [reconSrc, serviceSrc].forEach(src => {
     assert.ok(!/role\s*===\s*['"]truong_ca['"]/i.test(src));
     assert.ok(!/preset(Code)?\s*===\s*['"]TRUONG_CA/i.test(src), 'không được so khớp cứng theo preset_code Trưởng ca để cấp/chặn quyền ghi nhận');

@@ -13,7 +13,7 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const LIB_PATHS = ['../lib/checklist-monthly-results', '../lib/checklist-monthly-results-service'].map(p => require.resolve(p));
+const LIB_PATHS = ['../api/_lib/checklist-monthly-results', '../api/_lib/checklist-monthly-results-service'].map(p => require.resolve(p));
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 const insertedRows = [];
@@ -69,11 +69,11 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { classifyEmployeeEligibility, classifyRawScoreCell, buildPreviewRow, buildPreviewBatch, TRANSITION_LIVE_BRANCHES } = require('../lib/checklist-monthly-results');
+const { classifyEmployeeEligibility, classifyRawScoreCell, buildPreviewRow, buildPreviewBatch, TRANSITION_LIVE_BRANCHES } = require('../api/_lib/checklist-monthly-results');
 const {
   previewMonthlyResultImport, confirmMonthlyResultImport,
   previewTransitionImport, confirmTransitionImport, T08_TRANSITION_PERIOD_MONTH
-} = require('../lib/checklist-monthly-results-service');
+} = require('../api/_lib/checklist-monthly-results-service');
 
 function employeeIndexOf(rows) {
   const m = new Map();

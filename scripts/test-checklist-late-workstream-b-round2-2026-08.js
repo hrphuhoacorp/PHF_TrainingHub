@@ -10,14 +10,14 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const recon = require('../lib/checklist-late-reconciliation');
+const recon = require('../api/_lib/checklist-late-reconciliation');
 
 let passCount = 0;
 function check(label, fn) { fn(); passCount++; console.log('✓ PASS — ' + label); }
 
-const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+const SERVICE_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
 const SERVER_SRC = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation.js'), 'utf8');
+const RECON_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation.js'), 'utf8');
 
 /* ================= Gap 1: Excel 13 cột thật — nhận diện cột + validate dòng ================= */
 check('EXCEL_COLUMNS đúng 13 cột, đúng thứ tự theo spec PHF_MAU_GHI_NHAN_LOI_LATE_2026-08-14.xlsx', () => {
@@ -224,14 +224,14 @@ check('exportLateReconciliation: có ghi audit (exportedBy/exportedAt/filters/ro
 });
 
 /* ================= Vòng generalize (2026-08-14): actor generic, record-scope ≠ view-scope, đối chiếu nhiều người, export nhãn chung ================= */
-const VIOLATIONS_SRC = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-violations.js'), 'utf8');
+const VIOLATIONS_SRC = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-violations.js'), 'utf8');
 
 check('resolveViolationPermission(): record dùng grant.record_scope, view dùng grant.view_scope — 2 phạm vi TÁCH BIỆT (bằng chứng record-scope ≠ view-scope, đúng 1 dòng nguồn duy nhất quyết định)', () => {
   const fnSrc = VIOLATIONS_SRC.slice(VIOLATIONS_SRC.indexOf('async function resolveViolationPermission'), VIOLATIONS_SRC.indexOf('async function permissionAssignmentRows'));
   assert.ok(/const scopeSource = action === 'record' \? grant\.record_scope : grant\.view_scope;/.test(fnSrc), 'phải rẽ nhánh record_scope/view_scope theo action, không dùng chung 1 cột cho cả 2');
 });
 check('recordManagerLateObservation() gọi requireViolationPermission(session,\'record\') — dùng ĐÚNG record-scope, KHÔNG BAO GIỜ dùng view-scope (action=\'view\') để quyết định ai được ghi nhận', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-late-reconciliation-service.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-late-reconciliation-service.js'), 'utf8');
   const fnStart = src.indexOf('async function recordManagerLateObservation');
   const fnEnd = src.indexOf('\n// Bí danh tương thích ngược');
   const fnBody = src.slice(fnStart, fnEnd);
@@ -239,7 +239,7 @@ check('recordManagerLateObservation() gọi requireViolationPermission(session,\
   assert.ok(!/requireViolationPermission\(session,\s*'view'\)/.test(fnBody), 'ghi nhận KHÔNG được dùng view-scope');
 });
 check('view≠record thật sự khác nhau trong dữ liệu: PRESETS.QUAN_LY_TRUC_TIEP có view_scope rộng (direct_reports, được xem) nhưng recordScope=\'none\' (KHÔNG được ghi) — kịch bản thật chứng minh 2 phạm vi có thể lệch nhau, không phải lý thuyết suông', () => {
-  const { PRESETS } = require('../lib/checklist-permissions');
+  const { PRESETS } = require('../api/_lib/checklist-permissions');
   const preset = PRESETS.QUAN_LY_TRUC_TIEP;
   assert.strictEqual(preset.capabilities.view_violations, true, 'preset này PHẢI có quyền xem để test có ý nghĩa (view rộng)');
   assert.strictEqual(preset.viewScope.type, 'direct_reports');
@@ -247,8 +247,8 @@ check('view≠record thật sự khác nhau trong dữ liệu: PRESETS.QUAN_LY_T
   assert.strictEqual(preset.recordScope.type, 'none');
 });
 check('Cấu trúc chứng minh cơ chế KHÔNG so khớp theo tên preset/role cụ thể: BẤT KỲ preset nào có capabilities.record_violation=true + recordScope hợp lệ đều dùng CHUNG 1 đường resolveViolationPermission()/subjectMatchesScope() — TRUONG_CA_BH và TRO_LY_GD (2 preset rất khác nhau) đi qua đúng cùng 1 hàm, không có nhánh rẽ theo preset_code', () => {
-  const { PRESETS } = require('../lib/checklist-permissions');
-  const { subjectMatchesScope } = require('../lib/checklist-scope');
+  const { PRESETS } = require('../api/_lib/checklist-permissions');
+  const { subjectMatchesScope } = require('../api/_lib/checklist-scope');
   // TRUONG_CA_BH: department_branch. TRO_LY_GD: all_company. Khác cấu trúc scope hoàn toàn,
   // nhưng cùng 1 hàm subjectMatchesScope() xử lý cả 2 — không có code riêng cho từng preset.
   const subject = { department: 'Bán hàng', branch: 'Phú Lợi' };
@@ -256,18 +256,18 @@ check('Cấu trúc chứng minh cơ chế KHÔNG so khớp theo tên preset/role
   const troLyGdAllowed = subjectMatchesScope(subject, PRESETS.TRO_LY_GD.recordScope, {});
   assert.strictEqual(truongCaAllowed, true);
   assert.strictEqual(troLyGdAllowed, true, 'all_company phải luôn true bất kể subject nào — cùng hàm, khác scope type, không hardcode preset_code nào trong subjectMatchesScope()');
-  const scopeSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'checklist-scope.js'), 'utf8');
+  const scopeSrc = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'checklist-scope.js'), 'utf8');
   assert.ok(!/TRUONG_CA|TRO_LY_GD|QUAN_LY_TRUC_TIEP/.test(scopeSrc), 'subjectMatchesScope() (nguồn so khớp scope duy nhất) không được biết tới tên preset cụ thể nào');
 });
 check('Crafted request: nhân sự ngoài record-scope của TRUONG_CA_BH (khác phòng ban/chi nhánh) bị requireViolationPermission()/permissionEmployees() loại — evidence từ chính subjectMatchesScope() dùng trong recordManagerLateObservation (không tin department/branch client tự gửi)', () => {
-  const { PRESETS } = require('../lib/checklist-permissions');
-  const { subjectMatchesScope } = require('../lib/checklist-scope');
+  const { PRESETS } = require('../api/_lib/checklist-permissions');
+  const { subjectMatchesScope } = require('../api/_lib/checklist-scope');
   const outsider = { department: 'Kế toán', branch: 'Trụ sở chính' };
   assert.strictEqual(subjectMatchesScope(outsider, PRESETS.TRUONG_CA_BH.recordScope, {}), false);
 });
 check('Crafted request: nhân sự ngoài record-scope của TRUONG_BO_PHAN (khác department) cũng bị loại — chứng minh cơ chế áp dụng cho MỘT vai trò KHÁC, không chỉ Trưởng ca, không cần sửa code', () => {
-  const { PRESETS } = require('../lib/checklist-permissions');
-  const { subjectMatchesScope } = require('../lib/checklist-scope');
+  const { PRESETS } = require('../api/_lib/checklist-permissions');
+  const { subjectMatchesScope } = require('../api/_lib/checklist-scope');
   const inScope = subjectMatchesScope({ department: 'Bộ phận bán hàng' }, PRESETS.TRUONG_BO_PHAN.recordScope, {});
   const outOfScope = subjectMatchesScope({ department: 'Kho' }, PRESETS.TRUONG_BO_PHAN.recordScope, {});
   assert.ok(PRESETS.TRUONG_BO_PHAN.capabilities.record_violation === true);

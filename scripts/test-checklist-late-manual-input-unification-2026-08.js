@@ -13,8 +13,8 @@ const { JSDOM } = require('jsdom');
 
 const modulePath = path.resolve(__dirname, '..', 'assets/js/checklist/phf-checklist-late-workflow.js');
 const code = fs.readFileSync(modulePath, 'utf8');
-const recon = require('../lib/checklist-late-reconciliation');
-const servicePath = path.resolve(__dirname, '..', 'lib/checklist-late-reconciliation-service.js');
+const recon = require('../api/_lib/checklist-late-reconciliation');
+const servicePath = path.resolve(__dirname, '..', 'api/_lib/checklist-late-reconciliation-service.js');
 const SERVICE_SRC = fs.readFileSync(servicePath, 'utf8');
 const serverPath = path.resolve(__dirname, '..', 'server.js');
 const SERVER_SRC = fs.readFileSync(serverPath, 'utf8');

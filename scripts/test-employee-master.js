@@ -8,7 +8,7 @@ function assert(condition,message){if(!condition)throw new Error(message);passed
 const router=read('assets/js/phf-url-router.js');
 const api=read('api/data.js');
 const server=read('server.js');
-const service=read('lib/employee-master.js');
+const service=read('api/_lib/employee-master.js');
 const migration=read('scripts/PHF_EMPLOYEE_MASTER_1.46.0.sql');
 const ui=read('assets/js/phf-employee-master.js');
 const accountUi=read('assets/js/phf-account-admin-safe.js');

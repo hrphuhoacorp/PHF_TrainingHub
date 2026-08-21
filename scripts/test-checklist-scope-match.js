@@ -12,7 +12,7 @@
    Production tagged that xac minh o AR-04), khong phai du lieu gia cu lay
    lai tu file test khac. */
 
-const { subjectMatchesScope } = require('../lib/checklist-scope');
+const { subjectMatchesScope } = require('../api/_lib/checklist-scope');
 
 let failures = 0;
 function check(condition, message) {

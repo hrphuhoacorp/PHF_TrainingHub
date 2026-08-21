@@ -104,8 +104,8 @@ require.cache[supabasePath] = {
   }
 };
 
-const service = require('../lib/checklist-late-reconciliation-service');
-const recon = require('../lib/checklist-late-reconciliation');
+const service = require('../api/_lib/checklist-late-reconciliation-service');
+const recon = require('../api/_lib/checklist-late-reconciliation');
 
 let failures = 0, passes = 0;
 async function checkAsync(label, fn) { try { await fn(); passes++; console.log('PASS: ' + label); } catch (e) { failures++; console.error('FAIL: ' + label + ' :: ' + (e && e.message || e)); } }

@@ -12,7 +12,7 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
-const LIB_PATHS = ['../lib/checklist-monthly-results', '../lib/checklist-monthly-results-service'].map(p => require.resolve(p));
+const LIB_PATHS = ['../api/_lib/checklist-monthly-results', '../api/_lib/checklist-monthly-results-service'].map(p => require.resolve(p));
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 const insertedRows = [];
@@ -72,8 +72,8 @@ LIB_PATHS.forEach(p => delete require.cache[p]);
 const {
   normalizeEmployeeCode, classifyRawScoreCell, classifyEmployeeEligibility,
   buildPreviewBatch, buildConfirmRows, buildPreviewRow
-} = require('../lib/checklist-monthly-results');
-const { previewMonthlyResultImport, confirmMonthlyResultImport, confirmBaselineImport } = require('../lib/checklist-monthly-results-service');
+} = require('../api/_lib/checklist-monthly-results');
+const { previewMonthlyResultImport, confirmMonthlyResultImport, confirmBaselineImport } = require('../api/_lib/checklist-monthly-results-service');
 
 const adminSession = { account: { id: 'admin-1', name: 'Admin' }, role: 'admin' };
 const nonAdminSession = { account: { id: 'u-1' }, role: 'manager' };

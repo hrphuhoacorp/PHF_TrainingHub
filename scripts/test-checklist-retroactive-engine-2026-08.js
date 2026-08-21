@@ -8,10 +8,10 @@
  *   node scripts/test-checklist-retroactive-engine-2026-08.js
  */
 const assert=require('assert');
-const {validateScoredDefinition,isChecklistTotalRow,requiresChecklistTotalRow}=require('../lib/checklist-templates');
-const {isAutomaticSource,monthlyRows,manualRows,scoreSummary}=require('../lib/checklist-monthly');
-const {diffDefinitions,simulateScoreImpact,classifyFormForApply,runRetroactiveBatch}=require('../lib/checklist-template-retroactive');
-const {calculateMonthlyScore}=require('../lib/checklist-score-engine');
+const {validateScoredDefinition,isChecklistTotalRow,requiresChecklistTotalRow}=require('../api/_lib/checklist-templates');
+const {isAutomaticSource,monthlyRows,manualRows,scoreSummary}=require('../api/_lib/checklist-monthly');
+const {diffDefinitions,simulateScoreImpact,classifyFormForApply,runRetroactiveBatch}=require('../api/_lib/checklist-template-retroactive');
+const {calculateMonthlyScore}=require('../api/_lib/checklist-score-engine');
 
 let passCount=0;
 function check(label,fn){fn();passCount++;console.log('✓ PASS — '+label);}

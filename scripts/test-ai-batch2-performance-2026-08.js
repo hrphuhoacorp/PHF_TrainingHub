@@ -15,9 +15,9 @@ process.env.DEEPSEEK_API_KEY = 'test-fake-key-not-used-network-stubbed';
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
 const LIB_PATHS = [
-  '../lib/knl-foundation', '../lib/knl-competency', '../lib/knl-permissions', '../lib/knl-people',
-  '../lib/knl-frameworks', '../lib/knl-assignments',
-  '../lib/ai-knl-income-tools', '../lib/ai-knl-framework-tools', '../lib/ai-tool-registry', '../lib/ai-sandbox'
+  '../api/_lib/knl-foundation', '../api/_lib/knl-competency', '../api/_lib/knl-permissions', '../api/_lib/knl-people',
+  '../api/_lib/knl-frameworks', '../api/_lib/knl-assignments',
+  '../api/_lib/ai-knl-income-tools', '../api/_lib/ai-knl-framework-tools', '../api/_lib/ai-tool-registry', '../api/_lib/ai-sandbox'
 ].map(p => require.resolve(p));
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
@@ -139,9 +139,9 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { AI_TOOLS, ALLOWED_TOOL_NAMES, executeToolCall } = require('../lib/ai-tool-registry');
-const { listKnlFrameworkAssignments } = require('../lib/knl-assignments');
-const { runChatSandbox } = require('../lib/ai-sandbox');
+const { AI_TOOLS, ALLOWED_TOOL_NAMES, executeToolCall } = require('../api/_lib/ai-tool-registry');
+const { listKnlFrameworkAssignments } = require('../api/_lib/knl-assignments');
+const { runChatSandbox } = require('../api/_lib/ai-sandbox');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' };
 
@@ -207,7 +207,7 @@ async function run() {
 
   const startedAt = Date.now();
   let capturedToolMessages = null;
-  const originalRequestFn = require('../lib/ai-sandbox').requestDeepSeekCompletion;
+  const originalRequestFn = require('../api/_lib/ai-sandbox').requestDeepSeekCompletion;
   // Chen 1 lop quan sat NHE ngay truoc luot 2 de bat toolResultMessages that
   // (thu tu/tool_call_id) ma khong doi hanh vi - patch qua chinh global.fetch
   // lan thu 2 khong du (fetch chi thay body cuoi), nen doc truc tiep tu

@@ -59,12 +59,12 @@ const mockDb={
 
 process.env.SUPABASE_URL='https://unit.test';process.env.SUPABASE_SECRET_KEY='unit-secret';
 const supabaseModule=require.resolve('@supabase/supabase-js');
-const permissionModule=require.resolve('../lib/knl-permissions');
-const frameworkModule=require.resolve('../lib/knl-frameworks');
+const permissionModule=require.resolve('../api/_lib/knl-permissions');
+const frameworkModule=require.resolve('../api/_lib/knl-frameworks');
 require.cache[supabaseModule]={id:supabaseModule,filename:supabaseModule,loaded:true,exports:{createClient:()=>mockDb}};
 require.cache[permissionModule]={id:permissionModule,filename:permissionModule,loaded:true,exports:{requireManageFrameworkForSession:async session=>{if(session.role!=='admin'){const e=new Error('deny');e.code='KNL_MANAGE_FRAMEWORK_REQUIRED';throw e;}return {};}}};
 delete require.cache[frameworkModule];
-const service=require('../lib/knl-frameworks');
+const service=require('../api/_lib/knl-frameworks');
 const admin={role:'admin',sub:'admin-1',account:{id:'admin-1',name:'Admin'}};
 
 (async()=>{

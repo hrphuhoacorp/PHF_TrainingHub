@@ -40,7 +40,7 @@ process.env.SUPABASE_URL = 'https://fake-project.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 
 const supabasePath = require.resolve('@supabase/supabase-js');
-const tasksPath = require.resolve('../lib/checklist-tasks');
+const tasksPath = require.resolve('../api/_lib/checklist-tasks');
 
 // ---------------------------------------------------------------------------
 // Allow-list cột THẬT của từng bảng, lấy trực tiếp từ SQL đã chạy Production

@@ -1,5 +1,5 @@
 'use strict';
-const {syncMonthlyCycle}=require('../lib/checklist-monthly');
+const {syncMonthlyCycle}=require('./_lib/checklist-monthly');
 function send(res,status,body){res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(body));}
 module.exports=async function handler(req,res){
  if(req.method!=='POST'&&req.method!=='GET')return send(res,405,{ok:false,message:'Method not allowed'});

@@ -36,9 +36,9 @@ function stubSupabaseRows(tablesMap) {
     loaded: true,
     exports: { createClient: () => ({ from: (table) => fakeQueryFor(table) }) }
   };
-  delete require.cache[require.resolve('../lib/org-directory')];
-  delete require.cache[require.resolve('../lib/ai-employee-tools')];
-  delete require.cache[require.resolve('../lib/ai-tool-registry')];
+  delete require.cache[require.resolve('../api/_lib/org-directory')];
+  delete require.cache[require.resolve('../api/_lib/ai-employee-tools')];
+  delete require.cache[require.resolve('../api/_lib/ai-tool-registry')];
 }
 
 // Fixture 1 cay to chuc nho: PHF001 (Giam doc, dinh cay) <- PHF002 (Truong
@@ -80,8 +80,8 @@ async function run() {
   const {
     getEmployeeManager, getDirectReportsOf, getManagementChainOf,
     getDepartmentDirectory, getBranchDirectory, searchEmployees
-  } = require('../lib/ai-employee-tools');
-  const { buildStructuredResult } = require('../lib/ai-tool-registry');
+  } = require('../api/_lib/ai-employee-tools');
+  const { buildStructuredResult } = require('../api/_lib/ai-tool-registry');
 
   // Tai khoan hoc vien thuong, KHONG grant Checklist/KNL nao - dung xuyen
   // suot de xac nhan chinh sach "Organization Directory mo cho TAT CA role".
@@ -172,8 +172,8 @@ async function run() {
   // có title thật "Trưởng bộ phận" nhưng PHF004 mới là người giữ preset
   // TRUONG_BO_PHAN với title="Nhân viên" - dùng fixture riêng có PHF006) ----
   stubSupabaseRows({ employee_profiles: FIXTURE_ROWS_WITH_CONFLICT, checklist_permission_grants: PERMISSION_GRANT_ROWS });
-  const { searchEmployees: searchEmployeesConflictFixture } = require('../lib/ai-employee-tools');
-  const { buildStructuredResult: buildStructuredResultConflictFixture } = require('../lib/ai-tool-registry');
+  const { searchEmployees: searchEmployeesConflictFixture } = require('../api/_lib/ai-employee-tools');
+  const { buildStructuredResult: buildStructuredResultConflictFixture } = require('../api/_lib/ai-tool-registry');
   const conflictResult = await searchEmployeesConflictFixture(learnerSession, { title: 'Trưởng bộ phận' });
   assert.strictEqual(conflictResult.titleSource, 'title_field');
   assert.ok(conflictResult.conflict, '2 nguon lech nhau PHAI tra ve conflict, khong duoc am tham chon 1 ben');
@@ -188,7 +188,7 @@ async function run() {
   console.log('[PASS] 5f: search_employees(title="Trưởng bộ phận") -> 2 nguồn lệch nhau -> CONFLICTED, liệt kê đủ cả 2 người kèm cột "Khớp theo"');
 
   // ---- 6. DSML / tool-call protocol leak guard (P0 Production) ----
-  const { looksLikeLeakedToolProtocol, extractLeakedToolCall, sanitizeFinalReply } = require('../lib/ai-sandbox');
+  const { looksLikeLeakedToolProtocol, extractLeakedToolCall, sanitizeFinalReply } = require('../api/_lib/ai-sandbox');
 
   const leakedFull = '<｜｜DSML｜｜tool_calls>\n<｜｜DSML｜｜invoke name="search_employees">\n<parameter name="title">Trợ lý</parameter>\n</invoke>';
   assert.strictEqual(looksLikeLeakedToolProtocol(leakedFull), true, 'phai nhan dien dung mau leak that tu Production');
@@ -256,7 +256,7 @@ async function run() {
   // khong dung truong tool_calls chuan) KHONG CON duong nao bo qua
   // sanitizeFinalReply(). Truoc fix, nhanh nay tra thang rawContent (dot 2
   // that su xay ra tren Production) - test nay se FAIL tren code cu.
-  const { runChatSandbox } = require('../lib/ai-sandbox');
+  const { runChatSandbox } = require('../api/_lib/ai-sandbox');
   const originalFetch = global.fetch;
   const originalApiKey = process.env.DEEPSEEK_API_KEY;
   process.env.DEEPSEEK_API_KEY = 'test-fake-key-not-used-network-stubbed';
@@ -282,7 +282,7 @@ async function run() {
   }
 
   // ---- 7. Conversation compaction (khong ep "bat dau chat moi") ----
-  const { compactMessagesForModel, validateChatMessages } = require('../lib/ai-sandbox');
+  const { compactMessagesForModel, validateChatMessages } = require('../api/_lib/ai-sandbox');
 
   const shortConvo = [{ role: 'user', content: 'Câu hỏi 1' }, { role: 'assistant', content: 'Trả lời 1' }];
   const shortResult = compactMessagesForModel(shortConvo);

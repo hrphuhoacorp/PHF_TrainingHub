@@ -145,8 +145,8 @@ require.cache[supabasePath] = {
   }
 };
 
-const service = require('../lib/checklist-late-reconciliation-service');
-const permissions = require('../lib/checklist-permissions');
+const service = require('../api/_lib/checklist-late-reconciliation-service');
+const permissions = require('../api/_lib/checklist-permissions');
 
 let failures = 0, passes = 0;
 function check(condition, message) { if (!condition) { console.error('FAIL: ' + message); failures++; } else { passes++; console.log('PASS: ' + message); } }
@@ -241,7 +241,7 @@ const truongBpSession = { role: 'manager', account: { id: 'act-tbp', name: 'Trư
     );
   });
   await checkAsync('C6. Không thể "chỉ vì biết endpoint" mà bypass — Admin session vẫn phải qua ĐÚNG action, không có action nào khác né requireAdmin', async () => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib/checklist-late-reconciliation-service.js'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api/_lib/checklist-late-reconciliation-service.js'), 'utf8');
     ['previewBccUpload', 'createBccImport', 'reconcileBccImport', 'approveLateEvents', 'createLinkedAdjustment'].forEach(fnName => {
       const idx = src.indexOf('async function ' + fnName);
       const nextFnIdx = src.indexOf('\nasync function ', idx + 1);

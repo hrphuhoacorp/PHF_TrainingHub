@@ -14,9 +14,9 @@ process.env.SUPABASE_SECRET_KEY = 'fake-secret-key';
 const assert = require('assert');
 const supabasePath = require.resolve('@supabase/supabase-js');
 const LIB_PATHS = [
-  '../lib/knl-frameworks', '../lib/knl-foundation', '../lib/knl-assignments',
-  '../lib/knl-surveys', '../lib/knl-permissions', '../lib/knl-people',
-  '../lib/ai-knl-framework-tools', '../lib/ai-tool-registry'
+  '../api/_lib/knl-frameworks', '../api/_lib/knl-foundation', '../api/_lib/knl-assignments',
+  '../api/_lib/knl-surveys', '../api/_lib/knl-permissions', '../api/_lib/knl-people',
+  '../api/_lib/ai-knl-framework-tools', '../api/_lib/ai-tool-registry'
 ].map(p => require.resolve(p));
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
@@ -130,8 +130,8 @@ function buildSupabaseMock() {
 require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: buildSupabaseMock() };
 LIB_PATHS.forEach(p => delete require.cache[p]);
 
-const { getKnlFrameworkForAi, getKnlGradeRequirementsForAi, getEmployeeKnlAssignmentForAi, getEmployeeKnlAssessmentForAi } = require('../lib/ai-knl-framework-tools');
-const { buildStructuredResult } = require('../lib/ai-tool-registry');
+const { getKnlFrameworkForAi, getKnlGradeRequirementsForAi, getEmployeeKnlAssignmentForAi, getEmployeeKnlAssessmentForAi } = require('../api/_lib/ai-knl-framework-tools');
+const { buildStructuredResult } = require('../api/_lib/ai-tool-registry');
 
 const adminSession = { account: { id: 'admin-1' }, role: 'admin' };
 const learnerSelfSession = { account: { id: 'learner-1' }, role: 'learner', employeeCode: 'PHF010' };
@@ -209,7 +209,7 @@ async function run() {
   console.log('[PASS] T6: nhân viên chưa có phiếu tự đánh giá nào -> assessmentAvailable:false, evidence INCOMPLETE (không bịa)');
 
   // ---- T7: search_training_lessons (kiểm qua module riêng, không đụng DB) ----
-  const { searchTrainingLessonsByKeyword } = require('../lib/ai-training-tools');
+  const { searchTrainingLessonsByKeyword } = require('../api/_lib/ai-training-tools');
   const lessonResult = await searchTrainingLessonsByKeyword(null, { keyword: 'chào mừng' });
   assert.ok(Array.isArray(lessonResult.matches));
   console.log('[PASS] T7: search_training_lessons chạy được, trả về danh sách khớp từ khoá (gợi ý AI, không phải mapping chính thức - xem SYSTEM_PROMPT)');

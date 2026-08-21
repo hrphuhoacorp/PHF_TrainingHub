@@ -40,7 +40,7 @@ const PROGRAM_LABELS = {
   new_store_lead: 'Trưởng cửa hàng'
 };
 
-const LESSON_DATA_FILE = path.join(__dirname, '..', 'assets', 'data', 'phf-lessons-new-sales.js');
+const LESSON_DATA_FILE = path.join(__dirname, '..', '..', 'assets', 'data', 'phf-lessons-new-sales.js');
 
 // GIAI DOAN 1 - HOI NHAP CHUNG: theo chot nghiep vu, day la chuong trinh
 // dung chung cho MOI phong ban/nhan vien moi phu hop chuong trinh hoi nhap.

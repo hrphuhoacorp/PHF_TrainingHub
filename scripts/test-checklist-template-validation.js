@@ -1,7 +1,7 @@
 'use strict';
 
 const assert=require('assert');
-const {validateScoredDefinition}=require('../lib/checklist-templates');
+const {validateScoredDefinition}=require('../api/_lib/checklist-templates');
 
 function definition(rows){return {totalRows:rows};}
 function row(code,target,weight){return [1,code,'Tiêu chí '+code,target,'điểm',weight,'Không','Nhập đánh giá'];}

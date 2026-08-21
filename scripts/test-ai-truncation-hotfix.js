@@ -12,7 +12,7 @@
    voi scripts/test-ai-org-directory.js case 6h. Chay thu cong:
    node scripts/test-ai-truncation-hotfix.js */
 const assert = require('assert');
-const { runChatSandbox, softenLengthTruncation } = require('../lib/ai-sandbox');
+const { runChatSandbox, softenLengthTruncation } = require('../api/_lib/ai-sandbox');
 
 async function run() {
   // ---- A. softenLengthTruncation() don vi ----

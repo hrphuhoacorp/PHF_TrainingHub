@@ -18,7 +18,7 @@
 
 require('dotenv').config();
 const manifest = require('../assets/data/knl-source-manifest-2026-08-09.json');
-const { listKnlFrameworks, createKnlFramework, getKnlFrameworkVersion, saveKnlGroup, saveKnlItem, saveKnlLevelContent } = require('../lib/knl-frameworks');
+const { listKnlFrameworks, createKnlFramework, getKnlFrameworkVersion, saveKnlGroup, saveKnlItem, saveKnlLevelContent } = require('../api/_lib/knl-frameworks');
 
 const SESSION = { role: 'admin', account: { id: 'system-knl-library-seed-1.50.9', name: 'PHF KNL — nạp đầy đủ thư viện Bộ KNL' } };
 

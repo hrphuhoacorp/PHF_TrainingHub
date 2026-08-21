@@ -163,7 +163,7 @@ function loadMonthlyLib(store) {
   };
   // Mỗi kịch bản test cần một bản sao module riêng (module cache dùng chung sẽ trỏ vào
   // client Supabase giả của lần require ĐẦU TIÊN) — xoá cache trước khi require lại.
-  const modulePath = require.resolve(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'));
+  const modulePath = require.resolve(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'));
   delete require.cache[modulePath];
   const lib = require(modulePath);
   Module._load = originalLoad;

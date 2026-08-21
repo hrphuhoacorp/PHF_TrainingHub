@@ -9,9 +9,9 @@
  * nào còn sót lại trong module.
  * Chạy: node scripts/test-checklist-total-row-remediation-2026-08.js
  */
-const remediationModule = require('../lib/checklist-template-total-row-remediation');
+const remediationModule = require('../api/_lib/checklist-template-total-row-remediation');
 const { planTotalRowRemediation } = remediationModule;
-const { validateScoredDefinition, isChecklistTotalRow } = require('../lib/checklist-templates');
+const { validateScoredDefinition, isChecklistTotalRow } = require('../api/_lib/checklist-templates');
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) { pass++; } else { fail++; console.error('FAIL: ' + name); } }

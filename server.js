@@ -3,17 +3,17 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { readData, saveData } = require('./lib/db');
-const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('./lib/classroom-db');
-const { getLearning, saveLessons, updateProgress } = require('./lib/classroom-learning');
-const { getMaterials, saveGroups, createUpload, finalizeUpload, updateMaterial, materialUrl, confirmMaterial } = require('./lib/classroom-materials');
-const { listTests, saveTest, saveAssignment, startAttempt, submitAttempt, gradeAttempt } = require('./lib/classroom-tests');
-const { listClassroomUsers } = require('./lib/classroom-users');
-const { listProposals, saveProposal, reviewProposal } = require('./lib/classroom-proposals');
-const { listNotifications, saveNotification, markNotificationRead, markAllNotificationsRead, hideNotification } = require('./lib/classroom-notifications');
-const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./lib/classroom-settings');
-const { listChecklistAssignments, saveChecklistAssignments } = require('./lib/checklist-assignments');
-const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./lib/checklist-templates');
+const { readData, saveData } = require('./api/_lib/db');
+const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('./api/_lib/classroom-db');
+const { getLearning, saveLessons, updateProgress } = require('./api/_lib/classroom-learning');
+const { getMaterials, saveGroups, createUpload, finalizeUpload, updateMaterial, materialUrl, confirmMaterial } = require('./api/_lib/classroom-materials');
+const { listTests, saveTest, saveAssignment, startAttempt, submitAttempt, gradeAttempt } = require('./api/_lib/classroom-tests');
+const { listClassroomUsers } = require('./api/_lib/classroom-users');
+const { listProposals, saveProposal, reviewProposal } = require('./api/_lib/classroom-proposals');
+const { listNotifications, saveNotification, markNotificationRead, markAllNotificationsRead, hideNotification } = require('./api/_lib/classroom-notifications');
+const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./api/_lib/classroom-settings');
+const { listChecklistAssignments, saveChecklistAssignments } = require('./api/_lib/checklist-assignments');
+const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./api/_lib/checklist-templates');
 const {
   createTaskDraft,
   updateTaskDraft,
@@ -30,7 +30,7 @@ const {
   addTaskComment,
   addTaskLink,
   removeTaskLink
-} = require('./lib/task-core');
+} = require('./api/_lib/task-core');
 const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
@@ -38,7 +38,7 @@ const {
   retroactiveApply: applyChecklistRetro,
   retroactiveApplyReviewedForm: applyChecklistRetroReviewedForm,
   simulateEmployeeImpactBatch: simulateChecklistRetroEmployeeImpact
-} = require('./lib/checklist-template-retroactive-service');
+} = require('./api/_lib/checklist-template-retroactive-service');
 const {
   recordManagerLateObservation,
   listManagerLateObservations,
@@ -51,31 +51,31 @@ const {
   approveLateEvents: approveChecklistLateEvents,
   createLinkedAdjustment: createChecklistLateLinkedAdjustment,
   exportLateReconciliation: exportChecklistLateReconciliation
-} = require('./lib/checklist-late-reconciliation-service');
-const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./lib/checklist-violations');
-const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence, streamChecklistEvidenceDownload } = require('./lib/checklist-evidence');
-const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('./lib/checklist-tasks');
-const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./lib/checklist-permissions');
-const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle, getChecklistAssessmentProfile } = require('./lib/checklist-monthly');
-const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport, getChecklistAnnualResultReport } = require('./lib/checklist-reports');
-const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('./lib/checklist-recovery');
-const { previewTransitionImport, confirmTransitionImport } = require('./lib/checklist-monthly-results-service');
-const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./lib/checklist-notifications');
-const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./lib/knl-permissions');
-const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject, getGradePromotionApproverOptions } = require('./lib/knl-grade-proposals');
-const { listMyKnlNotifications, markKnlNotificationRead, markAllKnlNotificationsRead } = require('./lib/knl-notifications');
-const { listKnlPeople, getKnlEmployeeProfile } = require('./lib/knl-people');
-const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, getKnlEmployeeCompetencyStandard, getKnlEmployeeCompetencyGradeStandard, setKnlEmployeeCompetencyAssignment } = require('./lib/knl-competency');
-const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./lib/knl-frameworks');
-const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./lib/knl-assignments');
-const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('./lib/knl-surveys');
-const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade, correctKnlEmployeeCompensationPeriod } = require('./lib/knl-foundation');
-const { getKnlDashboardOverview } = require('./lib/knl-dashboard');
-const { askKnlDashboardAi } = require('./lib/knl-dashboard-ai');
-const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./lib/employee-master');
-const { previewEmployeeImport, commitEmployeeImport } = require('./lib/employee-import');
-const { runChatSandbox } = require('./lib/ai-sandbox');
-const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./lib/ai-conversations');
+} = require('./api/_lib/checklist-late-reconciliation-service');
+const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./api/_lib/checklist-violations');
+const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence, streamChecklistEvidenceDownload } = require('./api/_lib/checklist-evidence');
+const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('./api/_lib/checklist-tasks');
+const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./api/_lib/checklist-permissions');
+const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle, getChecklistAssessmentProfile } = require('./api/_lib/checklist-monthly');
+const { getChecklistMonthlyReport, getChecklistViolationWorkflowSummary, getChecklistCurrentScoreReport, getChecklistScorePeriodReport, getChecklistAnnualResultReport } = require('./api/_lib/checklist-reports');
+const { inspectMonthlyRecovery, createMissingMonthlyForms, getMonthlyDeletePreview, deleteMonthlyFormException } = require('./api/_lib/checklist-recovery');
+const { previewTransitionImport, confirmTransitionImport } = require('./api/_lib/checklist-monthly-results-service');
+const { listChecklistNotificationRules, saveChecklistNotificationRule, listMyChecklistNotifications, markChecklistNotificationRead, markAllChecklistNotificationsRead, emitChecklistNotification } = require('./api/_lib/checklist-notifications');
+const { getKnlCapabilities, listKnlPermissionGrants, upsertKnlPermissionGrant, requireManagePermissionsForSession } = require('./api/_lib/knl-permissions');
+const { createGradePromotionProposal, processGradePromotionProposalStep, withdrawGradePromotionProposal, listMyGradePromotionProposals, listProposalsAwaitingMyAction, listVisibleGradePromotionProposals, getGradePromotionProposalDetail, getGradeOptionsForSubject, getGradePromotionApproverOptions } = require('./api/_lib/knl-grade-proposals');
+const { listMyKnlNotifications, markKnlNotificationRead, markAllKnlNotificationsRead } = require('./api/_lib/knl-notifications');
+const { listKnlPeople, getKnlEmployeeProfile } = require('./api/_lib/knl-people');
+const { getKnlEmployeeCompetencyAssignment, listKnlEmployeeCompetencyHistory, getKnlEmployeeCompetencyStandard, getKnlEmployeeCompetencyGradeStandard, setKnlEmployeeCompetencyAssignment } = require('./api/_lib/knl-competency');
+const { listKnlFrameworks, getKnlFrameworkVersion, createKnlFramework, saveKnlFramework, cloneKnlVersion, publishKnlVersion, saveKnlGroup, saveKnlItem, saveKnlColumn, deleteKnlStructure, disableKnlStructure, reorderKnlStructure, saveKnlLevelContent } = require('./api/_lib/knl-frameworks');
+const { previewKnlSourceSeed, seedKnlSourceManifest, listKnlSourceManifests, listKnlAssignmentTargets, listKnlFrameworkAssignments, saveKnlFrameworkAssignment } = require('./api/_lib/knl-assignments');
+const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKnlSurveyCampaign, listKnlSurveyCampaigns, getKnlSurveyTicket, saveKnlSurveyTicket, getKnlSurveyResults, cloneKnlSurveyVersionToDraft } = require('./api/_lib/knl-surveys');
+const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade, correctKnlEmployeeCompensationPeriod } = require('./api/_lib/knl-foundation');
+const { getKnlDashboardOverview } = require('./api/_lib/knl-dashboard');
+const { askKnlDashboardAi } = require('./api/_lib/knl-dashboard-ai');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./api/_lib/employee-master');
+const { previewEmployeeImport, commitEmployeeImport } = require('./api/_lib/employee-import');
+const { runChatSandbox } = require('./api/_lib/ai-sandbox');
+const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./api/_lib/ai-conversations');
 const {
   MAX_BODY_BYTES,
   RequestError,
@@ -84,9 +84,9 @@ const {
   assertContentLength,
   validatePayload,
   publicError
-} = require('./lib/request-guard');
-const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./lib/production-hardening');
-const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./lib/auth');
+} = require('./api/_lib/request-guard');
+const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./api/_lib/production-hardening');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./api/_lib/auth');
 
 /* TASK_API_WIRING_START */
 const TASK_ACTION_MANIFEST = Object.freeze([

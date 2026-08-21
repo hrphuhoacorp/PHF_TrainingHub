@@ -3,7 +3,7 @@
 require('dotenv').config();
 const crypto=require('crypto');
 const {createClient}=require('@supabase/supabase-js');
-const manifest=require('../assets/data/knl-source-manifest-2026-08-09.json');
+const manifest=require('../../assets/data/knl-source-manifest-2026-08-09.json');
 const {listKnlAssignmentTargets:readAssignmentTargets,resolveKnlAssignmentTarget}=require('./knl-people');
 
 const configured=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());

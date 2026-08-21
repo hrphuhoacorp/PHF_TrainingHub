@@ -10,7 +10,7 @@ const router=read('assets/js/phf-url-router.js');
 const chatApi=read('api/ai/chat.js');
 const conversationsApi=read('api/ai/conversations.js');
 const server=read('server.js');
-const {requireAiAdmin}=require('../lib/ai-sandbox');
+const {requireAiAdmin}=require('../api/_lib/ai-sandbox');
 
 assert.doesNotThrow(()=>requireAiAdmin({role:'admin'}),'Admin must be allowed.');
 for(const role of ['manager','learner','employee',''])assert.throws(()=>requireAiAdmin({role}),error=>error&&error.statusCode===403&&error.code==='AI_ADMIN_REQUIRED',`${role||'empty'} must be denied.`);

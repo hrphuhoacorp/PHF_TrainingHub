@@ -345,7 +345,7 @@ function boundaryFor(department) {
 // Section 5: Training Hub khong duoc ghi de employees.department/position/branch.
 // ---------------------------------------------------------------------------
 (function section5Checks() {
-  const dbSrc = fs.readFileSync(path.join(ROOT, 'lib/db.js'), 'utf8');
+  const dbSrc = fs.readFileSync(path.join(ROOT, 'api/_lib/db.js'), 'utf8');
 
   // saveDataToFile: employeeRecord khong duoc chua department/position/branch.
   const fileRecMatch = dbSrc.match(/const employeeRecord = \{[\s\S]*?\};/);

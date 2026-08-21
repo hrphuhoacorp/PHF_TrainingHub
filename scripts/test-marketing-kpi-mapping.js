@@ -194,7 +194,7 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.apply(this, arguments);
 };
 
-const monthlyLib = require(path.join(__dirname, '..', 'lib', 'checklist-monthly.js'));
+const monthlyLib = require(path.join(__dirname, '..', 'api', '_lib', 'checklist-monthly.js'));
 Module._load = originalLoad; // khôi phục ngay sau khi nạp xong, tránh ảnh hưởng phần khác.
 
 const ADMIN_SESSION = { role: 'admin', account: { id: 'admin-1', name: 'Test Admin', email: 'admin@test.local' }, sub: 'admin-1' };

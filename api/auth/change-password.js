@@ -1,8 +1,8 @@
 'use strict';
 
-const {assertSameOrigin, assertJsonContentType, assertContentLength} = require('../../lib/request-guard');
-const {requireSession, changeOwnPassword, cookieHeader, makeSession, publicAccount} = require('../../lib/auth');
-const {send, sendError, requestBody} = require('../../lib/api-response');
+const {assertSameOrigin, assertJsonContentType, assertContentLength} = require('../_lib/request-guard');
+const {requireSession, changeOwnPassword, cookieHeader, makeSession, publicAccount} = require('../_lib/auth');
+const {send, sendError, requestBody} = require('../_lib/api-response');
 
 module.exports = async function handler(req,res){
   try{
