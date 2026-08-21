@@ -863,7 +863,7 @@ textarea.phfk-gp-criteria-note{min-height:64px;resize:vertical}
    tăng visual hierarchy KPI, giảm chiều cao donut/AI, tăng trọng số bảng
    "So sánh phòng ban", giảm density filter, chuẩn bị class semantic biến
    động cho Gate 2 — KHÔNG đổi bất kỳ nội dung/dữ liệu nào. */
-.phfk-dash{display:flex;flex-direction:column;gap:14px;padding-bottom:78px;max-width:1440px;margin:0 auto}
+.phfk-dash{display:flex;flex-direction:column;gap:14px;padding-bottom:78px}
 body.phf-knl-mode:has(#phfKnlRoot .phfk-dash) .phf-ai-floating{right:12px;bottom:14px}
 body.phf-knl-mode:has(#phfKnlRoot .phfk-dash) .phf-ai-floating-btn{width:52px;height:52px}
 body.phf-knl-mode:has(#phfKnlRoot .phfk-dash) .phf-ai-floating-btn img{width:49px;height:49px}
