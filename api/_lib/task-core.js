@@ -44,6 +44,57 @@ const supabase = configured
     })
   : null;
 
+// ---------------------------------------------------------------------------
+// checkTaskFoundationStatus — READ-ONLY, không write. Cho UI (Tạo phiếu,
+// Cài đặt) biết trung thực RPC/cột cần thiết đã sẵn sàng trên môi trường
+// đang chạy hay chưa, để KHÔNG hiển thị nút "lưu thành công" giả khi
+// migration Category + Create Task Foundation (scripts/
+// PHF_TASK_CATEGORY_CREATE_FOUNDATION_1.70.0.sql) chưa được Business Owner
+// apply. Không dùng write-probe (thử ghi rồi xem fail) — chỉ dùng (1) đọc
+// cột qua PostgREST select, (2) đọc danh sách RPC qua OpenAPI root, cả 2 đều
+// an toàn 100% (không có side effect, không tạo/sửa dữ liệu).
+// ---------------------------------------------------------------------------
+const FOUNDATION_STATUS_CACHE_TTL_MS = 60000;
+let foundationStatusCache = null;
+let foundationStatusCacheAt = 0;
+
+async function readRpcInventory() {
+  const url = String(process.env.SUPABASE_URL || '').trim().replace(/\/$/, '') + '/rest/v1/';
+  const key = String(process.env.SUPABASE_SECRET_KEY || '').trim();
+  const response = await fetch(url, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  const spec = await response.json();
+  return new Set(Object.keys((spec && spec.paths) || {}));
+}
+async function columnExists(table, column) {
+  const { error } = await supabase.from(table).select(column).limit(1);
+  return !error;
+}
+async function checkTaskFoundationStatus(session) {
+  await resolveActorContext(session);
+  ensureDb();
+  const now = Date.now();
+  if (foundationStatusCache && (now - foundationStatusCacheAt) < FOUNDATION_STATUS_CACHE_TTL_MS) return foundationStatusCache;
+  let rpcPaths = new Set();
+  let rpcReadError = '';
+  try { rpcPaths = await readRpcInventory(); } catch (error) { rpcReadError = String(error && error.message || 'Không đọc được danh sách RPC.'); }
+  const [categoryAuditReady, categorySortReady] = await Promise.all([
+    columnExists(CATEGORIES_TABLE, 'created_by_account_id'),
+    columnExists(CATEGORIES_TABLE, 'sort_order')
+  ]);
+  const result = {
+    category_schema_ready: categoryAuditReady && categorySortReady,
+    create_task_rpc_ready: rpcPaths.has('/rpc/task_create_draft'),
+    add_related_rpc_ready: rpcPaths.has('/rpc/task_add_related'),
+    add_link_rpc_ready: rpcPaths.has('/rpc/task_add_link'),
+    delete_category_rpc_ready: rpcPaths.has('/rpc/task_delete_category_if_unused'),
+    rpc_inventory_error: rpcReadError
+  };
+  result.create_task_ready = result.category_schema_ready && result.create_task_rpc_ready;
+  foundationStatusCache = result;
+  foundationStatusCacheAt = now;
+  return result;
+}
+
 const TASKS_TABLE = 'task_tasks';
 const ASSIGNEES_TABLE = 'task_assignees';
 const EVENTS_TABLE = 'task_events';
@@ -107,6 +158,8 @@ const RPC_ERROR_MAP = {
   TASK_DEADLINE_REQUIRED: [400, 'Deadline mới là bắt buộc.'],
   TASK_CATEGORY_NOT_FOUND: [400, 'Category không tồn tại.'],
   TASK_CATEGORY_INACTIVE: [400, 'Category đã ngừng dùng và không thể chọn cho Task mới.'],
+  TASK_CATEGORY_IN_USE: [409, 'Danh mục đã từng được dùng cho Task — không thể xóa, chỉ có thể Ngừng sử dụng.'],
+  TASK_CATEGORY_CODE_REQUIRED: [400, 'Thiếu mã danh mục.'],
   TASK_DATE_ORDER_INVALID: [400, 'Ngày bắt đầu không được sau deadline.'],
   TASK_RELATED_TARGET_REQUIRED: [400, 'Thiếu nhân sự liên quan.'],
   TASK_RELATED_IS_PRIMARY: [400, 'Không thể thêm primary hiện hành làm related.'],
@@ -637,26 +690,36 @@ async function listTaskAdminPeople(session) {
   };
 }
 
-function categoryDto(row) {
+function categoryDto(row, usedCodes) {
   if (!row) return null;
   return {
     category_code: code(row.category_code),
     display_name: text(row.display_name),
     description: text(row.description),
     color: text(row.color) || '#64748B',
-    is_active: row.is_active === true
+    is_active: row.is_active === true,
+    sort_order: Number.isFinite(row.sort_order) ? row.sort_order : null,
+    is_used: usedCodes ? usedCodes.has(code(row.category_code)) : null
   };
+}
+
+function sortCategoryRows(rows) {
+  return (rows || []).slice().sort((left, right) => {
+    const leftOrder = Number.isFinite(left.sort_order) ? left.sort_order : Number.MAX_SAFE_INTEGER;
+    const rightOrder = Number.isFinite(right.sort_order) ? right.sort_order : Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return text(left.display_name).localeCompare(text(right.display_name), 'vi');
+  });
 }
 
 async function listTaskCategories(session) {
   await resolveActorContext(session);
   ensureDb();
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
-    .select('category_code,display_name,description,color,is_active')
-    .eq('is_active', true)
-    .order('display_name', { ascending: true });
+    .select('category_code,display_name,description,color,is_active,sort_order')
+    .eq('is_active', true);
   if (error) throwDb(error);
-  return { categories: (data || []).map(categoryDto) };
+  return { categories: sortCategoryRows(data || []).map(row => categoryDto(row)) };
 }
 
 async function requireTaskAdmin(session) {
@@ -665,14 +728,25 @@ async function requireTaskAdmin(session) {
   return actorContext;
 }
 
+// used-codes: đọc distinct category_code THẬT SỰ đang được task_tasks tham
+// chiếu — quyết định "được xóa hay chỉ Ngừng sử dụng" (Cài đặt mục 4). Query
+// riêng thay vì JOIN vì task_categories thường rất ít dòng, đơn giản hơn.
+async function loadUsedCategoryCodes() {
+  ensureDb();
+  const { data, error } = await supabase.from(TASKS_TABLE).select('category_code');
+  if (error) throwDb(error);
+  return new Set((data || []).map(row => code(row.category_code)).filter(Boolean));
+}
+
 async function listAdminTaskCategories(session) {
   await requireTaskAdmin(session);
   ensureDb();
-  const { data, error } = await supabase.from(CATEGORIES_TABLE)
-    .select('category_code,display_name,description,color,is_active')
-    .order('display_name', { ascending: true });
+  const [{ data, error }, usedCodes] = await Promise.all([
+    supabase.from(CATEGORIES_TABLE).select('category_code,display_name,description,color,is_active,sort_order'),
+    loadUsedCategoryCodes()
+  ]);
   if (error) throwDb(error);
-  return { categories: (data || []).map(categoryDto) };
+  return { categories: sortCategoryRows(data || []).map(row => categoryDto(row, usedCodes)) };
 }
 
 function validateCategoryCode(value) {
@@ -734,6 +808,41 @@ async function setTaskCategoryActive(session, categoryCodeInput, isActive) {
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
     .update({
       is_active: isActive,
+      ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
+      updated_at: new Date().toISOString()
+    })
+    .eq('category_code', categoryCode)
+    .select('*').maybeSingle();
+  if (error) throwDb(error);
+  if (!data) fail('Category không tồn tại: ' + categoryCode, 404, 'TASK_CATEGORY_NOT_FOUND');
+  return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+// deleteTaskCategory — "chưa từng dùng → được xóa vật lý; đã dùng → chỉ
+// Ngừng sử dụng" (Cài đặt mục 4). Check-rồi-xóa được thực hiện ATOMIC trong
+// RPC task_delete_category_if_unused (advisory lock + kiểm tra task_tasks
+// trong CÙNG transaction) để tránh race condition với 1 Task mới đang được
+// tạo đúng lúc category bị xóa — KHÔNG tự kiểm tra rồi DELETE rời 2 bước ở
+// tầng JS. RPC này CHƯA tồn tại trên Production (xem
+// scripts/PHF_TASK_CATEGORY_CREATE_FOUNDATION_1.70.0.sql, CHƯA APPLY).
+async function deleteTaskCategory(session, categoryCodeInput) {
+  const actorContext = await requireTaskAdmin(session);
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  await callRpc('task_delete_category_if_unused', { p_category_code: categoryCode });
+  return { deleted: true, category_code: categoryCode, updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+// reorderTaskCategory — cập nhật sort_order đơn thuần (1 statement, tự
+// atomic) — không cần RPC vì không có invariant nhiều bảng cần bảo vệ.
+async function reorderTaskCategory(session, categoryCodeInput, sortOrderInput) {
+  const actorContext = await requireTaskAdmin(session);
+  ensureDb();
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  const sortOrder = Number(sortOrderInput);
+  if (!Number.isInteger(sortOrder) || sortOrder < 1) fail('Thứ tự sắp xếp không hợp lệ.', 400, 'TASK_CATEGORY_SORT_ORDER_INVALID');
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .update({
+      sort_order: sortOrder,
       ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
       updated_at: new Date().toISOString()
     })
@@ -1203,6 +1312,9 @@ module.exports = {
   createTaskCategory,
   renameTaskCategory,
   setTaskCategoryActive,
+  deleteTaskCategory,
+  reorderTaskCategory,
+  checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
   publishTask,

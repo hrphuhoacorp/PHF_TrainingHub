@@ -22,6 +22,9 @@ const {
   createTaskCategory,
   renameTaskCategory,
   setTaskCategoryActive,
+  deleteTaskCategory,
+  reorderTaskCategory,
+  checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
   publishTask,
@@ -86,7 +89,8 @@ const { requireSession, authorizePayload, listHubAccountSummaries } = require('.
 const TASK_ACTION_MANIFEST = Object.freeze([
   'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment', 'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
   'listTaskCategories', 'listAdminTaskCategories',
-  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
+  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'deleteTaskCategory', 'reorderTaskCategory',
+  'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
@@ -166,6 +170,9 @@ async function dispatchTaskAction(session, payload) {
     case 'createTaskCategory': return { handled: true, result: await createTaskCategory(session, taskCategoryCreateInput(payload)) };
     case 'renameTaskCategory': return { handled: true, result: await renameTaskCategory(session, payload.category_code, payload.display_name) };
     case 'setTaskCategoryActive': return { handled: true, result: await setTaskCategoryActive(session, payload.category_code, payload.is_active) };
+    case 'deleteTaskCategory': return { handled: true, result: await deleteTaskCategory(session, payload.category_code) };
+    case 'reorderTaskCategory': return { handled: true, result: await reorderTaskCategory(session, payload.category_code, payload.sort_order) };
+    case 'checkTaskFoundationStatus': return { handled: true, result: await checkTaskFoundationStatus(session) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
     case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };

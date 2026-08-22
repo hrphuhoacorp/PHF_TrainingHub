@@ -17,11 +17,16 @@ const surfaces = [
 // cập nhật theo — test tự fail vì lệch với chính runtime đã parity thật giữa
 // 2 file, KHÔNG phải vì runtime bị lệch nhau. Cập nhật danh sách này khớp
 // đúng TASK_ACTION_MANIFEST hiện tại (xem api/data.js dòng /* TASK_API_WIRING_START */).
+// TEST DRIFT FIX (Category + Create Task Foundation): thêm deleteTaskCategory
+// và reorderTaskCategory — 2 action mới cho Cài đặt (xóa danh mục chưa dùng,
+// sắp xếp thứ tự), wire local, chưa gọi write thật (RPC/cột phụ thuộc CHƯA
+// apply Production).
 const expectedActions = [
   'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment',
   'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
   'listTaskCategories', 'listAdminTaskCategories',
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
+  'deleteTaskCategory', 'reorderTaskCategory', 'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
@@ -83,6 +88,9 @@ const payloads = {
   createTaskCategory: { category_code:'CAT3', display_name:'Danh mục 3' },
   renameTaskCategory: { category_code:'CAT3', display_name:'Danh mục đổi tên' },
   setTaskCategoryActive: { category_code:'CAT3', is_active:false },
+  deleteTaskCategory: { category_code:'CAT3' },
+  reorderTaskCategory: { category_code:'CAT3', sort_order:2 },
+  checkTaskFoundationStatus: {},
   createTaskDraft: { flow_type:'giao_viec', title:'T', content:'C', category_code:'CAT', priority:'thuong', start_at:'2026-08-20', deadline:'2026-08-21', primary_employee_code:'NV002' },
   updateTaskDraft: { task_id:'task-1', expected_row_version:7, title:'T2', content:'C2', category_code:'CAT2', priority:'khan_cap', start_at:null, deadline:'2026-08-22' },
   publishTask: { task_id:'task-1', expected_row_version:7 },
@@ -110,6 +118,9 @@ const expectedCoreArgs = {
   createTaskCategory: [{ categoryCode:'CAT3', displayName:'Danh mục 3' }],
   renameTaskCategory: ['CAT3', 'Danh mục đổi tên'],
   setTaskCategoryActive: ['CAT3', false],
+  deleteTaskCategory: ['CAT3'],
+  reorderTaskCategory: ['CAT3', 2],
+  checkTaskFoundationStatus: [],
   createTaskDraft: [{ flowType:'giao_viec', title:'T', content:'C', categoryCode:'CAT', priority:'thuong', startAt:'2026-08-20', deadline:'2026-08-21', primaryEmployeeCode:'NV002' }],
   updateTaskDraft: ['task-1', 7, { title:'T2', content:'C2', categoryCode:'CAT2', priority:'khan_cap', startAt:null, deadline:'2026-08-22' }],
   publishTask: ['task-1', 7],
