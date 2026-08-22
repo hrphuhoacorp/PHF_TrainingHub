@@ -34,6 +34,12 @@
       css:'/assets/css/phf-checklist.css',
       renderer:'phfRenderChecklist',
       label:'Checklist'
+    },
+    task:{
+      src:(typeof window.phfAssetUrl==='function'?window.phfAssetUrl('/assets/js/task/phf-task-app.js'):'/assets/js/task/phf-task-app.js'),
+      css:'/assets/css/phf-task.css',
+      renderer:'phfRenderTask',
+      label:'PHF Task'
     }
   };
 
@@ -141,7 +147,8 @@
   }
   function renderRouteModuleError(name,path,error){
     var config=ROUTE_MODULES[name]||{label:'chức năng'};
-    var root=document.getElementById(name==='classroom'?'phfClassroomRoot':'phfChecklistRoot');
+    var rootIds={classroom:'phfClassroomRoot',checklist:'phfChecklistRoot',task:'phfTaskRoot'};
+    var root=document.getElementById(rootIds[name]||'phfChecklistRoot');
     if(window.PHFAppShell)window.PHFAppShell.syncFromRoute(path,{clear:false,restoreTitle:false});
     if(root){
       root.innerHTML='<section style="min-height:70vh;display:grid;place-items:center;padding:28px;background:#f5faf7"><div style="width:min(520px,100%);padding:28px;border:1px solid #d8e8df;border-radius:20px;background:#fff;box-shadow:0 18px 46px rgba(15,74,55,.10);text-align:center;font-family:Segoe UI,Arial,sans-serif"><strong style="display:block;color:#07543e;font-size:22px;margin-bottom:10px">Chưa thể mở '+config.label+'</strong><p style="margin:0 0 20px;color:#60736b;line-height:1.6">Kết nối tải chức năng chưa hoàn tất. Dữ liệu của bạn không bị thay đổi.</p><button type="button" data-phf-module-retry="'+name+'" style="min-height:44px;padding:0 22px;border:0;border-radius:12px;background:#07543e;color:#fff;font-weight:700;cursor:pointer">Thử lại</button></div></section>';
@@ -328,6 +335,9 @@
     '/hv/knl/de-xuat-nang-bac':Object.freeze({area:'learner',screen:'knl-grade-promotion-proposal',roles:['learner']}),
     '/hv/bai-hoc':Object.freeze({area:'learner',screen:'learning',roles:['learner']}),
     '/hv/ho-so':Object.freeze({area:'learner',screen:'profile',roles:['learner']}),
+    '/hv/task':Object.freeze({area:'learner',screen:'task-home',roles:['learner']}),
+    '/hv/task/tao':Object.freeze({area:'learner',screen:'task-create',roles:['learner']}),
+    '/hv/task/chi-tiet':Object.freeze({area:'learner',screen:'task-detail',roles:['learner']}),
     '/hv/checklist':Object.freeze({area:'learner',screen:'checklist-home',roles:['learner']}),
     '/hv/checklist/ho-so-danh-gia':Object.freeze({area:'learner',screen:'checklist-assessment-profile',roles:['learner']}),
     '/hv/classroom':Object.freeze({area:'learner',screen:'classroom-home',roles:['learner']}),
@@ -352,6 +362,9 @@
     '/ql/noi-dung':Object.freeze({area:'manager',screen:'content',roles:['manager']}),
     '/ql/bao-cao':Object.freeze({area:'manager',screen:'reports',roles:['manager']}),
     '/ql/de-xuat-dao-tao':Object.freeze({area:'manager',screen:'training-proposals',roles:['manager']}),
+    '/ql/task':Object.freeze({area:'manager',screen:'task-home',roles:['manager']}),
+    '/ql/task/tao':Object.freeze({area:'manager',screen:'task-create',roles:['manager']}),
+    '/ql/task/chi-tiet':Object.freeze({area:'manager',screen:'task-detail',roles:['manager']}),
     '/ql/checklist':Object.freeze({area:'manager',screen:'checklist-home',roles:['manager']}),
     '/ql/checklist/bao-cao':Object.freeze({area:'manager',screen:'checklist-reports',roles:['manager']}),
     '/ql/checklist/phan-quyen':Object.freeze({area:'manager',screen:'checklist-permissions',roles:['manager']}),
@@ -397,6 +410,10 @@
     '/admin/hoc-vien':Object.freeze({area:'admin',screen:'learners',roles:['admin']}),
     '/admin/noi-dung':Object.freeze({area:'admin',screen:'content',roles:['admin']}),
     '/admin/bao-cao':Object.freeze({area:'admin',screen:'reports',roles:['admin']}),
+    '/admin/task':Object.freeze({area:'admin',screen:'task-home',roles:['admin']}),
+    '/admin/task/nhan-su':Object.freeze({area:'admin',screen:'task-people',roles:['admin']}),
+    '/admin/task/tao':Object.freeze({area:'admin',screen:'task-create',roles:['admin']}),
+    '/admin/task/chi-tiet':Object.freeze({area:'admin',screen:'task-detail',roles:['admin']}),
     '/admin/checklist':Object.freeze({area:'admin',screen:'checklist-home',roles:['admin']}),
     '/admin/checklist/nhan-su':Object.freeze({area:'admin',screen:'checklist-people',roles:['admin']}),
     '/admin/checklist/mau':Object.freeze({area:'admin',screen:'checklist-templates',roles:['admin']}),
@@ -440,6 +457,16 @@
   window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap','/ql/knl/de-xuat-nang-bac','/ql/knl/dashboard');
   window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac','/admin/knl/dashboard');
   window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
+  // PHF Task registers only screens backed by a real renderer.
+  window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet');
+  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet');
+  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/tao','/admin/task/chi-tiet');
+  // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
+  // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
+  // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
+  // TypeError trong 'use strict' (đã gây regression boot-hang thật, xem
+  // trace 2026-08-19). Route /xx/task đã đủ trong learner/management/admin
+  // ở trên — không cần thêm key "task" riêng.
 
   function canonicalLegacyPath(path){
     path=cleanPath(path);
@@ -1004,6 +1031,20 @@
         if(!requireRoles(['learner','manager','admin']))return false;
         await Promise.resolve((role()==='learner'?window.phfGoMyProfile:window.phfRenderTrainingOverview)&& (role()==='learner'?window.phfGoMyProfile():window.phfRenderTrainingOverview()));
         setTimeout(function(){var b=document.querySelector('[data-phf-notification-toggle],.phf-notification-button');if(b)b.click();},120);
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/task(?:\/|$)/.test(path)){
+        var taskRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([taskRole])) return false;
+        // Unknown Task paths fail closed to the namespace home; registered
+        // create/detail/people screens retain their URL and query state.
+        var taskHome=taskRole==='admin'?'/admin/task':(taskRole==='manager'?'/ql/task':'/hv/task');
+        if(!ROUTE_REGISTRY[path]){setUrl(taskHome,true);path=taskHome;targetRouteKey=taskHome;}
+        try{await ensureRouteReady('task');}
+        catch(taskLoadError){return renderRouteModuleError('task',path,taskLoadError);}
+        if(stale())return false;
+        if(typeof window.phfRenderTask!=='function')return renderRouteModuleError('task',path,new Error('PHF_TASK_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderTask(targetRouteKey));
         return true;
       }
       if(/^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(path)){
