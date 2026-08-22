@@ -10,7 +10,18 @@ const surfaces = [
   { name: 'server.js', file: path.join(root, 'server.js') },
   { name: 'api/data.js', file: path.join(root, 'api', 'data.js') }
 ];
+// TEST DRIFT FIX (Phase 1.5 mục 6): expectedActions trước đây chỉ liệt kê 15
+// action lifecycle gốc (Batch 2). Từ đó runtime đã wire thêm 10 action
+// permission/category/people (listTaskAssignableEmployees...setTaskCategoryActive)
+// vào TASK_ACTION_MANIFEST của cả api/data.js và server.js, nhưng test chưa
+// cập nhật theo — test tự fail vì lệch với chính runtime đã parity thật giữa
+// 2 file, KHÔNG phải vì runtime bị lệch nhau. Cập nhật danh sách này khớp
+// đúng TASK_ACTION_MANIFEST hiện tại (xem api/data.js dòng /* TASK_API_WIRING_START */).
 const expectedActions = [
+  'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment',
+  'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
+  'listTaskCategories', 'listAdminTaskCategories',
+  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
@@ -62,6 +73,16 @@ pass(JSON.stringify(harnesses.get('server.js').manifest) === JSON.stringify(harn
 
 const session = Object.freeze({ sub: 'session-user', employeeCode: 'NV001', role: 'manager' });
 const payloads = {
+  listTaskAssignableEmployees: {},
+  listTaskAdminPeople: {},
+  saveTaskPermissionAssignment: { employee_code:'NV002', preset_code:'TRUONG_BO_PHAN', reason:'Gán preset' },
+  createTaskPermissionGrant: { grantee_employee_code:'NV002', grant_type:'extend', people_scope:{ type:'employees', values:['NV003'] }, capabilities:{}, reason:'Mở rộng scope' },
+  revokeTaskPermissionGrant: { grant_id:'grant-1', reason:'Thu hồi' },
+  listTaskCategories: {},
+  listAdminTaskCategories: {},
+  createTaskCategory: { category_code:'CAT3', display_name:'Danh mục 3' },
+  renameTaskCategory: { category_code:'CAT3', display_name:'Danh mục đổi tên' },
+  setTaskCategoryActive: { category_code:'CAT3', is_active:false },
   createTaskDraft: { flow_type:'giao_viec', title:'T', content:'C', category_code:'CAT', priority:'thuong', start_at:'2026-08-20', deadline:'2026-08-21', primary_employee_code:'NV002' },
   updateTaskDraft: { task_id:'task-1', expected_row_version:7, title:'T2', content:'C2', category_code:'CAT2', priority:'khan_cap', start_at:null, deadline:'2026-08-22' },
   publishTask: { task_id:'task-1', expected_row_version:7 },
@@ -79,6 +100,16 @@ const payloads = {
   removeTaskLink: { task_id:'task-1', link_id:'link-1' }
 };
 const expectedCoreArgs = {
+  listTaskAssignableEmployees: [],
+  listTaskAdminPeople: [],
+  saveTaskPermissionAssignment: [{ employeeCode:'NV002', presetCode:'TRUONG_BO_PHAN', reason:'Gán preset' }],
+  createTaskPermissionGrant: [{ granteeEmployeeCode:'NV002', grantType:'extend', peopleScope:{ type:'employees', values:['NV003'] }, capabilities:{}, reason:'Mở rộng scope' }],
+  revokeTaskPermissionGrant: ['grant-1', 'Thu hồi'],
+  listTaskCategories: [],
+  listAdminTaskCategories: [],
+  createTaskCategory: [{ categoryCode:'CAT3', displayName:'Danh mục 3' }],
+  renameTaskCategory: ['CAT3', 'Danh mục đổi tên'],
+  setTaskCategoryActive: ['CAT3', false],
   createTaskDraft: [{ flowType:'giao_viec', title:'T', content:'C', categoryCode:'CAT', priority:'thuong', startAt:'2026-08-20', deadline:'2026-08-21', primaryEmployeeCode:'NV002' }],
   updateTaskDraft: ['task-1', 7, { title:'T2', content:'C2', categoryCode:'CAT2', priority:'khan_cap', startAt:null, deadline:'2026-08-22' }],
   publishTask: ['task-1', 7],

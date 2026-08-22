@@ -72,23 +72,36 @@ function selectCurrentAssignment(rows, actorContext, nowIso) {
     })[0] || null;
 }
 
+/*
+ * peopleScope = phạm vi VIEW/UPDATE (ai được xem/can thiệp Task của họ).
+ * assignScope = phạm vi ASSIGN (được giao Task mới cho ai) — TÁCH RIÊNG theo
+ * Permission Matrix V1 (Phase 1): TBP/Trưởng ca được giao Task cho TOÀN BỘ
+ * nhân viên active công ty, nhưng KHÔNG vì vậy mà tự động xem/sửa được Task
+ * của người ngoài phạm vi quản lý của họ. Mặc định assignScope = peopleScope
+ * trừ khi role cần tách riêng (TBP/Trưởng ca, Nhân viên).
+ */
 function resolveBaseTaskScope(actorContext) {
   switch (actorContext.actorType) {
     case 'admin':
-      return { capabilities: { view: true, assign: true, update: true, manage: true }, peopleScope: { type: 'all_company', values: [] } };
+      return { capabilities: { view: true, assign: true, update: true, manage: true }, peopleScope: { type: 'all_company', values: [] }, assignScope: { type: 'all_company', values: [] } };
     case 'giam_doc':
     case 'tro_ly_gd':
-      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'all_company', values: [] } };
+      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'all_company', values: [] }, assignScope: { type: 'all_company', values: [] } };
     case 'truong_bo_phan':
+    case 'truong_ca': {
+      // Permission preset V1 của Trưởng bộ phận và Trưởng ca giống hệt nhau
+      // (2 identity khác nhau, cùng 1 preset) — KHÔNG hard-code Trưởng ca theo
+      // "Bộ phận bán hàng × 3 chi nhánh" nữa (implementation gap đã sửa).
+      const peopleScope = { type: 'employees', values: [actorContext.employeeCode, ...actorContext.managedEmployeeCodes] };
       return {
         capabilities: { view: true, assign: true, update: true, manage: false },
-        peopleScope: { type: 'employees', values: [actorContext.employeeCode, ...actorContext.managedEmployeeCodes] }
+        peopleScope,
+        assignScope: { type: 'all_company', values: [] }
       };
-    case 'truong_ca':
-      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'sales_all_branches_task', values: [] } };
+    }
     case 'nhan_vien':
     default:
-      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'self', values: [actorContext.employeeCode] } };
+      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'self', values: [actorContext.employeeCode] }, assignScope: { type: 'self', values: [actorContext.employeeCode] } };
   }
 }
 
@@ -139,7 +152,10 @@ async function loadActiveGrants(employeeCode) {
 function applyGrant(scope, grant) {
   const next = {
     capabilities: Object.assign({}, scope.capabilities),
-    peopleScope: { type: scope.peopleScope.type, values: (scope.peopleScope.values || []).slice() }
+    peopleScope: { type: scope.peopleScope.type, values: (scope.peopleScope.values || []).slice() },
+    // Grant V1 chỉ extend peopleScope (VIEW/UPDATE) — assignScope giữ nguyên
+    // theo base preset, không bị grant chồng lên.
+    assignScope: scope.assignScope
   };
   const grantCaps = grant && grant.capabilities || {};
   CAPABILITY_KEYS.forEach(key => {
@@ -237,14 +253,43 @@ async function classifyTaskRelation(actorOrEmployeeCode, task, assignees) {
   return 'none';
 }
 
-const RELATION_VIEW_ALLOWED = new Set(['creator', 'primary', 'related', 'manager_of_primary']);
+const RELATION_VIEW_ALLOWED = new Set(['creator', 'primary', 'related']);
+// manager_of_primary chỉ là RELATION (từ employee_profiles.manager_employee_code),
+// KHÔNG tự cấp quyền xem — actor phải có Task authority quản lý phù hợp
+// (TBP/Trưởng ca/GĐ/TL GĐ/Admin) mới được hưởng quyền manager-view (Phase 1.5,
+// đóng gap: NHÂN VIÊN thường không được auto-view chỉ vì trùng manager_employee_code).
+const MANAGER_VIEW_ACTOR_TYPES = new Set(['truong_bo_phan', 'truong_ca', 'giam_doc', 'tro_ly_gd']);
 
 async function canViewTask(session, task, assignees) {
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
   if (actorContext.actorType === 'admin') return true;
   const relation = await classifyTaskRelation(actorContext, task, assignees);
   if (RELATION_VIEW_ALLOWED.has(relation)) return true;
+  if (relation === 'manager_of_primary' && MANAGER_VIEW_ACTOR_TYPES.has(actorContext.actorType) && scope.capabilities.view) return true;
   if (!scope.capabilities.view) return false;
+  const activePrimary = (assignees || []).find(assignee => assignee.role === 'primary' && assignee.isActive);
+  if (!activePrimary) return false;
+  const rows = await loadOrgRows();
+  const primarySubject = findByCode(rows, activePrimary.employeeCode) || { employeeCode: code(activePrimary.employeeCode) };
+  return subjectMatchesTaskScope(primarySubject, scope.peopleScope);
+}
+
+/*
+ * canUpdateTask — quyền cập nhật/reopen/cancel/đổi deadline/thêm-gỡ related
+ * cho Task KHÔNG DO MÌNH TẠO (creator luôn được phép, xử lý riêng ở call
+ * site qua actorOwnsTask, không đi qua hàm này).
+ *
+ * Business rule Phase 1 (mục 5 VIEW scope): nếu người quản lý khác giao Task
+ * cho nhân viên của TBP/Trưởng ca hiện tại, TBP/Trưởng ca này CHỈ được VIEW,
+ * KHÔNG mặc định UPDATE — vì vậy không dùng quan hệ 'manager_of_primary'
+ * (chỉ view) hay 'related' (không chia trách nhiệm) để tự cấp quyền sửa ở
+ * đây; chỉ capability 'update' + primary hiện hành khớp peopleScope mới
+ * được phép — đúng cơ chế đã dùng cho canViewTask() ở nhánh phi-relation.
+ */
+async function canUpdateTask(session, task, assignees) {
+  const { actorContext, scope } = await resolveEffectiveTaskScope(session);
+  if (actorContext.actorType === 'admin') return true;
+  if (!scope.capabilities.update) return false;
   const activePrimary = (assignees || []).find(assignee => assignee.role === 'primary' && assignee.isActive);
   if (!activePrimary) return false;
   const rows = await loadOrgRows();
@@ -261,18 +306,40 @@ async function canAssignTaskTo(session, targetEmployeeCode) {
   if (actorContext.actorType === 'admin') return true;
   if (code(targetEmployeeCode) === actorContext.employeeCode) return true;
   if (!scope.capabilities.assign) return false;
+  return subjectMatchesTaskScope(targetSubject, scope.assignScope || scope.peopleScope);
+}
+
+/*
+ * canAddTaskRelated — Related business rule CHƯA CHỐT (Phase 1.5 mục 4:
+ * HOLD). Cho tới khi có business decision, KHÔNG dùng assignScope (phạm vi
+ * giao việc mới, TBP/TC = toàn công ty) để chọn related target — làm vậy sẽ
+ * biến "được giao toàn công ty" thành "related toàn công ty", một escalation
+ * ngoài ý định của peopleScope/assignScope split. Dùng peopleScope (phạm vi
+ * view/update đã được duyệt cho actor) làm giới hạn conservative — không
+ * phát minh scope mới, chỉ tái dùng scope hẹp hơn đã có sẵn.
+ */
+async function canAddTaskRelated(session, targetEmployeeCode) {
+  const { actorContext, scope } = await resolveEffectiveTaskScope(session);
+  if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return false;
+  const rows = await loadOrgRows();
+  const targetSubject = findByCode(rows, targetEmployeeCode);
+  if (!targetSubject || !isActiveEmployee(targetSubject)) return false;
+  if (actorContext.actorType === 'admin') return true;
+  if (code(targetEmployeeCode) === actorContext.employeeCode) return true;
+  if (!scope.capabilities.update) return false;
   return subjectMatchesTaskScope(targetSubject, scope.peopleScope);
 }
 
 async function listTaskAssignableEmployees(session) {
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
   if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return [];
+  const assignScope = scope.assignScope || scope.peopleScope;
   const rows = await loadOrgRows();
   return rows.filter(subject => {
     if (!subject.employeeCode || !isActiveEmployee(subject)) return false;
     if (actorContext.actorType === 'admin') return true;
     if (subject.employeeCode === actorContext.employeeCode) return true;
-    return !!scope.capabilities.assign && subjectMatchesTaskScope(subject, scope.peopleScope);
+    return !!scope.capabilities.assign && subjectMatchesTaskScope(subject, assignScope);
   }).map(subject => ({
     employeeCode: subject.employeeCode,
     fullName: subject.fullName,
@@ -304,6 +371,8 @@ module.exports = {
   requireTaskCapability,
   classifyTaskRelation,
   canViewTask,
+  canUpdateTask,
   canAssignTaskTo,
+  canAddTaskRelated,
   listTaskAssignableEmployees
 };

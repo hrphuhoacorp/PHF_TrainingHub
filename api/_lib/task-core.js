@@ -29,7 +29,9 @@ const {
   requireTaskCapability,
   classifyTaskRelation,
   canViewTask,
+  canUpdateTask,
   canAssignTaskTo,
+  canAddTaskRelated,
   listTaskAssignableEmployees: listAssignableEmployeesFromPeopleMaster,
   subjectMatchesTaskScope
 } = require('./task-permissions');
@@ -634,6 +636,20 @@ async function requireView(session, taskRow, assigneeRows) {
   if (!allowed) fail('Không có quyền xem task này.', 403, 'TASK_VIEW_DENIED');
 }
 
+// Creator luôn được phép (actorOwnsTask, xử lý ở call site). Với người KHÔNG
+// phải creator, không được chỉ dựa vào cờ capability 'update' (boolean) —
+// phải khớp thêm với peopleScope của primary hiện hành trên chính Task đó,
+// nếu không TBP/Trưởng ca này sẽ vô tình sửa được cả Task của nhân viên
+// KHÔNG thuộc phạm vi quản lý mình (Permission Matrix V1, mục 5).
+async function requireUpdateAuthority(session, taskRow, assigneeRows) {
+  const relationTask = {
+    createdByAccountId: taskRow.created_by_account_id,
+    createdByEmployeeCode: taskRow.created_by_employee_code
+  };
+  const allowed = await canUpdateTask(session, relationTask, toRelationAssignees(assigneeRows));
+  if (!allowed) fail('Không có quyền cập nhật task này.', 403, 'TASK_UPDATE_DENIED');
+}
+
 async function categoryActive(categoryCode) {
   ensureDb();
   const { data, error } = await supabase.from(CATEGORIES_TABLE).select('category_code,is_active').eq('category_code', categoryCode).maybeSingle();
@@ -695,8 +711,8 @@ async function updateTaskDraft(session, taskId, expectedRowVersion, patch) {
   const current = await loadTaskRow(taskId);
   if (current.status !== 'draft') fail('Chỉ sửa được task đang ở trạng thái draft.', 409, 'TASK_NOT_DRAFT');
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
 
   const patchRow = {};
@@ -847,8 +863,8 @@ async function reopenTask(session, taskId, expectedRowVersion, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   return callRpc('task_reopen', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
@@ -862,8 +878,8 @@ async function cancelTask(session, taskId, expectedRowVersion, reason) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   return callRpc('task_cancel', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
@@ -877,8 +893,8 @@ async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadli
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   return callRpc('task_change_deadline', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
@@ -893,8 +909,8 @@ async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrima
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   const allowedTarget = await canAssignTaskTo(session, newPrimaryEmployeeCode);
   if (!allowedTarget) fail('Người phụ trách mới nằm ngoài phạm vi giao việc của bạn.', 403, 'TASK_TRANSFER_TARGET_DENIED');
@@ -911,17 +927,19 @@ async function addTaskRelated(session, taskId, targetEmployeeCode) {
   ensureDb();
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
+  const assigneeRows = await loadAssignees(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   const target = code(targetEmployeeCode);
-  const assigneeRows = await loadAssignees(taskId);
   const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
   if (activePrimary && activePrimary.employee_code === target) {
     fail('Không thể thêm primary hiện hành làm related.', 400, 'TASK_RELATED_IS_PRIMARY');
   }
-  const allowedTarget = await canAssignTaskTo(session, target);
+  // Related HOLD (Phase 1.5 mục 4): dùng canAddTaskRelated (peopleScope),
+  // KHÔNG dùng canAssignTaskTo (assignScope) — tránh biến "được giao toàn
+  // công ty" thành "related toàn công ty". Xem lib/task-permissions.js.
+  const allowedTarget = await canAddTaskRelated(session, target);
   if (!allowedTarget) fail('Nhân sự này nằm ngoài phạm vi của bạn.', 403, 'TASK_RELATED_TARGET_DENIED');
 
   return callRpc('task_add_related', {
@@ -936,8 +954,8 @@ async function removeTaskRelated(session, taskId, targetEmployeeCode) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   if (!actorOwnsTask(actorContext, current)) {
-    const { scope } = await resolveEffectiveTaskScope(session);
-    requireTaskCapability({ scope }, 'update');
+    const assigneeRows = await loadAssignees(taskId);
+    await requireUpdateAuthority(session, current, assigneeRows);
   }
   const target = code(targetEmployeeCode);
   const { data, error } = await supabase.from(ASSIGNEES_TABLE)

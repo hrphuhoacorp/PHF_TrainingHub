@@ -148,7 +148,7 @@ function resolveActorContextForRecord(session, record, rows, presetCode) {
     status: record.status,
     actorType,
     taskPresetCode: actorType === 'admin' ? 'ADMIN_SYSTEM' : (TASK_PRESET_TO_ACTOR_TYPE[normalizedPreset] ? normalizedPreset : 'NHAN_VIEN'),
-    managedEmployeeCodes: actorType === 'truong_bo_phan' ? resolveManagedEmployeeCodes(employeeCode, rows) : new Set()
+    managedEmployeeCodes: (actorType === 'truong_bo_phan' || actorType === 'truong_ca') ? resolveManagedEmployeeCodes(employeeCode, rows) : new Set()
   };
 }
 
@@ -159,7 +159,7 @@ function applyTaskPresetToActorContext(actorContext, presetCode, rows) {
   return Object.assign({}, actorContext, {
     actorType,
     taskPresetCode: TASK_PRESET_TO_ACTOR_TYPE[normalizedPreset] ? normalizedPreset : 'NHAN_VIEN',
-    managedEmployeeCodes: actorType === 'truong_bo_phan'
+    managedEmployeeCodes: (actorType === 'truong_bo_phan' || actorType === 'truong_ca')
       ? resolveManagedEmployeeCodes(actorContext.employeeCode, rows)
       : new Set()
   });
