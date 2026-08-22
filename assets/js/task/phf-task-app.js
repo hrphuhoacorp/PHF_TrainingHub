@@ -20,6 +20,7 @@ function isTaskAdminUi(){return roleHome()==='/admin';}
 function taskHomePath(){ return roleHome() + '/task'; }
 function taskCreatePath(){return taskHomePath()+'/tao';}
 function taskAdminPeoplePath(){return '/admin/task/nhan-su';}
+function taskSettingsPath(){return '/admin/task/cai-dat';}
 function taskDetailPath(taskId){return taskHomePath()+'/chi-tiet?task_id='+encodeURIComponent(String(taskId||'').trim());}
 function navigateTask(path,replace){if(typeof window.phfNavigate==='function')return window.phfNavigate(path,replace===true);}
 function parseTaskRoute(routeKey){
@@ -27,6 +28,7 @@ function parseTaskRoute(routeKey){
   var path=String(url.pathname||'').replace(/\/$/,'');
   if(path===taskCreatePath())return{view:'create'};
   if(path===taskAdminPeoplePath()&&isTaskAdminUi())return{view:'admin-people'};
+  if(path===taskSettingsPath()&&isTaskAdminUi())return{view:'settings'};
   if(path===taskHomePath()+'/chi-tiet')return{view:'detail',taskId:String(url.searchParams.get('task_id')||'').trim()};
   return{view:'dashboard'};
 }
@@ -148,6 +150,7 @@ function taskApiErrorMessage(error){
   if(code==='TASK_NOT_FOUND')return 'Không tìm thấy công việc hoặc bạn không còn quyền xem.';
   if(code==='TASK_VERSION_CONFLICT')return 'Công việc đã thay đổi ở nơi khác. Vui lòng tải lại.';
   if(['TASK_START_INVALID','TASK_DEADLINE_INVALID','TASK_DATE_ORDER_INVALID'].indexOf(code)>=0)return 'Ngày bắt đầu hoặc deadline không hợp lệ.';
+  if(code==='TASK_DB_ERROR'&&/column/i.test(String(error&&error.message||'')))return 'Chưa sẵn sàng ghi Danh mục trên môi trường này — thiếu cột audit trên task_categories, cần migration bổ sung trước khi dùng chức năng này.';
   return String(error&&error.message||'Không thể xử lý yêu cầu PHF Task.');
 }
 async function taskApi(payload){
@@ -200,15 +203,16 @@ async function retryTaskSupplements(taskId,failures,apiCall,onPhase){
 }
 function normalizeEmployee(row){
   var code=employeeCode(row&&((row.employeeCode||row.employee_code||row.code))), name=String(row&&(row.fullName||row.full_name||row.name)||code).trim();
-  return {code:code,name:name,department:String(row&&(row.department||row.department_name)||'').trim(),title:String(row&&(row.title||row.position)||'').trim(),branch:String(row&&row.branch||'').trim(),employmentStatus:String(row&&(row.employmentStatus||row.employment_status)||'').trim().toLowerCase()};
+  return {code:code,name:name,department:String(row&&(row.department||row.department_name)||'').trim(),title:String(row&&(row.title||row.position)||'').trim(),branch:String(row&&row.branch||'').trim(),employmentStatus:String(row&&(row.employmentStatus||row.employment_status)||'').trim().toLowerCase(),taskActorType:String(row&&row.taskActorType||'nhan_vien').trim().toLowerCase()};
 }
 function taskAssignableEmployeeRows(rows){
   var seen={};
   return (Array.isArray(rows)?rows:[]).map(normalizeEmployee).filter(function(row){if(!row.code||row.employmentStatus!=='active'||seen[row.code])return false;seen[row.code]=true;return true;}).sort(function(a,b){return a.name.localeCompare(b.name,'vi');});
 }
+var TASK_MANAGER_LEVEL_ACTOR_TYPES={truong_bo_phan:true,truong_ca:true};
 async function loadTaskAssignableEmployees(apiCall){
   var response=await (apiCall||taskApi)({action:'listTaskAssignableEmployees'}), result=taskResult(response)||{};
-  return taskAssignableEmployeeRows(result.employees);
+  return {rows:taskAssignableEmployeeRows(result.employees),requesterActorType:String(result.requester_actor_type||'nhan_vien').trim().toLowerCase()};
 }
 function normalizeTaskCategory(row){
   return {code:employeeCode(row&&(row.categoryCode||row.category_code||row.code)),name:String(row&&(row.displayName||row.display_name||row.name)||'').trim(),isActive:row&&(row.isActive===true||row.is_active===true)};
@@ -221,6 +225,17 @@ async function loadTaskCategories(apiCall){
   var response=await (apiCall||taskApi)({action:'listTaskCategories'}), result=taskResult(response)||{};
   return taskActiveCategoryRows(result.categories);
 }
+function normalizeAdminTaskCategory(row){
+  return {code:employeeCode(row&&(row.categoryCode||row.category_code||row.code)),name:String(row&&(row.displayName||row.display_name||row.name)||'').trim(),isActive:row&&(row.isActive===true||row.is_active===true)};
+}
+async function loadAdminTaskCategories(apiCall){
+  var response=await (apiCall||taskApi)({action:'listAdminTaskCategories'}), result=taskResult(response)||{};
+  return (Array.isArray(result.categories)?result.categories:[]).map(normalizeAdminTaskCategory).filter(function(row){return row.code;});
+}
+// REFERENCE_CATEGORY_NAMES — danh mục tham khảo từ hệ cũ (Tạo phiếu V1 mục
+// 5). CHỈ hiển thị để tham khảo, KHÔNG tự tạo/seed — Admin chủ động bấm
+// "Thêm danh mục" nếu muốn dùng đúng tên nào.
+var REFERENCE_CATEGORY_NAMES=['Báo cáo','Tài chính','Kho vận','Nhân sự','Kinh doanh','Công việc tổng thể','Thu mua','Chăm sóc khách hàng','Dự án','Phát sinh khác','Đào tạo','Sửa chữa','Thanh toán'];
 async function loadTaskAdminPeople(apiCall){
   var response=await (apiCall||taskApi)({action:'listTaskAdminPeople'}), result=taskResult(response)||{};
   return {identityReady:result.identity_ready===true,identityStatus:String(result.identity_status||''),identityMessage:String(result.identity_message||''),permissionSchemaReady:result.permission_schema_ready!==false,permissionSchemaError:String(result.permission_schema_error||''),permissionSchemaMessage:String(result.permission_schema_message||''),checklistReferenceReady:result.checklist_reference_ready!==false,people:Array.isArray(result.people)?result.people:[],summary:result.summary||{total:0,active:0,inactive:0,with_account:0}};
@@ -256,7 +271,8 @@ function toggleRelated(form,code){
   next.related_employee_codes=list;return next;
 }
 function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'',accountStatus:'',permissionSource:'',checklistStatus:'',search:''};}
-var taskUiState={view:'dashboard',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',primaryQuery:'',relatedQuery:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:''};
+function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
+var taskUiState={view:'dashboard',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:''};
 
 function taskToast(message){
   if(typeof window.phfToast==='function'){ window.phfToast('info','Sắp triển khai',message,3200,'phf-task-soon'); return; }
@@ -273,6 +289,7 @@ function taskNotice(type,title,message){
 var NAV_ITEMS = [
   { key:'dashboard', label:'Trang chủ', desc:'Tổng quan công việc', enabled:true },
   { key:'people-permissions', label:'Nhân sự & phân quyền', desc:'Vai trò và phạm vi Task', enabled:true, adminOnly:true },
+  { key:'settings', label:'Cài đặt', desc:'Danh mục công việc', enabled:true, adminOnly:true },
   { key:'cong-viec', label:'Công việc', desc:'Danh sách & xử lý', enabled:false },
   { key:'lich', label:'Lịch', desc:'Lịch công việc', enabled:false },
   { key:'timeline', label:'Timeline', desc:'Dòng thời gian', enabled:false },
@@ -281,7 +298,7 @@ var NAV_ITEMS = [
 ];
 
 function shellFrame(bodyHtml){
-  var activeNav=taskUiState.view==='admin-people'?'people-permissions':'dashboard';
+  var activeNav=taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='settings'?'settings':'dashboard');
   var navHtml = NAV_ITEMS.filter(function(item){return !item.adminOnly||isTaskAdminUi();}).map(function(item){
     return '<button type="button" class="phft-nav-item'+(item.key===activeNav?' active':'')+(item.enabled?'':' is-soon')+'" data-task-nav="'+item.key+'"'+(item.enabled?'':' aria-disabled="true"')+'>' +
       '<span><b>'+esc(item.label)+'</b><small>'+esc(item.desc)+'</small></span>' +
@@ -436,6 +453,41 @@ function adminPeopleHtml(){
   return head+permissionWarning+checklistWarning+'<section class="phft-admin-summary"><article><b>'+Number(summary.total||0)+'</b><span>Tổng nhân sự</span></article><article><b>'+Number(summary.active||0)+'</b><span>Đang làm</span></article><article><b>'+Number(summary.inactive||0)+'</b><span>Nghỉ việc</span></article><article><b>'+Number(summary.with_account||0)+'</b><span>Có tài khoản</span></article><article><b>'+Number(summary.checklist_khop||0)+'</b><span>Checklist: Khớp</span></article><article><b>'+Number(summary.checklist_de_xuat||0)+'</b><span>Checklist: Đề xuất gán</span></article><article><b>'+Number(summary.checklist_can_duyet||0)+'</b><span>Checklist: Cần duyệt</span></article><article><b>'+Number(summary.checklist_conflict||0)+'</b><span>Checklist: Conflict</span></article></section><section class="phft-form-card phft-admin-people-card"><header><h2>Quyền hiệu lực hiện tại</h2><p>People Master cung cấp cơ cấu; Task preset cung cấp base role; grant là ngoại lệ chồng lên sau cùng. Mapping Checklist chỉ là tham khảo/đề xuất, không tự động ghi quyền.</p></header>'+adminPeopleFiltersHtml(allPeople)+'<p class="phft-people-filter-count" data-task-people-count>Hiển thị '+filteredPeople.length+'/'+allPeople.length+' nhân sự.</p>'+'<div data-task-people-table>'+adminPeopleTableHtml(filteredPeople)+'</div></section>'+taskPermissionEditorHtml();
 }
 
+function taskSettingsCategoryRowHtml(row){
+  var isEditing=taskUiState.editingCategoryCode===row.code;
+  var statusBadge='<span class="phft-people-status '+(row.isActive?'is-active':'is-inactive')+'">'+(row.isActive?'Đang dùng':'Ngừng sử dụng')+'</span>';
+  var nameCell=isEditing
+    ? '<input type="text" data-task-category-rename-input value="'+esc(taskUiState.editingCategoryName)+'">'
+    : '<b>'+esc(row.name)+'</b>';
+  var actions=isEditing
+    ? '<button type="button" class="phft-btn-secondary" data-task-category-rename-save="'+esc(row.code)+'"'+(taskUiState.settingsSaving?' disabled':'')+'>Lưu</button><button type="button" class="phft-btn-secondary" data-task-category-rename-cancel>Hủy</button>'
+    : '<button type="button" class="phft-btn-secondary" data-task-category-rename-start="'+esc(row.code)+'"'+(taskUiState.settingsSaving?' disabled':'')+'>Đổi tên</button><button type="button" class="phft-btn-secondary" data-task-category-toggle="'+esc(row.code)+'" data-task-category-toggle-to="'+(row.isActive?'0':'1')+'"'+(taskUiState.settingsSaving?' disabled':'')+'>'+(row.isActive?'Ngừng sử dụng':'Kích hoạt lại')+'</button>';
+  return '<tr><td>'+nameCell+'</td><td><code>'+esc(row.code)+'</code></td><td>'+statusBadge+'</td><td class="phft-category-actions">'+actions+'</td></tr>';
+}
+function taskSettingsCategoriesHtml(){
+  var rows=taskUiState.settingsCategories||[];
+  var existingNames={};rows.forEach(function(r){existingNames[r.name.trim().toLocaleLowerCase('vi')]=true;});
+  var referenceSuggestions=REFERENCE_CATEGORY_NAMES.filter(function(name){return !existingNames[name.trim().toLocaleLowerCase('vi')];});
+  var body='';
+  if(taskUiState.settingsLoading)body='<div class="phft-loading">Đang tải danh mục…</div>';
+  else if(taskUiState.settingsError)body='<div class="phft-alert is-error"><div><b>Chưa tải được danh mục.</b><small>'+esc(taskUiState.settingsError)+'</small></div><button type="button" class="phft-btn-secondary" data-task-settings-reload>Thử lại</button></div>';
+  else{
+    body='<table class="phft-admin-people-table phft-category-table"><thead><tr><th>Tên danh mục</th><th>Mã</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>'+
+      (rows.length?rows.map(taskSettingsCategoryRowHtml).join(''):'<tr><td colspan="4"><div class="phft-inline-empty">Chưa có danh mục nào. Bấm "Thêm danh mục" bên dưới để tạo mới.</div></td></tr>')+
+      '</tbody></table>';
+  }
+  var addForm='<div class="phft-form-card phft-category-add"><h3>Thêm danh mục</h3>'+
+    '<div class="phft-category-add-row"><input type="text" data-task-new-category-name value="'+esc(taskUiState.newCategoryName)+'" placeholder="Tên danh mục mới">'+
+    '<button type="button" class="phft-btn-primary" data-task-category-create'+(taskUiState.settingsSaving?' disabled':'')+'>Thêm danh mục</button></div>'+
+    (taskUiState.newCategoryError?'<small class="phft-field-error">'+esc(taskUiState.newCategoryError)+'</small>':'')+
+    (referenceSuggestions.length?'<p class="phft-category-suggestions"><b>Danh mục tham khảo từ hệ cũ (chưa tạo):</b> '+referenceSuggestions.map(function(n){return '<button type="button" class="phft-chip is-suggestion" data-task-category-suggest="'+esc(n)+'">'+esc(n)+'</button>';}).join(' ')+'</p>':'')+
+    '</div>';
+  return '<section class="phft-form-card phft-admin-people-card"><header><h2>Danh mục công việc</h2><p>Bắt buộc khi tạo phiếu. Danh mục đã dùng không xóa được — chỉ Ngừng sử dụng; phiếu lịch sử vẫn giữ tên cũ.</p></header>'+body+'</section>'+addForm;
+}
+function taskSettingsHtml(){
+  var head='<div class="phft-page-head"><div><small>PHF TASK / CÀI ĐẶT</small><h1>Cài đặt</h1></div><button type="button" class="phft-btn-secondary" data-task-settings-reload>Tải lại</button></div>';
+  return head+taskSettingsCategoriesHtml();
+}
 function taskFieldError(name){
   var message=taskUiState.formErrors[name];
   return message?'<small class="phft-field-error">'+esc(message)+'</small>':'';
@@ -487,30 +539,76 @@ function linkRowsHtml(){
       taskFieldError('link_'+index)+'</div>';
   }).join('');
 }
+function taskPrimaryEmployeeRow(){
+  var codeVal=employeeCode(taskUiState.form.primary_employee_code);
+  if(!codeVal)return null;
+  return taskUiState.employees.find(function(row){return row.code===codeVal;})||null;
+}
+function taskPrimaryPickerHtml(){
+  var selectedCode=employeeCode(taskUiState.form.primary_employee_code);
+  if(selectedCode&&!taskUiState.primaryPickerOpen){
+    var row=taskPrimaryEmployeeRow();
+    var label=row?(row.name+' · '+row.code+(row.department?' · '+row.department:'')):employeeLabel(selectedCode);
+    return '<div class="phft-primary-chip"><span class="phft-chip is-primary">'+esc(label)+'</span><button type="button" class="phft-btn-secondary" data-task-change-primary>Thay đổi</button></div>';
+  }
+  return '<label class="phft-picker-label"><span>Tìm người thực hiện chính</span><input data-task-search="primary" value="'+esc(taskUiState.primaryQuery)+'" placeholder="Tìm theo tên hoặc mã nhân viên" autofocus></label><div class="phft-picker-results" data-task-results="primary">'+employeeResultsHtml('primary')+'</div>';
+}
+function taskPeerManagerWarningHtml(){
+  var row=taskPrimaryEmployeeRow();
+  if(!row)return '';
+  var iAmManagerLevel=!!TASK_MANAGER_LEVEL_ACTOR_TYPES[taskUiState.requesterActorType];
+  var theyAreManagerLevel=!!TASK_MANAGER_LEVEL_ACTOR_TYPES[row.taskActorType];
+  if(!iAmManagerLevel||!theyAreManagerLevel)return '';
+  return '<div class="phft-alert is-warning"><div><b>Người nhận là quản lý ngang cấp.</b><small>'+esc(row.name)+' hiện cũng giữ vai trò quản lý Task. Bạn vẫn có thể giao việc bình thường — cân nhắc dùng "Đề xuất" nếu phù hợp hơn với tình huống này.</small></div></div>';
+}
+function taskCrossDepartmentNoticeHtml(){
+  var row=taskPrimaryEmployeeRow();
+  if(!row)return '';
+  var me=currentUser(), myCode=employeeCode(me&&(me.employeeCode||me.employee_code));
+  var myRow=myCode?taskUiState.employees.find(function(r){return r.code===myCode;}):null;
+  if(!myRow||!myRow.department||!row.department||myRow.department===row.department)return '';
+  return '<div class="phft-alert is-info"><div><b>Giao việc liên phòng ban.</b><small>'+esc(row.name)+' thuộc '+esc(row.department)+'. Không cần phê duyệt — công việc có hiệu lực ngay khi tạo.</small></div></div>';
+}
+function taskFlowSubmitLabel(){
+  if(taskUiState.submitting)return 'Đang lưu…';
+  return taskUiState.form.flow_type==='de_xuat'?'Gửi đề xuất':'Tạo/Giao công việc';
+}
+function taskRecurrenceSectionHtml(){
+  var open=!!taskUiState.expandedSections.recurrence;
+  var disabledForDeXuat=taskUiState.form.flow_type==='de_xuat';
+  return '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Công việc lặp</h2><p>'+(disabledForDeXuat?'Chưa áp dụng cho Đề xuất — chỉ dùng cho Giao việc.':'Thiết lập lịch lặp — sẽ khả dụng khi engine sinh phiếu tự động được triển khai.')+'</p></div>'+
+    (disabledForDeXuat?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="recurrence">'+(open?'Ẩn':'+ Thiết lập lịch lặp')+'</button>')+
+    '</header>'+
+    (open&&!disabledForDeXuat?'<div class="phft-alert is-warning"><div><b>Sắp triển khai.</b><small>Thiết kế lịch lặp (hàng ngày/tuần/tháng/năm, tạm dừng, kết thúc, sinh bù) đã sẵn sàng ở tầng logic và test — chưa mở nhập liệu thật cho tới khi có migration + scheduler chính thức. Xem báo cáo Tạo phiếu V1 để biết chi tiết migration package.</small></div></div>':'')+
+  '</section>';
+}
 function createTaskHtml(){
+  var contentOpen=!!taskUiState.expandedSections.content;
+  var relatedOpen=!!taskUiState.expandedSections.related;
+  var linksOpen=!!taskUiState.expandedSections.links;
   return '<div class="phft-page-head"><div><small>PHF TASK / TẠO MỚI</small><h1>Tạo công việc</h1></div><button type="button" class="phft-btn-secondary" data-task-cancel-create>Quay lại</button></div>'+
     '<form class="phft-form" data-task-create-form novalidate>'+
       (taskUiState.submitError?'<div class="phft-alert is-error">'+esc(taskUiState.submitError)+'</div>':'')+
-      '<section class="phft-form-card"><header><h2>Thông tin công việc</h2><p>Tạo bản nháp trước khi thêm người liên quan và tài liệu.</p></header><div class="phft-form-grid">'+
-        '<label><span>Loại công việc *</span><select data-task-field="flow_type"><option value="giao_viec"'+(taskUiState.form.flow_type==='giao_viec'?' selected':'')+'>Giao việc</option><option value="de_xuat"'+(taskUiState.form.flow_type==='de_xuat'?' selected':'')+'>Đề xuất</option></select>'+taskFieldError('flow_type')+'</label>'+
+      '<section class="phft-form-card"><header><h2>Thông tin công việc</h2><p>Card gọn — thao tác nhanh. Ngày giờ theo 24h, múi giờ Việt Nam.</p></header><div class="phft-form-grid">'+
+        '<label><span>Loại phiếu *</span><select data-task-field="flow_type"><option value="giao_viec"'+(taskUiState.form.flow_type==='giao_viec'?' selected':'')+'>Giao việc</option><option value="de_xuat"'+(taskUiState.form.flow_type==='de_xuat'?' selected':'')+'>Đề xuất</option></select>'+taskFieldError('flow_type')+'</label>'+
         '<label><span>Danh mục công việc *</span><select data-task-field="category_code"'+((taskUiState.categoriesLoading||taskUiState.categoriesError)?' disabled':'')+'>'+taskCategoryOptionsHtml()+'</select>'+taskFieldError('category_code')+(taskUiState.categoriesError?'<small class="phft-field-error">'+esc(taskUiState.categoriesError)+'</small>':'')+'</label>'+
         '<label class="phft-span-2"><span>Tiêu đề *</span><input data-task-field="title" value="'+esc(taskUiState.form.title)+'" placeholder="Nhập tiêu đề công việc">'+taskFieldError('title')+'</label>'+
-        '<label class="phft-span-2"><span>Nội dung</span><textarea data-task-field="content" rows="4" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea></label>'+
-        '<label><span>Ưu tiên *</span><select data-task-field="priority"><option value="thuong"'+(taskUiState.form.priority==='thuong'?' selected':'')+'>Thường</option><option value="quan_trong"'+(taskUiState.form.priority==='quan_trong'?' selected':'')+'>Quan trọng</option><option value="khan_cap"'+(taskUiState.form.priority==='khan_cap'?' selected':'')+'>Khẩn cấp</option></select>'+taskFieldError('priority')+'</label>'+
-        '<label><span>Ngày bắt đầu</span><input type="datetime-local" data-task-field="start_at" value="'+esc(taskUiState.form.start_at)+'">'+taskFieldError('start_at')+'</label>'+
-        '<label><span>Deadline *</span><input type="datetime-local" data-task-field="deadline" value="'+esc(taskUiState.form.deadline)+'">'+taskFieldError('deadline')+'</label>'+
+        '<label><span>Ưu tiên</span><select data-task-field="priority"><option value="thuong"'+(taskUiState.form.priority==='thuong'?' selected':'')+'>Thường</option><option value="quan_trong"'+(taskUiState.form.priority==='quan_trong'?' selected':'')+'>Quan trọng</option><option value="khan_cap"'+(taskUiState.form.priority==='khan_cap'?' selected':'')+'>Khẩn cấp</option></select>'+taskFieldError('priority')+'</label>'+
+        '<label><span>Bắt đầu *</span><input type="datetime-local" data-task-field="start_at" value="'+esc(taskUiState.form.start_at)+'">'+taskFieldError('start_at')+'</label>'+
+        '<label><span>Hạn hoàn thành *</span><input type="datetime-local" data-task-field="deadline" value="'+esc(taskUiState.form.deadline)+'">'+taskFieldError('deadline')+'</label>'+
       '</div></section>'+
-      '<section class="phft-form-card"><header><h2>Người thực hiện</h2><p>Người chính được lưu cùng bản nháp.</p></header><div class="phft-people-grid">'+
-        '<div><label class="phft-picker-label"><span>Người thực hiện chính *</span><input data-task-search="primary" value="'+esc(taskUiState.primaryQuery)+'" placeholder="Tìm theo tên hoặc mã nhân viên"></label><div class="phft-picker-results" data-task-results="primary">'+employeeResultsHtml('primary')+'</div><div class="phft-selected-primary">'+(taskUiState.form.primary_employee_code?'Đã chọn: <b>'+esc(employeeLabel(taskUiState.form.primary_employee_code))+'</b>':'Chưa chọn người thực hiện chính.')+'</div>'+taskFieldError('primary_employee_code')+'</div>'+
-        // Người liên quan (Related) = OUT OF V1 / HOLD (business decision) —
-        // KHÔNG hiển thị picker này trong UI. Hàm toggleRelated/selectedRelatedHtml/
-        // normalizeRelatedCodes/persistTaskSupplements() giữ nguyên (dormant,
-        // an toàn hơn xóa) — form.related_employee_codes luôn rỗng vì không còn
-        // đường nào cho user điền vào, nên addTaskRelated không bao giờ được gọi
-        // từ luồng tạo Task nữa.
+      '<section class="phft-form-card"><header><h2>'+(taskUiState.form.flow_type==='de_xuat'?'Người nhận đề xuất *':'Người thực hiện chính *')+'</h2><p>Chỉ 01 người chịu trách nhiệm chính, chỉ chọn nhân sự đang làm.</p></header><div class="phft-people-grid">'+
+        '<div>'+taskPrimaryPickerHtml()+taskFieldError('primary_employee_code')+taskPeerManagerWarningHtml()+taskCrossDepartmentNoticeHtml()+'</div>'+
       '</div></section>'+
-      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Tài liệu liên kết</h2><p>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</p></div><button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button></header><div class="phft-link-list">'+linkRowsHtml()+'</div></section>'+
-      '<footer class="phft-form-actions"><span class="phft-submit-phase" data-task-phase>'+(taskUiState.submitting?esc(taskPhaseLabel()):'')+'</span><button type="button" class="phft-btn-secondary" data-task-cancel-create'+(taskUiState.submitting?' disabled':'')+'>Hủy</button><button type="submit" class="phft-btn-primary"'+(taskUiState.submitting?' disabled':'')+'>'+(taskUiState.submitting?'Đang lưu…':'Tạo bản nháp')+'</button></footer>'+
+      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Nội dung</h2><p>Mô tả yêu cầu và kết quả mong đợi.</p></div>'+(contentOpen?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="content">+ Thêm nội dung</button>')+'</header>'+
+        (contentOpen?'<textarea data-task-field="content" rows="4" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea>':'')+
+      '</section>'+
+      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Người liên quan (CC)</h2><p>Được xem/theo dõi Task — không chịu trách nhiệm chính, không tính KPI/trễ hạn.</p></div>'+(relatedOpen?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="related">+ Người liên quan</button>')+'</header>'+
+        (relatedOpen?'<div class="phft-picker-label"><span>Tìm người liên quan (CC)</span><input data-task-search="related" value="'+esc(taskUiState.relatedQuery)+'" placeholder="Tìm và chọn nhiều người"></div><div class="phft-picker-results" data-task-results="related">'+employeeResultsHtml('related')+'</div><div class="phft-chip-row">'+selectedRelatedHtml()+'</div>':'')+
+      '</section>'+
+      taskRecurrenceSectionHtml()+
+      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Tài liệu liên kết</h2><p>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</p></div>'+(linksOpen?'<button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button>':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="links">+ Tài liệu</button>')+'</header>'+(linksOpen?'<div class="phft-link-list">'+linkRowsHtml()+'</div>':'')+'</section>'+
+      '<footer class="phft-form-actions"><span class="phft-submit-phase" data-task-phase>'+(taskUiState.submitting?esc(taskPhaseLabel()):'')+'</span><button type="button" class="phft-btn-secondary" data-task-cancel-create'+(taskUiState.submitting?' disabled':'')+'>Hủy</button><button type="submit" class="phft-btn-primary"'+(taskUiState.submitting?' disabled':'')+'>'+esc(taskFlowSubmitLabel())+'</button></footer>'+
     '</form>';
 }
 function detailPersonName(value){
@@ -550,6 +648,7 @@ function detailLoadingHtml(taskId){return '<div class="phft-page-head"><div><sma
 function detailErrorHtml(taskId,message){return '<div class="phft-page-head"><div><small>PHF TASK / CHI TIẾT</small><h1>Chưa tải được chi tiết</h1></div><button type="button" class="phft-btn-secondary" data-task-detail-back>Về Dashboard</button></div><div class="phft-alert is-error"><div><b>Bản nháp đã có mã '+esc(taskId||'—')+', nhưng chưa tải lại được dữ liệu.</b><small>'+esc(message||'Vui lòng thử tải lại.')+'</small></div><button type="button" class="phft-btn-secondary" data-task-reload-detail>Thử lại</button></div>';}
 function taskViewHtml(){
   if(taskUiState.view==='admin-people')return adminPeopleHtml();
+  if(taskUiState.view==='settings')return taskSettingsHtml();
   if(taskUiState.view==='create')return createTaskHtml();
   if(taskUiState.view==='detail'){
     if(taskUiState.detailLoading)return detailLoadingHtml(taskUiState.taskId);
@@ -569,10 +668,10 @@ function updateAdminPeopleTable(root){
   if(countTarget)countTarget.textContent='Hiển thị '+filtered.length+'/'+allPeople.length+' nhân sự.';
 }
 async function openTaskCreate(root){
-  taskUiState.view='create';taskUiState.form=defaultTaskForm();taskUiState.formErrors={};taskUiState.submitError='';taskUiState.submitPhase='';taskUiState.submitting=false;taskUiState.primaryQuery='';taskUiState.relatedQuery='';taskUiState.categories=[];taskUiState.categoriesError='';taskUiState.categoriesLoading=true;taskUiState.employees=[];taskUiState.employeesError='';taskUiState.employeesLoading=true;
+  taskUiState.view='create';taskUiState.form=defaultTaskForm();taskUiState.formErrors={};taskUiState.submitError='';taskUiState.submitPhase='';taskUiState.submitting=false;taskUiState.primaryQuery='';taskUiState.relatedQuery='';taskUiState.categories=[];taskUiState.categoriesError='';taskUiState.categoriesLoading=true;taskUiState.employees=[];taskUiState.employeesError='';taskUiState.employeesLoading=true;taskUiState.requesterActorType='nhan_vien';taskUiState.primaryPickerOpen=true;taskUiState.expandedSections=defaultExpandedSections();
   renderTaskRoot(root);
   await Promise.all([
-    loadTaskAssignableEmployees().then(function(rows){taskUiState.employees=rows;if(!rows.length)taskUiState.employeesError='Không có nhân sự Đang làm trong phạm vi giao việc của bạn.';}).catch(function(error){taskUiState.employeesError='Không tải được danh sách nhân sự: '+taskApiErrorMessage(error);}).then(function(){taskUiState.employeesLoading=false;}),
+    loadTaskAssignableEmployees().then(function(result){taskUiState.employees=result.rows;taskUiState.requesterActorType=result.requesterActorType;if(!result.rows.length)taskUiState.employeesError='Không có nhân sự Đang làm trong phạm vi giao việc của bạn.';}).catch(function(error){taskUiState.employeesError='Không tải được danh sách nhân sự: '+taskApiErrorMessage(error);}).then(function(){taskUiState.employeesLoading=false;}),
     loadTaskCategories().then(function(rows){taskUiState.categories=rows;if(!rows.length)taskUiState.categoriesError='Chưa có danh mục công việc đang hoạt động.';}).catch(function(error){taskUiState.categoriesError='Không tải được danh mục công việc: '+taskApiErrorMessage(error);}).then(function(){taskUiState.categoriesLoading=false;})
   ]);
   if(taskUiState.view==='create')renderTaskRoot(root);
@@ -583,6 +682,61 @@ async function openTaskAdminPeople(root){
   try{taskUiState.adminPeople=await loadTaskAdminPeople();}
   catch(error){taskUiState.adminPeople=null;taskUiState.adminPeopleError=taskApiErrorMessage(error);}
   taskUiState.adminPeopleLoading=false;if(taskUiState.view==='admin-people')renderTaskRoot(root);
+}
+async function openTaskSettings(root){
+  if(!isTaskAdminUi())return;
+  taskUiState.view='settings';taskUiState.settingsLoading=true;taskUiState.settingsError='';taskUiState.newCategoryName='';taskUiState.newCategoryError='';taskUiState.editingCategoryCode='';renderTaskRoot(root);
+  try{taskUiState.settingsCategories=await loadAdminTaskCategories();}
+  catch(error){taskUiState.settingsCategories=[];taskUiState.settingsError=taskApiErrorMessage(error);}
+  taskUiState.settingsLoading=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function reloadTaskSettingsCategories(root){
+  taskUiState.settingsLoading=true;taskUiState.settingsError='';renderTaskRoot(root);
+  try{taskUiState.settingsCategories=await loadAdminTaskCategories();}
+  catch(error){taskUiState.settingsCategories=[];taskUiState.settingsError=taskApiErrorMessage(error);}
+  taskUiState.settingsLoading=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+function generateCategoryCodeFromName(name){
+  var ascii=String(name||'').trim().toLocaleUpperCase('vi')
+    .replace(/[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]/g,'A').replace(/[ÈÉẸẺẼÊỀẾỆỂỄ]/g,'E').replace(/[ÌÍỊỈĨ]/g,'I')
+    .replace(/[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]/g,'O').replace(/[ÙÚỤỦŨƯỪỨỰỬỮ]/g,'U').replace(/[ỲÝỴỶỸ]/g,'Y').replace(/Đ/g,'D')
+    .replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return ascii.slice(0,40)||('DM_'+Date.now());
+}
+async function createTaskCategoryFromEditor(root){
+  var name=String(taskUiState.newCategoryName||'').trim();
+  if(!name){taskUiState.newCategoryError='Nhập tên danh mục.';renderTaskRoot(root);return;}
+  var existing=(taskUiState.settingsCategories||[]).some(function(r){return r.name.trim().toLocaleLowerCase('vi')===name.toLocaleLowerCase('vi');});
+  if(existing){taskUiState.newCategoryError='Tên danh mục đã tồn tại.';renderTaskRoot(root);return;}
+  taskUiState.settingsSaving=true;taskUiState.newCategoryError='';renderTaskRoot(root);
+  try{
+    await taskApi({action:'createTaskCategory',category_code:generateCategoryCodeFromName(name),display_name:name});
+    taskUiState.newCategoryName='';
+    taskUiState.settingsCategories=await loadAdminTaskCategories();
+    taskNotice('success','Đã thêm danh mục','Danh mục "'+name+'" đã được tạo.');
+  }catch(error){taskUiState.newCategoryError=taskApiErrorMessage(error);}
+  taskUiState.settingsSaving=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function renameTaskCategoryFromEditor(root,categoryCode){
+  var name=String(taskUiState.editingCategoryName||'').trim();
+  if(!name)return;
+  taskUiState.settingsSaving=true;renderTaskRoot(root);
+  try{
+    await taskApi({action:'renameTaskCategory',category_code:categoryCode,display_name:name});
+    taskUiState.editingCategoryCode='';
+    taskUiState.settingsCategories=await loadAdminTaskCategories();
+    taskNotice('success','Đã đổi tên danh mục','');
+  }catch(error){taskNotice('error','Chưa đổi được tên danh mục',taskApiErrorMessage(error));}
+  taskUiState.settingsSaving=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function toggleTaskCategoryFromEditor(root,categoryCode,nextActive){
+  taskUiState.settingsSaving=true;renderTaskRoot(root);
+  try{
+    await taskApi({action:'setTaskCategoryActive',category_code:categoryCode,is_active:nextActive});
+    taskUiState.settingsCategories=await loadAdminTaskCategories();
+    taskNotice('success',nextActive?'Đã kích hoạt lại danh mục':'Đã ngừng sử dụng danh mục','');
+  }catch(error){taskNotice('error','Chưa cập nhật được trạng thái danh mục',taskApiErrorMessage(error));}
+  taskUiState.settingsSaving=false;if(taskUiState.view==='settings')renderTaskRoot(root);
 }
 function openTaskPermissionEditor(root,employeeCodeValue){
   var people=taskUiState.adminPeople&&Array.isArray(taskUiState.adminPeople.people)?taskUiState.adminPeople.people:[];
@@ -670,10 +824,13 @@ function bindShell(root){
     if(target.matches('[data-task-back]')){goHub();return;}
     if(target.matches('[data-task-nav].is-soon')){taskToast('Mục này sẽ được triển khai ở phase tiếp theo.');return;}
     if(target.matches('[data-task-nav="people-permissions"]')){navigateTask(taskAdminPeoplePath());return;}
+    if(target.matches('[data-task-nav="settings"]')){navigateTask(taskSettingsPath());return;}
     if(target.matches('[data-task-nav="dashboard"]')){navigateTask(taskHomePath());return;}
     if(target.matches('[data-task-create]')){navigateTask(taskCreatePath());return;}
     if(target.matches('[data-task-cancel-create],[data-task-detail-back]')){navigateTask(taskHomePath());return;}
-    if(target.matches('[data-task-pick-primary]')){taskUiState.form=choosePrimary(taskUiState.form,target.getAttribute('data-task-pick-primary'));taskUiState.formErrors.primary_employee_code='';renderTaskRoot(root);return;}
+    if(target.matches('[data-task-pick-primary]')){taskUiState.form=choosePrimary(taskUiState.form,target.getAttribute('data-task-pick-primary'));taskUiState.formErrors.primary_employee_code='';taskUiState.primaryPickerOpen=false;taskUiState.primaryQuery='';renderTaskRoot(root);return;}
+    if(target.matches('[data-task-change-primary]')){taskUiState.primaryPickerOpen=true;renderTaskRoot(root);return;}
+    if(target.matches('[data-task-toggle-section]')){var sectionKey=target.getAttribute('data-task-toggle-section');taskUiState.expandedSections[sectionKey]=!taskUiState.expandedSections[sectionKey];renderTaskRoot(root);return;}
     if(target.matches('[data-task-pick-related]')){taskUiState.form=toggleRelated(taskUiState.form,target.getAttribute('data-task-pick-related'));renderTaskRoot(root);return;}
     if(target.matches('[data-task-remove-related]')){taskUiState.form=toggleRelated(taskUiState.form,target.getAttribute('data-task-remove-related'));renderTaskRoot(root);return;}
     if(target.matches('[data-task-add-link]')){taskUiState.form.links.push({side:'input_reference',url:'',label:''});renderTaskRoot(root);return;}
@@ -687,6 +844,13 @@ function bindShell(root){
     if(target.matches('[data-task-base-preset-save]')){saveTaskBasePresetFromEditor(root);return;}
     if(target.matches('[data-task-permission-revoke]')){revokeTaskPermissionFromEditor(root,target.getAttribute('data-task-permission-revoke'));return;}
     if(target.matches('[data-task-people-filter-clear]')){taskUiState.peopleFilters=defaultPeopleFilters();renderTaskRoot(root);return;}
+    if(target.matches('[data-task-settings-reload]')){reloadTaskSettingsCategories(root);return;}
+    if(target.matches('[data-task-category-create]')){createTaskCategoryFromEditor(root);return;}
+    if(target.matches('[data-task-category-suggest]')){taskUiState.newCategoryName=target.getAttribute('data-task-category-suggest');taskUiState.newCategoryError='';renderTaskRoot(root);return;}
+    if(target.matches('[data-task-category-rename-start]')){var startCode=target.getAttribute('data-task-category-rename-start');var startRow=(taskUiState.settingsCategories||[]).find(function(r){return r.code===startCode;});taskUiState.editingCategoryCode=startCode;taskUiState.editingCategoryName=startRow?startRow.name:'';renderTaskRoot(root);return;}
+    if(target.matches('[data-task-category-rename-cancel]')){taskUiState.editingCategoryCode='';renderTaskRoot(root);return;}
+    if(target.matches('[data-task-category-rename-save]')){renameTaskCategoryFromEditor(root,target.getAttribute('data-task-category-rename-save'));return;}
+    if(target.matches('[data-task-category-toggle]')){toggleTaskCategoryFromEditor(root,target.getAttribute('data-task-category-toggle'),target.getAttribute('data-task-category-toggle-to')==='1');return;}
   };
   root.oninput=function(event){
     var peopleFilterField=event.target.getAttribute('data-task-people-filter');
@@ -695,6 +859,8 @@ function bindShell(root){
       if(peopleFilterField==='search'&&event.type==='input'){updateAdminPeopleTable(root);return;}
       renderTaskRoot(root);return;
     }
+    if(event.target.matches('[data-task-new-category-name]')){taskUiState.newCategoryName=event.target.value;taskUiState.newCategoryError='';return;}
+    if(event.target.matches('[data-task-category-rename-input]')){taskUiState.editingCategoryName=event.target.value;return;}
     if(event.target.matches('[data-task-permission-reason]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.reason=event.target.value;taskUiState.permissionError='';return;}
     if(event.target.matches('[data-task-base-preset]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.basePresetCode=event.target.value;taskUiState.permissionError='';return;}
     if(event.target.matches('[data-task-permission-scope-type]')){if(taskUiState.permissionEditor){taskUiState.permissionEditor.scopeType=event.target.value;taskUiState.permissionEditor.employeeCodes=[];}taskUiState.permissionError='';renderTaskRoot(root);return;}
@@ -714,6 +880,7 @@ async function applyTaskRoute(root,routeKey){
   var route=parseTaskRoute(routeKey);
   if(route.view==='create'){await openTaskCreate(root);return true;}
   if(route.view==='admin-people'){await openTaskAdminPeople(root);return true;}
+  if(route.view==='settings'){await openTaskSettings(root);return true;}
   if(route.view==='detail'){
     if(!route.taskId){navigateTask(taskHomePath(),true);return false;}
     if(taskUiState.view==='detail'&&taskUiState.taskId===route.taskId&&taskUiState.detail&&!taskUiState.detailError){renderTaskRoot(root);return true;}

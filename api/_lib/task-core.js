@@ -154,7 +154,8 @@ function actorOwnsTask(actorContext, taskRow) {
 }
 
 async function listTaskAssignableEmployees(session) {
-  return { employees: await listAssignableEmployeesFromPeopleMaster(session) };
+  const result = await listAssignableEmployeesFromPeopleMaster(session);
+  return { employees: result.employees, requester_actor_type: result.requesterActorType };
 }
 
 const TASK_ACTOR_TYPE_LABELS = Object.freeze({

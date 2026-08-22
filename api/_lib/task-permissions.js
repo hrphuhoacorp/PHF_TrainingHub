@@ -16,7 +16,8 @@ const {
   normalizeScopeText,
   isSalesAllBranchesSubject,
   loadOrgRows,
-  findByCode
+  findByCode,
+  TASK_PRESET_TO_ACTOR_TYPE
 } = require('./task-employee-scope');
 
 const configured = Boolean(String(process.env.SUPABASE_URL || '').trim() && String(process.env.SUPABASE_SECRET_KEY || '').trim());
@@ -310,32 +311,51 @@ async function canAssignTaskTo(session, targetEmployeeCode) {
 }
 
 /*
- * canAddTaskRelated — Related business rule CHƯA CHỐT (Phase 1.5 mục 4:
- * HOLD). Cho tới khi có business decision, KHÔNG dùng assignScope (phạm vi
- * giao việc mới, TBP/TC = toàn công ty) để chọn related target — làm vậy sẽ
- * biến "được giao toàn công ty" thành "related toàn công ty", một escalation
- * ngoài ý định của peopleScope/assignScope split. Dùng peopleScope (phạm vi
- * view/update đã được duyệt cho actor) làm giới hạn conservative — không
- * phát minh scope mới, chỉ tái dùng scope hẹp hơn đã có sẵn.
+ * canAddTaskRelated — Related business rule nay đã CHỐT (Tạo phiếu V1 mục
+ * 4): Người liên quan = CC. Được chọn NHIỀU người, bất kỳ nhân sự ACTIVE
+ * toàn công ty — không giới hạn theo peopleScope/assignScope của actor.
+ * Đây là quyết định business rõ ràng (thay thế conservative HOLD trước đó ở
+ * Phase 1.5), vì CC chỉ mang tính thông báo/theo dõi — KHÔNG chịu trách
+ * nhiệm chính, KHÔNG tính trễ/KPI, KHÔNG được xem như đồng Primary, KHÔNG
+ * được hoàn thành thay người chính (enforce ở completeTask/updateTaskProgress
+ * — chỉ primary hiện hành mới gọi được, related không có quyền này dù có
+ * capability update). Actor vẫn phải là active employee hoặc Admin, và vẫn
+ * phải có quyền cập nhật Task đó (creator hoặc capability update qua
+ * requireUpdateAuthority ở call site) trước khi được thêm CC — hàm này chỉ
+ * xác định TARGET có hợp lệ để làm CC hay không, không tự cấp quyền sửa Task.
  */
 async function canAddTaskRelated(session, targetEmployeeCode) {
-  const { actorContext, scope } = await resolveEffectiveTaskScope(session);
+  const { actorContext } = await resolveEffectiveTaskScope(session);
   if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return false;
   const rows = await loadOrgRows();
   const targetSubject = findByCode(rows, targetEmployeeCode);
   if (!targetSubject || !isActiveEmployee(targetSubject)) return false;
-  if (actorContext.actorType === 'admin') return true;
-  if (code(targetEmployeeCode) === actorContext.employeeCode) return true;
-  if (!scope.capabilities.update) return false;
-  return subjectMatchesTaskScope(targetSubject, scope.peopleScope);
+  return true;
+}
+
+// Chỉ dùng để phát hiện "giao ngang cấp" (Tạo phiếu V1 mục 9) — map rẻ
+// employeeCode -> actorType hiện hành, KHÔNG resolve grant/scope đầy đủ như
+// resolveEffectiveTaskScopesForActorContexts (không cần cho việc này, tránh
+// N query không cần thiết trên danh sách assignable có thể dài).
+async function loadActiveActorTypesByEmployee() {
+  ensureDb();
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase.from(ASSIGNMENTS_TABLE).select('employee_code,preset_code').eq('is_active', true).lte('effective_from', nowIso);
+  if (error) throwDb(error, ASSIGNMENTS_TABLE);
+  const map = new Map();
+  (data || []).forEach(row => {
+    const actorType = TASK_PRESET_TO_ACTOR_TYPE[code(row.preset_code)];
+    if (actorType) map.set(code(row.employee_code), actorType);
+  });
+  return map;
 }
 
 async function listTaskAssignableEmployees(session) {
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
-  if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return [];
+  if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return { employees: [], requesterActorType: actorContext.actorType };
   const assignScope = scope.assignScope || scope.peopleScope;
-  const rows = await loadOrgRows();
-  return rows.filter(subject => {
+  const [rows, actorTypeByEmployee] = await Promise.all([loadOrgRows(), loadActiveActorTypesByEmployee()]);
+  const employees = rows.filter(subject => {
     if (!subject.employeeCode || !isActiveEmployee(subject)) return false;
     if (actorContext.actorType === 'admin') return true;
     if (subject.employeeCode === actorContext.employeeCode) return true;
@@ -348,8 +368,10 @@ async function listTaskAssignableEmployees(session) {
     position: subject.position,
     branch: subject.branch,
     managerEmployeeCode: subject.managerCode,
-    employmentStatus: 'active'
+    employmentStatus: 'active',
+    taskActorType: actorTypeByEmployee.get(subject.employeeCode) || 'nhan_vien'
   })).sort((left, right) => left.fullName.localeCompare(right.fullName, 'vi'));
+  return { employees, requesterActorType: actorContext.actorType };
 }
 
 module.exports = {
