@@ -408,12 +408,132 @@ async function saveTaskPermissionAssignment(session, input) {
   return { assignment: taskPermissionAssignmentDto(assignment) };
 }
 
+// ---------------------------------------------------------------------------
+// Checklist → Task preset mapping preview (read-only, Nhân sự & phân quyền).
+//
+// Checklist KHÔNG có preset "Giám đốc"/"Nhân viên" dạng lưu trữ — đây là hệ
+// thống grant-per-person (checklist_permission_grants), preset_code chỉ là
+// nhãn tiện lợi lúc lưu chứ KHÔNG enforce lúc đọc quyền (xem
+// api/_lib/checklist-permissions.js PRESETS). "Giám đốc" thực chất =
+// user_accounts.role==='admin' (cờ hệ thống, bypass toàn bộ — KHÔNG phải một
+// preset Checklist và KHÔNG chắc gắn với đúng 1 người cụ thể). "Nhân viên" =
+// hoàn toàn không có active grant nào (default ngầm).
+//
+// Mapping này CHỈ để hiển thị preview/đề xuất trên UI — KHÔNG tự động ghi
+// bất kỳ Task assignment nào. Không đọc được Checklist (bảng thiếu/lỗi)
+// không được làm sập trang Nhân sự & phân quyền — coi như "chưa khả dụng".
+// ---------------------------------------------------------------------------
+const CHECKLIST_GRANTS_TABLE = 'checklist_permission_grants';
+const CHECKLIST_PRESET_TO_TASK_PRESET = Object.freeze({
+  TRO_LY_GD: 'TRO_LY_GD',
+  TRUONG_BO_PHAN: 'TRUONG_BO_PHAN',
+  // Checklist TRUONG_CA_BH hard-code scope theo phòng ban/chi nhánh cố định
+  // (Bán hàng × Phú Lợi/Ngô Quyền/Lái Thiêu) — Task TRUONG_CA V1 KHÔNG dùng
+  // cơ chế đó, mà tự tính peopleScope theo quan hệ quản lý thật
+  // (manager_employee_code). Preset/identity map được nhưng scope phía Task
+  // sẽ do runtime tự tính lại, có thể khác phạm vi Checklist.
+  TRUONG_CA_BH: 'TRUONG_CA'
+  // QUAN_LY_TRUC_TIEP / CHI_XEM_BAO_CAO / TUY_CHINH: không có Task preset
+  // tương ứng — cố ý KHÔNG map, xử lý ở nhánh "chưa có preset tương ứng".
+});
+const CHECKLIST_PRESET_LABELS = Object.freeze({
+  TRO_LY_GD: 'Trợ lý Giám đốc (Checklist)',
+  TRUONG_BO_PHAN: 'Trưởng bộ phận (Checklist)',
+  TRUONG_CA_BH: 'Trưởng ca — Bán hàng 3 chi nhánh (Checklist)',
+  QUAN_LY_TRUC_TIEP: 'Quản lý trực tiếp (Checklist)',
+  CHI_XEM_BAO_CAO: 'Chỉ xem báo cáo (Checklist)',
+  TUY_CHINH: 'Tùy chỉnh (Checklist)'
+});
+
+async function loadChecklistRoleReference() {
+  ensureDb();
+  const refByEmployee = new Map();
+  const pushRef = (employeeCode, ref) => {
+    const key = code(employeeCode);
+    if (!key) return;
+    if (!refByEmployee.has(key)) refByEmployee.set(key, []);
+    refByEmployee.get(key).push(ref);
+  };
+  try {
+    const [grantsRes, adminsRes] = await Promise.all([
+      supabase.from(CHECKLIST_GRANTS_TABLE).select('employee_code,preset_code').eq('is_active', true),
+      supabase.from('user_accounts').select('employee_code,role,status').eq('role', 'admin').eq('status', 'active')
+    ]);
+    if (grantsRes.error) throwDb(grantsRes.error);
+    if (adminsRes.error) throwDb(adminsRes.error);
+    (grantsRes.data || []).forEach(row => {
+      const presetCode = code(row.preset_code);
+      pushRef(row.employee_code, { source: 'grant', presetCode, label: CHECKLIST_PRESET_LABELS[presetCode] || ('Checklist: ' + presetCode) });
+    });
+    (adminsRes.data || []).forEach(row => {
+      if (!text(row.employee_code)) return; // tài khoản admin tiện ích không gắn nhân sự — bỏ qua, không map
+      pushRef(row.employee_code, { source: 'admin', presetCode: '', label: 'Quản trị hệ thống (Checklist admin)' });
+    });
+    return { ready: true, refByEmployee };
+  } catch (error) {
+    return { ready: false, refByEmployee, error };
+  }
+}
+
+function computeChecklistMapping(person, checklistReady, refByEmployee) {
+  if (!checklistReady) return { status: 'unavailable', label: '', proposed_preset: '', note: '' };
+  const refs = refByEmployee.get(person.employee_code) || [];
+  if (!refs.length) return { status: 'chua_gan', label: '', proposed_preset: '', note: '' };
+  if (refs.length > 1) {
+    return {
+      status: 'conflict',
+      label: refs.map(r => r.label).join(' + '),
+      proposed_preset: '',
+      note: 'Nhiều tham chiếu Checklist cùng lúc cho 1 người — cần Business Owner xác nhận thủ công.'
+    };
+  }
+  const ref = refs[0];
+  if (ref.source === 'admin') {
+    return {
+      status: 'can_duyet',
+      label: ref.label,
+      proposed_preset: 'GIAM_DOC',
+      note: 'Cờ Admin hệ thống không đồng nghĩa đây là Giám đốc thật — cần Business Owner xác nhận danh tính trước khi gán.'
+    };
+  }
+  const proposedPreset = CHECKLIST_PRESET_TO_TASK_PRESET[ref.presetCode] || '';
+  if (!proposedPreset) {
+    return {
+      status: 'can_duyet',
+      label: ref.label,
+      proposed_preset: '',
+      note: 'Preset Checklist "' + ref.presetCode + '" chưa có Task preset tương ứng — cần Business Owner quyết định.'
+    };
+  }
+  const currentIsAssignment = person.task_preset_source === 'assignment';
+  if (currentIsAssignment && code(person.task_preset_code) === proposedPreset) {
+    return { status: 'khop', label: ref.label, proposed_preset: proposedPreset, note: '' };
+  }
+  return {
+    status: 'de_xuat',
+    label: ref.label,
+    proposed_preset: proposedPreset,
+    note: proposedPreset === 'TRUONG_CA'
+      ? 'Checklist scope theo phòng ban/chi nhánh cố định; Task sẽ tự tính peopleScope theo quan hệ quản lý thật, có thể khác phạm vi Checklist.'
+      : ''
+  };
+}
+
+const CHECKLIST_MAPPING_STATUS_LABELS = Object.freeze({
+  khop: 'Khớp',
+  chua_gan: 'Chưa gán',
+  de_xuat: 'Đề xuất gán',
+  conflict: 'Conflict',
+  can_duyet: 'Cần duyệt',
+  unavailable: 'Chưa khả dụng'
+});
+
 async function listTaskAdminPeople(session) {
   const requester = await resolveEffectiveTaskScope(session);
   if (requester.actorContext.actorType !== 'admin') fail('Chỉ Admin PHF Task được xem Nhân sự & phân quyền.', 403, 'TASK_ADMIN_PEOPLE_DENIED');
   requireTaskCapability(requester, 'manage');
 
-  const [orgRows, accounts] = await Promise.all([loadOrgRows(), listHubAccountSummaries()]);
+  const [orgRows, accounts, checklistRef] = await Promise.all([loadOrgRows(), listHubAccountSummaries(), loadChecklistRoleReference()]);
   const accountByEmployee = new Map();
   (accounts || []).forEach(account => {
     const employeeCode = code(account && account.employeeCode);
@@ -439,6 +559,11 @@ async function listTaskAdminPeople(session) {
     const accountStatus = taskAccountStatus(account);
     const baseScope = permissionSchemaReady ? resolveBaseTaskScope(actorContext) : null;
     const employmentStatus = text(person && person.status).toLowerCase() === 'inactive' ? 'inactive' : 'active';
+    const checklistMapping = computeChecklistMapping(
+      { employee_code: actorContext.employeeCode, task_preset_code: permissionSchemaReady ? actorContext.taskPresetCode : '', task_preset_source: permissionSchemaReady ? (effective.assignment ? 'assignment' : 'default') : 'unavailable' },
+      checklistRef.ready,
+      checklistRef.refByEmployee
+    );
     return {
       employee_code: actorContext.employeeCode,
       full_name: actorContext.fullName,
@@ -477,6 +602,11 @@ async function listTaskAdminPeople(session) {
       active_grant_count: permissionSchemaReady ? effective.grants.length : 0,
       active_grants: permissionSchemaReady ? effective.grants.map(taskPermissionGrantDto) : [],
       can_receive_new_tasks: employmentStatus === 'active',
+      checklist_mapping_status: checklistMapping.status,
+      checklist_mapping_status_label: CHECKLIST_MAPPING_STATUS_LABELS[checklistMapping.status] || 'Chưa khả dụng',
+      checklist_role_label: checklistMapping.label,
+      checklist_proposed_preset: checklistMapping.proposed_preset,
+      checklist_mapping_note: checklistMapping.note,
       permission_adjustment: permissionSchemaReady ? Object.assign(
         taskPermissionAdjustmentPolicy(employmentStatus, baseScope.peopleScope.type),
         { can_set_base_preset: employmentStatus === 'active' }
@@ -491,12 +621,17 @@ async function listTaskAdminPeople(session) {
     permission_schema_ready: permissionSchemaReady,
     permission_schema_error: permissionSchemaError ? permissionSchemaError.code : '',
     permission_schema_message: permissionSchemaError ? permissionSchemaError.message : '',
+    checklist_reference_ready: checklistRef.ready,
     people,
     summary: {
       total: people.length,
       active: people.filter(person => person.employment_status === 'active').length,
       inactive: people.filter(person => person.employment_status === 'inactive').length,
-      with_account: people.filter(person => person.has_account).length
+      with_account: people.filter(person => person.has_account).length,
+      checklist_khop: people.filter(person => person.checklist_mapping_status === 'khop').length,
+      checklist_de_xuat: people.filter(person => person.checklist_mapping_status === 'de_xuat').length,
+      checklist_conflict: people.filter(person => person.checklist_mapping_status === 'conflict').length,
+      checklist_can_duyet: people.filter(person => person.checklist_mapping_status === 'can_duyet').length
     }
   };
 }

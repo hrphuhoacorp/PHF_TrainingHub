@@ -223,7 +223,7 @@ async function loadTaskCategories(apiCall){
 }
 async function loadTaskAdminPeople(apiCall){
   var response=await (apiCall||taskApi)({action:'listTaskAdminPeople'}), result=taskResult(response)||{};
-  return {identityReady:result.identity_ready===true,identityStatus:String(result.identity_status||''),identityMessage:String(result.identity_message||''),permissionSchemaReady:result.permission_schema_ready!==false,permissionSchemaError:String(result.permission_schema_error||''),permissionSchemaMessage:String(result.permission_schema_message||''),people:Array.isArray(result.people)?result.people:[],summary:result.summary||{total:0,active:0,inactive:0,with_account:0}};
+  return {identityReady:result.identity_ready===true,identityStatus:String(result.identity_status||''),identityMessage:String(result.identity_message||''),permissionSchemaReady:result.permission_schema_ready!==false,permissionSchemaError:String(result.permission_schema_error||''),permissionSchemaMessage:String(result.permission_schema_message||''),checklistReferenceReady:result.checklist_reference_ready!==false,people:Array.isArray(result.people)?result.people:[],summary:result.summary||{total:0,active:0,inactive:0,with_account:0}};
 }
 function buildTaskPermissionAssignmentPayload(editor){
   return {action:'saveTaskPermissionAssignment',employee_code:employeeCode(editor&&editor.employeeCode),preset_code:employeeCode(editor&&editor.basePresetCode),reason:String(editor&&editor.reason||'').trim()};
@@ -255,7 +255,8 @@ function toggleRelated(form,code){
   if(index>=0)list.splice(index,1);else list.push(target);
   next.related_employee_codes=list;return next;
 }
-var taskUiState={view:'dashboard',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',primaryQuery:'',relatedQuery:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',permissionEditor:null,permissionSaving:false,permissionError:''};
+function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'',accountStatus:'',permissionSource:'',checklistStatus:'',search:''};}
+var taskUiState={view:'dashboard',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',primaryQuery:'',relatedQuery:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:''};
 
 function taskToast(message){
   if(typeof window.phfToast==='function'){ window.phfToast('info','Sắp triển khai',message,3200,'phf-task-soon'); return; }
@@ -358,14 +359,69 @@ function taskPermissionEditorHtml(){
   var extendBlock=policy.can_create_extend===true?'<section class="phft-permission-create"><h3>Ngoại lệ Extend</h3><p>Extend chỉ mở rộng scope trên preset nền. Restrict và delegation chưa mở trong UI V1.</p><label><span>Phạm vi mở rộng</span><select data-task-permission-scope-type>'+scopeOptions+'</select></label>'+(scopeType==='employees'?'<label><span>Nhân sự được mở rộng</span><select multiple size="7" data-task-permission-targets>'+taskPermissionTargetOptions(person,editor.employeeCodes)+'</select><small>Giữ Ctrl/Cmd để chọn nhiều người.</small></label>':'<div class="phft-alert is-warning"><div><b>Mở rộng toàn công ty</b><small>Grant này cho phép scope Task phủ toàn bộ People Master đang hoạt động.</small></div></div>')+'</section>':'<div class="phft-inline-empty">Preset nền đã có phạm vi toàn công ty hoặc nhân sự không còn active; không có Extend mới để tạo.</div>';
   return '<div class="phft-modal-backdrop"><section class="phft-permission-modal" role="dialog" aria-modal="true" aria-label="Điều chỉnh quyền Task"><header><div><small>PHF TASK / BASE + EXCEPTION</small><h2>Điều chỉnh quyền · '+esc(person.full_name||person.employee_code)+'</h2><p>'+esc(person.employee_code)+' · '+esc(person.task_role_label||'—')+'</p></div><button type="button" class="phft-icon-btn" data-task-permission-close aria-label="Đóng">×</button></header><div class="phft-permission-current"><div><b>Quyền nền</b><small>'+esc(person.base_scope_label||'—')+'</small><div>'+taskPermissionCapsHtml(person.base_capabilities||{})+'</div></div><div><b>Quyền hiệu lực</b><small>'+esc(person.effective_scope_label||'—')+'</small><div>'+taskPermissionCapsHtml(person.capabilities||{})+'</div></div></div>'+baseBlock+'<section><h3>Grant ngoại lệ đang hiệu lực</h3>'+taskActiveGrantsHtml(person)+'</section>'+extendBlock+'<label class="phft-permission-reason"><span>Lý do thao tác</span><textarea rows="3" data-task-permission-reason placeholder="Bắt buộc cho lưu preset, Extend hoặc thu hồi">'+esc(editor.reason||'')+'</textarea></label>'+(taskUiState.permissionError?'<div class="phft-alert is-error"><div><b>Chưa lưu được quyền.</b><small>'+esc(taskUiState.permissionError)+'</small></div></div>':'')+'<footer><button type="button" class="phft-btn-secondary" data-task-permission-close'+(taskUiState.permissionSaving?' disabled':'')+'>Đóng</button>'+(policy.can_create_extend===true?'<button type="button" class="phft-btn-secondary" data-task-permission-save'+(taskUiState.permissionSaving?' disabled':'')+'>Lưu Extend</button>':'')+(policy.can_set_base_preset===true?'<button type="button" class="phft-btn-primary" data-task-base-preset-save'+(taskUiState.permissionSaving?' disabled':'')+'>'+(taskUiState.permissionSaving?'Đang lưu…':'Lưu Task preset')+'</button>':'')+'</footer></section></div>';
 }
+var CHECKLIST_MAPPING_BADGE_LABELS={khop:'Khớp',chua_gan:'Chưa gán',de_xuat:'Đề xuất gán',conflict:'Conflict',can_duyet:'Cần duyệt',unavailable:'Chưa khả dụng'};
+function checklistMappingCellHtml(person){
+  var status=String(person.checklist_mapping_status||'unavailable');
+  var label=person.checklist_mapping_status_label||CHECKLIST_MAPPING_BADGE_LABELS[status]||'Chưa khả dụng';
+  var detail=person.checklist_role_label?esc(person.checklist_role_label):'';
+  var proposed=person.checklist_proposed_preset?'<small>Đề xuất: '+esc(taskEnumLabel(TASK_PRESET_LABELS,person.checklist_proposed_preset))+'</small>':'';
+  var note=person.checklist_mapping_note?'<small class="phft-checklist-note">'+esc(person.checklist_mapping_note)+'</small>':'';
+  return '<span class="phft-checklist-badge is-'+esc(status)+'">'+esc(label)+'</span>'+(detail?'<small>'+detail+'</small>':'')+proposed+note;
+}
+function adminPeopleDistinctDepartments(people){
+  var set={};(people||[]).forEach(function(p){var d=String(p.department||'').trim();if(d)set[d]=true;});
+  return Object.keys(set).sort(function(a,b){return a.localeCompare(b,'vi');});
+}
+function filterAdminPeople(people,filters){
+  var f=filters||{},search=String(f.search||'').trim().toLocaleLowerCase('vi');
+  return (people||[]).filter(function(p){
+    if(f.role&&String(p.task_actor_type||'')!==f.role)return false;
+    if(f.department&&String(p.department||'')!==f.department)return false;
+    if(f.employmentStatus&&String(p.employment_status||'')!==f.employmentStatus)return false;
+    if(f.accountStatus&&String(p.account_status||'')!==f.accountStatus)return false;
+    if(f.permissionSource){
+      if(f.permissionSource==='grant'){if(!p.has_active_grant)return false;}
+      else if(String(p.task_preset_source||'')!==f.permissionSource)return false;
+    }
+    if(f.checklistStatus&&String(p.checklist_mapping_status||'')!==f.checklistStatus)return false;
+    if(search){
+      var hay=[p.full_name,p.employee_code].join(' ').toLocaleLowerCase('vi');
+      if(hay.indexOf(search)<0)return false;
+    }
+    return true;
+  });
+}
+function adminPeopleFiltersHtml(allPeople){
+  var f=taskUiState.peopleFilters||defaultPeopleFilters();
+  var departments=adminPeopleDistinctDepartments(allPeople);
+  function opt(value,label,current){return '<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(label)+'</option>';}
+  var roleOptions='<option value="">Tất cả vai trò</option>'+
+    opt('nhan_vien','Nhân viên',f.role)+opt('truong_ca','Trưởng ca',f.role)+opt('truong_bo_phan','Trưởng bộ phận',f.role)+
+    opt('tro_ly_gd','Trợ lý Giám đốc',f.role)+opt('giam_doc','Giám đốc',f.role)+opt('admin','Admin',f.role);
+  var deptOptions='<option value="">Tất cả phòng ban</option>'+departments.map(function(d){return opt(d,d,f.department);}).join('');
+  var employmentOptions='<option value="">Tất cả</option>'+opt('active','Đang làm',f.employmentStatus)+opt('inactive','Nghỉ việc',f.employmentStatus);
+  var accountOptions='<option value="">Tất cả</option>'+opt('active','Hoạt động',f.accountStatus)+opt('locked','Đã khóa',f.accountStatus)+opt('inactive','Ngừng sử dụng',f.accountStatus)+opt('missing','Chưa có tài khoản',f.accountStatus);
+  var sourceOptions='<option value="">Tất cả</option>'+opt('default','Mặc định',f.permissionSource)+opt('assignment','Đã gán preset',f.permissionSource)+opt('grant','Có grant/ngoại lệ',f.permissionSource);
+  var checklistOptions='<option value="">Tất cả</option>'+opt('khop','Khớp',f.checklistStatus)+opt('chua_gan','Chưa gán',f.checklistStatus)+opt('de_xuat','Đề xuất gán',f.checklistStatus)+opt('conflict','Conflict',f.checklistStatus)+opt('can_duyet','Cần duyệt',f.checklistStatus);
+  return '<section class="phft-people-filters">'+
+    '<label><span>Vai trò Task</span><select data-task-people-filter="role">'+roleOptions+'</select></label>'+
+    '<label><span>Phòng ban</span><select data-task-people-filter="department">'+deptOptions+'</select></label>'+
+    '<label><span>Trạng thái làm việc</span><select data-task-people-filter="employmentStatus">'+employmentOptions+'</select></label>'+
+    '<label><span>Trạng thái tài khoản</span><select data-task-people-filter="accountStatus">'+accountOptions+'</select></label>'+
+    '<label><span>Nguồn quyền</span><select data-task-people-filter="permissionSource">'+sourceOptions+'</select></label>'+
+    '<label><span>Mapping Checklist</span><select data-task-people-filter="checklistStatus">'+checklistOptions+'</select></label>'+
+    '<label class="phft-people-filter-search"><span>Tìm kiếm</span><input type="text" data-task-people-filter="search" value="'+esc(f.search||'')+'" placeholder="Họ tên hoặc mã nhân viên"></label>'+
+    '<button type="button" class="phft-btn-secondary" data-task-people-filter-clear">Xóa bộ lọc</button>'+
+  '</section>';
+}
 function adminPeopleTableHtml(people){
-  if(!people.length)return '<div class="phft-empty">People Master chưa có nhân sự để hiển thị.</div>';
-  return '<div class="phft-admin-people-tablebox"><table class="phft-admin-people-table"><thead><tr><th>Nhân sự</th><th>Phòng ban / Chức danh</th><th>Làm việc</th><th>Tài khoản</th><th>Vai trò Task</th><th>Phạm vi quyền</th><th>Xem</th><th>Giao việc</th><th>Cập nhật</th><th>Quản trị</th><th>Thao tác</th></tr></thead><tbody>'+people.map(function(person){
+  if(!people.length)return '<div class="phft-empty">Không có nhân sự khớp bộ lọc hiện tại.</div>';
+  return '<div class="phft-admin-people-tablebox"><table class="phft-admin-people-table"><thead><tr><th>Nhân sự</th><th>Phòng ban / Chức danh</th><th>Làm việc</th><th>Tài khoản</th><th>Vai trò Task</th><th>Phạm vi quyền</th><th>Mapping Checklist</th><th>Xem</th><th>Giao việc</th><th>Cập nhật</th><th>Quản trị</th><th>Thao tác</th></tr></thead><tbody>'+people.map(function(person){
     var caps=person.capabilities||{},inactive=person.employment_status==='inactive';
     var policy=person.permission_adjustment||{},grants=Array.isArray(person.active_grants)?person.active_grants:[],canOpen=policy.can_set_base_preset===true||grants.length>0;
     var presetLabel=person.task_preset_source==='unavailable'?'Chưa khả dụng':taskEnumLabel(TASK_PRESET_LABELS,person.task_preset_code||'NHAN_VIEN');
     var presetSourceLabel=taskEnumLabel(TASK_PRESET_SOURCE_LABELS,person.task_preset_source||'default');
-    return '<tr'+(inactive?' class="is-inactive"':'')+'><td><b>'+esc(person.full_name||person.employee_code||'—')+'</b><small>'+esc(person.employee_code||'—')+'</small></td><td><b>'+esc(person.department||'—')+'</b><small>'+esc(person.title||person.position||'—')+(person.branch?' · '+esc(person.branch):'')+'</small></td><td><span class="phft-people-status '+(inactive?'is-inactive':'is-active')+'">'+esc(person.employment_status_label||'—')+'</span><small>'+(person.can_receive_new_tasks?'Có thể nhận Task mới':'Không nhận Task mới')+'</small></td><td><span class="phft-people-status account-'+esc(person.account_status||'missing')+'">'+esc(person.account_status_label||'—')+'</span></td><td><b>'+esc(person.task_role_label||'—')+'</b><small>'+esc(presetLabel)+' · '+esc(presetSourceLabel)+'</small></td><td><b>'+esc(person.base_scope_label||'—')+'</b><small>Hiệu lực: '+esc(person.effective_scope_label||person.base_scope_label||'—')+(person.has_active_grant?' · '+Number(person.active_grant_count||0)+' grant đang hiệu lực':' · Không có grant active')+'</small></td><td>'+taskPermissionFlag(caps.view===true)+'</td><td>'+taskPermissionFlag(caps.assign===true)+'</td><td>'+taskPermissionFlag(caps.update===true)+'</td><td>'+taskPermissionFlag(caps.manage===true)+'</td><td>'+(canOpen?'<button type="button" class="phft-btn-secondary phft-permission-open" data-task-permission-open="'+esc(person.employee_code)+'">Điều chỉnh quyền</button>':'<span class="phft-readonly-badge">Chỉ đọc lịch sử</span>')+'</td></tr>';
+    return '<tr'+(inactive?' class="is-inactive"':'')+'><td><b>'+esc(person.full_name||person.employee_code||'—')+'</b><small>'+esc(person.employee_code||'—')+'</small></td><td><b>'+esc(person.department||'—')+'</b><small>'+esc(person.title||person.position||'—')+(person.branch?' · '+esc(person.branch):'')+'</small></td><td><span class="phft-people-status '+(inactive?'is-inactive':'is-active')+'">'+esc(person.employment_status_label||'—')+'</span><small>'+(person.can_receive_new_tasks?'Có thể nhận Task mới':'Không nhận Task mới')+'</small></td><td><span class="phft-people-status account-'+esc(person.account_status||'missing')+'">'+esc(person.account_status_label||'—')+'</span></td><td><b>'+esc(person.task_role_label||'—')+'</b><small>'+esc(presetLabel)+' · '+esc(presetSourceLabel)+'</small></td><td><b>'+esc(person.base_scope_label||'—')+'</b><small>Hiệu lực: '+esc(person.effective_scope_label||person.base_scope_label||'—')+(person.has_active_grant?' · '+Number(person.active_grant_count||0)+' grant đang hiệu lực':' · Không có grant active')+'</small></td><td>'+checklistMappingCellHtml(person)+'</td><td>'+taskPermissionFlag(caps.view===true)+'</td><td>'+taskPermissionFlag(caps.assign===true)+'</td><td>'+taskPermissionFlag(caps.update===true)+'</td><td>'+taskPermissionFlag(caps.manage===true)+'</td><td>'+(canOpen?'<button type="button" class="phft-btn-secondary phft-permission-open" data-task-permission-open="'+esc(person.employee_code)+'">Điều chỉnh quyền</button>':'<span class="phft-readonly-badge">Chỉ đọc lịch sử</span>')+'</td></tr>';
   }).join('')+'</tbody></table></div>';
 }
 function adminPeopleHtml(){
@@ -374,7 +430,10 @@ function adminPeopleHtml(){
   if(taskUiState.adminPeopleLoading)return head+'<section class="phft-form-card"><div class="phft-loading">Đang đọc People Master, tài khoản và quyền PHF Task…</div></section>';
   if(taskUiState.adminPeopleError)return head+'<div class="phft-alert is-error"><div><b>Chưa tải được Nhân sự & phân quyền.</b><small>'+esc(taskUiState.adminPeopleError)+'</small></div><button type="button" class="phft-btn-secondary" data-task-admin-people-reload>Thử lại</button></div>';
   var permissionWarning=data.permissionSchemaReady===false?'<div class="phft-alert is-error"><div><b>Schema phân quyền Task chưa sẵn sàng.</b><small>'+esc(data.permissionSchemaMessage||data.permissionSchemaError||'Cần áp dụng migration Foundation Correction đúng môi trường trước khi chỉnh quyền.')+'</small></div></div>':'';
-  return head+permissionWarning+'<section class="phft-admin-summary"><article><b>'+Number(summary.total||0)+'</b><span>Tổng nhân sự</span></article><article><b>'+Number(summary.active||0)+'</b><span>Đang làm</span></article><article><b>'+Number(summary.inactive||0)+'</b><span>Nghỉ việc</span></article><article><b>'+Number(summary.with_account||0)+'</b><span>Có tài khoản</span></article></section><section class="phft-form-card phft-admin-people-card"><header><h2>Quyền hiệu lực hiện tại</h2><p>People Master cung cấp cơ cấu; Task preset cung cấp base role; grant là ngoại lệ chồng lên sau cùng.</p></header>'+adminPeopleTableHtml(data.people||[])+'</section>'+taskPermissionEditorHtml();
+  var checklistWarning=data.checklistReferenceReady===false?'<div class="phft-alert is-warning"><div><b>Không đọc được dữ liệu tham chiếu Checklist.</b><small>Cột Mapping Checklist hiển thị "Chưa khả dụng" cho tới khi đọc lại được — không ảnh hưởng quyền Task hiện hành.</small></div></div>':'';
+  var allPeople=data.people||[];
+  var filteredPeople=filterAdminPeople(allPeople,taskUiState.peopleFilters);
+  return head+permissionWarning+checklistWarning+'<section class="phft-admin-summary"><article><b>'+Number(summary.total||0)+'</b><span>Tổng nhân sự</span></article><article><b>'+Number(summary.active||0)+'</b><span>Đang làm</span></article><article><b>'+Number(summary.inactive||0)+'</b><span>Nghỉ việc</span></article><article><b>'+Number(summary.with_account||0)+'</b><span>Có tài khoản</span></article><article><b>'+Number(summary.checklist_khop||0)+'</b><span>Checklist: Khớp</span></article><article><b>'+Number(summary.checklist_de_xuat||0)+'</b><span>Checklist: Đề xuất gán</span></article><article><b>'+Number(summary.checklist_can_duyet||0)+'</b><span>Checklist: Cần duyệt</span></article><article><b>'+Number(summary.checklist_conflict||0)+'</b><span>Checklist: Conflict</span></article></section><section class="phft-form-card phft-admin-people-card"><header><h2>Quyền hiệu lực hiện tại</h2><p>People Master cung cấp cơ cấu; Task preset cung cấp base role; grant là ngoại lệ chồng lên sau cùng. Mapping Checklist chỉ là tham khảo/đề xuất, không tự động ghi quyền.</p></header>'+adminPeopleFiltersHtml(allPeople)+'<p class="phft-people-filter-count" data-task-people-count>Hiển thị '+filteredPeople.length+'/'+allPeople.length+' nhân sự.</p>'+'<div data-task-people-table>'+adminPeopleTableHtml(filteredPeople)+'</div></section>'+taskPermissionEditorHtml();
 }
 
 function taskFieldError(name){
@@ -501,6 +560,14 @@ function taskViewHtml(){
 }
 function renderTaskRoot(root){root.innerHTML='<div class="phf-task-root-shell">'+shellFrame(taskViewHtml())+'</div>';bindShell(root);}
 function updatePickerResults(root,kind){var target=root.querySelector('[data-task-results="'+kind+'"]');if(target)target.innerHTML=employeeResultsHtml(kind);}
+function updateAdminPeopleTable(root){
+  var data=taskUiState.adminPeople||{},allPeople=data.people||[];
+  var filtered=filterAdminPeople(allPeople,taskUiState.peopleFilters);
+  var tableTarget=root.querySelector('[data-task-people-table]');
+  if(tableTarget)tableTarget.innerHTML=adminPeopleTableHtml(filtered);
+  var countTarget=root.querySelector('[data-task-people-count]');
+  if(countTarget)countTarget.textContent='Hiển thị '+filtered.length+'/'+allPeople.length+' nhân sự.';
+}
 async function openTaskCreate(root){
   taskUiState.view='create';taskUiState.form=defaultTaskForm();taskUiState.formErrors={};taskUiState.submitError='';taskUiState.submitPhase='';taskUiState.submitting=false;taskUiState.primaryQuery='';taskUiState.relatedQuery='';taskUiState.categories=[];taskUiState.categoriesError='';taskUiState.categoriesLoading=true;taskUiState.employees=[];taskUiState.employeesError='';taskUiState.employeesLoading=true;
   renderTaskRoot(root);
@@ -619,8 +686,15 @@ function bindShell(root){
     if(target.matches('[data-task-permission-save]')){saveTaskPermissionFromEditor(root);return;}
     if(target.matches('[data-task-base-preset-save]')){saveTaskBasePresetFromEditor(root);return;}
     if(target.matches('[data-task-permission-revoke]')){revokeTaskPermissionFromEditor(root,target.getAttribute('data-task-permission-revoke'));return;}
+    if(target.matches('[data-task-people-filter-clear]')){taskUiState.peopleFilters=defaultPeopleFilters();renderTaskRoot(root);return;}
   };
   root.oninput=function(event){
+    var peopleFilterField=event.target.getAttribute('data-task-people-filter');
+    if(peopleFilterField){
+      taskUiState.peopleFilters[peopleFilterField]=event.target.value;
+      if(peopleFilterField==='search'&&event.type==='input'){updateAdminPeopleTable(root);return;}
+      renderTaskRoot(root);return;
+    }
     if(event.target.matches('[data-task-permission-reason]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.reason=event.target.value;taskUiState.permissionError='';return;}
     if(event.target.matches('[data-task-base-preset]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.basePresetCode=event.target.value;taskUiState.permissionError='';return;}
     if(event.target.matches('[data-task-permission-scope-type]')){if(taskUiState.permissionEditor){taskUiState.permissionEditor.scopeType=event.target.value;taskUiState.permissionEditor.employeeCodes=[];}taskUiState.permissionError='';renderTaskRoot(root);return;}
