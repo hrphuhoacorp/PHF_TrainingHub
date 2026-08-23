@@ -36,8 +36,21 @@ const {
   removeTaskRelated,
   addTaskComment,
   addTaskLink,
-  removeTaskLink
+  removeTaskLink,
+  listTasks: listTasksLegacy
 } = require('./_lib/task-core');
+const {
+  isListTasksBridgeEnabled: isTaskReadBridgeListTasksEnabled,
+  bridgeListTasks
+} = require('./_lib/task-read-bridge');
+
+// B4 — listTasks read-path bridge, TẮT MẶC ĐỊNH (PHF_TASK_READ_BRIDGE_LISTTASKS_ENABLED
+// phải ='true' tường minh). Khi tắt (mặc định), gọi thẳng listTasksLegacy()
+// (task-core.js → Supabase hiện tại), permission/scope không đổi 1 dòng.
+async function listTasks(session, params) {
+  if (isTaskReadBridgeListTasksEnabled()) return bridgeListTasks(session, params);
+  return listTasksLegacy(session, params);
+}
 const {
   recordManagerLateObservation,
   listManagerLateObservations,
@@ -90,11 +103,23 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
-  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink'
+  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
+  'listTasks'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
   if (Object.prototype.hasOwnProperty.call(payload, publicName)) target[coreName] = payload[publicName];
+}
+
+function taskListInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'relation', 'relation');
+  copyTaskPayloadField(input, payload, 'status_filter', 'statusFilter');
+  copyTaskPayloadField(input, payload, 'scope', 'scope');
+  copyTaskPayloadField(input, payload, 'search', 'search');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
 }
 
 function taskCreateDraftInput(payload) {
@@ -181,6 +206,7 @@ async function dispatchTaskAction(session, payload) {
     case 'addTaskComment': return { handled: true, result: await addTaskComment(session, payload.task_id, payload.body) };
     case 'addTaskLink': return { handled: true, result: await addTaskLink(session, payload.task_id, payload.side, payload.url, payload.label) };
     case 'removeTaskLink': return { handled: true, result: await removeTaskLink(session, payload.task_id, payload.link_id) };
+    case 'listTasks': return { handled: true, result: await listTasks(session, taskListInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };
