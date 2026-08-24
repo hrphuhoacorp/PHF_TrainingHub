@@ -193,6 +193,34 @@ async function resolveActorContext(session) {
   return resolveActorContextForRecord(session, record, rows, 'NHAN_VIEN');
 }
 
+/*
+ * resolveCrossDepartmentContext — Cross-department Task V1 mục 2/13: ZERO
+ * INPUT, tự nhận diện thuần từ department THẬT của actor (người giao) vs
+ * department THẬT của Primary tại thời điểm gọi — KHÔNG có field cho user tự
+ * khai. Deterministic 3 trạng thái, KHÔNG đoán khi thiếu dữ liệu:
+ *   - isCrossDepartment === true  : 2 department khác nhau, đều xác định.
+ *   - isCrossDepartment === false : 2 department giống nhau, đều xác định.
+ *   - isCrossDepartment === null  : thiếu department 1 hoặc cả 2 bên (actor
+ *     không có department thật — vd Admin — hoặc Primary chưa có department
+ *     trong People Master) — KHÔNG được suy diễn true/false trong trường hợp
+ *     này (mục 13: "unknown source department => cross-department status =
+ *     unknown/not-derived chứ không đoán").
+ * Pure function — không tự load dữ liệu, nhận đúng 2 chuỗi department thật đã
+ * resolve từ nguồn canonical (employee_profiles qua loadOrgRows/resolveActorContext).
+ */
+function resolveCrossDepartmentContext(sourceDepartment, targetDepartment) {
+  const source = text(sourceDepartment);
+  const target = text(targetDepartment);
+  if (!source || !target) {
+    return { isCrossDepartment: null, sourceDepartment: source || null, targetDepartment: target || null };
+  }
+  return {
+    isCrossDepartment: normalizeScopeText(source) !== normalizeScopeText(target),
+    sourceDepartment: source,
+    targetDepartment: target
+  };
+}
+
 function isSalesAllBranchesSubject(subject) {
   return normalizeScopeText(subject && subject.department) === NORMALIZED_SALES_DEPARTMENT &&
     NORMALIZED_SALES_BRANCHES.has(normalizeScopeText(subject && subject.branch));
@@ -215,5 +243,6 @@ module.exports = {
   resolveActorContextForRecord,
   applyTaskPresetToActorContext,
   resolveActorContext,
-  isSalesAllBranchesSubject
+  isSalesAllBranchesSubject,
+  resolveCrossDepartmentContext
 };
