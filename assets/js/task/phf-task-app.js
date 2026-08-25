@@ -2733,14 +2733,23 @@ function taskProgressControlHtml(task){
     '<div class="phft-quick-percent-row">'+quick+'</div>'+taskLifecycleErrorHtml('progress')+
     '<div class="phft-form-actions"><button type="button" class="phft-btn-primary" data-task-progress-save'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Lưu tiến độ')+'</button></div></div>';
 }
+// LOCK 3 (Permission Hardening) — "Xóa bản nháp" chỉ hiện cho status='draft'.
+// UI hiển thị KHÔNG phải security boundary (mục III) — backend
+// (deleteTaskDraft, creator-only, re-check từ chính row) là gate thật; nút
+// này hiện cho MỌI người xem được task (kể cả không phải creator), lỗi
+// TASK_DELETE_DRAFT_DENIED hiển thị đúng như các lifecycle error khác nếu
+// actor không phải creator — cùng pattern với nút Hoàn thành/Cập nhật tiến
+// độ (hiện cho ai xem được task, backend tự chặn nếu không phải primary).
 function taskLifecycleSectionHtml(task){
   var status=String(task.status||''), saving=taskUiState.lifecycleSaving, mode=taskUiState.lifecycleMode;
   var isActive=status==='published'||status==='in_progress';
+  var isDraft=status==='draft';
   var progressBlock=isActive?taskProgressControlHtml(task):'';
   var actionsRow='<div class="phft-lifecycle-actions">'+
     (isActive?'<button type="button" class="phft-btn-primary" data-task-lifecycle-open="complete"'+(saving?' disabled':'')+'>Hoàn thành</button><button type="button" class="phft-btn-secondary" data-task-lifecycle-open="cancel"'+(saving?' disabled':'')+'>Hủy công việc</button>':'')+
     (status==='completed'?'<button type="button" class="phft-btn-secondary" data-task-lifecycle-open="reopen"'+(saving?' disabled':'')+'>Mở lại công việc</button>':'')+
-    (!isActive&&status!=='completed'?'<div class="phft-inline-empty">Không còn thao tác vòng đời khả dụng cho trạng thái này.</div>':'')+
+    (isDraft?'<button type="button" class="phft-btn-secondary is-danger" data-task-lifecycle-open="delete_draft"'+(saving?' disabled':'')+'>Xóa bản nháp</button>':'')+
+    (!isActive&&status!=='completed'&&!isDraft?'<div class="phft-inline-empty">Không còn thao tác vòng đời khả dụng cho trạng thái này.</div>':'')+
   '</div>';
   var formHtml='';
   if(mode==='complete'){
@@ -2752,6 +2761,9 @@ function taskLifecycleSectionHtml(task){
   } else if(mode==='cancel'){
     formHtml='<div class="phft-lifecycle-form"><label><span>Lý do hủy *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do hủy">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml('cancel')+
       '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="cancel"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận hủy')+'</button></div></div>';
+  } else if(mode==='delete_draft'){
+    formHtml='<div class="phft-lifecycle-form"><p class="phft-report-subnote">Bản nháp sẽ bị xóa vĩnh viễn, không thể khôi phục. Chỉ người tạo bản nháp mới thực hiện được.</p>'+taskLifecycleErrorHtml('delete_draft')+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary is-danger" data-task-lifecycle-submit="delete_draft"'+(saving?' disabled':'')+'>'+(saving?'Đang xóa…':'Xác nhận xóa bản nháp')+'</button></div></div>';
   }
   return '<section class="phft-form-card"><header><h2>Thao tác vòng đời</h2><p>Trạng thái hiện tại: '+esc(taskEnumLabel(TASK_STATUS_LABELS,status))+'</p></header>'+progressBlock+actionsRow+formHtml+'</section>';
 }
@@ -2806,6 +2818,8 @@ async function submitTaskLifecycleAction(root,mode){
     var cancelReason=String(taskUiState.lifecycleReason||'').trim();
     if(!cancelReason){taskUiState.lifecycleErrorScope='cancel';taskUiState.lifecycleError='Bắt buộc nhập lý do hủy.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
     payload={action:'cancelTask',task_id:taskId,expected_row_version:rowVersion,reason:cancelReason};
+  } else if(mode==='delete_draft'){
+    payload={action:'deleteTaskDraft',task_id:taskId,expected_row_version:rowVersion};
   } else return;
 
   taskUiState.lifecycleSaving=true;taskUiState.lifecycleError='';taskUiState.lifecycleErrorCode='';taskUiState.lifecycleErrorScope='';renderTaskRoot(root);
@@ -2813,6 +2827,13 @@ async function submitTaskLifecycleAction(root,mode){
     await taskApi(payload);
     resetTaskLifecycleForm();
     taskUiState.lifecycleSaving=false;
+    if(mode==='delete_draft'){
+      // Task không còn tồn tại — không reloadTaskDetail() (sẽ 404), điều
+      // hướng thẳng về Dashboard, đúng pattern goHub()/data-task-back khác.
+      taskNotice('success','Đã xóa bản nháp','Bản nháp đã được xóa vĩnh viễn.');
+      navigateTask(taskHomePath());
+      return;
+    }
     await reloadTaskDetail(root);
     taskNotice('success','Đã cập nhật','Trạng thái công việc đã được cập nhật.');
   }catch(error){

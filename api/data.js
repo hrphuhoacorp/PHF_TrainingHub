@@ -27,6 +27,7 @@ const {
   checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
+  deleteTaskDraft,
   publishTask,
   getTaskDetail,
   updateTaskProgress,
@@ -131,7 +132,7 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'listTaskCategories', 'listAdminTaskCategories',
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'deleteTaskCategory', 'reorderTaskCategory',
   'checkTaskFoundationStatus',
-  'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
+  'createTaskDraft', 'updateTaskDraft', 'deleteTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
@@ -255,6 +256,7 @@ async function dispatchTaskAction(session, payload) {
     case 'checkTaskFoundationStatus': return { handled: true, result: await checkTaskFoundationStatus(session) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
     case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
+    case 'deleteTaskDraft': return { handled: true, result: await deleteTaskDraft(session, payload.task_id, payload.expected_row_version) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
     case 'getTaskDetail': return { handled: true, result: await getTaskDetail(session, payload.task_id) };
     case 'updateTaskProgress': return { handled: true, result: await updateTaskProgress(session, payload.task_id, payload.expected_row_version, payload.progress_percent, payload.progress_status) };

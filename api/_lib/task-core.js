@@ -167,7 +167,9 @@ const RPC_ERROR_MAP = {
   TASK_COMPLETION_RESULT_REQUIRED: [400, 'Bắt buộc nhập Kết quả thực hiện khi hoàn thành task.'],
   TASK_NOT_COMPLETED: [409, 'Chỉ task đã hoàn thành mới mở lại được.'],
   TASK_REOPEN_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi mở lại task.'],
-  TASK_DRAFT_USE_DELETE: [409, 'Task đang là draft — dùng xóa thay vì hủy.'],
+  TASK_DRAFT_USE_DELETE: [409, 'Task đang là draft — dùng chức năng "Xóa bản nháp" (deleteTaskDraft) thay vì Hủy.'],
+  TASK_DELETE_DRAFT_DENIED: [403, 'Chỉ người tạo bản nháp mới được xóa.'],
+  TASK_DELETE_DRAFT_NOT_CREATOR: [403, 'Chỉ người tạo bản nháp mới được xóa.'],
   TASK_ALREADY_CANCELLED: [409, 'Task đã bị hủy trước đó.'],
   TASK_MUST_REOPEN_BEFORE_CANCEL: [409, 'Task đã hoàn thành — cần mở lại (reopen) trước khi hủy.'],
   TASK_CANCEL_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi hủy task.'],
@@ -1042,6 +1044,31 @@ async function updateTaskDraft(session, taskId, expectedRowVersion, patch) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b) DELETE DRAFT — Permission Hardening LOCK 3. Creator-ONLY (KHÔNG có
+//     fallback requireUpdateAuthority như update/reopen/cancel/transfer —
+//     đây là quyết định business rõ ràng: Admin/GĐ/TBP KHÔNG được xóa nháp
+//     người khác trừ khi có rule riêng đã khóa, và chưa có rule đó). Chỉ
+//     draft mới xóa được — task_delete_draft RPC tự re-check creator +
+//     status từ chính row (không tin actorOwnsTask() ở JS là đủ), và DB
+//     trigger task_tasks_guard_delete (đã có từ Foundation migration) là
+//     backstop độc lập cuối cùng chặn hard-delete mọi task không phải draft
+//     (LOCK 4), bất kể gọi qua RPC này hay đường nào khác.
+// ---------------------------------------------------------------------------
+async function deleteTaskDraft(session, taskId, expectedRowVersion) {
+  ensureDb();
+  const actorContext = await resolveActorContext(session);
+  const current = await loadTaskRow(taskId);
+  if (current.status !== 'draft') fail('Chỉ xóa được task đang ở trạng thái draft — task đã published dùng Hủy (Cancel).', 409, 'TASK_NOT_DRAFT');
+  if (!actorOwnsTask(actorContext, current)) {
+    fail('Chỉ người tạo bản nháp mới được xóa.', 403, 'TASK_DELETE_DRAFT_DENIED');
+  }
+  await callRpc('task_delete_draft', {
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext)
+  });
+  return { task_id: taskId, deleted: true };
+}
+
+// ---------------------------------------------------------------------------
 // 3) PUBLISH — atomic qua RPC task_publish (2 statement: update + event).
 // ---------------------------------------------------------------------------
 // CROSS-DEPARTMENT PUBLISH SIDE-EFFECT (Cross-department Task V1, REVISED sau
@@ -1667,6 +1694,7 @@ module.exports = {
   checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
+  deleteTaskDraft,
   publishTask,
   getTaskDetail,
   updateTaskProgress,

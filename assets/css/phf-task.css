@@ -34,6 +34,11 @@
 .phft-panel header h3{margin:0 0 12px;font-size:14px;color:#16243a;font-weight:750}
 .phft-empty{padding:26px 10px;text-align:center;color:var(--phft-muted);font-size:12px;background:#f8fafc;border:1px dashed var(--phft-line);border-radius:12px}
 .phft-btn-secondary{min-height:38px;padding:0 14px;border:1px solid var(--phft-line);border-radius:10px;background:#fff;color:#344454;font-size:12px;font-weight:700;cursor:pointer}.phft-btn-secondary:hover{background:#f6f8fb}.phft-btn-primary:disabled,.phft-btn-secondary:disabled{cursor:not-allowed;opacity:.55}
+/* Permission Hardening LOCK 3 — "Xóa bản nháp" là hành động phá hủy vĩnh
+   viễn, cần tách biệt thị giác khỏi các nút thao tác thường (không dùng
+   accent xanh mặc định của phft-btn-primary). */
+.phft-btn-secondary.is-danger{border-color:#e3b2b2;color:#a33838}.phft-btn-secondary.is-danger:hover{background:#fff4f4}
+.phft-btn-primary.is-danger{background:#a33838;border-color:#a33838;box-shadow:0 6px 14px rgba(163,56,56,.18)}.phft-btn-primary.is-danger:hover{background:#8f2f2f}
 .phft-form{display:flex;flex-direction:column;gap:16px}.phft-form-card,.phft-detail-card{background:#fff;border:1px solid var(--phft-line);border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(24,42,64,.04)}
 .phft-form-card>header,.phft-detail-card>header{margin-bottom:16px}.phft-form-card header h2,.phft-detail-card header h2{margin:0;font-size:15px;color:#16243a}.phft-form-card header p,.phft-detail-card header p{margin:5px 0 0;color:var(--phft-muted);font-size:11px;line-height:1.5}.phft-card-action{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .phft-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.phft-form-grid label,.phft-picker-label{display:flex;flex-direction:column;gap:6px}.phft-form-grid label>span,.phft-picker-label>span{color:#405062;font-size:11px;font-weight:750}.phft-span-2{grid-column:span 2}
