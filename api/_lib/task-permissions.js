@@ -150,7 +150,60 @@ async function loadActiveGrants(employeeCode) {
   return (data || []).filter(grant => !grant.effective_to || text(grant.effective_to) >= nowIso);
 }
 
-function applyGrant(scope, grant) {
+/*
+ * scopeToEmployeeSet — resolves ANY peopleScope descriptor to the concrete
+ * set of active employee_codes it currently matches, using the same org
+ * snapshot (orgRows) and the same per-subject matcher (isSalesAllBranchesSubject/
+ * normalizeScopeText) already used elsewhere in this file. This is the
+ * primitive that makes RESTRICT's peopleScope narrowing exact (real set
+ * intersection) instead of symbolic — required because 'department'/'branch'/
+ * 'all_company'/'sales_all_branches_task' are not themselves employee lists.
+ */
+function scopeToEmployeeSet(scopeValue, orgRows) {
+  const raw = scopeValue && typeof scopeValue === 'object' ? scopeValue : {};
+  const type = String(raw.type || 'self').toLowerCase();
+  const activeRows = (orgRows || []).filter(isActiveEmployee);
+  if (type === 'all_company') return new Set(activeRows.map(row => code(row.employeeCode)));
+  if (type === 'sales_all_branches_task') return new Set(activeRows.filter(isSalesAllBranchesSubject).map(row => code(row.employeeCode)));
+  if (type === 'department') {
+    const values = (Array.isArray(raw.values) ? raw.values : []).map(normalizeScopeText).filter(Boolean);
+    return new Set(activeRows.filter(row => values.includes(normalizeScopeText(row.department))).map(row => code(row.employeeCode)));
+  }
+  if (type === 'branch') {
+    const values = (Array.isArray(raw.values) ? raw.values : []).map(normalizeScopeText).filter(Boolean);
+    return new Set(activeRows.filter(row => values.includes(normalizeScopeText(row.branch))).map(row => code(row.employeeCode)));
+  }
+  // 'self' / 'employees' — already an explicit employee_code list.
+  return new Set((Array.isArray(raw.values) ? raw.values : []).map(code).filter(Boolean));
+}
+
+/*
+ * intersectPeopleScope — RESTRICT narrowing = literal set intersection
+ * between the scope accumulated so far and the restrict grant's own
+ * people_scope, both resolved to concrete employee_codes via scopeToEmployeeSet
+ * (org-data-based, not symbolic type matching — a department-vs-employees
+ * intersection is resolved correctly, not skipped). Result always collapses
+ * to an explicit {type:'employees', values:[...]} — exact, never a guess.
+ *
+ * type='all_company' on a restrict is the mathematical IDENTITY element for
+ * intersection (matches everyone -> narrows nothing) — this is the
+ * documented convention for a "capability-only" restrict grant that must
+ * NOT touch peopleScope at all (see PHF_TASK_PERMISSION_GRANT_PRECEDENCE_
+ * FIX_V1_REPORT, contract clarification: use people_scope:{type:'all_company',
+ * values:[]} for a capability-only restrict going forward, NOT {type:'self',
+ * values:[]} — the latter would now genuinely narrow to nobody, since it is
+ * a real, distinct scope type, not a sentinel).
+ */
+function intersectPeopleScope(currentScope, restrictScopeValue, orgRows) {
+  const restrictType = String(restrictScopeValue && restrictScopeValue.type || '').toLowerCase();
+  if (!TASK_SCOPE_TYPES.has(restrictType) || restrictType === 'all_company') return currentScope;
+  const currentSet = scopeToEmployeeSet(currentScope, orgRows);
+  const restrictSet = scopeToEmployeeSet(restrictScopeValue, orgRows);
+  const narrowedValues = Array.from(currentSet).filter(c => restrictSet.has(c));
+  return { type: 'employees', values: narrowedValues };
+}
+
+function applyGrant(scope, grant, orgRows) {
   const next = {
     capabilities: Object.assign({}, scope.capabilities),
     peopleScope: { type: scope.peopleScope.type, values: (scope.peopleScope.values || []).slice() },
@@ -173,33 +226,55 @@ function applyGrant(scope, grant) {
       const mergedType = next.peopleScope.type === 'sales_all_branches_task' ? next.peopleScope.type : 'employees';
       next.peopleScope = { type: mergedType, values: Array.from(new Set(next.peopleScope.values.concat(grantScope.values.map(code)))) };
     }
+  } else if (grant.grant_type === 'restrict') {
+    next.peopleScope = intersectPeopleScope(next.peopleScope, grantScope, orgRows);
   }
   return next;
 }
 
-function resolveEffectiveTaskScopeFromGrants(actorContext, grants, assignment) {
+/*
+ * RESTRICT MUST WIN over EXTEND on any dimension they both target (locked
+ * business rule). This is enforced by a two-PHASE application, NOT by
+ * sorting individual grants into one combined order: ALL extend/delegation
+ * grants apply first (broadening only — union for peopleScope, OR-into-true
+ * for capabilities, both commutative/associative, so the relative order
+ * among extends never matters), THEN ALL restrict grants apply
+ * (narrowing only — intersection for peopleScope, AND-into-false for
+ * capabilities, both also commutative/associative, so the relative order
+ * among restricts never matters either). Applying every restrict strictly
+ * AFTER every extend is what makes restrict authoritative on a shared
+ * dimension regardless of each grant's row/creation order — the previous
+ * design applied restrict-then-extend (sorted, but in the WRONG phase
+ * order) so a later-applied extend silently re-broadened whatever a
+ * restrict had just narrowed. Fixed here — see PHF_TASK_PERMISSION_GRANT_
+ * PRECEDENCE_FIX_V1_REPORT.
+ */
+function resolveEffectiveTaskScopeFromGrants(actorContext, grants, assignment, orgRows) {
   let scope = resolveBaseTaskScope(actorContext);
-  const ordered = (grants || []).slice().sort((left, right) => (left.grant_type === 'restrict' ? 0 : 1) - (right.grant_type === 'restrict' ? 0 : 1));
-  ordered.forEach(grant => { scope = applyGrant(scope, grant); });
-  return { actorContext, scope, assignment: assignment || null, grants: grants || [] };
+  const allGrants = grants || [];
+  const broadening = allGrants.filter(grant => grant && grant.grant_type !== 'restrict');
+  const narrowing = allGrants.filter(grant => grant && grant.grant_type === 'restrict');
+  broadening.forEach(grant => { scope = applyGrant(scope, grant, orgRows); });
+  narrowing.forEach(grant => { scope = applyGrant(scope, grant, orgRows); });
+  return { actorContext, scope, assignment: assignment || null, grants: allGrants };
 }
 
 async function resolveEffectiveTaskScopeForActorContext(actorContext) {
-  if (actorContext.actorType === 'admin') return resolveEffectiveTaskScopeFromGrants(actorContext, [], null);
+  if (actorContext.actorType === 'admin') return resolveEffectiveTaskScopeFromGrants(actorContext, [], null, []);
   const [assignment, grants, orgRows] = await Promise.all([
     loadActiveTaskAssignment(actorContext),
     loadActiveGrants(actorContext.employeeCode),
     loadOrgRows()
   ]);
   const effectiveActor = applyTaskPresetToActorContext(actorContext, assignment && assignment.preset_code || 'NHAN_VIEN', orgRows);
-  return resolveEffectiveTaskScopeFromGrants(effectiveActor, grants, assignment);
+  return resolveEffectiveTaskScopeFromGrants(effectiveActor, grants, assignment, orgRows);
 }
 
 async function resolveEffectiveTaskScopesForActorContexts(actorContexts) {
   ensureDb();
   const contexts = Array.isArray(actorContexts) ? actorContexts : [];
   const nonAdmins = contexts.filter(context => context && context.actorType !== 'admin');
-  if (!nonAdmins.length) return contexts.map(context => resolveEffectiveTaskScopeFromGrants(context, [], null));
+  if (!nonAdmins.length) return contexts.map(context => resolveEffectiveTaskScopeFromGrants(context, [], null, []));
   const nowIso = new Date().toISOString();
   const employeeCodes = Array.from(new Set(nonAdmins.map(context => code(context.employeeCode)).filter(Boolean)));
   const [assignmentResult, grantResult, orgRows] = await Promise.all([
@@ -212,11 +287,11 @@ async function resolveEffectiveTaskScopesForActorContexts(actorContexts) {
   const assignmentRows = assignmentResult.data || [];
   const activeGrants = (grantResult.data || []).filter(grant => !grant.effective_to || text(grant.effective_to) >= nowIso);
   return contexts.map(context => {
-    if (context.actorType === 'admin') return resolveEffectiveTaskScopeFromGrants(context, [], null);
+    if (context.actorType === 'admin') return resolveEffectiveTaskScopeFromGrants(context, [], null, []);
     const assignment = selectCurrentAssignment(assignmentRows, context, nowIso);
     const effectiveActor = applyTaskPresetToActorContext(context, assignment && assignment.preset_code || 'NHAN_VIEN', orgRows);
     const grants = activeGrants.filter(grant => code(grant.grantee_employee_code) === code(context.employeeCode));
-    return resolveEffectiveTaskScopeFromGrants(effectiveActor, grants, assignment);
+    return resolveEffectiveTaskScopeFromGrants(effectiveActor, grants, assignment, orgRows);
   });
 }
 
@@ -386,6 +461,8 @@ module.exports = {
   loadActiveTaskAssignment,
   loadActiveGrants,
   applyGrant,
+  scopeToEmployeeSet,
+  intersectPeopleScope,
   resolveEffectiveTaskScopeFromGrants,
   resolveEffectiveTaskScopeForActorContext,
   resolveEffectiveTaskScopesForActorContexts,

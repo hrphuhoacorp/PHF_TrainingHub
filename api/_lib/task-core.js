@@ -1063,7 +1063,9 @@ async function deleteTaskDraft(session, taskId, expectedRowVersion) {
     fail('Chỉ người tạo bản nháp mới được xóa.', 403, 'TASK_DELETE_DRAFT_DENIED');
   }
   await callRpc('task_delete_draft', {
-    p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext)
+    p_task_id: taskId, p_expected_row_version: expectedRowVersion,
+    p_actor_account_id: actorContext.accountId || null,
+    p_actor_employee_code: actorContext.employeeCode || null
   });
   return { task_id: taskId, deleted: true };
 }

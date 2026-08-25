@@ -48,15 +48,48 @@ function pass(condition, message) { assert.ok(condition, message); passed += 1; 
 // =======================================================================
 {
   const migrationSql = fs.readFileSync(path.join(__dirname, 'PHF_TASK_PERMISSION_HARDENING_1.73.0.sql'), 'utf8');
-  pass(/create or replace function public\.task_delete_draft/.test(migrationSql), 'MIGRATION: defines task_delete_draft(uuid, integer, text)');
+  pass(/create or replace function public\.task_delete_draft/.test(migrationSql), 'MIGRATION: defines task_delete_draft(uuid, integer, text, text)');
+  pass(/p_actor_account_id text,\s*\n\s*p_actor_employee_code text\s*\n\)\s*returns void/.test(migrationSql), 'MIGRATION FIX 1: task_delete_draft takes BOTH p_actor_account_id and p_actor_employee_code — not a single merged token (an account-only creator has created_by_employee_code IS NULL after 1.74.0, so a single-column check fails open — see REVIEW_FIX_REPORT)');
   pass(/if v_task\.status <> 'draft' then/.test(migrationSql), 'MIGRATION: task_delete_draft re-checks status=draft inside the function (defense-in-depth, not just relying on the DB trigger)');
   pass(/if v_task\.row_version <> p_expected_row_version then/.test(migrationSql), 'MIGRATION: task_delete_draft checks row_version (same optimistic-concurrency convention as every other lifecycle RPC)');
-  pass(/upper\(trim\(v_task\.created_by_employee_code\)\) <> upper\(trim\(coalesce\(p_actor_employee_code/.test(migrationSql), 'MIGRATION: task_delete_draft re-derives creator authorization from the ROW ITSELF, never trusts the caller claim alone (LOCK 3 defense-in-depth)');
+  pass(!/upper\(trim\(v_task\.created_by_employee_code\)\) <> upper\(trim\(coalesce\(p_actor_employee_code/.test(migrationSql), 'MIGRATION FIX 1: the OLD single-column `<>` comparison (NULL <> anything = NULL = fail-open in PL/pgSQL IF) is gone');
+  pass(/v_task\.created_by_account_id = p_actor_account_id/.test(migrationSql) && /upper\(trim\(v_task\.created_by_employee_code\)\) = upper\(trim\(p_actor_employee_code\)\)/.test(migrationSql), 'MIGRATION FIX 1: authorization is an explicit OR of two presence-gated equality checks (account channel OR employee channel), matching actorOwnsTask() (JS) and task_set_permission_assignment (1.69.0) conventions — no channel can silently evaluate to NULL and skip the raise');
+  pass(/raise exception 'TASK_DELETE_DRAFT_NOT_CREATOR'/.test(migrationSql), 'MIGRATION: still raises the same TASK_DELETE_DRAFT_NOT_CREATOR on authorization failure');
+  pass(/revoke execute on function public\.task_delete_draft\(uuid, integer, text, text\)\s*\n\s*from public, anon, authenticated;/.test(migrationSql) && /grant execute on function public\.task_delete_draft\(uuid, integer, text, text\)\s*\n\s*to service_role;/.test(migrationSql), 'MIGRATION FIX 1: task_delete_draft execute is revoked from public/anon/authenticated and granted only to service_role, matching every sibling RPC — the first draft omitted this, leaving the RPC directly callable (and forgeable) by any authenticated client');
   pass(/delete from public\.task_tasks where id = p_task_id;/.test(migrationSql), 'MIGRATION: ends with a real DELETE — relies on the EXISTING task_tasks_guard_delete trigger as the final backstop (not duplicated here)');
   pass(!/create or replace function public\.task_guard_task_delete/.test(migrationSql), 'MIGRATION: does NOT redefine the existing task_tasks_guard_delete trigger function (LOCK 4 backstop untouched, additive-only migration)');
+  pass(/perform set_config\('phf_task\.delete_draft_task_id', p_task_id::text, true\);/.test(migrationSql), 'MIGRATION FIX 2: task_delete_draft sets a transaction-local (is_local=true) GUC scoped to its OWN p_task_id immediately before its own DELETE — this is what lets the draft-cascade DELETE past the new comment append-only trigger without weakening it for any other path');
   pass(/task_comments_forbid_update/.test(migrationSql) && /task_comments_forbid_delete/.test(migrationSql), 'MIGRATION: adds both BEFORE UPDATE and BEFORE DELETE triggers on task_comments (LOCK 5)');
-  pass(/execute function public\.task_forbid_update_delete\(\)/.test(migrationSql) && !/create or replace function public\.task_forbid_update_delete/.test(migrationSql), 'MIGRATION: reuses the EXISTING task_forbid_update_delete() function (mirrors task_events exactly), does not define a new/duplicate function');
+  pass(/create or replace function public\.task_forbid_comment_mutation\(\)/.test(migrationSql), 'MIGRATION FIX 2: task_comments uses a NEW dedicated trigger function, NOT the shared task_forbid_update_delete() — task_comments.task_id is ON DELETE CASCADE from task_tasks and addTaskComment() allows commenting on a draft, so an unconditional forbid-delete (the first draft\'s design) would abort task_delete_draft() itself for any draft that already has a comment; reusing the shared function would also have required loosening it for task_events, which must stay unconditionally fail-safe');
+  pass(!/create or replace function public\.task_forbid_update_delete/.test(migrationSql), 'MIGRATION: does NOT redefine the existing shared task_forbid_update_delete() function — task_events (and any other table using it) keeps its unconditional, un-bypassable append-only guarantee, completely untouched by this migration');
+  pass(/current_setting\('phf_task\.delete_draft_task_id', true\) = old\.task_id::text/.test(migrationSql), 'MIGRATION FIX 2: the DELETE bypass matches on the EXACT task_id being deleted (not a blanket flag) — a comment belonging to a DIFFERENT task can never ride along on someone else\'s authorized draft-delete transaction');
   pass(!/on public\.task_links/.test(migrationSql), 'MIGRATION: no DDL statement (trigger/alter) targets task_links — scope stays minimal to comments only, per gate instruction (task_links parallel gap reported, not fixed here)');
+}
+
+// =======================================================================
+// STRUCTURAL — PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0.sql. 1.73.0 is
+// ALREADY applied to canonical DEV; this is a SEPARATE additive corrective
+// migration (gate: PHF_TASK_PERMISSION_HARDENING_1_73_FIX3_DRAFT_EVENT_
+// CASCADE) fixing a real post-apply FAIL: addTaskComment() inserts a
+// task_events row (event_type='comment') on ANY task including a draft, and
+// task_events.task_id is ON DELETE CASCADE from task_tasks — so deleting a
+// draft with a comment cascaded into task_events and hit the OLD
+// unconditional task_forbid_update_delete() trigger, aborting the whole
+// authorized draft delete.
+// =======================================================================
+{
+  const fixSql = fs.readFileSync(path.join(__dirname, 'PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0.sql'), 'utf8');
+  pass(/create or replace function public\.task_events_forbid_mutation\(\)/.test(fixSql), 'FIX3: defines a NEW dedicated trigger function for task_events, mirroring task_forbid_comment_mutation() (1.73.0)');
+  pass(!/create or replace function public\.task_forbid_update_delete/.test(fixSql), 'FIX3: does NOT redefine the shared task_forbid_update_delete() — task_permission_grant_history and task_permission_assignment_history (both still use it) stay unconditionally immutable, untouched');
+  pass(!/create or replace function public\.task_delete_draft/.test(fixSql) && !/create or replace function public\.task_forbid_comment_mutation/.test(fixSql), 'FIX3: does NOT redeclare task_delete_draft() or task_forbid_comment_mutation() — neither needs to change, task_delete_draft() already sets the right GUC at the right time, task_events_forbid_mutation() just reuses it');
+  pass(/current_setting\('phf_task\.delete_draft_task_id', true\) = old\.task_id::text/.test(fixSql), 'FIX3: task_events DELETE bypass reuses the EXACT SAME GUC name and exact-task_id match as task_comments (1.73.0) — no new GUC introduced');
+  pass(/drop trigger if exists task_events_forbid_update on public\.task_events;\s*\n\s*create trigger task_events_forbid_update before update on public\.task_events\s*\n\s*for each row execute function public\.task_events_forbid_mutation\(\);/.test(fixSql), 'FIX3: task_events_forbid_update trigger repointed to the new dedicated function');
+  pass(/drop trigger if exists task_events_forbid_delete on public\.task_events;\s*\n\s*create trigger task_events_forbid_delete before delete on public\.task_events\s*\n\s*for each row execute function public\.task_events_forbid_mutation\(\);/.test(fixSql), 'FIX3: task_events_forbid_delete trigger repointed to the new dedicated function');
+  pass(!/on public\.task_permission_grant_history/.test(fixSql) && !/on public\.task_permission_assignment_history/.test(fixSql), 'FIX3: no DDL statement targets task_permission_grant_history or task_permission_assignment_history — scope stays minimal to task_events only');
+
+  const downSql = fs.readFileSync(path.join(__dirname, 'PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0_DOWN.sql'), 'utf8');
+  pass(/execute function public\.task_forbid_update_delete\(\)/.test(downSql), 'FIX3 DOWN: restores task_events triggers to the original shared task_forbid_update_delete() function');
+  pass(/drop function if exists public\.task_events_forbid_mutation\(\);/.test(downSql), 'FIX3 DOWN: drops the new dedicated function');
 }
 
 function session(employeeCode) { return { account: { employeeCode } }; }
