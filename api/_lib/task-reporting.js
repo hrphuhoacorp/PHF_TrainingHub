@@ -446,24 +446,58 @@ function getPersonWorkload(rows, assigneeRows, peopleByCode) {
   });
 }
 
+// self_task_computed may already be attached (getTaskReportPersonAnalysis
+// flags the full `rows` array once, up front, before filtering) — only
+// fetch active assignees again if it genuinely isn't there yet (the
+// listTaskReportDrilldown caller passes unflagged task-grain rows).
+async function ensureSelfTaskFlags(rows) {
+  if (!rows.length || rows.every(t => typeof t.self_task_computed === 'boolean')) return rows;
+  const assigneeRows = await fetchActiveAssignees(rows.map(t => t.id));
+  const activePrimaryByTask = new Map();
+  assigneeRows.forEach(a => { if (a.role === 'primary' && a.is_active) activePrimaryByTask.set(a.task_id, code(a.employee_code)); });
+  rows.forEach(t => { t.self_task_computed = activePrimaryByTask.get(t.id) === code(t.created_by_employee_code); });
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// CANONICAL PERFORMANCE ATTRIBUTION (Report-04A fix) — the ONE place that
+// decides "which employee does this completed task's performance count
+// toward". Used by BOTH getPersonPerformance() (aggregation) AND
+// listTaskReportDrilldown() (employee-scoped completion drilldown) so the
+// two can never diverge again. Attribution is the FINAL completion event's
+// actor_employee_code — NEVER "any active assignee" (that was the
+// coordinator-leakage bug: a coordinator on a task someone else completed
+// used to leak into that coordinator's employee-scoped drilldown even
+// though they never appear in the Performance panel for it). Self-task is
+// excluded here exactly once, matching the locked BR-02/BR-08 policy.
+// ---------------------------------------------------------------------------
+async function resolvePerformanceAttribution(completedInPeriodTasks) {
+  await ensureSelfTaskFlags(completedInPeriodTasks);
+  const { onTimeTasks, lateTasks, warnings, eventByTaskId } = await resolveFinalCompletionOutcomes(completedInPeriodTasks);
+  const onTimeIds = new Set(onTimeTasks.map(t => t.id)), lateIds = new Set(lateTasks.map(t => t.id));
+  const actorByTaskId = new Map();
+  completedInPeriodTasks.forEach(t => {
+    if (t.self_task_computed) return; // BR-02/BR-08 LOCKED: self-task excluded from performance attribution
+    if (!onTimeIds.has(t.id) && !lateIds.has(t.id)) return; // mismatch-excluded, already in warnings
+    const event = eventByTaskId.get(t.id);
+    actorByTaskId.set(t.id, code(event.actor_employee_code));
+  });
+  return { actorByTaskId, onTimeTasks, lateTasks, warnings };
+}
+
 async function getPersonPerformance(ctx, rows, peopleByCode) {
   const predicateCtx = { period: ctx.period, nowMs: Date.now() };
   const completedInPeriodTasks = rows.filter(t => SYNC_METRIC_PREDICATES.completed_in_period(t, predicateCtx));
   if (!completedInPeriodTasks.length) return { people: [], warnings: [] };
-  const { onTimeTasks, lateTasks, warnings, eventByTaskId } = await resolveFinalCompletionOutcomes(completedInPeriodTasks);
+  const { actorByTaskId, onTimeTasks, lateTasks, warnings } = await resolvePerformanceAttribution(completedInPeriodTasks);
   const onTimeIds = new Set(onTimeTasks.map(t => t.id)), lateIds = new Set(lateTasks.map(t => t.id));
 
   const byEmployee = new Map();
-  completedInPeriodTasks.forEach(t => {
-    // BR-02/BR-08 LOCKED: self-task EXCLUDED from person performance.
-    if (t.self_task_computed) return; // guarded below when self_task_computed is attached by caller; see getTaskReportPersonAnalysis
-    const event = eventByTaskId.get(t.id);
-    if (!onTimeIds.has(t.id) && !lateIds.has(t.id)) return; // mismatch-excluded, already in warnings
-    const actorEmployeeCode = code(event.actor_employee_code);
+  actorByTaskId.forEach((actorEmployeeCode, taskId) => {
     if (!byEmployee.has(actorEmployeeCode)) byEmployee.set(actorEmployeeCode, { employee_code: actorEmployeeCode, completed_in_period: 0, completed_on_time: 0, completed_late: 0 });
     const bucket = byEmployee.get(actorEmployeeCode);
     bucket.completed_in_period++;
-    if (onTimeIds.has(t.id)) bucket.completed_on_time++; else bucket.completed_late++;
+    if (onTimeIds.has(taskId)) bucket.completed_on_time++; else if (lateIds.has(taskId)) bucket.completed_late++;
   });
 
   const people = Array.from(byEmployee.values()).map(bucket => {
@@ -592,7 +626,29 @@ async function listTaskReportDrilldown(session, input) {
 
   let matched;
   let warnings = [];
-  if (metricId === 'completed_on_time' || metricId === 'completed_late') {
+  const isCompletionOutcomeMetric = metricId === 'completed_in_period' || metricId === 'completed_on_time' || metricId === 'completed_late';
+
+  if (isCompletionOutcomeMetric && ctx.employeeCode) {
+    // Report-04A fix: an employee-scoped completion drilldown (clicked from
+    // the Person Performance panel) MUST use the exact same attribution
+    // semantics as getPersonPerformance() — the FINAL completion event's
+    // actor_employee_code, self-task excluded — never "any active assignee
+    // (primary or coordinator)". Matching on "any active assignee" let a
+    // mere coordinator's employee_code pull in a task someone else actually
+    // completed (coordinator leakage), breaking the "Performance count ==
+    // drilldown total_count" invariant. resolvePerformanceAttribution() is
+    // the SAME function the aggregation path calls — never two independent
+    // implementations of "who does this completion count toward".
+    const completedInPeriod = rows.filter(t => SYNC_METRIC_PREDICATES.completed_in_period(t, predicateCtx));
+    const attribution = await resolvePerformanceAttribution(completedInPeriod);
+    warnings = attribution.warnings;
+    const onTimeIds = new Set(attribution.onTimeTasks.map(t => t.id));
+    const lateIds = new Set(attribution.lateTasks.map(t => t.id));
+    const attributedTasks = completedInPeriod.filter(t => attribution.actorByTaskId.get(t.id) === ctx.employeeCode);
+    if (metricId === 'completed_on_time') matched = attributedTasks.filter(t => onTimeIds.has(t.id));
+    else if (metricId === 'completed_late') matched = attributedTasks.filter(t => lateIds.has(t.id));
+    else matched = attributedTasks; // completed_in_period
+  } else if (metricId === 'completed_on_time' || metricId === 'completed_late') {
     const completedInPeriod = rows.filter(t => SYNC_METRIC_PREDICATES.completed_in_period(t, predicateCtx));
     const outcome = await resolveFinalCompletionOutcomes(completedInPeriod);
     warnings = outcome.warnings;
@@ -601,7 +657,12 @@ async function listTaskReportDrilldown(session, input) {
     matched = rows.filter(t => SYNC_METRIC_PREDICATES[metricId](t, predicateCtx));
   }
 
-  if (ctx.employeeCode) {
+  // Non-completion metrics (created_in_period/not_started/in_progress/
+  // currently_overdue) keep the ORIGINAL "any active assignee" employee
+  // filter — this is task-grain/workload-adjacent territory, not the
+  // Person Performance panel, so the coordinator-leakage fix above does not
+  // apply here (no Performance-count invariant is being claimed for these).
+  if (ctx.employeeCode && !isCompletionOutcomeMetric) {
     const taskIds = matched.map(t => t.id);
     if (!taskIds.length) matched = [];
     else {
@@ -639,5 +700,6 @@ module.exports = {
   isOverdueRow,
   classifyInvolvement,
   crossCheckFinalCompletion,
+  resolvePerformanceAttribution,
   METRIC_IDS
 };
