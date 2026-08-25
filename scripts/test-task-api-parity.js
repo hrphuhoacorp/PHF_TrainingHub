@@ -30,7 +30,9 @@ const expectedActions = [
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
-  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink'
+  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
+  'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
+  'listTasks'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -105,7 +107,11 @@ const payloads = {
   removeTaskRelated: { task_id:'task-1', target_employee_code:'NV004' },
   addTaskComment: { task_id:'task-1', body:'Comment' },
   addTaskLink: { task_id:'task-1', side:'input_reference', url:'https://example.com', label:'Ref' },
-  removeTaskLink: { task_id:'task-1', link_id:'link-1' }
+  removeTaskLink: { task_id:'task-1', link_id:'link-1' },
+  listMyTaskNotifications: { limit: 20 },
+  markTaskNotificationRead: { id:'notif-1', ids:null },
+  markAllTaskNotificationsRead: {},
+  listTasks: { relation:'received', status_filter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -135,7 +141,11 @@ const expectedCoreArgs = {
   removeTaskRelated: ['task-1', 'NV004'],
   addTaskComment: ['task-1', 'Comment'],
   addTaskLink: ['task-1', 'input_reference', 'https://example.com', 'Ref'],
-  removeTaskLink: ['task-1', 'link-1']
+  removeTaskLink: ['task-1', 'link-1'],
+  listMyTaskNotifications: [{ limit: 20 }],
+  markTaskNotificationRead: [{ id:'notif-1', ids:null }],
+  markAllTaskNotificationsRead: [],
+  listTasks: [{ relation:'received', statusFilter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }]
 };
 
 (async () => {
@@ -197,7 +207,13 @@ const expectedCoreArgs = {
   }
 
   const coreSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-core.js'), 'utf8');
-  for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(coreSource), 'Task Core export missing ' + action);
+  // Notification actions live in api/_lib/task-notifications.js (dedicated
+  // module, mirrors api/_lib/knl-notifications.js domain-isolation
+  // convention) — NOT task-core.js. Check the union of both real
+  // implementation files, not a single hardcoded path.
+  const notificationsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-notifications.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource;
+  for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(implementationSource), 'Task Core/Notifications export missing ' + action);
   console.log('PHF Task API parity: ' + passed + '/' + passed + ' PASS');
 })().catch(error => {
   console.error(error && error.stack || error);

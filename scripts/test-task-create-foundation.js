@@ -104,6 +104,7 @@ function tableRouter(rows) {
 
 const STATE = { employees: [], assignments: [], grants: [], categories: [], tasks: [], assignees: [], links: [], events: [], accounts: [] };
 const rpcCalls = [];
+let SIMULATE_V1_ONLY_SCHEMA = false;
 
 function resetState() {
   STATE.employees.length = 0; STATE.assignments.length = 0; STATE.grants.length = 0; STATE.categories.length = 0;
@@ -183,6 +184,14 @@ function loadWithMocks() {
           },
           rpc(fnName, params) {
             rpcCalls.push({ fnName, params: clone(params) });
+            // Simula schema Production HIỆN TẠI (chỉ có task_create_draft V1,
+            // 9 tham số) — nếu caller gửi kèm p_idempotency_key (V2, migration
+            // 1.71.0 CHƯA apply), PostgREST thật sẽ trả PGRST202 "could not
+            // find the function". Dùng để test callTaskCreateDraftRpc() tự
+            // dò lại KHÔNG kèm key — KHÔNG được phá luồng tạo Task hiện tại.
+            if (SIMULATE_V1_ONLY_SCHEMA && fnName === 'task_create_draft' && Object.prototype.hasOwnProperty.call(params, 'p_idempotency_key')) {
+              return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.task_create_draft(...) in the schema cache' } });
+            }
             const forced = rpcResponder(fnName, params);
             if (forced) return Promise.resolve(forced);
             return Promise.resolve({ data: Object.assign({ id: 'rpc-row-' + (++idSeq) }, params), error: null });
@@ -325,6 +334,20 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
     const created = await createTaskDraft(session, { flowType: 'giao_viec', title: 'Việc thật', categoryCode: 'CAT_OK', priority: 'thuong', startAt: '2026-09-01T01:00:00.000Z', deadline: '2026-09-02T01:00:00.000Z', primaryEmployeeCode: 'STAFF_ACTIVE' });
     pass(created.status === 'draft' && created.category_code === 'CAT_OK', 'CREATE TASK: tạo thành công đúng field khi hợp lệ');
     pass(created.created_by_employee_code === 'TBP_CREATOR', 'CREATE TASK: actor identity ghi đúng (không suy từ HR title — TBP_CREATOR không có title nào được dùng để quyết định)');
+
+    // IDEMPOTENCY SIGNATURE FALLBACK (Task Code + Idempotency Foundation V1) —
+    // migration 1.71.0 CHƯA apply Production; createTaskDraft() giờ LUÔN gửi
+    // p_idempotency_key. Phải tự dò lại KHÔNG kèm key nếu RPC báo "function
+    // not found" (PGRST202) — KHÔNG được phá luồng tạo Task hiện tại đang chạy
+    // thật trên schema V1 (9 tham số).
+    SIMULATE_V1_ONLY_SCHEMA = true;
+    const beforeFallbackCalls = rpcCalls.length;
+    const createdViaFallback = await createTaskDraft(session, { flowType: 'giao_viec', title: 'Việc qua fallback', categoryCode: 'CAT_OK', priority: 'thuong', deadline: '2026-09-01T01:00:00.000Z', primaryEmployeeCode: 'STAFF_ACTIVE', idempotencyKey: '11111111-2222-3333-4444-555555555555' });
+    pass(createdViaFallback.status === 'draft' && createdViaFallback.title === 'Việc qua fallback', 'IDEMPOTENCY FALLBACK: create vẫn thành công khi RPC Production chỉ còn chữ ký V1 (chưa apply 1.71.0)');
+    const fallbackCalls = rpcCalls.slice(beforeFallbackCalls);
+    pass(fallbackCalls.length === 2 && fallbackCalls[0].fnName === 'task_create_draft' && fallbackCalls[1].fnName === 'task_create_draft', 'IDEMPOTENCY FALLBACK: đúng 2 lần gọi task_create_draft — lần 1 kèm key (từ chối), lần 2 không kèm key (thành công)');
+    pass(Object.prototype.hasOwnProperty.call(fallbackCalls[0].params, 'p_idempotency_key') && !Object.prototype.hasOwnProperty.call(fallbackCalls[1].params, 'p_idempotency_key'), 'IDEMPOTENCY FALLBACK: lần gọi lại loại bỏ đúng p_idempotency_key, giữ nguyên các tham số khác');
+    SIMULATE_V1_ONLY_SCHEMA = false;
   }
 
   // CREATE TASK — unauthorized assignment (NHAN_VIEN chỉ assign self)
@@ -435,7 +458,7 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   // ===========================================================================
   {
     const coreSource = require('fs').readFileSync(path.join(ROOT, 'api', '_lib', 'task-core.js'), 'utf8');
-    pass(coreSource.includes("callRpc('task_create_draft'"), 'ATOMICITY: createTaskDraft tự atomic qua RPC (task + primary trong 1 transaction)');
+    pass(coreSource.includes("supabase.rpc('task_create_draft'"), 'ATOMICITY: createTaskDraft tự atomic qua RPC (task + primary trong 1 transaction) — qua callTaskCreateDraftRpc() (Create Hardening/Task Code V1: wrapper tự fallback bỏ p_idempotency_key nếu RPC V2 chưa apply, vẫn gọi đúng 1 RPC task_create_draft, KHÔNG tách 2 lời gọi)');
     pass(!coreSource.includes("callRpc('task_create_draft_with_supplements'"), 'ATOMICITY: chưa có RPC orchestration lớn gộp create+related+link — xác nhận đúng thực trạng hiện tại (client tự retry qua persistTaskSupplements/retryTaskSupplements ở phf-task-app.js, không giả vờ đã atomic)');
   }
 
