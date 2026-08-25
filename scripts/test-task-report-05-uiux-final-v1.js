@@ -226,6 +226,43 @@ async function openReport(window, T, root) {
     pass(personHtml.includes('Không có khối lượng công việc') && personHtml.includes('Chưa có công việc hoàn thành'), 'EMPTY: zero workload/performance renders explicit empty-state messages in both columns');
   }
 
+  // ================= REPORT-05A. TREND VISUAL POLISH =================
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const buckets = [
+      { start: '2026-08-01T00:00:00.000Z', end_exclusive: '2026-08-02T00:00:00.000Z', created_in_period: 3, completed_in_period: 2, completed_on_time: 1, completed_late: 1 },
+      { start: '2026-08-02T00:00:00.000Z', end_exclusive: '2026-08-03T00:00:00.000Z', created_in_period: 0, completed_in_period: 0, completed_on_time: 0, completed_late: 0 }
+    ];
+    const html = T.taskReportTrendSvgHtml(buckets, 'month');
+    pass(/viewBox="0 0 \d+ 218"/.test(html), 'TREND_POLISH: chart viewBox height increased (218) so bars are not lost in whitespace');
+    pass(html.includes('class="phft-trend-bar-created"') && html.includes('class="phft-trend-bar-ontime"') && html.includes('class="phft-trend-bar-late"'), 'TREND_POLISH: 3 distinct color classes present for Phát sinh/Đúng hạn/Trễ hạn');
+    pass(html.includes('<g class="is-zero">'), 'TREND_POLISH: a zero-activity bucket is marked with is-zero for visual de-emphasis');
+    pass(html.includes('<g class="">'), 'TREND_POLISH: a real-data bucket is NOT marked is-zero (renders prominently)');
+    pass(/phft-trend-bar-zero/.test(html), 'TREND_POLISH: the zero-activity bucket renders a thin baseline tick instead of a blank gap (still a real 0 value, not invented data)');
+    const fullLabel = T.taskReportTrendBucketFullLabel('month', buckets[0]);
+    pass(html.includes(fullLabel), 'TREND_POLISH: tooltip <title> uses the FULL date (with year), not just dd/mm');
+    pass(html.includes('Hoàn thành đúng hạn: 1') && html.includes('Hoàn thành trễ: 1'), 'TREND_POLISH: tooltip explicitly labels on-time vs late counts for the hovered bucket');
+    assert.ok(!/NaN/.test(html), 'TREND_POLISH: no NaN in generated SVG coordinates after the redesign');
+  }
+
+  // ================= REPORT-05A. CATEGORY TABLE MICROCOPY =================
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const root = window.document.getElementById('phfTaskRoot');
+    T.bindShell(root);
+    await openReport(window, T, root);
+    const html = T.taskReportCategoryHtml();
+    pass(html.includes('title="' + T.TASK_REPORT_CATEGORY_COLUMN_HELP.created_in_period + '"'), 'MICROCOPY: "Phát sinh" header carries an explanatory tooltip');
+    pass(html.includes('title="' + T.TASK_REPORT_CATEGORY_COLUMN_HELP.completed_on_time + '"'), 'MICROCOPY: "Đúng hạn" header carries an explanatory tooltip distinguishing it as a sub-classification of completed work');
+    pass(html.includes('title="' + T.TASK_REPORT_CATEGORY_COLUMN_HELP.currently_overdue + '"'), 'MICROCOPY: "Quá hạn" header explains it is CURRENT-STATE, independent of the selected period');
+    pass(/KHÔNG cộng dồn thành "Phát sinh"/.test(html), 'MICROCOPY: panel subnote explicitly warns columns are different lenses, not a sum breakdown of "Phát sinh"');
+    // Same underlying formula/values as before — microcopy must not change any number.
+    const cat = T.getState().report.category.data.categories.find(c => c.category_code === 'B');
+    pass(new RegExp('data-task-report-metric="created_in_period"[^>]*><strong>' + cat.metrics.created_in_period.value + '</strong>').test(html), 'MICROCOPY: adding tooltips did not change the rendered metric values');
+  }
+
   // ================= 12/18. SORT = ZERO EXTRA NETWORK CALLS (NO N+1) =================
   {
     const window = newWindow();

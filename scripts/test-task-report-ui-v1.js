@@ -278,7 +278,7 @@ async function openReportWithFixtures(window, T, root, over) {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const html = T.taskReportTrendSvgHtml(trendFixture().buckets, 'month');
-    pass((html.match(/<g>/g) || []).length === 2, 'TREND: week/month bucket rendering — one bar-group per bucket');
+    pass((html.match(/<g class=/g) || []).length === 2, 'TREND: week/month bucket rendering — one bar-group per bucket');
     pass(!/NaN/.test(html), 'TREND: no NaN in generated SVG coordinates');
     assert.doesNotThrow(() => T.taskReportTrendSvgHtml([], 'month'), 'TREND: empty buckets array must not throw');
     pass(T.taskReportTrendSvgHtml([], 'month').includes('Không có dữ liệu'), 'TREND: empty buckets renders an empty-state message, not a broken chart');
