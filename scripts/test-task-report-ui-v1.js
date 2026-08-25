@@ -327,11 +327,11 @@ async function openReportWithFixtures(window, T, root, over) {
     pass(html.includes('Khối lượng công việc') && html.includes('Kết quả công việc'), 'PERSON: workload and performance render as two SEPARATE labeled sections');
     const workloadIdx = html.indexOf('Khối lượng công việc'), perfIdx = html.indexOf('Kết quả công việc');
     pass(workloadIdx >= 0 && perfIdx > workloadIdx, 'PERSON: workload section precedes performance section');
-    pass(html.includes('Trong đó Tự giao'), 'PERSON: self-task count IS shown inside the workload block');
+    pass(/<th>Tự giao<\/th>/.test(html) && html.includes('CV-SELF-1') === false /* breakdown collapsed by default */, 'PERSON: self-task column IS shown inside the workload table');
     pass(!html.includes('completion_rate') && !html.includes('DEFERRED'), 'PERSON: no completion_rate/"DEFERRED" literal leaks into rendered UI in V1');
     // self-task workload entry must not silently appear as if it were a performance credit:
     // the ONLY performance row present must be backed by the performance[] array (2 completed, not counting the self-task).
-    pass(/Hoàn thành trong kỳ[\s\S]*?<strong>2<\/strong>/.test(html) || html.match(/<strong>2<\/strong>\s*<span>Hoàn thành trong kỳ/), 'PERSON: performance shows exactly the backend-provided completed_in_period=2 (self-task excluded, matches backend contract)');
+    pass(/data-task-report-metric="completed_in_period" data-task-report-employee-code="PHF010"><strong>2<\/strong>/.test(html), 'PERSON: performance shows exactly the backend-provided completed_in_period=2 (self-task excluded, matches backend contract)');
   }
   {
     const window = newWindow();
