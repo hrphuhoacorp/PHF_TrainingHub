@@ -40,7 +40,8 @@ const {
   addTaskComment,
   addTaskLink,
   removeTaskLink,
-  listTasks: listTasksLegacy
+  listTasks: listTasksLegacy,
+  listTaskEvents
 } = require('./_lib/task-core');
 const {
   listMyTaskNotifications,
@@ -128,7 +129,7 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
-  'listTasks'
+  'listTasks', 'listTaskEvents'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -196,6 +197,14 @@ function taskListInput(payload) {
   return input;
 }
 
+function taskEventsInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'relation', 'relation');
+  copyTaskPayloadField(input, payload, 'scope', 'scope');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
@@ -238,6 +247,7 @@ async function dispatchTaskAction(session, payload) {
     case 'markTaskNotificationRead': return { handled: true, result: await markTaskNotificationRead(session, { id: payload.id, ids: payload.ids }) };
     case 'markAllTaskNotificationsRead': return { handled: true, result: await markAllTaskNotificationsRead(session) };
     case 'listTasks': return { handled: true, result: await listTasks(session, taskListInput(payload)) };
+    case 'listTaskEvents': return { handled: true, result: await listTaskEvents(session, taskEventsInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };

@@ -126,6 +126,15 @@
 .phft-cal-tag.is-not_started{background:#f1f3f6;color:#536273}
 .phft-cal-tag.is-active{background:#eef4ff;color:#2a579e}
 .phft-cal-quick-panel>footer{display:flex;justify-content:flex-end;gap:9px}
+.phft-timeline-wrap{margin-top:14px}
+.phft-timeline-day-label{margin:18px 0 8px;font-size:11px;font-weight:800;color:var(--phft-muted);text-transform:uppercase}
+.phft-timeline-day-label:first-child{margin-top:0}
+.phft-timeline-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.phft-timeline-item{display:flex;gap:12px;padding:10px 8px;border-radius:9px;cursor:pointer;align-items:flex-start}
+.phft-timeline-item:hover{background:#f7f9fc}
+.phft-timeline-time{flex:0 0 44px;font-size:10.5px;color:var(--phft-muted);font-variant-numeric:tabular-nums;padding-top:2px}
+.phft-timeline-body p{margin:0;font-size:12px;color:#243547}
+.phft-timeline-body small{display:block;margin-top:3px;color:var(--phft-muted);font-size:10.5px}
 .phft-progress-control{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--phft-line);display:flex;flex-direction:column;gap:10px}
 .phft-progress-current{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .phft-progress-current b{font-size:16px;color:#16243a;font-weight:800}

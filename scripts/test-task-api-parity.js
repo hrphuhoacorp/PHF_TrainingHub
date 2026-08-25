@@ -32,7 +32,7 @@ const expectedActions = [
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
-  'listTasks'
+  'listTasks', 'listTaskEvents'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -111,7 +111,8 @@ const payloads = {
   listMyTaskNotifications: { limit: 20 },
   markTaskNotificationRead: { id:'notif-1', ids:null },
   markAllTaskNotificationsRead: {},
-  listTasks: { relation:'received', status_filter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }
+  listTasks: { relation:'received', status_filter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 },
+  listTaskEvents: { relation:'received', scope:'managed', limit:50 }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -145,7 +146,8 @@ const expectedCoreArgs = {
   listMyTaskNotifications: [{ limit: 20 }],
   markTaskNotificationRead: [{ id:'notif-1', ids:null }],
   markAllTaskNotificationsRead: [],
-  listTasks: [{ relation:'received', statusFilter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }]
+  listTasks: [{ relation:'received', statusFilter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }],
+  listTaskEvents: [{ relation:'received', scope:'managed', limit:50 }]
 };
 
 (async () => {

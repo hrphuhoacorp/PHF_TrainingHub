@@ -1559,6 +1559,71 @@ async function listTasks(session, params) {
   return { tasks, relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, offset, limit, hasMore };
 }
 
+// ---------------------------------------------------------------------------
+// 13) LIST TASK EVENTS — Timeline Foundation V1. KHÔNG có permission model
+// riêng: authorization = NGUYÊN kết quả listTasks() cho đúng relation/scope
+// đã truyền vào (relation='received'+scope='managed' cho "Nhân sự tôi quản
+// lý", giống hệt cách Calendar Foundation V1 đã dùng). Task nào KHÔNG xuất
+// hiện trong listTasks() cho actor này thì event của Task đó KHÔNG BAO GIỜ
+// được query — filter tại chính câu SQL (.in('task_id', taskIds đã
+// authorized)), không phải "fetch hết rồi che ở JS". KHÔNG tạo bảng mới,
+// KHÔNG đổi write-path, KHÔNG mở rộng quyền — chỉ đọc thêm task_events cho
+// ĐÚNG tập Task mà actor vốn đã được xem.
+//
+// GIỚI HẠN V1 (kế thừa nguyên limit:200 của listTasks(), như Calendar V1 đã
+// chấp nhận): nếu actor có >200 Task trong relation/scope này, Timeline chỉ
+// thấy event của 200 Task gần nhất (created_at desc) — KHÔNG phân trang
+// thêm ở gate này.
+async function listTaskEvents(session, params) {
+  ensureDb();
+  const input = params || {};
+  const eventLimit = Math.min(200, Math.max(1, Number(input.limit) || 100));
+
+  const taskListResult = await listTasks(session, {
+    relation: input.relation,
+    statusFilter: 'all',
+    scope: input.scope,
+    limit: 200,
+    offset: 0
+  });
+  const tasksById = new Map(taskListResult.tasks.map(t => [t.task_id, t]));
+  const taskIds = Array.from(tasksById.keys());
+  if (!taskIds.length) {
+    return { events: [], relation: taskListResult.relation, scope: taskListResult.scope, viewScopeType: taskListResult.viewScopeType, requesterActorType: taskListResult.requesterActorType };
+  }
+
+  const { data: eventRows, error } = await supabase.from(EVENTS_TABLE)
+    .select('*')
+    .in('task_id', taskIds)
+    .order('occurred_at', { ascending: false })
+    .limit(eventLimit);
+  if (error) throwDb(error);
+
+  const orgRows = await loadOrgRows();
+  const peopleByCode = new Map(orgRows.map(person => [code(person.employeeCode), person]));
+  function actorInfo(employeeCode) {
+    const person = peopleByCode.get(code(employeeCode));
+    return { employee_code: code(employeeCode), full_name: person ? person.fullName : '' };
+  }
+
+  const events = (eventRows || []).map(e => {
+    const task = tasksById.get(e.task_id);
+    return {
+      id: e.id,
+      task_id: e.task_id,
+      task_code: task ? task.task_code : '',
+      task_title: task ? task.title : '',
+      event_type: e.event_type,
+      actor: actorInfo(e.actor_employee_code),
+      payload: e.payload || {},
+      reason: e.reason || null,
+      occurred_at: e.occurred_at
+    };
+  });
+
+  return { events, relation: taskListResult.relation, scope: taskListResult.scope, viewScopeType: taskListResult.viewScopeType, requesterActorType: taskListResult.requesterActorType };
+}
+
 module.exports = {
   listTaskAssignableEmployees,
   listTaskAdminPeople,
@@ -1588,5 +1653,6 @@ module.exports = {
   addTaskComment,
   addTaskLink,
   removeTaskLink,
-  listTasks
+  listTasks,
+  listTaskEvents
 };

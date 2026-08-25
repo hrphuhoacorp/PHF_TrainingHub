@@ -50,6 +50,19 @@ function isoAt(daysFromNow, hour) {
   d.setHours(hour == null ? 10 : hour, 0, 0, 0);
   return d.toISOString();
 }
+// isoAt(0, <fixed hour>) is time-of-day flaky: once real wall-clock time
+// passes that fixed hour, a "due today, not yet overdue" fixture becomes
+// overdue purely by coincidence of when the test runs. Asia/Ho_Chi_Minh has
+// no DST (fixed UTC+7), so this computes 23:59 of "today" in that zone
+// directly from UTC arithmetic — always in the future relative to Date.now()
+// (unless the test runs in the literal last minute of the ICT day) and
+// always the SAME calendar day the app's own taskCalendarDateKey() would
+// compute for "today".
+function endOfIctDay(daysFromNow) {
+  const shifted = new Date(Date.now() + 7 * 3600e3);
+  const y = shifted.getUTCFullYear(), m = shifted.getUTCMonth(), d = shifted.getUTCDate() + (daysFromNow || 0);
+  return new Date(Date.UTC(y, m, d, 23, 59, 0) - 7 * 3600e3).toISOString();
+}
 
 (async () => {
   // ---- A. Route wiring ----
@@ -116,7 +129,7 @@ function isoAt(daysFromNow, hour) {
     const todayKey = T.taskCalendarDateKey(new Date());
     const rows = [
       { status: 'in_progress', deadline: isoAt(-1) },   // overdue
-      { status: 'in_progress', deadline: isoAt(0) },     // due today
+      { status: 'in_progress', deadline: endOfIctDay(0) }, // due today
       { status: 'in_progress', deadline: isoAt(2) },     // due soon (<=3 days)
       { status: 'published', deadline: isoAt(20) },       // not_started (far future, still published)
       { status: 'completed', deadline: isoAt(-5) }        // completed, not counted in any attention bucket

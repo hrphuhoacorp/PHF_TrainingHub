@@ -35,6 +35,7 @@ function taskDetailPath(taskId){return taskHomePath()+'/chi-tiet?task_id='+encod
 var TASK_LIST_RELATION_PATHS={received:'/nhan',assigned:'/giao',managed:'/nhan-su-toi-quan-ly',proposal_sent:'/de-xuat/toi-gui',proposal_received:'/de-xuat/toi-nhan-xu-ly'};
 function taskListPath(relation){return taskHomePath()+(TASK_LIST_RELATION_PATHS[relation]||TASK_LIST_RELATION_PATHS.received);}
 function taskCalendarPath(){return taskHomePath()+'/lich';}
+function taskTimelinePath(){return taskHomePath()+'/dong-thoi-gian';}
 function navigateTask(path,replace){if(typeof window.phfNavigate==='function')return window.phfNavigate(path,replace===true);}
 function parseTaskRoute(routeKey){
   var url;try{url=new URL(String(routeKey||location.href),location.origin);}catch(e){url=new URL(location.href);}
@@ -44,6 +45,7 @@ function parseTaskRoute(routeKey){
   if(path===taskSettingsPath()&&isTaskAdminUi())return{view:'settings'};
   if(path===taskHomePath()+'/chi-tiet')return{view:'detail',taskId:String(url.searchParams.get('task_id')||'').trim()};
   if(path===taskCalendarPath())return{view:'calendar'};
+  if(path===taskTimelinePath())return{view:'timeline'};
   var relationMatch=Object.keys(TASK_LIST_RELATION_PATHS).find(function(relation){return path===taskHomePath()+TASK_LIST_RELATION_PATHS[relation];});
   if(relationMatch)return{view:'list',relation:relationMatch};
   return{view:'dashboard'};
@@ -430,7 +432,7 @@ function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'
 function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
 var TASK_LIST_PAGE_SIZE=50;
 function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false};}
-var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),navGroupExpanded:{},hasManagedScope:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false};
+var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),navGroupExpanded:{},hasManagedScope:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false};
 
 function taskToast(message){
   if(typeof window.phfToast==='function'){ window.phfToast('info','Sắp triển khai',message,3200,'phf-task-soon'); return; }
@@ -468,7 +470,7 @@ var NAV_ITEMS = [
     { key:'de-xuat-toi-nhan', label:'Đề xuất tôi nhận xử lý', relation:'proposal_received' }
   ]},
   { key:'lich', label:'Lịch', desc:'Lịch công việc', enabled:true },
-  { key:'timeline', label:'Timeline', desc:'Dòng thời gian', enabled:false },
+  { key:'timeline', label:'Timeline', desc:'Dòng thời gian', enabled:true },
   { key:'bao-cao', label:'Báo cáo', desc:'Hiệu suất & kết quả', enabled:false },
   { key:'people-permissions', label:'Nhân sự & phân quyền', desc:'Vai trò và phạm vi Task', enabled:true, adminOnly:true },
   { key:'settings', label:'Cài đặt', desc:'Danh mục công việc', enabled:true, adminOnly:true }
@@ -510,7 +512,7 @@ function navItemHtml(item,activeNav){
   '</button>';
 }
 function shellFrame(bodyHtml){
-  var activeNav=taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='settings'?'settings':(taskUiState.view==='calendar'?'lich':(taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||'toi-nhan'):'dashboard')));
+  var activeNav=taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='settings'?'settings':(taskUiState.view==='calendar'?'lich':(taskUiState.view==='timeline'?'timeline':(taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||'toi-nhan'):'dashboard'))));
   var navHtml = NAV_ITEMS.filter(function(item){return !item.adminOnly||isTaskAdminUi();}).map(function(item){return navItemHtml(item,activeNav);}).join('');
   return '' +
     '<header class="phft-topbar">' +
@@ -1096,6 +1098,166 @@ function taskCalendarHtml(){
       (cal.loading||cal.error?'':taskCalendarSummaryHtml(rows,todayKey))+
       '<div class="phft-cal-body">'+body+'</div>'+
     '</section>'+taskCalendarQuickPanelHtml();
+}
+/* ---------------------------------------------------------------------
+   TIMELINE FOUNDATION V1 — vertical activity feed từ CHÍNH task_events thật
+   (audit table append-only, đã sống từ Batch 2 — xem EVENTS_TABLE trong
+   api/_lib/task-core.js), qua action mới listTaskEvents(). KHÔNG phải audit
+   log kỹ thuật, KHÔNG phải calendar thứ hai, KHÔNG dùng demo fixture làm
+   nguồn chính.
+
+   AUTHORIZATION: listTaskEvents() (backend) tự derive tập task_id được phép
+   bằng cách gọi NGUYÊN listTasks() cho đúng relation/scope rồi CHỈ query
+   event trong tập đó — KHÔNG có permission model riêng ở Timeline, không có
+   đường vòng xem Task ngoài quyền. Verified read-only against dev DB: 0 leak
+   ngoài tập authorized, actor không có quyền "assigned" (chưa từng tạo Task
+   nào) nhận đúng 0 event cho relation đó dù vẫn có event thật ở "received".
+
+   Event type hiển thị CHỈ những type đã có evidence insert thật (xem audit):
+   published/progress/completion/reopen/cancel/deadline_change/transfer/
+   assignment/comment/link — KHÔNG invent nhóm nào backend chưa từng ghi.
+--------------------------------------------------------------------- */
+function defaultTaskTimelineState(){
+  return { relation:'received', activityFilter:'all', loading:false, error:'', events:[] };
+}
+var TASK_TIMELINE_EVENT_LABELS={
+  published:'Giao việc',assignment:'Người liên quan',progress:'Cập nhật tiến độ',comment:'Ghi chú',
+  deadline_change:'Đổi hạn hoàn thành',link:'Tài liệu',completion:'Hoàn thành',reopen:'Mở lại',cancel:'Hủy',
+  transfer:'Chuyển người phụ trách',extension_request:'Yêu cầu gia hạn',extension_decision:'Quyết định gia hạn',
+  priority_change:'Đổi ưu tiên',attachment:'Tài liệu đính kèm',recurring_change:'Thay đổi lặp lại',
+  monthly_close:'Chốt tháng',permission_change:'Thay đổi quyền'
+};
+// event_type LẠ (chưa từng thấy, có thể được thêm sau bởi backend trong
+// tương lai — CHECK constraint task_events_event_type_ck cho phép nhiều type
+// hơn những gì đang thực sự ghi) KHÔNG được crash UI — luôn có fallback
+// verb/label chung chung, không bịa hành vi cụ thể.
+function taskTimelineActionVerb(event){
+  var p=event.payload||{};
+  switch(event.event_type){
+    case 'published': return 'đã giao việc';
+    case 'progress': return 'đã cập nhật tiến độ';
+    case 'completion': return 'đã hoàn thành';
+    case 'reopen': return 'đã mở lại';
+    case 'cancel': return 'đã hủy';
+    case 'deadline_change': return 'đã đổi hạn hoàn thành';
+    case 'transfer': return 'đã chuyển người phụ trách';
+    case 'assignment': return p.action==='remove'?'đã gỡ người liên quan khỏi':'đã thêm người liên quan vào';
+    case 'comment': return 'đã thêm ghi chú vào';
+    case 'link': return p.action==='remove'?'đã gỡ tài liệu khỏi':'đã thêm tài liệu vào';
+    default: return 'đã cập nhật';
+  }
+}
+// Chỉ hiển thị before→after nếu payload THẬT có đủ field — không suy diễn
+// giá trị cũ nếu source không lưu (mục 3).
+function taskTimelineMetadataHtml(event){
+  var p=event.payload||{};
+  if(event.event_type==='progress'&&p.old_percent!=null&&p.new_percent!=null)
+    return '<small>'+esc(p.old_percent)+'% → '+esc(p.new_percent)+'%</small>';
+  if(event.event_type==='deadline_change'&&p.old_deadline&&p.new_deadline)
+    return '<small>'+esc(formatTaskDateTime(p.old_deadline))+' → '+esc(formatTaskDateTime(p.new_deadline))+'</small>';
+  if(event.event_type==='transfer'&&p.from_employee_code&&p.to_employee_code)
+    return '<small>'+esc(p.from_employee_code)+' → '+esc(p.to_employee_code)+'</small>';
+  if((event.event_type==='cancel'||event.event_type==='reopen'||event.event_type==='deadline_change'||event.event_type==='transfer')&&event.reason)
+    return '<small>Lý do: '+esc(event.reason)+'</small>';
+  if(event.event_type==='completion'&&p.result_text)
+    return '<small>'+esc(p.result_text)+'</small>';
+  return '';
+}
+// Nhóm filter loại hoạt động — CHỈ 4 nhóm có contract thật hỗ trợ rõ ràng
+// (mục 6); mọi event_type khác (published/assignment/deadline_change/
+// transfer/reserved-nhưng-chưa-dùng) rơi vào 'other', chỉ hiện khi filter='all'
+// — KHÔNG bịa thêm nhóm filter cho chúng.
+function taskTimelineActivityGroup(eventType){
+  if(eventType==='progress')return 'progress';
+  if(eventType==='comment'||eventType==='link')return 'note';
+  if(eventType==='completion')return 'completion';
+  if(eventType==='reopen'||eventType==='cancel')return 'reopen_cancel';
+  return 'other';
+}
+function taskTimelineFilteredEvents(){
+  var tl=taskUiState.timeline;
+  if(tl.activityFilter==='all')return tl.events;
+  return (tl.events||[]).filter(function(e){return taskTimelineActivityGroup(e.event_type)===tl.activityFilter;});
+}
+function taskTimelineDayLabel(dayKey,todayKey,yesterdayKey){
+  if(!dayKey)return '—';
+  if(dayKey===todayKey)return 'Hôm nay';
+  if(dayKey===yesterdayKey)return 'Hôm qua';
+  var parts=dayKey.split('-');
+  return parts[2]+'/'+parts[1]+'/'+parts[0];
+}
+function taskTimelineItemHtml(event){
+  var actorName=(event.actor&&(event.actor.full_name||event.actor.employee_code))||'—';
+  var verb=taskTimelineActionVerb(event);
+  var taskCode=event.task_code||'—';
+  var title=event.task_title?String(event.task_title).trim():'';
+  var time=taskCalendarTimeLabel(event.occurred_at);
+  var meta=taskTimelineMetadataHtml(event);
+  return '<li class="phft-timeline-item" data-task-timeline-open="'+esc(event.task_id)+'">'+
+    '<div class="phft-timeline-time">'+esc(time)+'</div>'+
+    '<div class="phft-timeline-body"><p><b>'+esc(actorName)+'</b> '+esc(verb)+' <b>'+esc(taskCode)+'</b>'+(title?' · '+esc(title):'')+'</p>'+meta+'</div>'+
+  '</li>';
+}
+function taskTimelineGroupedHtml(events){
+  if(!events.length)return '<div class="phft-empty">Chưa có hoạt động công việc phù hợp.</div>';
+  var todayKey=taskCalendarDateKey(new Date());
+  var yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+  var yesterdayKey=taskCalendarDateKey(yesterday);
+  var html='', currentGroup=null;
+  events.forEach(function(event){
+    var dayKey=taskCalendarDateKey(event.occurred_at);
+    if(dayKey!==currentGroup){
+      if(currentGroup!==null)html+='</ul>';
+      html+='<div class="phft-timeline-day-label">'+esc(taskTimelineDayLabel(dayKey,todayKey,yesterdayKey))+'</div><ul class="phft-timeline-list">';
+      currentGroup=dayKey;
+    }
+    html+=taskTimelineItemHtml(event);
+  });
+  if(currentGroup!==null)html+='</ul>';
+  return html;
+}
+async function loadTaskTimeline(root){
+  var tl=taskUiState.timeline;
+  tl.loading=true;tl.error='';
+  renderTaskRoot(root);
+  try{
+    // "Nhân sự tôi quản lý" — CÙNG mapping đã dùng ở Calendar Foundation V1
+    // (relation='received'+scope='managed' là contract THẬT của listTasks(),
+    // KHÔNG có relation='managed' riêng ở backend).
+    var relation=tl.relation==='managed'?'received':tl.relation;
+    var scope=tl.relation==='managed'?'managed':undefined;
+    var response=await taskApi({action:'listTaskEvents',relation:relation,scope:scope,limit:150});
+    var result=taskResult(response)||{};
+    tl.events=Array.isArray(result.events)?result.events:[];
+  }catch(error){
+    tl.error=taskApiErrorMessage(error);
+    tl.events=[];
+  }
+  tl.loading=false;
+  if(taskUiState.view==='timeline')renderTaskRoot(root);
+}
+async function openTaskTimeline(root){
+  taskUiState.view='timeline';
+  renderTaskRoot(root);
+  await loadTaskTimeline(root);
+}
+function taskTimelineFiltersHtml(){
+  var tl=taskUiState.timeline;
+  var relationOptions=[['received','Của tôi / Liên quan tới tôi'],['assigned','Tôi giao']].concat(taskManagerScopeAvailable()?[['managed','Nhân sự tôi quản lý']]:[]);
+  var activityOptions=[['all','Tất cả'],['progress','Tiến độ'],['note','Cập nhật/Ghi chú'],['completion','Hoàn thành'],['reopen_cancel','Mở lại/Hủy']];
+  return '<div class="phft-cal-filters">'+
+    '<select class="phft-select" data-task-timeline-relation>'+relationOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.relation===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
+    '<select class="phft-select" data-task-timeline-activity>'+activityOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.activityFilter===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
+  '</div>';
+}
+function taskTimelineHtml(){
+  var tl=taskUiState.timeline;
+  var body;
+  if(tl.loading)body='<div class="phft-loading">Đang tải dòng thời gian…</div>';
+  else if(tl.error)body='<div class="phft-alert is-error"><div><b>Không tải được dòng thời gian.</b><small>'+esc(tl.error)+'</small></div></div>';
+  else body=taskTimelineGroupedHtml(taskTimelineFilteredEvents());
+  return '<div class="phft-page-head"><div><small>PHF TASK / DÒNG THỜI GIAN</small><h1>Dòng thời gian</h1><p class="phft-page-subtitle">Diễn biến nghiệp vụ thật trên các công việc bạn được phép xem — mới nhất trước.</p></div></div>'+
+    '<section class="phft-panel">'+taskTimelineFiltersHtml()+'<div class="phft-timeline-wrap">'+body+'</div></section>';
 }
 // PHF_TASK_UI_DEMO_V1 — tìm 1 task demo theo id trong cả 4 nhóm fixture
 // (không phụ thuộc relation đang xem, vì modal detail có thể mở từ bất kỳ màn nào).
@@ -2081,6 +2243,7 @@ function detailLoadingHtml(taskId){return '<div class="phft-page-head"><div><sma
 function detailErrorHtml(taskId,message){return '<div class="phft-page-head"><div><small>PHF TASK / CHI TIẾT</small><h1>Chưa tải được chi tiết</h1></div><button type="button" class="phft-btn-secondary" data-task-detail-back>Về Dashboard</button></div><div class="phft-alert is-error"><div><b>Bản nháp đã có mã '+esc(taskId||'—')+', nhưng chưa tải lại được dữ liệu.</b><small>'+esc(message||'Vui lòng thử tải lại.')+'</small></div><button type="button" class="phft-btn-secondary" data-task-reload-detail>Thử lại</button></div>';}
 function taskViewHtml(){
   if(taskUiState.view==='calendar')return taskCalendarHtml();
+  if(taskUiState.view==='timeline')return taskTimelineHtml();
   if(taskUiState.view==='admin-people')return adminPeopleHtml();
   if(taskUiState.view==='settings')return taskSettingsHtml();
   if(taskUiState.view==='create')return createTaskHtml();
@@ -2317,6 +2480,8 @@ function bindShell(root){
     // PHF_TASK_UI_DEMO_V1 — click backdrop (không phải nội dung modal) đóng demo detail.
     if(event.target.matches('[data-task-demo-detail-backdrop]')){taskUiState.demoDetailTaskId='';resetDemoWorkspaceDraft();renderTaskRoot(root);return;}
     if(event.target.matches('[data-task-cal-quick-backdrop]')){taskUiState.calendar.quickTaskId='';renderTaskRoot(root);return;}
+    var timelineRow=event.target.closest('[data-task-timeline-open]');
+    if(timelineRow){navigateTask(taskDetailPath(timelineRow.getAttribute('data-task-timeline-open')));return;}
     var listRow=event.target.closest('[data-task-list-row]');
     if(listRow){
       var rowTaskId=listRow.getAttribute('data-task-list-row');
@@ -2343,6 +2508,7 @@ function bindShell(root){
     if(target.matches('[data-task-nav="settings"]')){navigateTask(taskSettingsPath());return;}
     if(target.matches('[data-task-nav="dashboard"]')){navigateTask(taskHomePath());return;}
     if(target.matches('[data-task-nav="lich"]')){navigateTask(taskCalendarPath());return;}
+    if(target.matches('[data-task-nav="timeline"]')){navigateTask(taskTimelinePath());return;}
     if(target.matches('[data-task-nav-group]')){
       var groupKey=target.getAttribute('data-task-nav-group');
       taskUiState.navGroupExpanded[groupKey]=!navGroupExpanded(groupKey,taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||''):'');
@@ -2439,6 +2605,8 @@ function bindShell(root){
     if(event.target.matches('[data-task-demo-rework-reason]')){taskUiState.demoReworkReason=event.target.value;return;}
     if(event.target.matches('[data-task-demo-cancel-reason]')){taskUiState.demoCancelReason=event.target.value;return;}
     if(event.target.matches('[data-task-demo-cancel-request-reason]')){taskUiState.demoCancelRequestReason=event.target.value;return;}
+    if(event.target.matches('[data-task-timeline-relation]')){taskUiState.timeline.relation=event.target.value;loadTaskTimeline(root);return;}
+    if(event.target.matches('[data-task-timeline-activity]')){taskUiState.timeline.activityFilter=event.target.value;renderTaskRoot(root);return;}
     if(event.target.matches('[data-task-cal-relation]')){taskUiState.calendar.relation=event.target.value;taskUiState.calendar.expandedDay='';taskUiState.calendar.quickTaskId='';loadTaskCalendar(root);return;}
     if(event.target.matches('[data-task-cal-status]')){taskUiState.calendar.statusFilter=event.target.value;renderTaskRoot(root);return;}
     if(event.target.matches('[data-task-cal-category]')){taskUiState.calendar.categoryFilter=event.target.value;renderTaskRoot(root);return;}
@@ -2511,6 +2679,7 @@ async function applyTaskRoute(root,routeKey){
     await openTaskCreate(root);return true;
   }
   if(route.view==='calendar'){await openTaskCalendar(root);return true;}
+  if(route.view==='timeline'){await openTaskTimeline(root);return true;}
   if(route.view==='admin-people'){await openTaskAdminPeople(root);return true;}
   if(route.view==='settings'){await openTaskSettings(root);return true;}
   if(route.view==='detail'){
@@ -2534,6 +2703,6 @@ window.phfRenderTask = async function(path){
 };
 window.phfTaskHomePath = taskHomePath;
 if(window.__PHF_TASK_TEST_MODE__){
-  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,taskLifecycleSectionHtml:taskLifecycleSectionHtml,openTaskLifecycleForm:openTaskLifecycleForm,resetTaskLifecycleForm:resetTaskLifecycleForm,submitTaskLifecycleAction:submitTaskLifecycleAction,taskProgressControlHtml:taskProgressControlHtml,submitTaskProgressInline:submitTaskProgressInline,taskProgressStatusForPercent:taskProgressStatusForPercent,clampTaskPercent:clampTaskPercent,taskCalendarPath:taskCalendarPath,defaultTaskCalendarState:defaultTaskCalendarState,taskCalendarDateKey:taskCalendarDateKey,taskCalendarIsOverdue:taskCalendarIsOverdue,taskCalendarVariant:taskCalendarVariant,taskCalendarStatusMatches:taskCalendarStatusMatches,taskCalendarFilteredTasks:taskCalendarFilteredTasks,taskCalendarSummaryCounts:taskCalendarSummaryCounts,taskCalendarEventEntries:taskCalendarEventEntries,taskCalendarEntryPrimaryDate:taskCalendarEntryPrimaryDate,taskCalendarMonthGridHtml:taskCalendarMonthGridHtml,taskCalendarHtml:taskCalendarHtml,openTaskCalendar:openTaskCalendar,loadTaskCalendar:loadTaskCalendar,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
+  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,taskLifecycleSectionHtml:taskLifecycleSectionHtml,openTaskLifecycleForm:openTaskLifecycleForm,resetTaskLifecycleForm:resetTaskLifecycleForm,submitTaskLifecycleAction:submitTaskLifecycleAction,taskProgressControlHtml:taskProgressControlHtml,submitTaskProgressInline:submitTaskProgressInline,taskProgressStatusForPercent:taskProgressStatusForPercent,clampTaskPercent:clampTaskPercent,taskCalendarPath:taskCalendarPath,defaultTaskCalendarState:defaultTaskCalendarState,taskCalendarDateKey:taskCalendarDateKey,taskCalendarIsOverdue:taskCalendarIsOverdue,taskCalendarVariant:taskCalendarVariant,taskCalendarStatusMatches:taskCalendarStatusMatches,taskCalendarFilteredTasks:taskCalendarFilteredTasks,taskCalendarSummaryCounts:taskCalendarSummaryCounts,taskCalendarEventEntries:taskCalendarEventEntries,taskCalendarEntryPrimaryDate:taskCalendarEntryPrimaryDate,taskCalendarMonthGridHtml:taskCalendarMonthGridHtml,taskCalendarHtml:taskCalendarHtml,openTaskCalendar:openTaskCalendar,loadTaskCalendar:loadTaskCalendar,taskTimelinePath:taskTimelinePath,defaultTaskTimelineState:defaultTaskTimelineState,taskTimelineActionVerb:taskTimelineActionVerb,taskTimelineMetadataHtml:taskTimelineMetadataHtml,taskTimelineActivityGroup:taskTimelineActivityGroup,taskTimelineFilteredEvents:taskTimelineFilteredEvents,taskTimelineDayLabel:taskTimelineDayLabel,taskTimelineItemHtml:taskTimelineItemHtml,taskTimelineGroupedHtml:taskTimelineGroupedHtml,taskTimelineHtml:taskTimelineHtml,openTaskTimeline:openTaskTimeline,loadTaskTimeline:loadTaskTimeline,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
 }
 })();
