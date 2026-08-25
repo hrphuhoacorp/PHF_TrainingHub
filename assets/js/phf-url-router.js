@@ -338,6 +338,7 @@
     '/hv/task':Object.freeze({area:'learner',screen:'task-home',roles:['learner']}),
     '/hv/task/tao':Object.freeze({area:'learner',screen:'task-create',roles:['learner']}),
     '/hv/task/chi-tiet':Object.freeze({area:'learner',screen:'task-detail',roles:['learner']}),
+    '/hv/task/lich':Object.freeze({area:'learner',screen:'task-calendar',roles:['learner']}),
     '/hv/task/nhan':Object.freeze({area:'learner',screen:'task-received',roles:['learner']}),
     '/hv/task/giao':Object.freeze({area:'learner',screen:'task-assigned',roles:['learner']}),
     '/hv/task/nhan-su-toi-quan-ly':Object.freeze({area:'learner',screen:'task-managed',roles:['learner']}),
@@ -370,6 +371,7 @@
     '/ql/task':Object.freeze({area:'manager',screen:'task-home',roles:['manager']}),
     '/ql/task/tao':Object.freeze({area:'manager',screen:'task-create',roles:['manager']}),
     '/ql/task/chi-tiet':Object.freeze({area:'manager',screen:'task-detail',roles:['manager']}),
+    '/ql/task/lich':Object.freeze({area:'manager',screen:'task-calendar',roles:['manager']}),
     '/ql/task/nhan':Object.freeze({area:'manager',screen:'task-received',roles:['manager']}),
     '/ql/task/giao':Object.freeze({area:'manager',screen:'task-assigned',roles:['manager']}),
     '/ql/task/nhan-su-toi-quan-ly':Object.freeze({area:'manager',screen:'task-managed',roles:['manager']}),
@@ -424,6 +426,7 @@
     '/admin/task/nhan-su':Object.freeze({area:'admin',screen:'task-people',roles:['admin']}),
     '/admin/task/tao':Object.freeze({area:'admin',screen:'task-create',roles:['admin']}),
     '/admin/task/chi-tiet':Object.freeze({area:'admin',screen:'task-detail',roles:['admin']}),
+    '/admin/task/lich':Object.freeze({area:'admin',screen:'task-calendar',roles:['admin']}),
     '/admin/task/nhan':Object.freeze({area:'admin',screen:'task-received',roles:['admin']}),
     '/admin/task/giao':Object.freeze({area:'admin',screen:'task-assigned',roles:['admin']}),
     '/admin/task/nhan-su-toi-quan-ly':Object.freeze({area:'admin',screen:'task-managed',roles:['admin']}),
@@ -473,9 +476,9 @@
   window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac','/admin/knl/dashboard');
   window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
   // PHF Task registers only screens backed by a real renderer.
-  window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly');
-  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly');
-  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly');
+  window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly','/hv/task/lich');
+  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich');
+  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
