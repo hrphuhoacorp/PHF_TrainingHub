@@ -1537,6 +1537,7 @@ async function listTasks(session, params) {
       flow_type: t.flow_type,
       status: t.status,
       priority: t.priority,
+      start_at: t.start_at,
       deadline: t.deadline,
       category_code: t.category_code,
       progress_percent: t.progress_percent,

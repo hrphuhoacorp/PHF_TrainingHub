@@ -1,15 +1,18 @@
 'use strict';
 
 /*
- * PHF Task — CALENDAR FOUNDATION V1 — static/behavioral assertions, jsdom,
- * no network, no real DB. Loads the REAL production file via window.eval
- * (same harness pattern as scripts/test-task-cancel-v4.js /
- * test-task-progress-ui-g12b.js). Covers: month grid generation (Monday-
- * first, 42 cells, muted outside days, today marker), deadline-based date
- * mapping (no start_at — documented backend gap), overdue classification
- * parity with the existing Task List rule, scope/filter payload mapping,
- * and task-click open behavior (quick panel + real Task Detail, no second
- * detail implementation).
+ * PHF Task — CALENDAR FOUNDATION V1 (+ V1.1 start_at contract completion) —
+ * static/behavioral assertions, jsdom, no network, no real DB. Loads the
+ * REAL production file via window.eval (same harness pattern as
+ * scripts/test-task-cancel-v4.js / test-task-progress-ui-g12b.js). Covers:
+ * month grid generation (Monday-first, 42 cells, muted outside days, today
+ * marker), deadline-based date mapping, overdue classification parity with
+ * the existing Task List rule, scope/filter payload mapping, task-click open
+ * behavior (quick panel + real Task Detail, no second detail implementation),
+ * and — source-level, since this file has no real-DB harness — that
+ * listTasks() in api/_lib/task-core.js actually returns start_at alongside
+ * every field it returned before (V1.1: start_at was fetched via select('*')
+ * but dropped from the row mapping; now added back, purely additively).
  */
 
 const assert = require('assert');
@@ -197,6 +200,22 @@ function isoAt(daysFromNow, hour) {
     click(window, root, '[data-task-cal-view="week"]');
     pass(!!toasted, 'H2: clicking a placeholder view surfaces a real "not implemented" notice instead of silently doing nothing or faking a view');
     pass(state.calendar.view === 'month', 'H3: view state stays on month — placeholder click never switches into a fake/broken view');
+  }
+
+  // ---- I. Backend contract (source-level, no live DB harness in this file):
+  // listTasks() row mapping returns start_at, and every field it returned
+  // before this gate is still present (purely additive change). ----
+  {
+    const coreSource = readSrc('api/_lib/task-core.js');
+    const mapStart = coreSource.indexOf('const tasks = taskRows.map(t => {');
+    assert.ok(mapStart >= 0, 'I0: listTasks() row-mapping block must exist in task-core.js');
+    const mapEnd = coreSource.indexOf('});', mapStart);
+    const mapBlock = coreSource.slice(mapStart, mapEnd);
+    pass(/start_at:\s*t\.start_at/.test(mapBlock), 'I1: listTasks() row mapping includes start_at: t.start_at');
+    ['task_id: t.id', 'task_code: t.task_code', 'title: t.title', 'flow_type: t.flow_type', 'status: t.status', 'priority: t.priority', 'deadline: t.deadline', 'category_code: t.category_code', 'progress_percent: t.progress_percent', 'progress_status: t.progress_status', 'is_cross_department: t.is_cross_department', 'source_department: t.source_department', 'target_department: t.target_department', 'row_version: t.row_version'].forEach(field => {
+      pass(mapBlock.includes(field), 'I2: pre-existing field preserved — ' + field);
+    });
+    pass(mapBlock.includes("select('*')") === false, 'I3 sanity: mapBlock slice is the mapping body, not the query builder (no select(\'*\') text bled in)');
   }
 
   console.log(`PHF Task Calendar Foundation V1 test: ${passed}/${passed} PASS`);
