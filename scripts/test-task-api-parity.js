@@ -32,7 +32,8 @@ const expectedActions = [
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
-  'listTasks', 'listTaskEvents'
+  'listTasks', 'listTaskEvents',
+  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -112,7 +113,12 @@ const payloads = {
   markTaskNotificationRead: { id:'notif-1', ids:null },
   markAllTaskNotificationsRead: {},
   listTasks: { relation:'received', status_filter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 },
-  listTaskEvents: { relation:'received', scope:'managed', limit:50 }
+  listTaskEvents: { relation:'received', scope:'managed', limit:50 },
+  getTaskReportSummary: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
+  getTaskReportCategoryAnalysis: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
+  getTaskReportPersonAnalysis: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
+  getTaskReportTrend: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
+  listTaskReportDrilldown: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -147,7 +153,12 @@ const expectedCoreArgs = {
   markTaskNotificationRead: [{ id:'notif-1', ids:null }],
   markAllTaskNotificationsRead: [],
   listTasks: [{ relation:'received', statusFilter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }],
-  listTaskEvents: [{ relation:'received', scope:'managed', limit:50 }]
+  listTaskEvents: [{ relation:'received', scope:'managed', limit:50 }],
+  getTaskReportSummary: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
+  getTaskReportCategoryAnalysis: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
+  getTaskReportPersonAnalysis: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
+  getTaskReportTrend: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
+  listTaskReportDrilldown: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }]
 };
 
 (async () => {
@@ -211,10 +222,13 @@ const expectedCoreArgs = {
   const coreSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-core.js'), 'utf8');
   // Notification actions live in api/_lib/task-notifications.js (dedicated
   // module, mirrors api/_lib/knl-notifications.js domain-isolation
-  // convention) — NOT task-core.js. Check the union of both real
-  // implementation files, not a single hardcoded path.
+  // convention) — NOT task-core.js. Report actions live in
+  // api/_lib/task-reporting.js (Report-03, same domain-isolation
+  // convention). Check the union of all real implementation files, not a
+  // single hardcoded path.
   const notificationsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-notifications.js'), 'utf8');
-  const implementationSource = coreSource + '\n' + notificationsSource;
+  const reportingSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-reporting.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource;
   for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(implementationSource), 'Task Core/Notifications export missing ' + action);
   console.log('PHF Task API parity: ' + passed + '/' + passed + ' PASS');
 })().catch(error => {

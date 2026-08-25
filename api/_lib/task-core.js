@@ -1437,6 +1437,58 @@ const TASK_LIST_RELATIONS = new Set(['received', 'assigned', 'proposal_sent', 'p
 const TASK_LIST_STATUS_FILTERS = new Set(['all', 'in_progress', 'overdue', 'completed']);
 const TASK_LIST_SCOPES = new Set(['mine', 'managed', 'cross_department', 'all_company']);
 
+// ---------------------------------------------------------------------------
+// SHARED AUTHORIZED TASK SCOPE RESOLVER — Report-02/03 mục 2: branching
+// "actorContext/scope + relation/scope input → concrete authorization
+// filter" trước đây bị duplicate ở task-query-descriptor-builder.js (file đó
+// tự ghi nhận trong comment đầu file: "phải duplicate tối thiểu ở đây" vì
+// branching này KHÔNG được export riêng từ task-core.js). Report KHÔNG được
+// tạo bản duplicate thứ 3 — hàm này là bản trích xuất NGUYÊN VẸN branching
+// gốc của listTasks() (không đổi 1 điều kiện/thứ tự nào), để cả listTasks()
+// và Report engine dùng chung. Hành vi phải byte-semantically equivalent với
+// trước khi extract — chứng minh bằng toàn bộ Task regression suite hiện có
+// + live-DB before/after diff (xem PHF_TASK_REPORT_03 report).
+async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam) {
+  const isReceivedLike = relation === 'received' || relation === 'proposal_received';
+  const flowType = (relation === 'proposal_sent' || relation === 'proposal_received') ? 'de_xuat' : 'giao_viec';
+
+  if (!isReceivedLike) {
+    return { mode: 'creator_eq', flowType, creatorEmployeeCode: actorContext.employeeCode };
+  }
+
+  // "Đề xuất tôi nhận xử lý" LUÔN self-only theo đúng nghĩa cá nhân (không
+  // suy sang phạm vi quản lý) — chỉ relation='received' mới dùng peopleScope
+  // canonical để mở rộng cho TBP/Trưởng ca/Admin/GĐ/TLGĐ.
+  let employeeCodes; // null => không giới hạn (all_company)
+  if (relation === 'proposal_received') {
+    employeeCodes = [actorContext.employeeCode];
+  } else if (scope.peopleScope.type === 'all_company') {
+    employeeCodes = (scopeParam === 'mine') ? [actorContext.employeeCode] : null;
+  } else if (scope.peopleScope.type === 'employees') {
+    const managed = Array.from(actorContext.managedEmployeeCodes || []);
+    if (scopeParam === 'mine') employeeCodes = [actorContext.employeeCode];
+    else if (scopeParam === 'managed' || scopeParam === 'cross_department') employeeCodes = managed;
+    else employeeCodes = scope.peopleScope.values || [actorContext.employeeCode];
+  } else {
+    employeeCodes = [actorContext.employeeCode];
+  }
+
+  if (employeeCodes !== null && !employeeCodes.length) {
+    return { mode: 'empty', flowType, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+  }
+
+  let assigneeQuery = supabase.from(ASSIGNEES_TABLE).select('task_id').eq('role', 'primary').eq('is_active', true);
+  if (employeeCodes !== null) assigneeQuery = assigneeQuery.in('employee_code', employeeCodes);
+  const { data: assigneeRows, error: assigneeError } = await assigneeQuery.limit(5000);
+  if (assigneeError) throwDb(assigneeError);
+  const taskIds = Array.from(new Set((assigneeRows || []).map(r => r.task_id)));
+  if (!taskIds.length) {
+    return { mode: 'empty', flowType, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+  }
+
+  return { mode: 'assignee_in', flowType, taskIds, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+}
+
 async function listTasks(session, params) {
   ensureDb();
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
@@ -1456,49 +1508,24 @@ async function listTasks(session, params) {
   // trang khi offset tăng).
   const offset = Math.min(5000, Math.max(0, Math.trunc(Number(input.offset)) || 0));
 
-  const isReceivedLike = relation === 'received' || relation === 'proposal_received';
-  const flowType = (relation === 'proposal_sent' || relation === 'proposal_received') ? 'de_xuat' : 'giao_viec';
   const nowIso = new Date().toISOString();
   const emptyResult = { tasks: [], relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, offset, limit, hasMore: false };
 
-  let taskQuery = supabase.from(TASKS_TABLE).select('*').eq('flow_type', flowType);
+  const authScope = await resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam);
+  if (authScope.mode === 'empty') return emptyResult;
 
-  if (isReceivedLike) {
-    // "Đề xuất tôi nhận xử lý" LUÔN self-only theo đúng nghĩa cá nhân (không
-    // suy sang phạm vi quản lý) — chỉ relation='received' mới dùng peopleScope
-    // canonical để mở rộng cho TBP/Trưởng ca/Admin/GĐ/TLGĐ.
-    let employeeCodes; // null => không giới hạn (all_company)
-    if (relation === 'proposal_received') {
-      employeeCodes = [actorContext.employeeCode];
-    } else if (scope.peopleScope.type === 'all_company') {
-      employeeCodes = (scopeParam === 'mine') ? [actorContext.employeeCode] : null;
-    } else if (scope.peopleScope.type === 'employees') {
-      const managed = Array.from(actorContext.managedEmployeeCodes || []);
-      if (scopeParam === 'mine') employeeCodes = [actorContext.employeeCode];
-      else if (scopeParam === 'managed' || scopeParam === 'cross_department') employeeCodes = managed;
-      else employeeCodes = scope.peopleScope.values || [actorContext.employeeCode];
-    } else {
-      employeeCodes = [actorContext.employeeCode];
-    }
+  let taskQuery = supabase.from(TASKS_TABLE).select('*').eq('flow_type', authScope.flowType);
 
-    if (employeeCodes !== null && !employeeCodes.length) return emptyResult;
-
-    let assigneeQuery = supabase.from(ASSIGNEES_TABLE).select('task_id').eq('role', 'primary').eq('is_active', true);
-    if (employeeCodes !== null) assigneeQuery = assigneeQuery.in('employee_code', employeeCodes);
-    const { data: assigneeRows, error: assigneeError } = await assigneeQuery.limit(5000);
-    if (assigneeError) throwDb(assigneeError);
-    const taskIds = Array.from(new Set((assigneeRows || []).map(r => r.task_id)));
-    if (!taskIds.length) return emptyResult;
-
-    taskQuery = taskQuery.in('id', taskIds);
+  if (authScope.mode === 'assignee_in') {
+    taskQuery = taskQuery.in('id', authScope.taskIds);
     // draft ẩn khỏi người nhận — chưa publish nghĩa là chưa "thật" với người
     // nhận (không notification, không audit event) — chỉ creator thấy ở
     // relation='assigned'/'proposal_sent' (đúng đặc tả mục 6 handoff Create
     // Foundation: "draft = pre-audit").
-    taskQuery = taskQuery.neq('status', 'draft');
-    if (scopeParam === 'cross_department') taskQuery = taskQuery.eq('is_cross_department', true);
+    if (authScope.excludeDraft) taskQuery = taskQuery.neq('status', 'draft');
+    if (authScope.crossDepartmentOnly) taskQuery = taskQuery.eq('is_cross_department', true);
   } else {
-    taskQuery = taskQuery.eq('created_by_employee_code', actorContext.employeeCode);
+    taskQuery = taskQuery.eq('created_by_employee_code', authScope.creatorEmployeeCode);
   }
 
   if (statusFilter === 'completed') taskQuery = taskQuery.eq('status', 'completed');
@@ -1654,5 +1681,12 @@ module.exports = {
   addTaskLink,
   removeTaskLink,
   listTasks,
-  listTaskEvents
+  listTaskEvents,
+  resolveAuthorizedTaskScope,
+  TASK_LIST_RELATIONS,
+  TASK_LIST_SCOPES,
+  TASKS_TABLE,
+  ASSIGNEES_TABLE,
+  EVENTS_TABLE,
+  CATEGORIES_TABLE
 };

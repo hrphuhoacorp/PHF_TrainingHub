@@ -44,6 +44,13 @@ const {
   listTaskEvents
 } = require('./_lib/task-core');
 const {
+  getTaskReportSummary,
+  getTaskReportCategoryAnalysis,
+  getTaskReportPersonAnalysis,
+  getTaskReportTrend,
+  listTaskReportDrilldown
+} = require('./_lib/task-reporting');
+const {
   listMyTaskNotifications,
   markTaskNotificationRead,
   markAllTaskNotificationsRead
@@ -129,7 +136,8 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
-  'listTasks', 'listTaskEvents'
+  'listTasks', 'listTaskEvents',
+  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -205,6 +213,23 @@ function taskEventsInput(payload) {
   return input;
 }
 
+function taskReportContextInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'relation', 'relation');
+  copyTaskPayloadField(input, payload, 'scope', 'scope');
+  copyTaskPayloadField(input, payload, 'period', 'period');
+  copyTaskPayloadField(input, payload, 'category_code', 'category_code');
+  return input;
+}
+function taskReportDrilldownInput(payload) {
+  const input = taskReportContextInput(payload);
+  copyTaskPayloadField(input, payload, 'metric_id', 'metric_id');
+  copyTaskPayloadField(input, payload, 'employee_code', 'employee_code');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
@@ -248,6 +273,11 @@ async function dispatchTaskAction(session, payload) {
     case 'markAllTaskNotificationsRead': return { handled: true, result: await markAllTaskNotificationsRead(session) };
     case 'listTasks': return { handled: true, result: await listTasks(session, taskListInput(payload)) };
     case 'listTaskEvents': return { handled: true, result: await listTaskEvents(session, taskEventsInput(payload)) };
+    case 'getTaskReportSummary': return { handled: true, result: await getTaskReportSummary(session, taskReportContextInput(payload)) };
+    case 'getTaskReportCategoryAnalysis': return { handled: true, result: await getTaskReportCategoryAnalysis(session, taskReportContextInput(payload)) };
+    case 'getTaskReportPersonAnalysis': return { handled: true, result: await getTaskReportPersonAnalysis(session, taskReportContextInput(payload)) };
+    case 'getTaskReportTrend': return { handled: true, result: await getTaskReportTrend(session, taskReportContextInput(payload)) };
+    case 'listTaskReportDrilldown': return { handled: true, result: await listTaskReportDrilldown(session, taskReportDrilldownInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };
