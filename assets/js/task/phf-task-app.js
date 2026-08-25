@@ -893,11 +893,20 @@ function taskCalendarVariant(row,todayKey){
   return row.status==='published'?'not_started':'active';
 }
 var TASK_CAL_VARIANT_LABELS={overdue:'Quá hạn',due_today:'Hôm nay',due_soon:'Sắp tới hạn',completed:'Hoàn thành',cancelled:'Đã hủy',not_started:'Chưa bắt đầu',active:'Đang làm',other:'—'};
+// Status filter — 6 bucket LOẠI TRỪ NHAU trên status hiện có
+// (published/in_progress/completed/cancelled — draft đã bị listTasks() ẩn
+// khỏi người nhận từ trước, xem comment listTasks() task-core.js), KHÔNG
+// tạo status DB mới. "Quá hạn" LUÔN dùng đúng công thức
+// taskCalendarIsOverdue() (mục 12 — completed/cancelled KHÔNG BAO GIỜ overdue
+// dù deadline đã qua, giống hệt Task List). "Chưa bắt đầu"/"Đang làm" loại
+// trừ "Quá hạn" để 1 task chỉ rơi vào ĐÚNG 1 bucket.
 function taskCalendarStatusMatches(row,filter){
   if(filter==='all')return true;
   if(filter==='completed')return row.status==='completed';
+  if(filter==='cancelled')return row.status==='cancelled';
   if(filter==='overdue')return taskCalendarIsOverdue(row);
-  if(filter==='in_progress')return (row.status==='published'||row.status==='in_progress')&&!taskCalendarIsOverdue(row);
+  if(filter==='not_started')return row.status==='published'&&!taskCalendarIsOverdue(row);
+  if(filter==='in_progress')return row.status==='in_progress'&&!taskCalendarIsOverdue(row);
   return true;
 }
 // UI filter TRÊN tập đã authorized (đã tải từ listTasks với đúng
@@ -976,20 +985,51 @@ function taskCalendarSummaryHtml(rows,todayKey){
 function taskCalendarFiltersHtml(){
   var cal=taskUiState.calendar;
   var relationOptions=[['received','Tôi nhận'],['assigned','Tôi giao']].concat(taskManagerScopeAvailable()?[['managed','Nhân sự tôi quản lý']]:[]);
-  var statusOptions=[['all','Tất cả'],['in_progress','Đang làm'],['overdue','Quá hạn'],['completed','Hoàn thành']];
+  var statusOptions=[['all','Tất cả'],['not_started','Chưa bắt đầu'],['in_progress','Đang làm'],['overdue','Quá hạn'],['completed','Hoàn thành'],['cancelled','Đã hủy']];
   return '<div class="phft-cal-filters">'+
     '<select class="phft-select" data-task-cal-relation>'+relationOptions.map(function(o){return '<option value="'+o[0]+'"'+(cal.relation===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
     '<select class="phft-select" data-task-cal-status>'+statusOptions.map(function(o){return '<option value="'+o[0]+'"'+(cal.statusFilter===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
     '<select class="phft-select" data-task-cal-category><option value="">Tất cả danh mục</option>'+(taskUiState.categories||[]).map(function(c){return '<option value="'+esc(c.code)+'"'+(cal.categoryFilter===c.code?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select>'+
   '</div>';
 }
-function taskCalendarChipHtml(row,todayKey){
-  var cal=taskUiState.calendar;
+// START/DUE semantics (mục Calendar V1.2) — 1 task tạo TỐI ĐA 2 "entry" hiển
+// thị trên lịch, KHÔNG BAO GIỜ nhiều hơn, KHÔNG bịa ngày khi field null:
+//   - chỉ có start_at            -> 1 entry kind='start' tại ngày start_at
+//   - chỉ có deadline            -> 1 entry kind='due' tại ngày deadline
+//   - start_at VÀ deadline CÙNG NGÀY -> GỘP thành 1 entry kind='both'
+//     (không tạo 2 task giả trên cùng 1 ô ngày cho cùng 1 task)
+//   - start_at VÀ deadline KHÁC NGÀY -> 2 entry riêng (start ngày bắt đầu,
+//     due ngày hạn) — vẫn là 1 task, hiển thị ở 2 ô ngày khác nhau
+//   - không có cả hai            -> 0 entry, task bị loại khỏi lịch tháng
+function taskCalendarEventEntries(rows){
+  var entries=[];
+  (rows||[]).forEach(function(row){
+    var startKey=taskCalendarDateKey(row.start_at);
+    var dueKey=taskCalendarDateKey(row.deadline);
+    if(startKey&&dueKey&&startKey===dueKey){
+      entries.push({row:row,dayKey:startKey,kind:'both'});
+    }else{
+      if(startKey)entries.push({row:row,dayKey:startKey,kind:'start'});
+      if(dueKey)entries.push({row:row,dayKey:dueKey,kind:'due'});
+    }
+  });
+  return entries;
+}
+// Ngày "chính" của 1 entry dùng để hiển thị giờ + sắp xếp trong ô — 'both'
+// ưu tiên deadline (thời điểm nghiệp vụ quan trọng hơn: hạn hoàn thành).
+function taskCalendarEntryPrimaryDate(entry){
+  if(entry.kind==='start')return entry.row.start_at;
+  return entry.row.deadline||entry.row.start_at;
+}
+var TASK_CAL_MARKER_LABELS={start:'Bắt đầu',due:'Hạn',both:'Bắt đầu · Hạn'};
+var TASK_CAL_MARKER_ICONS={start:'▶',due:'■',both:'◆'};
+function taskCalendarChipHtml(entry,todayKey){
+  var cal=taskUiState.calendar, row=entry.row, kind=entry.kind;
   var variant=taskCalendarVariant(row,todayKey);
   var dimmed=cal.highlightVariant&&cal.highlightVariant!==variant?' is-dimmed':'';
-  var time=taskCalendarTimeLabel(row.deadline);
+  var time=taskCalendarTimeLabel(taskCalendarEntryPrimaryDate(entry));
   var title=String(row.title||'').trim();
-  return '<button type="button" class="phft-cal-event is-'+variant+dimmed+'" data-task-cal-open="'+esc(row.task_id)+'" title="'+esc((row.task_code||'')+' · '+title)+'">'+(time?'<time>'+esc(time)+'</time>':'')+'<span>'+esc(title)+'</span></button>';
+  return '<button type="button" class="phft-cal-event is-'+variant+dimmed+' is-marker-'+kind+'" data-task-cal-open="'+esc(row.task_id)+'" title="'+esc(TASK_CAL_MARKER_LABELS[kind]+' · '+(row.task_code||'')+' · '+title)+'"><span class="phft-cal-event-marker" aria-hidden="true">'+TASK_CAL_MARKER_ICONS[kind]+'</span>'+(time?'<time>'+esc(time)+'</time>':'')+'<span>'+esc(title)+'</span></button>';
 }
 function taskCalendarMonthGridHtml(rows){
   var cal=taskUiState.calendar;
@@ -998,25 +1038,23 @@ function taskCalendarMonthGridHtml(rows){
   var start=new Date(first); start.setDate(1-((first.getDay()+6)%7)); // Thứ 2 đầu tuần
   var todayKey=taskCalendarDateKey(new Date());
   var byDay={};
-  rows.forEach(function(row){
-    var key=taskCalendarDateKey(row.deadline);
-    if(!key)return; // không deadline -> không tự bịa ngày, loại khỏi lịch (mục 5D)
-    (byDay[key]=byDay[key]||[]).push(row);
+  taskCalendarEventEntries(rows).forEach(function(entry){
+    (byDay[entry.dayKey]=byDay[entry.dayKey]||[]).push(entry);
   });
-  Object.keys(byDay).forEach(function(key){byDay[key].sort(function(a,b){return new Date(a.deadline)-new Date(b.deadline);});});
+  Object.keys(byDay).forEach(function(key){byDay[key].sort(function(a,b){return new Date(taskCalendarEntryPrimaryDate(a))-new Date(taskCalendarEntryPrimaryDate(b));});});
   var html='<div class="phft-cal-weekdays"><span>Thứ 2</span><span>Thứ 3</span><span>Thứ 4</span><span>Thứ 5</span><span>Thứ 6</span><span>Thứ 7</span><span>Chủ nhật</span></div><div class="phft-cal-grid">';
   for(var i=0;i<42;i++){
     var d=new Date(start); d.setDate(start.getDate()+i);
     var key=d.getFullYear()+'-'+taskCalPad2(d.getMonth()+1)+'-'+taskCalPad2(d.getDate());
     var outside=d.getMonth()!==month;
-    var dayTasks=byDay[key]||[];
+    var dayEntries=byDay[key]||[];
     var expanded=cal.expandedDay===key;
-    var visible=expanded?dayTasks:dayTasks.slice(0,3);
+    var visible=expanded?dayEntries:dayEntries.slice(0,3);
     html+='<article class="phft-cal-day'+(outside?' is-outside':'')+(key===todayKey?' is-today':'')+'">'+
       '<header><b>'+d.getDate()+'</b>'+(key===todayKey?'<small>Hôm nay</small>':'')+'</header>'+
-      '<div class="phft-cal-events">'+visible.map(function(row){return taskCalendarChipHtml(row,todayKey);}).join('')+
-      (dayTasks.length>3&&!expanded?'<button type="button" class="phft-cal-more" data-task-cal-expand-day="'+key+'">+ '+(dayTasks.length-3)+' khác</button>':'')+
-      (expanded&&dayTasks.length>3?'<button type="button" class="phft-cal-more" data-task-cal-collapse-day="'+key+'">Thu gọn</button>':'')+
+      '<div class="phft-cal-events">'+visible.map(function(entry){return taskCalendarChipHtml(entry,todayKey);}).join('')+
+      (dayEntries.length>3&&!expanded?'<button type="button" class="phft-cal-more" data-task-cal-expand-day="'+key+'">+ '+(dayEntries.length-3)+' khác</button>':'')+
+      (expanded&&dayEntries.length>3?'<button type="button" class="phft-cal-more" data-task-cal-collapse-day="'+key+'">Thu gọn</button>':'')+
       '</div></article>';
   }
   return html+'</div>';
@@ -1030,6 +1068,7 @@ function taskCalendarQuickPanelHtml(){
   return '<div class="phft-modal-backdrop" data-task-cal-quick-backdrop><section class="phft-cal-quick-panel" role="dialog" aria-modal="true" aria-label="Xem nhanh công việc"><header><div><small>'+esc(row.task_code||'')+'</small><h3>'+esc(row.title||'')+'</h3></div><button type="button" class="phft-icon-btn" data-task-cal-quick-close aria-label="Đóng">×</button></header>'+
     '<dl class="phft-cal-quick-grid">'+
       '<div><dt>Trạng thái</dt><dd><span class="phft-cal-tag is-'+variant+'">'+esc(TASK_CAL_VARIANT_LABELS[variant]||taskEnumLabel(TASK_STATUS_LABELS,row.status))+'</span></dd></div>'+
+      '<div><dt>Bắt đầu</dt><dd>'+esc(formatTaskDateTime(row.start_at))+'</dd></div>'+
       '<div><dt>Deadline</dt><dd>'+esc(formatTaskDateTime(row.deadline))+'</dd></div>'+
       '<div><dt>Người thực hiện</dt><dd>'+esc(row.primary?row.primary.full_name:'—')+'</dd></div>'+
       '<div><dt>Người giao</dt><dd>'+esc(row.created_by?row.created_by.full_name:'—')+'</dd></div>'+
@@ -2495,6 +2534,6 @@ window.phfRenderTask = async function(path){
 };
 window.phfTaskHomePath = taskHomePath;
 if(window.__PHF_TASK_TEST_MODE__){
-  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,taskLifecycleSectionHtml:taskLifecycleSectionHtml,openTaskLifecycleForm:openTaskLifecycleForm,resetTaskLifecycleForm:resetTaskLifecycleForm,submitTaskLifecycleAction:submitTaskLifecycleAction,taskProgressControlHtml:taskProgressControlHtml,submitTaskProgressInline:submitTaskProgressInline,taskProgressStatusForPercent:taskProgressStatusForPercent,clampTaskPercent:clampTaskPercent,taskCalendarPath:taskCalendarPath,defaultTaskCalendarState:defaultTaskCalendarState,taskCalendarDateKey:taskCalendarDateKey,taskCalendarIsOverdue:taskCalendarIsOverdue,taskCalendarVariant:taskCalendarVariant,taskCalendarFilteredTasks:taskCalendarFilteredTasks,taskCalendarSummaryCounts:taskCalendarSummaryCounts,taskCalendarMonthGridHtml:taskCalendarMonthGridHtml,taskCalendarHtml:taskCalendarHtml,openTaskCalendar:openTaskCalendar,loadTaskCalendar:loadTaskCalendar,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
+  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,taskLifecycleSectionHtml:taskLifecycleSectionHtml,openTaskLifecycleForm:openTaskLifecycleForm,resetTaskLifecycleForm:resetTaskLifecycleForm,submitTaskLifecycleAction:submitTaskLifecycleAction,taskProgressControlHtml:taskProgressControlHtml,submitTaskProgressInline:submitTaskProgressInline,taskProgressStatusForPercent:taskProgressStatusForPercent,clampTaskPercent:clampTaskPercent,taskCalendarPath:taskCalendarPath,defaultTaskCalendarState:defaultTaskCalendarState,taskCalendarDateKey:taskCalendarDateKey,taskCalendarIsOverdue:taskCalendarIsOverdue,taskCalendarVariant:taskCalendarVariant,taskCalendarStatusMatches:taskCalendarStatusMatches,taskCalendarFilteredTasks:taskCalendarFilteredTasks,taskCalendarSummaryCounts:taskCalendarSummaryCounts,taskCalendarEventEntries:taskCalendarEventEntries,taskCalendarEntryPrimaryDate:taskCalendarEntryPrimaryDate,taskCalendarMonthGridHtml:taskCalendarMonthGridHtml,taskCalendarHtml:taskCalendarHtml,openTaskCalendar:openTaskCalendar,loadTaskCalendar:loadTaskCalendar,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
 }
 })();

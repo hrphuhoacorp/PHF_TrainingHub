@@ -97,6 +97,7 @@
 .phft-cal-events{display:flex;flex-direction:column;gap:4px}
 .phft-cal-event{display:flex;align-items:center;gap:5px;border:0;border-radius:7px;padding:4px 6px;font-size:9.5px;font-weight:700;text-align:left;cursor:pointer;background:#eef4ff;color:#2a579e;overflow:hidden;width:100%}
 .phft-cal-event time{font-variant-numeric:tabular-nums;flex:0 0 auto;opacity:.85}
+.phft-cal-event-marker{flex:0 0 auto;font-size:8px;opacity:.75}
 .phft-cal-event span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .phft-cal-event.is-overdue{background:#fff0ed;color:#a33838}
 .phft-cal-event.is-due_today{background:#fff9e8;color:#8a6d1f}

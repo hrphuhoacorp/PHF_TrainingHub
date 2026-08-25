@@ -218,5 +218,99 @@ function isoAt(daysFromNow, hour) {
     pass(mapBlock.includes("select('*')") === false, 'I3 sanity: mapBlock slice is the mapping body, not the query builder (no select(\'*\') text bled in)');
   }
 
+  // ---- J. V1.2 START/DUE entry semantics — one task, at most 2 markers,
+  // never a fabricated date, never a fake duplicate task. ----
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const startOnly = { task_id: 's1', status: 'in_progress', start_at: isoAt(1), deadline: null };
+    const dueOnly = { task_id: 'd1', status: 'in_progress', start_at: null, deadline: isoAt(3) };
+    const same = { task_id: 'sd1', status: 'in_progress', start_at: isoAt(2, 8), deadline: isoAt(2, 17) };
+    const different = { task_id: 'ab1', status: 'in_progress', start_at: isoAt(1), deadline: isoAt(4) };
+    const neither = { task_id: 'n1', status: 'in_progress', start_at: null, deadline: null };
+
+    let entries = T.taskCalendarEventEntries([startOnly]);
+    pass(entries.length === 1 && entries[0].kind === 'start' && entries[0].dayKey === T.taskCalendarDateKey(startOnly.start_at), 'J1: only start_at -> exactly 1 "start" entry on the start day');
+
+    entries = T.taskCalendarEventEntries([dueOnly]);
+    pass(entries.length === 1 && entries[0].kind === 'due' && entries[0].dayKey === T.taskCalendarDateKey(dueOnly.deadline), 'J2: only deadline -> exactly 1 "due" entry on the due day');
+
+    entries = T.taskCalendarEventEntries([same]);
+    pass(entries.length === 1 && entries[0].kind === 'both', 'J3: start_at and deadline on the SAME calendar day -> merged into exactly 1 "both" entry, not 2 fake tasks');
+
+    entries = T.taskCalendarEventEntries([different]);
+    pass(entries.length === 2, 'J4: start_at and deadline on DIFFERENT days -> 2 distinguishable entries for the same task');
+    pass(entries.some(e => e.kind === 'start') && entries.some(e => e.kind === 'due'), 'J5: the 2 entries are exactly one "start" and one "due" marker');
+    pass(entries[0].dayKey !== entries[1].dayKey, 'J6: the 2 entries land on 2 different day cells');
+
+    entries = T.taskCalendarEventEntries([neither]);
+    pass(entries.length === 0, 'J7: neither start_at nor deadline -> 0 entries, no invented date');
+
+    // Rendered into the grid: verify the same-task-different-days case shows
+    // on both days without ever showing twice on the same day.
+    const html = T.taskCalendarMonthGridHtml([different]);
+    pass((html.match(/data-task-cal-open="ab1"/g) || []).length === 2, 'J8: same task with start<due on different days appears exactly twice in the rendered grid (once per day), not merged, not tripled');
+    const htmlSame = T.taskCalendarMonthGridHtml([same]);
+    pass((htmlSame.match(/data-task-cal-open="sd1"/g) || []).length === 1, 'J9: same-day start=due task appears exactly ONCE in the rendered grid');
+    pass(htmlSame.includes('is-marker-both'), 'J10: the merged same-day entry is marked as a "both" marker, distinguishable from a plain single marker');
+  }
+
+  // ---- K. Status filter — all 6 buckets, mutually exclusive, reusing the
+  // existing status field / overdue formula (no new DB status). ----
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const notStarted = { status: 'published', deadline: isoAt(10) };
+    const inProgress = { status: 'in_progress', deadline: isoAt(10) };
+    const overdue = { status: 'in_progress', deadline: isoAt(-2) };
+    const completedPast = { status: 'completed', deadline: isoAt(-30) };
+    const cancelled = { status: 'cancelled', deadline: isoAt(-30) };
+
+    pass(T.taskCalendarStatusMatches(notStarted, 'not_started') === true, 'K1: published + not overdue matches "Chưa bắt đầu"');
+    pass(T.taskCalendarStatusMatches(notStarted, 'in_progress') === false, 'K1b: "Chưa bắt đầu" task does not also match "Đang làm"');
+    pass(T.taskCalendarStatusMatches(inProgress, 'in_progress') === true, 'K2: in_progress + not overdue matches "Đang làm"');
+    pass(T.taskCalendarStatusMatches(inProgress, 'overdue') === false, 'K2b: non-overdue in_progress does not match "Quá hạn"');
+    pass(T.taskCalendarStatusMatches(overdue, 'overdue') === true, 'K3: active + past deadline matches "Quá hạn"');
+    pass(T.taskCalendarStatusMatches(overdue, 'in_progress') === false, 'K3b: an overdue task is excluded from the plain "Đang làm" bucket (mutually exclusive)');
+    pass(T.taskCalendarStatusMatches(completedPast, 'completed') === true, 'K4: completed matches "Hoàn thành" regardless of deadline');
+    pass(T.taskCalendarStatusMatches(completedPast, 'overdue') === false, 'K5: completed with a past deadline is NEVER "Quá hạn" — same rule as Task List, no new status invented');
+    pass(T.taskCalendarStatusMatches(cancelled, 'cancelled') === true, 'K6: cancelled matches "Đã hủy"');
+    pass(T.taskCalendarStatusMatches(cancelled, 'overdue') === false, 'K7: cancelled is never "Quá hạn" even with a past deadline');
+    [notStarted, inProgress, overdue, completedPast, cancelled].forEach((row, i) => {
+      pass(T.taskCalendarStatusMatches(row, 'all') === true, 'K8.' + i + ': "Tất cả" matches every bucket');
+    });
+
+    // Full-partition check: every fixture matches EXACTLY one of the 5
+    // non-"all" buckets — confirms no overlap and no gap.
+    const buckets = ['not_started', 'in_progress', 'overdue', 'completed', 'cancelled'];
+    [notStarted, inProgress, overdue, completedPast, cancelled].forEach((row, i) => {
+      const matchCount = buckets.filter(b => T.taskCalendarStatusMatches(row, b)).length;
+      pass(matchCount === 1, 'K9.' + i + ': fixture matches exactly 1 of the 5 status buckets (mutually exclusive partition)');
+    });
+  }
+
+  // ---- L. Filter combination (status + category + scope) never broadens
+  // visibility — it only narrows what's already in the authorized dataset. ----
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const state = T.getState();
+    const authorizedRows = [
+      { task_id: 'c1', status: 'in_progress', deadline: isoAt(1), category_code: 'CAT_A' },
+      { task_id: 'c2', status: 'completed', deadline: isoAt(-5), category_code: 'CAT_B' },
+      { task_id: 'c3', status: 'cancelled', deadline: isoAt(-5), category_code: 'CAT_A' }
+    ];
+    state.calendar.tasks = authorizedRows;
+    state.calendar.statusFilter = 'all'; state.calendar.categoryFilter = '';
+    pass(T.taskCalendarFilteredTasks().length === 3, 'L1: with no filter, the full already-authorized set is shown');
+    state.calendar.categoryFilter = 'CAT_A';
+    const catFiltered = T.taskCalendarFilteredTasks();
+    pass(catFiltered.length === 2 && catFiltered.every(r => authorizedRows.includes(r)), 'L2: category filter only narrows the SAME authorized array reference — never fetches or invents rows outside it');
+    state.calendar.statusFilter = 'completed';
+    pass(T.taskCalendarFilteredTasks().length === 0, 'L3: combining category=CAT_A with status=completed correctly narrows to 0 (c2 is completed but CAT_B, no task satisfies both)');
+    state.calendar.categoryFilter = 'CAT_B'; state.calendar.statusFilter = 'completed';
+    pass(T.taskCalendarFilteredTasks().length === 1 && T.taskCalendarFilteredTasks()[0].task_id === 'c2', 'L4: category=CAT_B + status=completed narrows to exactly the matching task');
+  }
+
   console.log(`PHF Task Calendar Foundation V1 test: ${passed}/${passed} PASS`);
 })().catch(err => { console.error('FAIL', err); process.exit(1); });
