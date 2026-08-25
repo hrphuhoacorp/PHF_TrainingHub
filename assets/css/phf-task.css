@@ -67,6 +67,12 @@
 .phft-datetime-field{display:flex;flex-direction:column;gap:6px}.phft-datetime-field>span{color:#405062;font-size:11px;font-weight:750}.phft-datetime-inputs{display:flex;align-items:center;gap:6px}.phft-datetime-inputs input[type="date"]{flex:1;min-width:130px}.phft-datetime-inputs input[type="number"]{width:56px;text-align:center;padding-left:6px;padding-right:6px}.phft-dt-colon{font-weight:800;color:#405062}.phft-datetime-display{color:var(--phft-accent);font-size:10.5px;font-weight:700}
 .phft-page-subtitle{margin:6px 0 0;color:var(--phft-muted);font-size:11.5px}
 .phft-list-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:14px}
+.phft-lifecycle-actions{display:flex;gap:10px;flex-wrap:wrap}
+.phft-lifecycle-form{margin-top:14px;padding-top:14px;border-top:1px solid var(--phft-line);display:flex;flex-direction:column;gap:12px;max-width:520px}
+.phft-lifecycle-form label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:750;color:#405062}
+.phft-lifecycle-form input,.phft-lifecycle-form select,.phft-lifecycle-form textarea{width:100%;border:1px solid #cfd8e3;border-radius:9px;background:#fff;color:#1d2b39;font:inherit;font-size:12px;padding:10px 11px;outline:none}
+.phft-lifecycle-form textarea{resize:vertical;line-height:1.5}
+.phft-lifecycle-form input:focus,.phft-lifecycle-form select:focus,.phft-lifecycle-form textarea:focus{border-color:var(--phft-accent);box-shadow:0 0 0 3px rgba(47,111,237,.1)}
 .phft-tabbar-inline{margin-bottom:0;border-bottom:0;flex:1 1 auto}
 .phft-select,.phft-input{border:1px solid #cfd8e3;border-radius:9px;background:#fff;color:#1d2b39;font:inherit;font-size:11.5px;padding:8px 11px;min-height:36px}
 .phft-input{flex:0 1 320px}

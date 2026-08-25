@@ -428,7 +428,7 @@ function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'
 function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
 var TASK_LIST_PAGE_SIZE=50;
 function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false};}
-var taskUiState={view:'dashboard',list:defaultTaskListState(),navGroupExpanded:{},hasManagedScope:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false};
+var taskUiState={view:'dashboard',list:defaultTaskListState(),navGroupExpanded:{},hasManagedScope:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],lifecycleMode:'',lifecyclePercent:0,lifecycleProgressStatus:'dang_thuc_hien',lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false};
 
 function taskToast(message){
   if(typeof window.phfToast==='function'){ window.phfToast('info','Sắp triển khai',message,3200,'phf-task-soon'); return; }
@@ -1667,6 +1667,96 @@ function taskCrossDepartmentDetailHtml(task){
   if(!sourceDept||!targetDept)return '';
   return '<div class="phft-task-code phft-cross-dept-detail"><b class="phft-cross-dept-tag">Liên phòng ban</b><span>'+esc(sourceDept)+' → '+esc(targetDept)+'</span></div>';
 }
+var TASK_PROGRESS_STATUS_LABELS={chua_bat_dau:'Chưa bắt đầu',dang_thuc_hien:'Đang thực hiện',hoan_thanh:'Hoàn thành'};
+function taskLifecycleErrorHtml(){
+  if(!taskUiState.lifecycleError)return '';
+  var reloadBtn=taskUiState.lifecycleErrorCode==='TASK_VERSION_CONFLICT'?'<button type="button" class="phft-btn-secondary" data-task-lifecycle-reload>Tải lại</button>':'';
+  return '<div class="phft-alert is-error"><div><b>Chưa thực hiện được thao tác.</b><small>'+esc(taskUiState.lifecycleError)+'</small></div>'+reloadBtn+'</div>';
+}
+function taskLifecycleSectionHtml(task){
+  var status=String(task.status||''), saving=taskUiState.lifecycleSaving, mode=taskUiState.lifecycleMode;
+  var isActive=status==='published'||status==='in_progress';
+  var actionsRow='<div class="phft-lifecycle-actions">'+
+    (isActive?'<button type="button" class="phft-btn-secondary" data-task-lifecycle-open="progress"'+(saving?' disabled':'')+'>Cập nhật tiến độ</button><button type="button" class="phft-btn-primary" data-task-lifecycle-open="complete"'+(saving?' disabled':'')+'>Hoàn thành</button><button type="button" class="phft-btn-secondary" data-task-lifecycle-open="cancel"'+(saving?' disabled':'')+'>Hủy công việc</button>':'')+
+    (status==='completed'?'<button type="button" class="phft-btn-secondary" data-task-lifecycle-open="reopen"'+(saving?' disabled':'')+'>Mở lại công việc</button>':'')+
+    (!isActive&&status!=='completed'?'<div class="phft-inline-empty">Không còn thao tác vòng đời khả dụng cho trạng thái này.</div>':'')+
+  '</div>';
+  var formHtml='';
+  if(mode==='progress'){
+    formHtml='<div class="phft-lifecycle-form"><label><span>Tiến độ (%)</span><input type="number" min="0" max="100" data-task-lifecycle-field="percent" value="'+esc(taskUiState.lifecyclePercent)+'"></label>'+
+      '<label><span>Trạng thái tiến độ</span><select data-task-lifecycle-field="progressStatus">'+
+        Object.keys(TASK_PROGRESS_STATUS_LABELS).map(function(key){return '<option value="'+key+'"'+(taskUiState.lifecycleProgressStatus===key?' selected':'')+'>'+TASK_PROGRESS_STATUS_LABELS[key]+'</option>';}).join('')+
+      '</select></label>'+taskLifecycleErrorHtml()+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Hủy</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="progress"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Lưu tiến độ')+'</button></div></div>';
+  } else if(mode==='complete'){
+    formHtml='<div class="phft-lifecycle-form"><label><span>Kết quả thực hiện *</span><textarea rows="3" data-task-lifecycle-field="resultText" placeholder="Bắt buộc nhập kết quả trước khi hoàn thành">'+esc(taskUiState.lifecycleResultText)+'</textarea></label>'+taskLifecycleErrorHtml()+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Hủy</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="complete"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận hoàn thành')+'</button></div></div>';
+  } else if(mode==='reopen'){
+    formHtml='<div class="phft-lifecycle-form"><label><span>Lý do mở lại *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do mở lại">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml()+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Hủy</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="reopen"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận mở lại')+'</button></div></div>';
+  } else if(mode==='cancel'){
+    formHtml='<div class="phft-lifecycle-form"><label><span>Lý do hủy *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do hủy">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml()+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="cancel"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận hủy')+'</button></div></div>';
+  }
+  return '<section class="phft-form-card"><header><h2>Thao tác vòng đời</h2><p>Trạng thái hiện tại: '+esc(taskEnumLabel(TASK_STATUS_LABELS,status))+'</p></header>'+actionsRow+formHtml+'</section>';
+}
+function openTaskLifecycleForm(root,mode){
+  if(taskUiState.lifecycleSaving)return;
+  var task=(taskUiState.detail&&taskUiState.detail.task)||{};
+  taskUiState.lifecycleMode=mode;taskUiState.lifecycleError='';taskUiState.lifecycleErrorCode='';
+  if(mode==='progress'){
+    taskUiState.lifecyclePercent=task.progress_percent==null?0:Number(task.progress_percent);
+    taskUiState.lifecycleProgressStatus=TASK_PROGRESS_STATUS_LABELS[task.progress_status]?task.progress_status:'dang_thuc_hien';
+  } else if(mode==='complete'){
+    taskUiState.lifecycleResultText='';
+  } else {
+    taskUiState.lifecycleReason='';
+  }
+  renderTaskRoot(root);
+}
+function resetTaskLifecycleForm(){
+  taskUiState.lifecycleMode='';taskUiState.lifecyclePercent=0;taskUiState.lifecycleProgressStatus='dang_thuc_hien';
+  taskUiState.lifecycleResultText='';taskUiState.lifecycleReason='';taskUiState.lifecycleError='';taskUiState.lifecycleErrorCode='';
+}
+async function submitTaskLifecycleAction(root,mode){
+  if(taskUiState.lifecycleSaving)return;
+  var task=(taskUiState.detail&&taskUiState.detail.task)||{};
+  var taskId=task.id||task.task_id||taskUiState.taskId;
+  var rowVersion=task.row_version;
+  if(rowVersion==null){taskUiState.lifecycleError='Chưa xác định được phiên bản dữ liệu — vui lòng tải lại chi tiết.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
+  var payload;
+  if(mode==='progress'){
+    var percent=Number(taskUiState.lifecyclePercent);
+    if(!isFinite(percent)||percent<0||percent>100){taskUiState.lifecycleError='Tiến độ phải trong khoảng 0-100.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
+    payload={action:'updateTaskProgress',task_id:taskId,expected_row_version:rowVersion,progress_percent:percent,progress_status:taskUiState.lifecycleProgressStatus};
+  } else if(mode==='complete'){
+    var resultText=String(taskUiState.lifecycleResultText||'').trim();
+    if(!resultText){taskUiState.lifecycleError='Bắt buộc nhập kết quả thực hiện.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
+    payload={action:'completeTask',task_id:taskId,expected_row_version:rowVersion,result_text:resultText};
+  } else if(mode==='reopen'){
+    var reopenReason=String(taskUiState.lifecycleReason||'').trim();
+    if(!reopenReason){taskUiState.lifecycleError='Bắt buộc nhập lý do mở lại.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
+    payload={action:'reopenTask',task_id:taskId,expected_row_version:rowVersion,reason:reopenReason};
+  } else if(mode==='cancel'){
+    var cancelReason=String(taskUiState.lifecycleReason||'').trim();
+    if(!cancelReason){taskUiState.lifecycleError='Bắt buộc nhập lý do hủy.';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);return;}
+    payload={action:'cancelTask',task_id:taskId,expected_row_version:rowVersion,reason:cancelReason};
+  } else return;
+
+  taskUiState.lifecycleSaving=true;taskUiState.lifecycleError='';taskUiState.lifecycleErrorCode='';renderTaskRoot(root);
+  try{
+    await taskApi(payload);
+    resetTaskLifecycleForm();
+    taskUiState.lifecycleSaving=false;
+    await reloadTaskDetail(root);
+    taskNotice('success','Đã cập nhật','Trạng thái công việc đã được cập nhật.');
+  }catch(error){
+    taskUiState.lifecycleSaving=false;
+    taskUiState.lifecycleErrorCode=String(error&&error.code||'');
+    taskUiState.lifecycleError=taskUiState.lifecycleErrorCode==='TASK_VERSION_CONFLICT'?'Công việc đã được cập nhật ở nơi khác. Vui lòng tải lại trước khi thao tác tiếp.':taskApiErrorMessage(error);
+    renderTaskRoot(root);
+  }
+}
 function detailContentHtml(detail,partialErrors){
   var source=detail||{}, task=source.task||{}, category=source.category||{}, primary=source.primary||task.primary_employee_code||null;
   var related=Array.isArray(source.related)?source.related:[], links=Array.isArray(source.links)?source.links:[];
@@ -1676,7 +1766,7 @@ function detailContentHtml(detail,partialErrors){
     '<section class="phft-detail-card"><header><div><span class="phft-status">'+esc(taskEnumLabel(TASK_STATUS_LABELS,task.status))+'</span><h2>'+esc(detailValue(task.title))+'</h2>'+taskCodeLineHtml(taskCode)+taskCrossDepartmentDetailHtml(task)+'<p>'+esc(detailValue(task.content))+'</p></div><span class="phft-task-id">'+esc(detailValue(task.id||task.task_id||taskUiState.taskId))+'</span></header><dl class="phft-detail-grid">'+
       '<div><dt>Loại</dt><dd>'+esc(taskEnumLabel(TASK_FLOW_TYPE_LABELS,task.flow_type))+'</dd></div><div><dt>Danh mục</dt><dd>'+esc(detailValue(category.display_name||task.category_display_name||task.category_code))+'</dd></div><div><dt>Ưu tiên</dt><dd>'+esc(taskEnumLabel(TASK_PRIORITY_LABELS,task.priority))+'</dd></div><div><dt>Tiến độ</dt><dd>'+esc(detailValue(task.progress_percent))+'%</dd></div><div><dt>Bắt đầu</dt><dd>'+esc(formatTaskDateTime(task.start_at))+'</dd></div><div><dt>Deadline</dt><dd>'+esc(formatTaskDateTime(task.deadline))+'</dd></div><div><dt>Người chính</dt><dd>'+esc(detailPersonName(primary))+'</dd></div><div><dt>Phiên bản dòng</dt><dd>'+esc(detailValue(task.row_version))+'</dd></div></dl></section>'+
     '<div class="phft-detail-columns"><section class="phft-form-card"><header><h2>Người liên quan</h2></header>'+(related.length?'<ul class="phft-person-list">'+related.map(function(row){return '<li>'+esc(detailPersonName(row))+'</li>';}).join('')+'</ul>':'<div class="phft-inline-empty">Chưa có người liên quan.</div>')+'</section><section class="phft-form-card"><header><h2>Tài liệu</h2></header>'+detailLinksHtml(links)+'</section></div>'+
-    '<section class="phft-form-card"><header><h2>Thao tác vòng đời</h2><p>Sẽ được mở ở Batch 2D.</p></header><div class="phft-disabled-actions"><button type="button" disabled>Bắt đầu</button><button type="button" disabled>Cập nhật tiến độ</button><button type="button" disabled>Hoàn thành</button></div></section>';
+    taskLifecycleSectionHtml(task);
 }
 function detailLoadingHtml(taskId){return '<div class="phft-page-head"><div><small>PHF TASK / CHI TIẾT</small><h1>Đang tải công việc</h1></div></div><section class="phft-form-card"><div class="phft-loading">Đang tải trạng thái thật từ hệ thống cho '+esc(taskId||'công việc')+'…</div></section>';}
 function detailErrorHtml(taskId,message){return '<div class="phft-page-head"><div><small>PHF TASK / CHI TIẾT</small><h1>Chưa tải được chi tiết</h1></div><button type="button" class="phft-btn-secondary" data-task-detail-back>Về Dashboard</button></div><div class="phft-alert is-error"><div><b>Bản nháp đã có mã '+esc(taskId||'—')+', nhưng chưa tải lại được dữ liệu.</b><small>'+esc(message||'Vui lòng thử tải lại.')+'</small></div><button type="button" class="phft-btn-secondary" data-task-reload-detail>Thử lại</button></div>';}
@@ -1984,6 +2074,10 @@ function bindShell(root){
     if(target.matches('[data-task-remove-link]')){taskUiState.form.links.splice(Number(target.getAttribute('data-task-remove-link')),1);renderTaskRoot(root);return;}
     if(target.matches('[data-task-reload-detail]')){reloadTaskDetail(root);return;}
     if(target.matches('[data-task-retry-supplements]')){retrySupplementsFromDetail(root);return;}
+    if(target.matches('[data-task-lifecycle-open]')){openTaskLifecycleForm(root,target.getAttribute('data-task-lifecycle-open'));return;}
+    if(target.matches('[data-task-lifecycle-close]')){if(!taskUiState.lifecycleSaving){resetTaskLifecycleForm();renderTaskRoot(root);}return;}
+    if(target.matches('[data-task-lifecycle-submit]')){submitTaskLifecycleAction(root,target.getAttribute('data-task-lifecycle-submit'));return;}
+    if(target.matches('[data-task-lifecycle-reload]')){resetTaskLifecycleForm();reloadTaskDetail(root);return;}
     if(target.matches('[data-task-admin-people-reload]')){openTaskAdminPeople(root);return;}
     if(target.matches('[data-task-permission-open]')){openTaskPermissionEditor(root,target.getAttribute('data-task-permission-open'));return;}
     if(target.matches('[data-task-permission-close]')){if(!taskUiState.permissionSaving){taskUiState.permissionEditor=null;taskUiState.permissionError='';renderTaskRoot(root);}return;}
@@ -2045,6 +2139,15 @@ function bindShell(root){
     if(deptKind){taskUiState[deptKind+'Dept']=event.target.value;updatePickerResults(root,deptKind);return;}
     var linkField=event.target.getAttribute('data-task-link-field');
     if(linkField){var index=Number(event.target.getAttribute('data-task-link-index'));if(taskUiState.form.links[index]){taskUiState.form.links[index][linkField]=event.target.value;delete taskUiState.formErrors['link_'+index];}}
+    var lifecycleField=event.target.getAttribute('data-task-lifecycle-field');
+    if(lifecycleField){
+      if(lifecycleField==='percent')taskUiState.lifecyclePercent=event.target.value;
+      else if(lifecycleField==='progressStatus')taskUiState.lifecycleProgressStatus=event.target.value;
+      else if(lifecycleField==='resultText')taskUiState.lifecycleResultText=event.target.value;
+      else if(lifecycleField==='reason')taskUiState.lifecycleReason=event.target.value;
+      taskUiState.lifecycleError='';taskUiState.lifecycleErrorCode='';
+      return;
+    }
   };
   root.onchange=root.oninput;
   root.onsubmit=function(event){if(event.target.matches('[data-task-create-form]')){event.preventDefault();submitTaskCreate(root);}};
@@ -2071,7 +2174,7 @@ async function applyTaskRoute(root,routeKey){
   if(route.view==='detail'){
     if(!route.taskId){navigateTask(taskHomePath(),true);return false;}
     if(taskUiState.view==='detail'&&taskUiState.taskId===route.taskId&&taskUiState.detail&&!taskUiState.detailError){renderTaskRoot(root);return true;}
-    taskUiState.view='detail';taskUiState.taskId=route.taskId;taskUiState.detail=null;taskUiState.detailError='';taskUiState.partialErrors=[];
+    taskUiState.view='detail';taskUiState.taskId=route.taskId;taskUiState.detail=null;taskUiState.detailError='';taskUiState.partialErrors=[];resetTaskLifecycleForm();
     await reloadTaskDetail(root);return true;
   }
   if(route.view==='list'){await openTaskList(root,route.relation);return true;}
@@ -2089,6 +2192,6 @@ window.phfRenderTask = async function(path){
 };
 window.phfTaskHomePath = taskHomePath;
 if(window.__PHF_TASK_TEST_MODE__){
-  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
+  window.__PHF_TASK_TEST__={TASK_TIME_ZONE:TASK_TIME_ZONE,currentUserTitle:currentUserTitle,taskHomePath:taskHomePath,taskCreatePath:taskCreatePath,taskAdminPeoplePath:taskAdminPeoplePath,taskDetailPath:taskDetailPath,parseTaskRoute:parseTaskRoute,applyTaskRoute:applyTaskRoute,defaultTaskForm:defaultTaskForm,cloneTaskForm:cloneTaskForm,validateTaskForm:validateTaskForm,buildCreatePayload:buildCreatePayload,taskDateTimeInputValue:taskDateTimeInputValue,serializeTaskLocalDateTime:serializeTaskLocalDateTime,formatTaskDateTime:formatTaskDateTime,normalizeRelatedCodes:normalizeRelatedCodes,normalizeLinks:normalizeLinks,validHttpUrl:validHttpUrl,normalizeEmployee:normalizeEmployee,taskAssignableEmployeeRows:taskAssignableEmployeeRows,loadTaskAssignableEmployees:loadTaskAssignableEmployees,normalizeTaskCategory:normalizeTaskCategory,taskActiveCategoryRows:taskActiveCategoryRows,loadTaskCategories:loadTaskCategories,loadTaskAdminPeople:loadTaskAdminPeople,buildTaskPermissionAssignmentPayload:buildTaskPermissionAssignmentPayload,saveTaskBasePreset:saveTaskBasePreset,validateTaskBasePresetEditor:validateTaskBasePresetEditor,buildTaskPermissionExtendPayload:buildTaskPermissionExtendPayload,saveTaskPermissionExtend:saveTaskPermissionExtend,revokeTaskPermissionExtend:revokeTaskPermissionExtend,taskPermissionEditorHtml:taskPermissionEditorHtml,validateTaskPermissionEditor:validateTaskPermissionEditor,adminPeopleHtml:adminPeopleHtml,adminPeopleTableHtml:adminPeopleTableHtml,shellFrame:shellFrame,choosePrimary:choosePrimary,toggleRelated:toggleRelated,persistTaskSupplements:persistTaskSupplements,runCreateTaskFlow:runCreateTaskFlow,retryTaskSupplements:retryTaskSupplements,createTaskHtml:createTaskHtml,createTaskQuickFormHtml:createTaskQuickFormHtml,createTaskFullFormHtml:createTaskFullFormHtml,taskCreateTabsHtml:taskCreateTabsHtml,detailContentHtml:detailContentHtml,detailLoadingHtml:detailLoadingHtml,detailErrorHtml:detailErrorHtml,taskLifecycleSectionHtml:taskLifecycleSectionHtml,openTaskLifecycleForm:openTaskLifecycleForm,resetTaskLifecycleForm:resetTaskLifecycleForm,submitTaskLifecycleAction:submitTaskLifecycleAction,quickTaskFormDefaults:quickTaskFormDefaults,quickDeadlineInputValue:quickDeadlineInputValue,buildCopyFormFromDetail:buildCopyFormFromDetail,sanitizeCreateFormAfterLoad:sanitizeCreateFormAfterLoad,taskDistinctDepartments:taskDistinctDepartments,taskDepartmentFilterHtml:taskDepartmentFilterHtml,matchedEmployees:matchedEmployees,openTaskCreate:openTaskCreate,startCopyTaskFromDetail:startCopyTaskFromDetail,submitTaskCreate:submitTaskCreate,employeeCode:employeeCode,applyModeCanonicalOverrides:applyModeCanonicalOverrides,fullToQuickBlockingReasons:fullToQuickBlockingReasons,taskDateTimeInputValueParts:taskDateTimeInputValueParts,combineTaskDateTimeParts:combineTaskDateTimeParts,taskDateTimeDisplayVN:taskDateTimeDisplayVN,taskDateTimeFieldHtml:taskDateTimeFieldHtml,taskPickerShouldShowResults:taskPickerShouldShowResults,employeeResultsHtml:employeeResultsHtml,generateTaskAttemptKey:generateTaskAttemptKey,taskCodeLineHtml:taskCodeLineHtml,detailContentHtml:detailContentHtml,taskCrossDepartmentNoticeHtml:taskCrossDepartmentNoticeHtml,taskCrossDepartmentDetailHtml:taskCrossDepartmentDetailHtml,taskPeerManagerWarningHtml:taskPeerManagerWarningHtml,taskListPath:taskListPath,defaultTaskListState:defaultTaskListState,taskListHtml:taskListHtml,taskListTableHtml:taskListTableHtml,taskListRowHtml:taskListRowHtml,taskListRowStatusLabel:taskListRowStatusLabel,taskListSummaryCounts:taskListSummaryCounts,taskListManagerScopeFilterHtml:taskListManagerScopeFilterHtml,taskListCrossDeptTagHtml:taskListCrossDeptTagHtml,openTaskList:openTaskList,loadTaskList:loadTaskList,loadMoreTaskList:loadMoreTaskList,NAV_ITEMS:NAV_ITEMS,TASK_NAV_KEY_BY_RELATION:TASK_NAV_KEY_BY_RELATION,TASK_RELATION_BY_NAV_KEY:TASK_RELATION_BY_NAV_KEY,findNavParentKey:findNavParentKey,navGroupExpanded:navGroupExpanded,navItemHtml:navItemHtml,getState:function(){return taskUiState;},bindShell:bindShell,findDemoTaskById:findDemoTaskById,demoTaskDetailModalHtml:demoTaskDetailModalHtml,taskWorkspaceCardHtml:taskWorkspaceCardHtml,taskAssignerWatchCardHtml:taskAssignerWatchCardHtml,taskManagerViewCardHtml:taskManagerViewCardHtml,taskSlaBadgeHtml:taskSlaBadgeHtml,taskPeriodCutoffNoteHtml:taskPeriodCutoffNoteHtml,addWorkingDays:addWorkingDays,demoWorkspaceSetStatus:demoWorkspaceSetStatus,demoWorkspaceAddNote:demoWorkspaceAddNote,demoWorkspaceAddEvidence:demoWorkspaceAddEvidence,demoAssignerSendFeedback:demoAssignerSendFeedback,demoReworkToggle:demoReworkToggle,demoReworkConfirm:demoReworkConfirm,resetDemoWorkspaceDraft:resetDemoWorkspaceDraft,taskListHeaderFor:taskListHeaderFor,taskListManagedTagHtml:taskListManagedTagHtml,taskListCounterpartyLabel:taskListCounterpartyLabel,taskListCancelRequestTagHtml:taskListCancelRequestTagHtml,taskCancelSectionHtml:taskCancelSectionHtml,taskCancelRequestInfoHtml:taskCancelRequestInfoHtml,demoCancelToggle:demoCancelToggle,demoCancelConfirm:demoCancelConfirm,demoCancelRequestToggle:demoCancelRequestToggle,demoCancelRequestConfirm:demoCancelRequestConfirm,taskManagerScopeAvailable:taskManagerScopeAvailable,taskNavVisibleChildren:taskNavVisibleChildren,taskStatusTabLabelsForRelation:taskStatusTabLabelsForRelation,taskListKpiTilesHtml:taskListKpiTilesHtml,demoSourceForRelation:demoSourceForRelation,TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS_MANAGED,TASK_CROSS_DEPT_FILTER_LABELS:TASK_CROSS_DEPT_FILTER_LABELS};
 }
 })();
