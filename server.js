@@ -25,6 +25,9 @@ const {
   createTaskCategory,
   renameTaskCategory,
   setTaskCategoryActive,
+  deleteTaskCategory,
+  reorderTaskCategory,
+  checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
   publishTask,
@@ -39,8 +42,14 @@ const {
   removeTaskRelated,
   addTaskComment,
   addTaskLink,
-  removeTaskLink
+  removeTaskLink,
+  listTasks
 } = require('./api/_lib/task-core');
+const {
+  listMyTaskNotifications,
+  markTaskNotificationRead,
+  markAllTaskNotificationsRead
+} = require('./api/_lib/task-notifications');
 const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
@@ -102,11 +111,14 @@ const { login, loginWithGoogle, googleClientConfig, readSession, requireSession,
 const TASK_ACTION_MANIFEST = Object.freeze([
   'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment', 'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
   'listTaskCategories', 'listAdminTaskCategories',
-  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
+  'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'deleteTaskCategory', 'reorderTaskCategory',
+  'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
-  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink'
+  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
+  'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
+  'listTasks'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -123,6 +135,7 @@ function taskCreateDraftInput(payload) {
   copyTaskPayloadField(input, payload, 'start_at', 'startAt');
   copyTaskPayloadField(input, payload, 'deadline', 'deadline');
   copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
+  copyTaskPayloadField(input, payload, 'create_idempotency_key', 'idempotencyKey');
   return input;
 }
 
@@ -162,6 +175,17 @@ function taskPermissionAssignmentInput(payload) {
   return input;
 }
 
+function taskListInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'relation', 'relation');
+  copyTaskPayloadField(input, payload, 'status_filter', 'statusFilter');
+  copyTaskPayloadField(input, payload, 'scope', 'scope');
+  copyTaskPayloadField(input, payload, 'search', 'search');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
@@ -182,6 +206,9 @@ async function dispatchTaskAction(session, payload) {
     case 'createTaskCategory': return { handled: true, result: await createTaskCategory(session, taskCategoryCreateInput(payload)) };
     case 'renameTaskCategory': return { handled: true, result: await renameTaskCategory(session, payload.category_code, payload.display_name) };
     case 'setTaskCategoryActive': return { handled: true, result: await setTaskCategoryActive(session, payload.category_code, payload.is_active) };
+    case 'deleteTaskCategory': return { handled: true, result: await deleteTaskCategory(session, payload.category_code) };
+    case 'reorderTaskCategory': return { handled: true, result: await reorderTaskCategory(session, payload.category_code, payload.sort_order) };
+    case 'checkTaskFoundationStatus': return { handled: true, result: await checkTaskFoundationStatus(session) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
     case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
@@ -197,6 +224,10 @@ async function dispatchTaskAction(session, payload) {
     case 'addTaskComment': return { handled: true, result: await addTaskComment(session, payload.task_id, payload.body) };
     case 'addTaskLink': return { handled: true, result: await addTaskLink(session, payload.task_id, payload.side, payload.url, payload.label) };
     case 'removeTaskLink': return { handled: true, result: await removeTaskLink(session, payload.task_id, payload.link_id) };
+    case 'listMyTaskNotifications': return { handled: true, result: await listMyTaskNotifications(session, { limit: payload.limit }) };
+    case 'markTaskNotificationRead': return { handled: true, result: await markTaskNotificationRead(session, { id: payload.id, ids: payload.ids }) };
+    case 'markAllTaskNotificationsRead': return { handled: true, result: await markAllTaskNotificationsRead(session) };
+    case 'listTasks': return { handled: true, result: await listTasks(session, taskListInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };

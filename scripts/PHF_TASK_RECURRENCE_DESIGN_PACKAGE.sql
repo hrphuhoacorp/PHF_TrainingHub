@@ -1,0 +1,147 @@
+-- PHF Task — Công việc lặp (Recurrence) — DESIGN PACKAGE, KHÔNG APPLY.
+--
+-- Đây là bản THIẾT KẾ migration cho Tạo phiếu V1 mục 27, phục vụ audit và
+-- thảo luận trước khi có bất kỳ SQL write nào. KHÔNG chạy file này.
+--
+-- Tiền đề đã audit (xem PHF Task — Create Ticket V1 report):
+--   - task_tasks đã SẴN CÓ các cột recurring_series_id, recurring_series_version,
+--     scheduled_occurrence_at, occurrence_period, batch_id (từ
+--     PHF_TASK_FOUNDATION_1.66.0.sql — thiết kế gốc đã dự trù chỗ cho
+--     recurrence, dù chưa có tầng lưu "lịch"). KHÔNG cần cột mới trên
+--     task_tasks — TÁI DÙNG recurring_series_id làm khóa ngoại trỏ về
+--     task_recurrence_schedules(id) thay vì đặt tên cột mới trùng ý nghĩa.
+--   - task_create_draft RPC hiện KHÔNG tồn tại trên Production — recurrence
+--     engine (RPC sinh occurrence) phải đợi RPC tạo Task cơ bản có trước
+--     (Category/Create Task blocker riêng, xem báo cáo mục CREATE-TASK
+--     BLOCKERS).
+--
+-- =============================================================================
+-- BẢNG 1 — task_recurrence_schedules: cấu hình lịch lặp (1 dòng = 1 lịch).
+-- MUTABLE trên các trường "kỳ tương lai" (mục 22: sửa chỉ áp dụng kỳ chưa
+-- sinh) — model KHÔNG immutable như task_tasks, vì bản chất là config đang
+-- sống, không phải sự kiện đã xảy ra.
+-- =============================================================================
+-- create table public.task_recurrence_schedules (
+--   id uuid primary key default gen_random_uuid(),
+--
+--   -- Snapshot template cho mỗi Task instance sinh ra — đây là "khuôn", KHÔNG
+--   -- phải chính task_tasks. Sửa các trường này chỉ ảnh hưởng kỳ SAU (mục 22).
+--   title text not null,
+--   content text not null default '',
+--   category_code text not null references public.task_categories(category_code) on delete restrict,
+--   priority text not null default 'thuong' check (priority in ('thuong','quan_trong','khan_cap')),
+--   primary_employee_code text not null,           -- người chính hiện hành của lịch
+--   related_employee_codes text[] not null default '{}', -- CC snapshot tại thời điểm sinh mỗi kỳ (mục 21)
+--
+--   -- Mục 12/13 — thời gian + kiểu lặp.
+--   start_hour smallint not null check (start_hour between 0 and 23),
+--   start_minute smallint not null check (start_minute between 0 and 59),
+--   duration_ms bigint not null check (duration_ms > 0),  -- deadline - start, giữ nguyên mỗi kỳ
+--   frequency text not null check (frequency in ('daily','weekly','monthly','yearly')),
+--   weekdays text[] ,            -- bắt buộc nếu frequency='daily', vd '{T2,T4,T6}'
+--   monthly_mode text check (monthly_mode in ('fixed_day','end_of_month')),
+--   day_of_month smallint check (day_of_month between 1 and 31),
+--   year_month smallint check (year_month between 1 and 12),
+--   year_day smallint check (year_day between 1 and 31),
+--   anchor_date date not null,   -- ngày neo để tính kỳ đầu tiên
+--
+--   -- Mục 16 — điều kiện kết thúc.
+--   end_condition_type text not null default 'never' check (end_condition_type in ('never','on_date','after_count')),
+--   end_date date,
+--   max_occurrences integer check (max_occurrences > 0),
+--
+--   -- Mục 17 — pause/end vòng đời của CHÍNH lịch (khác end_condition — đây là
+--   -- hành động thủ công của người quản lý lịch, không phải điều kiện tự nhiên).
+--   status text not null default 'active' check (status in ('active','paused','ended')),
+--   paused_from date, paused_to date,   -- null paused_to = pause vô thời hạn tới khi bật lại
+--   ended_at timestamptz,
+--
+--   -- Audit + quản lý lịch (mục 24/25) — TÁCH creator (immutable) khỏi
+--   -- manager (có thể chuyển giao) đúng như account_id/employee_code dual-track
+--   -- đã dùng cho Task permission.
+--   created_by_account_id text, created_by_employee_code text,
+--   manager_account_id text, manager_employee_code text,  -- người quản lý lịch hiện hành — có thể khác creator
+--   created_at timestamptz not null default now(),
+--   updated_at timestamptz not null default now(),
+--
+--   constraint task_recurrence_creator_ck check (
+--     nullif(trim(created_by_account_id),'') is not null or nullif(trim(created_by_employee_code),'') is not null
+--   )
+-- );
+--
+-- Index gợi ý: (status, frequency) cho scheduler quét; (primary_employee_code)
+-- để join employee_profiles kiểm tra active khi sinh kỳ.
+
+-- =============================================================================
+-- BẢNG 2 — task_recurrence_schedule_history: audit mọi thay đổi lịch gốc
+-- (mục 22: "Phải audit: actor, time, before, after"). Append-only giống
+-- task_permission_assignment_history — dùng lại task_forbid_update_delete().
+-- =============================================================================
+-- create table public.task_recurrence_schedule_history (
+--   id uuid primary key default gen_random_uuid(),
+--   schedule_id uuid not null references public.task_recurrence_schedules(id) on delete restrict,
+--   action text not null check (action in ('create','update','pause','resume','end','skip_occurrence','transfer_manager')),
+--   before_data jsonb not null default '{}'::jsonb,
+--   after_data jsonb not null default '{}'::jsonb,
+--   reason text,
+--   changed_by_account_id text, changed_by_employee_code text,
+--   changed_at timestamptz not null default now()
+-- );
+-- -- forbid update/delete trigger giống task_permission_assignment_history.
+
+-- =============================================================================
+-- BẢNG 3 — task_recurrence_occurrences: 1 dòng/kỳ ĐÃ QUYẾT ĐỊNH sinh (kể cả
+-- kỳ bị skip — lưu để KHÔNG tính lại/sinh trùng, mục 18/19). Task instance
+-- thật (task_tasks) chỉ tồn tại khi status='generated'.
+-- =============================================================================
+-- create table public.task_recurrence_occurrences (
+--   id uuid primary key default gen_random_uuid(),
+--   schedule_id uuid not null references public.task_recurrence_schedules(id) on delete restrict,
+--   occurrence_key text not null,        -- date key dạng 'YYYY-MM-DD' của kỳ (UTC+7)
+--   occurrence_index integer not null,   -- thứ tự kỳ, 1-based
+--   status text not null check (status in ('generated','skipped')),
+--   scheduled_start_at timestamptz not null,   -- giờ lẽ ra phải sinh (mục 12)
+--   actual_created_at timestamptz not null default now(), -- giờ thực tế job chạy (mục 19)
+--   is_catchup boolean not null default false,
+--   task_id uuid references public.task_tasks(id) on delete set null, -- null nếu status='skipped'
+--   skip_reason text,     -- bắt buộc nếu status='skipped' (mục 18)
+--   skip_actor_account_id text, skip_actor_employee_code text,
+--   created_at timestamptz not null default now(),
+--
+--   constraint task_recurrence_occurrence_uq unique (schedule_id, occurrence_key), -- CHỐNG TRÙNG (mục 19/27)
+--   constraint task_recurrence_occurrence_skip_ck check (
+--     (status = 'skipped' and task_id is null and nullif(trim(skip_reason),'') is not null) or
+--     (status = 'generated' and task_id is not null)
+--   )
+-- );
+--
+-- task_tasks.recurring_series_id (đã tồn tại) = occurrence.schedule_id (không
+-- phải occurrence.id) — cho phép "Task → lịch gốc" (mục 26) qua đúng 1 JOIN.
+-- task_tasks.scheduled_occurrence_at (đã tồn tại) = occurrence.scheduled_start_at.
+-- Task thủ công: 2 cột này giữ null như thiết kế gốc đã có.
+
+-- =============================================================================
+-- RPC DỰ KIẾN (chưa viết đầy đủ — cần task_create_draft tồn tại trước):
+--   task_recurrence_create_schedule(...)      — Admin/GĐ/TLGD/creator tạo lịch
+--   task_recurrence_update_schedule(...)      — chỉ áp dụng kỳ tương lai (mục 22)
+--   task_recurrence_pause / _resume / _end    — mục 17
+--   task_recurrence_skip_occurrence(...)      — mục 18, bắt buộc reason
+--   task_recurrence_generate_due(p_until, p_now) — SCHEDULER gọi định kỳ:
+--     với MỖI schedule status='active', kiểm tra primary còn active
+--     (employee_profiles.employment_status + user_accounts.status) — nếu
+--     không active: KHÔNG sinh, ghi history 'primary_inactive_pause' (mục 20),
+--     KHÔNG đổi status của schedule (vẫn 'active', chỉ tạm không sinh).
+--     Nếu active: gọi generateOccurrencePlan() (api/_lib/task-recurrence.js,
+--     ĐÃ VIẾT + TEST, xem scripts/test-task-recurrence.js) để tính danh sách
+--     kỳ cần sinh, insert vào task_recurrence_occurrences (UNIQUE constraint
+--     là lớp chống trùng THỨ 2, độc lập với idempotency check trong JS/RPC),
+--     rồi gọi task_create_draft cho mỗi kỳ 'generated'. Related snapshot
+--     (mục 21) lọc theo employment_status='active' NGAY TẠI THỜI ĐIỂM SINH.
+--
+-- Toàn bộ RPC này CHƯA VIẾT — chỉ mô tả contract. Không apply, không tạo.
+
+-- =============================================================================
+-- ROLLBACK: vì chưa apply nên chưa cần rollback thật. Khi tới lúc apply,
+-- rollback = drop 3 bảng theo thứ tự occurrences → schedule_history →
+-- schedules (FK order ngược lại create), KHÔNG đụng task_tasks (chỉ đọc/ghi
+-- cột đã tồn tại sẵn, không thêm cột mới).

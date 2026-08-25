@@ -19,7 +19,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { resolveActorContext, resolveActorContextForRecord, loadOrgRows, findByCode } = require('./task-employee-scope');
+const { resolveActorContext, resolveActorContextForRecord, loadOrgRows, findByCode, TASK_PRESET_TO_ACTOR_TYPE } = require('./task-employee-scope');
 const {
   resolveBaseTaskScope,
   resolveEffectiveTaskScope,
@@ -33,9 +33,19 @@ const {
   canAssignTaskTo,
   canAddTaskRelated,
   listTaskAssignableEmployees: listAssignableEmployeesFromPeopleMaster,
-  subjectMatchesTaskScope
+  subjectMatchesTaskScope,
+  loadActiveTaskAssignment
 } = require('./task-permissions');
 const { listHubAccountSummaries } = require('./auth');
+const { emitTaskNotificationSafe } = require('./task-notifications');
+
+// MANAGER_VIEW_ACTOR_TYPES — CÙNG danh sách canonical đã dùng ở
+// task-permissions.js canViewTask() cho quan hệ manager_of_primary (KHÔNG
+// tạo định nghĩa "quản lý phòng nhận" mới/khác — Cross-department V1 tái
+// dùng NGUYÊN quan hệ manager_employee_code + actor type đã sống, đã test,
+// KHÔNG suy diễn theo title/chức danh — xem audit đầu
+// scripts/PHF_TASK_CROSS_DEPARTMENT_NOTIFICATION_1.72.0.sql).
+const CROSS_DEPT_MANAGER_ACTOR_TYPES = new Set(['truong_bo_phan', 'truong_ca', 'giam_doc', 'tro_ly_gd']);
 
 const configured = Boolean(String(process.env.SUPABASE_URL || '').trim() && String(process.env.SUPABASE_SECRET_KEY || '').trim());
 const supabase = configured
@@ -43,6 +53,64 @@ const supabase = configured
       auth: { persistSession: false, autoRefreshToken: false }
     })
   : null;
+
+// ---------------------------------------------------------------------------
+// checkTaskFoundationStatus — READ-ONLY, không write. Cho UI (Tạo phiếu,
+// Cài đặt) biết trung thực RPC/cột cần thiết đã sẵn sàng trên môi trường
+// đang chạy hay chưa, để KHÔNG hiển thị nút "lưu thành công" giả khi
+// migration Category + Create Task Foundation (scripts/
+// PHF_TASK_CATEGORY_CREATE_FOUNDATION_1.70.0.sql) chưa được Business Owner
+// apply. Không dùng write-probe (thử ghi rồi xem fail) — chỉ dùng (1) đọc
+// cột qua PostgREST select, (2) đọc danh sách RPC qua OpenAPI root, cả 2 đều
+// an toàn 100% (không có side effect, không tạo/sửa dữ liệu).
+// ---------------------------------------------------------------------------
+const FOUNDATION_STATUS_CACHE_TTL_MS = 60000;
+let foundationStatusCache = null;
+let foundationStatusCacheAt = 0;
+
+async function readRpcInventory() {
+  const url = String(process.env.SUPABASE_URL || '').trim().replace(/\/$/, '') + '/rest/v1/';
+  const key = String(process.env.SUPABASE_SECRET_KEY || '').trim();
+  const response = await fetch(url, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  const spec = await response.json();
+  return new Set(Object.keys((spec && spec.paths) || {}));
+}
+async function columnExists(table, column) {
+  const { error } = await supabase.from(table).select(column).limit(1);
+  return !error;
+}
+async function checkTaskFoundationStatus(session) {
+  await resolveActorContext(session);
+  ensureDb();
+  const now = Date.now();
+  if (foundationStatusCache && (now - foundationStatusCacheAt) < FOUNDATION_STATUS_CACHE_TTL_MS) return foundationStatusCache;
+  let rpcPaths = new Set();
+  let rpcReadError = '';
+  try { rpcPaths = await readRpcInventory(); } catch (error) { rpcReadError = String(error && error.message || 'Không đọc được danh sách RPC.'); }
+  const [categoryAuditReady, categorySortReady, crossDeptSnapshotReady, taskNotificationsReady] = await Promise.all([
+    columnExists(CATEGORIES_TABLE, 'created_by_account_id'),
+    columnExists(CATEGORIES_TABLE, 'sort_order'),
+    columnExists(TASKS_TABLE, 'source_department'),
+    columnExists('task_notifications', 'dedupe_key')
+  ]);
+  const result = {
+    category_schema_ready: categoryAuditReady && categorySortReady,
+    create_task_rpc_ready: rpcPaths.has('/rpc/task_create_draft'),
+    add_related_rpc_ready: rpcPaths.has('/rpc/task_add_related'),
+    add_link_rpc_ready: rpcPaths.has('/rpc/task_add_link'),
+    delete_category_rpc_ready: rpcPaths.has('/rpc/task_delete_category_if_unused'),
+    // Cross-department V1 (1.72.0, CHƯA apply) — UI phải hỏi đúng 2 cờ này
+    // trước khi tuyên bố "quản lý sẽ được thông báo" (mục 17 — không fake
+    // capability). Đọc bằng columnExists thật, không đoán.
+    cross_department_snapshot_ready: crossDeptSnapshotReady,
+    task_notification_schema_ready: taskNotificationsReady,
+    rpc_inventory_error: rpcReadError
+  };
+  result.create_task_ready = result.category_schema_ready && result.create_task_rpc_ready;
+  foundationStatusCache = result;
+  foundationStatusCacheAt = now;
+  return result;
+}
 
 const TASKS_TABLE = 'task_tasks';
 const ASSIGNEES_TABLE = 'task_assignees';
@@ -107,6 +175,8 @@ const RPC_ERROR_MAP = {
   TASK_DEADLINE_REQUIRED: [400, 'Deadline mới là bắt buộc.'],
   TASK_CATEGORY_NOT_FOUND: [400, 'Category không tồn tại.'],
   TASK_CATEGORY_INACTIVE: [400, 'Category đã ngừng dùng và không thể chọn cho Task mới.'],
+  TASK_CATEGORY_IN_USE: [409, 'Danh mục đã từng được dùng cho Task — không thể xóa, chỉ có thể Ngừng sử dụng.'],
+  TASK_CATEGORY_CODE_REQUIRED: [400, 'Thiếu mã danh mục.'],
   TASK_DATE_ORDER_INVALID: [400, 'Ngày bắt đầu không được sau deadline.'],
   TASK_RELATED_TARGET_REQUIRED: [400, 'Thiếu nhân sự liên quan.'],
   TASK_RELATED_IS_PRIMARY: [400, 'Không thể thêm primary hiện hành làm related.'],
@@ -139,6 +209,29 @@ async function callRpc(fnName, params) {
   return data;
 }
 
+// task_create_draft V2 (PHF_TASK_CODE_IDEMPOTENCY_1.71.0, DESIGN — chưa apply
+// Production) thêm p_idempotency_key vào signature. Trước khi migration đó
+// apply, PostgREST chỉ biết chữ ký 9-tham-số cũ và sẽ trả PGRST202/"Could not
+// find the function" nếu gọi kèm p_idempotency_key — KHÔNG được để lỗi đó
+// làm hỏng luồng tạo Task đang chạy thật trên Local/Production hiện tại. Tự
+// dò lại KHÔNG kèm idempotency key trong trường hợp đó — tự kích hoạt ngay
+// khi migration được apply, không cần phối hợp thời điểm deploy code/DB.
+async function callTaskCreateDraftRpc(params) {
+  ensureDb();
+  const first = await supabase.rpc('task_create_draft', params);
+  if (!first.error) return first.data;
+  const isMissingSignature = text(first.error.code) === 'PGRST202'
+    || /Could not find the function/i.test(text(first.error.message));
+  if (isMissingSignature && Object.prototype.hasOwnProperty.call(params, 'p_idempotency_key')) {
+    const legacyParams = Object.assign({}, params);
+    delete legacyParams.p_idempotency_key;
+    const retry = await supabase.rpc('task_create_draft', legacyParams);
+    if (retry.error) throwRpc(retry.error);
+    return retry.data;
+  }
+  throwRpc(first.error);
+}
+
 function actorAuditToken(actorContext) { return actorContext.employeeCode || actorContext.accountId; }
 function actorAuditColumns(actorContext, accountColumn, employeeColumn) {
   return {
@@ -154,7 +247,8 @@ function actorOwnsTask(actorContext, taskRow) {
 }
 
 async function listTaskAssignableEmployees(session) {
-  return { employees: await listAssignableEmployeesFromPeopleMaster(session) };
+  const result = await listAssignableEmployeesFromPeopleMaster(session);
+  return { employees: result.employees, requester_actor_type: result.requesterActorType };
 }
 
 const TASK_ACTOR_TYPE_LABELS = Object.freeze({
@@ -636,26 +730,36 @@ async function listTaskAdminPeople(session) {
   };
 }
 
-function categoryDto(row) {
+function categoryDto(row, usedCodes) {
   if (!row) return null;
   return {
     category_code: code(row.category_code),
     display_name: text(row.display_name),
     description: text(row.description),
     color: text(row.color) || '#64748B',
-    is_active: row.is_active === true
+    is_active: row.is_active === true,
+    sort_order: Number.isFinite(row.sort_order) ? row.sort_order : null,
+    is_used: usedCodes ? usedCodes.has(code(row.category_code)) : null
   };
+}
+
+function sortCategoryRows(rows) {
+  return (rows || []).slice().sort((left, right) => {
+    const leftOrder = Number.isFinite(left.sort_order) ? left.sort_order : Number.MAX_SAFE_INTEGER;
+    const rightOrder = Number.isFinite(right.sort_order) ? right.sort_order : Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return text(left.display_name).localeCompare(text(right.display_name), 'vi');
+  });
 }
 
 async function listTaskCategories(session) {
   await resolveActorContext(session);
   ensureDb();
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
-    .select('category_code,display_name,description,color,is_active')
-    .eq('is_active', true)
-    .order('display_name', { ascending: true });
+    .select('category_code,display_name,description,color,is_active,sort_order')
+    .eq('is_active', true);
   if (error) throwDb(error);
-  return { categories: (data || []).map(categoryDto) };
+  return { categories: sortCategoryRows(data || []).map(row => categoryDto(row)) };
 }
 
 async function requireTaskAdmin(session) {
@@ -664,14 +768,25 @@ async function requireTaskAdmin(session) {
   return actorContext;
 }
 
+// used-codes: đọc distinct category_code THẬT SỰ đang được task_tasks tham
+// chiếu — quyết định "được xóa hay chỉ Ngừng sử dụng" (Cài đặt mục 4). Query
+// riêng thay vì JOIN vì task_categories thường rất ít dòng, đơn giản hơn.
+async function loadUsedCategoryCodes() {
+  ensureDb();
+  const { data, error } = await supabase.from(TASKS_TABLE).select('category_code');
+  if (error) throwDb(error);
+  return new Set((data || []).map(row => code(row.category_code)).filter(Boolean));
+}
+
 async function listAdminTaskCategories(session) {
   await requireTaskAdmin(session);
   ensureDb();
-  const { data, error } = await supabase.from(CATEGORIES_TABLE)
-    .select('category_code,display_name,description,color,is_active')
-    .order('display_name', { ascending: true });
+  const [{ data, error }, usedCodes] = await Promise.all([
+    supabase.from(CATEGORIES_TABLE).select('category_code,display_name,description,color,is_active,sort_order'),
+    loadUsedCategoryCodes()
+  ]);
   if (error) throwDb(error);
-  return { categories: (data || []).map(categoryDto) };
+  return { categories: sortCategoryRows(data || []).map(row => categoryDto(row, usedCodes)) };
 }
 
 function validateCategoryCode(value) {
@@ -733,6 +848,41 @@ async function setTaskCategoryActive(session, categoryCodeInput, isActive) {
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
     .update({
       is_active: isActive,
+      ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
+      updated_at: new Date().toISOString()
+    })
+    .eq('category_code', categoryCode)
+    .select('*').maybeSingle();
+  if (error) throwDb(error);
+  if (!data) fail('Category không tồn tại: ' + categoryCode, 404, 'TASK_CATEGORY_NOT_FOUND');
+  return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+// deleteTaskCategory — "chưa từng dùng → được xóa vật lý; đã dùng → chỉ
+// Ngừng sử dụng" (Cài đặt mục 4). Check-rồi-xóa được thực hiện ATOMIC trong
+// RPC task_delete_category_if_unused (advisory lock + kiểm tra task_tasks
+// trong CÙNG transaction) để tránh race condition với 1 Task mới đang được
+// tạo đúng lúc category bị xóa — KHÔNG tự kiểm tra rồi DELETE rời 2 bước ở
+// tầng JS. RPC này CHƯA tồn tại trên Production (xem
+// scripts/PHF_TASK_CATEGORY_CREATE_FOUNDATION_1.70.0.sql, CHƯA APPLY).
+async function deleteTaskCategory(session, categoryCodeInput) {
+  const actorContext = await requireTaskAdmin(session);
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  await callRpc('task_delete_category_if_unused', { p_category_code: categoryCode });
+  return { deleted: true, category_code: categoryCode, updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
+}
+
+// reorderTaskCategory — cập nhật sort_order đơn thuần (1 statement, tự
+// atomic) — không cần RPC vì không có invariant nhiều bảng cần bảo vệ.
+async function reorderTaskCategory(session, categoryCodeInput, sortOrderInput) {
+  const actorContext = await requireTaskAdmin(session);
+  ensureDb();
+  const categoryCode = validateCategoryCode(categoryCodeInput);
+  const sortOrder = Number(sortOrderInput);
+  if (!Number.isInteger(sortOrder) || sortOrder < 1) fail('Thứ tự sắp xếp không hợp lệ.', 400, 'TASK_CATEGORY_SORT_ORDER_INVALID');
+  const { data, error } = await supabase.from(CATEGORIES_TABLE)
+    .update({
+      sort_order: sortOrder,
       ...actorAuditColumns(actorContext, 'updated_by_account_id', 'updated_by_employee_code'),
       updated_at: new Date().toISOString()
     })
@@ -823,7 +973,10 @@ async function createTaskDraft(session, input) {
     if (!allowed) fail('Không có quyền giao task cho nhân sự này.', 403, 'TASK_ASSIGN_DENIED');
   }
 
-  return callRpc('task_create_draft', {
+  const idempotencyKey = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text(input.idempotencyKey))
+    ? text(input.idempotencyKey) : null;
+
+  return callTaskCreateDraftRpc({
     p_flow_type: flowType,
     p_title: title,
     p_content: text(input.content),
@@ -832,7 +985,8 @@ async function createTaskDraft(session, input) {
     p_start_at: startAt,
     p_deadline: deadline,
     p_actor_employee_code: actorAuditToken(actorContext),
-    p_primary_employee_code: primaryEmployeeCode || null
+    p_primary_employee_code: primaryEmployeeCode || null,
+    p_idempotency_key: idempotencyKey
   });
 }
 
@@ -890,6 +1044,62 @@ async function updateTaskDraft(session, taskId, expectedRowVersion, patch) {
 // ---------------------------------------------------------------------------
 // 3) PUBLISH — atomic qua RPC task_publish (2 statement: update + event).
 // ---------------------------------------------------------------------------
+// CROSS-DEPARTMENT PUBLISH SIDE-EFFECT (Cross-department Task V1, REVISED sau
+// Business Owner review mục 7) — department snapshot KHÔNG còn ghi ở đây.
+// Snapshot (source_department/target_department/is_cross_department) giờ
+// được DB trigger task_snapshot_department_on_publish() ghi ATOMIC, CÙNG
+// transaction với chính statement chuyển status sang 'published' (xem PHẦN 2
+// scripts/PHF_TASK_CROSS_DEPARTMENT_NOTIFICATION_1.72.0.sql) — không còn
+// khoảng hở "publish thành công nhưng UPDATE snapshot rời có thể lỗi" như
+// thiết kế trước. Nhờ vậy, hàm này chỉ cần ĐỌC LẠI kết quả `publishedTaskRow`
+// mà chính task_publish RPC đã trả về (RETURNING * đã phản ánh giá trị
+// trigger vừa ghi) — KHÔNG tự tính lại, KHÔNG tự ghi gì vào task_tasks.
+//
+// Notification VẪN CỐ Ý không atomic với publish (mục 8 đã CHỐT: notification
+// là delivery thứ cấp — publish không bao giờ bị ảnh hưởng nếu bước này lỗi;
+// mọi lỗi bên trong bị nuốt/log, không throw ra ngoài). Nếu 1.72.0 chưa
+// apply, publishedTaskRow sẽ không có field is_cross_department (RPC cũ
+// không trả field đó) — no-op sạch, không log noise, không đoán.
+// ---------------------------------------------------------------------------
+async function applyCrossDepartmentPublishSideEffects(actorContext, taskId, publishedTaskRow) {
+  try {
+    const row = publishedTaskRow || {};
+    if (!Object.prototype.hasOwnProperty.call(row, 'is_cross_department')) return; // 1.72.0 chưa apply — RPC cũ không có field này
+    if (row.is_cross_department !== true) return; // false hoặc null (unknown) — mục 12/13: không notification
+
+    // PRIMARY CUỐI CÙNG (mục 14): trigger đã dùng đúng Primary active tại
+    // thời điểm publish để tính target_department — ở đây chỉ cần đọc lại
+    // ĐÚNG người đó để tìm manager, KHÔNG suy diễn lại từ nơi khác.
+    const assigneeRows = await loadAssignees(taskId);
+    const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
+    if (!activePrimary) return;
+
+    const rows = await loadOrgRows();
+    const primarySubject = findByCode(rows, activePrimary.employee_code);
+    if (!primarySubject || !primarySubject.managerCode) return; // không có manager_employee_code thật — không đoán
+    const managerCode = primarySubject.managerCode;
+    if (managerCode === actorContext.employeeCode) return; // người giao chính là manager của Primary — họ đã biết, không tự thông báo cho chính mình
+
+    const managerSubject = findByCode(rows, managerCode);
+    if (!managerSubject || String(managerSubject.status || '').toLowerCase() !== 'active') return; // manager đã nghỉ việc — không thông báo cho hồ sơ không còn hoạt động
+
+    const managerAssignment = await loadActiveTaskAssignment({ employeeCode: managerCode, accountId: '' });
+    const managerActorType = managerAssignment && TASK_PRESET_TO_ACTOR_TYPE[code(managerAssignment.preset_code)];
+    if (!managerActorType || !CROSS_DEPT_MANAGER_ACTOR_TYPES.has(managerActorType)) return; // manager_employee_code có, nhưng KHÔNG có Task authority quản lý thật — không tự cấp
+
+    await emitTaskNotificationSafe('TASK_CROSS_DEPARTMENT_ASSIGNED', {
+      taskId,
+      recipient: { employeeCode: managerCode },
+      title: 'Công việc liên phòng ban mới',
+      message: 'Có công việc liên phòng ban được giao cho nhân sự thuộc phạm vi quản lý của bạn (' + row.source_department + ' → ' + row.target_department + '). Đây KHÔNG phải yêu cầu duyệt.',
+      targetPath: '/task/chi-tiet?task_id=' + taskId,
+      dedupeKey: 'TASK_CROSS_DEPARTMENT_ASSIGNED|' + taskId
+    });
+  } catch (error) {
+    console.warn('[PHF Task] cross-department notification thất bại (bỏ qua, không ảnh hưởng publish):', error && error.message ? error.message : error);
+  }
+}
+
 async function publishTask(session, taskId, expectedRowVersion) {
   const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
@@ -897,9 +1107,11 @@ async function publishTask(session, taskId, expectedRowVersion) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'assign');
   }
-  return callRpc('task_publish', {
+  const published = await callRpc('task_publish', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext)
   });
+  await applyCrossDepartmentPublishSideEffects(actorContext, taskId, published);
+  return published;
 }
 
 // ---------------------------------------------------------------------------
@@ -1191,7 +1403,6 @@ async function removeTaskLink(session, taskId, linkId) {
   return { removed: true, link_id: link.id };
 }
 
-
 // ---------------------------------------------------------------------------
 // 12) LIST TASKS — Workspace/Menu/View Scope V1. Một nguồn Task (task_tasks +
 // task_assignees) → nhiều authorized view, KHÔNG có business engine riêng cho
@@ -1358,6 +1569,9 @@ module.exports = {
   createTaskCategory,
   renameTaskCategory,
   setTaskCategoryActive,
+  deleteTaskCategory,
+  reorderTaskCategory,
+  checkTaskFoundationStatus,
   createTaskDraft,
   updateTaskDraft,
   publishTask,

@@ -17,15 +17,22 @@ const surfaces = [
 // cập nhật theo — test tự fail vì lệch với chính runtime đã parity thật giữa
 // 2 file, KHÔNG phải vì runtime bị lệch nhau. Cập nhật danh sách này khớp
 // đúng TASK_ACTION_MANIFEST hiện tại (xem api/data.js dòng /* TASK_API_WIRING_START */).
+// TEST DRIFT FIX (Category + Create Task Foundation): thêm deleteTaskCategory
+// và reorderTaskCategory — 2 action mới cho Cài đặt (xóa danh mục chưa dùng,
+// sắp xếp thứ tự), wire local, chưa gọi write thật (RPC/cột phụ thuộc CHƯA
+// apply Production).
 const expectedActions = [
   'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment',
   'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
   'listTaskCategories', 'listAdminTaskCategories',
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
+  'deleteTaskCategory', 'reorderTaskCategory', 'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'publishTask', 'getTaskDetail',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
-  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink'
+  'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
+  'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
+  'listTasks'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -83,6 +90,9 @@ const payloads = {
   createTaskCategory: { category_code:'CAT3', display_name:'Danh mục 3' },
   renameTaskCategory: { category_code:'CAT3', display_name:'Danh mục đổi tên' },
   setTaskCategoryActive: { category_code:'CAT3', is_active:false },
+  deleteTaskCategory: { category_code:'CAT3' },
+  reorderTaskCategory: { category_code:'CAT3', sort_order:2 },
+  checkTaskFoundationStatus: {},
   createTaskDraft: { flow_type:'giao_viec', title:'T', content:'C', category_code:'CAT', priority:'thuong', start_at:'2026-08-20', deadline:'2026-08-21', primary_employee_code:'NV002' },
   updateTaskDraft: { task_id:'task-1', expected_row_version:7, title:'T2', content:'C2', category_code:'CAT2', priority:'khan_cap', start_at:null, deadline:'2026-08-22' },
   publishTask: { task_id:'task-1', expected_row_version:7 },
@@ -97,7 +107,11 @@ const payloads = {
   removeTaskRelated: { task_id:'task-1', target_employee_code:'NV004' },
   addTaskComment: { task_id:'task-1', body:'Comment' },
   addTaskLink: { task_id:'task-1', side:'input_reference', url:'https://example.com', label:'Ref' },
-  removeTaskLink: { task_id:'task-1', link_id:'link-1' }
+  removeTaskLink: { task_id:'task-1', link_id:'link-1' },
+  listMyTaskNotifications: { limit: 20 },
+  markTaskNotificationRead: { id:'notif-1', ids:null },
+  markAllTaskNotificationsRead: {},
+  listTasks: { relation:'received', status_filter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -110,6 +124,9 @@ const expectedCoreArgs = {
   createTaskCategory: [{ categoryCode:'CAT3', displayName:'Danh mục 3' }],
   renameTaskCategory: ['CAT3', 'Danh mục đổi tên'],
   setTaskCategoryActive: ['CAT3', false],
+  deleteTaskCategory: ['CAT3'],
+  reorderTaskCategory: ['CAT3', 2],
+  checkTaskFoundationStatus: [],
   createTaskDraft: [{ flowType:'giao_viec', title:'T', content:'C', categoryCode:'CAT', priority:'thuong', startAt:'2026-08-20', deadline:'2026-08-21', primaryEmployeeCode:'NV002' }],
   updateTaskDraft: ['task-1', 7, { title:'T2', content:'C2', categoryCode:'CAT2', priority:'khan_cap', startAt:null, deadline:'2026-08-22' }],
   publishTask: ['task-1', 7],
@@ -124,7 +141,11 @@ const expectedCoreArgs = {
   removeTaskRelated: ['task-1', 'NV004'],
   addTaskComment: ['task-1', 'Comment'],
   addTaskLink: ['task-1', 'input_reference', 'https://example.com', 'Ref'],
-  removeTaskLink: ['task-1', 'link-1']
+  removeTaskLink: ['task-1', 'link-1'],
+  listMyTaskNotifications: [{ limit: 20 }],
+  markTaskNotificationRead: [{ id:'notif-1', ids:null }],
+  markAllTaskNotificationsRead: [],
+  listTasks: [{ relation:'received', statusFilter:'in_progress', scope:'managed', search:'CV-2608', limit:20, offset:40 }]
 };
 
 (async () => {
@@ -186,7 +207,13 @@ const expectedCoreArgs = {
   }
 
   const coreSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-core.js'), 'utf8');
-  for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(coreSource), 'Task Core export missing ' + action);
+  // Notification actions live in api/_lib/task-notifications.js (dedicated
+  // module, mirrors api/_lib/knl-notifications.js domain-isolation
+  // convention) — NOT task-core.js. Check the union of both real
+  // implementation files, not a single hardcoded path.
+  const notificationsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-notifications.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource;
+  for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(implementationSource), 'Task Core/Notifications export missing ' + action);
   console.log('PHF Task API parity: ' + passed + '/' + passed + ' PASS');
 })().catch(error => {
   console.error(error && error.stack || error);

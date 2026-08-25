@@ -429,8 +429,9 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   STATE.assignments.push(assignment({ employee_code: 'TBP3', preset_code: 'TRUONG_BO_PHAN' }));
   {
     pass((await canAssignTaskTo(sessionFor('TBP3'), 'GONE1')) === false, 'EMPLOYEE: inactive employee không assignable');
-    const list = await listTaskAssignableEmployees(sessionFor('TBP3'));
-    pass(!list.some(row => row.employeeCode === 'GONE1'), 'EMPLOYEE: listTaskAssignableEmployees loại trừ nhân viên inactive');
+    const listResult = await listTaskAssignableEmployees(sessionFor('TBP3'));
+    pass(!listResult.employees.some(row => row.employeeCode === 'GONE1'), 'EMPLOYEE: listTaskAssignableEmployees loại trừ nhân viên inactive');
+    pass(listResult.requesterActorType === 'truong_bo_phan', 'EMPLOYEE: listTaskAssignableEmployees trả kèm requesterActorType đúng (phục vụ peer-manager warning)');
 
     await rejects(
       () => createTaskPermissionGrant(adminSession('admin-acc-3'), { granteeEmployeeCode: 'GONE1', grantType: 'extend', peopleScope: { type: 'all_company' }, reason: 'thử' }),
@@ -473,36 +474,54 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   }
 
   // =========================================================================
-  // RELATED
+  // RELATED / CC — business rule CHỐT ở Tạo phiếu V1 mục 4: CC = bất kỳ
+  // active employee toàn công ty, không giới hạn theo peopleScope/assignScope.
   // =========================================================================
   resetState();
   STATE.employees.push(
     emp({ employee_code: 'TBP4', full_name: 'TBP QA 4' }),
     emp({ employee_code: 'SUB_C', full_name: 'Quản lý bởi TBP4', manager_employee_code: 'TBP4' }),
-    emp({ employee_code: 'OUT2', full_name: 'Ngoài phạm vi quản lý' })
+    emp({ employee_code: 'OUT2', full_name: 'Ngoài phạm vi quản lý' }),
+    emp({ employee_code: 'OUT_INACTIVE2', full_name: 'Ngoài phạm vi, đã nghỉ', employment_status: 'inactive' })
   );
   STATE.assignments.push(assignment({ employee_code: 'TBP4', preset_code: 'TRUONG_BO_PHAN' }));
   {
-    // escalation check: TBP4 could ASSIGN OUT2 (assignScope=all_company) nhưng
-    // KHÔNG được thêm OUT2 làm related (peopleScope hẹp hơn) — bảo vệ conservative.
-    pass((await canAssignTaskTo(sessionFor('TBP4'), 'OUT2')) === true, 'RELATED baseline: TBP vẫn assign được OUT2 (assignScope all_company, không đổi)');
-    pass((await canAddTaskRelated(sessionFor('TBP4'), 'OUT2')) === false, 'RELATED: không permission escalation — TBP KHÔNG thêm được OUT2 làm related (ngoài peopleScope)');
-    pass((await canAddTaskRelated(sessionFor('TBP4'), 'SUB_C')) === true, 'RELATED: conservative-safe path — TBP thêm được SUB_C (trong peopleScope quản lý) làm related');
+    pass((await canAddTaskRelated(sessionFor('TBP4'), 'OUT2')) === true, 'RELATED/CC: TBP thêm được OUT2 làm CC dù ngoài peopleScope quản lý — CC toàn công ty theo business rule mới');
+    pass((await canAddTaskRelated(sessionFor('TBP4'), 'SUB_C')) === true, 'RELATED/CC: TBP vẫn thêm được SUB_C (trong phạm vi quản lý) làm CC');
+    pass((await canAddTaskRelated(sessionFor('TBP4'), 'OUT_INACTIVE2')) === false, 'RELATED/CC: employee inactive không được chọn làm CC dù toàn công ty được mở');
+  }
+
+  resetState();
+  STATE.employees.push(
+    emp({ employee_code: 'NV_CC1', full_name: 'NV bất kỳ' }),
+    emp({ employee_code: 'FAR_DEPT', full_name: 'Người khác phòng ban xa' })
+  );
+  {
+    pass((await canAddTaskRelated(sessionFor('NV_CC1'), 'FAR_DEPT')) === true, 'RELATED/CC: NHAN_VIEN thường cũng thêm được bất kỳ ai active làm CC (không giới hạn theo preset của actor)');
   }
 
   resetState();
   STATE.employees.push(
     emp({ employee_code: 'CREATOR3', full_name: 'NV tự tạo task' }),
     emp({ employee_code: 'PRIMARY3', full_name: 'Primary' }),
-    emp({ employee_code: 'COLLEAGUE1', full_name: 'Đồng nghiệp khác' })
+    emp({ employee_code: 'COLLEAGUE1', full_name: 'Đồng nghiệp khác' }),
+    emp({ employee_code: 'OUTSIDER2', full_name: 'Người ngoài, không có update authority' })
   );
   STATE.tasks.push({ id: 'task-3', status: 'draft', row_version: 1, created_by_account_id: null, created_by_employee_code: 'CREATOR3' });
   STATE.assignees.push({ id: 'as-3', task_id: 'task-3', employee_code: 'PRIMARY3', role: 'primary', is_active: true });
   {
+    // creator (dù NHAN_VIEN) thêm CC bất kỳ ai active — target-eligibility không còn là bottleneck.
+    await addTaskRelated(sessionFor('CREATOR3'), 'task-3', 'COLLEAGUE1');
+    pass(true, 'RELATED/CC: creator (NHAN_VIEN) thêm được đồng nghiệp bất kỳ làm CC — target không còn bị giới hạn bởi peopleScope self');
+
+    // Nhưng người KHÔNG có update-authority trên Task đó (không phải creator,
+    // không match peopleScope của primary) vẫn KHÔNG được thêm CC — canAddTaskRelated
+    // chỉ quyết định TARGET có hợp lệ hay không, còn quyền SỬA Task vẫn do
+    // requireUpdateAuthority() gác ở task-core.js, không bị nới theo rule CC mới.
     await rejects(
-      () => addTaskRelated(sessionFor('CREATOR3'), 'task-3', 'COLLEAGUE1'),
-      error => error && error.code === 'TASK_RELATED_TARGET_DENIED',
-      'RELATED: creator bypass chỉ áp dụng cho update-authority, KHÔNG mở rộng target-eligibility — NHAN_VIEN creator vẫn bị giới hạn bởi peopleScope self khi chọn related (ghi nhận trade-off UX, xem báo cáo)'
+      () => addTaskRelated(sessionFor('OUTSIDER2'), 'task-3', 'COLLEAGUE1'),
+      error => error && error.code === 'TASK_UPDATE_DENIED',
+      'RELATED/CC: mở rộng target-eligibility KHÔNG mở rộng quyền sửa Task — người ngoài update-authority vẫn bị chặn ở requireUpdateAuthority trước khi chạm tới target check'
     );
   }
 
