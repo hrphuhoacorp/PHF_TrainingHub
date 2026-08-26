@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { readData, saveData } = require('./api/_lib/db');
+const { logSupabaseIdentityOnce } = require('./api/_lib/env-identity-guard');
 const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('./api/_lib/classroom-db');
 const { getLearning, saveLessons, updateProgress } = require('./api/_lib/classroom-learning');
 const { getMaterials, saveGroups, createUpload, finalizeUpload, updateMaterial, materialUrl, confirmMaterial } = require('./api/_lib/classroom-materials');
@@ -1230,7 +1231,7 @@ server.listen(PORT, HOST, () => {
   console.log(`PHF Training Hub đang chạy tại ${publicUrl || `http://${HOST}:${PORT}`}`);
   const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
   const allowLocalData = String(process.env.PHF_ALLOW_LOCAL_DATA || '').trim().toLowerCase() === 'true';
-  if (hasSupabase) console.log('Dữ liệu lưu trên Supabase.');
+  if (hasSupabase) { console.log('Dữ liệu lưu trên Supabase.'); logSupabaseIdentityOnce('(local server.js boot)'); }
   else if (allowLocalData) console.warn('Dữ liệu đang lưu local theo PHF_ALLOW_LOCAL_DATA=true. Chỉ dùng khi chủ động chạy thử.');
   else console.error('Thiếu cấu hình Supabase: API dữ liệu sẽ báo lỗi rõ ràng và không tự lưu sang data.json.');
   if(hasSupabase&&String(process.env.CHECKLIST_MONTHLY_SCHEDULER_ENABLED||'true').toLowerCase()!=='false'){setTimeout(runChecklistMonthlyScheduler,30000);setInterval(runChecklistMonthlyScheduler,60*60*1000);}
