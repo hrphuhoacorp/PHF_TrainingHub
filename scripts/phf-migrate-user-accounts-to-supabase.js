@@ -5,6 +5,16 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { assertSandboxTargetOrFailClosed } = require('../api/_lib/env-identity-guard');
+
+// PHF ENV HARD GATE (Phase 2A) — script này upsert vào bảng accounts thật.
+// Trước đây dùng thẳng SUPABASE_URL từ .env (mặc định = PHF_HR_MAIN) mà
+// KHÔNG có guard nào. Giờ CHỈ được phép chạy khi SUPABASE_URL trỏ đúng
+// PHF_HR_SANDBOX. Đặt Ở ĐÂY (module top-level, TRƯỚC main()/createClient())
+// để in project identity + fail-closed SỚM NHẤT có thể, cùng vị trí tương
+// đối với scripts/seed.js (xem
+// api/_lib/env-identity-guard.js::assertSandboxTargetOrFailClosed).
+assertSandboxTargetOrFailClosed('(scripts/phf-migrate-user-accounts-to-supabase.js)');
 
 function fail(message) {
   console.error('');
@@ -103,4 +113,13 @@ async function main() {
   console.log('');
 }
 
-main().catch(error => fail(error && error.message ? error.message : String(error)));
+// Chỉ tự chạy khi được gọi trực tiếp (`node scripts/phf-migrate-user-accounts-to-supabase.js`)
+// — KHÔNG đổi hành vi khi chạy như trước, chỉ cho phép require() file này
+// an toàn cho mục đích test guard
+// (scripts/test-env-write-scripts-sandbox-guard-v1.js) mà không kích hoạt
+// main() thật.
+if (require.main === module) {
+  main().catch(error => fail(error && error.message ? error.message : String(error)));
+}
+
+module.exports = { main };

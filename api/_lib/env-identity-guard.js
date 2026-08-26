@@ -69,4 +69,36 @@ function logSupabaseIdentityOnce(contextLabel) {
   return result;
 }
 
-module.exports = { classifySupabaseUrl, logSupabaseIdentityOnce, MAIN_HOSTNAME, SANDBOX_HOSTNAME };
+/*
+ * assertSandboxTargetOrFailClosed(contextLabel) — Phase 2A Hard Gate
+ * (PHF_HR_ENVIRONMENT_ACCESS_MATRIX_PHASE2_2026-08-26.md, phát hiện
+ * scripts/seed.js + scripts/phf-migrate-user-accounts-to-supabase.js có
+ * thể ghi PHF_HR_MAIN theo mặc định, không guard).
+ *
+ * KHÁC logSupabaseIdentityOnce() (chỉ cảnh báo, không chặn) — hàm này
+ * FAIL-CLOSED TUYỆT ĐỐI: LUÔN in project identity trước (cùng cơ chế
+ * logSupabaseIdentityOnce), rồi throw NGAY nếu classification KHÔNG PHẢI
+ * đúng 'SANDBOX' — không có nhánh "mặc định cho qua" cho bất kỳ giá trị
+ * nào khác (MAIN, MISSING, MALFORMED, UNKNOWN đều bị chặn như nhau).
+ * Đây là whitelist tuyệt đối (chỉ đúng 1 project được phép), không phải
+ * blacklist MAIN đơn thuần — cùng triết lý scripts/task-oracle-dev-only.js.
+ *
+ * Caller PHẢI gọi hàm này TRƯỚC BẤT KỲ createClient()/DB operation nào —
+ * nếu throw ở đây (uncaught, tại module top-level), phần code phía dưới
+ * (bao gồm mọi upsert/insert/update/rpc) không bao giờ được thực thi.
+ */
+function assertSandboxTargetOrFailClosed(contextLabel) {
+  const result = logSupabaseIdentityOnce(contextLabel);
+  if (result.label !== 'SANDBOX') {
+    throw new Error(
+      'PHF_ENV_GUARD_FAIL_CLOSED: SUPABASE_URL không phải PHF_HR_SANDBOX ' +
+      '(nhận diện=' + result.label + ', hostname=' + (result.hostname || '(không xác định)') + '). ' +
+      (contextLabel ? contextLabel + ' ' : '') +
+      'CHỈ được phép chạy khi SUPABASE_URL trỏ ĐÚNG SANDBOX (' + SANDBOX_HOSTNAME + '). ' +
+      'Từ chối thực thi — không có bất kỳ DB operation (createClient/insert/update/upsert/delete/rpc) nào chạy sau dòng này.'
+    );
+  }
+  return result;
+}
+
+module.exports = { classifySupabaseUrl, logSupabaseIdentityOnce, assertSandboxTargetOrFailClosed, MAIN_HOSTNAME, SANDBOX_HOSTNAME };
