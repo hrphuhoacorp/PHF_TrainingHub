@@ -145,6 +145,17 @@ function copyTaskPayloadField(target, payload, publicName, coreName) {
   if (Object.prototype.hasOwnProperty.call(payload, publicName)) target[coreName] = payload[publicName];
 }
 
+function taskListInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'relation', 'relation');
+  copyTaskPayloadField(input, payload, 'status_filter', 'statusFilter');
+  copyTaskPayloadField(input, payload, 'scope', 'scope');
+  copyTaskPayloadField(input, payload, 'search', 'search');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
+}
+
 function taskCreateDraftInput(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'flow_type', 'flowType');
