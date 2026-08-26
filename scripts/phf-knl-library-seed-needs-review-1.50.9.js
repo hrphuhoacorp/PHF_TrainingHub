@@ -16,11 +16,29 @@
    is created with status='draft' (Chưa áp dụng) by createKnlFramework's
    existing default, exactly matching the target business status. */
 
+/* PHF ENV HARD GATE (Phase 2C — PHF_HR_ENVIRONMENT_SCRIPT_FORENSIC_PHASE2B_
+ * 2026-08-26.md, nhóm NEEDS GUARD): script này trước đây KHÔNG có bất kỳ
+ * flag/dry-run nào — run() gọi vô điều kiện, an toàn duy nhất là idempotency
+ * theo framework code (chống trùng lặp, KHÔNG chống chạy nhầm môi trường).
+ * Giờ:
+ *   1) assertDeclaredTargetOrFailClosed('MAIN', ...) — verify hostname thật
+ *      (không dựa tên file/comment) TRƯỚC bất kỳ require nào chạm DB, fail-
+ *      closed nếu SUPABASE_URL không đúng MAIN.
+ *   2) DRY-RUN THẬT theo mặc định — chỉ ghi khi có --apply.
+ *
+ * Chạy (xem trước, không ghi gì): node scripts/phf-knl-library-seed-needs-review-1.50.9.js
+ * Chạy (ghi thật vào MAIN):        node scripts/phf-knl-library-seed-needs-review-1.50.9.js --apply
+ */
 require('dotenv').config();
+const { assertDeclaredTargetOrFailClosed } = require('../api/_lib/env-identity-guard');
+
+assertDeclaredTargetOrFailClosed('MAIN', '(scripts/phf-knl-library-seed-needs-review-1.50.9.js)');
+
 const manifest = require('../assets/data/knl-source-manifest-2026-08-09.json');
 const { listKnlFrameworks, createKnlFramework, getKnlFrameworkVersion, saveKnlGroup, saveKnlItem, saveKnlLevelContent } = require('../api/_lib/knl-frameworks');
 
 const SESSION = { role: 'admin', account: { id: 'system-knl-library-seed-1.50.9', name: 'PHF KNL — nạp đầy đủ thư viện Bộ KNL' } };
+const APPLY = process.argv.includes('--apply');
 
 async function seedCandidate(candidate) {
   const created = await createKnlFramework(SESSION, {
@@ -56,6 +74,7 @@ async function seedCandidate(candidate) {
 }
 
 async function run() {
+  console.log('Mode:', APPLY ? '*** APPLY (Production write) ***' : 'DRY-RUN (no write)');
   const existing = await listKnlFrameworks(SESSION);
   const existingCodes = new Set(existing.frameworks.map(f => String(f.code || '').toUpperCase()));
 
@@ -65,6 +84,8 @@ async function run() {
 
   console.log('Frameworks already present (skipped, unchanged):', alreadyPresent.length, alreadyPresent.map(c => c.sourceSheet));
   console.log('Frameworks to seed this run:', toSeed.length, toSeed.map(c => c.sourceSheet));
+
+  if (!APPLY) { console.log('\nDRY-RUN — không ghi gì. Chạy lại với --apply để ghi ' + toSeed.length + ' framework vào Production.'); return; }
 
   const results = [];
   for (const candidate of toSeed) {
@@ -80,4 +101,11 @@ async function run() {
   console.log('already present before this run:', alreadyPresent.length);
 }
 
-run().catch(e => { console.error('FAIL', e && e.stack || e); process.exit(1); });
+// Chỉ tự chạy khi được gọi trực tiếp — cho phép require() an toàn để test
+// guard mà không kích hoạt run() thật (xem
+// scripts/test-env-write-scripts-declared-target-guard-v1.js).
+if (require.main === module) {
+  run().catch(e => { console.error('FAIL', e && e.stack || e); process.exit(1); });
+}
+
+module.exports = { run };

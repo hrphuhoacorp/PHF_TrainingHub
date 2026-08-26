@@ -46,6 +46,7 @@ const url = String(process.env.SUPABASE_URL || '').trim();
 const secret = String(process.env.SUPABASE_SECRET_KEY || '').trim();
 if (!url || !secret) { console.error('Missing Supabase env'); process.exit(1); }
 const db = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-org-master-seed-from-checklist-1.50.7.js)');
 
 const APPLY = process.argv.includes('--apply');
 const SESSION = { role: 'admin', sub: 'system-org-master-cutover-1.50.7', account: { id: 'system-org-master-cutover-1.50.7', name: 'PHF Organization Master Cutover — bootstrap seed' } };

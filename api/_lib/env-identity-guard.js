@@ -101,4 +101,46 @@ function assertSandboxTargetOrFailClosed(contextLabel) {
   return result;
 }
 
-module.exports = { classifySupabaseUrl, logSupabaseIdentityOnce, assertSandboxTargetOrFailClosed, MAIN_HOSTNAME, SANDBOX_HOSTNAME };
+/*
+ * assertDeclaredTargetOrFailClosed(expectedLabel, contextLabel) — Phase 2C
+ * Hard Gate (PHF_HR_ENVIRONMENT_SCRIPT_FORENSIC_PHASE2B_2026-08-26.md, nhóm
+ * NEEDS GUARD: scripts/phf-knl-content-baseline-2026-08.js + scripts/phf-knl-
+ * library-seed-needs-review-1.50.9.js).
+ *
+ * KHÁC assertSandboxTargetOrFailClosed() (whitelist CỨNG chỉ SANDBOX,
+ * dùng cho script test KHÔNG BAO GIỜ có lý do chạm MAIN) — 2 script trên
+ * là công cụ Production THẬT (nạp nội dung KNL framework/grade matrix vào
+ * MAIN theo đúng chủ ý), nên không thể dùng whitelist SANDBOX-only (sẽ
+ * chặn nhầm chính mục đích của chúng). Thay vào đó, CALLER phải TỰ KHAI
+ * BÁO expectedLabel (project mà script này ĐƯỢC PHÉP ghi — 'MAIN' cho 2
+ * script trên) NGAY TRONG CODE (không phải tên file/comment — đây chính
+ * là yêu cầu "không dựa vào tên file/comment") — hàm fail-closed nếu
+ * SUPABASE_URL thật KHÔNG khớp CHÍNH XÁC expectedLabel đã khai báo, dù
+ * lệch theo hướng nào (chạy nhầm SANDBOX/UNKNOWN/MISSING/MALFORMED khi
+ * script này chỉ được phép chạy trên MAIN, hoặc ngược lại nếu 1 script
+ * SANDBOX-only nào đó sau này dùng lại hàm này với expectedLabel='SANDBOX').
+ *
+ * Đây LÀ verify hostname thật (exact-match qua classifySupabaseUrl), không
+ * phải chỉ tin vào tên file/comment tự khai ý định.
+ */
+function assertDeclaredTargetOrFailClosed(expectedLabel, contextLabel) {
+  const result = logSupabaseIdentityOnce(contextLabel);
+  if (result.label !== expectedLabel) {
+    throw new Error(
+      'PHF_ENV_GUARD_FAIL_CLOSED: SUPABASE_URL không khớp project được khai báo cho script này ' +
+      '(khai báo=' + expectedLabel + ', nhận diện thật=' + result.label + ', hostname=' + (result.hostname || '(không xác định)') + '). ' +
+      (contextLabel ? contextLabel + ' ' : '') +
+      'Từ chối thực thi — không có bất kỳ DB operation (createClient/insert/update/upsert/delete/rpc) nào chạy sau dòng này.'
+    );
+  }
+  return result;
+}
+
+module.exports = {
+  classifySupabaseUrl,
+  logSupabaseIdentityOnce,
+  assertSandboxTargetOrFailClosed,
+  assertDeclaredTargetOrFailClosed,
+  MAIN_HOSTNAME,
+  SANDBOX_HOSTNAME,
+};

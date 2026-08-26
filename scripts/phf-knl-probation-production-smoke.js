@@ -7,6 +7,7 @@ const url=String(process.env.SUPABASE_URL||'').trim();
 const secret=String(process.env.SUPABASE_SECRET_KEY||'').trim();
 assert(url&&secret,'Supabase Production environment is required.');
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-probation-production-smoke.js)');
 const CODE='SMOKE-PROBATION-1500';
 const PERIOD='2099-12';
 let assignmentId=null;

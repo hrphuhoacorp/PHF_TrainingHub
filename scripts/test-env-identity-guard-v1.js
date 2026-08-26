@@ -11,7 +11,7 @@
 
 const assert = require('assert');
 const path = require('path');
-const { classifySupabaseUrl, logSupabaseIdentityOnce, MAIN_HOSTNAME, SANDBOX_HOSTNAME } = require(
+const { classifySupabaseUrl, logSupabaseIdentityOnce, assertSandboxTargetOrFailClosed, assertDeclaredTargetOrFailClosed, MAIN_HOSTNAME, SANDBOX_HOSTNAME } = require(
   path.resolve(__dirname, '..', 'api', '_lib', 'env-identity-guard')
 );
 
@@ -55,6 +55,63 @@ pass(classifySupabaseUrl('https://evil-pxkjvawdrixgoukhyvnk.supabase.co').label 
     pass(result.label === 'MAIN', 'logSupabaseIdentityOnce trả về đúng classification');
     pass(captured.length === 1, 'logSupabaseIdentityOnce in đúng 1 dòng cảnh báo');
     pass(/PHF_HR_MAIN/.test(captured[0]), 'Dòng cảnh báo nêu rõ MAIN khi trỏ Production thật');
+  } finally {
+    console.warn = savedWarn;
+    process.env.SUPABASE_URL = savedUrl;
+  }
+}
+
+// assertSandboxTargetOrFailClosed — regression nhanh (đã có test spawn đầy
+// đủ ở test-env-write-scripts-sandbox-guard-v1.js, đây chỉ test hàm thuần).
+{
+  const savedUrl = process.env.SUPABASE_URL;
+  const savedWarn = console.warn;
+  console.warn = () => {};
+  try {
+    process.env.SUPABASE_URL = 'https://pxkjvawdrixgoukhyvnk.supabase.co';
+    pass((() => { try { assertSandboxTargetOrFailClosed('(t)'); return true; } catch (e) { return false; } })(), 'assertSandboxTargetOrFailClosed KHÔNG throw khi đúng SANDBOX');
+    process.env.SUPABASE_URL = 'https://byhpcexmjzqpctyvfczd.supabase.co';
+    pass((() => { try { assertSandboxTargetOrFailClosed('(t)'); return false; } catch (e) { return /PHF_ENV_GUARD_FAIL_CLOSED/.test(e.message); } })(), 'assertSandboxTargetOrFailClosed throw đúng marker khi là MAIN');
+  } finally {
+    console.warn = savedWarn;
+    process.env.SUPABASE_URL = savedUrl;
+  }
+}
+
+// assertDeclaredTargetOrFailClosed (Phase 2C) — caller khai báo expectedLabel
+// tường minh trong CODE (không dựa tên file/comment); hàm phải verify hostname
+// thật khớp CHÍNH XÁC, throw cho MỌI trường hợp lệch, dù lệch theo hướng nào.
+{
+  const savedUrl = process.env.SUPABASE_URL;
+  const savedWarn = console.warn;
+  console.warn = () => {};
+  function tryAssert(expectedLabel) {
+    try { assertDeclaredTargetOrFailClosed(expectedLabel, '(t)'); return { threw: false }; }
+    catch (e) { return { threw: true, message: e.message }; }
+  }
+  try {
+    // expectedLabel='MAIN' (đúng use-case Phase 2C: content-baseline.js/library-seed.js)
+    process.env.SUPABASE_URL = 'https://byhpcexmjzqpctyvfczd.supabase.co';
+    pass(tryAssert('MAIN').threw === false, 'assertDeclaredTargetOrFailClosed("MAIN") KHÔNG throw khi thật sự là MAIN');
+
+    process.env.SUPABASE_URL = 'https://pxkjvawdrixgoukhyvnk.supabase.co';
+    { const r = tryAssert('MAIN'); pass(r.threw && /PHF_ENV_GUARD_FAIL_CLOSED/.test(r.message), 'assertDeclaredTargetOrFailClosed("MAIN") throw khi thật ra là SANDBOX'); }
+
+    delete process.env.SUPABASE_URL;
+    { const r = tryAssert('MAIN'); pass(r.threw && /PHF_ENV_GUARD_FAIL_CLOSED/.test(r.message), 'assertDeclaredTargetOrFailClosed("MAIN") throw khi SUPABASE_URL thiếu (MISSING)'); }
+
+    process.env.SUPABASE_URL = 'not a url at all';
+    { const r = tryAssert('MAIN'); pass(r.threw && /PHF_ENV_GUARD_FAIL_CLOSED/.test(r.message), 'assertDeclaredTargetOrFailClosed("MAIN") throw khi SUPABASE_URL malformed'); }
+
+    process.env.SUPABASE_URL = 'https://totallyunknownref000000.supabase.co';
+    { const r = tryAssert('MAIN'); pass(r.threw && /PHF_ENV_GUARD_FAIL_CLOSED/.test(r.message), 'assertDeclaredTargetOrFailClosed("MAIN") throw khi project lạ (UNKNOWN)'); }
+
+    // Đối xứng: expectedLabel='SANDBOX' cũng phải hoạt động đúng (verify hàm
+    // tổng quát, không hard-code riêng cho MAIN).
+    process.env.SUPABASE_URL = 'https://pxkjvawdrixgoukhyvnk.supabase.co';
+    pass(tryAssert('SANDBOX').threw === false, 'assertDeclaredTargetOrFailClosed("SANDBOX") KHÔNG throw khi thật sự là SANDBOX');
+    process.env.SUPABASE_URL = 'https://byhpcexmjzqpctyvfczd.supabase.co';
+    { const r = tryAssert('SANDBOX'); pass(r.threw && /PHF_ENV_GUARD_FAIL_CLOSED/.test(r.message), 'assertDeclaredTargetOrFailClosed("SANDBOX") throw khi thật ra là MAIN'); }
   } finally {
     console.warn = savedWarn;
     process.env.SUPABASE_URL = savedUrl;
