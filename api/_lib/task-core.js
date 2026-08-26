@@ -1495,8 +1495,14 @@ async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopePa
     employeeCodes = (scopeParam === 'mine') ? [actorContext.employeeCode] : null;
   } else if (scope.peopleScope.type === 'employees') {
     const managed = Array.from(actorContext.managedEmployeeCodes || []);
-    if (scopeParam === 'mine') employeeCodes = [actorContext.employeeCode];
-    else if (scopeParam === 'managed' || scopeParam === 'cross_department') employeeCodes = managed;
+    // "Tôi nhận" phải LUÔN self-only cho TBP/Trưởng ca (business rule LOCK —
+    // xem PHF_TASK_HANDOVER_TO_NEW_CLAUDE_BEFORE_REPORT_04.md mục 4/8). Trước
+    // đây scopeParam rỗng (mặc định của tab "Tôi nhận", KHÔNG truyền scope)
+    // rơi vào nhánh else bên dưới và trả về self+managed — trộn nhầm 2
+    // workspace. "Nhân sự tôi quản lý" là workspace riêng, CHỈ truy cập được
+    // qua scopeParam='managed'/'cross_department'.
+    if (scopeParam === 'managed' || scopeParam === 'cross_department') employeeCodes = managed;
+    else if (scopeParam === 'mine' || !scopeParam) employeeCodes = [actorContext.employeeCode];
     else employeeCodes = scope.peopleScope.values || [actorContext.employeeCode];
   } else {
     employeeCodes = [actorContext.employeeCode];
