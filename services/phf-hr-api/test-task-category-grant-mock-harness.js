@@ -130,7 +130,7 @@ const ROLLBACK = /^ROLLBACK$/;
     ]);
     const { renameTaskCategory } = loadTaskWriteWithFakePg(client);
     let error; try { await renameTaskCategory(MOCK_CONFIG, { categoryCode: 'MISSING', displayName: 'x', actorAccountId: 'a' }); } catch (e) { error = e; }
-    record('renameTaskCategory_NOT_FOUND', error && error.code === 'TASK_CATEGORY_NOT_FOUND' && client._remainingSteps() === 0, { code: error && error.code });
+    record('renameTaskCategory_NOT_FOUND', error && error.code === 'TASK_CATEGORY_RESOURCE_NOT_FOUND' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
   // =========================================================================
@@ -223,7 +223,7 @@ const ROLLBACK = /^ROLLBACK$/;
     ]);
     const { deleteTaskCategoryIfUnused } = loadTaskWriteWithFakePg(client);
     let error; try { await deleteTaskCategoryIfUnused(MOCK_CONFIG, { categoryCode: 'missing' }); } catch (e) { error = e; }
-    record('deleteTaskCategoryIfUnused_NOT_FOUND', error && error.code === 'TASK_CATEGORY_NOT_FOUND' && client._remainingSteps() === 0, { code: error && error.code });
+    record('deleteTaskCategoryIfUnused_NOT_FOUND', error && error.code === 'TASK_CATEGORY_RESOURCE_NOT_FOUND' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
   // =========================================================================
