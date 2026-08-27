@@ -197,7 +197,8 @@ async function main() {
   record('T1_cleanup_cancel', t1.status === 'cancelled', 'cancelled', t1.status);
 
   let t2 = await tw.createDraftTask(config, {
-    title: `[${RUN_TAG}] T2`, categoryCode, primaryEmployeeCode: ACTOR_EMP_A.actorEmployeeCode,
+    flowType: 'giao_viec',
+    title: `[${RUN_TAG}] T2`, categoryCode, deadline: FIXTURE_DEADLINE, primaryEmployeeCode: ACTOR_EMP_A.actorEmployeeCode,
     idempotencyKey: `22222222-2222-2222-2222-${Date.now().toString().padStart(12, '0')}`.slice(0, 36),
     ...ACTOR_EMP_A,
   });
@@ -208,7 +209,8 @@ async function main() {
 
   // ===== T3: create -> publish -> complete -> reopen -> cancel(cleanup) =====
   let t3 = await tw.createDraftTask(config, {
-    title: `[${RUN_TAG}] T3`, categoryCode, primaryEmployeeCode: ACTOR_EMP_A.actorEmployeeCode,
+    flowType: 'giao_viec',
+    title: `[${RUN_TAG}] T3`, categoryCode, deadline: FIXTURE_DEADLINE, primaryEmployeeCode: ACTOR_EMP_A.actorEmployeeCode,
     idempotencyKey: `33333333-3333-3333-3333-${Date.now().toString().padStart(12, '0')}`.slice(0, 36),
     ...ACTOR_EMP_A,
   });
