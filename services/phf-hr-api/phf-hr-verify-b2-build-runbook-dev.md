@@ -21,6 +21,14 @@ psql -d phf_hr_verify -f migrations/phf_hr_task_foundation_v1.sql
 ```
 Expected: chạy hết không lỗi, tạo schema `task` + 13 bảng + trigger/function trong `phf_hr_verify` (không phải `phf_hr`).
 
+## Bước 2b — replay grant parity remediation (MỚI — đóng gap 4 grant phát hiện 2026-08-27)
+```
+cat migrations/phf_hr_task_runtime_grants_remediation_v1.sql | docker exec -i phf-postgres psql -U postgres -d phf_hr_verify
+```
+Expected: BEFORE snapshot cho thấy 4 cột đều `f`, AFTER snapshot cho thấy cả 4 cột đều `t`
+(`categories_delete, code_counters_insert, links_update, permission_grants_update`).
+Nếu bất kỳ cột nào ở AFTER vẫn `f` — STOP, không sang bước 3.
+
 ## Bước 3 — replay category snapshot
 ```
 psql -d phf_hr_verify -f migrations/phf_hr_task_categories_snapshot_v1.sql
