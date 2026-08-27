@@ -1,0 +1,108 @@
+PHF HR API — DEPLOY ARTIFACT MANIFEST
+Gate: PHF Task Gate 5.4 — Attachment DB-layer (DB-primitives ONLY, KHÔNG route,
+KHÔNG filesystem/storage runtime)
+Generated (UTC): 2026-08-24T12:53:55Z
+Prepared by: Claude Code (deploy prep, no execution)
+
+TARGET = PHF-HR-DEV (server chạy phf-hr-api:local, database phf_hr)
+
+SCOPE
+  Artifact này CHỈ phục vụ REAL-DB VERIFICATION cho 4 DB primitive Gate 5.4:
+    findTaskAttachmentByObjectKey, createTaskAttachmentMetadata,
+    removeTaskAttachment, getTaskAttachmentForDownload
+  KHÔNG route (server.js KHÔNG đổi, KHÔNG có endpoint HTTP nào cho attachment
+  ở gate này), KHÔNG filesystem/storage runtime (attachment-storage.js CHỦ
+  ĐÍCH KHÔNG có trong artifact — lib/task-write.js Gate 5.4 KHÔNG require nó,
+  đã audit/verify ở G5.4 code review: chỉ require('./attachment-policy'),
+  không require('./attachment-storage'), không require('fs')).
+
+FILES IN THIS ARTIFACT
+  lib/task-write.js
+    SHA256 = 8cbaa14bf81c28e3389169b85a2337fb1f682ac0a26de94554cebdd19ed509b3
+    (18 export: 14 hàm Batch 1-6 không đổi + 4 hàm attachment mới)
+  lib/attachment-policy.js
+    SHA256 = e796f766d774eaa1a61d516bab013c41a978101cb8cdd8d30421e97e579c9378
+    (NEW — CHƯA từng tồn tại trên server, file hoàn toàn mới, không phải
+    thay thế file cũ nào)
+
+NOT INCLUDED (chủ đích, theo đúng GO)
+  attachment-storage.js — KHÔNG cần cho DB-only gate này, KHÔNG chạm filesystem/
+    /home/phf-storage. Sẽ cần cho gate G5.5 (orchestration) sau, KHÔNG phải
+    gate này.
+  server.js, lib/db.js, lib/config.js — KHÔNG đổi, KHÔNG có trong artifact.
+  .env, credential, Dockerfile, docker-compose.yml, node_modules, CSKH files.
+
+DESTINATION TRÊN SERVER
+  /opt/phf-hr/phf-hr-api/lib/task-write.js       (GHI ĐÈ file hiện có)
+  /opt/phf-hr/phf-hr-api/lib/attachment-policy.js (TẠO MỚI — chưa từng tồn tại)
+
+PRE-DEPLOY CHECK (BẮT BUỘC trước khi copy đè)
+  1. Verify hash task-write.js HIỆN TẠI trên server — PHẢI khớp checkpoint
+     Batch 4-6 (route wiring), KHÔNG khớp nghĩa là có drift ngoài kiểm soát,
+     DỪNG và báo lại:
+       sha256sum /opt/phf-hr/phf-hr-api/lib/task-write.js
+       # kỳ vọng TRƯỚC deploy = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7
+  2. Xác nhận attachment-policy.js HIỆN TẠI trên server CHƯA TỒN TẠI (nếu đã
+     tồn tại vì lý do nào đó, DỪNG và báo lại — không nên có sẵn):
+       ls -la /opt/phf-hr/phf-hr-api/lib/attachment-policy.js
+       # kỳ vọng: No such file or directory
+  3. Backup task-write.js hiện có (bắt buộc, vì đây là GHI ĐÈ):
+       cp /opt/phf-hr/phf-hr-api/lib/task-write.js \
+          /opt/phf-hr/phf-hr-api/lib/task-write.js.bak-g54-$(date +%Y%m%d%H%M%S)
+  4. KHÔNG touch server.js, KHÔNG touch attachment-storage.js (không có
+     trong artifact, không được tự tạo/copy thêm gì khác ngoài 2 file trên).
+
+DEPLOY STEPS (CHƯA THỰC HIỆN Ở LƯỢT NÀY — chờ GO riêng cho bước transfer/copy thật)
+  1. Copy lib/task-write.js + lib/attachment-policy.js từ artifact vào đúng
+     destination ở trên.
+  2. POST-COPY verify (BẮT BUỘC, chạy NGAY sau copy):
+       sha256sum /opt/phf-hr/phf-hr-api/lib/task-write.js
+       # PHẢI = 8cbaa14bf81c28e3389169b85a2337fb1f682ac0a26de94554cebdd19ed509b3
+       sha256sum /opt/phf-hr/phf-hr-api/lib/attachment-policy.js
+       # PHẢI = e796f766d774eaa1a61d516bab013c41a978101cb8cdd8d30421e97e579c9378
+     Nếu KHÔNG khớp: DỪNG NGAY, KHÔNG chạy harness — file bị hỏng/sai lúc transfer.
+  3. Syntax + load check (read-only, KHÔNG kết nối DB):
+       cd /opt/phf-hr/phf-hr-api && node --check lib/task-write.js
+       node -e "const m=require('./lib/task-write.js'); const k=Object.keys(m); \
+         console.log('export_count=' + k.length); console.log(k.join(','));"
+     Kỳ vọng: export_count=18, danh sách CÓ ĐỦ 4 tên:
+       findTaskAttachmentByObjectKey, createTaskAttachmentMetadata,
+       removeTaskAttachment, getTaskAttachmentForDownload
+     (cộng 14 tên cũ Batch 1-6, không đổi).
+  4. CHỈ SAU KHI bước 2-3 PASS: chạy REAL DB harness (xem mục dưới) — CẦN
+     GO RIÊNG, tách biệt khỏi bước transfer/copy.
+
+  KHÔNG rebuild image, KHÔNG recreate container ở gate này — 4 hàm mới chỉ
+  cần load được qua `node -e`/harness gọi trực tiếp lib/task-write.js, KHÔNG
+  cần server.js/container chạy (không có route nào wire ở gate này).
+
+ROLLBACK
+  1. Restore task-write.js từ backup vừa tạo ở PRE-DEPLOY CHECK bước 3:
+       cp /opt/phf-hr/phf-hr-api/lib/task-write.js.bak-g54-<timestamp> \
+          /opt/phf-hr/phf-hr-api/lib/task-write.js
+  2. attachment-policy.js: XÓA CHỈ KHI thật sự cần rollback hoàn toàn (file
+     này KHÔNG thay thế file cũ nào — KHÔNG có bản backup để "khôi phục",
+     rollback nghĩa là XÓA file mới tạo):
+       rm /opt/phf-hr/phf-hr-api/lib/attachment-policy.js
+  3. Verify lại hash task-write.js SAU rollback = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7
+  4. KHÔNG đụng DB — deploy-prep/deploy này chưa từng DB write (mọi thứ ở
+     G5.4 tới điểm này vẫn HOLD, chưa có REAL DB evidence nào), rollback
+     KHÔNG cần bất kỳ compensation DB nào.
+
+REAL DB HARNESS (đã chuẩn bị sẵn TỪ TRƯỚC — KHÔNG đổi ở artifact này)
+  Path: services/phf-hr-api/gate5-4-attachment-db-verify-dev.js
+  SHA256 = bf87ea8fe5d504811f7c8de027b8992280ab5dec6997c6316b073f7c7c9a6439
+  (KHÔNG nằm trong artifact tar.gz này — file KHÔNG đổi so với lượt trước,
+  không cần đóng gói lại; copy riêng nếu server chưa có, verify hash trước
+  khi chạy)
+  Cách chạy — CHỈ SAU KHI 2 file trên đã deploy + verify PASS (bước 1-3 ở
+  trên), VÀ có GO riêng cho việc chạy harness:
+    cd /opt/phf-hr/phf-hr-api && node gate5-4-attachment-db-verify-dev.js
+  Harness: filesystem_used=NO, KHÔNG chạm /home/phf-storage, KHÔNG require
+  attachment-storage.js, fixture TEST-only (createDraftTask/publishTask với
+  idempotencyKey cố định), fail-fast từng STEP.
+
+ARTIFACT CONTENTS (file tar.gz đi kèm)
+  lib/task-write.js
+  lib/attachment-policy.js
+  MANIFEST.txt (chính file này)
