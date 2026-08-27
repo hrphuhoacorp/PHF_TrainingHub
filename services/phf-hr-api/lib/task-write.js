@@ -388,6 +388,12 @@ async function createDraftTask(config, params) {
 
   const auditToken = resolveAuditToken(actorEmployeeCode, actorAccountId);
   const normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+  // Khớp đúng default cũ ở api/_lib/task-core.js: text(input.priority) || 'thuong'
+  // — missing/null/blank -> 'thuong', giá trị hợp lệ giữ nguyên (trimmed).
+  // Không omit cột khỏi INSERT (giữ nguyên shape) nên phải tự default ở đây:
+  // cột priority NOT NULL DEFAULT 'thuong' chỉ áp dụng khi cột bị bỏ khỏi
+  // INSERT, không áp dụng khi giá trị là NULL tường minh.
+  const normalizedPriority = priority && String(priority).trim() !== '' ? String(priority).trim() : 'thuong';
 
   return withTaskWriteTransaction(config, async (client) => {
     if (normalizedIdempotencyKey !== null) {
@@ -423,7 +429,7 @@ async function createDraftTask(config, params) {
            start_at, deadline, created_by_employee_code, task_code, create_idempotency_key
          ) VALUES ($1, 'draft', $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
-        [flowType, title, content || '', categoryCode, priority, startAt || null, deadline, auditToken, taskCode, normalizedIdempotencyKey]
+        [flowType, title, content || '', categoryCode, normalizedPriority, startAt || null, deadline, auditToken, taskCode, normalizedIdempotencyKey]
       );
       task = inserted.rows[0];
     } catch (err) {

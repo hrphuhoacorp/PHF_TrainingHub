@@ -799,6 +799,71 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   }
 
   {
+    // CD2b) priority omitted (undefined) -> phải default 'thuong' trong INSERT
+    // param thật gửi xuống DB, KHÔNG phải NULL — regression test cho lỗi
+    // SQLSTATE 23502 tìm thấy bằng B3 real-DB verify (task.tasks.priority
+    // NOT NULL DEFAULT 'thuong'; DEFAULT không áp dụng khi cột có mặt với
+    // giá trị NULL tường minh trong INSERT).
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
+      { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0002B' }], rowCount: 1 } },
+      { expect: INSERT_TASK, result: { rows: [{ id: 'task-2b', status: 'draft', task_code: 'CV-2608-0002B', row_version: 1 }], rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createDraftTask } = loadTaskWriteWithFakePg(client);
+    await createDraftTask(MOCK_CONFIG, {
+      flowType: 'giao_viec', title: 'x', content: '', categoryCode: 'CAT1',
+      startAt: null, deadline: '2026-09-01T00:00:00Z', primaryEmployeeCode: null, idempotencyKey: null,
+      actorEmployeeCode: 'PHF001',
+      // priority KHÔNG truyền — mô phỏng đúng caller thật (api/data.js chỉ copy nếu có)
+    });
+    const insertCall = client.calls.find((c) => c.sql && INSERT_TASK.test(c.sql));
+    record('createDraftTask_priority_omitted_defaults_to_thuong', insertCall && insertCall.params[4] === 'thuong', { priorityParam: insertCall && insertCall.params[4] });
+  }
+
+  {
+    // CD2c) priority blank/whitespace -> cũng phải default 'thuong', không giữ chuỗi rỗng
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
+      { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0002C' }], rowCount: 1 } },
+      { expect: INSERT_TASK, result: { rows: [{ id: 'task-2c', status: 'draft', task_code: 'CV-2608-0002C', row_version: 1 }], rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createDraftTask } = loadTaskWriteWithFakePg(client);
+    await createDraftTask(MOCK_CONFIG, {
+      flowType: 'giao_viec', title: 'x', content: '', categoryCode: 'CAT1', priority: '   ',
+      startAt: null, deadline: '2026-09-01T00:00:00Z', primaryEmployeeCode: null, idempotencyKey: null,
+      actorEmployeeCode: 'PHF001',
+    });
+    const insertCall = client.calls.find((c) => c.sql && INSERT_TASK.test(c.sql));
+    record('createDraftTask_priority_blank_defaults_to_thuong', insertCall && insertCall.params[4] === 'thuong', { priorityParam: insertCall && insertCall.params[4] });
+  }
+
+  {
+    // CD2d) priority hợp lệ explicit ('quan_trong') -> phải giữ nguyên, KHÔNG bị ghi đè 'thuong'
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
+      { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0002D' }], rowCount: 1 } },
+      { expect: INSERT_TASK, result: { rows: [{ id: 'task-2d', status: 'draft', task_code: 'CV-2608-0002D', row_version: 1 }], rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createDraftTask } = loadTaskWriteWithFakePg(client);
+    await createDraftTask(MOCK_CONFIG, {
+      flowType: 'giao_viec', title: 'x', content: '', categoryCode: 'CAT1', priority: 'quan_trong',
+      startAt: null, deadline: '2026-09-01T00:00:00Z', primaryEmployeeCode: null, idempotencyKey: null,
+      actorEmployeeCode: 'PHF001',
+    });
+    const insertCall = client.calls.find((c) => c.sql && INSERT_TASK.test(c.sql));
+    record('createDraftTask_priority_explicit_kept', insertCall && insertCall.params[4] === 'quan_trong', { priorityParam: insertCall && insertCall.params[4] });
+  }
+
+  {
     // CD3) deadline required
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
