@@ -29,6 +29,14 @@ Expected: BEFORE snapshot cho thấy 4 cột đều `f`, AFTER snapshot cho th�
 (`categories_delete, code_counters_insert, links_update, permission_grants_update`).
 Nếu bất kỳ cột nào ở AFTER vẫn `f` — STOP, không sang bước 3.
 
+## Bước 2c — replay actor-identity nullability remediation (MỚI — đóng gap 2 cột phát hiện 2026-08-27)
+```
+cat migrations/phf_hr_task_actor_identity_remediation_v1.sql | docker exec -i phf-postgres psql -U postgres -d phf_hr_verify
+```
+Expected: BEFORE cho thấy `is_nullable=NO` cho cả 2 cột, AFTER cho thấy `is_nullable=YES` cho cả 2 cột,
+và 2 constraintdef ở AFTER khớp character-for-character với Production (đã ghi rõ trong file).
+Nếu không khớp — STOP, không sang bước 3.
+
 ## Bước 3 — replay category snapshot
 ```
 psql -d phf_hr_verify -f migrations/phf_hr_task_categories_snapshot_v1.sql
