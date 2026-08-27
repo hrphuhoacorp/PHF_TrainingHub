@@ -439,9 +439,9 @@ async function createDraftTask(config, params) {
 
     if (primaryEmployeeCode && String(primaryEmployeeCode).trim() !== '') {
       await client.query(
-        `INSERT INTO task.assignees (task_id, employee_code, role, assigned_by_employee_code)
-         VALUES ($1, $2, 'primary', $3)`,
-        [task.id, primaryEmployeeCode, auditToken]
+        `INSERT INTO task.assignees (task_id, employee_code, role, assigned_by_employee_code, assigned_by_account_id)
+         VALUES ($1, $2, 'primary', $3, $4)`,
+        [task.id, primaryEmployeeCode, auditToken, actorAccountId || null]
       );
     }
 
@@ -571,9 +571,9 @@ async function transferTaskPrimary(config, params) {
 
     const auditToken = resolveAuditToken(actorEmployeeCode, actorAccountId);
     await client.query(
-      `INSERT INTO task.assignees (task_id, employee_code, role, is_active, assigned_by_employee_code)
-       VALUES ($1, $2, 'primary', true, $3)`,
-      [taskId, newPrimary, auditToken]
+      `INSERT INTO task.assignees (task_id, employee_code, role, is_active, assigned_by_employee_code, assigned_by_account_id)
+       VALUES ($1, $2, 'primary', true, $3, $4)`,
+      [taskId, newPrimary, auditToken, actorAccountId || null]
     );
 
     const updated = await client.query(
@@ -656,9 +656,9 @@ async function addTaskRelated(config, params) {
     }
 
     const inserted = await client.query(
-      `INSERT INTO task.assignees (task_id, employee_code, role, assigned_by_employee_code)
-       VALUES ($1, $2, 'related', $3) RETURNING *`,
-      [taskId, target, auditToken]
+      `INSERT INTO task.assignees (task_id, employee_code, role, assigned_by_employee_code, assigned_by_account_id)
+       VALUES ($1, $2, 'related', $3, $4) RETURNING *`,
+      [taskId, target, auditToken, actorAccountId || null]
     );
     const assignee = inserted.rows[0];
 
@@ -822,9 +822,9 @@ async function addTaskLink(config, params) {
     }
 
     const inserted = await client.query(
-      `INSERT INTO task.links (task_id, side, url, label, added_by_employee_code)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [taskId, side, normalizedUrl, normalizedLabel, auditToken]
+      `INSERT INTO task.links (task_id, side, url, label, added_by_employee_code, added_by_account_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [taskId, side, normalizedUrl, normalizedLabel, auditToken, actorAccountId || null]
     );
     let link = inserted.rows[0];
 

@@ -753,7 +753,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   const CATEGORY_LOCK = /^SELECT is_active FROM task\.categories WHERE category_code = \$1 FOR SHARE$/;
   const NEXT_CODE = /^SELECT task\.task_next_code\(now\(\)\) AS code$/;
   const INSERT_TASK = /^INSERT INTO task\.tasks \(/;
-  const INSERT_PRIMARY_ASSIGNEE = /^INSERT INTO task\.assignees \(task_id, employee_code, role, assigned_by_employee_code\)/;
+  const INSERT_PRIMARY_ASSIGNEE = /^INSERT INTO task\.assignees \(task_id, employee_code, role, assigned_by_employee_code, assigned_by_account_id\)/;
   const SELECT_PRIMARY_COUNT = /^SELECT count\(\*\)::int AS count FROM task\.assignees WHERE task_id = \$1 AND role = 'primary' AND is_active = true$/;
   // =========================================================================
   {
@@ -1124,7 +1124,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   const SELECT_ACTIVE_PRIMARY_FOR_UPDATE = /^SELECT employee_code FROM task\.assignees WHERE task_id = \$1 AND role = 'primary' AND is_active = true FOR UPDATE$/;
   const DEACTIVATE_RELATED = /^UPDATE task\.assignees SET is_active = false, deactivated_at = now\(\) WHERE task_id = \$1 AND employee_code = \$2 AND role = 'related' AND is_active = true$/;
   const DEACTIVATE_PRIMARY = /^UPDATE task\.assignees SET is_active = false, deactivated_at = now\(\) WHERE task_id = \$1 AND role = 'primary' AND is_active = true$/;
-  const INSERT_NEW_PRIMARY_ASSIGNEE = /^INSERT INTO task\.assignees \(task_id, employee_code, role, is_active, assigned_by_employee_code\)/;
+  const INSERT_NEW_PRIMARY_ASSIGNEE = /^INSERT INTO task\.assignees \(task_id, employee_code, role, is_active, assigned_by_employee_code, assigned_by_account_id\)/;
   const UPDATE_TASK_ROWVERSION_ONLY = /^UPDATE task\.tasks SET updated_at = now\(\), row_version = row_version \+ 1 WHERE id = \$1 RETURNING \*$/;
   const INSERT_EVENT_WITH_REASON = /^INSERT INTO task\.events \(task_id, event_type, actor_employee_code, actor_account_id, payload, reason\)/;
   // =========================================================================
@@ -1268,7 +1268,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   const RELATED_EXISTING_SELECT = /^SELECT \* FROM task\.assignees WHERE task_id = \$1 AND employee_code = \$2 AND role = 'related' AND is_active = true/;
   const EVENT_ID_LOOKUP = /^SELECT e\.id FROM task\.events e/;
   const INSERT_EVENTS_GENERIC = /^INSERT INTO task\.events/;
-  const INSERT_ASSIGNEES_RELATED = /^INSERT INTO task\.assignees \(task_id, employee_code, role, assigned_by_employee_code\)/;
+  const INSERT_ASSIGNEES_RELATED = /^INSERT INTO task\.assignees \(task_id, employee_code, role, assigned_by_employee_code, assigned_by_account_id\)/;
   // =========================================================================
   {
     // AR1) success — fresh insert (không có related active nào trước đó)
