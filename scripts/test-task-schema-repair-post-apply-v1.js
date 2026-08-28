@@ -42,6 +42,13 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 const core = require('../api/_lib/task-core');
 const perms = require('../api/_lib/task-permissions');
+const fixtures = require('./task-report-fixture-manifest');
+
+// Fixtures resolved by ROLE from the canonical manifest — never a hard-coded
+// CV-2608-00NN (see scripts/task-report-fixture-manifest.js).
+const MANIFEST = fixtures.load();
+const FX_FANOUT = fixtures.requireSemantic(MANIFEST, 'completedOnTimeCoordinatorFanout').task_code; // non-draft, primary PHF004, coordinators incl PHF082
+const FX_PRIMARY_PHF004 = MANIFEST.plans.B1.task_code;                                             // non-draft, primary PHF004, no transfer, no coordinators
 
 let passed = 0;
 function pass(condition, message) { assert.ok(condition, message); passed += 1; }
@@ -158,11 +165,11 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // draft-delete transaction (FIX 3 regression: the new bypass must be
   // scoped to task_delete_draft()'s own transaction, not a general opening).
   // Also doubles as "published task event history remains intact": A5
-  // (CV-2608-0011) is a real, pre-existing NON-draft fixture.
+  // (fan-out fixture) is a real, pre-existing NON-draft fixture.
   // =======================================================================
   {
-    const A5 = await taskByCode('CV-2608-0011');
-    pass(A5.status !== 'draft', 'FIX3: A5 (CV-2608-0011) confirmed NOT a draft — this is a real published-task history check, not a fresh throwaway fixture');
+    const A5 = await taskByCode(FX_FANOUT);
+    pass(A5.status !== 'draft', 'FIX3: A5 (fan-out fixture) confirmed NOT a draft — this is a real published-task history check, not a fresh throwaway fixture');
     const { data: existingEvents } = await supabase.from('task_events').select('id').eq('task_id', A5.id).limit(1);
     pass(Array.isArray(existingEvents) && existingEvents.length === 1, 'FIX3: A5 has at least one existing real event row to test against');
     const targetEventId = existingEvents[0].id;
@@ -216,7 +223,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // COMMENTS — real INSERT/UPDATE/DELETE against the repaired schema.
   // =======================================================================
   {
-    const A5 = await taskByCode('CV-2608-0011'); // primary=PHF004, coordinators include PHF082
+    const A5 = await taskByCode(FX_FANOUT); // primary=PHF004, coordinators include PHF082
     pass(A5.status !== 'draft', 'FIX3: A5 confirmed NOT a draft — the following comment append-only checks are a real published-task history regression, not a synthetic case');
     const inserted = await core.addTaskComment(session('PHF082'), A5.id, '[PERMISSION-HARDENING-TEST] post-apply coordinator comment');
     pass(!!inserted && !!inserted.id, 'COMMENT: coordinator INSERT succeeds (LOCK 1 existing capability, now unblocked by the schema repair)');
@@ -245,7 +252,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // extend).
   // =======================================================================
   {
-    const B1 = await taskByCode('CV-2608-0013'); // primary=PHF004
+    const B1 = await taskByCode(FX_PRIMARY_PHF004); // primary=PHF004
     const b1Assignees = await assigneesFor(B1.id);
     // PRE state: PHF012 (TRUONG_BO_PHAN, peopleScope=self+managed[PHF082]) cannot view B1 (primary=PHF004, not in PHF012's managed set).
     const preState = await perms.canViewTask(session('PHF012'), relationTaskFrom(B1), toRelAssignees(b1Assignees));
