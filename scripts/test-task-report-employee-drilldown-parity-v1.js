@@ -25,6 +25,7 @@
 
 const assert = require('assert');
 require('dotenv').config();
+require('./task-sandbox-guard'); // fail-closed: refuse to run unless SUPABASE_URL === PHF_HR sandbox
 const reporting = require('../api/_lib/task-reporting');
 
 let passed = 0;

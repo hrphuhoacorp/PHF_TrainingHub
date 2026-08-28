@@ -210,6 +210,7 @@ function fixtureEvent(overrides) {
   let backendPassed = 0;
   function backendPass(condition, message) { assert.ok(condition, message); backendPassed += 1; }
   require('dotenv').config();
+  require('./task-sandbox-guard'); // fail-closed: refuse to run unless SUPABASE_URL === PHF_HR sandbox
   const core = require(path.join(ROOT, 'api', '_lib', 'task-core'));
 
   // 9. Actor only sees events of tasks they're authorized to view.

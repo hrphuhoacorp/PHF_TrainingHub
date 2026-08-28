@@ -32,6 +32,12 @@
 
 const assert = require('assert');
 require('dotenv').config();
+// PHASE B (2026-08-28): post-incident, the canonical PHF Task dev/test target
+// is the SANDBOX project — NOT MAIN (byhpcexmjzqpctyvfczd). The migrations this
+// script verifies must be re-applied to SANDBOX (deployer SQL package) before
+// this runs green there. Fail-closed on any non-sandbox target; to re-verify a
+// migration landed on MAIN, do it deliberately outside this script.
+require('./task-sandbox-guard');
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 const core = require('../api/_lib/task-core');
