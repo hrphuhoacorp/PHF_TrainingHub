@@ -17,6 +17,7 @@
 
 const assert = require('assert');
 require('dotenv').config();
+require('./task-sandbox-guard'); // fail-closed: refuse to run unless SUPABASE_URL === PHF_HR sandbox
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 const perms = require('../api/_lib/task-permissions');
