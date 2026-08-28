@@ -216,11 +216,27 @@ node scripts/test-task-report-ui-fixture-seed-today.js --rebuild-manifest-only  
 # then the full Phase B regression sweep
 ```
 
-## 12. STATUS
+## 12. STATUS — PHASE C REAL PARITY FULL PASS (deployer SQL rev 2 applied 2026-08-28)
 
-- **Employee/account/permission master data:** SANDBOX ⇔ MAIN — **0 missing, 0 drift** on every real row; **active permission state exact** (assignments 8⇔8, grants 0⇔0).
-- **Test users:** permission rows neutralised now (0 active test); identity rows + FK-clean test assignments hard-deleted by one deployer paste; history-locked test assignments retained inert + documented.
-- **Production credentials:** not copied. MAIN mutations: **0**.
-- **Real personas:** 29/29 PASS.
-- **Task demo data:** retained, working.
-- **Phase B regression:** GREEN.
+Deployer ran `scripts/PHF_TASK_PHASE_C_REMOVE_TEST_IDENTITIES.sql` rev 2 on
+SANDBOX. Full post-apply verification (this session):
+
+| Check | Result |
+|---|---|
+| employee_profiles | **39** ✅ (expect 39) |
+| user_accounts | **40** ✅ (expect 40) |
+| employees (legacy Hub) | **39** ✅ (expect 39) |
+| task_permission_assignments — active | **8** ✅ (expect 8) |
+| task_permission_assignments — active TEST rows | **0** ✅ |
+| task_permission_assignments — total | 13 (9 real + 4 history-locked inert test — retained for audit) |
+| task_permission_grants — active | **0** ✅ |
+| Task demo `[REPORT-UI-TEST]` | **37** ✅ |
+| leftover test employee_profiles / `@test.local` accounts | **0 / 0** ✅ |
+| retained-inert TEST assignments (`PARITY_TEST_E01/E07/E08/E09`) | `is_active=false` + `effective_to` set ✅ |
+| **MAIN read-only parity** — employee_profiles / user_accounts / task_permission_assignments (real UUIDs) / grants / employees | **every real row MATCH, 0 missing, 0 drift, 0 extra** ✅ |
+| real-persona permission suite | **29/29 PASS** ✅ |
+| Phase B regression (23 Task suites + 12 support) | **all GREEN** ✅ |
+| MAIN mutations | **0** ✅ |
+| audit/history rows | untouched ✅ |
+
+**PHASE C — REAL PARITY FULL PASS / BASELINE CLEAN / READY TO BUILD TASK.**
