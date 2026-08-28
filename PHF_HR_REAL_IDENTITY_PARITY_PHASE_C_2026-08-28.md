@@ -122,15 +122,52 @@ after Task is complete.
 
 ---
 
-## 9. EXCEPTIONS
+## 9. PHASE C EXIT CRITERIA (revised 2026-08-28 after the history-FK finding)
+
+Physical row-count equality with MAIN is **not** an exit criterion — audit /
+history rows must never be deleted, and every test permission row is
+history-referenced. Exit criteria are:
+
+1. **Real rows exact** — every real MAIN `employee_profiles` / `user_accounts`
+   / `task_permission_assignments` row present in SANDBOX, byte-identical. ✅
+2. **Active permission state exact** — SANDBOX active `task_permission_assignments`
+   == MAIN (8), active `task_permission_grants` == MAIN (0). ✅
+3. **Historical test assignments inert and documented** — every test
+   `task_permission_assignments` row that a history FK forbids deleting is
+   `is_active=false` + `effective_to` past, excluded from every parity
+   active-count check, and listed here. ✅ (§ Rows retained for audit)
+4. Real-persona permission verification PASS. ✅ (29/29)
+5. Task demo corpus retained + Phase B regression GREEN. ✅
+6. MAIN: 0 mutation. ✅
+
+## 10. EXCEPTIONS
 
 | # | Exception | Reason | Resolution |
 |---|---|---|---|
-| C-1 | 12 `employee_profiles` + 4 `user_accounts` + 2 `employees` test rows still physically present | service_role has SELECT/INSERT only (no UPDATE/DELETE) on SANDBOX identity tables — a deliberate lockdown | `scripts/PHF_TASK_PHASE_C_REMOVE_TEST_IDENTITIES.sql` — one deployer paste (SANDBOX only, preflight-guarded) |
-| C-2 | 4 test `task_permission_assignments` rows present but `is_active=false` | same DELETE lockdown | same deployer SQL hard-deletes them |
-| C-3 | 5 inactive `task_permission_grants` rows remain | `task_permission_grant_history` FK (ON DELETE RESTRICT) | inert (`is_active=false`), 0 active — functional parity holds; leave |
+| C-1 | 12 `employee_profiles` + 4 `user_accounts` + 2 `employees` test rows still physically present | service_role has SELECT/INSERT only (no UPDATE/DELETE) on SANDBOX identity tables — a deliberate lockdown; no delete RPC exists | `scripts/PHF_TASK_PHASE_C_REMOVE_TEST_IDENTITIES.sql` rev 2 — one deployer paste (SANDBOX only, preflight-guarded, FK-safe). These are FK-clean (HR sub-tables absent on SANDBOX) → hard-deleted. |
+| C-2 | 4 test `task_permission_assignments` — **history-FK-locked** (`task_permission_assignment_history_assignment_id_fkey`, ON DELETE RESTRICT) | audit history must never be deleted | **retained permanently inert** (`is_active=false` + `effective_to`=now). Excluded from active-count parity (which matches MAIN exactly at 8). Deployer SQL rev 2 hard-deletes only test assignments with **no** history row. |
+| C-3 | 5 inactive `task_permission_grants` rows remain | `task_permission_grant_history` FK (ON DELETE RESTRICT) | inert (`is_active=false`), 0 active — active-state parity holds; retained for audit |
 | C-4 | `CV-2608-0001/0002` remain as cancelled orphan tasks | published + append-only events + LOCK 4 forbid hard-delete; no FK from `created_by_employee_code` | cancelled + assignees deactivated — harmless |
 | C-5 | `checklist_permission_grants` table missing on SANDBOX (MAIN has 8) | needed by `org-directory` (Checklist module), **NOT** by the Task permission path | out of Phase C (Task) scope; note for Checklist-module work |
+
+## ROWS THAT WILL BE HARD-DELETED (deployer SQL rev 2)
+
+| Table | Rows | Filter |
+|---|---|---|
+| `task_permission_assignments` | test rows **with no history child** (0–4, determined at apply time) | `employee_code` `PARITY_TEST_*` / `ZTEST*` / `LOCAL-PARITY-ADMIN` AND no `task_permission_assignment_history` |
+| `user_accounts` | 4 | `email ilike '%@test.local'` OR test `employee_code` |
+| `employee_profiles` | 12 | `employee_code` `PARITY_TEST_E01..E10`, `ZTEST-MGR`, `ZTEST-SUBJ` |
+| `employees` (legacy Hub) | 2 | `id IN ('ZTEST-MGR','ZTEST-SUBJ')` |
+
+## ROWS RETAINED FOR AUDIT (never deleted)
+
+| Table | Rows | Made inert | Why kept |
+|---|---|---|---|
+| `task_permission_assignments` | test rows **with** a history child (up to 4: `PARITY_TEST_E01/E07/E08/E09`) | `is_active=false` + `effective_to`=now | `task_permission_assignment_history` FK ON DELETE RESTRICT — audit trail |
+| `task_permission_assignment_history` | all rows | — | audit; never touched |
+| `task_permission_grants` | 5 inactive | already `is_active=false` (session) | `task_permission_grant_history` FK |
+| `task_permission_grant_history` | all rows | — | audit; never touched |
+| `task_events` for `CV-2608-0001/0002` | 2 | — | append-only; task cancelled |
 
 ---
 
@@ -145,10 +182,44 @@ after Task is complete.
 
 ---
 
-## 11. STATUS
+## EXPECTED COUNTS AFTER APPLY (deployer SQL rev 2)
 
-- **Employee/account/permission master data:** SANDBOX ⇔ MAIN — **0 missing, 0 drift** on every real row. **REAL PARITY: functionally exact now; count-exact after deployer SQL C-1/C-2.**
-- **Test users:** permission rows neutralised now; identity rows removed by one deployer paste.
+| Table | Before | After | MAIN | Note |
+|---|---|---|---|---|
+| `employee_profiles` | 51 | **39** | 39 | exact |
+| `user_accounts` | 44 | **40** | 40 | exact |
+| `employees` (legacy Hub) | 41 | **39** | 39 | exact |
+| `task_permission_assignments` total | 13 | **9–13** | 9 | 9 real + 0–4 history-locked inert test (audit) |
+| `task_permission_assignments` **active** | 8 | **8** | 8 | exact — the parity criterion |
+| `task_permission_assignments` active test rows | 0 | **0** | — | exact |
+| `task_permission_grants` **active** | 0 | **0** | 0 | exact |
+| `task_tasks` `[REPORT-UI-TEST]` demo corpus | 37 | **37** | — | untouched |
+
+## POST-APPLY VERIFY COMMANDS
+
+```sql
+select count(*) from public.employee_profiles;                                        -- 39
+select count(*) from public.user_accounts;                                            -- 40
+select count(*) from public.employees;                                                -- 39
+select count(*) filter (where is_active) as active, count(*) as total
+  from public.task_permission_assignments;                                            -- active 8 ; total 9..13
+select count(*) from public.task_permission_assignments
+ where (employee_code like 'PARITY\_TEST\_%' escape '\' or employee_code like 'ZTEST%')
+   and is_active;                                                                     -- 0
+select count(*) filter (where is_active) from public.task_permission_grants;          -- 0
+select count(*) from public.task_tasks where title ilike '%[REPORT-UI-TEST]%';        -- 37
+```
+```bash
+PHF_MAIN_SUPABASE_URL=... PHF_MAIN_SUPABASE_SECRET_KEY=... node scripts/task-main-readonly-mirror-dev.js   # every real row MATCH
+node scripts/test-task-real-persona-permission-v1.js                                                       # 29/29 PASS
+node scripts/test-task-report-ui-fixture-seed-today.js --rebuild-manifest-only                             # corpus 37
+# then the full Phase B regression sweep
+```
+
+## 12. STATUS
+
+- **Employee/account/permission master data:** SANDBOX ⇔ MAIN — **0 missing, 0 drift** on every real row; **active permission state exact** (assignments 8⇔8, grants 0⇔0).
+- **Test users:** permission rows neutralised now (0 active test); identity rows + FK-clean test assignments hard-deleted by one deployer paste; history-locked test assignments retained inert + documented.
 - **Production credentials:** not copied. MAIN mutations: **0**.
 - **Real personas:** 29/29 PASS.
 - **Task demo data:** retained, working.
