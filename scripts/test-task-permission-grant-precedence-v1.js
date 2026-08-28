@@ -23,6 +23,11 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SEC
 const perms = require('../api/_lib/task-permissions');
 const { loadOrgRows } = require('../api/_lib/task-employee-scope');
 const core = require('../api/_lib/task-core');
+const fixtures = require('./task-report-fixture-manifest');
+const MANIFEST = fixtures.load();
+// A task whose primary is PHF004 and stays PHF004 (no transfer), used as the
+// "outside the [PHF082] restriction" subject. Resolved by role from the manifest.
+const PRIMARY_PHF004_CODE = MANIFEST.plans.B1.task_code; // completed_late, primary=PHF004, no coordinators
 
 let passed = 0;
 let liveIds = []; // module-scope so the fail-path cleanup handler can always reach whatever is in-flight
@@ -182,14 +187,22 @@ function grant(overrides) {
     if (error) throw error;
     return data;
   }
+  // Canonical revoke IS soft (is_active=false) — see
+  // PHF_TASK_SERVICE_ROLE_PRIVILEGES_1.72.2.sql: service_role has NO DELETE on
+  // task_permission_grants by design. Prefer a real hard DELETE when the
+  // environment grants it (SANDBOX parity package), fall back to the canonical
+  // soft revoke otherwise — either way the fixture stops affecting scope.
   async function deleteGrants(ids) {
     for (const id of ids) {
       const res = await supabase.from('task_permission_grants').delete().eq('id', id).select('*');
-      if (res.error) throw res.error;
+      if (!res.error) continue;
+      if (res.error.code !== '42501') throw res.error;
+      const soft = await supabase.from('task_permission_grants').update({ is_active: false }).eq('id', id).select('*');
+      if (soft.error) throw soft.error;
     }
   }
-  async function currentPhf012Grants() {
-    const { data } = await supabase.from('task_permission_grants').select('id').eq('grantee_employee_code', 'PHF012');
+  async function currentActivePhf012Grants() {
+    const { data } = await supabase.from('task_permission_grants').select('id').eq('grantee_employee_code', 'PHF012').eq('is_active', true);
     return data || [];
   }
 
@@ -287,7 +300,7 @@ function grant(overrides) {
   // và Report engine dùng chung" — single code path, not per-surface logic).
   // -------------------------------------------------------------------
   {
-    const B1 = (await supabase.from('task_tasks').select('*').eq('task_code', 'CV-2608-0013').single()).data; // primary=PHF004
+    const B1 = (await supabase.from('task_tasks').select('*').eq('task_code', PRIMARY_PHF004_CODE).single()).data; // primary=PHF004 (manifest B1)
     const b1Assignees = (await supabase.from('task_assignees').select('*').eq('task_id', B1.id)).data || [];
     const relTask = { createdByAccountId: B1.created_by_account_id, createdByEmployeeCode: B1.created_by_employee_code };
     const relAssignees = b1Assignees.map(r => ({ employeeCode: r.employee_code, role: r.role, isActive: r.is_active }));
@@ -299,7 +312,7 @@ function grant(overrides) {
     pass(await perms.canViewTask(session('PHF012'), relTask, relAssignees) === false, 'PARITY 1/canViewTask: PHF012 correctly DENIED view on B1 (primary=PHF004, outside the restricted [PHF082] boundary) despite the broader extend also being active');
 
     const listResult = await core.listTasks(session('PHF012'), { relation: 'received' });
-    const leaked = (listResult.tasks || []).some(t => t.id === B1.id || t.task_code === 'CV-2608-0013');
+    const leaked = (listResult.tasks || []).some(t => t.id === B1.id || t.task_code === PRIMARY_PHF004_CODE);
     pass(!leaked, 'PARITY 2/listTasks (also covers Calendar/Timeline/Report — same resolveAuthorizedTaskScope() choke point): B1 does NOT leak through the list surface for PHF012');
 
     await assert.rejects(() => core.getTaskDetail(session('PHF012'), B1.id), e => e.statusCode === 403 || e.statusCode === 404);
@@ -312,22 +325,25 @@ function grant(overrides) {
   // -------------------------------------------------------------------
   // FINAL CLEANUP VERIFICATION + BASELINE POST.
   // -------------------------------------------------------------------
-  const remaining = await currentPhf012Grants();
-  pass(remaining.length === 0, 'CLEANUP: zero task_permission_grants rows remain for PHF012 — every temporary fixture this gate created has been removed');
+  const remaining = await currentActivePhf012Grants();
+  pass(remaining.length === 0, 'CLEANUP: zero ACTIVE task_permission_grants remain for PHF012 — every temporary fixture this gate created has been revoked (hard DELETE where granted, canonical soft is_active=false otherwise)');
 
   const baselinePost = await perms.resolveEffectiveTaskScope(session('PHF012'));
   pass(JSON.stringify(baselinePost.scope) === JSON.stringify(baselinePre.scope), 'BASELINE POST: PHF012 effective scope byte-identical to the PRE-gate baseline — actor genuinely returned to exactly where it started');
 
-  const { count: reportFixtureCount } = await supabase.from('task_tasks').select('id', { count: 'exact', head: true }).ilike('title', '%[REPORT-UI-TEST]%');
-  pass(reportFixtureCount === 37, '37/37 [REPORT-UI-TEST] fixtures untouched by this gate');
+  const reportFixtureCount = await fixtures.liveReportFixtureCount(supabase);
+  pass(reportFixtureCount === MANIFEST.counts.created, MANIFEST.counts.created + ' [REPORT-UI-TEST] fixtures untouched by this gate (manifest-derived)');
 
   console.log(`PHF Task Permission Grant Precedence Fix V1: ${passed}/${passed} PASS`);
 })().catch(async err => {
   console.error('FAIL', err);
   try {
     if (liveIds.length) {
-      for (const id of liveIds) await supabase.from('task_permission_grants').delete().eq('id', id);
-      console.error('FAIL-PATH CLEANUP: removed in-flight fixture grant IDs:', liveIds);
+      for (const id of liveIds) {
+        const r = await supabase.from('task_permission_grants').delete().eq('id', id).select('*');
+        if (r.error && r.error.code === '42501') await supabase.from('task_permission_grants').update({ is_active: false }).eq('id', id);
+      }
+      console.error('FAIL-PATH CLEANUP: revoked in-flight fixture grant IDs:', liveIds);
     }
   } catch (cleanupErr) {
     console.error('FAIL-PATH CLEANUP ALSO FAILED (manual check required):', cleanupErr);

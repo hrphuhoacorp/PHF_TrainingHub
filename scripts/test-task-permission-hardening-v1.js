@@ -34,6 +34,15 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 const core = require('../api/_lib/task-core');
 const perms = require('../api/_lib/task-permissions');
+const fixtures = require('./task-report-fixture-manifest');
+
+// Fixtures resolved by ROLE from the canonical manifest (never a hard-coded
+// CV-2608-00NN — see scripts/task-report-fixture-manifest.js).
+const MANIFEST = fixtures.load();
+const FX_COMPLETED = MANIFEST.plans.A1.task_code;                                        // non-draft (completed), creator PHF010
+const FX_FANOUT = fixtures.requireSemantic(MANIFEST, 'completedOnTimeCoordinatorFanout').task_code; // primary PHF004, coordinators incl PHF082
+const FX_PRIMARY_PHF004 = MANIFEST.plans.B1.task_code;                                   // primary PHF004, no transfer, no coordinators
+const FX_PRIMARY_PHF012 = MANIFEST.plans.F6.task_code;                                   // primary PHF012 (not covered by a PHF004-scoped grant)
 
 let passed = 0;
 function pass(condition, message) { assert.ok(condition, message); passed += 1; }
@@ -108,23 +117,45 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // is STILL active, not that it was newly added).
   // =======================================================================
   {
+    // LOCK 4 is defended by TWO independent layers; which one is load-bearing
+    // depends on whether service_role currently holds table DELETE privilege:
+    //   (a) PHF_TASK_SERVICE_ROLE_PRIVILEGES_1.72.2.sql withholds DELETE on
+    //       task_tasks from service_role entirely — no hard-delete is possible
+    //       at all, period.
+    //   (b) IF a DELETE privilege is granted (e.g. the SANDBOX parity package,
+    //       or MAIN's out-of-band grant), the task_tasks_guard_delete trigger
+    //       still blocks any non-draft row and allows draft-only.
+    // Probe the privilege, then assert the layer that actually applies.
+    const probe = await supabase.from('task_tasks').delete().eq('id', '00000000-0000-4000-8000-000000000000').select('id');
+    const hasDeletePriv = !(probe.error && probe.error.code === '42501');
+
     const draft = await core.createTaskDraft(session('PHF010'), {
       flowType: 'giao_viec', title: '[PERMISSION-HARDENING-TEST] lock4-draft-delete-allowed',
       content: 'Regression fixture — LOCK 4 draft-delete-allowed check.',
       categoryCode: 'NHAN_SU', priority: 'thuong', startAt: null, deadline: futureDeadline(48), primaryEmployeeCode: 'PHF010'
     });
-    const rawDeleteDraft = await supabase.from('task_tasks').delete().eq('id', draft.id).select('*');
-    pass(!rawDeleteDraft.error && rawDeleteDraft.data.length === 1, 'LOCK4: raw DELETE on a DRAFT row succeeds (DB trigger allows draft-only hard-delete)');
-
     const draft2 = await core.createTaskDraft(session('PHF010'), {
       flowType: 'giao_viec', title: '[PERMISSION-HARDENING-TEST] lock4-published-delete-blocked',
       content: 'Regression fixture — LOCK 4 published-delete-blocked check.',
       categoryCode: 'NHAN_SU', priority: 'thuong', startAt: null, deadline: futureDeadline(48), primaryEmployeeCode: 'PHF010'
     });
     const published2 = await core.publishTask(session('PHF010'), draft2.id, draft2.row_version);
-    const rawDeletePublished = await supabase.from('task_tasks').delete().eq('id', published2.id).select('*');
-    pass(!!rawDeletePublished.error, 'LOCK4: raw DELETE on a PUBLISHED row is rejected by the existing DB trigger, independent of any application code path');
-    // Cleanup via the only legitimate path left for a non-draft task: Cancel.
+
+    if (hasDeletePriv) {
+      const rawDeleteDraft = await supabase.from('task_tasks').delete().eq('id', draft.id).select('*');
+      pass(!rawDeleteDraft.error && rawDeleteDraft.data.length === 1, 'LOCK4 (layer b, DELETE priv present): raw DELETE on a DRAFT row succeeds — trigger allows draft-only hard-delete');
+      const rawDeletePublished = await supabase.from('task_tasks').delete().eq('id', published2.id).select('*');
+      pass(!!rawDeletePublished.error, 'LOCK4 (layer b): raw DELETE on a PUBLISHED row is rejected by the task_tasks_guard_delete trigger, independent of any application code path');
+    } else {
+      const rawDeleteDraft = await supabase.from('task_tasks').delete().eq('id', draft.id).select('*');
+      pass(!!rawDeleteDraft.error && rawDeleteDraft.error.code === '42501', 'LOCK4 (layer a, canonical 1.72.2): service_role has NO DELETE on task_tasks — hard-delete is impossible for ANY row, draft or not (stronger than the trigger)');
+      const rawDeletePublished = await supabase.from('task_tasks').delete().eq('id', published2.id).select('*');
+      pass(!!rawDeletePublished.error && rawDeletePublished.error.code === '42501', 'LOCK4 (layer a): raw DELETE on a PUBLISHED row is also rejected at the privilege layer, before the trigger is even reached');
+      // draft fixture cannot be hard-deleted here; cancel it too so nothing dangles.
+      const dpub = await core.publishTask(session('PHF010'), draft.id, draft.row_version);
+      await core.cancelTask(session('PHF010'), dpub.id, dpub.row_version, 'Cleanup — LOCK 4 draft fixture (no DELETE priv in this environment).');
+    }
+    // Cleanup the published fixture via the only legitimate path for a non-draft task: Cancel.
     const cancelled = await core.cancelTask(session('PHF010'), published2.id, published2.row_version, 'Cleanup — Permission Hardening LOCK 4 regression fixture.');
     pass(cancelled.status === 'cancelled', 'LOCK4: cleanup via real Cancel action succeeds (the fixture is left cancelled, not deleted — that IS the locked behavior)');
   }
@@ -160,13 +191,21 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
       content: 'Regression fixture — LOCK 3 creator-authorized-path check.',
       categoryCode: 'NHAN_SU', priority: 'thuong', startAt: null, deadline: futureDeadline(48), primaryEmployeeCode: 'PHF010'
     });
+    let draft4Deleted = false;
     try {
       await core.deleteTaskDraft(session('PHF010'), draft4.id, draft4.row_version);
-      pass(true, 'LOCK3: real creator + real draft succeeded end-to-end (migration is applied)');
+      pass(true, 'LOCK3: real creator + real draft succeeded end-to-end (task_delete_draft RPC live + DELETE priv present)');
+      draft4Deleted = true;
     } catch (e) {
-      pass(e.code !== 'TASK_DELETE_DRAFT_DENIED' && e.code !== 'TASK_NOT_DRAFT', 'LOCK3: real creator + real draft passes ALL authorization checks — only fails at the not-yet-applied RPC layer (code=' + e.code + '), never at an authorization gate');
+      pass(e.code !== 'TASK_DELETE_DRAFT_DENIED' && e.code !== 'TASK_NOT_DRAFT', 'LOCK3: real creator + real draft passes ALL authorization checks — only fails at the RPC/privilege layer (code=' + e.code + '), never at an authorization gate');
+    }
+    if (!draft4Deleted) {
       const cleanupDraft4 = await supabase.from('task_tasks').delete().eq('id', draft4.id).select('*');
-      pass(!cleanupDraft4.error, 'LOCK3: draft4 fixture removed via raw delete (still draft — DB trigger allows it, migration-independent cleanup path)');
+      if (cleanupDraft4.error) { // no DELETE priv — publish+cancel so nothing dangles
+        const p4 = await core.publishTask(session('PHF010'), draft4.id, draft4.row_version);
+        await core.cancelTask(session('PHF010'), p4.id, p4.row_version, 'Cleanup — LOCK 3 draft4 fixture (no DELETE priv).');
+      }
+      pass(true, 'LOCK3: draft4 fixture cleaned up (hard delete where privileged, else publish+cancel)');
     }
   }
 
@@ -176,7 +215,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // fail, so no data changes and no new fixture rows are needed.
   // =======================================================================
   {
-    const A1 = await taskByCode('CV-2608-0007'); // real fixture, status=completed
+    const A1 = await taskByCode(FX_COMPLETED); // real fixture, status=completed
     await assert.rejects(() => core.updateTaskDraft(session('PHF010'), A1.id, A1.row_version, { title: 'HACKED TITLE ATTEMPT' }), e => e.code === 'TASK_NOT_DRAFT');
     pass(true, 'LOCK2: real creator cannot edit title on a non-draft (completed) task');
 
@@ -184,7 +223,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
     await assert.rejects(() => core.updateTaskDraft(adminSession(adminId), A1.id, A1.row_version, { title: 'ADMIN HACKED TITLE' }), e => e.code === 'TASK_NOT_DRAFT');
     pass(true, 'LOCK2: real Admin account ALSO cannot edit a non-draft task — immutability applies to Admin too, no role bypass');
 
-    const recheck = await taskByCode('CV-2608-0007');
+    const recheck = await taskByCode(FX_COMPLETED);
     pass(recheck.title === A1.title, 'LOCK2: title genuinely unchanged in the DB after both attack attempts');
 
     const deadlineChanged = await core.changeTaskDeadline(session('PHF010'), A1.id, A1.row_version, futureDeadline(72), 'Permission Hardening regression — verify dedicated deadline action still works.');
@@ -199,7 +238,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // include PHF082).
   // =======================================================================
   {
-    const A5 = await taskByCode('CV-2608-0011');
+    const A5 = await taskByCode(FX_FANOUT);
     const a5Assignees = await assigneesFor(A5.id);
     const relation = await perms.classifyTaskRelation('PHF082', relationTaskFrom(A5), toRelAssignees(a5Assignees));
     pass(relation === 'related', 'LOCK1: PHF082 relation to A5 is "related" (coordinator), confirmed real fixture shape');
@@ -228,7 +267,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
   // fixture, fully cleaned up, pre/post state verified identical.
   // =======================================================================
   {
-    const B1 = await taskByCode('CV-2608-0013');
+    const B1 = await taskByCode(FX_PRIMARY_PHF004);
     const b1Assignees = await assigneesFor(B1.id);
     const preState = await perms.canViewTask(session('PHF082'), relationTaskFrom(B1), toRelAssignees(b1Assignees));
     pass(preState === false, 'GRANT: PRE state — PHF082 cannot view B1 before any grant');
@@ -244,7 +283,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
 
     pass(await perms.canViewTask(session('PHF082'), relationTaskFrom(B1), toRelAssignees(b1Assignees)) === true, 'GRANT extend: PHF082 CAN now view B1 (primary=PHF004) after the grant');
 
-    const F6 = await taskByCode('CV-2608-0027'); // primary=PHF012, NOT covered by the PHF004-scoped grant
+    const F6 = await taskByCode(FX_PRIMARY_PHF012); // primary=PHF012, NOT covered by the PHF004-scoped grant
     const f6Assignees = await assigneesFor(F6.id);
     pass(await perms.canViewTask(session('PHF082'), relationTaskFrom(F6), toRelAssignees(f6Assignees)) === false, 'GRANT extend: PHF082 still CANNOT view a different employee (PHF012) task not covered by the grant — no over-reach beyond the grant scope');
 
@@ -258,7 +297,12 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
     pass(true, 'GRANT client-override: a non-admin actor cannot create a permission grant via the real action handler');
 
     const cleanupGrant = await supabase.from('task_permission_grants').delete().eq('id', grantId).select('*');
-    pass(!cleanupGrant.error && cleanupGrant.data.length === 1, 'GRANT cleanup: temporary grant fixture row removed');
+    if (cleanupGrant.error && cleanupGrant.error.code === '42501') {
+      await supabase.from('task_permission_grants').update({ is_active: false }).eq('id', grantId); // canonical soft revoke
+      pass(true, 'GRANT cleanup: temporary grant fixture revoked (canonical is_active=false — service_role has no DELETE on task_permission_grants per 1.72.2)');
+    } else {
+      pass(!cleanupGrant.error && cleanupGrant.data.length === 1, 'GRANT cleanup: temporary grant fixture row hard-deleted');
+    }
     pass(await perms.canViewTask(session('PHF082'), relationTaskFrom(B1), toRelAssignees(b1Assignees)) === false, 'GRANT POST state: identical to PRE state after cleanup');
   }
 
@@ -270,7 +314,7 @@ function futureDeadline(hours) { return new Date(Date.now() + hours * 3600e3).to
     const adminRow = (await supabase.from('user_accounts').select('id').eq('role', 'admin').limit(1).single()).data;
     const adminCtx = await perms.resolveEffectiveTaskScope(adminSession(adminRow.id));
     pass(adminCtx.actorContext.actorType === 'admin' && adminCtx.scope.peopleScope.type === 'all_company', 'ADMIN: real admin account resolves actorType=admin, peopleScope=all_company');
-    const B1b = await taskByCode('CV-2608-0013');
+    const B1b = await taskByCode(FX_PRIMARY_PHF004);
     const b1bAssignees = await assigneesFor(B1b.id);
     pass(await perms.canViewTask(adminSession(adminRow.id), relationTaskFrom(B1b), toRelAssignees(b1bAssignees)) === true, 'ADMIN: real admin can view an arbitrary task');
     await assert.rejects(() => core.updateTaskProgress(adminSession(adminRow.id), B1b.id, B1b.row_version, 10, 'dang_thuc_hien'), e => e.code === 'TASK_PROGRESS_ACTOR_DENIED');

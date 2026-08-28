@@ -1,92 +1,94 @@
--- PHF_TASK_SANDBOX_PARITY_PHASE_B.sql
--- Gate: PHASE B — ENVIRONMENT CLEANUP / HARDENING (2026-08-28)
---
 -- ============================================================================
--- APPLY TARGET:  SANDBOX ONLY  — project ref pxkjvawdrixgoukhyvnk
--- DO NOT APPLY TO MAIN (byhpcexmjzqpctyvfczd).
+-- PHF_TASK_SANDBOX_PARITY_PHASE_B.sql   —   ONE COPY/PASTE BLOCK FOR DEPLOYER
 -- ============================================================================
+-- APPLY TARGET:  SANDBOX ONLY  —  Supabase project ref  pxkjvawdrixgoukhyvnk
+-- DO NOT APPLY TO MAIN  (byhpcexmjzqpctyvfczd).
 --
--- WHY THIS FILE EXISTS
--- Phase B repointed all local dev/test (repo-root .env) from MAIN -> SANDBOX
--- and fail-closed-guarded every real-DB Task script. Running the live Task
--- regression against SANDBOX then surfaced the exact ways SANDBOX's schema/
--- privilege state differs from the (drifted) MAIN state the suites were
--- historically run against. This package closes the gaps that are safe and
--- in-scope for SANDBOX.
+-- Paste this entire file into the SANDBOX project's Supabase SQL Editor and
+-- run once. It is a single transaction, fully idempotent, additive only, no
+-- business-rule change, no data migration, no existing row touched.
 --
--- Probed live on SANDBOX via PostgREST (2026-08-28), service_role key:
---   ALREADY PRESENT on SANDBOX (no action needed):
---     - task_create_draft / task_update_progress / task_delete_draft RPCs
---     - task_comments.author_account_id, task_tasks.created_by_account_id,
---       task_events.actor_account_id  (=> 1.73.0 + the critical part of
---       1.74.0 already applied)
---     - service_role: SELECT/INSERT/UPDATE on all task_* tables
---   MISSING on SANDBOX (this file fixes):
---     1. service_role has NO DELETE on task_tasks / task_permission_grants
---        -> task_delete_draft() raises 42501; the permission-hardening and
---        grant-precedence suites' fixture cleanup raises 42501.
---        NOTE: PHF_TASK_SERVICE_ROLE_PRIVILEGES_1.72.2.sql DELIBERATELY
---        withholds DELETE here. MAIN must currently carry an out-of-band
---        DELETE grant (task_delete_draft is a live production UI feature).
---        The clean long-term fix is to make task_delete_draft SECURITY
---        DEFINER — tracked as a cutover follow-up. For SANDBOX test parity
---        we grant DELETE narrowly, matching de-facto MAIN.
---     2. 1.75.0 (task_events draft-scoped forbid trigger) — could not be
---        probed because (1) blocked the delete path; apply idempotently.
---
--- Everything below is additive / idempotent. No business rule changes.
--- Wrap-in-transaction; review RAISE NOTICEs.
+-- WHAT IT DOES (all verified needed by live PostgREST probe on SANDBOX,
+-- 2026-08-28 — SANDBOX already has 1.73.0 + the critical 1.74.0 columns +
+-- every task_* RPC):
+--   1. Grants service_role DELETE on task_tasks + task_permission_grants.
+--      (PHF_TASK_SERVICE_ROLE_PRIVILEGES_1.72.2.sql deliberately withheld
+--      these; MAIN carries them out-of-band, and task_delete_draft() — a
+--      live production UI feature — needs task_tasks DELETE to function.
+--      Long-term fix tracked separately: make task_delete_draft SECURITY
+--      DEFINER. For SANDBOX regression parity we grant them narrowly.)
+--   2. Applies PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0 (task_events
+--      draft-scoped forbid trigger) inline — idempotent.
+--   3. Removes the one inert probe draft Phase B left behind.
+-- ============================================================================
 
 begin;
 
 -- ---------------------------------------------------------------------------
--- 0) PREFLIGHT — confirm we are on SANDBOX, not MAIN.
+-- 0) PREFLIGHT — abort if this is not SANDBOX. SANDBOX holds only a small
+--    handful of real task rows; MAIN holds the live production corpus.
 -- ---------------------------------------------------------------------------
 do $$
-declare
-  v_db text := current_database();
+declare v_n bigint;
 begin
-  -- Supabase project ref is not exposed in-DB; guard on a SANDBOX-only marker
-  -- instead: SANDBOX has <= a handful of real task rows, MAIN has the live
-  -- production corpus. Abort if task_tasks looks like production.
-  if (select count(*) from public.task_tasks) > 500 then
-    raise exception 'PREFLIGHT ABORT: task_tasks has % rows — this looks like MAIN/production, not SANDBOX. DO NOT APPLY.', (select count(*) from public.task_tasks);
+  select count(*) into v_n from public.task_tasks
+   where coalesce(title,'') not like '[%TEST%]' and coalesce(title,'') not like '[REPORT-UI-TEST]%';
+  if v_n > 200 then
+    raise exception 'PREFLIGHT ABORT: % non-test task rows — this looks like MAIN/production, not SANDBOX. Nothing applied.', v_n;
   end if;
-  raise notice 'PREFLIGHT OK — task_tasks row count is small, treating as SANDBOX (db=%).', v_db;
+  raise notice 'PREFLIGHT OK — % non-test task rows, treating as SANDBOX.', v_n;
 end $$;
 
 -- ---------------------------------------------------------------------------
--- 1) SANDBOX test-parity DELETE grants (see NOTE above — narrow, SANDBOX only)
+-- 1) SANDBOX test-parity DELETE grants (SANDBOX only — see header).
 -- ---------------------------------------------------------------------------
 grant delete on table public.task_tasks             to service_role;
 grant delete on table public.task_permission_grants to service_role;
 
 -- ---------------------------------------------------------------------------
--- 2) 1.75.0 — task_events draft-scoped forbid trigger (idempotent re-apply).
---    Source of truth: scripts/PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0.sql
---    Paste that file's body here VERBATIM if the trigger/function below is
---    not already the draft-scoped version. (Left as an explicit deployer
---    step rather than duplicated, so the canonical file stays the single
---    source — run 1.75.0 then 1.75.0 is idempotent by design.)
+-- 2) PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0 — task_events append-only
+--    trigger, draft-cascade-aware. Verbatim from
+--    scripts/PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0.sql. Idempotent.
 -- ---------------------------------------------------------------------------
-\echo '>>> Now run scripts/PHF_TASK_PERMISSION_HARDENING_FIX_1.75.0.sql against SANDBOX (idempotent).'
+create or replace function public.task_events_forbid_mutation() returns trigger as $$
+begin
+  if tg_op = 'UPDATE' then
+    raise exception 'PHF Task: bảng task_events là append-only — không cho phép UPDATE (Z-51).'
+      using errcode = '0A000';
+  end if;
+  if current_setting('phf_task.delete_draft_task_id', true) is not null
+     and current_setting('phf_task.delete_draft_task_id', true) = old.task_id::text then
+    return old;
+  end if;
+  raise exception 'PHF Task: bảng task_events là append-only — không cho phép DELETE trực tiếp (Z-51). Event chỉ mất theo khi xóa nguyên draft task hợp lệ qua task_delete_draft().'
+    using errcode = '0A000';
+end;
+$$ language plpgsql;
+
+drop trigger if exists task_events_forbid_update on public.task_events;
+create trigger task_events_forbid_update before update on public.task_events
+  for each row execute function public.task_events_forbid_mutation();
+drop trigger if exists task_events_forbid_delete on public.task_events;
+create trigger task_events_forbid_delete before delete on public.task_events
+  for each row execute function public.task_events_forbid_mutation();
 
 -- ---------------------------------------------------------------------------
--- 3) Clean the Phase B probe artifact (one inert draft left by a PostgREST
---    probe that could not self-delete before grant (1) existed).
+-- 3) Remove the inert Phase B probe draft (a PostgREST probe created it and
+--    could not self-delete before grant (1) existed).
 -- ---------------------------------------------------------------------------
-delete from public.task_tasks
- where title like '[PHASEB-PROBE%'
-   and status = 'draft';
+delete from public.task_tasks where title like '[PHASEB-PROBE%' and status = 'draft';
 
 commit;
 
 -- ---------------------------------------------------------------------------
--- POST-APPLY VERIFY (run as service_role via PostgREST or here):
---   select has_table_privilege('service_role','public.task_tasks','DELETE');            -- expect t
---   select has_table_privilege('service_role','public.task_permission_grants','DELETE');-- expect t
--- Then re-run:
+-- POST-APPLY VERIFY (deployer):
+--   select has_table_privilege('service_role','public.task_tasks','DELETE');             -- expect  t
+--   select has_table_privilege('service_role','public.task_permission_grants','DELETE'); -- expect  t
+--   select tgname from pg_trigger where tgrelid = 'public.task_events'::regclass;        -- includes task_events_forbid_delete/_update
+--
+-- Then hand back to the session / re-run:
+--   node scripts/test-task-report-ui-fixture-seed-today.js --rebuild-manifest-only
+--   node scripts/test-task-schema-repair-post-apply-v1.js
 --   node scripts/test-task-permission-hardening-v1.js
 --   node scripts/test-task-permission-grant-precedence-v1.js
---   node scripts/test-task-schema-repair-post-apply-v1.js
 -- ---------------------------------------------------------------------------

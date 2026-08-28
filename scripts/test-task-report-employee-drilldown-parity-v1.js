@@ -27,6 +27,7 @@ const assert = require('assert');
 require('dotenv').config();
 require('./task-sandbox-guard'); // fail-closed: refuse to run unless SUPABASE_URL === PHF_HR sandbox
 const reporting = require('../api/_lib/task-reporting');
+const fixtures = require('./task-report-fixture-manifest');
 
 let passed = 0;
 function pass(condition, message) { assert.ok(condition, message); passed += 1; }
@@ -38,7 +39,9 @@ const PERIOD_THIS_MONTH = { type: 'month', anchor_date: todayYmd() };
 const S_PHF010 = { account: { employeeCode: 'PHF010' } }; // TRO_LY_GD — all_company scope, used as the report-viewing actor
 const S_PHF082 = { account: { employeeCode: 'PHF082' } }; // nhan_vien preset — self-scope only, used for the permission negative test
 
-const A5_TASK_CODE = 'CV-2608-0011'; // fixture A5: primary/completer=PHF004, coordinators=[PHF012, PHF082]
+// fixture A5 (canonical manifest): completed-on-time, primary/completer=PHF004,
+// 2 coordinators=[PHF012, PHF082] — task_code is DB-assigned, resolve by role.
+const A5_TASK_CODE = fixtures.requireSemantic(fixtures.load(), 'completedOnTimeCoordinatorFanout').task_code;
 
 async function drilldown(session, metricId, extra) {
   return reporting.listTaskReportDrilldown(session, Object.assign({ metric_id: metricId, relation: 'received', scope: 'all_company', period: PERIOD_THIS_MONTH, limit: 50, offset: 0 }, extra || {}));
@@ -48,6 +51,11 @@ async function personAnalysis(session, extra) {
 }
 
 (async () => {
+  {
+    const { createClient } = require('@supabase/supabase-js');
+    const sb = createClient(String(process.env.SUPABASE_URL).trim(), String(process.env.SUPABASE_SECRET_KEY).trim(), { auth: { persistSession: false } });
+    await fixtures.assertFresh(sb); // fail loudly + actionably if the [REPORT-UI-TEST] corpus drifted from the manifest
+  }
   const person = await personAnalysis(S_PHF010);
   const perfByEmployee = new Map(person.performance.map(p => [p.employee_code, p]));
   const phf082Perf = perfByEmployee.get('PHF082');
