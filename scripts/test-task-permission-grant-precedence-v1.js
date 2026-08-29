@@ -283,11 +283,17 @@ function grant(overrides) {
   // 14. Client payload cannot spoof a grant (real action handler, non-admin).
   // -------------------------------------------------------------------
   {
+    // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29): requireTaskPermissionAdmin()
+    // is now capability-driven ONLY (requireTaskCapability('manage')) — the
+    // redundant hard actorType==='admin' check (which also blocked GĐ/TLGĐ,
+    // now intentionally granted 'manage') was removed. PHF082 (nhan_vien,
+    // manage:false) is still correctly denied, just under TASK_CAPABILITY_DENIED
+    // instead of the old TASK_PERMISSION_ADMIN_REQUIRED — same security outcome.
     await assert.rejects(
       () => core.createTaskPermissionGrant(session('PHF082'), { granteeEmployeeCode: 'PHF082', grantType: 'extend', capabilities: { view: true, assign: true, update: true, manage: true }, peopleScope: { type: 'all_company' }, reason: 'self-granted all_company via payload — precedence gate regression' }),
-      e => e.code === 'TASK_PERMISSION_ADMIN_REQUIRED'
+      e => e.code === 'TASK_CAPABILITY_DENIED'
     );
-    pass(true, '14. CLIENT SPOOF: a non-admin actor cannot create ANY permission grant via the real action handler (createTaskPermissionGrant), extend or restrict');
+    pass(true, '14. CLIENT SPOOF: a non-admin, non-company-tier actor cannot create ANY permission grant via the real action handler (createTaskPermissionGrant), extend or restrict');
   }
 
   // -------------------------------------------------------------------

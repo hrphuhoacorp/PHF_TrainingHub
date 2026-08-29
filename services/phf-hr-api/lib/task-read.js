@@ -136,4 +136,78 @@ async function listTasks(config) {
   return { data: mappedRows, count: mappedRows.length };
 }
 
-module.exports = { listTaskCategories, listTasks, TaskReadError };
+// GET /v1/task/tasks/:id — SINGLE-TASK READ FOUNDATION (2026-08-27).
+//
+// Mục đích: state source cho seam validate/authorize của main app (task-core.js
+// style: loadTaskRow()+loadAssignees()) khi task sống trên phf_hr (không phải
+// Supabase) — bắt buộc trước khi wire bất kỳ lifecycle operation nào ngoài
+// createTaskDraft (phát hiện 2026-08-27: publishTask/updateTaskProgress/
+// cancelTask/... đều cần đọc lại state hiện tại để authorize TRƯỚC khi ghi,
+// và state đó phải đọc đúng từ nơi task thật sự tồn tại).
+//
+// Response shape CỐ Ý raw snake_case (KHÔNG camelCase như listTasks/
+// listTaskCategories ở trên) — vì mục đích DUY NHẤT của endpoint này là hội
+// tụ 1:1 với shape mà task-core.js's loadTaskRow()/loadAssignees() (Supabase,
+// `select('*')`) đã trả từ trước tới giờ, để logic authorization hiện có
+// (actorOwnsTask() đọc taskRow.created_by_account_id/created_by_employee_code,
+// v.v.) dùng lại được NGUYÊN VẸN qua adapter, không cần viết lại 1 dòng
+// business rule/permission logic nào ở đây — endpoint này KHÔNG chứa bất kỳ
+// authorization/permission logic gì, chỉ trả state thô (đúng nguyên tắc đã
+// CLOSED từ S3B: authorization luôn chạy Ở MAIN APP).
+//
+// { task: <row đầy đủ từ task.tasks, SELECT *>,
+//   assignees: [<row đầy đủ từ task.assignees, SELECT *>, ...],
+//   comments/links/events: <row đầy đủ, SELECT *> } (thêm 2026-08-27, xem
+//   getTaskById() bên dưới — additive, KHÔNG đổi 2 field task/assignees đã
+//   có, caller cũ (bridgeGetTaskById, chỉ đọc task/assignees) không bị ảnh
+//   hưởng).
+// task = null nếu không tìm thấy -> caller (route) trả 404 TASK_NOT_FOUND,
+// KHÔNG throw lỗi DB giả (không tìm thấy KHÔNG phải lỗi DB).
+//
+// comments/links/events thêm vào (2026-08-27) làm state source cho
+// getTaskDetailViaServer() phía main app (xem api/_lib/task-server-
+// integration.js) — GIỐNG hệt lý do assignees đã có: trả raw rows, KHÔNG
+// filter/enrich/authorize gì ở đây (link "đã xóa" vẫn trả nguyên, main app
+// tự lọc bằng events — đúng nguyên tắc "endpoint này KHÔNG chứa business
+// logic" đã CLOSED phía trên).
+async function getTaskById(config, taskId) {
+  let result;
+  try {
+    result = await withTaskReadTransaction(config, async (client) => {
+      const taskResult = await client.query(
+        'SELECT * FROM task.tasks WHERE id = $1',
+        [taskId]
+      );
+      const task = taskResult.rows[0] || null;
+      if (!task) return { task: null, assignees: [], comments: [], links: [], events: [] };
+
+      const [assigneesResult, commentsResult, linksResult, eventsResult] = await Promise.all([
+        client.query('SELECT * FROM task.assignees WHERE task_id = $1', [taskId]),
+        client.query('SELECT * FROM task.comments WHERE task_id = $1 ORDER BY created_at ASC', [taskId]),
+        client.query('SELECT * FROM task.links WHERE task_id = $1 ORDER BY created_at ASC', [taskId]),
+        client.query('SELECT * FROM task.events WHERE task_id = $1 ORDER BY occurred_at DESC', [taskId]),
+      ]);
+
+      // Proposal V2 (2026-08-29, additive) — chỉ query thêm khi flow_type=
+      // 'de_xuat' (KHÔNG đụng response shape cho Giao việc bình thường).
+      if (task.flow_type === 'de_xuat') {
+        const proposalResult = await client.query('SELECT * FROM task.proposal_decisions WHERE proposal_task_id = $1', [taskId]);
+        task.proposal_decision = proposalResult.rows[0] || null;
+      }
+
+      return {
+        task,
+        assignees: assigneesResult.rows,
+        comments: commentsResult.rows,
+        links: linksResult.rows,
+        events: eventsResult.rows,
+      };
+    }, { timeoutMs: QUERY_TIMEOUT_MS });
+  } catch (err) {
+    const mapped = mapPgError(err);
+    throw mapped || err;
+  }
+  return result;
+}
+
+module.exports = { listTaskCategories, listTasks, getTaskById, TaskReadError };

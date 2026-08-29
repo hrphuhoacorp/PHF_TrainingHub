@@ -325,6 +325,72 @@ const ROLLBACK = /^ROLLBACK$/;
     record('revokeTaskPermissionGrant_ALREADY_REVOKED', error && error.code === 'TASK_PERMISSION_GRANT_ALREADY_REVOKED' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
+  // =========================================================================
+  // emitTaskNotification (2026-08-27, đóng OPEN GAP cross-department
+  // notification) — mirror contract Supabase's emitTaskNotification():
+  // dedupe qua ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO
+  // NOTHING, KHÔNG throw khi trùng. Regex CHẶT — bắt buộc match ĐÚNG cả
+  // "WHERE dedupe_key IS NOT NULL" (không chỉ "ON CONFLICT (dedupe_key)") —
+  // đây CHÍNH LÀ chỗ bug thật xảy ra 2026-08-27 (partial unique index
+  // task_notifications_dedupe_uq đòi predicate khớp chính xác, thiếu WHERE
+  // -> Postgres throw "no unique or exclusion constraint matching the ON
+  // CONFLICT specification"; regex lỏng trước đây match cả 2 dạng nên
+  // KHÔNG bắt được lỗi — nay siết lại để không tái diễn).
+  // =========================================================================
+  {
+    const client = makeFakeClient([
+      { expect: BEGIN, result: {} },
+      { expect: SET_ROLE, result: {} },
+      {
+        expect: /^INSERT INTO task\.notifications \( recipient_account_id, recipient_employee_code, event_code, task_id, title, message, target_path, priority, dedupe_key \) VALUES \(\$1, \$2, 'TASK_CROSS_DEPARTMENT_ASSIGNED', \$3, \$4, \$5, \$6, \$7, \$8\) ON CONFLICT \(dedupe_key\) WHERE dedupe_key IS NOT NULL DO NOTHING RETURNING id$/,
+        result: { rows: [{ id: 'n1' }], rowCount: 1 },
+      },
+      { expect: COMMIT, result: {} },
+    ]);
+    const { emitTaskNotification } = loadTaskWriteWithFakePg(client);
+    const out = await emitTaskNotification(MOCK_CONFIG, {
+      recipientEmployeeCode: 'phf001', title: 'Việc mới', message: 'noi dung', targetPath: '/x', dedupeKey: 'k1',
+    });
+    record('emitTaskNotification_SUCCESS_created_1', out.created === 1 && client.calls[2].params[1] === 'PHF001' && client._remainingSteps() === 0, { out, params: client.calls[2].params });
+  }
+
+  {
+    // Dedupe replay — ON CONFLICT DO NOTHING -> rowCount 0, KHÔNG throw.
+    const client = makeFakeClient([
+      { expect: BEGIN, result: {} },
+      { expect: SET_ROLE, result: {} },
+      { expect: /^INSERT INTO task\.notifications/, result: { rows: [], rowCount: 0 } },
+      { expect: COMMIT, result: {} },
+    ]);
+    const { emitTaskNotification } = loadTaskWriteWithFakePg(client);
+    const out = await emitTaskNotification(MOCK_CONFIG, {
+      recipientEmployeeCode: 'PHF001', title: 't', message: 'm', dedupeKey: 'dup-key',
+    });
+    record('emitTaskNotification_DEDUPE_REPLAY_created_0_no_throw', out.created === 0 && client._remainingSteps() === 0, { out });
+  }
+
+  {
+    // Thiếu CẢ recipientAccountId lẫn recipientEmployeeCode -> throw TRƯỚC khi chạm DB.
+    const client = makeFakeClient([]);
+    const { emitTaskNotification } = loadTaskWriteWithFakePg(client);
+    let error; try { await emitTaskNotification(MOCK_CONFIG, { title: 't', message: 'm' }); } catch (e) { error = e; }
+    record('emitTaskNotification_RECIPIENT_REQUIRED', error && error.code === 'TASK_NOTIFICATION_RECIPIENT_REQUIRED' && client._remainingSteps() === 0, { code: error && error.code });
+  }
+
+  {
+    const client = makeFakeClient([]);
+    const { emitTaskNotification } = loadTaskWriteWithFakePg(client);
+    let error; try { await emitTaskNotification(MOCK_CONFIG, { recipientEmployeeCode: 'PHF001', message: 'm' }); } catch (e) { error = e; }
+    record('emitTaskNotification_TITLE_REQUIRED', error && error.code === 'TASK_NOTIFICATION_TITLE_REQUIRED' && client._remainingSteps() === 0, { code: error && error.code });
+  }
+
+  {
+    const client = makeFakeClient([]);
+    const { emitTaskNotification } = loadTaskWriteWithFakePg(client);
+    let error; try { await emitTaskNotification(MOCK_CONFIG, { recipientEmployeeCode: 'PHF001', title: 't' }); } catch (e) { error = e; }
+    record('emitTaskNotification_MESSAGE_REQUIRED', error && error.code === 'TASK_NOTIFICATION_MESSAGE_REQUIRED' && client._remainingSteps() === 0, { code: error && error.code });
+  }
+
   const allPass = results.every((r) => r.pass);
   console.log('OVERALL', allPass ? 'PASS' : 'FAIL', `(${results.filter((r) => r.pass).length}/${results.length})`);
   process.exit(allPass ? 0 : 1);

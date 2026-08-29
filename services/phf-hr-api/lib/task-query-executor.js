@@ -143,13 +143,40 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
       params.push(descriptor.offset);
       const offsetParamIdx = params.length;
 
+      // Proposal V2 (2026-08-29, additive) — flow_type='de_xuat' JOIN
+      // task.proposal_decisions để lộ proposal_status/generated_task_id cho
+      // relation 'proposal_sent'/'proposal_received' (flow_type='giao_viec'
+      // KHÔNG join gì thêm — LEFT JOIN nên hàng Giao việc không match vẫn
+      // trả về nguyên như trước, đúng NO-REGRESSION cho relation
+      // 'received'/'assigned'). LOCK "Proposal chưa Accept KHÔNG tính
+      // workload/KPI/Reporting V2" KHÔNG bị ảnh hưởng bởi field lộ thêm ở
+      // đây — executeResolvedTaskQuery() không phải Reporting V2 (xem
+      // lib/task-overview-query-executor.js, file riêng, KHÔNG đổi).
+      // Chỉ 1 cột thật sự ambiguous giữa 2 bảng sau LEFT JOIN:
+      // created_by_employee_code (tồn tại ở CẢ task.tasks lẫn task.
+      // proposal_decisions — Proposal gốc có creator riêng của proposal_
+      // decisions, KHÁC ngữ nghĩa creator của task.tasks dù cùng tên cột).
+      // whereClauses build ở trên luôn dùng "created_by_employee_code =
+      // $N" nguyên văn (mode 'creator_eq') — qualify về t.* để chỉ đúng
+      // creator của TASK (giữ nguyên ngữ nghĩa 'proposal_sent' hiện có: "ai
+      // TẠO Proposal", không phải "ai được ghi trong proposal_decisions"
+      // dù 2 giá trị này luôn khớp nhau theo thiết kế). Mọi cột khác trong
+      // whereClauses (flow_type/status/deadline/is_cross_department/
+      // task_code/title/id) không tồn tại ở proposal_decisions -> không cần
+      // qualify, giữ nguyên như trước Proposal V2 (no-regression).
+      const qualifiedWhereClauses = whereClauses.map((c) => c.replace(/\bcreated_by_employee_code\b/g, 't.created_by_employee_code'));
+
       const taskSql = `
-        SELECT id, task_code, flow_type, status, title, priority, deadline,
-               created_by_employee_code, is_cross_department, source_department,
-               target_department, created_at, row_version
-          FROM task.tasks
-         WHERE ${whereClauses.join(' AND ')}
-         ORDER BY created_at DESC, id ASC
+        SELECT t.id, t.task_code, t.flow_type, t.status, t.title, t.priority, t.deadline,
+               t.category_code, t.progress_percent, t.progress_status,
+               t.created_by_employee_code, t.is_cross_department, t.source_department,
+               t.target_department, t.created_at, t.row_version,
+               pd.proposal_status, pd.recipient_employee_code, pd.generated_task_id,
+               pd.reject_reason, pd.cancel_reason, pd.decided_by_employee_code, pd.decided_at
+          FROM task.tasks t
+          LEFT JOIN task.proposal_decisions pd ON pd.proposal_task_id = t.id
+         WHERE ${qualifiedWhereClauses.join(' AND ')}
+         ORDER BY t.created_at DESC, t.id ASC
          LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`;
 
       let pageRows;
@@ -189,12 +216,28 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
           title: t.title,
           priority: t.priority,
           deadline: t.deadline,
+          categoryCode: t.category_code,
+          progressPercent: t.progress_percent,
+          progressStatus: t.progress_status,
           createdByEmployeeCode: t.created_by_employee_code,
           primaryEmployeeCode: primaryByTaskId.get(t.id) || null,
           isCrossDepartment: t.is_cross_department,
           sourceDepartment: t.source_department,
           targetDepartment: t.target_department,
           rowVersion: t.row_version,
+          // Proposal V2 (2026-08-29) — null cho mọi row flow_type='giao_viec'
+          // (LEFT JOIN không match). LOCK "Proposal chưa Accept KHÔNG phải
+          // Task chính thức" thể hiện ở đây: proposalStatus là field RIÊNG,
+          // KHÔNG map vào field `status` chung ở trên (status của chính
+          // task.tasks row Proposal gốc vẫn chỉ là draft/published như
+          // Giao việc, không có ý nghĩa lifecycle Proposal).
+          proposalStatus: t.proposal_status || null,
+          proposalRecipientEmployeeCode: t.recipient_employee_code || null,
+          proposalGeneratedTaskId: t.generated_task_id || null,
+          proposalRejectReason: t.reject_reason || null,
+          proposalCancelReason: t.cancel_reason || null,
+          proposalDecidedByEmployeeCode: t.decided_by_employee_code || null,
+          proposalDecidedAt: t.decided_at || null,
         })),
         count: taskRows.length,
         relation: descriptor.relation,

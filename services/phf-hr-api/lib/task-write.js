@@ -72,6 +72,30 @@ function taskWriteError(code) {
   return err;
 }
 
+// ---------------------------------------------------------------------------
+// INTERVENTION AUTHORITY — DEFENCE IN DEPTH (LOCKED AUTHORITY RULE 2026-08-28).
+// The authorization decision itself is single-sourced in the main app
+// (api/_lib/task-permissions.js :: resolveUpdateAuthorityBasis / canUpdateTask).
+// BOTH request paths — legacy Supabase and this write-bridge — run that gate
+// BEFORE any persistence call. This assertion is a structural backstop: it
+// refuses to persist a non-creator lifecycle mutation (cancel / reopen /
+// change deadline / transfer primary / add-remove related) that did not
+// arrive with a recognised intervention basis stamped by the upstream gate.
+// phf_hr has no employee_profiles / manager graph, so it cannot re-derive the
+// managed-tree rule locally — but it does not need to: the rule says a bare
+// managed relationship is NEVER sufficient, so "no positive basis => deny" is
+// exactly correct here. It never widens authority.
+// ---------------------------------------------------------------------------
+const LIFECYCLE_INTERVENTION_BASES = new Set([
+  'creator', 'system_admin', 'executive_authority', 'active_primary', 'exception_grant',
+]);
+function assertLifecycleInterventionAuthority(params) {
+  const basis = params && params.interventionBasis && String(params.interventionBasis).trim();
+  if (!basis || !LIFECYCLE_INTERVENTION_BASES.has(basis)) {
+    throw taskWriteError('TASK_INTERVENTION_AUTHORITY_REQUIRED');
+  }
+}
+
 // Chỉ chấp nhận: (a) JS number nguyên thật (Number.isInteger), hoặc (b)
 // string chỉ gồm chữ số (có thể có dấu trừ đầu) sau khi trim — KHÔNG chấp
 // nhận decimal ("5.5"), KHÔNG chấp nhận chuỗi lẫn ký tự ("5abc"), KHÔNG dùng
@@ -209,6 +233,7 @@ async function completeTask(config, params) {
 // vào jsonb_build_object với cast ::timestamptz, Postgres tự serialize.
 // ---------------------------------------------------------------------------
 async function reopenTask(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, reason } = params;
 
   return withTaskWriteTransaction(config, async (client) => {
@@ -256,6 +281,7 @@ async function reopenTask(config, params) {
 // 2-statement đơn giản (giống updateTaskProgress) — không cần CTE gộp.
 // ---------------------------------------------------------------------------
 async function cancelTask(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, reason } = params;
 
   return withTaskWriteTransaction(config, async (client) => {
@@ -302,6 +328,7 @@ async function cancelTask(config, params) {
 // timestamptz (đúng Gap 2 pattern đã CLOSED cho completeTask/reopenTask).
 // ---------------------------------------------------------------------------
 async function changeTaskDeadline(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, newDeadline, reason } = params;
 
   return withTaskWriteTransaction(config, async (client) => {
@@ -479,7 +506,7 @@ async function createDraftTask(config, params) {
 // khai ở nguồn).
 // ---------------------------------------------------------------------------
 async function publishTask(config, params) {
-  const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, sourceDepartment, targetDepartment } = params;
+  const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, sourceDepartment, targetDepartment, recipientEmployeeCode } = params;
 
   return withTaskWriteTransaction(config, async (client) => {
     const current = await client.query('SELECT * FROM task.tasks WHERE id = $1 FOR UPDATE', [taskId]);
@@ -492,11 +519,36 @@ async function publishTask(config, params) {
 
     if (task.status !== 'draft') throw taskWriteError('TASK_NOT_DRAFT');
 
-    const primaryCount = await client.query(
-      `SELECT count(*)::int AS count FROM task.assignees WHERE task_id = $1 AND role = 'primary' AND is_active = true`,
-      [taskId]
-    );
-    if (primaryCount.rows[0].count !== 1) throw taskWriteError('TASK_PRIMARY_REQUIRED');
+    // PROPOSAL V2 fix (phát hiện qua real-DB test, KHÔNG bắt được bởi mock
+    // harness vì mock luôn script sẵn primaryCount=1) — "đúng 1 active
+    // primary" là invariant CỦA GIAO VIỆC (rule N.26/N.27 Foundation gốc),
+    // KHÔNG áp dụng cho Proposal: Primary của Proposal CHƯA tồn tại tại thời
+    // điểm publish — recipient mới là người chọn Primary, và chỉ chọn ở bước
+    // Accept (LOCK "Người Accept chọn Primary theo normal Task assign
+    // permission hiện có"). Nhánh 'giao_viec' giữ NGUYÊN VẸN 100% check cũ
+    // (bảo toàn NORMAL_TASK_ASSIGN_PERMISSION_PRESERVED) — chỉ 'de_xuat' bỏ
+    // qua check này.
+    if (task.flow_type !== 'de_xuat') {
+      const primaryCount = await client.query(
+        `SELECT count(*)::int AS count FROM task.assignees WHERE task_id = $1 AND role = 'primary' AND is_active = true`,
+        [taskId]
+      );
+      if (primaryCount.rows[0].count !== 1) throw taskWriteError('TASK_PRIMARY_REQUIRED');
+    }
+
+    // PROPOSAL V2 (additive) — CHỈ áp dụng khi flow_type='de_xuat'. Nhánh
+    // 'giao_viec' bên dưới hoàn toàn KHÔNG đổi (normalizedRecipient luôn
+    // null -> INSERT proposal_decisions không chạy) — bảo toàn
+    // NORMAL_TASK_ASSIGN_PERMISSION_PRESERVED. Recipient population (ai được
+    // đề xuất) đã được app layer (api/_lib/task-permissions.js::
+    // resolveProposalRecipientScope) validate TRƯỚC khi gọi tới đây — ở đây
+    // chỉ enforce shape (không rỗng), giữ đúng nguyên tắc "authorization ở
+    // main app, data invariant ở DB layer" của toàn file này.
+    let normalizedRecipient = null;
+    if (task.flow_type === 'de_xuat') {
+      normalizedRecipient = recipientEmployeeCode && String(recipientEmployeeCode).trim() !== '' ? String(recipientEmployeeCode).trim().toUpperCase() : null;
+      if (!normalizedRecipient) throw taskWriteError('TASK_PROPOSAL_RECIPIENT_REQUIRED');
+    }
 
     const normalizedSourceDept = sourceDepartment && String(sourceDepartment).trim() !== '' ? String(sourceDepartment).trim() : null;
     const normalizedTargetDept = targetDepartment && String(targetDepartment).trim() !== '' ? String(targetDepartment).trim() : null;
@@ -525,6 +577,214 @@ async function publishTask(config, params) {
        SELECT * FROM updated`,
       [taskId, normalizedSourceDept, normalizedTargetDept, isCrossDepartment, auditToken, actorAccountId || null]
     );
+    const publishedTask = updated.rows[0];
+
+    // PROPOSAL V2 (additive) — cùng transaction với publish, atomic: nếu
+    // INSERT này fail (vd trùng creator=recipient, chặn bởi CHECK
+    // task_proposal_decisions_recipient_not_creator_ck) thì TOÀN BỘ publish
+    // rollback, KHÔNG để lại Proposal published mà thiếu proposal_decisions
+    // (không có trạng thái nửa vời).
+    if (normalizedRecipient !== null) {
+      const proposalCreatorToken = resolveAuditToken(task.created_by_employee_code, task.created_by_account_id);
+      await client.query(
+        `INSERT INTO task.proposal_decisions (proposal_task_id, recipient_employee_code, proposal_status, created_by_employee_code)
+         VALUES ($1, $2, 'pending', $3)`,
+        [taskId, normalizedRecipient, proposalCreatorToken]
+      );
+    }
+
+    return publishedTask;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// PROPOSAL V2 (2026-08-29, LOCAL/THROWAWAY ONLY — xem migrations/
+// phf_hr_task_proposal_v2.sql). 3 hàm dưới đây thao tác trên task.
+// proposal_decisions (1-1 với Proposal gốc task.tasks.flow_type='de_xuat',
+// tạo bởi nhánh Proposal của publishTask() ở trên). task.tasks/task.
+// assignees của Giao việc bình thường KHÔNG bị đụng tới bởi 3 hàm này (trừ
+// acceptTaskProposal, vốn CHỈ INSERT 1 row task.tasks MỚI — không UPDATE bất
+// kỳ row Giao việc nào đã tồn tại).
+//
+// Authorization phân lớp giống mọi hàm khác trong file này: recipient
+// population (ai được là recipient hợp lệ khi TẠO Proposal) được app layer
+// (api/_lib/task-permissions.js::resolveProposalRecipientScope) validate
+// TRƯỚC publishTask ở trên. Ở accept/reject/cancel, actor phải KHỚP ĐÚNG
+// recipient_employee_code (accept/reject) hoặc created_by_employee_code
+// (cancel) đã lưu SẴN trên chính proposal_decisions row — đây là structural
+// defense-in-depth (giống assertLifecycleInterventionAuthority ở trên),
+// KHÔNG phải nơi tính lại toàn bộ Permission Contract V1.
+// ---------------------------------------------------------------------------
+
+function normalizeProposalActorToken(actorEmployeeCode, actorAccountId) {
+  const token = resolveAuditToken(actorEmployeeCode, actorAccountId);
+  return token ? token.toUpperCase() : '';
+}
+
+// ---------------------------------------------------------------------------
+// acceptTaskProposal — atomic: lock proposal (FOR UPDATE) -> pending only ->
+// actor phải là recipient -> validate input Task mới (title/category/
+// deadline/Primary — CÙNG invariant với createDraftTask, KHÔNG viết lại logic
+// khác) -> INSERT task.tasks MỚI flow_type='giao_viec' status='published'
+// NGAY (Accept = quyết định công khai, không có draft-rồi-publish 2 bước
+// riêng cho Task sinh ra từ Proposal) -> INSERT primary -> event 'published'
+// (payload.source_proposal_task_id trace ngược Proposal, LOCK "Task mới sinh
+// phải trace ngược về Proposal qua event payload/linkage") -> UPDATE
+// proposal_decisions accepted + generated_task_id (LOCK "Accept -> tạo Task
+// MỚI, KHÔNG convert flow_type Proposal gốc" — Proposal gốc row task.tasks
+// hoàn toàn KHÔNG bị UPDATE ở đây) -> event 'proposal_accept' trên chính
+// Proposal gốc -> COMMIT. Bất kỳ bước nào throw -> ROLLBACK toàn bộ, không
+// có trạng thái nửa vời (không có Task mới mồ côi, không có proposal_status
+// đổi mà thiếu generated_task_id).
+// ---------------------------------------------------------------------------
+async function acceptTaskProposal(config, params) {
+  const {
+    proposalTaskId, actorEmployeeCode, actorAccountId,
+    title, content, categoryCode, priority, startAt, deadline,
+    primaryEmployeeCode,
+  } = params;
+
+  return withTaskWriteTransaction(config, async (client) => {
+    const current = await client.query('SELECT * FROM task.proposal_decisions WHERE proposal_task_id = $1 FOR UPDATE', [proposalTaskId]);
+    if (current.rowCount === 0) throw taskWriteError('TASK_PROPOSAL_NOT_FOUND');
+    const proposal = current.rows[0];
+    if (proposal.proposal_status !== 'pending') throw taskWriteError('TASK_PROPOSAL_ALREADY_DECIDED');
+
+    const auditToken = normalizeProposalActorToken(actorEmployeeCode, actorAccountId);
+    if (!auditToken || auditToken !== String(proposal.recipient_employee_code).toUpperCase()) {
+      throw taskWriteError('TASK_PROPOSAL_ACTOR_DENIED');
+    }
+
+    const normalizedPrimary = primaryEmployeeCode && String(primaryEmployeeCode).trim() !== '' ? String(primaryEmployeeCode).trim().toUpperCase() : '';
+    if (!normalizedPrimary) throw taskWriteError('TASK_PRIMARY_REQUIRED');
+
+    const normalizedTitle = title && String(title).trim() !== '' ? String(title).trim() : '';
+    if (!normalizedTitle) throw taskWriteError('TASK_TITLE_REQUIRED');
+
+    if (deadline === null || deadline === undefined || deadline === '') throw taskWriteError('TASK_DEADLINE_REQUIRED');
+    if (startAt !== null && startAt !== undefined && startAt !== '' && new Date(startAt).getTime() > new Date(deadline).getTime()) {
+      throw taskWriteError('TASK_DATE_ORDER_INVALID');
+    }
+
+    const category = await client.query(`SELECT is_active FROM task.categories WHERE category_code = $1 FOR SHARE`, [categoryCode]);
+    if (category.rowCount === 0) throw taskWriteError('TASK_CATEGORY_NOT_FOUND');
+    if (category.rows[0].is_active !== true) throw taskWriteError('TASK_CATEGORY_INACTIVE');
+
+    const normalizedPriority = priority && String(priority).trim() !== '' ? String(priority).trim() : 'thuong';
+
+    const nextCode = await client.query('SELECT task.task_next_code(now()) AS code');
+    const taskCode = nextCode.rows[0].code;
+
+    const insertedTask = await client.query(
+      `INSERT INTO task.tasks (
+         flow_type, status, title, content, category_code, priority,
+         start_at, deadline, created_by_employee_code, task_code, published_at
+       ) VALUES ('giao_viec', 'published', $1, $2, $3, $4, $5, $6, $7, $8, now())
+       RETURNING *`,
+      [normalizedTitle, content || '', categoryCode, normalizedPriority, startAt || null, deadline, auditToken, taskCode]
+    );
+    const generatedTask = insertedTask.rows[0];
+
+    await client.query(
+      `INSERT INTO task.assignees (task_id, employee_code, role, assigned_by_employee_code, assigned_by_account_id)
+       VALUES ($1, $2, 'primary', $3, $4)`,
+      [generatedTask.id, normalizedPrimary, auditToken, actorAccountId || null]
+    );
+
+    await client.query(
+      `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
+       VALUES ($1, 'published', $2, $3, $4)`,
+      [generatedTask.id, auditToken, actorAccountId || null, JSON.stringify({ flow_type: 'giao_viec', source_proposal_task_id: proposalTaskId })]
+    );
+
+    const updatedProposal = await client.query(
+      `UPDATE task.proposal_decisions
+          SET proposal_status = 'accepted', generated_task_id = $2, decided_by_employee_code = $3, decided_at = now(), updated_at = now()
+        WHERE proposal_task_id = $1
+        RETURNING *`,
+      [proposalTaskId, generatedTask.id, auditToken]
+    );
+
+    await client.query(
+      `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
+       VALUES ($1, 'proposal_accept', $2, $3, $4)`,
+      [proposalTaskId, auditToken, actorAccountId || null, JSON.stringify({ generated_task_id: generatedTask.id, primary_employee_code: normalizedPrimary })]
+    );
+
+    return { proposal: updatedProposal.rows[0], generatedTask };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// rejectTaskProposal — pending only, actor phải là recipient, reason bắt
+// buộc (CHECK task_proposal_decisions_reject_reason_ck backstop ở DB nếu
+// nhánh JS này bị bypass), terminal — không tạo Task nào.
+// ---------------------------------------------------------------------------
+async function rejectTaskProposal(config, params) {
+  const { proposalTaskId, actorEmployeeCode, actorAccountId, reason } = params;
+
+  return withTaskWriteTransaction(config, async (client) => {
+    const current = await client.query('SELECT * FROM task.proposal_decisions WHERE proposal_task_id = $1 FOR UPDATE', [proposalTaskId]);
+    if (current.rowCount === 0) throw taskWriteError('TASK_PROPOSAL_NOT_FOUND');
+    const proposal = current.rows[0];
+    if (proposal.proposal_status !== 'pending') throw taskWriteError('TASK_PROPOSAL_ALREADY_DECIDED');
+
+    const auditToken = normalizeProposalActorToken(actorEmployeeCode, actorAccountId);
+    if (!auditToken || auditToken !== String(proposal.recipient_employee_code).toUpperCase()) {
+      throw taskWriteError('TASK_PROPOSAL_ACTOR_DENIED');
+    }
+    if (!reason || String(reason).trim() === '') throw taskWriteError('TASK_PROPOSAL_REJECT_REASON_REQUIRED');
+
+    const updated = await client.query(
+      `UPDATE task.proposal_decisions
+          SET proposal_status = 'rejected', reject_reason = $2, decided_by_employee_code = $3, decided_at = now(), updated_at = now()
+        WHERE proposal_task_id = $1
+        RETURNING *`,
+      [proposalTaskId, reason, auditToken]
+    );
+
+    await client.query(
+      `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload, reason)
+       VALUES ($1, 'proposal_reject', $2, $3, $4, $5)`,
+      [proposalTaskId, auditToken, actorAccountId || null, JSON.stringify({}), reason]
+    );
+
+    return updated.rows[0];
+  });
+}
+
+// ---------------------------------------------------------------------------
+// cancelTaskProposal — pending only, actor phải là CREATOR (người gửi, khác
+// rejectTaskProposal là recipient), reason bắt buộc, terminal.
+// ---------------------------------------------------------------------------
+async function cancelTaskProposal(config, params) {
+  const { proposalTaskId, actorEmployeeCode, actorAccountId, reason } = params;
+
+  return withTaskWriteTransaction(config, async (client) => {
+    const current = await client.query('SELECT * FROM task.proposal_decisions WHERE proposal_task_id = $1 FOR UPDATE', [proposalTaskId]);
+    if (current.rowCount === 0) throw taskWriteError('TASK_PROPOSAL_NOT_FOUND');
+    const proposal = current.rows[0];
+    if (proposal.proposal_status !== 'pending') throw taskWriteError('TASK_PROPOSAL_ALREADY_DECIDED');
+
+    const auditToken = normalizeProposalActorToken(actorEmployeeCode, actorAccountId);
+    if (!auditToken || auditToken !== String(proposal.created_by_employee_code).toUpperCase()) {
+      throw taskWriteError('TASK_PROPOSAL_ACTOR_DENIED');
+    }
+    if (!reason || String(reason).trim() === '') throw taskWriteError('TASK_PROPOSAL_CANCEL_REASON_REQUIRED');
+
+    const updated = await client.query(
+      `UPDATE task.proposal_decisions
+          SET proposal_status = 'cancelled', cancel_reason = $2, decided_by_employee_code = $3, decided_at = now(), updated_at = now()
+        WHERE proposal_task_id = $1
+        RETURNING *`,
+      [proposalTaskId, reason, auditToken]
+    );
+
+    await client.query(
+      `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload, reason)
+       VALUES ($1, 'proposal_cancel', $2, $3, $4, $5)`,
+      [proposalTaskId, auditToken, actorAccountId || null, JSON.stringify({}), reason]
+    );
 
     return updated.rows[0];
   });
@@ -538,6 +798,7 @@ async function publishTask(config, params) {
 // giữ 2-statement đơn giản (giống cancelTask), KHÔNG cần CTE gộp.
 // ---------------------------------------------------------------------------
 async function transferTaskPrimary(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, expectedRowVersion, actorEmployeeCode, actorAccountId, newPrimaryEmployeeCode, reason } = params;
 
   return withTaskWriteTransaction(config, async (client) => {
@@ -613,6 +874,7 @@ async function transferTaskPrimary(config, params) {
 // RPC bổ sung đúng event còn thiếu thay vì insert duplicate assignment.
 // ---------------------------------------------------------------------------
 async function addTaskRelated(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, targetEmployeeCode, actorEmployeeCode, actorAccountId } = params;
 
   const target = targetEmployeeCode ? String(targetEmployeeCode).trim().toUpperCase() : '';
@@ -694,6 +956,7 @@ async function addTaskRelated(config, params) {
 // có CAS/row_version — nguồn gốc không có tham số này.
 // ---------------------------------------------------------------------------
 async function removeTaskRelated(config, params) {
+  assertLifecycleInterventionAuthority(params);
   const { taskId, targetEmployeeCode, actorEmployeeCode, actorAccountId } = params;
 
   const target = targetEmployeeCode ? String(targetEmployeeCode).trim().toUpperCase() : '';
@@ -1425,6 +1688,57 @@ async function getTaskAttachmentForDownload(config, params) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// emitTaskNotification — đóng OPEN GAP cross-department notification
+// (2026-08-27). Mirror NGUYÊN VẸN contract của emitTaskNotification() bên
+// api/_lib/task-notifications.js (Supabase): cùng event code whitelist, cùng
+// dedupe-by-dedupe_key (unique index task_notifications_dedupe_uq, đã tạo ở
+// migrations/phf_hr_task_foundation_v1.sql — verbatim từ
+// PHF_TASK_CROSS_DEPARTMENT_NOTIFICATION_1.72.0.sql), cùng semantics
+// "ON CONFLICT DO NOTHING" (không throw, không tạo dòng thứ 2 khi replay).
+// KHÔNG tự resolve recipient ở đây — recipient/title/message/dedupeKey PHẢI
+// do caller (main app, resolveCrossDepartmentNotificationRecipient()) tự
+// tính, đúng nguyên tắc "notification follows permission scope" đã CLOSED —
+// route/DB-layer này chỉ ghi, không quyết ai được nhận.
+async function emitTaskNotification(config, params) {
+  const { recipientAccountId, recipientEmployeeCode, taskId, title, message, targetPath, priority, dedupeKey } = params;
+
+  const normAccountId = recipientAccountId && String(recipientAccountId).trim() !== '' ? String(recipientAccountId).trim() : null;
+  const normEmployeeCode = recipientEmployeeCode && String(recipientEmployeeCode).trim() !== '' ? String(recipientEmployeeCode).trim().toUpperCase() : null;
+  if (normAccountId === null && normEmployeeCode === null) throw taskWriteError('TASK_NOTIFICATION_RECIPIENT_REQUIRED');
+
+  const normTaskId = taskId && String(taskId).trim() !== '' ? String(taskId).trim() : null;
+  const normTitle = title && String(title).trim() !== '' ? String(title).trim() : null;
+  if (normTitle === null) throw taskWriteError('TASK_NOTIFICATION_TITLE_REQUIRED');
+  const normMessage = message && String(message).trim() !== '' ? String(message).trim() : null;
+  if (normMessage === null) throw taskWriteError('TASK_NOTIFICATION_MESSAGE_REQUIRED');
+  const normTargetPath = targetPath && String(targetPath).trim() !== '' ? String(targetPath).trim() : null;
+  const normPriority = ['Trung bình', 'Cao', 'Khẩn'].includes(priority) ? priority : 'Trung bình';
+  const normDedupeKey = dedupeKey && String(dedupeKey).trim() !== '' ? String(dedupeKey).trim() : null;
+
+  // ON CONFLICT (dedupe_key) target PHẢI lặp lại ĐÚNG predicate của unique
+  // index thật (task_notifications_dedupe_uq là PARTIAL unique index —
+  // "UNIQUE (dedupe_key) WHERE dedupe_key IS NOT NULL", xem migrations/
+  // phf_hr_task_foundation_v1.sql) — thiếu "WHERE dedupe_key IS NOT NULL" ở
+  // đây khiến Postgres KHÔNG suy luận được arbiter index, throw "there is no
+  // unique or exclusion constraint matching the ON CONFLICT specification"
+  // (bug thật đã xảy ra + đã fix 2026-08-27, xem BAN_GIAO/forensic cùng ngày
+  // — mock harness KHÔNG bắt được lỗi này vì mock không enforce constraint
+  // Postgres thật; chỉ live smoke trên DB thật mới lộ ra).
+  return withTaskWriteTransaction(config, async (client) => {
+    const inserted = await client.query(
+      `INSERT INTO task.notifications (
+         recipient_account_id, recipient_employee_code, event_code, task_id,
+         title, message, target_path, priority, dedupe_key
+       ) VALUES ($1, $2, 'TASK_CROSS_DEPARTMENT_ASSIGNED', $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+       RETURNING id`,
+      [normAccountId, normEmployeeCode, normTaskId, normTitle, normMessage, normTargetPath, normPriority, normDedupeKey]
+    );
+    return { created: inserted.rowCount };
+  });
+}
+
 module.exports = {
   updateTaskProgress,
   completeTask,
@@ -1451,4 +1765,8 @@ module.exports = {
   deleteTaskCategoryIfUnused,
   createTaskPermissionGrant,
   revokeTaskPermissionGrant,
+  emitTaskNotification,
+  acceptTaskProposal,
+  rejectTaskProposal,
+  cancelTaskProposal,
 };

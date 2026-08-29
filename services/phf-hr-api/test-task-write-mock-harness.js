@@ -456,7 +456,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
-    const out = await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 4, actorEmployeeCode: 'PHF001', reason: 'Sai kết quả.' });
+    const out = await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 4, actorEmployeeCode: 'PHF001', reason: 'Sai kết quả.' });
     const combinedCall = client.calls.find((c) => COMBINED_CTE.test(c.sql));
     const sqlHasJsonbBuildObject = /jsonb_build_object\('previous_completed_at'/.test(combinedCall.sql);
     const sqlHasReasonColumn = /INSERT INTO task\.events \(task_id, event_type, actor_employee_code, actor_account_id, payload, reason\)/.test(combinedCall.sql);
@@ -470,6 +470,31 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   }
 
   {
+    // 18b) DEFENCE IN DEPTH — lifecycle mutation without a recognised
+    // intervention basis is refused BEFORE any DB work (LOCKED AUTHORITY
+    // RULE 2026-08-28). Assertion runs ahead of BEGIN.
+    const noBasis = loadTaskWriteWithFakePg(makeFakeClient([]));
+    let e1;
+    try { await noBasis.cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { e1 = e; }
+    record('cancelTask_NO_INTERVENTION_BASIS_refused', e1 && e1.code === 'TASK_INTERVENTION_AUTHORITY_REQUIRED', { code: e1 && e1.code });
+
+    const badBasis = loadTaskWriteWithFakePg(makeFakeClient([]));
+    let e2;
+    try { await badBasis.transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'managed_scope', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { e2 = e; }
+    record('transferTaskPrimary_UNRECOGNISED_BASIS_refused', e2 && e2.code === 'TASK_INTERVENTION_AUTHORITY_REQUIRED', { code: e2 && e2.code });
+
+    const okBasis = loadTaskWriteWithFakePg(makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: SELECT_FOR_UPDATE, result: { rows: [{ id: 't1', row_version: 1, status: 'in_progress' }], rowCount: 1 } },
+      { expect: /^ROLLBACK$/, result: {} },
+    ]));
+    let e3;
+    try { await okBasis.reopenTask(MOCK_CONFIG, { interventionBasis: 'executive_authority', taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { e3 = e; }
+    record('reopenTask_RECOGNISED_BASIS_passes_guard', e3 && e3.code === 'TASK_NOT_COMPLETED', { code: e3 && e3.code });
+  }
+
+  {
     // 19) chưa completed -> TASK_NOT_COMPLETED — không regression
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
@@ -479,7 +504,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
+    try { await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
     record('reopenTask_NOT_COMPLETED', error && error.code === 'TASK_NOT_COMPLETED', { code: error && error.code });
   }
 
@@ -493,7 +518,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: '' }); } catch (e) { error = e; }
+    try { await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: '' }); } catch (e) { error = e; }
     record('reopenTask_REASON_REQUIRED', error && error.code === 'TASK_REOPEN_REASON_REQUIRED', { code: error && error.code });
   }
 
@@ -507,7 +532,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: '4abc', reason: 'x' }); } catch (e) { error = e; }
+    try { await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: '4abc', reason: 'x' }); } catch (e) { error = e; }
     record('reopenTask_expectedRowVersion_mixedString_VERSION_CONFLICT', error && error.code === 'TASK_VERSION_CONFLICT', { code: error && error.code });
   }
 
@@ -521,7 +546,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: Infinity, reason: 'x' }); } catch (e) { error = e; }
+    try { await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: Infinity, reason: 'x' }); } catch (e) { error = e; }
     record('reopenTask_expectedRowVersion_Infinity_VERSION_CONFLICT', error && error.code === 'TASK_VERSION_CONFLICT', { code: error && error.code });
   }
 
@@ -539,7 +564,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
-    const out = await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 3, actorEmployeeCode: 'PHF001', reason: 'Không còn cần thiết.' });
+    const out = await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 3, actorEmployeeCode: 'PHF001', reason: 'Không còn cần thiết.' });
     const eventCall = client.calls.find((c) => INSERT_EVENTS_SIMPLE.test(c.sql));
     const payload = JSON.parse(eventCall.params[3]);
     record(
@@ -559,7 +584,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
     record('cancelTask_DRAFT_USE_DELETE', error && error.code === 'TASK_DRAFT_USE_DELETE', { code: error && error.code });
   }
 
@@ -573,7 +598,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
     record('cancelTask_ALREADY_CANCELLED', error && error.code === 'TASK_ALREADY_CANCELLED', { code: error && error.code });
   }
 
@@ -587,7 +612,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
     record('cancelTask_MUST_REOPEN_BEFORE_CANCEL', error && error.code === 'TASK_MUST_REOPEN_BEFORE_CANCEL', { code: error && error.code });
   }
 
@@ -601,7 +626,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, reason: '   ' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, reason: '   ' }); } catch (e) { error = e; }
     record('cancelTask_REASON_REQUIRED', error && error.code === 'TASK_CANCEL_REASON_REQUIRED', { code: error && error.code });
   }
 
@@ -615,7 +640,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 999, reason: 'x' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 999, reason: 'x' }); } catch (e) { error = e; }
     record('cancelTask_CAS_MISMATCH', error && error.code === 'TASK_VERSION_CONFLICT' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
@@ -629,7 +654,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { cancelTask } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await cancelTask(MOCK_CONFIG, { taskId: 'missing', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
+    try { await cancelTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 'missing', expectedRowVersion: 1, reason: 'x' }); } catch (e) { error = e; }
     record('cancelTask_NOT_FOUND', error && error.code === 'TASK_NOT_FOUND', { code: error && error.code });
   }
 
@@ -646,7 +671,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
-    const out = await changeTaskDeadline(MOCK_CONFIG, {
+    const out = await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator',
       taskId: 't1', expectedRowVersion: 2, actorEmployeeCode: 'PHF001',
       newDeadline: new Date('2026-09-10T00:00:00Z'), reason: 'Khách hàng dời lịch.',
     });
@@ -672,7 +697,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await changeTaskDeadline(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
+    try { await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
     record('changeTaskDeadline_CANCELLED_IMMUTABLE', error && error.code === 'TASK_CANCELLED_IMMUTABLE', { code: error && error.code });
   }
 
@@ -686,7 +711,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await changeTaskDeadline(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newDeadline: null, reason: 'x' }); } catch (e) { error = e; }
+    try { await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newDeadline: null, reason: 'x' }); } catch (e) { error = e; }
     record('changeTaskDeadline_DEADLINE_REQUIRED', error && error.code === 'TASK_DEADLINE_REQUIRED', { code: error && error.code });
   }
 
@@ -700,7 +725,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await changeTaskDeadline(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newDeadline: new Date(), reason: '' }); } catch (e) { error = e; }
+    try { await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newDeadline: new Date(), reason: '' }); } catch (e) { error = e; }
     record('changeTaskDeadline_REASON_REQUIRED', error && error.code === 'TASK_DEADLINE_REASON_REQUIRED', { code: error && error.code });
   }
 
@@ -714,7 +739,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await changeTaskDeadline(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 999, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
+    try { await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 999, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
     record('changeTaskDeadline_CAS_MISMATCH', error && error.code === 'TASK_VERSION_CONFLICT' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
@@ -728,7 +753,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { changeTaskDeadline } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await changeTaskDeadline(MOCK_CONFIG, { taskId: 'missing', expectedRowVersion: 1, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
+    try { await changeTaskDeadline(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 'missing', expectedRowVersion: 1, newDeadline: new Date(), reason: 'x' }); } catch (e) { error = e; }
     record('changeTaskDeadline_NOT_FOUND', error && error.code === 'TASK_NOT_FOUND', { code: error && error.code });
   }
 
@@ -742,7 +767,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { reopenTask } = loadTaskWriteWithFakePg(client);
-    const out = await reopenTask(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: '4', reason: 'x' });
+    const out = await reopenTask(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: '4', reason: 'x' });
     record('reopenTask_expectedRowVersion_numericString_matches', out.row_version === 5, { out });
   }
 
@@ -1210,7 +1235,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
-    const out = await transferTaskPrimary(MOCK_CONFIG, {
+    const out = await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator',
       taskId: 't1', expectedRowVersion: 2, actorEmployeeCode: 'PHF001',
       newPrimaryEmployeeCode: 'PHF_NEW', reason: 'Đổi người phụ trách.',
     });
@@ -1234,7 +1259,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 'missing', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 'missing', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_NOT_FOUND', error && error.code === 'TASK_NOT_FOUND', { code: error && error.code });
   }
 
@@ -1248,7 +1273,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 999, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 999, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_CAS_MISMATCH', error && error.code === 'TASK_VERSION_CONFLICT' && client._remainingSteps() === 0, { code: error && error.code });
   }
 
@@ -1262,7 +1287,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_NOT_ACTIVE', error && error.code === 'TASK_NOT_ACTIVE', { code: error && error.code });
   }
 
@@ -1276,7 +1301,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: '  ' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: '  ' }); } catch (e) { error = e; }
     record('transferTaskPrimary_REASON_REQUIRED', error && error.code === 'TASK_TRANSFER_REASON_REQUIRED', { code: error && error.code });
   }
 
@@ -1290,7 +1315,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: '  ', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: '  ', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_TARGET_REQUIRED', error && error.code === 'TASK_TRANSFER_TARGET_REQUIRED', { code: error && error.code });
   }
 
@@ -1305,7 +1330,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'X', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_PRIMARY_NOT_FOUND', error && error.code === 'TASK_PRIMARY_NOT_FOUND', { code: error && error.code });
   }
 
@@ -1320,7 +1345,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { transferTaskPrimary } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await transferTaskPrimary(MOCK_CONFIG, { taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'PHF_SAME', reason: 'x' }); } catch (e) { error = e; }
+    try { await transferTaskPrimary(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', expectedRowVersion: 1, newPrimaryEmployeeCode: 'PHF_SAME', reason: 'x' }); } catch (e) { error = e; }
     record('transferTaskPrimary_SAME_EMPLOYEE', error && error.code === 'TASK_TRANSFER_SAME_EMPLOYEE', { code: error && error.code });
   }
 
@@ -1348,7 +1373,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { addTaskRelated } = loadTaskWriteWithFakePg(client);
-    const out = await addTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'phf002', actorEmployeeCode: 'PHF001' });
+    const out = await addTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'phf002', actorEmployeeCode: 'PHF001' });
     const eventCall = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
     const payload = JSON.parse(eventCall.params[3]);
     record(
@@ -1371,7 +1396,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { addTaskRelated } = loadTaskWriteWithFakePg(client);
-    const out = await addTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' });
+    const out = await addTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' });
     record('addTaskRelated_IDEMPOTENT_existingEvent_noNewInsert', out.id === 'assignee-2' && client._remainingSteps() === 0, { out });
   }
 
@@ -1389,7 +1414,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { addTaskRelated } = loadTaskWriteWithFakePg(client);
-    const out = await addTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' });
+    const out = await addTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' });
     const eventCall = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
     const payload = JSON.parse(eventCall.params[3]);
     const noAssigneeInsert = client.calls.filter((c) => INSERT_ASSIGNEES_RELATED.test(c.sql)).length === 0;
@@ -1409,7 +1434,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { addTaskRelated } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await addTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: '   ', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
+    try { await addTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: '   ', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
     record('addTaskRelated_TARGET_REQUIRED', error && error.code === 'TASK_RELATED_TARGET_REQUIRED', { code: error && error.code });
   }
 
@@ -1424,7 +1449,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { addTaskRelated } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await addTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
+    try { await addTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'PHF002', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
     record('addTaskRelated_IS_PRIMARY', error && error.code === 'TASK_RELATED_IS_PRIMARY', { code: error && error.code });
   }
 
@@ -1444,7 +1469,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       { expect: /^COMMIT$/, result: {} },
     ]);
     const { removeTaskRelated } = loadTaskWriteWithFakePg(client);
-    const out = await removeTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'phf002', actorEmployeeCode: 'PHF001' });
+    const out = await removeTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'phf002', actorEmployeeCode: 'PHF001' });
     const eventCall = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
     const payload = JSON.parse(eventCall.params[3]);
     record('removeTaskRelated_SUCCESS', out.id === 'assignee-4' && payload.action === 'remove' && payload.role === 'related' && payload.employee_code === 'PHF002', { out, payload });
@@ -1460,7 +1485,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ]);
     const { removeTaskRelated } = loadTaskWriteWithFakePg(client);
     let error;
-    try { await removeTaskRelated(MOCK_CONFIG, { taskId: 't1', targetEmployeeCode: 'PHF999', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
+    try { await removeTaskRelated(MOCK_CONFIG, { interventionBasis: 'creator', taskId: 't1', targetEmployeeCode: 'PHF999', actorEmployeeCode: 'PHF001' }); } catch (e) { error = e; }
     record('removeTaskRelated_NOT_FOUND', error && error.code === 'TASK_RELATED_NOT_FOUND', { code: error && error.code });
   }
 
@@ -2053,10 +2078,13 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       'findTaskAttachmentByObjectKey', 'createTaskAttachmentMetadata', 'removeTaskAttachment', 'getTaskAttachmentForDownload',
       'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'reorderTaskCategory', 'deleteTaskCategoryIfUnused',
       'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
+      'emitTaskNotification',
+      // Proposal V2 (2026-08-29, LOCAL/THROWAWAY ONLY) — 3 new functions.
+      'acceptTaskProposal', 'rejectTaskProposal', 'cancelTaskProposal',
     ];
     const exactMatch = dynamicNames.length === expected.length && expected.every((k) => dynamicNames.includes(k));
     const staticExactMatch = staticNames.length === expected.length && expected.every((k) => staticNames.includes(k));
-    record('MODULE_EXPORTS_EXACTLY_25_FUNCTIONS', exactMatch && staticExactMatch, { dynamicNames, staticNames });
+    record('MODULE_EXPORTS_EXACTLY_29_FUNCTIONS', exactMatch && staticExactMatch, { dynamicNames, staticNames });
   }
 
   const allPass = results.every((r) => r.pass);

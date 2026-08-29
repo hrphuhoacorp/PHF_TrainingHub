@@ -237,20 +237,47 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
   }
 
   // ===========================================================================
-  // CASE F — Admin/GĐ/TLGĐ → toàn công ty theo permission canonical.
+  // CASE F — G3 FIX (2026-08-28): Admin/GĐ/TLGĐ KHÔNG còn thấy toàn công ty
+  // qua "Tôi nhận" (listTasks LIST/workspace contract) — CAPABILITY
+  // (peopleScope=all_company, quyền can thiệp company-wide) != TASK_RELATIONSHIP
+  // (Primary assignee thật). Evidence: PHF010 (tro_ly_gd) "Tôi nhận" từng trả
+  // về 50/50 Task công ty dù chỉ Primary thật trên 1/50. viewScopeType vẫn
+  // trả đúng 'all_company' (field capability riêng, KHÔNG đổi — frontend vẫn
+  // dùng để quyết định hiện filter "Toàn công ty" ở chỗ khác, vd Report/
+  // permission editor — không liên quan nội dung "Tôi nhận"). "Nhân sự tôi
+  // quản lý" (scope=managed) giờ dùng managedEmployeeCodes THẬT từ org graph
+  // (GD_REPORT là con thật của GD1), không còn null/toàn công ty.
   // ===========================================================================
   resetState();
   STATE.employees.push(
     emp({ employee_code: 'GD1', department: 'Ban giám đốc' }),
-    emp({ employee_code: 'RANDOM_EMP', department: 'Phòng ngẫu nhiên' })
+    emp({ employee_code: 'RANDOM_EMP', department: 'Phòng ngẫu nhiên' }),
+    emp({ employee_code: 'GD_REPORT', department: 'Ban giám đốc', manager_employee_code: 'GD1' })
   );
   STATE.assignments.push(assignment({ employee_code: 'GD1', preset_code: 'GIAM_DOC' }));
-  STATE.tasks.push(taskRow({ id: 'task-F1', task_code: 'CV-2608-1004', created_by_employee_code: 'RANDOM_EMP' }));
-  STATE.assignees.push(assigneeRow({ task_id: 'task-F1', employee_code: 'RANDOM_EMP' }));
+  STATE.tasks.push(
+    taskRow({ id: 'task-F1', task_code: 'CV-2608-1004', created_by_employee_code: 'RANDOM_EMP' }),
+    taskRow({ id: 'task-F2-managed', task_code: 'CV-2608-1005', created_by_employee_code: 'RANDOM_EMP' })
+  );
+  STATE.assignees.push(
+    assigneeRow({ task_id: 'task-F1', employee_code: 'RANDOM_EMP' }),
+    assigneeRow({ task_id: 'task-F2-managed', employee_code: 'GD_REPORT' })
+  );
   {
     const gdView = await listTasks(sessionFor('GD1'), { relation: 'received' });
-    pass(gdView.tasks.some(t => t.task_id === 'task-F1'), 'CASE F: Giám đốc thấy Task của NHÂN VIÊN BẤT KỲ (toàn công ty) dù không quản lý trực tiếp — đúng peopleScope=all_company canonical');
-    pass(gdView.viewScopeType === 'all_company', 'CASE F: viewScopeType trả về đúng all_company cho actor GIAM_DOC (frontend dùng field này để quyết định có hiện filter "Toàn công ty" hay không)');
+    pass(!gdView.tasks.some(t => t.task_id === 'task-F1'), 'CASE F G3 FIX: "Tôi nhận" của Giám đốc KHÔNG còn chứa Task của nhân viên bất kỳ mình không phải Primary — executive all_company capability không leak vào quan hệ Task cá nhân');
+    pass(gdView.tasks.length === 0, 'CASE F G3 FIX: GD1 không phải Primary trên Task nào trong dataset này -> "Tôi nhận" rỗng, đúng self-only thật');
+    pass(gdView.viewScopeType === 'all_company', 'CASE F: viewScopeType field vẫn trả đúng all_company cho actor GIAM_DOC (capability signal riêng, KHÔNG đổi — chỉ nội dung "Tôi nhận" đổi)');
+    const gdManaged = await listTasks(sessionFor('GD1'), { relation: 'received', scope: 'managed' });
+    // COMPANY-LEVEL CLEANUP (2026-08-28 follow-up): "Nhân sự tôi quản lý" của
+    // Admin/GĐ/TLGĐ giờ company-wide (unrestricted), KHÔNG còn bị bó vào
+    // managedEmployeeCodes/org-graph subtree như TBP/Trưởng ca — business
+    // contract mới: "Direct reports có thể tồn tại trong org graph nhưng
+    // không được giới hạn company-wide Task scope của nhóm này". task-F1
+    // (RANDOM_EMP, ngoài org graph của GD1) giờ PHẢI xuất hiện — trước đó
+    // (G3-only) bị loại trừ vì managedEmployeeCodes-bounded, nay company-wide.
+    pass(gdManaged.tasks.length === 2 && ['task-F1', 'task-F2-managed'].every(id => gdManaged.tasks.some(t => t.task_id === id)), 'CASE F COMPANY-LEVEL CLEANUP: "Nhân sự tôi quản lý" của Giám đốc là company-wide (CẢ task-F1 của RANDOM_EMP ngoài org graph VÀ task-F2-managed của GD_REPORT) — KHÔNG còn bị bó vào managedEmployeeCodes như TBP/Trưởng ca', JSON.stringify(gdManaged.tasks.map(t => t.task_id)));
+    pass(gdManaged.hasManagedPeople === true, 'CASE F: GĐ hasManagedPeople=true (company-tier luôn eligible)');
   }
 
   // ===========================================================================

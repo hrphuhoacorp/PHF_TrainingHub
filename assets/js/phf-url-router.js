@@ -379,6 +379,13 @@
     '/ql/task/nhan':Object.freeze({area:'manager',screen:'task-received',roles:['manager']}),
     '/ql/task/giao':Object.freeze({area:'manager',screen:'task-assigned',roles:['manager']}),
     '/ql/task/nhan-su-toi-quan-ly':Object.freeze({area:'manager',screen:'task-managed',roles:['manager']}),
+    // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29, business owner
+    // correction) — "Nhân sự & phân quyền" giờ dùng chung cho Admin/GĐ/Trợ
+    // lý GĐ (Hub role admin hoặc manager); actual authorization (đúng
+    // 3 preset canonical: admin/giam_doc/tro_ly_gd) do backend
+    // (task-core.js::listTaskAdminPeople(), capability 'manage') enforce —
+    // route này chỉ mở namespace /ql, KHÔNG tự cấp quyền.
+    '/ql/task/nhan-su':Object.freeze({area:'manager',screen:'task-people',roles:['manager']}),
     '/ql/task/de-xuat/toi-gui':Object.freeze({area:'manager',screen:'task-proposal-sent',roles:['manager']}),
     '/ql/task/de-xuat/toi-nhan-xu-ly':Object.freeze({area:'manager',screen:'task-proposal-received',roles:['manager']}),
     '/ql/checklist':Object.freeze({area:'manager',screen:'checklist-home',roles:['manager']}),
@@ -438,6 +445,18 @@
     '/admin/task/nhan-su-toi-quan-ly':Object.freeze({area:'admin',screen:'task-managed',roles:['admin']}),
     '/admin/task/de-xuat/toi-gui':Object.freeze({area:'admin',screen:'task-proposal-sent',roles:['admin']}),
     '/admin/task/de-xuat/toi-nhan-xu-ly':Object.freeze({area:'admin',screen:'task-proposal-received',roles:['admin']}),
+    // P0-1 FIX (2026-08-29) — "Cài đặt" (task category admin) was NEVER
+    // registered here. Clicking it called navigateTask(taskSettingsPath())
+    // ('/admin/task/cai-dat'), but the Task routing branch (line ~1072)
+    // fails-closed to taskHome via ROUTE_REGISTRY[path] lookup — an
+    // unregistered path gets silently setUrl()'d BACK to '/admin/task'
+    // (replace, not push), which is exactly why it looked like "click does
+    // nothing" (no visible URL change if already on /admin/task, no console
+    // error since this is by-design fail-closed routing, not a crash).
+    // Admin-only, matching taskSettingsPath()'s own hard actorType==='admin'
+    // gate — no /ql equivalent (Settings stays Admin-exclusive per business
+    // contract).
+    '/admin/task/cai-dat':Object.freeze({area:'admin',screen:'task-settings',roles:['admin']}),
     '/admin/checklist':Object.freeze({area:'admin',screen:'checklist-home',roles:['admin']}),
     '/admin/checklist/nhan-su':Object.freeze({area:'admin',screen:'checklist-people',roles:['admin']}),
     '/admin/checklist/mau':Object.freeze({area:'admin',screen:'checklist-templates',roles:['admin']}),
@@ -483,8 +502,8 @@
   window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
   // PHF Task registers only screens backed by a real renderer.
   window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly','/hv/task/lich','/hv/task/dong-thoi-gian','/hv/task/bao-cao');
-  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich','/ql/task/dong-thoi-gian','/ql/task/bao-cao');
-  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
+  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/nhan-su','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich','/ql/task/dong-thoi-gian','/ql/task/bao-cao');
+  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/cai-dat','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw

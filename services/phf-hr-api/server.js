@@ -16,8 +16,9 @@ const { loadConfig } = require('./lib/config');
 const logger = require('./lib/logger');
 const { requireServiceToken } = require('./lib/auth-middleware');
 const { probeTaskRead } = require('./lib/supabase-dev');
-const { listTaskCategories, TaskReadError } = require('./lib/task-read');
+const { listTaskCategories, getTaskById, TaskReadError } = require('./lib/task-read');
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
+const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const {
   updateTaskProgress, completeTask, reopenTask, cancelTask, changeTaskDeadline,
   createDraftTask, publishTask,
@@ -30,6 +31,12 @@ const {
   createTaskCategory, renameTaskCategory, setTaskCategoryActive,
   reorderTaskCategory, deleteTaskCategoryIfUnused,
   createTaskPermissionGrant, revokeTaskPermissionGrant,
+  emitTaskNotification,
+  // Proposal V2 (2026-08-29, LOCAL/THROWAWAY ONLY) — accept/reject/cancel
+  // trên task.proposal_decisions (xem lib/task-write.js). publishTask ở
+  // trên KHÔNG đổi tên/param cũ, chỉ nhận thêm recipientEmployeeCode
+  // (optional, chỉ dùng khi flow_type='de_xuat').
+  acceptTaskProposal, rejectTaskProposal, cancelTaskProposal,
 } = require('./lib/task-write');
 // Gate 5.6 — attachment orchestration (G5.5 CLOSED, hash
 // fd58d08a393c70f0e70fdb699292006a32847ad09564fb00a96d383b83f297b0). Route
@@ -51,6 +58,13 @@ const TASK_CHANGE_DEADLINE_RE = /^\/v1\/task\/tasks\/([^/:]+):changeDeadline$/;
 const TASK_CREATE_RE = /^\/v1\/task\/tasks:create$/;
 const TASK_PUBLISH_RE = /^\/v1\/task\/tasks\/([^/:]+):publish$/;
 
+// Proposal V2 (2026-08-29, LOCAL/THROWAWAY ONLY) — resource identifier là
+// proposal_task_id (= task.tasks.id của Proposal gốc, flow_type='de_xuat'),
+// cùng path style ":id:verb" như mọi route task-id-scoped khác.
+const TASK_PROPOSAL_ACCEPT_RE = /^\/v1\/task\/tasks\/([^/:]+):acceptProposal$/;
+const TASK_PROPOSAL_REJECT_RE = /^\/v1\/task\/tasks\/([^/:]+):rejectProposal$/;
+const TASK_PROPOSAL_CANCEL_RE = /^\/v1\/task\/tasks\/([^/:]+):cancelProposal$/;
+
 // Batch 4-6 — verb đặt tên theo ĐÚNG transformation rule đã dùng nhất quán
 // từ Batch 3 (tên hàm task-write.js bỏ tiền tố/hậu tố "Task", camelCase phần
 // còn lại: createDraftTask -> :create, publishTask -> :publish). Áp dụng máy
@@ -66,6 +80,14 @@ const TASK_REMOVE_RELATED_RE = /^\/v1\/task\/tasks\/([^/:]+):removeRelated$/;
 const TASK_ADD_COMMENT_RE = /^\/v1\/task\/tasks\/([^/:]+):addComment$/;
 const TASK_ADD_LINK_RE = /^\/v1\/task\/tasks\/([^/:]+):addLink$/;
 const TASK_REMOVE_LINK_RE = /^\/v1\/task\/tasks\/([^/:]+):removeLink$/;
+
+// Cross-department notification (2026-08-27, đóng OPEN GAP) — cùng path
+// style ":id:verb" như mọi write route task-id-scoped khác. Main app
+// (publishTaskViaServer()) tự resolve recipient/title/message/dedupeKey
+// (resolveCrossDepartmentNotificationRecipient()) TRƯỚC khi gọi route này —
+// route/DB-layer chỉ ghi, không tự quyết ai nhận (xem lib/task-write.js's
+// emitTaskNotification()).
+const TASK_NOTIFY_RE = /^\/v1\/task\/tasks\/([^/:]+):notify$/;
 
 // setTaskPermissionAssignment KHÔNG có taskId (gán preset cho 1 người, không
 // gắn với Task cụ thể nào — đúng signature task-write.js/RPC nguồn) nên
@@ -96,6 +118,10 @@ const TASK_PERMISSION_GRANT_REVOKE_RE = /^\/v1\/task\/permission-grants\/([^/:]+
 const TASK_UPLOAD_ATTACHMENT_RE = /^\/v1\/task\/tasks\/([^/:]+):uploadAttachment$/;
 const TASK_REMOVE_ATTACHMENT_RE = /^\/v1\/task\/tasks\/([^/:]+):removeAttachment$/;
 const TASK_DOWNLOAD_ATTACHMENT_RE = /^\/v1\/task\/tasks\/([^/:]+)\/attachments\/([^/:]+)$/;
+// SINGLE TASK READ FOUNDATION (2026-08-27) — [^/:]+ chặn cả '/' lẫn ':' nên
+// KHÔNG khớp nhầm path download (.../attachments/...) hay bất kỳ custom-
+// method POST nào (...:verb) — chỉ khớp đúng GET /v1/task/tasks/<id> trần.
+const TASK_GET_BY_ID_RE = /^\/v1\/task\/tasks\/([^/:]+)$/;
 
 // Gate 5.6 — status map cho lỗi attachment, audit verbatim từ 3 module đã
 // CLOSED (attachment-policy.js/attachment-storage.js/attachment-service.js/
@@ -181,6 +207,12 @@ const TASK_WRITE_ERROR_STATUS = {
   TASK_PERMISSION_REASON_REQUIRED: 400,
   TASK_PERMISSION_ACTOR_REQUIRED: 401,
 
+  // Defence-in-depth backstop for the LOCKED AUTHORITY RULE (2026-08-28) —
+  // a non-creator lifecycle mutation arrived without a recognised intervention
+  // basis stamped by the main-app authorization gate
+  // (api/_lib/task-permissions.js). Mirrors TASK_UPDATE_DENIED's 403.
+  TASK_INTERVENTION_AUTHORITY_REQUIRED: 403,
+
   // Gate 12 — Category CRUD. 11 of these 15 have direct evidence in
   // api/_lib/task-core.js (exact code+status match at its fail() call
   // sites); the 4 *_GRANT_*_REQUIRED codes were explicit Technical Lead
@@ -214,6 +246,30 @@ const TASK_WRITE_ERROR_STATUS = {
   TASK_PERMISSION_GRANT_NOT_FOUND: 404,
   TASK_PERMISSION_REVOKE_TYPE_NOT_SUPPORTED: 400,
   TASK_PERMISSION_GRANT_ALREADY_REVOKED: 409,
+
+  // Cross-department notification (2026-08-27) — mirror của
+  // TASK_PERMISSION_GRANT_*_REQUIRED style (Technical decision, không có
+  // source-of-truth Supabase tương đương vì Supabase path không validate qua
+  // route HTTP riêng — emitTaskNotification() nội bộ chỉ return {created:0}
+  // khi thiếu field, KHÔNG throw; route/DB-layer phf_hr này chặt chẽ hơn vì
+  // là entrypoint HTTP công khai, cần phản hồi lỗi rõ ràng cho caller).
+  TASK_NOTIFICATION_RECIPIENT_REQUIRED: 400,
+  TASK_NOTIFICATION_TITLE_REQUIRED: 400,
+  TASK_NOTIFICATION_MESSAGE_REQUIRED: 400,
+
+  // Proposal V2 (2026-08-29, LOCAL/THROWAWAY ONLY) — new codes, no Supabase
+  // RPC equivalent (this is a brand-new PostgreSQL-only write path, see
+  // migrations/phf_hr_task_proposal_v2.sql). TASK_NOT_FOUND/TASK_PRIMARY_
+  // REQUIRED/TASK_TITLE_REQUIRED/TASK_DEADLINE_REQUIRED/TASK_DATE_ORDER_
+  // INVALID/TASK_CATEGORY_NOT_FOUND/TASK_CATEGORY_INACTIVE reuse the exact
+  // codes+statuses already mapped above (acceptTaskProposal validates the
+  // new Task with the same invariants as createDraftTask).
+  TASK_PROPOSAL_RECIPIENT_REQUIRED: 400,
+  TASK_PROPOSAL_NOT_FOUND: 404,
+  TASK_PROPOSAL_ALREADY_DECIDED: 409,
+  TASK_PROPOSAL_ACTOR_DENIED: 403,
+  TASK_PROPOSAL_REJECT_REASON_REQUIRED: 400,
+  TASK_PROPOSAL_CANCEL_REASON_REQUIRED: 400,
 };
 
 function readJsonBody(req, maxBytes) {
@@ -442,6 +498,35 @@ function createServer(config) {
       }
 
       // ---------------------------------------------------------------
+      // GET /v1/task/tasks/:id — SINGLE TASK READ FOUNDATION (2026-08-27).
+      // Bearer bắt buộc, chỉ SELECT. Trả state THÔ (raw snake_case, không
+      // camelCase như /v1/task/categories) — mục đích DUY NHẤT là làm state
+      // source cho seam validate/authorize phía main app (xem comment đầy đủ
+      // trong lib/task-read.js::getTaskById()). KHÔNG chứa authorization/
+      // permission logic gì ở route này — main app tự quyết dùng state trả
+      // về ra sao, đúng nguyên tắc S3B đã CLOSED.
+      // Đặt TRƯỚC route download (:id/attachments/:attachmentId) vì đó là
+      // path cụ thể hơn — path.match() cả 2 regex đều anchor ^...$ nên không
+      // xung đột, thứ tự không ảnh hưởng, nhưng đặt route ngắn hơn trước cho
+      // dễ đọc.
+      // ---------------------------------------------------------------
+      {
+        const getTaskMatch = req.method === 'GET' ? path.match(TASK_GET_BY_ID_RE) : null;
+        if (getTaskMatch) {
+          const auth = authCheck(req);
+          if (!auth.authorized) {
+            logger.warn('auth_denied', { path, reason: auth.reason });
+            return sendJson(res, 401, { error: auth.reason });
+          }
+          const result = await getTaskById(config, getTaskMatch[1]);
+          if (!result.task) {
+            return sendJson(res, 404, { error: 'TASK_NOT_FOUND', message: 'Không tìm thấy task.' });
+          }
+          return sendJson(res, 200, { data: result });
+        }
+      }
+
+      // ---------------------------------------------------------------
       // GET /v1/task/tasks/:id/attachments/:attachmentId — Gate 5.6 download.
       // Resource path THẬT (không phải custom-method ":verb") — path :id +
       // :attachmentId authoritative, KHÔNG có body. Stream response — xem
@@ -506,6 +591,43 @@ function createServer(config) {
       }
 
       // ---------------------------------------------------------------
+      // POST /v1/task/overview — Reporting V2 (Tổng quan) population read.
+      // Sibling of "POST /v1/task/tasks" above — SAME 2-layer auth (Bearer
+      // service token + HMAC-signed RESOLVED_TASK_OVERVIEW_QUERY_DESCRIPTOR_V1),
+      // SAME fail-closed contract, DIFFERENT payload shape (see
+      // task-overview-query-executor.js header comment for why this is a
+      // sibling file, not a modification of task-query-executor.js).
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/task/overview') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!config.DESCRIPTOR_SIGNING_SECRET) {
+          logger.error('descriptor_signing_secret_missing', { path });
+          return sendJson(res, 500, { error: 'DESCRIPTOR_SIGNING_SECRET_NOT_CONFIGURED' });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 65536);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const descriptor = body && body.descriptor;
+        if (!descriptor || typeof descriptor !== 'object') {
+          return sendJson(res, 400, { error: 'DESCRIPTOR_MISSING' });
+        }
+        try {
+          const result = await executeResolvedTaskOverviewQuery(config, descriptor, config.DESCRIPTOR_SIGNING_SECRET);
+          return sendJson(res, 200, result);
+        } catch (err) {
+          logger.warn('overview_descriptor_rejected_or_query_failed', { path, code: err.code, message: err.message });
+          return sendJson(res, err.statusCode || 400, { error: err.code || 'TASK_OVERVIEW_QUERY_FAILED', message: err.message });
+        }
+      }
+
+      // ---------------------------------------------------------------
       // Batch 1 + Batch 2 write-path — POST /v1/task/tasks/:id:updateProgress
       // |:complete|:reopen|:cancel|:changeDeadline
       // S3B contract (authoritative): Bearer service token (auth SERVER-TO-
@@ -531,6 +653,7 @@ function createServer(config) {
         const addCommentMatch = path.match(TASK_ADD_COMMENT_RE);
         const addLinkMatch = path.match(TASK_ADD_LINK_RE);
         const removeLinkMatch = path.match(TASK_REMOVE_LINK_RE);
+        const notifyMatch = path.match(TASK_NOTIFY_RE);
         const setPermissionAssignmentMatch = path.match(TASK_PERMISSION_ASSIGNMENT_SET_RE);
         const categoryCreateMatch = path.match(TASK_CATEGORY_CREATE_RE);
         const categoryRenameMatch = path.match(TASK_CATEGORY_RENAME_RE);
@@ -539,13 +662,18 @@ function createServer(config) {
         const categoryDeleteMatch = path.match(TASK_CATEGORY_DELETE_RE);
         const permissionGrantCreateMatch = path.match(TASK_PERMISSION_GRANT_CREATE_RE);
         const permissionGrantRevokeMatch = path.match(TASK_PERMISSION_GRANT_REVOKE_RE);
+        const proposalAcceptMatch = path.match(TASK_PROPOSAL_ACCEPT_RE);
+        const proposalRejectMatch = path.match(TASK_PROPOSAL_REJECT_RE);
+        const proposalCancelMatch = path.match(TASK_PROPOSAL_CANCEL_RE);
 
         if (
           updateProgressMatch || completeMatch || reopenMatch || cancelMatch || changeDeadlineMatch || createMatch || publishMatch ||
           transferPrimaryMatch || addRelatedMatch || removeRelatedMatch || addCommentMatch || addLinkMatch || removeLinkMatch ||
+          notifyMatch ||
           setPermissionAssignmentMatch ||
           categoryCreateMatch || categoryRenameMatch || categorySetActiveMatch || categoryReorderMatch || categoryDeleteMatch ||
-          permissionGrantCreateMatch || permissionGrantRevokeMatch
+          permissionGrantCreateMatch || permissionGrantRevokeMatch ||
+          proposalAcceptMatch || proposalRejectMatch || proposalCancelMatch
         ) {
           const auth = authCheck(req);
           if (!auth.authorized) {
@@ -591,6 +719,7 @@ function createServer(config) {
               expectedRowVersion: body.expectedRowVersion,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
               reason: body.reason,
             };
             return handleTaskWriteOperation(config, res, path, reopenTask, args);
@@ -602,6 +731,7 @@ function createServer(config) {
               expectedRowVersion: body.expectedRowVersion,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
               reason: body.reason,
             };
             return handleTaskWriteOperation(config, res, path, cancelTask, args);
@@ -613,6 +743,7 @@ function createServer(config) {
               expectedRowVersion: body.expectedRowVersion,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
               newDeadline: body.newDeadline,
               reason: body.reason,
             };
@@ -655,8 +786,53 @@ function createServer(config) {
               actorAccountId: actor.accountId,
               sourceDepartment: body.sourceDepartment,
               targetDepartment: body.targetDepartment,
+              // Proposal V2 — chỉ có ý nghĩa khi task flow_type='de_xuat';
+              // publishTask() tự bỏ qua field này cho flow_type='giao_viec'
+              // (xem lib/task-write.js). undefined nếu caller không gửi.
+              recipientEmployeeCode: body.recipientEmployeeCode,
             };
             return handleTaskWriteOperation(config, res, path, publishTask, args);
+          }
+
+          // Proposal V2 — POST /v1/task/tasks/:id:acceptProposal|
+          // :rejectProposal|:cancelProposal. :id = proposal_task_id (Proposal
+          // gốc). Mapping tối thiểu 1:1 với tham số task-write.js, KHÔNG
+          // validate lại business logic ở route (đúng convention mọi route
+          // write khác trong file này).
+          if (proposalAcceptMatch) {
+            const args = {
+              proposalTaskId: proposalAcceptMatch[1],
+              actorEmployeeCode: actor.employeeCode,
+              actorAccountId: actor.accountId,
+              title: body.title,
+              content: body.content,
+              categoryCode: body.categoryCode,
+              priority: body.priority,
+              startAt: body.startAt,
+              deadline: body.deadline,
+              primaryEmployeeCode: body.primaryEmployeeCode,
+            };
+            return handleTaskWriteOperation(config, res, path, acceptTaskProposal, args);
+          }
+
+          if (proposalRejectMatch) {
+            const args = {
+              proposalTaskId: proposalRejectMatch[1],
+              actorEmployeeCode: actor.employeeCode,
+              actorAccountId: actor.accountId,
+              reason: body.reason,
+            };
+            return handleTaskWriteOperation(config, res, path, rejectTaskProposal, args);
+          }
+
+          if (proposalCancelMatch) {
+            const args = {
+              proposalTaskId: proposalCancelMatch[1],
+              actorEmployeeCode: actor.employeeCode,
+              actorAccountId: actor.accountId,
+              reason: body.reason,
+            };
+            return handleTaskWriteOperation(config, res, path, cancelTaskProposal, args);
           }
 
           // Batch 4 — POST /v1/task/tasks/:id:transferPrimary — path :id
@@ -668,6 +844,7 @@ function createServer(config) {
               expectedRowVersion: body.expectedRowVersion,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
               newPrimaryEmployeeCode: body.newPrimaryEmployeeCode,
               reason: body.reason,
             };
@@ -681,6 +858,7 @@ function createServer(config) {
               targetEmployeeCode: body.targetEmployeeCode,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
             };
             return handleTaskWriteOperation(config, res, path, addTaskRelated, args);
           }
@@ -693,6 +871,7 @@ function createServer(config) {
               targetEmployeeCode: body.targetEmployeeCode,
               actorEmployeeCode: actor.employeeCode,
               actorAccountId: actor.accountId,
+              interventionBasis: actor.interventionBasis,
             };
             return handleTaskWriteOperation(config, res, path, removeTaskRelated, args);
           }
@@ -732,6 +911,25 @@ function createServer(config) {
               actorAccountId: actor.accountId,
             };
             return handleTaskWriteOperation(config, res, path, removeTaskLink, args);
+          }
+
+          // Cross-department notification (2026-08-27) — POST
+          // /v1/task/tasks/:id:notify. recipientAccountId/recipientEmployeeCode/
+          // title/message/targetPath/priority/dedupeKey ĐÃ được main app tự
+          // resolve xong (resolveCrossDepartmentNotificationRecipient()) —
+          // route này KHÔNG tự quyết ai nhận, chỉ pass-through + ghi.
+          if (notifyMatch) {
+            const args = {
+              taskId: notifyMatch[1],
+              recipientAccountId: body.recipientAccountId,
+              recipientEmployeeCode: body.recipientEmployeeCode,
+              title: body.title,
+              message: body.message,
+              targetPath: body.targetPath,
+              priority: body.priority,
+              dedupeKey: body.dedupeKey,
+            };
+            return handleTaskWriteOperation(config, res, path, emitTaskNotification, args);
           }
 
           // Batch 6 — POST /v1/task/permission-assignments:set — KHÔNG có

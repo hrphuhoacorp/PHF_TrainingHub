@@ -129,6 +129,21 @@ function resolveManagedEmployeeCodes(actorEmployeeCode, rows) {
   return managed;
 }
 
+// G3 fix (2026-08-28) — managedEmployeeCodes phải phản ánh ĐÚNG org graph
+// thật (manager_employee_code trong employee_profiles) cho MỌI actorType có
+// employeeCode thật và thực sự có cấp dưới trực tiếp, KHÔNG chỉ TBP/Trưởng
+// ca. GĐ/TLGĐ (giam_doc/tro_ly_gd) cũng là 1 node thật trong org chart và có
+// thể có direct report thật (bằng chứng: PHF010 Trợ lý GĐ quản lý trực tiếp
+// 8 người) — trước fix, managedEmployeeCodes của họ luôn bị hard-code rỗng,
+// khiến "Nhân sự tôi quản lý" (scope=managed) không có real peopleScope nào
+// để dùng và rơi về nhánh capability all_company (xem resolveAuthorizedTaskScope
+// ở task-core.js — fix riêng, cùng gate G3). KHÔNG đổi cho 'admin' (không có
+// employeeCode thật, không phải 1 node trong org chart) hay 'nhan_vien' (giữ
+// nguyên rỗng — về mặt tổ chức nhân viên thường không có cấp dưới; nếu có dữ
+// liệu graph thật resolveManagedEmployeeCodes() vẫn trả rỗng tự nhiên, nên
+// việc gate theo actorType ở đây chỉ là docs-as-code, không tự cấp quyền).
+const MANAGED_GRAPH_ACTOR_TYPES = new Set(['truong_bo_phan', 'truong_ca', 'giam_doc', 'tro_ly_gd']);
+
 function resolveActorContextForRecord(session, record, rows, presetCode) {
   if (!record || !record.employeeCode) fail('Không tìm thấy hồ sơ thật trong People Master.', 403, 'TASK_EMPLOYEE_NOT_FOUND');
   const employeeCode = code(record.employeeCode);
@@ -148,7 +163,7 @@ function resolveActorContextForRecord(session, record, rows, presetCode) {
     status: record.status,
     actorType,
     taskPresetCode: actorType === 'admin' ? 'ADMIN_SYSTEM' : (TASK_PRESET_TO_ACTOR_TYPE[normalizedPreset] ? normalizedPreset : 'NHAN_VIEN'),
-    managedEmployeeCodes: (actorType === 'truong_bo_phan' || actorType === 'truong_ca') ? resolveManagedEmployeeCodes(employeeCode, rows) : new Set()
+    managedEmployeeCodes: MANAGED_GRAPH_ACTOR_TYPES.has(actorType) ? resolveManagedEmployeeCodes(employeeCode, rows) : new Set()
   };
 }
 
@@ -159,7 +174,7 @@ function applyTaskPresetToActorContext(actorContext, presetCode, rows) {
   return Object.assign({}, actorContext, {
     actorType,
     taskPresetCode: TASK_PRESET_TO_ACTOR_TYPE[normalizedPreset] ? normalizedPreset : 'NHAN_VIEN',
-    managedEmployeeCodes: (actorType === 'truong_bo_phan' || actorType === 'truong_ca')
+    managedEmployeeCodes: MANAGED_GRAPH_ACTOR_TYPES.has(actorType)
       ? resolveManagedEmployeeCodes(actorContext.employeeCode, rows)
       : new Set()
   });

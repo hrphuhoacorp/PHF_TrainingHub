@@ -225,7 +225,7 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   const { permissions, core } = loadWithMocks();
   const {
     resolveEffectiveTaskScope, resolveBaseTaskScope, canViewTask, canUpdateTask,
-    canAssignTaskTo, canAddTaskRelated, listTaskAssignableEmployees
+    resolveUpdateAuthorityBasis, canAssignTaskTo, canAddTaskRelated, listTaskAssignableEmployees
   } = permissions;
   const {
     createTaskPermissionGrant, saveTaskPermissionAssignment, reopenTask, cancelTask,
@@ -385,6 +385,83 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
       error => error && error.code === 'TASK_UPDATE_DENIED',
       'UPDATE: non-creator ngoài scope => cancel FAIL'
     );
+  }
+
+  // =========================================================================
+  // UPDATE — MANAGED-VIEW INTERVENTION BOUNDARY (LOCKED AUTHORITY RULE 2026-08-28)
+  // A TBP/TC seeing a Task only because its primary is in their managed tree
+  // gets VIEW + COMMENT, never lifecycle intervention (M1/T1 fix).
+  // =========================================================================
+  resetState();
+  STATE.employees.push(
+    emp({ employee_code: 'MGR_X', full_name: 'TBP quản lý SUB_M' }),
+    emp({ employee_code: 'SUB_M', full_name: 'Nhân viên do MGR_X quản lý', manager_employee_code: 'MGR_X' }),
+    emp({ employee_code: 'GD_Z', full_name: 'Giám đốc' }),
+    emp({ employee_code: 'CREATOR_Q', full_name: 'Quản lý phòng khác tạo Task' })
+  );
+  STATE.assignments.push(
+    assignment({ employee_code: 'MGR_X', preset_code: 'TRUONG_BO_PHAN' }),
+    assignment({ employee_code: 'GD_Z', preset_code: 'GIAM_DOC' })
+  );
+  STATE.tasks.push({ id: 'task-mv', status: 'in_progress', row_version: 7, created_by_account_id: null, created_by_employee_code: 'CREATOR_Q' });
+  STATE.assignees.push({ id: 'as-mv', task_id: 'task-mv', employee_code: 'SUB_M', role: 'primary', is_active: true });
+  {
+    const mvTask = { createdByAccountId: '', createdByEmployeeCode: 'CREATOR_Q' };
+    const mvAssignees = [{ employeeCode: 'SUB_M', role: 'primary', isActive: true }];
+
+    pass((await canViewTask(sessionFor('MGR_X'), mvTask, mvAssignees)) === true,
+      'BOUNDARY: MGR_X vẫn XEM được Task của nhân sự mình quản lý (follow)');
+    pass((await canUpdateTask(sessionFor('MGR_X'), mvTask, mvAssignees)) === false,
+      'BOUNDARY: managed relationship KHÔNG đủ để can thiệp — canUpdateTask=false');
+    pass((await resolveUpdateAuthorityBasis(sessionFor('MGR_X'), mvTask, mvAssignees)) === null,
+      'BOUNDARY: resolveUpdateAuthorityBasis(MGR_X) = null');
+
+    await rejects(
+      () => cancelTask(sessionFor('MGR_X'), 'task-mv', 7, 'Hủy hộ'),
+      error => error && error.code === 'TASK_UPDATE_DENIED' && error.statusCode === 403,
+      'BOUNDARY: MGR_X cancel Task của SUB_M (do người khác tạo) => TASK_UPDATE_DENIED'
+    );
+    await rejects(
+      () => reopenTask(sessionFor('MGR_X'), 'task-mv', 7, 'Mở lại hộ'),
+      error => error && error.code === 'TASK_UPDATE_DENIED',
+      'BOUNDARY: MGR_X reopen Task của SUB_M => TASK_UPDATE_DENIED'
+    );
+
+    // Executive authority — GĐ can intervene on the same Task.
+    pass((await resolveUpdateAuthorityBasis(sessionFor('GD_Z'), mvTask, mvAssignees)) === 'executive_authority',
+      'BOUNDARY: GĐ có basis executive_authority trên chính Task đó');
+    rpcCalls.length = 0;
+    await cancelTask(sessionFor('GD_Z'), 'task-mv', 7, 'GĐ hủy');
+    pass(rpcCalls.some(c => c.fnName === 'task_cancel'), 'BOUNDARY: GĐ cancel Task của SUB_M => tới RPC (Rule A giữ nguyên)');
+
+    // Current primary acting on their own Task — task relationship.
+    pass((await resolveUpdateAuthorityBasis(sessionFor('SUB_M'), mvTask, mvAssignees)) === 'active_primary',
+      'BOUNDARY: primary hiện hành có basis active_primary trên Task của chính mình');
+
+    // A grant that only re-states the managed tree does NOT widen beyond base
+    // scope => still no intervention (locked rule: "BEYOND their base scope").
+    STATE.grants.push({
+      id: 'grant-redundant', grantee_employee_code: 'MGR_X', grant_type: 'extend', is_active: true,
+      effective_from: '2020-01-01T00:00:00.000Z', effective_to: null,
+      people_scope: { type: 'employees', values: ['SUB_M'] }, capabilities: {}
+    });
+    if (require.cache[scopePath]) require.cache[scopePath].exports.invalidateOrgCache();
+    pass((await resolveUpdateAuthorityBasis(sessionFor('MGR_X'), mvTask, mvAssignees)) === null,
+      'BOUNDARY: grant chỉ lặp lại managed tree => vẫn KHÔNG có quyền can thiệp');
+
+    // A grant naming someone OUTSIDE the managed tree DOES confer intervention
+    // over that specific person (explicit, deliberate authorization).
+    STATE.employees.push(emp({ employee_code: 'OUT_P', full_name: 'Nhân sự ngoài chuỗi quản lý MGR_X' }));
+    STATE.grants.push({
+      id: 'grant-explicit', grantee_employee_code: 'MGR_X', grant_type: 'extend', is_active: true,
+      effective_from: '2020-01-01T00:00:00.000Z', effective_to: null,
+      people_scope: { type: 'employees', values: ['OUT_P'] }, capabilities: {}
+    });
+    if (require.cache[scopePath]) require.cache[scopePath].exports.invalidateOrgCache();
+    const outTask = { createdByAccountId: '', createdByEmployeeCode: 'CREATOR_Q' };
+    const outAssignees = [{ employeeCode: 'OUT_P', role: 'primary', isActive: true }];
+    pass((await resolveUpdateAuthorityBasis(sessionFor('MGR_X'), outTask, outAssignees)) === 'exception_grant',
+      'BOUNDARY: exception grant nêu đích danh người NGOÀI managed tree => basis exception_grant');
   }
 
   // =========================================================================

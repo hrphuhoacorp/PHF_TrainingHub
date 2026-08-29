@@ -1,15 +1,21 @@
 'use strict';
 
 /*
- * PHF Task — REPORT-04 DASHBOARD FULL UI/UX — jsdom frontend assertions
- * (same window.eval harness as scripts/test-task-timeline-foundation-v1.js /
- * scripts/test-task-calendar-foundation-v1.js), no network, no real DB.
- * The 5 report backend actions themselves were already proven correct
- * against the real dev DB by scripts/test-task-reporting-v1.js (Report-03,
- * 59/59 PASS) — this file only proves the NEW frontend wiring: routing,
- * period filter, KPI/trend/category/person/attention rendering, drilldown
- * request/pagination contract, failure isolation, and the locked
- * self-task-excluded-from-performance / no-completion_rate-in-V1 rules.
+ * PHF Task — Tổng quan & Báo cáo V2 (Gate V2-R2) — jsdom frontend assertions
+ * (same window.eval harness as scripts/test-task-timeline-foundation-v1.js),
+ * no network, no real DB. The 6 backend actions themselves are proven
+ * correct against real PostgreSQL by scripts/test-task-overview-v2-
+ * foundation.js + scripts/test-task-report-v2-foundation.js — this file only
+ * proves the FRONTEND wiring: routing, period filter, KPI/trend/category/
+ * person/department rendering, drilldown request/pagination contract,
+ * failure isolation, and the contract-version guard.
+ *
+ * REWRITTEN 2026-08-29 (Gate V2-R2) — the OLD legacy report UI (Supabase-
+ * backed, 9-KPI/sort/expand-row tables) this file used to test was REPLACED
+ * wholesale by the PostgreSQL-native Reporting V2 UI (see
+ * api/_lib/task-reporting-v2.js). This is not a parity port — new fixture
+ * shapes, new action names, simplified tables (no sort/expand — see V2-R2
+ * gate report for that explicit scope decision).
  */
 
 const assert = require('assert');
@@ -42,12 +48,6 @@ function click(window, root, selector) {
   assert.ok(el, 'click target must exist: ' + selector);
   el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 }
-function change(window, root, selector, value) {
-  const el = root.querySelector(selector);
-  assert.ok(el, 'change target must exist: ' + selector);
-  el.value = value;
-  el.dispatchEvent(new window.Event('input', { bubbles: true }));
-}
 function mockFetchByAction(handlers) {
   return function (url, options) {
     const body = JSON.parse(options.body);
@@ -58,80 +58,66 @@ function mockFetchByAction(handlers) {
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, result: result }) });
   };
 }
-function summaryFixture(overrides) {
+function overviewFixture(overrides) {
   return Object.assign({
     report_contract_version: 1,
     period: { type: 'month', start: '2026-08-01T00:00:00.000Z', endExclusive: '2026-09-01T00:00:00.000Z', timezone: 'Asia/Ho_Chi_Minh' },
+    effective_scope: 'managed',
     metrics: {
-      created_in_period: { metric_id: 'created_in_period', value: 8, kind: 'period_flow' },
-      not_started: { metric_id: 'not_started', value: 2, kind: 'current_state' },
-      in_progress: { metric_id: 'in_progress', value: 3, kind: 'current_state' },
-      completed_in_period: { metric_id: 'completed_in_period', value: 4, kind: 'period_flow' },
-      completed_on_time: { metric_id: 'completed_on_time', value: 3, kind: 'period_flow' },
-      completed_late: { metric_id: 'completed_late', value: 1, kind: 'period_flow' },
-      currently_overdue: { metric_id: 'currently_overdue', value: 1, kind: 'current_state', period_relevance: 'none' },
-      average_progress: { metric_id: 'average_progress', value: null, kind: 'current_state', population: 'active_only' },
-      on_time_rate: { value: null, kind: 'derived' }
+      open: { metric_id: 'open', value: 6 },
+      overdue: { metric_id: 'overdue', value: 1 },
+      due_soon: { metric_id: 'due_soon', value: 2 },
+      completed_in_period: { metric_id: 'completed_in_period', value: 4 },
+      on_time_rate: { value: 75 },
+      attention_needed: { value: null, needs_decision: true },
     },
-    attention: { currently_overdue_count: 1, due_soon_count: 2, due_soon_threshold_days: 3, stale_count: 1, stale_threshold_days: 7, reopen_count_total: 5 },
-    data_integrity_warnings: []
-  }, overrides || {});
-}
-function categoryFixture(overrides) {
-  return Object.assign({
-    report_contract_version: 1,
-    period: { type: 'month' },
-    categories: [
-      { category_code: 'CSKH', display_name: 'Chăm sóc khách hàng', is_active: true, metrics: {
-        created_in_period: { value: 5 }, not_started: { value: 1 }, in_progress: { value: 2 }, completed_in_period: { value: 2 },
-        completed_on_time: { value: 2 }, completed_late: { value: 0 }, currently_overdue: { value: 0 }, average_progress: { value: 55 }
-      } },
-      { category_code: 'CU', display_name: 'Nhóm cũ', is_active: false, metrics: {
-        created_in_period: { value: 1 }, not_started: { value: 0 }, in_progress: { value: 0 }, completed_in_period: { value: 1 },
-        completed_on_time: { value: 0 }, completed_late: { value: 1 }, currently_overdue: { value: 0 }, average_progress: { value: null }
-      } }
-    ],
-    data_integrity_warnings: []
+    status_breakdown: { not_started: 2, in_progress: 3, overdue: 1, completed: 4, cancelled: 1 },
+    top_overdue: [{ task_id: 'ov1', task_code: 'CV-OV1', title: 'Việc quá hạn', status: 'in_progress', deadline: '2026-08-10T00:00:00.000Z', primary_employee_code: 'PHF010', primary_full_name: 'Nguyễn Văn A', primary_department: 'Bán hàng', is_cross_department: false }],
+    top_due_soon: [{ task_id: 'ds1', task_code: 'CV-DS1', title: 'Việc sắp tới hạn', status: 'published', deadline: '2026-08-27T00:00:00.000Z', primary_employee_code: 'PHF010', primary_full_name: 'Nguyễn Văn A', primary_department: 'Bán hàng', is_cross_department: false }],
   }, overrides || {});
 }
 function personFixture(overrides) {
   return Object.assign({
-    report_contract_version: 1,
-    period: { type: 'month' },
-    workload: [
-      { employee_code: 'PHF010', full_name: 'Nguyễn Văn A', department: 'Bán hàng', total: 4, primary_count: 2, coordinator_count: 1, self_task_count: 1,
-        breakdown: [{ task_id: 'task-self-1', task_code: 'CV-SELF-1', title: 'Tự giao demo', workload_role: 'primary', self_task: true, status: 'completed', deadline: null }] }
-    ],
-    performance: [
-      { employee_code: 'PHF010', full_name: 'Nguyễn Văn A', completed_in_period: 2, completed_on_time: 2, completed_late: 0, completion_rate: 'DEFERRED' }
-    ],
-    data_integrity_warnings: []
+    report_contract_version: 1, period: { type: 'month' }, effective_scope: 'managed',
+    people: [{ key: 'PHF010', employee_code: 'PHF010', full_name: 'Nguyễn Văn A', department: 'Bán hàng', workload: 4, open: 2, overdue: 0, due_soon: 1, completed_in_period: 2, completed_on_time: 2, completed_late: 0, on_time_rate: 100 }],
+  }, overrides || {});
+}
+function departmentFixture(overrides) {
+  return Object.assign({
+    report_contract_version: 1, period: { type: 'month' }, effective_scope: 'managed',
+    departments: [{ key: 'Bán hàng', department: 'Bán hàng', workload: 4, open: 2, overdue: 0, due_soon: 1, completed_in_period: 2, completed_on_time: 2, completed_late: 0, on_time_rate: 100 }],
+  }, overrides || {});
+}
+function categoryFixture(overrides) {
+  return Object.assign({
+    report_contract_version: 1, period: { type: 'month' }, effective_scope: 'managed',
+    categories: [{ key: 'CSKH', category_code: 'CSKH', display_name: 'Chăm sóc khách hàng', workload: 4, open: 2, overdue: 0, due_soon: 1, completed_in_period: 2, completed_on_time: 2, completed_late: 0, on_time_rate: 100 }],
   }, overrides || {});
 }
 function trendFixture(overrides) {
   return Object.assign({
-    report_contract_version: 1, period: { type: 'month' }, trend_supported: true,
+    report_contract_version: 1, period: { type: 'month' }, effective_scope: 'managed', trend_supported: true,
     buckets: [
       { start: '2026-08-01T00:00:00.000Z', end_exclusive: '2026-08-02T00:00:00.000Z', created_in_period: 2, completed_in_period: 1, completed_on_time: 1, completed_late: 0 },
-      { start: '2026-08-02T00:00:00.000Z', end_exclusive: '2026-08-03T00:00:00.000Z', created_in_period: 1, completed_in_period: 0, completed_on_time: 0, completed_late: 0 }
-    ]
+      { start: '2026-08-02T00:00:00.000Z', end_exclusive: '2026-08-03T00:00:00.000Z', created_in_period: 1, completed_in_period: 0, completed_on_time: 0, completed_late: 0 },
+    ],
   }, overrides || {});
 }
 function drilldownFixture(overrides) {
   return Object.assign({
-    report_contract_version: 1, metric_id: 'created_in_period', total_count: 3, limit: 20, offset: 0, has_more: false,
-    tasks: [{ task_id: 'd1', task_code: 'CV-D1', title: 'Việc D1', status: 'in_progress', priority: 'thuong', deadline: null, category_code: 'CSKH', progress_percent: 40, primary_employee_code: null, created_by_employee_code: 'PHF010' }],
-    data_integrity_warnings: []
+    report_contract_version: 1, metric_id: 'open', total_count: 3, limit: 20, offset: 0, has_more: false,
+    tasks: [{ task_id: 'd1', task_code: 'CV-D1', title: 'Việc D1', status: 'in_progress', deadline: null, primary_employee_code: 'PHF010', primary_full_name: 'Nguyễn Văn A', primary_department: 'Bán hàng', is_cross_department: false }],
   }, overrides || {});
 }
 function allPanelsHandlers(over) {
   const o = over || {};
   return {
-    getTaskReportSummary: () => o.summary !== undefined ? o.summary : summaryFixture(),
-    getTaskReportCategoryAnalysis: () => o.category !== undefined ? o.category : categoryFixture(),
-    getTaskReportPersonAnalysis: () => o.person !== undefined ? o.person : personFixture(),
-    getTaskReportTrend: () => o.trend !== undefined ? o.trend : trendFixture(),
-    listTaskReportDrilldown: (body) => o.drilldown !== undefined ? o.drilldown : drilldownFixture({ metric_id: body.metric_id })
+    getTaskOverviewV2: () => o.summary !== undefined ? o.summary : overviewFixture(),
+    getTaskReportV2CategoryAnalysis: () => o.category !== undefined ? o.category : categoryFixture(),
+    getTaskReportV2PersonAnalysis: () => o.person !== undefined ? o.person : personFixture(),
+    getTaskReportV2DepartmentAnalysis: () => o.department !== undefined ? o.department : departmentFixture(),
+    getTaskReportV2Trend: () => o.trend !== undefined ? o.trend : trendFixture(),
+    listTaskOverviewV2Drilldown: (body) => o.drilldown !== undefined ? o.drilldown : drilldownFixture({ metric_id: body.metric_id }),
   };
 }
 async function openReportWithFixtures(window, T, root, over) {
@@ -150,47 +136,40 @@ async function openReportWithFixtures(window, T, root, over) {
       pass(T.taskReportPath() === expected, 'ROUTE.' + sessionRole + ': taskReportPath resolves under the correct role home');
       pass(T.parseTaskRoute(expected).view === 'report', 'ROUTE.' + sessionRole + ': parseTaskRoute recognizes the report path');
     });
-    // router-level registration (ROUTE_REGISTRY + PHF_ROUTE_MAP), all 3 namespaces
     ['/hv/task/bao-cao', '/ql/task/bao-cao', '/admin/task/bao-cao'].forEach(p => {
       pass(ROUTER_SRC.includes("'" + p + "'"), 'ROUTE: ' + p + ' is registered in phf-url-router.js');
     });
   }
   {
+    // Tổng quan & Báo cáo V2 (LOCKED UI direction) — 1 nav item duy nhất
+    // (key 'tong-quan-bao-cao'), "Báo cáo" là 1 TAB bên trong.
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
-    const reportItem = T.NAV_ITEMS.find(i => i.key === 'bao-cao');
-    pass(reportItem && reportItem.enabled === true, 'ROUTE: "Báo cáo" nav item is enabled (no longer "Sắp triển khai")');
+    const overviewReportItem = T.NAV_ITEMS.find(i => i.key === 'tong-quan-bao-cao');
+    pass(overviewReportItem && overviewReportItem.enabled === true, 'ROUTE: "Tổng quan & Báo cáo" nav item is enabled (no longer "Sắp triển khai")');
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     root.innerHTML = T.shellFrame('');
-    pass(!root.querySelector('[data-task-nav="bao-cao"]').classList.contains('is-soon'), 'ROUTE: rendered "Báo cáo" nav button has no is-soon class');
+    pass(!root.querySelector('[data-task-nav="tong-quan-bao-cao"]').classList.contains('is-soon'), 'ROUTE: rendered "Tổng quan & Báo cáo" nav button has no is-soon class');
   }
 
   // ================= PERMISSION/UI =================
   {
-    const window = newWindow();
-    const T = window.__PHF_TASK_TEST__;
-    const html = T.taskReportPeriodBarHtml();
-    pass(!html.includes('data-task-report-relation') || !html.includes('value="managed"'), 'PERM: "Nhân sự tôi quản lý" option hidden by default (hasManagedScope=false, fail-closed)');
-    const state = T.getState();
-    state.hasManagedScope = true;
-    const html2 = T.taskReportPeriodBarHtml();
-    pass(html2.includes('value="managed"'), 'PERM: "Nhân sự tôi quản lý" option appears once hasManagedScope=true (same fail-open-only-when-hydrated rule as Calendar/Timeline)');
-  }
-  {
+    // V2: period bar mang DUY NHẤT period.type/anchor_date — không còn
+    // relation/scope/category_code (server tự xác định effective_scope theo
+    // actor, "Không cho người dùng chọn phạm vi vượt permission").
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     let captured = null;
-    window.fetch = mockFetchByAction({
-      getTaskReportSummary: (body) => { captured = body; return summaryFixture(); },
-      getTaskReportCategoryAnalysis: () => categoryFixture(), getTaskReportPersonAnalysis: () => personFixture(), getTaskReportTrend: () => trendFixture()
-    });
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskOverviewV2: (body) => { captured = body; return overviewFixture(); },
+    }));
     await T.openTaskReport(root);
-    const allowedKeys = ['action', 'relation', 'scope', 'period', 'category_code'];
-    pass(Object.keys(captured).every(k => allowedKeys.indexOf(k) >= 0), 'PERM: request payload carries only relation/scope/period/category_code — no client actor_id/employee_code override field');
-    pass(captured.relation === 'received', 'PERM: default relation is received (same default as Calendar/Timeline)');
+    const allowedKeys = ['action', 'period'];
+    pass(Object.keys(captured).every(k => allowedKeys.indexOf(k) >= 0), 'PERM: request payload carries ONLY action/period — no relation/scope/employee override, no client-chosen scope');
+    pass(!!captured.period && !!captured.period.type, 'PERM: period always present in request');
   }
 
   // ================= PERIOD =================
@@ -214,10 +193,9 @@ async function openReportWithFixtures(window, T, root, over) {
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     let captured = null;
-    window.fetch = mockFetchByAction({
-      getTaskReportSummary: (body) => { captured = body; return summaryFixture(); },
-      getTaskReportCategoryAnalysis: () => categoryFixture(), getTaskReportPersonAnalysis: () => personFixture(), getTaskReportTrend: () => trendFixture()
-    });
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskOverviewV2: (body) => { captured = body; return overviewFixture(); },
+    }));
     await T.openTaskReport(root);
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     click(window, root, '[data-task-report-period="week"]');
@@ -227,28 +205,34 @@ async function openReportWithFixtures(window, T, root, over) {
     click(window, root, '[data-task-report-nav="next"]');
     pass(T.getState().report.anchorDate !== beforeAnchor && captured.period.type === 'week', 'PERIOD: next-period nav advances anchor_date and reloads with the SAME period type');
     root.innerHTML = T.shellFrame(T.taskReportHtml());
-    click(window, root, '[data-task-report-nav="today"]');
-    pass(T.getState().report.anchorDate === T.taskCalendarDateKey ? true : true, 'PERIOD: "Hôm nay" nav does not throw');
+    assert.doesNotThrow(() => click(window, root, '[data-task-report-nav="today"]'), 'PERIOD: "Hôm nay" nav does not throw');
   }
 
-  // ================= SUMMARY =================
+  // ================= SUMMARY (Tổng hợp kỳ báo cáo) =================
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     let capturedAction = '';
-    window.fetch = mockFetchByAction({
-      getTaskReportSummary: (body) => { capturedAction = body.action; return summaryFixture(); },
-      getTaskReportCategoryAnalysis: () => categoryFixture(), getTaskReportPersonAnalysis: () => personFixture(), getTaskReportTrend: () => trendFixture()
-    });
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskOverviewV2: (body) => { capturedAction = body.action; return overviewFixture(); },
+    }));
     await T.openTaskReport(root);
-    pass(capturedAction === 'getTaskReportSummary', 'SUMMARY: real getTaskReportSummary action is called (not a mock/demo data source)');
-    const html = T.taskReportSummaryHtml();
-    pass(html.includes('—') && !html.includes('>0%<'), 'SUMMARY: null average_progress/on_time_rate render as "—", never fabricated 0%');
-    pass(html.includes('Đang quá hạn') && !html.includes('Quá hạn trong'), 'SUMMARY: currently_overdue is labeled "Đang quá hạn" (current-state), never "Quá hạn trong kỳ/tháng" (period-flow mislabel)');
-    const kpiEntry = T.TASK_REPORT_KPI_ORDER.find(e => e[0] === 'created_in_period');
-    pass(kpiEntry[2] === true, 'SUMMARY: created_in_period is drillable per KPI order config');
+    pass(capturedAction === 'getTaskOverviewV2', 'SUMMARY: Báo cáo "Tổng hợp" reuses the SAME getTaskOverviewV2 action as Tổng quan tab (single canonical foundation, no 2nd summary engine)');
+    root.innerHTML = T.shellFrame(T.taskReportHtml());
+    pass(root.innerHTML.includes('Công việc đang mở') && root.innerHTML.includes('Đang quá hạn'), 'SUMMARY: KPI cards render with LOCKED labels');
+    pass(root.innerHTML.includes('75%'), 'SUMMARY: on_time_rate renders as percentage');
+  }
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const root = window.document.getElementById('phfTaskRoot');
+    T.bindShell(root);
+    await openReportWithFixtures(window, T, root, { summary: overviewFixture({ metrics: Object.assign({}, overviewFixture().metrics, { on_time_rate: { value: null } }) }) });
+    root.innerHTML = T.shellFrame(T.taskReportHtml());
+    pass(root.innerHTML.includes('—'), 'SUMMARY: null on_time_rate (zero denominator) renders as "—", never NaN/Infinity/0%-fabricated');
+    pass(!/NaN|Infinity/.test(root.innerHTML), 'SUMMARY: no NaN/Infinity leaks into rendered HTML');
   }
   {
     const window = newWindow();
@@ -258,9 +242,9 @@ async function openReportWithFixtures(window, T, root, over) {
     const state = await openReportWithFixtures(window, T, root, {});
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    click(window, root, '[data-task-report-metric="created_in_period"]');
-    pass(state.report.drilldown && state.report.drilldown.metricId === 'created_in_period', 'SUMMARY: clicking a KPI opens drilldown with the EXACT matching metric_id descriptor');
-    pass(!state.report.drilldown.categoryCode && !state.report.drilldown.employeeCode, 'SUMMARY: KPI-level drilldown carries no extra category/employee narrowing');
+    click(window, root, '[data-task-overview-metric="open"]');
+    pass(state.overview.drilldown && state.overview.drilldown.metricId === 'open', 'SUMMARY: clicking a KPI opens the SHARED Overview drilldown state (Tab Báo cáo reuses Tab Tổng quan drilldown — canonical, not a 2nd implementation)');
+    pass(!state.overview.drilldown.employeeCode && !state.overview.drilldown.department && !state.overview.drilldown.categoryCode, 'SUMMARY: KPI-level drilldown (from Tổng hợp) carries no dimension filter');
   }
 
   // ================= TREND =================
@@ -269,7 +253,7 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    await openReportWithFixtures(window, T, root, { trend: { report_contract_version: 1, period: { type: 'day' }, trend_supported: false, buckets: [] } });
+    await openReportWithFixtures(window, T, root, { trend: { report_contract_version: 1, period: { type: 'day' }, effective_scope: 'managed', trend_supported: false, buckets: [] } });
     const html = T.taskReportTrendHtml();
     pass(html.includes('không hỗ trợ biểu đồ xu hướng'), 'TREND: day period shows the "not applicable" message, no invented hourly chart');
     pass(!html.includes('<svg'), 'TREND: day period renders no chart at all');
@@ -278,31 +262,29 @@ async function openReportWithFixtures(window, T, root, over) {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const html = T.taskReportTrendSvgHtml(trendFixture().buckets, 'month');
-    pass((html.match(/<g class=/g) || []).length === 2, 'TREND: week/month bucket rendering — one bar-group per bucket');
+    pass((html.match(/<g class=/g) || []).length === 2, 'TREND: V2 trend buckets (created_in_period/completed_in_period/completed_on_time/completed_late field names) render unchanged via the REUSED SVG renderer — one bar-group per bucket');
     pass(!/NaN/.test(html), 'TREND: no NaN in generated SVG coordinates');
     assert.doesNotThrow(() => T.taskReportTrendSvgHtml([], 'month'), 'TREND: empty buckets array must not throw');
     pass(T.taskReportTrendSvgHtml([], 'month').includes('Không có dữ liệu'), 'TREND: empty buckets renders an empty-state message, not a broken chart');
   }
 
-  // ================= CATEGORY =================
+  // ================= CATEGORY (Theo loại công việc) =================
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     await openReportWithFixtures(window, T, root, {});
-    const html = T.taskReportCategoryHtml();
-    pass(html.includes('Chăm sóc khách hàng'), 'CATEGORY: active category renders by display_name');
-    pass(html.includes('Nhóm cũ') && html.includes('Ngừng sử dụng'), 'CATEGORY: inactive category is NOT hidden, and is visually tagged distinct from active ones');
+    const html = T.taskReportV2CategoryHtml();
+    pass(html.includes('Chăm sóc khách hàng'), 'CATEGORY: category renders by display_name (fetched via bridgeListTaskCategories — PostgreSQL-native)');
   }
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
-    const html = T.taskReportCategoryHtml.call(null);
     const state = T.getState();
-    state.report.category.data = { categories: [], data_integrity_warnings: [] };
-    const html2 = T.taskReportCategoryHtml();
-    pass(html2.includes('Không có công việc'), 'CATEGORY: zero-category population renders an explicit empty state, not an empty grid');
+    state.report.category.data = { categories: [] };
+    const html2 = T.taskReportV2CategoryHtml();
+    pass(html2.includes('Không có loại công việc'), 'CATEGORY: zero-category population renders an explicit empty state');
   }
   {
     const window = newWindow();
@@ -312,26 +294,20 @@ async function openReportWithFixtures(window, T, root, over) {
     const state = await openReportWithFixtures(window, T, root, {});
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    click(window, root, '[data-task-report-metric="completed_in_period"][data-task-report-category-code="CSKH"]');
-    pass(state.report.drilldown.metricId === 'completed_in_period' && state.report.drilldown.categoryCode === 'CSKH', 'CATEGORY: clicking a category chip opens drilldown with BOTH metric_id and category_code descriptors');
+    click(window, root, '[data-task-report-v2-metric="workload"][data-task-report-v2-category-code="CSKH"]');
+    pass(state.overview.drilldown.metricId === 'workload' && state.overview.drilldown.categoryCode === 'CSKH', 'CATEGORY: clicking a category chip opens the SHARED drilldown with metric_id=workload + category_code filter');
   }
 
-  // ================= PERSON =================
+  // ================= PERSON (Theo nhân sự) =================
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     await openReportWithFixtures(window, T, root, {});
-    const html = T.taskReportPersonHtml();
-    pass(html.includes('Khối lượng công việc') && html.includes('Kết quả công việc'), 'PERSON: workload and performance render as two SEPARATE labeled sections');
-    const workloadIdx = html.indexOf('Khối lượng công việc'), perfIdx = html.indexOf('Kết quả công việc');
-    pass(workloadIdx >= 0 && perfIdx > workloadIdx, 'PERSON: workload section precedes performance section');
-    pass(/<th>Tự giao<\/th>/.test(html) && html.includes('CV-SELF-1') === false /* breakdown collapsed by default */, 'PERSON: self-task column IS shown inside the workload table');
-    pass(!html.includes('completion_rate') && !html.includes('DEFERRED'), 'PERSON: no completion_rate/"DEFERRED" literal leaks into rendered UI in V1');
-    // self-task workload entry must not silently appear as if it were a performance credit:
-    // the ONLY performance row present must be backed by the performance[] array (2 completed, not counting the self-task).
-    pass(/data-task-report-metric="completed_in_period" data-task-report-employee-code="PHF010"><strong>2<\/strong>/.test(html), 'PERSON: performance shows exactly the backend-provided completed_in_period=2 (self-task excluded, matches backend contract)');
+    const html = T.taskReportV2PersonHtml();
+    pass(html.includes('Nguyễn Văn A') && html.includes('Bán hàng'), 'PERSON: person row renders full_name + department (Primary attribution, from org lookup)');
+    pass(html.includes('100%'), 'PERSON: on_time_rate renders as percentage');
   }
   {
     const window = newWindow();
@@ -341,64 +317,64 @@ async function openReportWithFixtures(window, T, root, over) {
     const state = await openReportWithFixtures(window, T, root, {});
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    // workload row click toggles inline breakdown WITHOUT any network call (no backend metric_id exists for raw workload counts).
-    let fetchCalls = 0;
-    const originalFetch = window.fetch;
-    window.fetch = function () { fetchCalls++; return originalFetch.apply(this, arguments); };
-    click(window, root, '[data-task-report-workload-toggle="PHF010"]');
-    pass(fetchCalls === 0, 'PERSON: expanding a workload row uses the already-fetched breakdown[] data, no extra API call (no invented backend descriptor)');
-    pass(state.report.workloadExpanded === 'PHF010', 'PERSON: workload row toggle state tracked correctly');
-    root.innerHTML = T.shellFrame(T.taskReportHtml());
-    pass(root.innerHTML.includes('CV-SELF-1'), 'PERSON: expanded workload breakdown shows the real self-task from breakdown[]');
-    // performance chip DOES call the real drilldown with employee_code + metric_id.
-    T.bindShell(root);
-    click(window, root, '[data-task-report-metric="completed_on_time"][data-task-report-employee-code="PHF010"]');
-    pass(state.report.drilldown.metricId === 'completed_on_time' && state.report.drilldown.employeeCode === 'PHF010', 'PERSON: performance chip click opens drilldown with metric_id + employee_code (backend-supported descriptor)');
+    click(window, root, '[data-task-report-v2-metric="completed_in_period"][data-task-report-v2-employee-code="PHF010"]');
+    pass(state.overview.drilldown.metricId === 'completed_in_period' && state.overview.drilldown.employeeCode === 'PHF010', 'PERSON: performance chip click opens SHARED drilldown with metric_id + employee_code');
   }
 
-  // ================= ATTENTION =================
+  // ================= DEPARTMENT (Theo phòng ban — MỚI, Gate V2-R2) =================
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    await openReportWithFixtures(window, T, root, {});
-    const html = T.taskReportAttentionHtml();
-    pass(html.includes('Đang quá hạn') && html.includes('Sắp tới hạn') && html.includes('Lâu chưa cập nhật') && html.includes('Số lần mở lại'), 'ATTENTION: all 4 backend-supported attention items render');
-    pass(/data-task-report-metric="currently_overdue"/.test(html), 'ATTENTION: "Đang quá hạn" is clickable (backend has a real metric_id for it)');
-    const dueSoonTileMatch = html.match(/<article class="phft-cal-summary-tile"[^>]*>[\s\S]*?Sắp tới hạn/);
-    pass(!!dueSoonTileMatch, 'ATTENTION: "Sắp tới hạn" renders as a non-clickable info tile (backend has no drilldown metric_id for due_soon in V1 — no fabricated descriptor)');
+    let capturedAction = '';
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskReportV2DepartmentAnalysis: (body) => { capturedAction = body.action; return departmentFixture(); },
+    }));
+    await T.openTaskReport(root);
+    pass(capturedAction === 'getTaskReportV2DepartmentAnalysis', 'DEPARTMENT: real backend action called');
+    const html = T.taskReportV2DepartmentHtml();
+    pass(html.includes('Bán hàng'), 'DEPARTMENT: department bucket renders by name (Primary\'s own department — LOCKED cross-department attribution)');
+  }
+  {
+    const window = newWindow();
+    const T = window.__PHF_TASK_TEST__;
+    const root = window.document.getElementById('phfTaskRoot');
+    T.bindShell(root);
+    const state = await openReportWithFixtures(window, T, root, {});
+    root.innerHTML = T.shellFrame(T.taskReportHtml());
+    T.bindShell(root);
+    click(window, root, '[data-task-report-v2-metric="workload"][data-task-report-v2-department="Bán hàng"]');
+    pass(state.overview.drilldown.metricId === 'workload' && state.overview.drilldown.department === 'Bán hàng', 'DEPARTMENT: workload chip click opens SHARED drilldown with metric_id=workload + department filter');
   }
 
-  // ================= DRILLDOWN =================
+  // ================= DRILLDOWN (CANONICAL, dùng chung Tổng quan/Báo cáo) =================
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     let capturedPayload = null;
-    await openReportWithFixtures(window, T, root, {
-      drilldown: drilldownFixture({ total_count: 45, limit: 20, offset: 0, has_more: true })
-    });
+    await openReportWithFixtures(window, T, root, { drilldown: drilldownFixture({ total_count: 45, limit: 20, offset: 0, has_more: true }) });
     window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      listTaskReportDrilldown: (body) => { capturedPayload = body; return drilldownFixture({ total_count: 45, limit: 20, offset: body.offset, has_more: body.offset + 20 < 45 }); }
+      listTaskOverviewV2Drilldown: (body) => { capturedPayload = body; return drilldownFixture({ total_count: 45, limit: 20, offset: body.offset, has_more: body.offset + 20 < 45 }); },
     }));
-    await T.openTaskReportDrilldown(root, 'created_in_period', {});
+    await T.openTaskOverviewV2Drilldown(root, 'open', {});
     pass(capturedPayload.limit === 20 && capturedPayload.offset === 0, 'DRILLDOWN: first page requests limit/offset per backend contract');
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
     pass(root.innerHTML.includes('Tổng: <b>45</b>'), 'DRILLDOWN: total_count is shown exactly as returned by backend');
-    click(window, root, '[data-task-report-drilldown-page="next"]');
+    click(window, root, '[data-task-overview-drilldown-page="next"]');
     pass(capturedPayload.offset === 20, 'DRILLDOWN: "Sau" advances offset by limit');
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    click(window, root, '[data-task-report-drilldown-page="prev"]');
+    click(window, root, '[data-task-overview-drilldown-page="prev"]');
     pass(capturedPayload.offset === 0, 'DRILLDOWN: "Trước" retreats offset by limit, never negative');
     let navigatedTo = '';
     window.phfNavigate = function (p) { navigatedTo = p; };
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    click(window, root, '[data-task-report-drilldown-open="d1"]');
+    click(window, root, '[data-task-list-row="d1"]');
     pass(navigatedTo === T.taskDetailPath('d1'), 'DRILLDOWN: clicking a task row navigates to the EXISTING real Task Detail route (no second detail implementation)');
   }
   {
@@ -406,18 +382,9 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    await openReportWithFixtures(window, T, root, {});
-    pass(T.taskReportDrilldownEligible('average_progress') === false, 'DRILLDOWN: average_progress is correctly excluded (backend rejects it with TASK_REPORT_METRIC_INVALID, no drilldown attempted client-side)');
-    pass(T.taskReportDrilldownEligible('created_in_period') === true, 'DRILLDOWN: created_in_period is eligible');
-  }
-  {
-    const window = newWindow();
-    const T = window.__PHF_TASK_TEST__;
-    const root = window.document.getElementById('phfTaskRoot');
-    T.bindShell(root);
     await openReportWithFixtures(window, T, root, { drilldown: drilldownFixture({ tasks: [], total_count: 0, has_more: false }) });
-    await T.openTaskReportDrilldown(root, 'created_in_period', {});
-    const html = T.taskReportDrilldownHtml();
+    await T.openTaskOverviewV2Drilldown(root, 'open', {});
+    const html = T.taskOverviewV2DrilldownHtml();
     pass(html.includes('Không có công việc phù hợp'), 'DRILLDOWN: empty result set shows an explicit empty state');
   }
   {
@@ -426,24 +393,11 @@ async function openReportWithFixtures(window, T, root, over) {
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     await openReportWithFixtures(window, T, root, {});
-    window.fetch = mockFetchByAction({ listTaskReportDrilldown: () => Object.assign(new Error('Lỗi hệ thống PHF Task Report: boom'), { code: 'TASK_REPORT_DB_ERROR' }) });
-    await T.openTaskReportDrilldown(root, 'created_in_period', {});
-    const html = T.taskReportDrilldownHtml();
+    window.fetch = mockFetchByAction({ listTaskOverviewV2Drilldown: () => Object.assign(new Error('Lỗi hệ thống PHF Task Overview: boom'), { code: 'TASK_OVERVIEW_V2_ERROR' }) });
+    await T.openTaskOverviewV2Drilldown(root, 'open', {});
+    const html = T.taskOverviewV2DrilldownHtml();
     pass(html.includes('Không tải được danh sách'), 'DRILLDOWN: error state renders a controlled, user-facing message');
     pass(!/node_modules|\.js:\d+:\d+/.test(html), 'DRILLDOWN: error rendering never leaks a stack trace / internal path');
-  }
-
-  // ================= INTEGRITY WARNINGS =================
-  {
-    const window = newWindow();
-    const T = window.__PHF_TASK_TEST__;
-    const withWarning = summaryFixture({ data_integrity_warnings: [{ task_id: 't9', task_code: 'CV-9', reason: 'COMPLETION_EVENT_MISMATCH' }] });
-    const state = T.getState();
-    state.report.summary.data = withWarning;
-    const html = T.taskReportSummaryHtml();
-    pass(html.includes('Có dữ liệu cần kiểm tra'), 'INTEGRITY: data_integrity_warnings from backend renders a discreet system warning');
-    pass(!html.includes('COMPLETION_EVENT_MISMATCH'), 'INTEGRITY: internal warning reason code is not leaked verbatim into the UI');
-    pass(T.taskReportIntegrityWarningHtml([]) === '', 'INTEGRITY: empty warnings array renders nothing');
   }
 
   // ================= CONTRACT VERSION =================
@@ -452,16 +406,15 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    window.fetch = mockFetchByAction({
-      getTaskReportSummary: () => summaryFixture({ report_contract_version: 2 }),
-      getTaskReportCategoryAnalysis: () => categoryFixture(), getTaskReportPersonAnalysis: () => personFixture(), getTaskReportTrend: () => trendFixture()
-    });
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskOverviewV2: () => overviewFixture({ report_contract_version: 2 }),
+    }));
     await T.openTaskReport(root);
     const state = T.getState();
     pass(state.report.summary.data === null && !!state.report.summary.error, 'CONTRACT: report_contract_version mismatch is rejected client-side, not silently trusted');
-    pass(T.taskReportCheckContract({ report_contract_version: 1 }) === true, 'CONTRACT: version 1 is accepted');
-    pass(T.taskReportCheckContract({ report_contract_version: 2 }) === false, 'CONTRACT: version 2 is rejected');
-    pass(T.taskReportCheckContract({}) === false, 'CONTRACT: missing version field is rejected');
+    pass(T.taskOverviewV2CheckContract({ report_contract_version: 1 }) === true, 'CONTRACT: version 1 is accepted');
+    pass(T.taskOverviewV2CheckContract({ report_contract_version: 2 }) === false, 'CONTRACT: version 2 is rejected');
+    pass(T.taskOverviewV2CheckContract({}) === false, 'CONTRACT: missing version field is rejected');
   }
 
   // ================= FAILURE ISOLATION =================
@@ -470,19 +423,16 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    window.fetch = mockFetchByAction({
-      getTaskReportSummary: () => summaryFixture(),
-      getTaskReportCategoryAnalysis: () => new Error('Lỗi hệ thống PHF Task Report: category boom'),
-      getTaskReportPersonAnalysis: () => personFixture(),
-      getTaskReportTrend: () => trendFixture()
-    });
+    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
+      getTaskReportV2CategoryAnalysis: () => new Error('Lỗi hệ thống PHF Task Report: category boom'),
+    }));
     await T.openTaskReport(root);
     const state = T.getState();
     pass(!!state.report.summary.data && !state.report.summary.error, 'ISOLATION: summary panel loaded successfully despite category panel failing');
     pass(!state.report.category.data && !!state.report.category.error, 'ISOLATION: category panel independently shows its own error');
-    pass(!!state.report.person.data && !!state.report.trend.data, 'ISOLATION: person/trend panels are unaffected by the category panel failure');
+    pass(!!state.report.person.data && !!state.report.department.data && !!state.report.trend.data, 'ISOLATION: person/department/trend panels are unaffected by the category panel failure');
     const html = T.taskReportHtml();
-    pass(html.includes('Không tải được phân tích nhóm việc') && html.includes('Tổng quan kỳ báo cáo'), 'ISOLATION: page renders summary content AND the category error side-by-side, never a blank page');
+    pass(html.includes('Không tải được dữ liệu') && html.includes('Tổng hợp kỳ báo cáo'), 'ISOLATION: page renders summary content AND the category error side-by-side, never a blank page');
   }
 
   // ================= REQUEST DE-DUPLICATION =================
@@ -495,19 +445,19 @@ async function openReportWithFixtures(window, T, root, over) {
     let callCount = 0;
     window.fetch = function (url, options) {
       const body = JSON.parse(options.body);
-      if (body.action !== 'getTaskReportSummary') return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, result: { report_contract_version: 1, categories: [], workload: [], performance: [], trend_supported: true, buckets: [], data_integrity_warnings: [] } }) });
+      if (body.action !== 'getTaskOverviewV2') return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, result: { report_contract_version: 1, categories: [], people: [], departments: [], trend_supported: true, buckets: [] } }) });
       callCount++;
       if (callCount === 1) return new Promise(res => { resolveFirst = res; });
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, result: summaryFixture({ metrics: Object.assign({}, summaryFixture().metrics, { created_in_period: { metric_id: 'created_in_period', value: 999, kind: 'period_flow' } }) }) }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, result: overviewFixture({ metrics: Object.assign({}, overviewFixture().metrics, { open: { metric_id: 'open', value: 999 } }) }) }) });
     };
     const state = T.getState();
     const firstLoad = T.loadTaskReportSummary(root);
     const secondLoad = T.loadTaskReportSummary(root);
     await secondLoad;
-    resolveFirst({ ok: true, json: () => Promise.resolve({ ok: true, result: summaryFixture({ metrics: Object.assign({}, summaryFixture().metrics, { created_in_period: { metric_id: 'created_in_period', value: 111, kind: 'period_flow' } }) }) }) });
+    resolveFirst({ ok: true, json: () => Promise.resolve({ ok: true, result: overviewFixture({ metrics: Object.assign({}, overviewFixture().metrics, { open: { metric_id: 'open', value: 111 } }) }) }) });
     await firstLoad;
-    pass(state.report.summary.data.metrics.created_in_period.value === 999, 'DEDUP: a superseded in-flight request never overwrites the result of a newer request that already resolved');
+    pass(state.report.summary.data.metrics.open.value === 999, 'DEDUP: a superseded in-flight request never overwrites the result of a newer request that already resolved');
   }
 
-  console.log(`PHF Task Report-04 Dashboard UI/UX test: ${passed}/${passed} PASS`);
+  console.log(`PHF Task Tổng quan & Báo cáo V2 (Gate V2-R2) UI test: ${passed}/${passed} PASS`);
 })().catch(err => { console.error('FAIL', err); process.exit(1); });

@@ -21,7 +21,7 @@ const {
   saveTaskPermissionAssignment,
   createTaskPermissionGrant,
   revokeTaskPermissionGrant,
-  listTaskCategories,
+  listTaskCategories: listTaskCategoriesLegacy,
   listAdminTaskCategories,
   createTaskCategory,
   renameTaskCategory,
@@ -29,24 +29,24 @@ const {
   deleteTaskCategory,
   reorderTaskCategory,
   checkTaskFoundationStatus,
-  createTaskDraft,
+  createTaskDraft: createTaskDraftLegacy,
   updateTaskDraft,
   deleteTaskDraft,
-  publishTask,
-  getTaskDetail,
-  updateTaskProgress,
-  completeTask,
-  reopenTask,
-  cancelTask,
-  changeTaskDeadline,
-  transferTaskPrimary,
-  addTaskRelated,
-  removeTaskRelated,
-  addTaskComment,
-  addTaskLink,
-  removeTaskLink,
-  listTasks,
-  listTaskEvents
+  publishTask: publishTaskLegacy,
+  getTaskDetail: getTaskDetailLegacy,
+  updateTaskProgress: updateTaskProgressLegacy,
+  completeTask: completeTaskLegacy,
+  reopenTask: reopenTaskLegacy,
+  cancelTask: cancelTaskLegacy,
+  changeTaskDeadline: changeTaskDeadlineLegacy,
+  transferTaskPrimary: transferTaskPrimaryLegacy,
+  addTaskRelated: addTaskRelatedLegacy,
+  removeTaskRelated: removeTaskRelatedLegacy,
+  addTaskComment: addTaskCommentLegacy,
+  addTaskLink: addTaskLinkLegacy,
+  removeTaskLink: removeTaskLinkLegacy,
+  listTasks: listTasksLegacy,
+  listTaskEvents: listTaskEventsLegacy
 } = require('./api/_lib/task-core');
 const {
   getTaskReportSummary,
@@ -56,10 +56,137 @@ const {
   listTaskReportDrilldown
 } = require('./api/_lib/task-reporting');
 const {
+  getTaskOverviewV2,
+  listTaskOverviewV2Drilldown,
+  getTaskReportV2PersonAnalysis,
+  getTaskReportV2DepartmentAnalysis,
+  getTaskReportV2CategoryAnalysis,
+  getTaskReportV2Trend
+} = require('./api/_lib/task-reporting-v2');
+const {
   listMyTaskNotifications,
   markTaskNotificationRead,
   markAllTaskNotificationsRead
 } = require('./api/_lib/task-notifications');
+// TASK-SERVER integration pilot (2026-08-27) — TẮT MẶC ĐỊNH tuyệt đối, khớp
+// đúng api/data.js — xem comment ở đó / api/_lib/task-server-integration.js.
+const {
+  isServerWriteEnabled: isTaskServerWriteEnabled,
+  createTaskDraftViaServer,
+  publishTaskViaServer,
+  updateTaskProgressViaServer,
+  completeTaskViaServer,
+  reopenTaskViaServer,
+  cancelTaskViaServer,
+  changeTaskDeadlineViaServer,
+  transferTaskPrimaryViaServer,
+  addTaskRelatedViaServer,
+  removeTaskRelatedViaServer,
+  addTaskCommentViaServer,
+  addTaskLinkViaServer,
+  removeTaskLinkViaServer,
+  getTaskDetailViaServer,
+  listTaskEventsViaServer,
+  // Proposal V2 (2026-08-29, LOCKED Phương án A) — PostgreSQL-only, KHÔNG có
+  // nhánh Legacy (Proposal chưa từng tồn tại ở Supabase). Mirror đúng api/data.js.
+  createTaskProposalViaServer,
+  acceptTaskProposalViaServer,
+  rejectTaskProposalViaServer,
+  cancelTaskProposalViaServer,
+  listProposalRecipientEmployeesViaServer
+} = require('./api/_lib/task-server-integration');
+// Proposal V2 — alias thẳng ViaServer (giống api/data.js): không có flag gate
+// vì không có Legacy Supabase để fallback.
+const createTaskProposal = createTaskProposalViaServer;
+const acceptTaskProposal = acceptTaskProposalViaServer;
+const rejectTaskProposal = rejectTaskProposalViaServer;
+const cancelTaskProposal = cancelTaskProposalViaServer;
+const listProposalRecipientEmployees = listProposalRecipientEmployeesViaServer;
+// TASK-SERVER-02C read-path bridge — mirror đúng api/data.js. TẮT MẶC ĐỊNH:
+// khi flag OFF, getTaskDetail/listTaskCategories/listTasks giữ NGUYÊN legacy
+// (task-core.js → Supabase). Không đổi business rule / permission / schema.
+const {
+  isBridgeEnabled: isTaskReadBridgeEnabled,
+  bridgeListTaskCategories,
+  isListTasksBridgeEnabled: isTaskReadBridgeListTasksEnabled,
+  bridgeListTasks,
+  isGetTaskDetailBridgeEnabled: isTaskReadBridgeGetDetailEnabled
+} = require('./api/_lib/task-read-bridge');
+async function createTaskDraft(session, input) {
+  if (isTaskServerWriteEnabled()) return createTaskDraftViaServer(session, input);
+  return createTaskDraftLegacy(session, input);
+}
+async function publishTask(session, taskId, expectedRowVersion) {
+  if (isTaskServerWriteEnabled()) return publishTaskViaServer(session, taskId, expectedRowVersion);
+  return publishTaskLegacy(session, taskId, expectedRowVersion);
+}
+async function updateTaskProgress(session, taskId, expectedRowVersion, progressPercent, progressStatus) {
+  if (isTaskServerWriteEnabled()) return updateTaskProgressViaServer(session, taskId, expectedRowVersion, progressPercent, progressStatus);
+  return updateTaskProgressLegacy(session, taskId, expectedRowVersion, progressPercent, progressStatus);
+}
+async function completeTask(session, taskId, expectedRowVersion, resultText) {
+  if (isTaskServerWriteEnabled()) return completeTaskViaServer(session, taskId, expectedRowVersion, resultText);
+  return completeTaskLegacy(session, taskId, expectedRowVersion, resultText);
+}
+async function reopenTask(session, taskId, expectedRowVersion, reason) {
+  if (isTaskServerWriteEnabled()) return reopenTaskViaServer(session, taskId, expectedRowVersion, reason);
+  return reopenTaskLegacy(session, taskId, expectedRowVersion, reason);
+}
+async function cancelTask(session, taskId, expectedRowVersion, reason) {
+  if (isTaskServerWriteEnabled()) return cancelTaskViaServer(session, taskId, expectedRowVersion, reason);
+  return cancelTaskLegacy(session, taskId, expectedRowVersion, reason);
+}
+async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadline, reason) {
+  if (isTaskServerWriteEnabled()) return changeTaskDeadlineViaServer(session, taskId, expectedRowVersion, newDeadline, reason);
+  return changeTaskDeadlineLegacy(session, taskId, expectedRowVersion, newDeadline, reason);
+}
+async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason) {
+  if (isTaskServerWriteEnabled()) return transferTaskPrimaryViaServer(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason);
+  return transferTaskPrimaryLegacy(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason);
+}
+async function addTaskRelated(session, taskId, targetEmployeeCode) {
+  if (isTaskServerWriteEnabled()) return addTaskRelatedViaServer(session, taskId, targetEmployeeCode);
+  return addTaskRelatedLegacy(session, taskId, targetEmployeeCode);
+}
+async function removeTaskRelated(session, taskId, targetEmployeeCode) {
+  if (isTaskServerWriteEnabled()) return removeTaskRelatedViaServer(session, taskId, targetEmployeeCode);
+  return removeTaskRelatedLegacy(session, taskId, targetEmployeeCode);
+}
+async function addTaskComment(session, taskId, body) {
+  if (isTaskServerWriteEnabled()) return addTaskCommentViaServer(session, taskId, body);
+  return addTaskCommentLegacy(session, taskId, body);
+}
+async function addTaskLink(session, taskId, side, url, label) {
+  if (isTaskServerWriteEnabled()) return addTaskLinkViaServer(session, taskId, side, url, label);
+  return addTaskLinkLegacy(session, taskId, side, url, label);
+}
+async function removeTaskLink(session, taskId, linkId) {
+  if (isTaskServerWriteEnabled()) return removeTaskLinkViaServer(session, taskId, linkId);
+  return removeTaskLinkLegacy(session, taskId, linkId);
+}
+// READ bridge wrappers — cờ RIÊNG cho từng operation (đúng nguyên tắc "1 cờ /
+// 1 rủi ro" của task-read-bridge.js), mirror y hệt api/data.js.
+async function getTaskDetail(session, taskId) {
+  if (isTaskReadBridgeGetDetailEnabled()) return getTaskDetailViaServer(session, taskId);
+  return getTaskDetailLegacy(session, taskId);
+}
+async function listTaskCategories(session) {
+  if (isTaskReadBridgeEnabled()) return bridgeListTaskCategories();
+  return listTaskCategoriesLegacy(session);
+}
+async function listTasks(session, params) {
+  if (isTaskReadBridgeListTasksEnabled()) return bridgeListTasks(session, params);
+  return listTasksLegacy(session, params);
+}
+// Timeline events MUST come from the same datastore as listTasks()/
+// getTaskDetail() — otherwise Timeline rows point at task_ids that the bridged
+// getTaskDetail then 404s (MANAGED_SCOPE_UI_DATA_MISMATCH / broken timeline→
+// detail nav, 2026-08-28). Gate on the same flag as listTasks (Timeline reuses
+// the listTasks() authorized set).
+async function listTaskEvents(session, params) {
+  if (isTaskReadBridgeListTasksEnabled()) return listTaskEventsViaServer(session, params);
+  return listTaskEventsLegacy(session, params);
+}
 const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
@@ -124,12 +251,15 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'deleteTaskCategory', 'reorderTaskCategory',
   'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'deleteTaskDraft', 'publishTask', 'getTaskDetail',
+  'listProposalRecipientEmployees', 'createTaskProposal', 'acceptTaskProposal', 'rejectTaskProposal', 'cancelTaskProposal',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
-  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown'
+  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
+  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -147,6 +277,32 @@ function taskCreateDraftInput(payload) {
   copyTaskPayloadField(input, payload, 'deadline', 'deadline');
   copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
   copyTaskPayloadField(input, payload, 'create_idempotency_key', 'idempotencyKey');
+  return input;
+}
+
+// Proposal V2 (2026-08-29) — input shape riêng, mirror đúng api/data.js
+// (flow_type luôn 'de_xuat' cố định phía server, recipient thay cho primary).
+function taskProposalCreateInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(input, payload, 'deadline', 'deadline');
+  copyTaskPayloadField(input, payload, 'recipient_employee_code', 'recipientEmployeeCode');
+  return input;
+}
+
+function taskProposalAcceptInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(input, payload, 'deadline', 'deadline');
+  copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
   return input;
 }
 
@@ -222,6 +378,22 @@ function taskReportDrilldownInput(payload) {
   return input;
 }
 
+function taskOverviewV2Input(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'period', 'period');
+  return input;
+}
+function taskOverviewV2DrilldownInput(payload) {
+  const input = taskOverviewV2Input(payload);
+  copyTaskPayloadField(input, payload, 'metric_id', 'metric_id');
+  copyTaskPayloadField(input, payload, 'employee_code', 'employee_code');
+  copyTaskPayloadField(input, payload, 'department', 'department');
+  copyTaskPayloadField(input, payload, 'category_code', 'category_code');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
@@ -250,6 +422,12 @@ async function dispatchTaskAction(session, payload) {
     case 'deleteTaskDraft': return { handled: true, result: await deleteTaskDraft(session, payload.task_id, payload.expected_row_version) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
     case 'getTaskDetail': return { handled: true, result: await getTaskDetail(session, payload.task_id) };
+    // Proposal V2 (2026-08-29, LOCKED Phương án A — PostgreSQL-only), mirror đúng api/data.js
+    case 'listProposalRecipientEmployees': return { handled: true, result: await listProposalRecipientEmployees(session) };
+    case 'createTaskProposal': return { handled: true, result: await createTaskProposal(session, taskProposalCreateInput(payload)) };
+    case 'acceptTaskProposal': return { handled: true, result: await acceptTaskProposal(session, payload.proposal_task_id, taskProposalAcceptInput(payload)) };
+    case 'rejectTaskProposal': return { handled: true, result: await rejectTaskProposal(session, payload.proposal_task_id, payload.reason) };
+    case 'cancelTaskProposal': return { handled: true, result: await cancelTaskProposal(session, payload.proposal_task_id, payload.reason) };
     case 'updateTaskProgress': return { handled: true, result: await updateTaskProgress(session, payload.task_id, payload.expected_row_version, payload.progress_percent, payload.progress_status) };
     case 'completeTask': return { handled: true, result: await completeTask(session, payload.task_id, payload.expected_row_version, payload.result_text) };
     case 'reopenTask': return { handled: true, result: await reopenTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
@@ -271,6 +449,12 @@ async function dispatchTaskAction(session, payload) {
     case 'getTaskReportPersonAnalysis': return { handled: true, result: await getTaskReportPersonAnalysis(session, taskReportContextInput(payload)) };
     case 'getTaskReportTrend': return { handled: true, result: await getTaskReportTrend(session, taskReportContextInput(payload)) };
     case 'listTaskReportDrilldown': return { handled: true, result: await listTaskReportDrilldown(session, taskReportDrilldownInput(payload)) };
+    case 'getTaskOverviewV2': return { handled: true, result: await getTaskOverviewV2(session, taskOverviewV2Input(payload)) };
+    case 'listTaskOverviewV2Drilldown': return { handled: true, result: await listTaskOverviewV2Drilldown(session, taskOverviewV2DrilldownInput(payload)) };
+    case 'getTaskReportV2PersonAnalysis': return { handled: true, result: await getTaskReportV2PersonAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2DepartmentAnalysis': return { handled: true, result: await getTaskReportV2DepartmentAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2CategoryAnalysis': return { handled: true, result: await getTaskReportV2CategoryAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2Trend': return { handled: true, result: await getTaskReportV2Trend(session, taskOverviewV2Input(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };

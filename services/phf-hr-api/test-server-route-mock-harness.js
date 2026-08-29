@@ -17,6 +17,7 @@ const assert = require('assert');
 
 const SERVER_JS_PATH = require.resolve('./server.js');
 const TASK_WRITE_PATH = require.resolve('./lib/task-write.js');
+const TASK_READ_PATH = require.resolve('./lib/task-read.js');
 
 const MOCK_CONFIG = {
   SERVICE_TOKEN: 'mock-service-token-not-real-0123456789abcdef',
@@ -63,6 +64,7 @@ function makeFakeTaskWriteModule(overrides) {
       deleteTaskCategoryIfUnused: makeFn('deleteTaskCategoryIfUnused'),
       createTaskPermissionGrant: makeFn('createTaskPermissionGrant'),
       revokeTaskPermissionGrant: makeFn('revokeTaskPermissionGrant'),
+      emitTaskNotification: makeFn('emitTaskNotification'),
     },
   };
 }
@@ -74,6 +76,25 @@ function loadCreateServerWithFakeTaskWrite(fakeMod) {
   const { createServer } = require(SERVER_JS_PATH);
   if (original) require.cache[TASK_WRITE_PATH] = original;
   else delete require.cache[TASK_WRITE_PATH];
+  return createServer;
+}
+
+// loadCreateServerWithFakeTaskWriteAndRead — GIỐNG hệt trên, THÊM mock cho
+// lib/task-read.js (2026-08-27, thêm sau khi phát hiện GET /v1/task/tasks/:id
+// KHÔNG có bất kỳ route-dispatch-level test nào ở file này — toàn bộ 62 test
+// trước đó chỉ mock lib/task-write.js, không route nào đọc GET-by-id từng
+// được exercise qua server.emit('request', ...) thật). Test này KHÔNG bắt
+// được deploy-drift (đó là việc của bước verify hash lúc deploy) — chỉ bắt
+// regression về CODE (route dispatch/ordering/response shape) trong repo.
+function loadCreateServerWithFakeTaskWriteAndRead(fakeWriteMod, fakeReadMod) {
+  delete require.cache[SERVER_JS_PATH];
+  const originalWrite = require.cache[TASK_WRITE_PATH];
+  const originalRead = require.cache[TASK_READ_PATH];
+  require.cache[TASK_WRITE_PATH] = { id: TASK_WRITE_PATH, filename: TASK_WRITE_PATH, loaded: true, exports: fakeWriteMod };
+  require.cache[TASK_READ_PATH] = { id: TASK_READ_PATH, filename: TASK_READ_PATH, loaded: true, exports: fakeReadMod };
+  const { createServer } = require(SERVER_JS_PATH);
+  if (originalWrite) require.cache[TASK_WRITE_PATH] = originalWrite; else delete require.cache[TASK_WRITE_PATH];
+  if (originalRead) require.cache[TASK_READ_PATH] = originalRead; else delete require.cache[TASK_READ_PATH];
   return createServer;
 }
 
@@ -1059,6 +1080,129 @@ function record(name, pass, detail) {
     const server = createServer(MOCK_CONFIG);
     const { statusCode, body } = await sendRequest(server, 'GET', '/healthz', undefined, {});
     record('healthz_route_no_regression', statusCode === 200 && body.status === 'ok' && body.service === 'phf-hr-api' && body.ok === undefined, { statusCode, body });
+  }
+
+  // =========================================================================
+  // SINGLE TASK READ FOUNDATION — GET /v1/task/tasks/:id route dispatch
+  // (2026-08-27, thêm sau khi phát hiện route này CHƯA từng có test dispatch-
+  // level nào — deploy-drift 2026-08-27 khiến route "biến mất" trên server
+  // thật dù code repo đúng, KHÔNG bị bắt bởi bất kỳ test nào trước đó vì
+  // không ai gọi GET /v1/task/tasks/:id qua server.emit('request', ...) thật
+  // trong toàn bộ file này). Test này bắt regression CODE — KHÔNG thay thế
+  // bước verify hash lúc deploy (2 lớp bảo vệ khác nhau, bổ sung cho nhau).
+  // =========================================================================
+  {
+    const { TaskReadError } = require(TASK_READ_PATH);
+    const calls = [];
+    const fakeReadMod = {
+      TaskReadError,
+      listTaskCategories: async () => { throw new Error('HARNESS_SPY_NOT_CONFIGURED_listTaskCategories'); },
+      getTaskById: async (config, taskId) => {
+        calls.push({ taskId });
+        return { task: { id: taskId, status: 'published', row_version: 2 }, assignees: [{ role: 'primary', is_active: true, employee_code: 'PHF010' }] };
+      },
+    };
+    const { mod: writeMod } = makeFakeTaskWriteModule({});
+    const createServer = loadCreateServerWithFakeTaskWriteAndRead(writeMod, fakeReadMod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'GET', '/v1/task/tasks/t-exists', undefined, authHeader());
+    record('getTaskById_route_SUCCESS_dispatches_and_wraps_data',
+      statusCode === 200 && body.data && body.data.task.id === 't-exists' && body.data.task.status === 'published' &&
+        body.data.assignees.length === 1 && calls.length === 1 && calls[0].taskId === 't-exists',
+      { statusCode, body });
+  }
+
+  {
+    // Task KHÔNG tồn tại -> 404 {error:'TASK_NOT_FOUND'} — PHẢI KHÁC catch-all
+    // {error:'NOT_FOUND'} (xem test #9 ở trên) — đây CHÍNH LÀ phân biệt đã bị
+    // nhầm lẫn trong sự cố deploy-drift 2026-08-27 (route không match trả
+    // catch-all NOT_FOUND, trông giống hệt "task không tồn tại" nếu chỉ nhìn
+    // statusCode mà không so error code).
+    const fakeReadMod = {
+      TaskReadError: require(TASK_READ_PATH).TaskReadError,
+      listTaskCategories: async () => { throw new Error('unused'); },
+      getTaskById: async () => ({ task: null, assignees: [] }),
+    };
+    const { mod: writeMod } = makeFakeTaskWriteModule({});
+    const createServer = loadCreateServerWithFakeTaskWriteAndRead(writeMod, fakeReadMod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'GET', '/v1/task/tasks/t-missing', undefined, authHeader());
+    record('getTaskById_route_NOT_FOUND_uses_specific_code_not_generic_catchall',
+      statusCode === 404 && body.error === 'TASK_NOT_FOUND', { statusCode, body });
+  }
+
+  {
+    // KHÔNG auth -> 401, KHÔNG gọi getTaskById.
+    const calls = [];
+    const fakeReadMod = {
+      TaskReadError: require(TASK_READ_PATH).TaskReadError,
+      listTaskCategories: async () => { throw new Error('unused'); },
+      getTaskById: async (config, taskId) => { calls.push(taskId); return { task: null, assignees: [] }; },
+    };
+    const { mod: writeMod } = makeFakeTaskWriteModule({});
+    const createServer = loadCreateServerWithFakeTaskWriteAndRead(writeMod, fakeReadMod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'GET', '/v1/task/tasks/t-1', undefined, {});
+    record('getTaskById_route_NO_AUTH_401_no_db_call', statusCode === 401 && calls.length === 0, { statusCode, body });
+  }
+
+  {
+    // Path download (:id/attachments/:attachmentId) KHÔNG bị route GET-by-id
+    // nuốt nhầm (xem comment gốc trong server.js — [^/:]+ chặn '/').
+    const fakeReadMod = {
+      TaskReadError: require(TASK_READ_PATH).TaskReadError,
+      listTaskCategories: async () => { throw new Error('unused'); },
+      getTaskById: async () => { throw new Error('HARNESS_SHOULD_NOT_BE_CALLED_FOR_DOWNLOAD_PATH'); },
+    };
+    const { mod: writeMod } = makeFakeTaskWriteModule({});
+    const createServer = loadCreateServerWithFakeTaskWriteAndRead(writeMod, fakeReadMod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'GET', '/v1/task/tasks/t-1/attachments/a-1', undefined, authHeader());
+    // Không mock attachment-service -> route sẽ lỗi ở tầng khác (không phải
+    // getTaskById), miễn KHÔNG phải statusCode 200 với shape {data:{task,...}}
+    // của route GET-by-id là đủ chứng minh 2 route không đụng nhau.
+    record('getTaskById_route_does_NOT_swallow_download_path',
+      !(statusCode === 200 && body && body.data && body.data.task), { statusCode, body });
+  }
+
+  // =========================================================================
+  // Cross-department notification route wiring (2026-08-27, đóng OPEN GAP)
+  // =========================================================================
+  {
+    const { mod, calls } = makeFakeTaskWriteModule({
+      emitTaskNotification: { return: { created: 1 } },
+    });
+    const createServer = loadCreateServerWithFakeTaskWrite(mod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(
+      server, 'POST', '/v1/task/tasks/t1:notify',
+      { recipientEmployeeCode: 'PHF001', title: 'Việc mới', message: 'noi dung', targetPath: '/x', dedupeKey: 'k1' },
+      authHeader()
+    );
+    const call = calls.find((c) => c.name === 'emitTaskNotification');
+    record(
+      'notify_SUCCESS_route_and_mapping',
+      statusCode === 200 && body.ok === true && body.data.created === 1 &&
+        call && call.args.taskId === 't1' && call.args.recipientEmployeeCode === 'PHF001' &&
+        call.args.title === 'Việc mới' && call.args.dedupeKey === 'k1' && calls.length === 1,
+      { statusCode, body, callArgs: call && call.args }
+    );
+  }
+  {
+    const { mod, calls } = makeFakeTaskWriteModule({
+      emitTaskNotification: { throwCode: 'TASK_NOTIFICATION_RECIPIENT_REQUIRED' },
+    });
+    const createServer = loadCreateServerWithFakeTaskWrite(mod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'POST', '/v1/task/tasks/t1:notify', { title: 't', message: 'm' }, authHeader());
+    record('notify_RECIPIENT_REQUIRED_maps_400', statusCode === 400 && body.ok === false && body.code === 'TASK_NOTIFICATION_RECIPIENT_REQUIRED' && calls.length === 1, { statusCode, body });
+  }
+  {
+    const { mod, calls } = makeFakeTaskWriteModule({});
+    const createServer = loadCreateServerWithFakeTaskWrite(mod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode, body } = await sendRequest(server, 'POST', '/v1/task/tasks/t1:notify', { title: 't', message: 'm' }, {});
+    record('notify_NO_AUTH_401', statusCode === 401 && calls.length === 0, { statusCode, body });
   }
 
   // =========================================================================

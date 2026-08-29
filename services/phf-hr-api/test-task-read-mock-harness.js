@@ -175,6 +175,113 @@ function signDescriptor(payload, secret) {
   }
 
   // ===========================================================================
+  // lib/task-read.js — getTaskById() (2026-08-27, SINGLE TASK READ FOUNDATION)
+  // ===========================================================================
+  {
+    // SUCCESS — task + assignees, shape raw snake_case (KHÔNG camelCase —
+    // đúng chủ ý, xem comment trong lib/task-read.js).
+    const client = makeFakeClient([
+      { expect: BEGIN_RO, result: {} },
+      { expect: SET_ROLE, result: {} },
+      { expect: SET_TIMEOUT, result: {} },
+      {
+        expect: /^SELECT \* FROM task\.tasks WHERE id = \$1$/,
+        result: { rows: [{ id: 't1', status: 'published', created_by_employee_code: 'PHF010', created_by_account_id: null, row_version: 3 }] },
+      },
+      {
+        expect: /^SELECT \* FROM task\.assignees WHERE task_id = \$1$/,
+        result: { rows: [{ id: 'a1', task_id: 't1', employee_code: 'PHF010', role: 'primary', is_active: true }] },
+      },
+      {
+        expect: /^SELECT \* FROM task\.comments WHERE task_id = \$1 ORDER BY created_at ASC$/,
+        result: { rows: [{ id: 'c1', task_id: 't1', body: 'hi' }] },
+      },
+      {
+        expect: /^SELECT \* FROM task\.links WHERE task_id = \$1 ORDER BY created_at ASC$/,
+        result: { rows: [{ id: 'l1', task_id: 't1', url: 'https://x.y' }] },
+      },
+      {
+        expect: /^SELECT \* FROM task\.events WHERE task_id = \$1 ORDER BY occurred_at DESC$/,
+        result: { rows: [{ id: 'e1', task_id: 't1', event_type: 'status' }] },
+      },
+      { expect: COMMIT, result: {} },
+    ]);
+    const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
+    const out = await getTaskById(MOCK_CONFIG, 't1');
+    record('getTaskById_SUCCESS_shape_raw_snake_case',
+      out.task.id === 't1' && out.task.row_version === 3 && out.task.created_by_employee_code === 'PHF010' &&
+      out.assignees.length === 1 && out.assignees[0].role === 'primary' && out.assignees[0].is_active === true &&
+      out.comments.length === 1 && out.comments[0].id === 'c1' &&
+      out.links.length === 1 && out.links[0].id === 'l1' &&
+      out.events.length === 1 && out.events[0].id === 'e1' &&
+      client._remainingSteps() === 0,
+      { out });
+  }
+
+  {
+    // NOT FOUND — task=null, assignees/comments/links/events=[], KHÔNG query
+    // bảng con nào (query thứ 2+ KHÔNG được gọi khi task không tồn tại —
+    // tránh query thừa).
+    const client = makeFakeClient([
+      { expect: BEGIN_RO, result: {} },
+      { expect: SET_ROLE, result: {} },
+      { expect: SET_TIMEOUT, result: {} },
+      { expect: /^SELECT \* FROM task\.tasks WHERE id = \$1$/, result: { rows: [] } },
+      { expect: COMMIT, result: {} },
+    ]);
+    const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
+    const out = await getTaskById(MOCK_CONFIG, 'not-exist');
+    record('getTaskById_NOT_FOUND_task_null_no_extra_query',
+      out.task === null && Array.isArray(out.assignees) && out.assignees.length === 0 &&
+      Array.isArray(out.comments) && out.comments.length === 0 &&
+      Array.isArray(out.links) && out.links.length === 0 &&
+      Array.isArray(out.events) && out.events.length === 0 &&
+      client._remainingSteps() === 0,
+      { out });
+  }
+
+  {
+    // Nhiều assignees (primary + related/coordinator) — không giới hạn số dòng.
+    const client = makeFakeClient([
+      { expect: BEGIN_RO, result: {} },
+      { expect: SET_ROLE, result: {} },
+      { expect: SET_TIMEOUT, result: {} },
+      { expect: /^SELECT \* FROM task\.tasks WHERE id = \$1$/, result: { rows: [{ id: 't2', status: 'in_progress', row_version: 1 }] } },
+      {
+        expect: /^SELECT \* FROM task\.assignees WHERE task_id = \$1$/,
+        result: { rows: [
+          { id: 'a1', task_id: 't2', employee_code: 'PHF082', role: 'primary', is_active: true },
+          { id: 'a2', task_id: 't2', employee_code: 'PHF010', role: 'related', is_active: true },
+          { id: 'a3', task_id: 't2', employee_code: 'PHF012', role: 'related', is_active: false },
+        ] },
+      },
+      { expect: /^SELECT \* FROM task\.comments WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
+      { expect: /^SELECT \* FROM task\.links WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
+      { expect: /^SELECT \* FROM task\.events WHERE task_id = \$1 ORDER BY occurred_at DESC$/, result: { rows: [] } },
+      { expect: COMMIT, result: {} },
+    ]);
+    const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
+    const out = await getTaskById(MOCK_CONFIG, 't2');
+    record('getTaskById_multiple_assignees_all_rows_returned', out.assignees.length === 3, { out });
+  }
+
+  {
+    // DB error (vd permission denied) -> mapPgError giữ nguyên hành vi đã có,
+    // rollback đúng.
+    const client = makeFakeClient([
+      { expect: BEGIN_RO, result: {} },
+      { expect: SET_ROLE, result: {} },
+      { expect: SET_TIMEOUT, result: {} },
+      { expect: /^SELECT \* FROM task\.tasks WHERE id = \$1$/, error: Object.assign(new Error('permission denied'), { code: '42501' }) },
+      { expect: ROLLBACK, result: {} },
+    ]);
+    const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
+    let error;
+    try { await getTaskById(MOCK_CONFIG, 't3'); } catch (e) { error = e; }
+    record('getTaskById_DB_ERROR_mapped_and_rolled_back', error && error.code === 'TASK_PERMISSION_DENIED' && client._remainingSteps() === 0, { code: error && error.code });
+  }
+
+  // ===========================================================================
   // lib/task-query-executor.js — verifyDescriptor() unchanged behavior
   // ===========================================================================
   {
@@ -203,7 +310,9 @@ function signDescriptor(payload, secret) {
       { expect: SET_ROLE, result: {} },
       { expect: SET_TIMEOUT, result: {} },
       {
-        expect: /^SELECT id, task_code, flow_type, status, title, priority, deadline, created_by_employee_code, is_cross_department, source_department, target_department, created_at, row_version FROM task\.tasks WHERE flow_type = \$1 AND created_by_employee_code = \$2 ORDER BY created_at DESC, id ASC LIMIT \$3 OFFSET \$4$/,
+        // Proposal V2 (2026-08-29, additive) — SQL nay có alias t./pd. + LEFT
+        // JOIN task.proposal_decisions (xem lib/task-query-executor.js).
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
         result: { rows: [{ id: 't1', task_code: 'CV-1', flow_type: 'giao_viec', status: 'published', title: 'x', priority: 'normal', deadline: '2026-09-01', created_by_employee_code: 'PHF001', is_cross_department: false, source_department: 'Bán hàng', target_department: 'Bán hàng', created_at: '2026-08-01', row_version: 1 }] },
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND is_active = true AND task_id = ANY\(\$1::uuid\[\]\)$/, result: { rows: [{ task_id: 't1', employee_code: 'PHF001' }] } },
@@ -217,7 +326,11 @@ function signDescriptor(payload, secret) {
       offset: 0, limit: 50,
     }, SECRET);
     const out = await executeResolvedTaskQuery(MOCK_CONFIG, descriptor, SECRET);
-    const q1 = client.calls.find((c) => /FROM task\.tasks WHERE/.test(c.sql));
+    // Proposal V2 (2026-08-29) — SQL nay có "FROM task.tasks t LEFT JOIN
+    // task.proposal_decisions pd ON ... WHERE" (không còn "task.tasks WHERE"
+    // liền nhau) — match rộng hơn nhưng vẫn chỉ khớp đúng 1 câu (list query
+    // chính, phân biệt với câu SELECT task_id, employee_code FROM task.assignees).
+    const q1 = client.calls.find((c) => /FROM task\.tasks .*WHERE flow_type = \$1/.test(c.sql));
     record('executeResolvedTaskQuery_creator_eq_HAPPY_PATH',
       out.count === 1 && out.data[0].primaryEmployeeCode === 'PHF001' && out.hasMore === false
       && q1.params[0] === 'giao_viec' && q1.params[1] === 'PHF001' && q1.params[2] === 51 && q1.params[3] === 0,
@@ -260,7 +373,7 @@ function signDescriptor(payload, secret) {
         result: { rows: [{ task_id: 't1' }, { task_id: 't2' }] },
       },
       {
-        expect: /^SELECT id, task_code, flow_type, status, title, priority, deadline, created_by_employee_code, is_cross_department, source_department, target_department, created_at, row_version FROM task\.tasks WHERE flow_type = \$1 AND id = ANY\(\$2::uuid\[\]\) AND status <> 'draft' AND is_cross_department = true ORDER BY created_at DESC, id ASC LIMIT \$3 OFFSET \$4$/,
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND id = ANY\(\$2::uuid\[\]\) AND status <> 'draft' AND is_cross_department = true ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
         result: { rows: [{ id: 't2', task_code: 'CV-2', flow_type: 'giao_viec', status: 'in_progress', title: 'y', priority: 'high', deadline: '2026-09-05', created_by_employee_code: 'PHF002', is_cross_department: true, source_department: 'A', target_department: 'B', created_at: '2026-08-02', row_version: 1 }] },
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND is_active = true AND task_id = ANY\(\$1::uuid\[\]\)$/, result: { rows: [{ task_id: 't2', employee_code: 'PHF080' }] } },
@@ -309,7 +422,7 @@ function signDescriptor(payload, secret) {
       { expect: SET_ROLE, result: {} },
       { expect: SET_TIMEOUT, result: {} },
       {
-        expect: /^SELECT id, task_code, flow_type, status, title, priority, deadline, created_by_employee_code, is_cross_department, source_department, target_department, created_at, row_version FROM task\.tasks WHERE flow_type = \$1 AND created_by_employee_code = \$2 AND status IN \('published', 'in_progress'\) AND deadline < \$3 AND \(task_code ILIKE \$4 OR title ILIKE \$4\) ORDER BY created_at DESC, id ASC LIMIT \$5 OFFSET \$6$/,
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 AND status IN \('published', 'in_progress'\) AND deadline < \$3 AND \(task_code ILIKE \$4 OR title ILIKE \$4\) ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$5 OFFSET \$6$/,
         result: { rows: [{ id: 't1', row_version: 1 }, { id: 't2', row_version: 1 }, { id: 't3', row_version: 1 }] }, // 3 rows for limit=2 -> hasMore
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees/, result: { rows: [] } },
@@ -324,7 +437,7 @@ function signDescriptor(payload, secret) {
       offset: 0, limit: 2,
     }, SECRET);
     const out = await executeResolvedTaskQuery(MOCK_CONFIG, descriptor, SECRET);
-    const q1 = client.calls.find((c) => /FROM task\.tasks WHERE/.test(c.sql));
+    const q1 = client.calls.find((c) => /FROM task\.tasks .*WHERE flow_type = \$1/.test(c.sql));
     record('executeResolvedTaskQuery_overdue_search_hasMore',
       out.hasMore === true && out.data.length === 2 && q1.params[3] === '%CV\\_2608\\%%',
       { out, params: q1.params });
