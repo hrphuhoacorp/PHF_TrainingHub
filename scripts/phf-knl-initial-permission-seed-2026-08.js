@@ -54,6 +54,7 @@ const url = String(process.env.SUPABASE_URL || '').trim();
 const secret = String(process.env.SUPABASE_SECRET_KEY || '').trim();
 if (!url || !secret) { console.error('Missing Supabase Production environment.'); process.exit(1); }
 const db = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-initial-permission-seed-2026-08.js)');
 
 const REASON = 'PHF KNL initial permission baseline 2026-08';
 const SYSTEM_SESSION = { role: 'admin', account: { id: 'system-knl-initial-seed-2026-08', name: 'PHF KNL Initial Permission Baseline' } };

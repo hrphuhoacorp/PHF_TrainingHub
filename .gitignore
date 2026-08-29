@@ -15,3 +15,34 @@
 _backup_old/
 PHF_TrainingHub_GoiChiaSe_AnToan/
 PHF_TrainingHub_GoiChiaSe_AnToan.zip
+services/phf-hr-api/node_modules/
+
+# generated test-fixture manifests
+scripts/*.result.json
+
+# PHF HR local one-click launcher — runtime state/log files (PIDs, logs),
+# LOCAL only, never checked in.
+/runtime/
+
+# --- Git hygiene pass 2026-08-29 (Proposal V2 pre-production readiness) ---
+# Throwaway PostgreSQL E2E credential file — CHỨA MẬT KHẨU THẬT (PHF_HR_DB_*),
+# xem scripts/task-fullstack-e2e-throwaway-dev.js. TUYỆT ĐỐI không commit.
+/e2e/
+
+# Local Vercel CLI project link metadata (machine-specific, không phải source).
+/.vercel/
+
+# Playwright MCP tool output (console/page snapshot logs) — local debugging
+# artifact, không phải test source.
+/.playwright-mcp/
+
+# Generated test-oracle/training-acceptance run OUTPUT (có field generatedAt/
+# generated_at, hoặc là kết quả 1 lần chạy script — KHÔNG phải fixture nguồn).
+# CÁC FILE .js sinh ra chúng (task-training-acceptance-*.js, task-oracle-*.js)
+# VẪN LÀ SOURCE, không bị rule này chạm tới.
+/.parity-golden-oracle-descriptor.json
+/scripts/task-training-acceptance-dataset-v1.manifest.json
+/scripts/task-training-acceptance-permission-matrix-v1.json
+/scripts/task-training-acceptance-verify-v1.json
+# CHỨA EMAIL CÁ NHÂN THẬT của nhân viên (PII) — tuyệt đối không commit.
+/scripts/task-training-acceptance-persona-emails.json

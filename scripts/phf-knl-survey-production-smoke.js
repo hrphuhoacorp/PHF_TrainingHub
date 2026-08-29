@@ -11,6 +11,7 @@ const secret=String(process.env.SUPABASE_SECRET_KEY||'').trim();
 const publishable=String(process.env.SUPABASE_PUBLISHABLE_KEY||'').trim();
 assert(url&&secret&&publishable,'Missing Supabase Production environment.');
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-survey-production-smoke.js)');
 const TEST_PREFIX='[SMOKE 1.49.0]';
 const runId=new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(16).slice(2,8);
 const created={campaignId:'',cloneVersionId:'',sourceVersionIds:[],assignmentIds:[],frameworkIds:[],permissionGrantId:''};

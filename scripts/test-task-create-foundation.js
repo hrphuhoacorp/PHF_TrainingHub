@@ -421,10 +421,17 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   // (đã verify ở scripts/test-task-permission-v1.js LIFECYCLE; xác nhận lại
   // ở đây rằng completeTask/updateTaskProgress chỉ chấp nhận đúng Primary
   // hiện hành, không có nhánh nào cho role='related').
+  //
+  // TEST_MAINTENANCE (2026-08-27, seam refactor — integration-neutral, xem
+  // task-server-integration.js): logic primary-check được tách khỏi
+  // completeTask() vào seam resolveAndAuthorizeComplete() (dùng chung cho
+  // cả path Supabase lẫn phf-hr-api, KHÔNG duplicate business rule) — kiểm
+  // tra chuyển sang đúng hàm chứa logic thật hôm nay, giữ nguyên Ý ĐỊNH gốc
+  // của assertion (không có nhánh role='related' nào cho phép complete).
   {
     const coreSource = require('fs').readFileSync(path.join(ROOT, 'api', '_lib', 'task-core.js'), 'utf8');
-    const completeFn = coreSource.slice(coreSource.indexOf('async function completeTask'), coreSource.indexOf('async function reopenTask'));
-    pass(completeFn.includes("role === 'primary'") && !completeFn.includes("role === 'related'"), 'RELATED: completeTask() chỉ kiểm tra role primary — CC không complete thay được chỉ vì có quan hệ related');
+    const seamFn = coreSource.slice(coreSource.indexOf('async function resolveAndAuthorizeComplete'), coreSource.indexOf('async function categoryActive'));
+    pass(seamFn.includes("role === 'primary'") && !seamFn.includes("role === 'related'"), 'RELATED: resolveAndAuthorizeComplete() (dùng bởi completeTask) chỉ kiểm tra role primary — CC không complete thay được chỉ vì có quan hệ related');
   }
 
   // ===========================================================================

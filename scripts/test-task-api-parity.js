@@ -21,6 +21,13 @@ const surfaces = [
 // và reorderTaskCategory — 2 action mới cho Cài đặt (xóa danh mục chưa dùng,
 // sắp xếp thứ tự), wire local, chưa gọi write thật (RPC/cột phụ thuộc CHƯA
 // apply Production).
+// TEST DRIFT FIX (2026-08-29, Task release prep): thêm 5 action Proposal V2
+// (listProposalRecipientEmployees/createTaskProposal/acceptTaskProposal/
+// rejectTaskProposal/cancelTaskProposal — PostgreSQL-only, LOCKED Phương án A)
+// + 6 action Overview/Report V2 (getTaskOverviewV2/listTaskOverviewV2Drilldown/
+// getTaskReportV2{Person,Department,Category}Analysis/getTaskReportV2Trend).
+// Cả api/data.js và server.js đều đã wire đủ — cập nhật golden list cho khớp
+// runtime hiện tại (parity thật giữa 2 file), KHÔNG hạ assertion.
 const expectedActions = [
   'listTaskAssignableEmployees', 'listTaskAdminPeople', 'saveTaskPermissionAssignment',
   'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
@@ -28,12 +35,15 @@ const expectedActions = [
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive',
   'deleteTaskCategory', 'reorderTaskCategory', 'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'deleteTaskDraft', 'publishTask', 'getTaskDetail',
+  'listProposalRecipientEmployees', 'createTaskProposal', 'acceptTaskProposal', 'rejectTaskProposal', 'cancelTaskProposal',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
-  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown'
+  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
+  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -99,6 +109,11 @@ const payloads = {
   deleteTaskDraft: { task_id:'task-1', expected_row_version:7 },
   publishTask: { task_id:'task-1', expected_row_version:7 },
   getTaskDetail: { task_id:'task-1' },
+  listProposalRecipientEmployees: {},
+  createTaskProposal: { title:'Đề xuất', content:'Nội dung', category_code:'CAT1', priority:'thuong', start_at:'2026-08-20', deadline:'2026-08-25', recipient_employee_code:'NV002' },
+  acceptTaskProposal: { proposal_task_id:'prop-1', title:'T', content:'C', category_code:'CAT2', priority:'quan_trong', start_at:null, deadline:'2026-08-26', primary_employee_code:'NV003' },
+  rejectTaskProposal: { proposal_task_id:'prop-1', reason:'Không phù hợp' },
+  cancelTaskProposal: { proposal_task_id:'prop-1', reason:'Rút đề xuất' },
   updateTaskProgress: { task_id:'task-1', expected_row_version:7, progress_percent:50, progress_status:'Đang thực hiện' },
   completeTask: { task_id:'task-1', expected_row_version:7, result_text:'Done' },
   reopenTask: { task_id:'task-1', expected_row_version:7, reason:'Reopen' },
@@ -119,7 +134,13 @@ const payloads = {
   getTaskReportCategoryAnalysis: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
   getTaskReportPersonAnalysis: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
   getTaskReportTrend: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
-  listTaskReportDrilldown: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }
+  listTaskReportDrilldown: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 },
+  getTaskOverviewV2: { period:{type:'month',anchor_date:'2026-08-25'} },
+  listTaskOverviewV2Drilldown: { period:{type:'month',anchor_date:'2026-08-25'}, metric_id:'currently_overdue', employee_code:'NV002', department:'Kinh doanh', category_code:'CAT1', limit:20, offset:0 },
+  getTaskReportV2PersonAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
+  getTaskReportV2DepartmentAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
+  getTaskReportV2CategoryAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
+  getTaskReportV2Trend: { period:{type:'month',anchor_date:'2026-08-25'} }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -140,6 +161,11 @@ const expectedCoreArgs = {
   deleteTaskDraft: ['task-1', 7],
   publishTask: ['task-1', 7],
   getTaskDetail: ['task-1'],
+  listProposalRecipientEmployees: [],
+  createTaskProposal: [{ title:'Đề xuất', content:'Nội dung', categoryCode:'CAT1', priority:'thuong', startAt:'2026-08-20', deadline:'2026-08-25', recipientEmployeeCode:'NV002' }],
+  acceptTaskProposal: ['prop-1', { title:'T', content:'C', categoryCode:'CAT2', priority:'quan_trong', startAt:null, deadline:'2026-08-26', primaryEmployeeCode:'NV003' }],
+  rejectTaskProposal: ['prop-1', 'Không phù hợp'],
+  cancelTaskProposal: ['prop-1', 'Rút đề xuất'],
   updateTaskProgress: ['task-1', 7, 50, 'Đang thực hiện'],
   completeTask: ['task-1', 7, 'Done'],
   reopenTask: ['task-1', 7, 'Reopen'],
@@ -160,7 +186,13 @@ const expectedCoreArgs = {
   getTaskReportCategoryAnalysis: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
   getTaskReportPersonAnalysis: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
   getTaskReportTrend: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
-  listTaskReportDrilldown: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }]
+  listTaskReportDrilldown: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }],
+  getTaskOverviewV2: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  listTaskOverviewV2Drilldown: [{ period:{type:'month',anchor_date:'2026-08-25'}, metric_id:'currently_overdue', employee_code:'NV002', department:'Kinh doanh', category_code:'CAT1', limit:20, offset:0 }],
+  getTaskReportV2PersonAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  getTaskReportV2DepartmentAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  getTaskReportV2CategoryAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  getTaskReportV2Trend: [{ period:{type:'month',anchor_date:'2026-08-25'} }]
 };
 
 (async () => {
@@ -230,8 +262,17 @@ const expectedCoreArgs = {
   // single hardcoded path.
   const notificationsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-notifications.js'), 'utf8');
   const reportingSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-reporting.js'), 'utf8');
-  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource;
-  for (const action of expectedActions) pass(new RegExp('\\b' + action + '\\b').test(implementationSource), 'Task Core/Notifications export missing ' + action);
+  // Proposal V2 (task-server-integration.js, PostgreSQL-only) + Overview/Report
+  // V2 (task-reporting-v2.js) actions live in their own modules — same
+  // domain-isolation convention. Include them in the union so the export
+  // check stays real as the surface grows.
+  const serverIntegrationSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-server-integration.js'), 'utf8');
+  const reportingV2Source = fs.readFileSync(path.join(root, 'api', '_lib', 'task-reporting-v2.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource + '\n' + serverIntegrationSource + '\n' + reportingV2Source;
+  // Một số action wire qua seam ...ViaServer()/...Legacy() (Proposal V2,
+  // read-bridge dual-path) — implementation identifier là <action>ViaServer,
+  // không phải bare <action>. Chấp nhận cả 2 dạng.
+  for (const action of expectedActions) pass(new RegExp('\\b' + action + '(ViaServer|Legacy)?\\b').test(implementationSource), 'Task Core/Notifications export missing ' + action);
   console.log('PHF Task API parity: ' + passed + '/' + passed + ' PASS');
 })().catch(error => {
   console.error(error && error.stack || error);

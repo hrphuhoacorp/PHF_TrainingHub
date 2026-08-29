@@ -30,6 +30,8 @@ const {
   classifyTaskRelation,
   canViewTask,
   canUpdateTask,
+  resolveUpdateAuthorityBasis,
+  resolveTaskViewerAuthority,
   canAssignTaskTo,
   canAddTaskRelated,
   listTaskAssignableEmployees: listAssignableEmployeesFromPeopleMaster,
@@ -46,6 +48,66 @@ const { emitTaskNotificationSafe } = require('./task-notifications');
 // KHÔNG suy diễn theo title/chức danh — xem audit đầu
 // scripts/PHF_TASK_CROSS_DEPARTMENT_NOTIFICATION_1.72.0.sql).
 const CROSS_DEPT_MANAGER_ACTOR_TYPES = new Set(['truong_bo_phan', 'truong_ca', 'giam_doc', 'tro_ly_gd']);
+
+// ---------------------------------------------------------------------------
+// updateTaskProgress CONTAINMENT — PHF_SUPABASE_CPU_FIX_V1. Two independent
+// layers, neither alone claimed sufficient, both purely additive (no schema/
+// config/platform change, no business-rule change):
+//
+// Layer 1 (PROGRESS_THROTTLE_MAP below) — per-instance, in-process, short
+// sliding window keyed by actor+task+action. Explicitly NOT distributed-safe
+// on its own (Vercel/serverless can run multiple instances with separate
+// memory) — it only guarantees suppression of rapid-fire attempts landing on
+// the SAME warm instance. Kept because it is real, free, and catches a real
+// subset of bursts (same-instance reuse is common for consecutive requests
+// from one client under normal routing) — never represented as the complete
+// fix by itself.
+//
+// Layer 2 (the row_version pre-check inside updateTaskProgress(), below) —
+// genuinely distributed-safe: every instance reads the SAME row from the
+// SAME database before deciding whether to even attempt the RPC. This is
+// the layer that actually caps cost for the dominant storm shape this gate's
+// evidence points to (a caller repeatedly resubmitting a stale/already-
+// superseded expected_row_version) — a cheap single-column SELECT replaces
+// a full RPC transaction (SET_CONFIG + SELECT...FOR UPDATE + ROLLBACK) for
+// every such repeat, on every instance, without any new infrastructure.
+// It is NOT a substitute for a true cross-instance concurrent-burst lock
+// (many DIFFERENT instances receiving the SAME actor+task+valid-version
+// request at the same literal instant) — that residual gap would need
+// either a small RPC-side pg_try_advisory_xact_lock addition (a migration)
+// or a platform-level distributed store (a platform feature), neither of
+// which is implemented here — see gate report, proposed not applied.
+//
+// The pre-check NEVER weakens correctness: the RPC's own SELECT...FOR
+// UPDATE + row_version comparison remains the sole authoritative CAS gate.
+// This pre-check can only ever short-circuit to the SAME error the RPC
+// would itself have produced (TASK_VERSION_CONFLICT / TASK_NOT_FOUND,
+// identical code/message/status) — a race between the pre-check read and
+// the RPC call (row changes in between) is harmless: the RPC still runs
+// and still enforces CAS correctly if the pre-check happened to pass stale.
+// ---------------------------------------------------------------------------
+const TASK_PROGRESS_THROTTLE_WINDOW_MS = 500;
+const progressThrottleMap = new Map();
+function taskProgressThrottleKey(actorContext, taskId) {
+  return (actorContext.employeeCode || actorContext.accountId || '') + '|' + taskId;
+}
+function checkTaskProgressThrottle(actorContext, taskId) {
+  const key = taskProgressThrottleKey(actorContext, taskId);
+  const now = Date.now();
+  const last = progressThrottleMap.get(key);
+  progressThrottleMap.set(key, now);
+  // Opportunistic eviction of stale entries so this Map cannot grow
+  // unbounded across a long-lived warm instance — cheap, only runs on the
+  // rare occasion the map has grown, never on the hot path itself.
+  if (progressThrottleMap.size > 500) {
+    for (const [k, ts] of progressThrottleMap) {
+      if (now - ts > TASK_PROGRESS_THROTTLE_WINDOW_MS) progressThrottleMap.delete(k);
+    }
+  }
+  if (last != null && (now - last) < TASK_PROGRESS_THROTTLE_WINDOW_MS) {
+    fail('Yêu cầu trước đó đang được xử lý. Vui lòng đợi một chút rồi thử lại.', 429, 'TASK_UPDATE_THROTTLED');
+  }
+}
 
 const configured = Boolean(String(process.env.SUPABASE_URL || '').trim() && String(process.env.SUPABASE_SECRET_KEY || '').trim());
 const supabase = configured
@@ -327,9 +389,11 @@ function taskPermissionAdjustmentPolicy(employmentStatus, baseScopeType) {
 
 async function requireTaskPermissionAdmin(session) {
   const requester = await resolveEffectiveTaskScope(session);
-  if (requester.actorContext.actorType !== 'admin') {
-    fail('Chỉ Admin PHF Task được điều chỉnh quyền.', 403, 'TASK_PERMISSION_ADMIN_REQUIRED');
-  }
+  // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29) — "Nhân sự & phân quyền"
+  // authorized by CAPABILITY (manage), KHÔNG hard-code actorType==='admin'
+  // nữa. resolveBaseTaskScope() (task-permissions.js) gives manage:true to
+  // admin/giam_doc/tro_ly_gd canonically (preset-level, not name/account
+  // special-cased) — TBP/Trưởng ca/nhân viên stay manage:false, unchanged.
   requireTaskCapability(requester, 'manage');
   return requester.actorContext;
 }
@@ -376,8 +440,13 @@ function normalizeExtendPeopleScope(input, baseScopeType, orgRows) {
   return { type: 'employees', values };
 }
 
-async function createTaskPermissionGrant(session, input) {
-  ensureDb();
+// resolveAndAuthorizeCreatePermissionGrant — tách "resolve+validate+
+// authorize" khỏi "persist" (seam refactor 2026-08-27, giữ nguyên 100% thứ
+// tự/rule gốc). Bước resolve grantee + tính effective scope của họ (để biết
+// policy nào áp dụng cho peopleScope) chỉ chạy được ở main app (People
+// Master + Hub accounts đều là bảng Supabase, không có ở phf_hr) — PHẢI
+// chạy trước persist dù ghi Supabase hay phf_hr.
+async function resolveAndAuthorizeCreatePermissionGrant(session, input) {
   const admin = await requireTaskPermissionAdmin(session);
   const grantType = text(input && input.grantType).toLowerCase() || 'extend';
   if (grantType !== 'extend') {
@@ -396,6 +465,12 @@ async function createTaskPermissionGrant(session, input) {
   const granteeEffective = await resolveEffectiveTaskScopeForActorContext(grantee);
   const peopleScope = normalizeExtendPeopleScope(input, granteeEffective.scope.peopleScope.type, orgRows);
   const reason = validateTaskPermissionReason(input && input.reason);
+  return { admin, granteeEmployeeCode, peopleScope, reason };
+}
+
+async function createTaskPermissionGrant(session, input) {
+  ensureDb();
+  const { admin, granteeEmployeeCode, peopleScope, reason } = await resolveAndAuthorizeCreatePermissionGrant(session, input);
   const now = new Date().toISOString();
   const insertRow = {
     grantee_employee_code: granteeEmployeeCode,
@@ -430,12 +505,25 @@ async function createTaskPermissionGrant(session, input) {
   return { grant: taskPermissionGrantDto(grant) };
 }
 
-async function revokeTaskPermissionGrant(session, grantIdInput, reasonInput) {
-  ensureDb();
+// resolveAndAuthorizeRevokePermissionGrant — tách "resolve+validate+
+// authorize" khỏi "persist" (seam refactor 2026-08-27). CHỈ gồm phần KHÔNG
+// phụ thuộc datastore (admin + format grantId + reason) — bước đọc
+// existing/is_active/grant_type PHẢI chạy đúng trên datastore đang ghi
+// (Supabase cho path gốc, phf_hr cho path server — 2 bảng có thể lệch nhau
+// trước cutover), nên KHÔNG đưa vào seam dùng chung; phía server, check này
+// đã có sẵn (verbatim, cùng error code) trong revokeTaskPermissionGrant()
+// của services/phf-hr-api/lib/task-write.js — không bị mất.
+async function resolveAndAuthorizeRevokePermissionGrant(session, grantIdInput, reasonInput) {
   const admin = await requireTaskPermissionAdmin(session);
   const grantId = text(grantIdInput);
   if (!grantId || grantId.length > 120) fail('Grant ID không hợp lệ.', 400, 'TASK_PERMISSION_GRANT_ID_INVALID');
   const reason = validateTaskPermissionReason(reasonInput);
+  return { admin, grantId, reason };
+}
+
+async function revokeTaskPermissionGrant(session, grantIdInput, reasonInput) {
+  ensureDb();
+  const { admin, grantId, reason } = await resolveAndAuthorizeRevokePermissionGrant(session, grantIdInput, reasonInput);
   const { data: existing, error: readError } = await supabase.from(PERMISSION_GRANTS_TABLE).select('*').eq('id', grantId).maybeSingle();
   if (readError) throwDb(readError);
   if (!existing) fail('Không tìm thấy grant.', 404, 'TASK_PERMISSION_GRANT_NOT_FOUND');
@@ -482,7 +570,13 @@ function taskPermissionAssignmentDto(assignment) {
   };
 }
 
-async function saveTaskPermissionAssignment(session, input) {
+// resolveAndAuthorizeSetPermissionAssignment — tách "resolve+validate+
+// authorize" khỏi "persist" (seam refactor 2026-08-27, cùng nguyên tắc với
+// 13 operation Batch 1-5 — KHÔNG đổi 1 rule nào, chỉ tách để tái dùng cho
+// đường ghi phf_hr). Đọc từ People Master (Supabase) là bước KHÔNG thể lặp
+// lại phía phf-hr-api (bảng đó không tồn tại ở phf_hr) — PHẢI chạy ở main
+// app trước khi persist dù ghi vào Supabase hay phf_hr.
+async function resolveAndAuthorizeSetPermissionAssignment(session, input) {
   const admin = await requireTaskPermissionAdmin(session);
   const presetCode = code(input && input.presetCode);
   if (!TASK_PRESET_CODES.includes(presetCode)) fail('Task preset không hợp lệ.', 400, 'TASK_PERMISSION_PRESET_INVALID');
@@ -493,8 +587,13 @@ async function saveTaskPermissionAssignment(session, input) {
   if (!person) fail('Nhân sự nhận Task preset không tồn tại trong People Master.', 404, 'TASK_PERMISSION_GRANTEE_NOT_FOUND');
   if (text(person.status).toLowerCase() !== 'active') fail('Không thể gán Task preset mới cho nhân sự đã nghỉ.', 400, 'TASK_PERMISSION_GRANTEE_INACTIVE');
   const account = (accounts || []).find(row => code(row && row.employeeCode) === employeeCode) || null;
+  return { admin, employeeCode, presetCode, reason, accountId: account ? text(account.id) || null : null };
+}
+
+async function saveTaskPermissionAssignment(session, input) {
+  const { admin, employeeCode, presetCode, reason, accountId } = await resolveAndAuthorizeSetPermissionAssignment(session, input);
   const assignment = await callRpc('task_set_permission_assignment', {
-    p_target_account_id: account ? text(account.id) || null : null,
+    p_target_account_id: accountId,
     p_target_employee_code: employeeCode,
     p_preset_code: presetCode,
     p_reason: reason,
@@ -626,7 +725,9 @@ const CHECKLIST_MAPPING_STATUS_LABELS = Object.freeze({
 
 async function listTaskAdminPeople(session) {
   const requester = await resolveEffectiveTaskScope(session);
-  if (requester.actorContext.actorType !== 'admin') fail('Chỉ Admin PHF Task được xem Nhân sự & phân quyền.', 403, 'TASK_ADMIN_PEOPLE_DENIED');
+  // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29) — capability-driven
+  // (manage), không hard-code actorType==='admin' — xem comment ở
+  // requireTaskPermissionAdmin() cho lý do đầy đủ.
   requireTaskCapability(requester, 'manage');
 
   const [orgRows, accounts, checklistRef] = await Promise.all([loadOrgRows(), listHubAccountSummaries(), loadChecklistRoleReference()]);
@@ -842,11 +943,16 @@ async function renameTaskCategory(session, categoryCodeInput, displayNameInput) 
   return { category: categoryDto(data), updated_by_account_id: actorContext.accountId || null, updated_by_employee_code: actorContext.employeeCode || null };
 }
 
+function validateCategoryActiveFlag(value) {
+  if (typeof value !== 'boolean') fail('Trạng thái active của category không hợp lệ.', 400, 'TASK_CATEGORY_ACTIVE_INVALID');
+  return value;
+}
+
 async function setTaskCategoryActive(session, categoryCodeInput, isActive) {
   const actorContext = await requireTaskAdmin(session);
   ensureDb();
   const categoryCode = validateCategoryCode(categoryCodeInput);
-  if (typeof isActive !== 'boolean') fail('Trạng thái active của category không hợp lệ.', 400, 'TASK_CATEGORY_ACTIVE_INVALID');
+  validateCategoryActiveFlag(isActive);
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
     .update({
       is_active: isActive,
@@ -876,12 +982,17 @@ async function deleteTaskCategory(session, categoryCodeInput) {
 
 // reorderTaskCategory — cập nhật sort_order đơn thuần (1 statement, tự
 // atomic) — không cần RPC vì không có invariant nhiều bảng cần bảo vệ.
+function validateCategorySortOrder(value) {
+  const sortOrder = Number(value);
+  if (!Number.isInteger(sortOrder) || sortOrder < 1) fail('Thứ tự sắp xếp không hợp lệ.', 400, 'TASK_CATEGORY_SORT_ORDER_INVALID');
+  return sortOrder;
+}
+
 async function reorderTaskCategory(session, categoryCodeInput, sortOrderInput) {
   const actorContext = await requireTaskAdmin(session);
   ensureDb();
   const categoryCode = validateCategoryCode(categoryCodeInput);
-  const sortOrder = Number(sortOrderInput);
-  if (!Number.isInteger(sortOrder) || sortOrder < 1) fail('Thứ tự sắp xếp không hợp lệ.', 400, 'TASK_CATEGORY_SORT_ORDER_INVALID');
+  const sortOrder = validateCategorySortOrder(sortOrderInput);
   const { data, error } = await supabase.from(CATEGORIES_TABLE)
     .update({
       sort_order: sortOrder,
@@ -928,13 +1039,74 @@ async function requireView(session, taskRow, assigneeRows) {
 // phải khớp thêm với peopleScope của primary hiện hành trên chính Task đó,
 // nếu không TBP/Trưởng ca này sẽ vô tình sửa được cả Task của nhân viên
 // KHÔNG thuộc phạm vi quản lý mình (Permission Matrix V1, mục 5).
+// Trả về "intervention basis" (chuỗi lý do được phép: executive_authority /
+// active_primary / exception_grant / system_admin) — caller stamp lên
+// actorContext để write-bridge forward xuống phf-hr-api làm defence-in-depth
+// (LOCKED AUTHORITY RULE 2026-08-28, xem task-permissions.js).
 async function requireUpdateAuthority(session, taskRow, assigneeRows) {
   const relationTask = {
     createdByAccountId: taskRow.created_by_account_id,
     createdByEmployeeCode: taskRow.created_by_employee_code
   };
-  const allowed = await canUpdateTask(session, relationTask, toRelationAssignees(assigneeRows));
-  if (!allowed) fail('Không có quyền cập nhật task này.', 403, 'TASK_UPDATE_DENIED');
+  const basis = await resolveUpdateAuthorityBasis(session, relationTask, toRelationAssignees(assigneeRows));
+  if (!basis) fail('Không có quyền cập nhật task này.', 403, 'TASK_UPDATE_DENIED');
+  return basis;
+}
+
+// SEAM (2026-08-27, integration-neutral, cùng nguyên tắc pilot #1/#2) — dùng
+// chung cho MỌI lifecycle operation theo pattern "creator hoặc capability
+// update" (reopen/cancel/changeDeadline/transferPrimary/removeRelated đều
+// giống hệt nhau: actorOwnsTask() || requireUpdateAuthority()). Nhận
+// `current` (task row đã load) + `loadAssigneeRowsFn` (callback lazy-load,
+// CHỈ gọi khi thật sự cần — giữ đúng optimization gốc "không query
+// assignees nếu actor đã là creator") — caller tự quyết nguồn đọc.
+async function resolveAndAuthorizeUpdateCapability(session, current, loadAssigneeRowsFn) {
+  const actorContext = await resolveActorContext(session);
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
+  if (actorOwnsTask(actorContext, current)) {
+    actorContext.interventionBasis = 'creator';
+    return actorContext;
+  }
+  const assigneeRows = await loadAssigneeRowsFn();
+  actorContext.interventionBasis = await requireUpdateAuthority(session, current, assigneeRows);
+  return actorContext;
+}
+
+// SEAM — updateTaskProgress: chỉ primary hiện hành + version check tường
+// minh trước khi persist. KHÔNG chứa throttle check (Layer 1, xem CONTAINMENT
+// comment gốc) — throttle PHẢI chạy TRƯỚC BẤT KỲ I/O nào (kể cả load task/
+// assignees), nên caller tự gọi checkTaskProgressThrottle()+resolveActorContext()
+// TRƯỚC khi load state rồi mới gọi seam này — giữ đúng 100% thứ tự gốc dù
+// state đến từ Supabase hay phf_hr.
+async function resolveAndAuthorizeUpdateProgress(actorContext, current, assigneeRows, expectedRowVersion) {
+  const activePrimary = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active);
+  if (!activePrimary || activePrimary.employee_code !== actorContext.employeeCode) {
+    fail('Chỉ primary hiện hành mới cập nhật tiến độ.', 403, 'TASK_PROGRESS_ACTOR_DENIED');
+  }
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
+  if (current.row_version !== expectedRowVersion) {
+    fail('Task đã được cập nhật ở nơi khác. Vui lòng tải lại trước khi thao tác tiếp.', 409, 'TASK_VERSION_CONFLICT');
+  }
+}
+
+// SEAM — completeTask: chỉ primary hiện hành (KHÔNG có version pre-check
+// riêng ở JS — RPC tự CAS, giữ đúng hành vi gốc).
+async function resolveAndAuthorizeComplete(session, assigneeRows) {
+  const actorContext = await resolveActorContext(session);
+  const activePrimary = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active);
+  if (!activePrimary || activePrimary.employee_code !== actorContext.employeeCode) {
+    fail('Chỉ primary hiện hành mới bấm Hoàn thành.', 403, 'TASK_COMPLETE_ACTOR_DENIED');
+  }
+  return actorContext;
+}
+
+// SEAM — addTaskComment/addTaskLink/removeTaskLink: chỉ cần requireView()
+// (xem, không cần update authority) — đúng phân loại đã audit ở S3A.
+async function resolveAndAuthorizeView(session, current, assigneeRows) {
+  const actorContext = await resolveActorContext(session);
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
+  await requireView(session, current, assigneeRows);
+  return actorContext;
 }
 
 async function categoryActive(categoryCode) {
@@ -949,8 +1121,23 @@ async function categoryActive(categoryCode) {
 // 1) CREATE DRAFT — Task + initial primary atomic qua task_create_draft().
 //    KHÔNG event (draft = pre-audit, đúng chủ ý Foundation hiện hữu).
 // ---------------------------------------------------------------------------
-async function createTaskDraft(session, input) {
-  ensureDb();
+// SEAM (2026-08-27, integration-neutral refactor — không đổi 1 business rule
+// nào, thuần tách "resolve+validate+authorize" ra khỏi "persist" để module
+// khác (vd task-server-integration.js, gọi phf-hr-api thay vì Supabase) có
+// thể tái dùng ĐÚNG cùng logic này thay vì duplicate lại — tránh tái diễn
+// bug lệch đồng bộ như task-query-descriptor-builder.js trước đây). Hàm này
+// KHÔNG persist gì — trả về params đã validate xong, sẵn sàng cho bất kỳ
+// persistence backend nào (Supabase RPC hôm nay, phf-hr-api sau này).
+//
+// opts.validateCategory (2026-08-29, fix TASK_CREATE_CATEGORY_SUPABASE_DEPENDENCY)
+// — validator category CÓ THỂ tiêm từ ngoài. Mặc định = categoryActive()
+// (Supabase task_categories — Legacy path, KHÔNG đổi khi flags OFF). Đường
+// ViaServer/PostgreSQL (task-server-integration.js) tiêm validator đọc
+// canonical task.categories qua bridge để KHÔNG chạm Supabase — cùng nguồn
+// dữ liệu với chính task row (đồng nhất với quyết định LOCKED của Proposal
+// V2, xem validateProposalCategory()). Validator BẮT BUỘC ném đúng error
+// code (TASK_CATEGORY_NOT_FOUND / TASK_CATEGORY_INACTIVE) như categoryActive().
+async function resolveAndValidateCreateDraftInput(session, input, opts) {
   const actorContext = await resolveActorContext(session);
   const flowType = text(input.flowType);
   if (!['giao_viec', 'de_xuat'].includes(flowType)) fail('flow_type không hợp lệ.', 400, 'TASK_FLOW_TYPE_INVALID');
@@ -958,7 +1145,8 @@ async function createTaskDraft(session, input) {
   if (!title) fail('Tiêu đề là bắt buộc.', 400, 'TASK_TITLE_REQUIRED');
   const categoryCode = code(input.categoryCode);
   if (!categoryCode) fail('Category là bắt buộc.', 400, 'TASK_CATEGORY_REQUIRED');
-  await categoryActive(categoryCode);
+  const validateCategory = (opts && typeof opts.validateCategory === 'function') ? opts.validateCategory : categoryActive;
+  await validateCategory(categoryCode);
   const priority = text(input.priority) || 'thuong';
   if (!['thuong', 'quan_trong', 'khan_cap'].includes(priority)) fail('priority không hợp lệ.', 400, 'TASK_PRIORITY_INVALID');
   const startAt = isoTimestamp(input.startAt, 'Ngày bắt đầu', false);
@@ -978,17 +1166,26 @@ async function createTaskDraft(session, input) {
   const idempotencyKey = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text(input.idempotencyKey))
     ? text(input.idempotencyKey) : null;
 
+  return {
+    actorContext, flowType, title, content: text(input.content), categoryCode, priority,
+    startAt, deadline, primaryEmployeeCode, idempotencyKey,
+  };
+}
+
+async function createTaskDraft(session, input) {
+  ensureDb();
+  const v = await resolveAndValidateCreateDraftInput(session, input);
   return callTaskCreateDraftRpc({
-    p_flow_type: flowType,
-    p_title: title,
-    p_content: text(input.content),
-    p_category_code: categoryCode,
-    p_priority: priority,
-    p_start_at: startAt,
-    p_deadline: deadline,
-    p_actor_employee_code: actorAuditToken(actorContext),
-    p_primary_employee_code: primaryEmployeeCode || null,
-    p_idempotency_key: idempotencyKey
+    p_flow_type: v.flowType,
+    p_title: v.title,
+    p_content: v.content,
+    p_category_code: v.categoryCode,
+    p_priority: v.priority,
+    p_start_at: v.startAt,
+    p_deadline: v.deadline,
+    p_actor_employee_code: actorAuditToken(v.actorContext),
+    p_primary_employee_code: v.primaryEmployeeCode || null,
+    p_idempotency_key: v.idempotencyKey
   });
 }
 
@@ -1090,52 +1287,100 @@ async function deleteTaskDraft(session, taskId, expectedRowVersion) {
 // apply, publishedTaskRow sẽ không có field is_cross_department (RPC cũ
 // không trả field đó) — no-op sạch, không log noise, không đoán.
 // ---------------------------------------------------------------------------
+// resolveCrossDepartmentNotificationRecipient — tách khỏi
+// applyCrossDepartmentPublishSideEffects() (seam refactor 2026-08-27, KHÔNG
+// đổi 1 rule nào — cùng nguyên tắc "resolve+authorize" tách khỏi "persist"
+// đã áp dụng cho mọi seam khác). Nhận assigneeRows làm tham số (thay vì tự
+// loadAssignees(taskId) từ Supabase) để dùng được cho CẢ 2 nguồn: task sống
+// ở Supabase (loadAssignees()) LẪN task sống ở phf_hr (assignees đã có sẵn
+// từ bridgeGetTaskById()/response publish) — đây CHÍNH LÀ phần bị thiếu
+// khiến publishTaskViaServer() không emit được notification (OPEN GAP đã
+// ghi trong task-server-integration.js, nay đóng). KHÔNG tự emit — trả về
+// {recipientEmployeeCode, title, message, targetPath, dedupeKey} hoặc null,
+// caller tự quyết persist vào đâu (Supabase hay phf_hr).
+async function resolveCrossDepartmentNotificationRecipient(actorContext, taskId, publishedTaskRow, assigneeRows) {
+  const row = publishedTaskRow || {};
+  if (!Object.prototype.hasOwnProperty.call(row, 'is_cross_department')) return null; // 1.72.0 chưa apply — RPC cũ không có field này
+  if (row.is_cross_department !== true) return null; // false hoặc null (unknown) — mục 12/13: không notification
+
+  // PRIMARY CUỐI CÙNG (mục 14): source đã dùng đúng Primary active tại thời
+  // điểm publish để tính target_department — ở đây chỉ cần đọc lại ĐÚNG
+  // người đó để tìm manager, KHÔNG suy diễn lại từ nơi khác.
+  const activePrimary = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active);
+  if (!activePrimary) return null;
+
+  const rows = await loadOrgRows();
+  const primarySubject = findByCode(rows, activePrimary.employee_code);
+  if (!primarySubject || !primarySubject.managerCode) return null; // không có manager_employee_code thật — không đoán
+  const managerCode = primarySubject.managerCode;
+  if (managerCode === actorContext.employeeCode) return null; // người giao chính là manager của Primary — họ đã biết, không tự thông báo cho chính mình
+
+  const managerSubject = findByCode(rows, managerCode);
+  if (!managerSubject || String(managerSubject.status || '').toLowerCase() !== 'active') return null; // manager đã nghỉ việc — không thông báo cho hồ sơ không còn hoạt động
+
+  const managerAssignment = await loadActiveTaskAssignment({ employeeCode: managerCode, accountId: '' });
+  const managerActorType = managerAssignment && TASK_PRESET_TO_ACTOR_TYPE[code(managerAssignment.preset_code)];
+  if (!managerActorType || !CROSS_DEPT_MANAGER_ACTOR_TYPES.has(managerActorType)) return null; // manager_employee_code có, nhưng KHÔNG có Task authority quản lý thật — không tự cấp
+
+  return {
+    recipientEmployeeCode: managerCode,
+    title: 'Công việc liên phòng ban mới',
+    message: 'Có công việc liên phòng ban được giao cho nhân sự thuộc phạm vi quản lý của bạn (' + row.source_department + ' → ' + row.target_department + '). Đây KHÔNG phải yêu cầu duyệt.',
+    targetPath: '/task/chi-tiet?task_id=' + taskId,
+    dedupeKey: 'TASK_CROSS_DEPARTMENT_ASSIGNED|' + taskId
+  };
+}
+
+// resolveTaskDepartmentSnapshot — thuần, KHÔNG DB write. Supabase path
+// KHÔNG dùng hàm này (RPC task_publish tự tính department snapshot bằng
+// trigger nội bộ đọc employee_profiles); phf_hr KHÔNG có bảng đó nên
+// publishTaskViaServer() PHẢI tự resolve ở main app rồi truyền vào, đúng
+// thiết kế đã ghi tại bridgePublishTask()'s comment (S3B mục 6.3 CLOSED).
+function resolveTaskDepartmentSnapshot(actorContext, primaryEmployeeCode, orgRows) {
+  const actorSubject = findByCode(orgRows, actorContext.employeeCode);
+  const primarySubject = primaryEmployeeCode ? findByCode(orgRows, primaryEmployeeCode) : null;
+  return {
+    sourceDepartment: actorSubject ? (text(actorSubject.department) || null) : null,
+    targetDepartment: primarySubject ? (text(primarySubject.department) || null) : null,
+  };
+}
+
 async function applyCrossDepartmentPublishSideEffects(actorContext, taskId, publishedTaskRow) {
   try {
-    const row = publishedTaskRow || {};
-    if (!Object.prototype.hasOwnProperty.call(row, 'is_cross_department')) return; // 1.72.0 chưa apply — RPC cũ không có field này
-    if (row.is_cross_department !== true) return; // false hoặc null (unknown) — mục 12/13: không notification
-
-    // PRIMARY CUỐI CÙNG (mục 14): trigger đã dùng đúng Primary active tại
-    // thời điểm publish để tính target_department — ở đây chỉ cần đọc lại
-    // ĐÚNG người đó để tìm manager, KHÔNG suy diễn lại từ nơi khác.
     const assigneeRows = await loadAssignees(taskId);
-    const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
-    if (!activePrimary) return;
-
-    const rows = await loadOrgRows();
-    const primarySubject = findByCode(rows, activePrimary.employee_code);
-    if (!primarySubject || !primarySubject.managerCode) return; // không có manager_employee_code thật — không đoán
-    const managerCode = primarySubject.managerCode;
-    if (managerCode === actorContext.employeeCode) return; // người giao chính là manager của Primary — họ đã biết, không tự thông báo cho chính mình
-
-    const managerSubject = findByCode(rows, managerCode);
-    if (!managerSubject || String(managerSubject.status || '').toLowerCase() !== 'active') return; // manager đã nghỉ việc — không thông báo cho hồ sơ không còn hoạt động
-
-    const managerAssignment = await loadActiveTaskAssignment({ employeeCode: managerCode, accountId: '' });
-    const managerActorType = managerAssignment && TASK_PRESET_TO_ACTOR_TYPE[code(managerAssignment.preset_code)];
-    if (!managerActorType || !CROSS_DEPT_MANAGER_ACTOR_TYPES.has(managerActorType)) return; // manager_employee_code có, nhưng KHÔNG có Task authority quản lý thật — không tự cấp
-
+    const recipient = await resolveCrossDepartmentNotificationRecipient(actorContext, taskId, publishedTaskRow, assigneeRows);
+    if (!recipient) return;
     await emitTaskNotificationSafe('TASK_CROSS_DEPARTMENT_ASSIGNED', {
       taskId,
-      recipient: { employeeCode: managerCode },
-      title: 'Công việc liên phòng ban mới',
-      message: 'Có công việc liên phòng ban được giao cho nhân sự thuộc phạm vi quản lý của bạn (' + row.source_department + ' → ' + row.target_department + '). Đây KHÔNG phải yêu cầu duyệt.',
-      targetPath: '/task/chi-tiet?task_id=' + taskId,
-      dedupeKey: 'TASK_CROSS_DEPARTMENT_ASSIGNED|' + taskId
+      recipient: { employeeCode: recipient.recipientEmployeeCode },
+      title: recipient.title,
+      message: recipient.message,
+      targetPath: recipient.targetPath,
+      dedupeKey: recipient.dedupeKey
     });
   } catch (error) {
     console.warn('[PHF Task] cross-department notification thất bại (bỏ qua, không ảnh hưởng publish):', error && error.message ? error.message : error);
   }
 }
 
-async function publishTask(session, taskId, expectedRowVersion) {
+// SEAM (2026-08-27, cùng nguyên tắc resolveAndValidateCreateDraftInput()) —
+// nhận `current` (task row ĐÃ load sẵn) làm tham số thay vì tự load, để
+// caller tự quyết nguồn đọc (Supabase loadTaskRow() hôm nay, hoặc phf-hr-api
+// getTaskById() cho task sống trên phf_hr) — hàm này KHÔNG biết/không cần
+// biết task đến từ đâu, chỉ thuần authorize. KHÔNG duplicate business rule.
+async function resolveAndAuthorizePublish(session, current) {
   const actorContext = await resolveActorContext(session);
-  const current = await loadTaskRow(taskId);
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
   if (!actorOwnsTask(actorContext, current)) {
     const { scope } = await resolveEffectiveTaskScope(session);
     requireTaskCapability({ scope }, 'assign');
   }
+  return actorContext;
+}
+
+async function publishTask(session, taskId, expectedRowVersion) {
+  const current = await loadTaskRow(taskId);
+  const actorContext = await resolveAndAuthorizePublish(session, current);
   const published = await callRpc('task_publish', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext)
   });
@@ -1164,39 +1409,78 @@ async function getTaskDetail(session, taskId) {
   if (eventsRes.error) throwDb(eventsRes.error);
   if (categoryRes.error) throwDb(categoryRes.error);
 
-  // "Xóa" link = ghi event payload.action='remove' (KHÔNG hard-delete row,
-  // KHÔNG cần cột soft-delete mới — xem lib/task-core.js:removeTaskLink()).
-  // Ở đây lọc link đã bị remove ra khỏi danh sách hiển thị hiện hành.
+  const viewer = await resolveTaskViewerAuthority(session, task, assigneeRows);
+  return assembleTaskDetailDto(task, assigneeRows, commentsRes.data, linksRes.data, eventsRes.data, categoryDto(categoryRes.data), orgRows, viewer);
+}
+
+// enrichAssigneeWithOrg/filterActiveLinks/assembleTaskDetailDto — tách khỏi
+// getTaskDetail() (seam refactor 2026-08-27, KHÔNG đổi 1 rule nào) để dùng
+// chung cho getTaskDetailViaServer() (phf_hr) — bản đó đọc task/assignees/
+// comments/links/events từ bridge (bridgeGetTaskDetail(), raw rows CÙNG
+// shape với Supabase select('*') — xem services/phf-hr-api/lib/task-read.js)
+// nhưng vẫn phải lắp ráp/enrich ĐÚNG NGUYÊN VẸN logic này (People Master/
+// org data luôn ở Supabase, không tồn tại ở phf_hr — cùng lý do đã áp dụng
+// cho permission assignment/grant).
+function enrichAssigneeWithOrg(row, peopleByCode) {
+  if (!row) return null;
+  const person = peopleByCode.get(code(row.employee_code));
+  return {
+    ...row,
+    employee_code: code(row.employee_code),
+    full_name: person ? person.fullName : '',
+    department: person ? person.department : '',
+    title: person ? person.title : '',
+    position: person ? person.position : '',
+    branch: person ? person.branch : '',
+    employment_status: person ? person.status : ''
+  };
+}
+
+// "Xóa" link = ghi event payload.action='remove' (KHÔNG hard-delete row,
+// KHÔNG cần cột soft-delete mới — xem removeTaskLink() dưới đây). Lọc link
+// đã bị remove ra khỏi danh sách hiển thị hiện hành.
+function filterActiveLinks(linkRows, eventRows) {
   const removedLinkIds = new Set(
-    (eventsRes.data || [])
+    (eventRows || [])
       .filter(e => e.event_type === 'link' && e.payload && e.payload.action === 'remove' && e.payload.link_id)
       .map(e => e.payload.link_id)
   );
-  const activeLinks = (linksRes.data || []).filter(l => !removedLinkIds.has(l.id));
-  const peopleByCode = new Map((orgRows || []).map(person => [code(person.employeeCode), person]));
-  const enrichAssignee = row => {
-    if (!row) return null;
-    const person = peopleByCode.get(code(row.employee_code));
-    return {
-      ...row,
-      employee_code: code(row.employee_code),
-      full_name: person ? person.fullName : '',
-      department: person ? person.department : '',
-      title: person ? person.title : '',
-      position: person ? person.position : '',
-      branch: person ? person.branch : '',
-      employment_status: person ? person.status : ''
-    };
-  };
+  return (linkRows || []).filter(l => !removedLinkIds.has(l.id));
+}
 
+// viewer (optional): backend-computed per-action authority
+// (resolveTaskViewerAuthority) — caller passes it in vì assembleTaskDetailDto
+// là pure (không có session). Frontend gate nút theo dto.viewer.actions.*.
+function enrichCommentWithOrg(row, peopleByCode) {
+  if (!row) return row;
+  const person = peopleByCode.get(code(row.author_employee_code));
+  return {
+    ...row,
+    author_employee_code: code(row.author_employee_code),
+    author_full_name: person ? person.fullName : '',
+    author_department: person ? person.department : ''
+  };
+}
+
+function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventRows, categoryDtoObj, orgRows, viewer) {
+  const peopleByCode = new Map((orgRows || []).map(person => [code(person.employeeCode), person]));
+  const activePrimaryRow = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active) || null;
   return {
     task,
-    category: categoryDto(categoryRes.data) || { category_code: code(task.category_code), display_name: code(task.category_code), description: '', color: '#64748B', is_active: false },
-    primary: enrichAssignee(assigneeRows.find(a => a.role === 'primary' && a.is_active) || null),
-    related: assigneeRows.filter(a => a.role === 'related' && a.is_active).map(enrichAssignee),
-    comments: commentsRes.data || [],
-    links: activeLinks,
-    events: eventsRes.data || []
+    category: categoryDtoObj || { category_code: code(task.category_code), display_name: code(task.category_code), description: '', color: '#64748B', is_active: false },
+    primary: enrichAssigneeWithOrg(activePrimaryRow, peopleByCode),
+    related: (assigneeRows || []).filter(a => a.role === 'related' && a.is_active).map(row => enrichAssigneeWithOrg(row, peopleByCode)),
+    comments: (commentRows || []).map(row => enrichCommentWithOrg(row, peopleByCode)),
+    links: filterActiveLinks(linkRows, eventRows),
+    events: eventRows || [],
+    // "Tự giao" (LOCKED UI requirement, 2026-08-28) — canonical identity
+    // comparison (employee_code), KHÔNG so sánh display name — cùng công
+    // thức với listTasks() (line ~1943). Display-only: KHÔNG ảnh hưởng
+    // permission/lifecycle/audit/progress ownership/performance calculation
+    // — chỉ 1 field bổ sung ở detail DTO, không đụng bất kỳ nhánh authorize/
+    // RPC nào.
+    self_task: !!(activePrimaryRow && code(task && task.created_by_employee_code) === code(activePrimaryRow.employee_code)),
+    viewer: viewer || null
   };
 }
 
@@ -1205,11 +1489,15 @@ async function getTaskDetail(session, taskId) {
 // ---------------------------------------------------------------------------
 async function updateTaskProgress(session, taskId, expectedRowVersion, progressPercent, progressStatus) {
   const actorContext = await resolveActorContext(session);
+  // Layer 1 (per-instance, best-effort — see CONTAINMENT comment near the
+  // top of this file). Cheapest possible check: pure in-memory, before any
+  // I/O at all — giữ nguyên vị trí, KHÔNG di chuyển vào seam.
+  checkTaskProgressThrottle(actorContext, taskId);
   const assigneeRows = await loadAssignees(taskId);
-  const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
-  if (!activePrimary || activePrimary.employee_code !== actorContext.employeeCode) {
-    fail('Chỉ primary hiện hành mới cập nhật tiến độ.', 403, 'TASK_PROGRESS_ACTOR_DENIED');
-  }
+  // Layer 2 (distributed-safe — see CONTAINMENT comment) + primary check —
+  // seam dùng chung với path phf-hr-api, không duplicate logic.
+  const currentRow = await loadTaskRow(taskId);
+  await resolveAndAuthorizeUpdateProgress(actorContext, currentRow, assigneeRows, expectedRowVersion);
   return callRpc('task_update_progress', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_progress_percent: progressPercent, p_progress_status: progressStatus
@@ -1220,12 +1508,8 @@ async function updateTaskProgress(session, taskId, expectedRowVersion, progressP
 // 6) COMPLETE — explicit, primary hiện hành, atomic qua RPC.
 // ---------------------------------------------------------------------------
 async function completeTask(session, taskId, expectedRowVersion, resultText) {
-  const actorContext = await resolveActorContext(session);
   const assigneeRows = await loadAssignees(taskId);
-  const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
-  if (!activePrimary || activePrimary.employee_code !== actorContext.employeeCode) {
-    fail('Chỉ primary hiện hành mới bấm Hoàn thành.', 403, 'TASK_COMPLETE_ACTOR_DENIED');
-  }
+  const actorContext = await resolveAndAuthorizeComplete(session, assigneeRows);
   return callRpc('task_complete', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_result_text: resultText
@@ -1236,12 +1520,8 @@ async function completeTask(session, taskId, expectedRowVersion, resultText) {
 // 7) REOPEN — creator hoặc capability update, atomic qua RPC.
 // ---------------------------------------------------------------------------
 async function reopenTask(session, taskId, expectedRowVersion, reason) {
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    const assigneeRows = await loadAssignees(taskId);
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
   return callRpc('task_reopen', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
   });
@@ -1251,12 +1531,8 @@ async function reopenTask(session, taskId, expectedRowVersion, reason) {
 // 8) CANCEL — creator hoặc capability update, atomic qua RPC.
 // ---------------------------------------------------------------------------
 async function cancelTask(session, taskId, expectedRowVersion, reason) {
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    const assigneeRows = await loadAssignees(taskId);
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
   return callRpc('task_cancel', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
   });
@@ -1266,12 +1542,8 @@ async function cancelTask(session, taskId, expectedRowVersion, reason) {
 // 9) DEADLINE CHANGE — creator/capability update, atomic qua RPC.
 // ---------------------------------------------------------------------------
 async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadline, reason) {
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    const assigneeRows = await loadAssignees(taskId);
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
   return callRpc('task_change_deadline', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext),
     p_new_deadline: newDeadline, p_reason: reason
@@ -1282,12 +1554,8 @@ async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadli
 // 10) TRANSFER PRIMARY — atomic qua RPC. Scope target verify TRƯỚC ở JS.
 // ---------------------------------------------------------------------------
 async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason) {
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    const assigneeRows = await loadAssignees(taskId);
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
   const allowedTarget = await canAssignTaskTo(session, newPrimaryEmployeeCode);
   if (!allowedTarget) fail('Người phụ trách mới nằm ngoài phạm vi giao việc của bạn.', 403, 'TASK_TRANSFER_TARGET_DENIED');
   return callRpc('task_transfer_primary', {
@@ -1301,12 +1569,9 @@ async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrima
 // ---------------------------------------------------------------------------
 async function addTaskRelated(session, taskId, targetEmployeeCode) {
   ensureDb();
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
   const assigneeRows = await loadAssignees(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => Promise.resolve(assigneeRows));
   const target = code(targetEmployeeCode);
   const activePrimary = assigneeRows.find(a => a.role === 'primary' && a.is_active);
   if (activePrimary && activePrimary.employee_code === target) {
@@ -1327,12 +1592,8 @@ async function addTaskRelated(session, taskId, targetEmployeeCode) {
 
 async function removeTaskRelated(session, taskId, targetEmployeeCode) {
   ensureDb();
-  const actorContext = await resolveActorContext(session);
   const current = await loadTaskRow(taskId);
-  if (!actorOwnsTask(actorContext, current)) {
-    const assigneeRows = await loadAssignees(taskId);
-    await requireUpdateAuthority(session, current, assigneeRows);
-  }
+  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
   const target = code(targetEmployeeCode);
   const { data, error } = await supabase.from(ASSIGNEES_TABLE)
     .update({ is_active: false, deactivated_at: new Date().toISOString() })
@@ -1358,10 +1619,9 @@ async function removeTaskRelated(session, taskId, targetEmployeeCode) {
 // ---------------------------------------------------------------------------
 async function addTaskComment(session, taskId, body) {
   ensureDb();
-  const actorContext = await resolveActorContext(session);
   const task = await loadTaskRow(taskId);
   const assigneeRows = await loadAssignees(taskId);
-  await requireView(session, task, assigneeRows);
+  const actorContext = await resolveAndAuthorizeView(session, task, assigneeRows);
   const trimmed = text(body);
   if (!trimmed) fail('Nội dung comment không được rỗng.', 400, 'TASK_COMMENT_BODY_REQUIRED');
 
@@ -1395,10 +1655,9 @@ function isValidUrl(value) {
 
 async function addTaskLink(session, taskId, side, url, label) {
   ensureDb();
-  const actorContext = await resolveActorContext(session);
   const task = await loadTaskRow(taskId);
   const assigneeRows = await loadAssignees(taskId);
-  await requireView(session, task, assigneeRows);
+  const actorContext = await resolveAndAuthorizeView(session, task, assigneeRows);
   if (!LINK_SIDES.includes(side)) fail('side không hợp lệ.', 400, 'TASK_LINK_SIDE_INVALID');
   if (!isValidUrl(url)) fail('URL không hợp lệ.', 400, 'TASK_LINK_URL_INVALID');
 
@@ -1413,10 +1672,9 @@ async function addTaskLink(session, taskId, side, url, label) {
 
 async function removeTaskLink(session, taskId, linkId) {
   ensureDb();
-  const actorContext = await resolveActorContext(session);
   const task = await loadTaskRow(taskId);
   const assigneeRows = await loadAssignees(taskId);
-  await requireView(session, task, assigneeRows);
+  const actorContext = await resolveAndAuthorizeView(session, task, assigneeRows);
 
   const { data: link, error: linkError } = await supabase.from(LINKS_TABLE).select('*').eq('id', linkId).eq('task_id', taskId).maybeSingle();
   if (linkError) throwDb(linkError);
@@ -1465,6 +1723,17 @@ async function removeTaskLink(session, taskId, linkId) {
 const TASK_LIST_RELATIONS = new Set(['received', 'assigned', 'proposal_sent', 'proposal_received']);
 const TASK_LIST_STATUS_FILTERS = new Set(['all', 'in_progress', 'overdue', 'completed']);
 const TASK_LIST_SCOPES = new Set(['mine', 'managed', 'cross_department', 'all_company']);
+// COMPANY-LEVEL PERMISSION CLEANUP (2026-08-28) — Admin/Giám đốc/Trợ lý GĐ
+// là "company-level authority" theo business contract LOCKED (không phải
+// biến thể của mô hình TBP/Trưởng ca). "Nhân sự tôi quản lý" (workspace
+// scope=managed/cross_department) của nhóm này PHẢI là company-wide — KHÔNG
+// bị giới hạn về đúng managedEmployeeCodes (direct-report subtree) như TBP/
+// Trưởng ca, dù direct report thật có tồn tại trong org graph hay không.
+// Đây là generic-set-based, đọc trực tiếp từ actorType đã resolve qua
+// task_permission_assignments/session admin — KHÔNG suy theo title/display
+// name, KHÔNG mở rộng "Tôi nhận" cá nhân (Primary vẫn đúng nghĩa thật, xem
+// nhánh 'mine'/rỗng bên dưới — KHÔNG đổi bởi set này).
+const COMPANY_TIER_ACTOR_TYPES = new Set(['admin', 'giam_doc', 'tro_ly_gd']);
 
 // ---------------------------------------------------------------------------
 // SHARED AUTHORIZED TASK SCOPE RESOLVER — Report-02/03 mục 2: branching
@@ -1477,7 +1746,18 @@ const TASK_LIST_SCOPES = new Set(['mine', 'managed', 'cross_department', 'all_co
 // và Report engine dùng chung. Hành vi phải byte-semantically equivalent với
 // trước khi extract — chứng minh bằng toàn bộ Task regression suite hiện có
 // + live-DB before/after diff (xem PHF_TASK_REPORT_03 report).
-async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam) {
+// PURE decision extraction (Reporting V2, 2026-08-29) — the "which
+// employeeCodes/creator does this actor+relation+scope authorize" branching
+// below, WITHOUT the trailing Supabase assignee lookup that
+// resolveAuthorizedTaskScope() does afterward. Extracted so a PostgreSQL-
+// native caller (Reporting V2 descriptor builder) can reuse this SAME
+// canonical decision and run its OWN query against task.assignees on
+// PostgreSQL, instead of duplicating this branching a 3rd time (the 2nd copy,
+// in task-query-descriptor-builder.js, already documents that risk in its own
+// header comment). Byte-identical branching to the block this replaces —
+// resolveAuthorizedTaskScope() below is now a thin wrapper: call this, then
+// do the Supabase-specific assignee query.
+function resolveAuthorizedTaskEmployeeScope(actorContext, scope, relation, scopeParam, options) {
   const isReceivedLike = relation === 'received' || relation === 'proposal_received';
   const flowType = (relation === 'proposal_sent' || relation === 'proposal_received') ? 'de_xuat' : 'giao_viec';
 
@@ -1485,12 +1765,57 @@ async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopePa
     return { mode: 'creator_eq', flowType, creatorEmployeeCode: actorContext.employeeCode };
   }
 
+  // G3 fix (2026-08-28) — "Tôi nhận"/"Nhân sự tôi quản lý" (listTasks(), the
+  // Task LIST/workspace contract) phải LUÔN theo TASK_RELATIONSHIP thật
+  // (Primary assignee thật / managedEmployeeCodes thật từ org graph),
+  // KHÔNG BAO GIỜ theo peopleScope/capability — CAPABILITY != PEOPLE_SCOPE
+  // != TASK_RELATIONSHIP. Trước fix, executive actorType (giam_doc/tro_ly_gd
+  // — peopleScope.type='all_company', 1 capability marker cho quyền can
+  // thiệp/xem company-wide, KHÔNG phải quan hệ Task cá nhân) khiến nhánh
+  // dưới coi "Tôi nhận" mặc định = không giới hạn = lộ TOÀN BỘ Task công ty
+  // (evidence PHF010: 50/50 Task, chỉ là Primary thật trên 1/50). Task
+  // Report/Dashboard (task-reporting.js) KHÔNG gọi qua nhánh này —
+  // relationshipOnly chỉ true khi caller (listTasks() bên dưới) truyền vào,
+  // giữ NGUYÊN semantics company-wide Report cho GĐ/TLGĐ (feature khác, đã
+  // khoá bởi test-task-reporting-v1.js với real DB fixtures — KHÔNG đụng).
+  const relationshipOnly = !!(options && options.taskRelationshipOnly);
+
   // "Đề xuất tôi nhận xử lý" LUÔN self-only theo đúng nghĩa cá nhân (không
   // suy sang phạm vi quản lý) — chỉ relation='received' mới dùng peopleScope
   // canonical để mở rộng cho TBP/Trưởng ca/Admin/GĐ/TLGĐ.
   let employeeCodes; // null => không giới hạn (all_company)
   if (relation === 'proposal_received') {
     employeeCodes = [actorContext.employeeCode];
+  } else if (relationshipOnly) {
+    if (scopeParam === 'managed' || scopeParam === 'cross_department') {
+      if (COMPANY_TIER_ACTOR_TYPES.has(actorContext.actorType)) {
+        // COMPANY-LEVEL CLEANUP — Admin/GĐ/TLGĐ workspace "Nhân sự tôi quản
+        // lý" = company-wide (null = không giới hạn), KHÔNG bị bó vào
+        // managedEmployeeCodes/org-graph subtree như TBP/Trưởng ca (mục 4
+        // của business contract: "Direct reports có thể tồn tại trong org
+        // graph nhưng không được giới hạn company-wide Task scope"). scope=
+        // cross_department vẫn lọc đúng is_cross_department qua
+        // crossDepartmentOnly bên dưới, áp SAU khi employeeCodes=null đã mở
+        // hết company-wide — không đổi cơ chế filter đó.
+        employeeCodes = null;
+      } else {
+        // TBP/Trưởng ca — LUÔN managedEmployeeCodes thật (org graph, đúng
+        // subtree mình quản lý) — KHÔNG đổi hành vi cũ.
+        employeeCodes = Array.from(actorContext.managedEmployeeCodes || []);
+      }
+    } else if (scopeParam === 'mine' || !scopeParam) {
+      // "Tôi nhận" mặc định — LUÔN self-only, bất kể peopleScope là self/
+      // employees/all_company. Đây chính là G3 fix root cause.
+      employeeCodes = [actorContext.employeeCode];
+    } else if (scopeParam === 'all_company' && COMPANY_TIER_ACTOR_TYPES.has(actorContext.actorType)) {
+      // scopeParam='all_company' tường minh cho company-tier — cùng company-
+      // wide semantics như scope=managed ở trên (không phải nhánh riêng).
+      employeeCodes = null;
+    } else if (scope.peopleScope.type === 'employees') {
+      employeeCodes = scope.peopleScope.values || [actorContext.employeeCode];
+    } else {
+      employeeCodes = [actorContext.employeeCode];
+    }
   } else if (scope.peopleScope.type === 'all_company') {
     employeeCodes = (scopeParam === 'mine') ? [actorContext.employeeCode] : null;
   } else if (scope.peopleScope.type === 'employees') {
@@ -1508,8 +1833,16 @@ async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopePa
     employeeCodes = [actorContext.employeeCode];
   }
 
+  return { mode: 'employee_codes', flowType, employeeCodes, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+}
+
+async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam, options) {
+  const decision = resolveAuthorizedTaskEmployeeScope(actorContext, scope, relation, scopeParam, options);
+  if (decision.mode === 'creator_eq') return decision;
+
+  const { flowType, employeeCodes, excludeDraft, crossDepartmentOnly } = decision;
   if (employeeCodes !== null && !employeeCodes.length) {
-    return { mode: 'empty', flowType, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+    return { mode: 'empty', flowType, excludeDraft, crossDepartmentOnly };
   }
 
   let assigneeQuery = supabase.from(ASSIGNEES_TABLE).select('task_id').eq('role', 'primary').eq('is_active', true);
@@ -1518,10 +1851,25 @@ async function resolveAuthorizedTaskScope(actorContext, scope, relation, scopePa
   if (assigneeError) throwDb(assigneeError);
   const taskIds = Array.from(new Set((assigneeRows || []).map(r => r.task_id)));
   if (!taskIds.length) {
-    return { mode: 'empty', flowType, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+    return { mode: 'empty', flowType, excludeDraft, crossDepartmentOnly };
   }
 
-  return { mode: 'assignee_in', flowType, taskIds, excludeDraft: true, crossDepartmentOnly: scopeParam === 'cross_department' };
+  return { mode: 'assignee_in', flowType, taskIds, excludeDraft, crossDepartmentOnly };
+}
+
+// 'managed' — UI-level alias for the "Nhân sự tôi quản lý" workspace, which is
+// canonically (relation='received', scope='managed'). Resolve before validation
+// so listTasks({relation:'managed'}) works identically on the legacy and the
+// bridged (task-query-descriptor-builder.js) paths. Same authorization contract,
+// no new relation type, no manager-graph change.
+function normalizeTaskListRelationScope(rawRelation, rawScope) {
+  let relation = text(rawRelation);
+  let scope = text(rawScope);
+  if (relation === 'managed') {
+    relation = 'received';
+    if (!scope) scope = 'managed';
+  }
+  return { relation, scope };
 }
 
 async function listTasks(session, params) {
@@ -1529,10 +1877,10 @@ async function listTasks(session, params) {
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
   const input = params || {};
 
-  const relation = text(input.relation);
+  const { relation, scope: scopeInput } = normalizeTaskListRelationScope(input.relation, input.scope);
   if (!TASK_LIST_RELATIONS.has(relation)) fail('Góc nhìn (relation) không hợp lệ.', 400, 'TASK_LIST_RELATION_INVALID');
   const statusFilter = TASK_LIST_STATUS_FILTERS.has(text(input.statusFilter)) ? text(input.statusFilter) : 'all';
-  const scopeParam = TASK_LIST_SCOPES.has(text(input.scope)) ? text(input.scope) : '';
+  const scopeParam = TASK_LIST_SCOPES.has(scopeInput) ? scopeInput : '';
   const search = text(input.search).slice(0, 100);
   const limit = Math.min(200, Math.max(1, Number(input.limit) || 50));
   // Pagination foundation (mục 11 — không migration, không thay authorization):
@@ -1544,9 +1892,37 @@ async function listTasks(session, params) {
   const offset = Math.min(5000, Math.max(0, Math.trunc(Number(input.offset)) || 0));
 
   const nowIso = new Date().toISOString();
-  const emptyResult = { tasks: [], relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, offset, limit, hasMore: false };
+  // G3 FOLLOW-UP + COMPANY-LEVEL CLEANUP (2026-08-28) — hasManagedPeople:
+  // trustworthy, explicit signal cho frontend quyết định hiện "Nhân sự tôi
+  // quản lý" hay không. Với TBP/Trưởng ca: derived TRỰC TIẾP từ
+  // managedEmployeeCodes thật (org graph, manager_employee_code) — KHÔNG
+  // suy từ viewScopeType/title, KHÔNG phụ thuộc tasks.length (0 report có
+  // Task hiện tại vẫn phải hiện menu nếu managedEmployeeCodes thật > 0). Với
+  // Admin/GĐ/TLGĐ (COMPANY_TIER_ACTOR_TYPES): LUÔN true — company-level
+  // authority có company-wide workspace theo thiết kế PHF (mục 1/4 business
+  // contract), KHÔNG bị ràng buộc bởi việc có direct report thật hay không
+  // (khác managedEmployeeCodes.length>0 của TBP/Trưởng ca — cố tình, không
+  // phải suy đoán qua title/actorType không rõ nguồn: actorType ở đây đã
+  // resolve canonical qua task_permission_assignments/session admin, KHÔNG
+  // phải string so sánh display).
+  const hasManagedPeople = COMPANY_TIER_ACTOR_TYPES.has(actorContext.actorType)
+    || !!(actorContext.managedEmployeeCodes && actorContext.managedEmployeeCodes.size > 0);
+  // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29) — canManageTaskPermissions:
+  // trustworthy, explicit, CAPABILITY-derived signal (scope.capabilities.manage
+  // — the exact same flag requireTaskPermissionAdmin()/listTaskAdminPeople()
+  // enforce server-side, see task-permissions.js::resolveBaseTaskScope()) cho
+  // frontend quyết định hiện nav "Nhân sự & phân quyền" hay không. KHÔNG suy
+  // từ actorType/title phía client — piggybacks trên cùng listTasks() probe
+  // đã dùng để hydrate hasManagedPeople, không thêm round-trip nào.
+  const canManageTaskPermissions = scope.capabilities.manage === true;
+  const emptyResult = { tasks: [], relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, hasManagedPeople, canManageTaskPermissions, offset, limit, hasMore: false };
 
-  const authScope = await resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam);
+  // listTasks() = the Task LIST/workspace contract ("Tôi nhận"/"Nhân sự tôi
+  // quản lý") — taskRelationshipOnly:true enforces G3 (relationship/org-graph
+  // only, never capability/all_company). task-reporting.js calls this SAME
+  // resolver WITHOUT the option, intentionally preserving its own separate
+  // company-wide Report semantics for GĐ/TLGĐ (see comment on the resolver).
+  const authScope = await resolveAuthorizedTaskScope(actorContext, scope, relation, scopeParam, { taskRelationshipOnly: true });
   if (authScope.mode === 'empty') return emptyResult;
 
   let taskQuery = supabase.from(TASKS_TABLE).select('*').eq('flow_type', authScope.flowType);
@@ -1618,7 +1994,7 @@ async function listTasks(session, params) {
     };
   });
 
-  return { tasks, relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, offset, limit, hasMore };
+  return { tasks, relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, hasManagedPeople, canManageTaskPermissions, offset, limit, hasMore };
 }
 
 // ---------------------------------------------------------------------------
@@ -1690,10 +2066,18 @@ module.exports = {
   listTaskAssignableEmployees,
   listTaskAdminPeople,
   saveTaskPermissionAssignment,
+  resolveAndAuthorizeSetPermissionAssignment,
   createTaskPermissionGrant,
+  resolveAndAuthorizeCreatePermissionGrant,
   revokeTaskPermissionGrant,
+  resolveAndAuthorizeRevokePermissionGrant,
   listTaskCategories,
   listAdminTaskCategories,
+  requireTaskAdmin,
+  validateCategoryCode,
+  validateCategoryName,
+  validateCategoryActiveFlag,
+  validateCategorySortOrder,
   createTaskCategory,
   renameTaskCategory,
   setTaskCategoryActive,
@@ -1701,14 +2085,24 @@ module.exports = {
   reorderTaskCategory,
   checkTaskFoundationStatus,
   createTaskDraft,
+  resolveAndValidateCreateDraftInput,
+  actorAuditToken,
   updateTaskDraft,
   deleteTaskDraft,
   publishTask,
+  resolveAndAuthorizePublish,
+  resolveCrossDepartmentNotificationRecipient,
+  resolveTaskDepartmentSnapshot,
   getTaskDetail,
+  assembleTaskDetailDto,
   updateTaskProgress,
+  resolveAndAuthorizeUpdateProgress,
+  checkTaskProgressThrottle,
   completeTask,
+  resolveAndAuthorizeComplete,
   reopenTask,
   cancelTask,
+  resolveAndAuthorizeUpdateCapability,
   changeTaskDeadline,
   transferTaskPrimary,
   addTaskRelated,
@@ -1716,7 +2110,9 @@ module.exports = {
   addTaskComment,
   addTaskLink,
   removeTaskLink,
+  resolveAndAuthorizeView,
   listTasks,
+  resolveAuthorizedTaskEmployeeScope,
   listTaskEvents,
   resolveAuthorizedTaskScope,
   TASK_LIST_RELATIONS,

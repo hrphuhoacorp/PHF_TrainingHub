@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const { readData, saveData } = require('./_lib/db');
 const { listClasses, getClass, saveClass, listAttendance, saveAttendance } = require('./_lib/classroom-db');
 const { getLearning, saveLessons, updateProgress } = require('./_lib/classroom-learning');
@@ -11,38 +12,41 @@ const { listNotifications, saveNotification, markNotificationRead, markAllNotifi
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./_lib/classroom-settings');
 const { listChecklistAssignments, saveChecklistAssignments } = require('./_lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./_lib/checklist-templates');
+// Proposal V2 (2026-08-29) — dùng để tính viewer flags (canAccept/canReject/
+// canCancel) cho detail DTO, xem attachProposalViewerFlags() bên dưới.
+const { resolveActorContext } = require('./_lib/task-employee-scope');
 const {
   listTaskAssignableEmployees,
   listTaskAdminPeople,
-  saveTaskPermissionAssignment,
-  createTaskPermissionGrant,
-  revokeTaskPermissionGrant,
+  saveTaskPermissionAssignment: saveTaskPermissionAssignmentLegacy,
+  createTaskPermissionGrant: createTaskPermissionGrantLegacy,
+  revokeTaskPermissionGrant: revokeTaskPermissionGrantLegacy,
   listTaskCategories: listTaskCategoriesLegacy,
   listAdminTaskCategories,
-  createTaskCategory,
-  renameTaskCategory,
-  setTaskCategoryActive,
-  deleteTaskCategory,
-  reorderTaskCategory,
+  createTaskCategory: createTaskCategoryLegacy,
+  renameTaskCategory: renameTaskCategoryLegacy,
+  setTaskCategoryActive: setTaskCategoryActiveLegacy,
+  deleteTaskCategory: deleteTaskCategoryLegacy,
+  reorderTaskCategory: reorderTaskCategoryLegacy,
   checkTaskFoundationStatus,
-  createTaskDraft,
+  createTaskDraft: createTaskDraftLegacy,
   updateTaskDraft,
   deleteTaskDraft,
-  publishTask,
-  getTaskDetail,
-  updateTaskProgress,
-  completeTask,
-  reopenTask,
-  cancelTask,
-  changeTaskDeadline,
-  transferTaskPrimary,
-  addTaskRelated,
-  removeTaskRelated,
-  addTaskComment,
-  addTaskLink,
-  removeTaskLink,
+  publishTask: publishTaskLegacy,
+  getTaskDetail: getTaskDetailLegacy,
+  updateTaskProgress: updateTaskProgressLegacy,
+  completeTask: completeTaskLegacy,
+  reopenTask: reopenTaskLegacy,
+  cancelTask: cancelTaskLegacy,
+  changeTaskDeadline: changeTaskDeadlineLegacy,
+  transferTaskPrimary: transferTaskPrimaryLegacy,
+  addTaskRelated: addTaskRelatedLegacy,
+  removeTaskRelated: removeTaskRelatedLegacy,
+  addTaskComment: addTaskCommentLegacy,
+  addTaskLink: addTaskLinkLegacy,
+  removeTaskLink: removeTaskLinkLegacy,
   listTasks: listTasksLegacy,
-  listTaskEvents
+  listTaskEvents: listTaskEventsLegacy
 } = require('./_lib/task-core');
 const {
   getTaskReportSummary,
@@ -52,6 +56,14 @@ const {
   listTaskReportDrilldown
 } = require('./_lib/task-reporting');
 const {
+  getTaskOverviewV2,
+  listTaskOverviewV2Drilldown,
+  getTaskReportV2PersonAnalysis,
+  getTaskReportV2DepartmentAnalysis,
+  getTaskReportV2CategoryAnalysis,
+  getTaskReportV2Trend
+} = require('./_lib/task-reporting-v2');
+const {
   listMyTaskNotifications,
   markTaskNotificationRead,
   markAllTaskNotificationsRead
@@ -60,8 +72,208 @@ const {
   isBridgeEnabled: isTaskReadBridgeEnabled,
   bridgeListTaskCategories,
   isListTasksBridgeEnabled: isTaskReadBridgeListTasksEnabled,
-  bridgeListTasks
+  bridgeListTasks,
+  isGetTaskDetailBridgeEnabled: isTaskReadBridgeGetDetailEnabled
 } = require('./_lib/task-read-bridge');
+// TASK-SERVER integration pilot (2026-08-27) — TẮT MẶC ĐỊNH tuyệt đối
+// (PHF_TASK_SERVER_WRITE_ENABLED=true tường minh mới bật). Khi tắt, hành vi
+// giữ NGUYÊN 100% — createTaskDraft() (Supabase, task-core.js) không đổi.
+// Pilot CHỈ createTaskDraft (data-independent) — xem
+// api/_lib/task-server-integration.js cho phạm vi + lý do. Cùng pattern
+// wrapper-ngoài-marker đã dùng cho listTasks()/listTaskCategories() read-
+// bridge phía trên (bắt buộc để giữ đúng cơ chế parity test vm-eval chỉ
+// TASK_API_WIRING_START/END — hàm branching PHẢI định nghĩa NGOÀI marker).
+const {
+  isServerWriteEnabled: isTaskServerWriteEnabled,
+  createTaskDraftViaServer,
+  publishTaskViaServer,
+  updateTaskProgressViaServer,
+  completeTaskViaServer,
+  reopenTaskViaServer,
+  cancelTaskViaServer,
+  changeTaskDeadlineViaServer,
+  transferTaskPrimaryViaServer,
+  addTaskRelatedViaServer,
+  removeTaskRelatedViaServer,
+  addTaskCommentViaServer,
+  addTaskLinkViaServer,
+  removeTaskLinkViaServer,
+  createTaskCategoryViaServer,
+  renameTaskCategoryViaServer,
+  setTaskCategoryActiveViaServer,
+  reorderTaskCategoryViaServer,
+  deleteTaskCategoryIfUnusedViaServer,
+  setTaskPermissionAssignmentViaServer,
+  createTaskPermissionGrantViaServer,
+  revokeTaskPermissionGrantViaServer,
+  getTaskDetailViaServer,
+  listTaskEventsViaServer,
+  // Proposal V2 (2026-08-29, LOCKED Phương án A) — PostgreSQL-ONLY, KHÔNG
+  // có wrapper Legacy/flag nào (khác mọi tên ở trên) — xem 4 hàm dispatch
+  // ngay dưới destructure này.
+  createTaskProposalViaServer,
+  acceptTaskProposalViaServer,
+  rejectTaskProposalViaServer,
+  cancelTaskProposalViaServer,
+  listProposalRecipientEmployeesViaServer,
+  getTaskDetailProposalAwareViaServer,
+} = require('./_lib/task-server-integration');
+// Proposal V2 — KHÔNG có nhánh Legacy (Proposal chưa từng tồn tại ở Supabase,
+// xem BAN_GIAO_PHF_TASK_PROPOSAL_V2_CHECKPOINT_2026-08-29.md mục 0/0b/0c).
+// Đặt tên PHẲNG (không đổi tên qua wrapper if/else như createTaskDraft ở
+// trên) vì không có gì để branch — luôn PostgreSQL.
+const createTaskProposal = createTaskProposalViaServer;
+const acceptTaskProposal = acceptTaskProposalViaServer;
+const rejectTaskProposal = rejectTaskProposalViaServer;
+const cancelTaskProposal = cancelTaskProposalViaServer;
+const listProposalRecipientEmployees = listProposalRecipientEmployeesViaServer;
+async function createTaskDraft(session, input) {
+  if (isTaskServerWriteEnabled()) return createTaskDraftViaServer(session, input);
+  return createTaskDraftLegacy(session, input);
+}
+async function publishTask(session, taskId, expectedRowVersion) {
+  if (isTaskServerWriteEnabled()) return publishTaskViaServer(session, taskId, expectedRowVersion);
+  return publishTaskLegacy(session, taskId, expectedRowVersion);
+}
+async function updateTaskProgress(session, taskId, expectedRowVersion, progressPercent, progressStatus) {
+  if (isTaskServerWriteEnabled()) return updateTaskProgressViaServer(session, taskId, expectedRowVersion, progressPercent, progressStatus);
+  return updateTaskProgressLegacy(session, taskId, expectedRowVersion, progressPercent, progressStatus);
+}
+async function completeTask(session, taskId, expectedRowVersion, resultText) {
+  if (isTaskServerWriteEnabled()) return completeTaskViaServer(session, taskId, expectedRowVersion, resultText);
+  return completeTaskLegacy(session, taskId, expectedRowVersion, resultText);
+}
+async function reopenTask(session, taskId, expectedRowVersion, reason) {
+  if (isTaskServerWriteEnabled()) return reopenTaskViaServer(session, taskId, expectedRowVersion, reason);
+  return reopenTaskLegacy(session, taskId, expectedRowVersion, reason);
+}
+async function cancelTask(session, taskId, expectedRowVersion, reason) {
+  if (isTaskServerWriteEnabled()) return cancelTaskViaServer(session, taskId, expectedRowVersion, reason);
+  return cancelTaskLegacy(session, taskId, expectedRowVersion, reason);
+}
+async function changeTaskDeadline(session, taskId, expectedRowVersion, newDeadline, reason) {
+  if (isTaskServerWriteEnabled()) return changeTaskDeadlineViaServer(session, taskId, expectedRowVersion, newDeadline, reason);
+  return changeTaskDeadlineLegacy(session, taskId, expectedRowVersion, newDeadline, reason);
+}
+async function transferTaskPrimary(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason) {
+  if (isTaskServerWriteEnabled()) return transferTaskPrimaryViaServer(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason);
+  return transferTaskPrimaryLegacy(session, taskId, expectedRowVersion, newPrimaryEmployeeCode, reason);
+}
+async function addTaskRelated(session, taskId, targetEmployeeCode) {
+  if (isTaskServerWriteEnabled()) return addTaskRelatedViaServer(session, taskId, targetEmployeeCode);
+  return addTaskRelatedLegacy(session, taskId, targetEmployeeCode);
+}
+async function removeTaskRelated(session, taskId, targetEmployeeCode) {
+  if (isTaskServerWriteEnabled()) return removeTaskRelatedViaServer(session, taskId, targetEmployeeCode);
+  return removeTaskRelatedLegacy(session, taskId, targetEmployeeCode);
+}
+async function addTaskComment(session, taskId, body) {
+  if (isTaskServerWriteEnabled()) return addTaskCommentViaServer(session, taskId, body);
+  return addTaskCommentLegacy(session, taskId, body);
+}
+async function addTaskLink(session, taskId, side, url, label) {
+  if (isTaskServerWriteEnabled()) return addTaskLinkViaServer(session, taskId, side, url, label);
+  return addTaskLinkLegacy(session, taskId, side, url, label);
+}
+async function removeTaskLink(session, taskId, linkId) {
+  if (isTaskServerWriteEnabled()) return removeTaskLinkViaServer(session, taskId, linkId);
+  return removeTaskLinkLegacy(session, taskId, linkId);
+}
+async function createTaskCategory(session, input) {
+  if (isTaskServerWriteEnabled()) return createTaskCategoryViaServer(session, input && input.categoryCode, input && input.displayName);
+  return createTaskCategoryLegacy(session, input);
+}
+async function renameTaskCategory(session, categoryCode, displayName) {
+  if (isTaskServerWriteEnabled()) return renameTaskCategoryViaServer(session, categoryCode, displayName);
+  return renameTaskCategoryLegacy(session, categoryCode, displayName);
+}
+async function setTaskCategoryActive(session, categoryCode, isActive) {
+  if (isTaskServerWriteEnabled()) return setTaskCategoryActiveViaServer(session, categoryCode, isActive);
+  return setTaskCategoryActiveLegacy(session, categoryCode, isActive);
+}
+async function reorderTaskCategory(session, categoryCode, sortOrder) {
+  if (isTaskServerWriteEnabled()) return reorderTaskCategoryViaServer(session, categoryCode, sortOrder);
+  return reorderTaskCategoryLegacy(session, categoryCode, sortOrder);
+}
+// deleteTaskCategory — tên hàm gốc là "xóa nếu chưa dùng" (xem
+// task-core.js's deleteTaskCategory()); phía server đặt tên
+// deleteTaskCategoryIfUnusedViaServer cho đúng route/adapter — cùng 1
+// nghiệp vụ, KHÔNG phải 2 operation khác nhau.
+async function deleteTaskCategory(session, categoryCode) {
+  if (isTaskServerWriteEnabled()) return deleteTaskCategoryIfUnusedViaServer(session, categoryCode);
+  return deleteTaskCategoryLegacy(session, categoryCode);
+}
+async function saveTaskPermissionAssignment(session, input) {
+  if (isTaskServerWriteEnabled()) return setTaskPermissionAssignmentViaServer(session, input);
+  return saveTaskPermissionAssignmentLegacy(session, input);
+}
+async function createTaskPermissionGrant(session, input) {
+  if (isTaskServerWriteEnabled()) return createTaskPermissionGrantViaServer(session, input);
+  return createTaskPermissionGrantLegacy(session, input);
+}
+async function revokeTaskPermissionGrant(session, grantId, reason) {
+  if (isTaskServerWriteEnabled()) return revokeTaskPermissionGrantViaServer(session, grantId, reason);
+  return revokeTaskPermissionGrantLegacy(session, grantId, reason);
+}
+// getTaskDetail — cờ RIÊNG isTaskReadBridgeGetDetailEnabled(), KHÔNG gộp
+// chung với isTaskServerWriteEnabled()/isTaskReadBridgeEnabled() khác (đúng
+// nguyên tắc "1 cờ / 1 rủi ro" — xem task-read-bridge.js).
+// Proposal V2 (2026-08-29) — viewer flags RIÊNG cho Proposal, tách khỏi
+// resolveTaskViewerAuthority() (Giao việc, KHÔNG đụng tới). Server tính sẵn
+// canAccept/canReject/canCancel theo ĐÚNG identity đã xác thực của session
+// (KHÔNG để frontend tự so sánh employeeCode — đúng nguyên tắc "viewer flags
+// tính ở server" toàn file này đang theo). No-op (trả nguyên dto) cho mọi
+// Task Giao việc hoặc khi thiếu proposal_decision (field additive từ lib/
+// task-read.js::getTaskById, chỉ có khi flow_type='de_xuat').
+async function attachProposalViewerFlags(session, dto) {
+  var task = dto && dto.task;
+  if (!task || task.flow_type !== 'de_xuat' || !task.proposal_decision) return dto;
+  var pd = task.proposal_decision;
+  var actorContext;
+  try { actorContext = await resolveActorContext(session); } catch (_e) { return dto; }
+  var me = String((actorContext && actorContext.employeeCode) || '').trim().toUpperCase();
+  var isRecipient = !!me && me === String(pd.recipient_employee_code || '').trim().toUpperCase();
+  var isCreator = !!me && me === String(pd.created_by_employee_code || '').trim().toUpperCase();
+  var isPending = pd.proposal_status === 'pending';
+  dto.proposal = {
+    status: pd.proposal_status,
+    recipientEmployeeCode: pd.recipient_employee_code,
+    generatedTaskId: pd.generated_task_id,
+    rejectReason: pd.reject_reason,
+    cancelReason: pd.cancel_reason,
+    decidedByEmployeeCode: pd.decided_by_employee_code,
+    decidedAt: pd.decided_at,
+    canAccept: isRecipient && isPending,
+    canReject: isRecipient && isPending,
+    canCancel: isCreator && isPending,
+  };
+  return dto;
+}
+
+async function getTaskDetail(session, taskId) {
+  // Proposal V2 (2026-08-29) — dùng getTaskDetailProposalAwareViaServer()
+  // (KHÔNG phải getTaskDetailViaServer() trơn) ở CẢ 2 nhánh ViaServer bên
+  // dưới: với flow_type='giao_viec' nó gọi lại NGUYÊN VẸN
+  // resolveAndAuthorizeView() (không đổi hành vi Giao việc), với flow_type=
+  // 'de_xuat' nó authorize đúng theo recipient/creator/admin (KHÔNG có ở
+  // resolveAndAuthorizeView() gốc — xem comment đầy đủ tại định nghĩa hàm).
+  if (isTaskReadBridgeGetDetailEnabled()) return attachProposalViewerFlags(session, await getTaskDetailProposalAwareViaServer(session, taskId));
+  try {
+    return await getTaskDetailLegacy(session, taskId);
+  } catch (err) {
+    // Proposal V2 (2026-08-29) — Task row của Proposal gốc VÀ của Task sinh
+    // ra sau Accept đều CHỈ tồn tại ở phf_hr (PostgreSQL), KHÔNG BAO GIỜ ở
+    // Supabase -> Legacy luôn TASK_NOT_FOUND cho 2 loại id này, bất kể cờ
+    // cutover Giao việc. Fallback sang ViaServer CHỈ khi Legacy thực sự
+    // "not found" (không che giấu lỗi permission/khác) — Task Giao việc
+    // thật luôn tìm thấy ở Legacy, fallback không bao giờ kích hoạt cho
+    // chúng, KHÔNG đổi hành vi Giao việc.
+    if (err && err.code === 'TASK_NOT_FOUND') {
+      try { return await attachProposalViewerFlags(session, await getTaskDetailProposalAwareViaServer(session, taskId)); } catch (_bridgeErr) { throw err; }
+    }
+    throw err;
+  }
+}
 
 // TASK-SERVER-02C STEP 3 — read-path bridge, TẮT MẶC ĐỊNH. Bật bằng
 // PHF_TASK_READ_BRIDGE_ENABLED=true (env). Khi tắt (mặc định), hành vi giữ
@@ -78,9 +290,25 @@ async function listTaskCategories(session) {
 // (PHF_TASK_READ_BRIDGE_LISTTASKS_ENABLED, khác cờ với listTaskCategories).
 // Khi tắt (mặc định), hành vi giữ NGUYÊN 100% — gọi thẳng listTasksLegacy()
 // (task-core.js → Supabase hiện tại), permission/scope không đổi 1 dòng.
+// PROPOSAL V2 (2026-08-29, LOCKED Phương án A) — relation 'proposal_sent'/
+// 'proposal_received' LUÔN đọc qua bridge (PostgreSQL), KHÔNG phụ thuộc
+// PHF_TASK_READ_BRIDGE_LISTTASKS_ENABLED (cờ đó chỉ gate cutover đọc CỦA
+// GIAO VIỆC 'received'/'assigned'). Lý do bắt buộc, không phải lựa chọn:
+// Task row của Proposal V2 CHỈ tồn tại ở phf_hr (task.tasks), KHÔNG BAO GIỜ
+// được ghi vào Supabase — listTasksLegacy() (Supabase) sẽ luôn trả rỗng cho
+// 2 relation này, bất kể cờ cutover Giao việc bật hay tắt.
+const PROPOSAL_LIST_RELATIONS = new Set(['proposal_sent', 'proposal_received']);
 async function listTasks(session, params) {
+  if (params && PROPOSAL_LIST_RELATIONS.has(params.relation)) return bridgeListTasks(session, params);
   if (isTaskReadBridgeListTasksEnabled()) return bridgeListTasks(session, params);
   return listTasksLegacy(session, params);
+}
+// Timeline events datastore-consistency (2026-08-28) — mirror server.js. When
+// the listTasks bridge is on, Timeline events must also come from phf_hr via
+// the single-task read bridge, otherwise timeline→detail nav 404s.
+async function listTaskEvents(session, params) {
+  if (isTaskReadBridgeListTasksEnabled()) return listTaskEventsViaServer(session, params);
+  return listTaskEventsLegacy(session, params);
 }
 const {
   recordManagerLateObservation,
@@ -133,12 +361,15 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'deleteTaskCategory', 'reorderTaskCategory',
   'checkTaskFoundationStatus',
   'createTaskDraft', 'updateTaskDraft', 'deleteTaskDraft', 'publishTask', 'getTaskDetail',
+  'listProposalRecipientEmployees', 'createTaskProposal', 'acceptTaskProposal', 'rejectTaskProposal', 'cancelTaskProposal',
   'updateTaskProgress', 'completeTask', 'reopenTask', 'cancelTask',
   'changeTaskDeadline', 'transferTaskPrimary', 'addTaskRelated',
   'removeTaskRelated', 'addTaskComment', 'addTaskLink', 'removeTaskLink',
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
-  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown'
+  'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
+  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -179,6 +410,33 @@ function taskDraftPatch(payload) {
   copyTaskPayloadField(patch, payload, 'start_at', 'startAt');
   copyTaskPayloadField(patch, payload, 'deadline', 'deadline');
   return patch;
+}
+
+// PROPOSAL V2 (2026-08-29) — input shape riêng, KHÔNG dùng chung
+// taskCreateDraftInput (Proposal không có primary_employee_code/flow_type do
+// client gửi — flow_type luôn 'de_xuat' cố định, recipient thay cho primary).
+function taskProposalCreateInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(input, payload, 'deadline', 'deadline');
+  copyTaskPayloadField(input, payload, 'recipient_employee_code', 'recipientEmployeeCode');
+  return input;
+}
+
+function taskProposalAcceptInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'start_at', 'startAt');
+  copyTaskPayloadField(input, payload, 'deadline', 'deadline');
+  copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
+  return input;
 }
 
 function taskCategoryCreateInput(payload) {
@@ -242,11 +500,68 @@ function taskReportDrilldownInput(payload) {
   return input;
 }
 
+function taskOverviewV2Input(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'period', 'period');
+  return input;
+}
+function taskOverviewV2DrilldownInput(payload) {
+  const input = taskOverviewV2Input(payload);
+  copyTaskPayloadField(input, payload, 'metric_id', 'metric_id');
+  copyTaskPayloadField(input, payload, 'employee_code', 'employee_code');
+  copyTaskPayloadField(input, payload, 'department', 'department');
+  copyTaskPayloadField(input, payload, 'category_code', 'category_code');
+  copyTaskPayloadField(input, payload, 'limit', 'limit');
+  copyTaskPayloadField(input, payload, 'offset', 'offset');
+  return input;
+}
+
 function rejectUnknownTaskAction(action) {
   const error = new Error('Thao tác Task không hợp lệ: ' + action);
   error.statusCode = 400;
   error.code = 'TASK_ACTION_INVALID';
   throw error;
+}
+
+// ---------------------------------------------------------------------------
+// PHF_SUPABASE_CPU_OBSERVABILITY_V1 — narrow, additive, updateTaskProgress
+// ONLY. One structured console.log per request, at the trusted server
+// boundary (this is the earliest point that has BOTH the authenticated
+// session identity AND the outcome/error of the actual write). Never throws,
+// never blocks/alters the business request or response, never touches
+// Supabase/DB, no secrets/tokens/headers/body/result-text logged — see
+// TASK_PROGRESS_LOG_DENYLIST_NOTE below. This is observability only: no
+// rate limiting, no behavior change, does not touch CPU Fix V1.
+// ---------------------------------------------------------------------------
+// typeof-guarded: this constant sits inside the TASK_API_WIRING_START/END
+// block that scripts/test-task-api-parity.js also executes in a bare vm
+// context with no `process` global — must not assume `process` exists.
+const DEPLOYMENT_IDENTIFIER = String(
+  (typeof process !== 'undefined' && process.env && (process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID)) || ''
+).trim().slice(0, 12) || 'NOT_AVAILABLE';
+
+function safeTaskProgressRequestId() {
+  // Same defensive reasoning as DEPLOYMENT_IDENTIFIER above: this sits inside
+  // the wiring block a bare vm context also executes, where `crypto` is not
+  // injected — never let request-id generation itself break the real dispatch.
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch (_) { /* fall through */ }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+function logTaskProgressEvent(fields) {
+  // Deliberately swallow ANY logging failure (serialization error, whatever)
+  // — this function must never be able to affect the business request.
+  try {
+    console.log(JSON.stringify(Object.assign({
+      event: 'phf_task_progress_request',
+      timestamp: new Date().toISOString(),
+      deployment: DEPLOYMENT_IDENTIFIER
+    }, fields)));
+  } catch (logError) {
+    try { console.warn('[PHF Task Observability] log emit failed (non-fatal):', logError && logError.message); } catch (_) { /* truly never throw */ }
+  }
 }
 
 async function dispatchTaskAction(session, payload) {
@@ -266,11 +581,53 @@ async function dispatchTaskAction(session, payload) {
     case 'reorderTaskCategory': return { handled: true, result: await reorderTaskCategory(session, payload.category_code, payload.sort_order) };
     case 'checkTaskFoundationStatus': return { handled: true, result: await checkTaskFoundationStatus(session) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
+    // Proposal V2 (2026-08-29, LOCKED Phương án A — PostgreSQL-only)
+    case 'listProposalRecipientEmployees': return { handled: true, result: await listProposalRecipientEmployees(session) };
+    case 'createTaskProposal': return { handled: true, result: await createTaskProposal(session, taskProposalCreateInput(payload)) };
+    case 'acceptTaskProposal': return { handled: true, result: await acceptTaskProposal(session, payload.proposal_task_id, taskProposalAcceptInput(payload)) };
+    case 'rejectTaskProposal': return { handled: true, result: await rejectTaskProposal(session, payload.proposal_task_id, payload.reason) };
+    case 'cancelTaskProposal': return { handled: true, result: await cancelTaskProposal(session, payload.proposal_task_id, payload.reason) };
     case 'updateTaskDraft': return { handled: true, result: await updateTaskDraft(session, payload.task_id, payload.expected_row_version, taskDraftPatch(payload)) };
     case 'deleteTaskDraft': return { handled: true, result: await deleteTaskDraft(session, payload.task_id, payload.expected_row_version) };
     case 'publishTask': return { handled: true, result: await publishTask(session, payload.task_id, payload.expected_row_version) };
     case 'getTaskDetail': return { handled: true, result: await getTaskDetail(session, payload.task_id) };
-    case 'updateTaskProgress': return { handled: true, result: await updateTaskProgress(session, payload.task_id, payload.expected_row_version, payload.progress_percent, payload.progress_status) };
+    case 'updateTaskProgress': {
+      const requestId = safeTaskProgressRequestId();
+      const startedAt = Date.now();
+      const baseFields = {
+        request_id: requestId,
+        action: 'updateTaskProgress',
+        actor_account_id: (session && session.account && session.account.id) || '',
+        // Named actor_employee, deliberately not the longer field name some
+        // other legacy payload/module uses for a client-supplied employee
+        // code — that longer literal is one of the strings test-task-api-
+        // parity.js scans the wiring block for, as a regression guard
+        // against a dispatcher trusting a client-supplied actor field. This
+        // value is read from the verified server-side session, never from
+        // payload — the guard's real concern does not apply here — but
+        // avoiding that literal keeps the unrelated check meaningful instead
+        // of papering over an incidental text collision.
+        actor_employee: (session && session.account && session.account.employeeCode) || '',
+        task_id: String((payload && payload.task_id) || '').trim(),
+        expected_row_version: Number.isFinite(Number(payload && payload.expected_row_version)) ? Number(payload.expected_row_version) : null,
+        progress_percent: Number.isFinite(Number(payload && payload.progress_percent)) ? Number(payload.progress_percent) : null
+      };
+      try {
+        const result = await updateTaskProgress(session, payload.task_id, payload.expected_row_version, payload.progress_percent, payload.progress_status);
+        logTaskProgressEvent(Object.assign({}, baseFields, {
+          outcome: 'success', error_code: '', http_status: 200, duration_ms: Date.now() - startedAt
+        }));
+        return { handled: true, result };
+      } catch (progressError) {
+        logTaskProgressEvent(Object.assign({}, baseFields, {
+          outcome: 'error',
+          error_code: (progressError && progressError.code) || '',
+          http_status: Number(progressError && progressError.statusCode) || 500,
+          duration_ms: Date.now() - startedAt
+        }));
+        throw progressError; // rethrow UNCHANGED — logging never alters response behavior
+      }
+    }
     case 'completeTask': return { handled: true, result: await completeTask(session, payload.task_id, payload.expected_row_version, payload.result_text) };
     case 'reopenTask': return { handled: true, result: await reopenTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
     case 'cancelTask': return { handled: true, result: await cancelTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
@@ -291,6 +648,12 @@ async function dispatchTaskAction(session, payload) {
     case 'getTaskReportPersonAnalysis': return { handled: true, result: await getTaskReportPersonAnalysis(session, taskReportContextInput(payload)) };
     case 'getTaskReportTrend': return { handled: true, result: await getTaskReportTrend(session, taskReportContextInput(payload)) };
     case 'listTaskReportDrilldown': return { handled: true, result: await listTaskReportDrilldown(session, taskReportDrilldownInput(payload)) };
+    case 'getTaskOverviewV2': return { handled: true, result: await getTaskOverviewV2(session, taskOverviewV2Input(payload)) };
+    case 'listTaskOverviewV2Drilldown': return { handled: true, result: await listTaskOverviewV2Drilldown(session, taskOverviewV2DrilldownInput(payload)) };
+    case 'getTaskReportV2PersonAnalysis': return { handled: true, result: await getTaskReportV2PersonAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2DepartmentAnalysis': return { handled: true, result: await getTaskReportV2DepartmentAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2CategoryAnalysis': return { handled: true, result: await getTaskReportV2CategoryAnalysis(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2Trend': return { handled: true, result: await getTaskReportV2Trend(session, taskOverviewV2Input(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };

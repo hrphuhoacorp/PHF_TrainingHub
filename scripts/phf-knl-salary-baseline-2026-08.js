@@ -16,6 +16,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const db = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-salary-baseline-2026-08.js)');
 const APPLY = process.argv.includes('--apply');
 
 /* Transcribed literally from "nội dung gán KNL và bậc lương tháng 8.xlsx" (PHF-approved,

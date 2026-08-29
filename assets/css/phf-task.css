@@ -322,3 +322,73 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 @media(max-width:1100px){.phft-report-kpi-row-primary{grid-template-columns:repeat(2,1fr)}.phft-report-kpi-row-secondary{grid-template-columns:repeat(3,1fr)}.phft-report-person-split{grid-template-columns:1fr}}
 @media(max-width:760px){.phft-report-kpi-row-primary{grid-template-columns:repeat(2,1fr)}.phft-report-kpi-row-secondary{grid-template-columns:repeat(2,1fr)}.phft-report-attention-grid{grid-template-columns:repeat(2,1fr)}.phft-report-drilldown-panel{width:100%}.phft-report-page{padding-bottom:84px}.phft-report-drilldown-body{padding-bottom:84px}}
 @media(max-width:520px){.phft-report-kpi-row-primary{grid-template-columns:1fr 1fr}.phft-report-kpi-row-secondary{grid-template-columns:1fr 1fr}.phft-report-attention-grid{grid-template-columns:1fr 1fr}.phft-report-period-types{width:100%;justify-content:space-between}}
+
+/* Trao đổi / bình luận trên phiếu (STEP 3C, 2026-08-28) */
+.phft-comment-card{margin-top:16px}.phft-comment-list{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:10px}.phft-comment-item{padding:10px 12px;border-radius:10px;background:#f7f9fc;border:1px solid var(--phft-line)}.phft-comment-meta{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}.phft-comment-meta b{font-size:10.5px;color:#243547}.phft-comment-meta small{color:var(--phft-muted);font-size:9px}.phft-comment-meta span{margin-left:auto;color:var(--phft-muted);font-size:9px}.phft-comment-item p{margin:6px 0 0;color:#344454;font-size:10.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.phft-comment-form{display:flex;flex-direction:column;gap:8px}.phft-comment-form textarea{width:100%;border:1px solid var(--phft-line);border-radius:9px;padding:9px 10px;font:inherit;font-size:10.5px;resize:vertical}
+
+/* ---------------------------------------------------------------------
+   TỔNG QUAN V2 — UI polish (2026-08-29, business owner approved demo).
+   Presentation only — không đổi Reporting V2 data/action nào.
+--------------------------------------------------------------------- */
+.phft-ov-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.phft-ov-updated{color:var(--phft-muted);font-size:11px;margin-top:4px;display:flex;align-items:center;gap:6px}
+.phft-ov-updated button{border:0;background:transparent;color:var(--phft-muted);cursor:pointer;padding:2px;display:inline-flex}
+.phft-ov-updated button:hover{color:var(--phft-accent)}
+/* 6 KPI card — icon tròn + số lớn + label + delta (chỉ hiện khi backend có,
+   không tự tính/bịa — xem taskOverviewV2KpiCardHtml()). */
+.phft-kpi-v2{position:relative;padding-top:14px}
+.phft-kpi-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:10px}
+.phft-kpi-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.phft-kpi-icon.is-open{background:#e8f0fe;color:#2f6fed}
+.phft-kpi-icon.is-overdue{background:#fdeaea;color:#c23c3c}
+.phft-kpi-icon.is-due-soon{background:#fef1e0;color:#c97a17}
+.phft-kpi-icon.is-completed{background:#e6f6ec;color:#1f9d55}
+.phft-kpi-icon.is-rate{background:#f1ebfd;color:#7c4de0}
+.phft-kpi-icon.is-bottleneck{background:#e8f0fe;color:#2f6fed}
+.phft-kpi-v2 strong{font-size:25px}
+.phft-kpi-delta{font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.phft-kpi-delta.is-up{color:#1f9d55}
+.phft-kpi-delta.is-down{color:#c23c3c}
+.phft-kpi-delta.is-flat{color:var(--phft-muted)}
+/* 2 biểu đồ cạnh nhau (Xu hướng | Theo phòng ban) */
+.phft-ov-chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch}
+.phft-panel-link{display:inline-flex;align-items:center;gap:4px;color:var(--phft-accent);font-size:11.5px;font-weight:700;background:transparent;border:0;cursor:pointer;padding:0;margin-top:10px}
+.phft-panel-link:hover{text-decoration:underline}
+.phft-panel-foot{display:flex;justify-content:flex-end}
+/* Line chart (Xu hướng 30 ngày) */
+.phft-linechart-svg{display:block;width:100%;height:230px}
+.phft-linechart-grid{stroke:#eef1f5;stroke-width:1}
+.phft-linechart-axis{font-size:10px;fill:#8896a4}
+.phft-linechart-line{fill:none;stroke-width:2.4}
+.phft-linechart-line.is-created{stroke:#2f6fed}
+.phft-linechart-line.is-completed{stroke:#1f9d55}
+.phft-linechart-line.is-overdue{stroke:#e0483f}
+.phft-linechart-dot{cursor:pointer}
+.phft-linechart-dot.is-created{fill:#2f6fed}
+.phft-linechart-dot.is-completed{fill:#1f9d55}
+.phft-linechart-dot.is-overdue{fill:#e0483f}
+.phft-trend-swatch.is-created{background:#2f6fed}
+.phft-trend-swatch.is-completed{background:#1f9d55}
+.phft-trend-swatch.is-overdue{background:#e0483f}
+/* Horizontal bar chart (Theo phòng ban) */
+.phft-deptbar-list{display:flex;flex-direction:column;gap:11px}
+.phft-deptbar-row{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px}
+.phft-deptbar-name{font-size:11.5px;color:#344454;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phft-deptbar-track{position:relative;height:20px;background:#f2f5f9;border-radius:6px;overflow:hidden;display:flex;align-items:center}
+.phft-deptbar-fill{height:20px;border-radius:6px 0 0 6px;background:#2f6fed;display:flex;align-items:center}
+.phft-deptbar-fill.is-overdue-fill{background:#e0483f}
+.phft-deptbar-value{font-size:10px;font-weight:800;color:#fff;padding-left:8px;white-space:nowrap}
+.phft-deptbar-value.is-outside{color:#344454;padding-left:6px}
+/* Điểm nghẽn — placeholder đẹp, KHÔNG bịa công thức/dữ liệu */
+.phft-bottleneck-panel{margin-bottom:16px}
+.phft-bottleneck-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 20px;text-align:center;background:#f8fafc;border:1px dashed var(--phft-line);border-radius:12px}
+.phft-bottleneck-placeholder svg{width:28px;height:28px;stroke:#9aa8b6;fill:none;stroke-width:1.6}
+.phft-bottleneck-placeholder b{font-size:12.5px;color:#344454}
+.phft-bottleneck-placeholder span{font-size:11px;color:var(--phft-muted);max-width:420px}
+/* Top 5 quá hạn | sắp tới hạn */
+.phft-top5-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.phft-top5-days{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.phft-top5-days.is-overdue{background:#fdeaea;color:#a33838}
+.phft-top5-days.is-due-soon{background:#fef1e0;color:#8b5a12}
+@media(max-width:1100px){.phft-ov-chart-row{grid-template-columns:1fr}.phft-top5-row{grid-template-columns:1fr}}
+@media(max-width:520px){.phft-deptbar-row{grid-template-columns:80px 1fr}}

@@ -1,0 +1,45 @@
+# Deploy layout thật trên server: /opt/phf-hr/phf-hr-api/ (thư mục này).
+# Chạy từ chính thư mục này: docker compose up -d
+#
+# CÔ LẬP TUYỆT ĐỐI khỏi CRM:
+#   - network riêng "phf-hr_default" (Docker tự tạo, không khai báo external)
+#     — KHÔNG join phf-crm_default.
+#   - KHÔNG mount/tham chiếu /opt/phf-crm ở bất kỳ đâu.
+#   - KHÔNG dùng lại image phf-api (build riêng từ Dockerfile cạnh file này).
+#   - .env riêng của service này, không đọc/ghi bất kỳ .env nào của CRM.
+#
+# BIND: chỉ publish ra 127.0.0.1 — không có 0.0.0.0 nào ở host, đúng yêu cầu
+# "không public port 11000". Bên trong container, app bind 0.0.0.0 (đọc từ
+# PHF_HR_API_BIND_HOST trong .env) vì đó là network namespace RIÊNG của
+# container (Docker đã cô lập), ranh giới an toàn thật sự nằm ở dòng "ports"
+# bên dưới — không phải ở địa chỉ bind bên trong.
+services:
+  phf-hr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: phf-hr-api:local
+    container_name: phf-hr-api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    ports:
+      - "127.0.0.1:11000:11000"
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:process.env.PORT||11000,path:'/healthz'}, r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: phf-hr_default

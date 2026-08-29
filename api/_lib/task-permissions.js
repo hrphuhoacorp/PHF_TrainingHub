@@ -17,8 +17,19 @@ const {
   isSalesAllBranchesSubject,
   loadOrgRows,
   findByCode,
-  TASK_PRESET_TO_ACTOR_TYPE
+  TASK_PRESET_TO_ACTOR_TYPE,
+  // Proposal V2 recipient gate (2026-08-29 fix) — cùng primitive
+  // listTaskAdminPeople() dùng để enumerate "mọi người + effective scope
+  // của họ, kể cả Admin xác định qua account role chứ không qua preset".
+  resolveActorContextForRecord
 } = require('./task-employee-scope');
+// listHubAccountSummaries — account/role data (user_accounts), KHÔNG phải
+// Task data — cùng nguồn listTaskAdminPeople() (api/_lib/task-core.js) đã
+// dùng để map employeeCode -> account.role, cần để phát hiện Admin (Admin
+// KHÔNG có row trong task_permission_assignments — actorType='admin' xác
+// định thuần qua account.role, xem task-employee-scope.js::resolveActorContext).
+// KHÔNG có circular require (auth.js không require lại module này).
+const { listHubAccountSummaries } = require('./auth');
 
 const configured = Boolean(String(process.env.SUPABASE_URL || '').trim() && String(process.env.SUPABASE_SECRET_KEY || '').trim());
 const supabase = configured
@@ -87,7 +98,17 @@ function resolveBaseTaskScope(actorContext) {
       return { capabilities: { view: true, assign: true, update: true, manage: true }, peopleScope: { type: 'all_company', values: [] }, assignScope: { type: 'all_company', values: [] } };
     case 'giam_doc':
     case 'tro_ly_gd':
-      return { capabilities: { view: true, assign: true, update: true, manage: false }, peopleScope: { type: 'all_company', values: [] }, assignScope: { type: 'all_company', values: [] } };
+      // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29, business owner
+      // correction) — Admin = Giám đốc = Trợ lý Giám đốc trên "Nhân sự &
+      // phân quyền" (manage capability = quyền xem/điều chỉnh Task
+      // permission assignment/grant của người khác). Đây là canonical
+      // preset-level (actorType), KHÔNG special-case theo tên/account cụ
+      // thể — mọi actor có preset GIAM_DOC/TRO_LY_GD đều được, bất kể là
+      // Tiên/Vinh/Ngọc hay bất kỳ ai được gán preset này sau này. "Cài đặt"
+      // (task category admin) vẫn giữ nguyên actorType==='admin' riêng
+      // (task-core.js createTaskCategory/etc.) — KHÔNG bị ảnh hưởng bởi
+      // dòng này, đó là gate hoàn toàn tách biệt.
+      return { capabilities: { view: true, assign: true, update: true, manage: true }, peopleScope: { type: 'all_company', values: [] }, assignScope: { type: 'all_company', values: [] } };
     case 'truong_bo_phan':
     case 'truong_ca': {
       // Permission preset V1 của Trưởng bộ phận và Trưởng ca giống hệt nhau
@@ -351,26 +372,135 @@ async function canViewTask(session, task, assignees) {
 }
 
 /*
- * canUpdateTask — quyền cập nhật/reopen/cancel/đổi deadline/thêm-gỡ related
- * cho Task KHÔNG DO MÌNH TẠO (creator luôn được phép, xử lý riêng ở call
- * site qua actorOwnsTask, không đi qua hàm này).
+ * INTERVENTION AUTHORITY — LOCKED AUTHORITY RULE (2026-08-28).
+ * ---------------------------------------------------------------------------
+ * CAPABILITY != PEOPLE_SCOPE != TASK_RELATIONSHIP.
  *
- * Business rule Phase 1 (mục 5 VIEW scope): nếu người quản lý khác giao Task
- * cho nhân viên của TBP/Trưởng ca hiện tại, TBP/Trưởng ca này CHỈ được VIEW,
- * KHÔNG mặc định UPDATE — vì vậy không dùng quan hệ 'manager_of_primary'
- * (chỉ view) hay 'related' (không chia trách nhiệm) để tự cấp quyền sửa ở
- * đây; chỉ capability 'update' + primary hiện hành khớp peopleScope mới
- * được phép — đúng cơ chế đã dùng cho canViewTask() ở nhánh phi-relation.
+ * Lifecycle intervention on a Task the actor did NOT create (reopen / cancel /
+ * change deadline / transfer primary / add-remove related) may ONLY be
+ * authorised by ONE of:
+ *   1. system ADMIN;
+ *   2. company-wide executive authority — GIAM_DOC / TRO_LY_GD;
+ *   3. TASK RELATIONSHIP — the actor is this Task's own current active primary;
+ *   4. an EXPLICIT exception grant (extend / delegation) that widens the
+ *      actor's people scope BEYOND their base preset scope to include this
+ *      primary.
+ *
+ * A TRUONG_BO_PHAN / TRUONG_CA who can see the Task ONLY because its primary
+ * sits in their managed tree gets VIEW + COMMENT (follow) — NEVER intervention.
+ * The managed relationship alone confers no lifecycle authority. That is why
+ * branch (4) compares the primary against the BASE preset scope: a match that
+ * exists only in the base managed/self scope is explicitly rejected; only a
+ * match that an exception grant added on top counts.
+ *
+ * Creators are authorised at the call site (actorOwnsTask) before this runs.
+ *
+ * resolveUpdateAuthorityBasis() returns the winning basis string (or null);
+ * canUpdateTask() is the boolean view of the same decision. task-core.js's
+ * resolveAndAuthorizeUpdateCapability() stamps the basis onto actorContext so
+ * the write-bridge can forward it to phf-hr-api as a defence-in-depth marker
+ * (services/phf-hr-api/lib/task-write.js — same rule, enforced once here).
  */
-async function canUpdateTask(session, task, assignees) {
+const INTERVENTION_EXECUTIVE_ACTOR_TYPES = Object.freeze(new Set(['giam_doc', 'tro_ly_gd']));
+const TASK_INTERVENTION_BASES = Object.freeze(new Set(['system_admin', 'executive_authority', 'active_primary', 'exception_grant', 'creator']));
+
+async function resolveUpdateAuthorityBasis(session, task, assignees) {
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
-  if (actorContext.actorType === 'admin') return true;
-  if (!scope.capabilities.update) return false;
+  if (actorContext.actorType === 'admin') return 'system_admin';
+  if (!scope.capabilities.update) return null;
+
   const activePrimary = (assignees || []).find(assignee => assignee.role === 'primary' && assignee.isActive);
-  if (!activePrimary) return false;
+  if (!activePrimary) return null;
+  const primaryCode = code(activePrimary.employeeCode);
+
+  // (3) TASK RELATIONSHIP — current primary acting on their own Task.
+  if (actorContext.employeeCode && primaryCode === code(actorContext.employeeCode)) return 'active_primary';
+
   const rows = await loadOrgRows();
-  const primarySubject = findByCode(rows, activePrimary.employeeCode) || { employeeCode: code(activePrimary.employeeCode) };
-  return subjectMatchesTaskScope(primarySubject, scope.peopleScope);
+  const primarySubject = findByCode(rows, activePrimary.employeeCode) || { employeeCode: primaryCode };
+
+  // (2) company-wide executive authority (ADMIN already handled above).
+  if (INTERVENTION_EXECUTIVE_ACTOR_TYPES.has(actorContext.actorType)) {
+    return subjectMatchesTaskScope(primarySubject, scope.peopleScope) ? 'executive_authority' : null;
+  }
+
+  // (4) explicit exception grant beyond base scope. Base (managed-tree / self)
+  // membership is NOT sufficient — that is the M1 defect this rule closes.
+  const baseScope = resolveBaseTaskScope(actorContext);
+  const inBaseScope = subjectMatchesTaskScope(primarySubject, baseScope.peopleScope);
+  const inEffectiveScope = subjectMatchesTaskScope(primarySubject, scope.peopleScope);
+  if (inEffectiveScope && !inBaseScope) return 'exception_grant';
+
+  return null;
+}
+
+async function canUpdateTask(session, task, assignees) {
+  return !!(await resolveUpdateAuthorityBasis(session, task, assignees));
+}
+
+function toViewerAssignees(rows) {
+  return (rows || []).map(r => ({
+    employeeCode: code(r && (r.employeeCode !== undefined ? r.employeeCode : r.employee_code)),
+    role: text(r && r.role),
+    isActive: (r && (r.isActive !== undefined ? r.isActive : r.is_active)) === true
+  }));
+}
+
+/*
+ * resolveTaskViewerAuthority — backend-computed explicit per-action
+ * capabilities for the Task detail DTO. The frontend gates buttons on this
+ * instead of guessing from Hub role. Every flag mirrors exactly the
+ * server-side gate that would run if the action were attempted:
+ *   - update_progress / complete   -> current active primary only
+ *   - cancel / change_deadline / transfer_primary / add_related /
+ *     remove_related / reopen      -> creator OR resolveUpdateAuthorityBasis()
+ *   - comment                      -> any viewer (managed follow included, G4)
+ *   - delete_draft                 -> creator only
+ * managed_view_only == true is the read-only "đang theo dõi" mode: viewer is
+ * manager_of_primary with no intervention authority.
+ */
+async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
+  const { actorContext } = await resolveEffectiveTaskScope(session);
+  const relationTask = {
+    createdByAccountId: text(taskRow && (taskRow.created_by_account_id !== undefined ? taskRow.created_by_account_id : taskRow.createdByAccountId)),
+    createdByEmployeeCode: code(taskRow && (taskRow.created_by_employee_code !== undefined ? taskRow.created_by_employee_code : taskRow.createdByEmployeeCode))
+  };
+  const assignees = toViewerAssignees(assigneeRows);
+  const status = text(taskRow && taskRow.status);
+  const activeStatus = status === 'published' || status === 'in_progress';
+
+  const isAdmin = actorContext.actorType === 'admin';
+  const relation = isAdmin ? 'admin' : await classifyTaskRelation(actorContext, relationTask, assignees);
+  const isCreator = relation === 'creator';
+  const activePrimary = assignees.find(a => a.role === 'primary' && a.isActive);
+  const isActivePrimary = !!(activePrimary && actorContext.employeeCode && activePrimary.employeeCode === code(actorContext.employeeCode));
+
+  const canView = isAdmin ? true : await canViewTask(session, relationTask, assignees);
+  const updateBasis = canView ? (isCreator ? 'creator' : await resolveUpdateAuthorityBasis(session, relationTask, assignees)) : null;
+  const canUpdate = !!updateBasis;
+
+  return {
+    relation,
+    is_creator: isCreator,
+    is_active_primary: isActivePrimary,
+    is_related: relation === 'related',
+    managed_view_only: relation === 'manager_of_primary' && !canUpdate,
+    intervention_basis: updateBasis || null,
+    actions: {
+      view: canView,
+      comment: canView,
+      update_progress: isActivePrimary && activeStatus,
+      complete: isActivePrimary && activeStatus,
+      cancel: canUpdate && activeStatus,
+      change_deadline: canUpdate && status !== 'cancelled' && status !== 'draft',
+      transfer_primary: canUpdate && activeStatus,
+      add_related: canUpdate && activeStatus,
+      remove_related: canUpdate && activeStatus,
+      reopen: canUpdate && status === 'completed',
+      edit_draft: (isCreator || canUpdate) && status === 'draft',
+      delete_draft: isCreator && status === 'draft'
+    }
+  };
 }
 
 async function canAssignTaskTo(session, targetEmployeeCode) {
@@ -449,6 +579,124 @@ async function listTaskAssignableEmployees(session) {
   return { employees, requesterActorType: actorContext.actorType };
 }
 
+// ---------------------------------------------------------------------------
+// PROPOSAL V2 (2026-08-29, FIX theo Business Owner correction) —
+// resolveProposalRecipientEmployeeCodes(): recipient population = "bất kỳ
+// active employee nào có EFFECTIVE quyền Giao việc theo Permission Contract
+// V1 hiện hành" — KHÔNG hard-code theo 4 preset cố định (bản trước SAI vì bỏ
+// qua exception grant restrict/extend + bỏ sót Admin không giữ preset nào).
+// Đây vẫn là permission gate HOÀN TOÀN RIÊNG (KHÔNG reuse assignScope của
+// actor đang GỌI — population chỉ phụ thuộc effective scope của TARGET).
+//
+// "Effective quyền Giao việc" = scope.capabilities.assign === true VÀ
+// scope.assignScope.type !== 'self' (tức có thể assign cho người KHÁC ngoài
+// chính mình — assignScope không bao giờ bị grant nới rộng theo comment
+// applyGrant() ở trên, "Grant V1 chỉ extend peopleScope... assignScope giữ
+// nguyên theo base preset" — nên population thực chất = 4 preset TBP/
+// Trưởng ca/GĐ/TLGĐ + Admin CÓ capabilities.assign=true, TRỪ KHI 1 restrict
+// grant tắt capabilities.assign=false cho riêng người đó — đây chính là
+// phần "EFFECTIVE" mà bản cũ bỏ sót). Employee (assignScope luôn 'self')
+// KHÔNG BAO GIỜ lọt vào population này dù grant gì đi nữa.
+//
+// Cách xác định Admin: Admin KHÔNG có row trong task_permission_assignments
+// (actorType='admin' xác định thuần qua account.role, xem task-employee-
+// scope.js::resolveActorContext — employeeCode CHỈ tồn tại nếu account đó
+// được liên kết với 1 hồ sơ People Master thật). Dùng lại ĐÚNG pattern
+// listTaskAdminPeople() (api/_lib/task-core.js) đã có sẵn cho việc này: map
+// account.employeeCode -> account.role qua listHubAccountSummaries()
+// (user_accounts — Account/HR data, KHÔNG phải Task data), rồi
+// resolveActorContextForRecord() cho từng active employee (admin nếu account
+// role=admin, else placeholder 'nhan_vien' — preset THẬT được
+// resolveEffectiveTaskScopesForActorContexts() tự tra lại từ
+// task_permission_assignments bên trong, applyTaskPresetToActorContext() bỏ
+// qua actorType='admin' — Admin KHÔNG bị ghi đè bởi preset).
+// ---------------------------------------------------------------------------
+async function resolveProposalRecipientEmployeeCodes() {
+  const [orgRows, accounts] = await Promise.all([loadOrgRows(), listHubAccountSummaries()]);
+  const accountByEmployee = new Map();
+  (accounts || []).forEach(account => {
+    const employeeCode = code(account && account.employeeCode);
+    if (employeeCode && !accountByEmployee.has(employeeCode)) accountByEmployee.set(employeeCode, account);
+  });
+
+  const activeRows = orgRows.filter(isActiveEmployee);
+  const actorContexts = activeRows.map(person => {
+    const account = accountByEmployee.get(code(person.employeeCode));
+    return resolveActorContextForRecord(
+      { account: { id: account ? account.id : '', role: account ? account.role : '' } },
+      person,
+      orgRows
+    );
+  });
+
+  let effectiveRows;
+  try {
+    effectiveRows = await resolveEffectiveTaskScopesForActorContexts(actorContexts);
+  } catch (error) {
+    // Fail-closed: nếu schema permission chưa sẵn sàng (TASK_SCHEMA_MISSING),
+    // population rỗng thay vì throw ra ngoài — picker/canProposeTo() tự xử
+    // lý "không có ai" đúng nghĩa, không phải lỗi 500 cho 1 tính năng phụ
+    // (recipient discovery), giữ nguyên hành vi fail-closed đã có ở
+    // listTaskAssignableEmployees()/canAssignTaskTo() khi actor không active.
+    if (error && error.code === 'TASK_SCHEMA_MISSING') return new Set();
+    throw error;
+  }
+
+  const codes = new Set();
+  effectiveRows.forEach(effective => {
+    const actorContext = effective && effective.actorContext;
+    const scope = effective && effective.scope;
+    if (!actorContext || !actorContext.employeeCode || !scope) return;
+    const assignScopeType = scope.assignScope && scope.assignScope.type;
+    const hasEffectiveAssign = scope.capabilities && scope.capabilities.assign === true && assignScopeType && assignScopeType !== 'self';
+    if (hasEffectiveAssign) codes.add(code(actorContext.employeeCode));
+  });
+  return codes;
+}
+
+// listProposalRecipientEmployees — population cho recipient picker. Loại bỏ
+// chính actor (không tự đề xuất cho chính mình — CHECK
+// task_proposal_decisions_recipient_not_creator_ck ở DB backstop lại lần
+// nữa, xem migrations/phf_hr_task_proposal_v2.sql).
+async function listProposalRecipientEmployees(session) {
+  const { actorContext } = await resolveEffectiveTaskScope(session);
+  if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) {
+    return { employees: [], requesterActorType: actorContext.actorType };
+  }
+  const [rows, validCodes] = await Promise.all([loadOrgRows(), resolveProposalRecipientEmployeeCodes()]);
+  const selfCode = code(actorContext.employeeCode);
+  const employees = rows.filter(subject => {
+    if (!subject.employeeCode || !isActiveEmployee(subject)) return false;
+    if (code(subject.employeeCode) === selfCode) return false;
+    return validCodes.has(code(subject.employeeCode));
+  }).map(subject => ({
+    employeeCode: subject.employeeCode,
+    fullName: subject.fullName,
+    department: subject.department,
+    title: subject.title,
+    position: subject.position,
+    branch: subject.branch,
+    managerEmployeeCode: subject.managerCode,
+    employmentStatus: 'active'
+  })).sort((left, right) => left.fullName.localeCompare(right.fullName, 'vi'));
+  return { employees, requesterActorType: actorContext.actorType };
+}
+
+// canProposeTo — server-side re-validate (KHÔNG tin picker phía client), gọi
+// TRƯỚC khi publishTask(flow_type='de_xuat') ở write bridge. Tương đương vai
+// trò canAssignTaskTo() cho Giao việc, nhưng population hoàn toàn khác
+// (không dùng assignScope của actor).
+async function canProposeTo(session, targetEmployeeCode) {
+  const { actorContext } = await resolveEffectiveTaskScope(session);
+  if (actorContext.actorType !== 'admin' && !isActiveEmployee(actorContext)) return false;
+  if (code(targetEmployeeCode) === code(actorContext.employeeCode)) return false;
+  const rows = await loadOrgRows();
+  const targetSubject = findByCode(rows, targetEmployeeCode);
+  if (!targetSubject || !isActiveEmployee(targetSubject)) return false;
+  const validCodes = await resolveProposalRecipientEmployeeCodes();
+  return validCodes.has(code(targetEmployeeCode));
+}
+
 module.exports = {
   ASSIGNMENTS_TABLE,
   GRANTS_TABLE,
@@ -471,7 +719,13 @@ module.exports = {
   classifyTaskRelation,
   canViewTask,
   canUpdateTask,
+  resolveUpdateAuthorityBasis,
+  resolveTaskViewerAuthority,
+  TASK_INTERVENTION_BASES,
   canAssignTaskTo,
   canAddTaskRelated,
-  listTaskAssignableEmployees
+  listTaskAssignableEmployees,
+  resolveProposalRecipientEmployeeCodes,
+  listProposalRecipientEmployees,
+  canProposeTo
 };

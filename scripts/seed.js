@@ -1,4 +1,15 @@
 require('dotenv').config();
+const { assertSandboxTargetOrFailClosed } = require('../api/_lib/env-identity-guard');
+
+// PHF ENV HARD GATE (Phase 2A) — scripts/seed.js upsert KHÔNG điều kiện
+// vào settings/employees/progress/test_results/activity_log. Trước đây
+// dùng thẳng SUPABASE_URL từ .env (mặc định = PHF_HR_MAIN) mà KHÔNG có
+// bất kỳ guard nào — script này giờ CHỈ được phép chạy khi SUPABASE_URL
+// trỏ đúng PHF_HR_SANDBOX. In project identity + fail-closed TRƯỚC khi
+// bất kỳ createClient()/DB operation nào xảy ra (xem
+// api/_lib/env-identity-guard.js::assertSandboxTargetOrFailClosed).
+assertSandboxTargetOrFailClosed('(scripts/seed.js)');
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
@@ -83,7 +94,15 @@ async function seed() {
   console.log('\nXong! Tat ca du lieu da duoc day len Supabase.');
 }
 
-seed().catch(e => {
-  console.error('Loi:', e.message);
-  process.exit(1);
-});
+// Chỉ tự chạy khi được gọi trực tiếp (`node scripts/seed.js`) — KHÔNG đổi
+// hành vi khi chạy như trước, chỉ cho phép require() file này an toàn cho
+// mục đích test guard (scripts/test-env-write-scripts-sandbox-guard-v1.js)
+// mà không kích hoạt seed() thật.
+if (require.main === module) {
+  seed().catch(e => {
+    console.error('Loi:', e.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { seed };

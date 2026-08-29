@@ -15,15 +15,30 @@
  * saveKnlGroup/saveKnlItem/saveKnlLevelContent). Không direct-insert khi
  * service đã có, trừ đọc (select) để lấy id thật.
  *
- * Chạy: node scripts/phf-knl-content-baseline-2026-08.js
+ * PHF ENV HARD GATE (Phase 2C — PHF_HR_ENVIRONMENT_SCRIPT_FORENSIC_PHASE2B_
+ * 2026-08-26.md, nhóm NEEDS GUARD): script này trước đây KHÔNG có bất kỳ
+ * flag/dry-run thật nào — dòng log "Dry-run:" ở createOnlineFramework() chỉ
+ * là NHÃN GÂY HIỂU LẦM, code vẫn ghi ngay lập tức. Giờ:
+ *   1) assertDeclaredTargetOrFailClosed('MAIN', ...) — verify hostname thật
+ *      (không dựa tên file/comment) TRƯỚC createClient(), fail-closed nếu
+ *      SUPABASE_URL không đúng MAIN.
+ *   2) DRY-RUN THẬT theo mặc định — chỉ ghi khi có --apply.
+ *
+ * Chạy (xem trước, không ghi gì): node scripts/phf-knl-content-baseline-2026-08.js
+ * Chạy (ghi thật vào MAIN):        node scripts/phf-knl-content-baseline-2026-08.js --apply
  */
 require('dotenv').config();
+const { assertDeclaredTargetOrFailClosed } = require('../api/_lib/env-identity-guard');
+
+assertDeclaredTargetOrFailClosed('MAIN', '(scripts/phf-knl-content-baseline-2026-08.js)');
+
 const { createClient } = require('@supabase/supabase-js');
 const frameworksLib = require('../api/_lib/knl-frameworks');
 const { saveKnlGradeMatrix } = require('../api/_lib/knl-foundation');
 
 const db = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
 const SESSION = { role: 'admin', account: { id: 'system-knl-content-baseline-2026-08', name: 'PHF KNL Content Baseline 08/2026' }, sub: 'system-knl-content-baseline-2026-08' };
+const APPLY = process.argv.includes('--apply');
 
 function gradeSetFor(levelNumbers) {
   return levelNumbers.map(n => ({ gradeCode: 'B' + n, gradeNumber: n, label: 'Bậc ' + n, sortOrder: n }));
@@ -50,6 +65,7 @@ async function completeGradeMatrix(exactFrameworkCode) {
   const grades = gradeSetFor(levelCols.map(c => c.level_number));
   const requirements = requirementsFor(items.map(i => i.id), levelCols);
   console.log(`  ${framework.code} (${framework.name}) v${version.version_number}: ${items.length} items x ${levelCols.length} levels = ${requirements.length} requirements, grades ${grades.map(g => g.gradeCode).join(',')}`);
+  if (!APPLY) { console.log('    DRY-RUN — sẽ gọi saveKnlGradeMatrix(), chưa ghi gì. Chạy lại với --apply để ghi.'); return; }
   const result = await saveKnlGradeMatrix(SESSION, { versionId: version.id, grades, requirements });
   console.log('    OK ->', JSON.stringify(result.saved));
 }
@@ -132,10 +148,12 @@ async function createOnlineFramework() {
   console.log('=== Part 2: tạo framework "Nhân viên bán hàng Online" ===');
   const totalItems = ONLINE_GROUPS.reduce((n, g) => n + g.items.length, 0);
   const totalCells = ONLINE_GROUPS.reduce((n, g) => n + g.items.reduce((m, i) => m + i.levels.filter(Boolean).length, 0), 0);
-  console.log(`  Dry-run: ${ONLINE_GROUPS.length} nhóm, ${totalItems} hạng mục, ${totalCells} ô nội dung mức độ (không tính ô trống trong file gốc)`);
+  console.log(`  ${APPLY ? 'APPLY' : 'DRY-RUN'}: ${ONLINE_GROUPS.length} nhóm, ${totalItems} hạng mục, ${totalCells} ô nội dung mức độ (không tính ô trống trong file gốc)`);
 
   const { data: existing } = await db.from('knl_frameworks').select('id,code').eq('code', 'KNL_NV_BAN_HANG_ONLINE_PHF');
   if (existing && existing.length) { console.log('  SKIP - framework KNL_NV_BAN_HANG_ONLINE_PHF đã tồn tại (idempotent guard), không tạo trùng.'); return; }
+
+  if (!APPLY) { console.log('  DRY-RUN — sẽ tạo framework mới + grade matrix, chưa ghi gì. Chạy lại với --apply để ghi.'); return; }
 
   const created = await frameworksLib.createKnlFramework(SESSION, {
     code: 'KNL_NV_BAN_HANG_ONLINE_PHF', name: 'Nhân viên bán hàng Online',
@@ -173,7 +191,9 @@ async function createOnlineFramework() {
   return { frameworkId: created.framework.id, versionId };
 }
 
-(async () => {
+async function main() {
+  console.log('Mode:', APPLY ? '*** APPLY (Production write) ***' : 'DRY-RUN (no write)');
+  console.log('');
   console.log('=== Part 1: hoàn thiện grade matrix (Bậc N = Mức độ N) cho 6 framework đang 0 grade ===');
   for (const code of ['KNL_NV_GOI_QUA_PHF_212318', 'KNL_NV_HCNS_PHF_1EC4DF', 'KNL_NV_KHO_PHF_EADB74', 'KNL_KT_CHI_2F89A7', 'KNL_KT_THU_49A231', 'KNL_KTTH_5036BB']) {
     await completeGradeMatrix(code);
@@ -181,4 +201,13 @@ async function createOnlineFramework() {
   console.log('');
   await createOnlineFramework();
   console.log('\nDONE.');
-})().catch(e => { console.error('FATAL', e && e.stack || e); process.exit(1); });
+}
+
+// Chỉ tự chạy khi được gọi trực tiếp — cho phép require() an toàn để test
+// guard mà không kích hoạt main() thật (xem
+// scripts/test-env-write-scripts-declared-target-guard-v1.js).
+if (require.main === module) {
+  main().catch(e => { console.error('FATAL', e && e.stack || e); process.exit(1); });
+}
+
+module.exports = { main };

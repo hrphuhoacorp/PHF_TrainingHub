@@ -18,6 +18,7 @@ const url=String(process.env.SUPABASE_URL||'').trim();
 const secret=String(process.env.SUPABASE_SECRET_KEY||'').trim();
 assert(url&&secret,'Supabase Production environment is required.');
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-compensation-crud-production-smoke.js)');
 
 const ACTOR_ID='compensation-crud-smoke-1.50.3';
 const ACTOR_NAME='PHF KNL Compensation CRUD Smoke';

@@ -1,0 +1,17 @@
+{
+  "name": "phf-hr-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PHF HR API foundation — skeleton kết nối Supabase (hiện tại: PHF-HR-DEV only).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "pg": "^8.23.0"
+  },
+  "engines": {
+    "node": ">=20 <25"
+  }
+}

@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const lib = require('../api/_lib/knl-competency');
 
 const db = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
+require('../api/_lib/env-identity-guard').logSupabaseIdentityOnce('(scripts/phf-knl-competency-assignment-production-smoke.js)');
 
 /* Session PHẢI khớp đúng shape thật trả về từ lib/auth.js readSession():
  * session.employeeId = internal linked-employee id (vd "emp-phf041"/"hv-xxxx",

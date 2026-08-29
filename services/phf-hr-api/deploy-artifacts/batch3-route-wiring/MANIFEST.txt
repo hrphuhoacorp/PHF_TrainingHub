@@ -1,0 +1,53 @@
+PHF HR API — DEPLOY ARTIFACT MANIFEST
+Batch: PHF Task Batch 3 (create_draft V2 + publish) — ROUTE WIRING ONLY
+Generated (UTC): 2026-08-24T09:14:02Z
+Prepared by: Claude Code (phf-hr-api deploy prep, no execution)
+
+SCOPE
+  Route wiring cho 2 endpoint Batch 3:
+    POST /v1/task/tasks:create
+    POST /v1/task/tasks/:id:publish
+  DB-layer (createDraftTask/publishTask trong lib/task-write.js) đã DB-verify
+  PASS thật trước đó (Technical Lead xác nhận, hash không đổi) — KHÔNG nằm
+  trong artifact này, xem mục NOT INCLUDED bên dưới.
+
+FILES IN THIS ARTIFACT
+  server.js
+    SHA256 = 53435dd5c6670f66dd2f261b0340aafdeb2b9581d57c9dae70d9459afda61734
+
+NOT INCLUDED (server đã có sẵn đúng hash, Technical Lead đã DB-verify PASS
+trên bản này — KHÔNG cần transfer lại)
+  lib/task-write.js
+    SHA256 (kỳ vọng server hiện tại) = 93a491e7e87084824ed754d02c72a4f30a7e76166a7ebe6dc8403ce8864e0dbf
+
+PRE-DEPLOY CHECK (BẮT BUỘC trước khi copy server.js vào server)
+  1. Trên server, chạy: sha256sum lib/task-write.js
+     PHẢI khớp CHÍNH XÁC = 93a491e7e87084824ed754d02c72a4f30a7e76166a7ebe6dc8403ce8864e0dbf
+     Nếu KHÔNG khớp: DỪNG, KHÔNG deploy — báo lại Technical Lead ngay (nghĩa
+     là server đang chạy bản DB-layer khác bản đã real-DB-verify PASS).
+  2. Trên server, chạy: sha256sum lib/db.js lib/config.js
+     PHẢI khớp checkpoint đã CLOSED trước đó:
+       lib/db.js     = caa7bf8e883f7ff6d87b8235b7c0003ee1be8f54461bf99c0b24d41bdb6e41ec
+       lib/config.js = d5e131603c5de4833df995192745a80cae49a118eadbe963e6897f446dcff096
+
+DEPLOY STEPS (CHƯA THỰC HIỆN — chờ GO riêng)
+  1. Copy server.js từ artifact này vào đúng vị trí services/phf-hr-api/server.js trên server/build context.
+  2. Trên server, chạy: sha256sum server.js
+     PHẢI khớp = 53435dd5c6670f66dd2f261b0340aafdeb2b9581d57c9dae70d9459afda61734
+     Nếu KHÔNG khớp: DỪNG, KHÔNG rebuild/restart — file bị hỏng/sai trong quá trình transfer.
+  3. Rebuild image phf-hr-api:local (Dockerfile KHÔNG đổi ở Batch 3 — không cần sửa Dockerfile).
+  4. Recreate container phf-hr-api — CHỈ khi có GO riêng tường minh (không tự động theo bước 3).
+  5. Sau khi container chạy: gọi GET /healthz xác nhận 200 OK trước khi chạy HTTP E2E.
+
+ROLLBACK
+  Nếu phát hiện lỗi sau deploy — khôi phục server.js bản Batch 2 đã approved:
+    SHA256 (Batch 2, trước Batch 3) = 4915e5381c1b99e1b2ad28e409d6767eae345e8129035bf53c921bb6cf866712
+  (Bản Batch 2 KHÔNG có 2 route :create/:publish — rollback này đưa API về
+  đúng scope Batch 1+2, không có tác dụng phụ nào khác vì lib/task-write.js
+  Batch 3 vẫn export thêm 2 hàm mới nhưng KHÔNG route nào gọi tới nếu server.js
+  bị rollback — an toàn, không cần rollback lib/task-write.js kèm theo.)
+  Rollback source-of-truth trong repo: git history của services/phf-hr-api/server.js.
+
+ARTIFACT CONTENTS
+  server.js
+  MANIFEST.txt (chính file này)

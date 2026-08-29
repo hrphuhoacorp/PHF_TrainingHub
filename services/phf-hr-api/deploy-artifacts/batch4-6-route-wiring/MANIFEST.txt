@@ -1,0 +1,96 @@
+PHF HR API — DEPLOY ARTIFACT MANIFEST
+Batch: PHF Task Batch 4-6 (transferPrimary/addRelated/removeRelated/
+addComment/addLink/removeLink/permission-assignment) — ROUTE WIRING + DB-LAYER PAIR
+Generated (UTC): 2026-08-24T11:41:37Z
+Prepared by: Claude Code (phf-hr-api deploy prep, no execution)
+
+SCOPE
+  Route wiring cho 7 endpoint Batch 4-6 (server.js) + DB-layer 14-function
+  tương ứng (lib/task-write.js). Artifact này SELF-CONTAINED cho đúng runtime
+  pair — khác Batch 3 (chỉ cần transfer server.js vì task-write.js server đã
+  có sẵn đúng hash từ real-DB gate) — lần này server.js MỚI phụ thuộc đủ 14
+  export của task-write.js (bao gồm 7 hàm Batch 4-6), nên cả 2 file phải đi
+  cùng nhau để tránh lệch cặp runtime.
+
+  7 route wired (server.js):
+    POST /v1/task/tasks/:id:transferPrimary
+    POST /v1/task/tasks/:id:addRelated
+    POST /v1/task/tasks/:id:removeRelated
+    POST /v1/task/tasks/:id:addComment
+    POST /v1/task/tasks/:id:addLink
+    POST /v1/task/tasks/:id:removeLink
+    POST /v1/task/permission-assignments:set   (xác nhận CLOSED bởi Technical Lead, KHÔNG đổi)
+
+  DB-layer: task-write.js đã REAL DB verify PASS 7/7 (bao gồm targeted retry
+  addTaskLink/removeTaskLink sau khi fix GRANT UPDATE ON task.links) TRƯỚC
+  route wiring — route wiring KHÔNG đổi 1 dòng nào trong task-write.js (hash
+  không đổi xuyên suốt toàn bộ chuỗi gate DB + route wiring).
+
+FILES IN THIS ARTIFACT
+  server.js
+    SHA256 = a2f0b6a96303b72ad4d2c7d9a0024bb48601764d23198b51953a79ad3e7978ea
+  lib/task-write.js
+    SHA256 = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7
+
+NOT INCLUDED (chủ đích, per GO)
+  .env, credential, Dockerfile (không đổi), package*.json (không đổi),
+  DB harness DEV-only (task-batch4-6-real-db-verify-dev.js,
+  task-batch4-6-link-retry-dev.js — công cụ chẩn đoán, không phải runtime
+  code), node_modules, CSKH files, mọi file PHF HR không liên quan batch này.
+
+DESTINATION TRÊN SERVER
+  /opt/phf-hr/phf-hr-api/server.js
+  /opt/phf-hr/phf-hr-api/lib/task-write.js
+
+PRE-DEPLOY CHECK (BẮT BUỘC trước khi copy đè)
+  1. Backup 2 file hiện tại trên server TRƯỚC khi ghi đè (khuyến nghị):
+       cp /opt/phf-hr/phf-hr-api/server.js /opt/phf-hr/phf-hr-api/server.js.bak.$(date +%Y%m%d%H%M%S)
+       cp /opt/phf-hr/phf-hr-api/lib/task-write.js /opt/phf-hr/phf-hr-api/lib/task-write.js.bak.$(date +%Y%m%d%H%M%S)
+  2. Verify hash server hiện tại (server.js hiện tại trên server PHẢI khớp
+     hash Batch 3 đã approve trước khi Batch 4-6 route wiring — nếu KHÔNG
+     khớp, đã có drift ngoài kiểm soát, DỪNG và báo lại):
+       sha256sum /opt/phf-hr/phf-hr-api/server.js
+       # kỳ vọng TRƯỚC deploy = 53435dd5c6670f66dd2f261b0340aafdeb2b9581d57c9dae70d9459afda61734 (Batch 3)
+  3. Verify hash task-write.js hiện tại trên server (Technical Lead đã tự
+     transfer thủ công bản Batch 4-6 lên server TRƯỚC REAL DB gate — PHẢI
+     ĐÃ khớp sẵn hash dưới đây, artifact chỉ mang theo để self-contained,
+     không bắt buộc phải ghi đè nếu đã khớp):
+       sha256sum /opt/phf-hr/phf-hr-api/lib/task-write.js
+       # kỳ vọng = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7 (đã match REAL DB gate)
+
+DEPLOY STEPS (CHƯA THỰC HIỆN — chờ GO riêng, KHÔNG suy từ GO deploy-prep này)
+  1. Copy server.js + lib/task-write.js từ artifact vào đúng destination ở trên.
+  2. Verify lại hash SAU copy — PHẢI khớp CHÍNH XÁC:
+       sha256sum /opt/phf-hr/phf-hr-api/server.js
+       # = a2f0b6a96303b72ad4d2c7d9a0024bb48601764d23198b51953a79ad3e7978ea
+       sha256sum /opt/phf-hr/phf-hr-api/lib/task-write.js
+       # = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7
+     Nếu KHÔNG khớp: DỪNG, KHÔNG rebuild/restart — file bị hỏng/sai lúc transfer.
+  3. Verify module exports đúng 14 hàm (read-only, không cần container chạy):
+       node -e "const m=require('/opt/phf-hr/phf-hr-api/lib/task-write.js'); const k=Object.keys(m); console.log(k.length, k.join(','))"
+     Kỳ vọng: 14 updateTaskProgress,completeTask,reopenTask,cancelTask,
+       changeTaskDeadline,createDraftTask,publishTask,transferTaskPrimary,
+       addTaskRelated,removeTaskRelated,addTaskComment,addTaskLink,
+       removeTaskLink,setTaskPermissionAssignment
+  4. Rebuild image phf-hr-api:local — CẦN GO RIÊNG (Dockerfile không đổi
+     lượt này, nhưng rebuild vẫn là hành động state-changing cần xác nhận
+     tường minh, không tự động theo bước 1-3).
+  5. Recreate container phf-hr-api — CẦN GO RIÊNG, tách biệt khỏi rebuild.
+  6. Sau khi container chạy: GET /healthz xác nhận 200 OK TRƯỚC khi chạy
+     bất kỳ HTTP E2E nào.
+
+ROLLBACK
+  Khôi phục cặp file Batch 3 (server.js) + Batch 4-6-pre-route-wiring
+  (task-write.js — cùng hash đã REAL DB verify PASS, KHÔNG đổi bởi route
+  wiring nên rollback server.js đơn thuần cũng an toàn, task-write.js không
+  cần rollback kèm):
+    server.js (Batch 3)      SHA256 = 53435dd5c6670f66dd2f261b0340aafdeb2b9581d57c9dae70d9459afda61734
+    task-write.js            SHA256 = 1da891938791304e72f96c35d2c2df8b0436db10b02001b37aba81af8da556a7 (KHÔNG đổi, không cần rollback)
+  Hoặc dùng file .bak.<timestamp> đã tạo ở bước Pre-deploy check #1.
+  Rollback source-of-truth trong repo: git history của
+  services/phf-hr-api/server.js và services/phf-hr-api/lib/task-write.js.
+
+ARTIFACT CONTENTS
+  server.js
+  lib/task-write.js
+  MANIFEST.txt (chính file này)

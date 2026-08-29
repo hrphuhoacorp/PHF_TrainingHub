@@ -263,22 +263,49 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
   }
 
   // =========================================================================
-  // PART E — GĐ/Admin (peopleScope.type=all_company) KHÔNG bị fix này đụng
-  // tới — semantics "Tôi nhận" mặc định vẫn toàn công ty như canonical cũ.
+  // PART E — G3 FIX (2026-08-28) + COMPANY-LEVEL CLEANUP (2026-08-28 follow-
+  // up): GĐ/TLGĐ (peopleScope.type=all_company) "Tôi nhận" mặc định KHÔNG
+  // còn toàn công ty — LUÔN self-only theo đúng TASK_RELATIONSHIP thật
+  // (Primary assignee), giống hệt semantics TBP/Trưởng ca (G3, unchanged).
+  // Business evidence: PHF010 (tro_ly_gd) "Tôi nhận" từng trả về 50/50 Task
+  // công ty dù chỉ là Primary thật trên 1/50 — capability all_company (quyền
+  // can thiệp company-wide) đã bị lộ nhầm thành quan hệ Task cá nhân.
+  // "Nhân sự tôi quản lý" (scope=managed) — SAU company-level cleanup — LẠI
+  // company-wide (unrestricted) cho Admin/GĐ/TLGĐ theo business contract mới
+  // (mục 4, locked 2026-08-28: "Direct reports có thể tồn tại trong org graph
+  // nhưng không được giới hạn company-wide Task scope của nhóm này"), KHÁC
+  // với TBP/Trưởng ca (vẫn managedEmployeeCodes-bounded, xem PART B/C phía
+  // trên). GD_MANAGED bên dưới (con thật của GD_E trong org graph) vẫn xuất
+  // hiện trong scope=managed của GĐ, nhưng KHÔNG PHẢI vì bị giới hạn vào org-
+  // graph subtree — mà vì company-wide đã bao gồm tất cả, kể cả subtree đó.
   // =========================================================================
   resetState();
   STATE.employees.push(
     emp({ employee_code: 'GD_E', department: 'Ban giám đốc' }),
-    emp({ employee_code: 'RANDOM_E', department: 'Phòng bất kỳ' })
+    emp({ employee_code: 'RANDOM_E', department: 'Phòng bất kỳ' }),
+    emp({ employee_code: 'GD_MANAGED', department: 'Phòng bất kỳ', manager_employee_code: 'GD_E' })
   );
   STATE.assignments.push(assignment({ employee_code: 'GD_E', preset_code: 'GIAM_DOC' }));
-  STATE.tasks.push(taskRow({ id: 'task-e1', task_code: 'CV-E-0001', created_by_employee_code: 'RANDOM_E' }));
-  STATE.assignees.push(assigneeRow({ task_id: 'task-e1', employee_code: 'RANDOM_E' }));
+  STATE.tasks.push(
+    taskRow({ id: 'task-e1', task_code: 'CV-E-0001', created_by_employee_code: 'RANDOM_E' }),
+    taskRow({ id: 'task-e-self', task_code: 'CV-E-0002', created_by_employee_code: 'RANDOM_E' }),
+    taskRow({ id: 'task-e-managed', task_code: 'CV-E-0003', created_by_employee_code: 'RANDOM_E' })
+  );
+  STATE.assignees.push(
+    assigneeRow({ task_id: 'task-e1', employee_code: 'RANDOM_E' }),
+    assigneeRow({ task_id: 'task-e-self', employee_code: 'GD_E' }),
+    assigneeRow({ task_id: 'task-e-managed', employee_code: 'GD_MANAGED' })
+  );
   {
     const gdDefault = await listTasks(sessionFor('GD_E'), { relation: 'received' });
-    pass(gdDefault.tasks.some(t => t.task_id === 'task-e1'), 'PART E: GĐ "Tôi nhận" mặc định (không scope) vẫn thấy toàn công ty như cũ — không bị đổi bởi fix TBP/Trưởng ca (nhánh all_company tách biệt, không đụng tới)');
+    pass(gdDefault.tasks.length === 1 && gdDefault.tasks[0].task_id === 'task-e-self', 'PART E G3 FIX: GĐ "Tôi nhận" mặc định (không scope) CHỈ thấy Task chính GĐ là Primary — KHÔNG còn toàn công ty (executive all_company capability không leak vào quan hệ cá nhân) — KHÔNG bị đổi bởi company-level cleanup');
+    pass(!gdDefault.tasks.some(t => t.task_id === 'task-e1'), 'PART E G3 FIX: "Tôi nhận" của GĐ KHÔNG còn chứa Task của RANDOM_E (người không liên quan)');
     const gdMine = await listTasks(sessionFor('GD_E'), { relation: 'received', scope: 'mine' });
-    pass(gdMine.tasks.length === 0, 'PART E: GĐ scope=mine tường minh vẫn thu hẹp về self-only như canonical cũ — không đổi semantics');
+    pass(gdMine.tasks.length === 1 && gdMine.tasks[0].task_id === 'task-e-self', 'PART E: GĐ scope=mine tường minh cho kết quả GIỐNG HỆT mặc định (self-only) — nhất quán với "Tôi nhận"');
+    const gdManaged = await listTasks(sessionFor('GD_E'), { relation: 'received', scope: 'managed' });
+    pass(gdManaged.tasks.length === 3 && ['task-e1', 'task-e-self', 'task-e-managed'].every(id => gdManaged.tasks.some(t => t.task_id === id)), 'PART E COMPANY-LEVEL CLEANUP: GĐ "Nhân sự tôi quản lý" (scope=managed) là company-wide (CẢ 3 Task, kể cả RANDOM_E ngoài org graph) — KHÔNG còn bị bó vào managedEmployeeCodes/org-graph subtree như TBP/Trưởng ca', JSON.stringify(gdManaged.tasks.map(t => t.task_id)));
+    const gdManagedResult = await listTasks(sessionFor('GD_E'), { relation: 'received', scope: 'managed' });
+    pass(gdManagedResult.hasManagedPeople === true, 'PART E: GĐ hasManagedPeople=true (company-tier luôn eligible, không phụ thuộc org graph)');
   }
 
   // =========================================================================
@@ -297,6 +324,53 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
     pass(nvDefault.tasks.length === 0, 'PART F: nhân viên thường "Tôi nhận" mặc định không thấy Task người khác — semantics cũ giữ nguyên');
     const nvManaged = await listTasks(sessionFor('NV_F'), { relation: 'received', scope: 'managed' });
     pass(nvManaged.tasks.length === 0, 'PART F: nhân viên thường scope=managed cũng KHÔNG được cấp thêm quyền (không có managedEmployeeCodes) — không regress bảo mật');
+  }
+
+  // =========================================================================
+  // PART G — G3 FOLLOW-UP FIX + COMPANY-LEVEL CLEANUP (2026-08-28): hasManagedPeople
+  // — trustworthy, explicit signal cho frontend menu "Nhân sự tôi quản lý".
+  // Với TBP/Trưởng ca: derived TRỰC TIẾP từ managedEmployeeCodes.length>0 (org
+  // graph thật) — KHÔNG suy từ viewScopeType/actorType/title, KHÔNG suy từ
+  // tasks.length. Với Admin/GĐ/TLGĐ (company-tier, business contract 2026-08-28):
+  // LUÔN true — company-wide workspace tồn tại vô điều kiện, KHÔNG phụ thuộc
+  // việc có direct report thật hay không (GD_G bên dưới KHÔNG có report nào
+  // nhưng vẫn phải eligible — đây chính là điểm khác với TBP/Trưởng ca).
+  // =========================================================================
+  resetState();
+  STATE.employees.push(
+    emp({ employee_code: 'GD_G', department: 'Ban giám đốc' }),          // executive, KHÔNG có report thật nào — vẫn phải eligible (company-tier)
+    emp({ employee_code: 'TLGD_G', department: 'Ban giám đốc' }),        // executive, CÓ report thật (không phải điều kiện, chỉ minh họa)
+    emp({ employee_code: 'TLGD_G_REPORT', department: 'Ban giám đốc', manager_employee_code: 'TLGD_G' }),
+    emp({ employee_code: 'TBP_G', department: 'Kho vận' }),              // TBP, CÓ report thật (baseline, không regress)
+    emp({ employee_code: 'TBP_G_REPORT', department: 'Kho vận', manager_employee_code: 'TBP_G' }),
+    emp({ employee_code: 'NV_G', department: 'Kho vận' })                // nhân viên thường
+  );
+  STATE.assignments.push(
+    assignment({ employee_code: 'GD_G', preset_code: 'GIAM_DOC' }),
+    assignment({ employee_code: 'TLGD_G', preset_code: 'TRO_LY_GD' }),
+    assignment({ employee_code: 'TBP_G', preset_code: 'TRUONG_BO_PHAN' })
+  );
+  // KHÔNG seed bất kỳ Task nào cho TLGD_G_REPORT/TBP_G_REPORT — chứng minh
+  // hasManagedPeople KHÔNG phụ thuộc tasks.length ("manager có report nhưng
+  // 0 Task hiện tại vẫn phải eligible").
+  {
+    const gdResult = await listTasks(sessionFor('GD_G'), { relation: 'received' });
+    pass(gdResult.hasManagedPeople === true, 'PART G COMPANY-LEVEL CLEANUP: GĐ hasManagedPeople=true dù KHÔNG có direct report thật nào (company-tier có company-wide workspace vô điều kiện, không bị ép vào mô hình TBP/Trưởng ca)', JSON.stringify({ viewScopeType: gdResult.viewScopeType, hasManagedPeople: gdResult.hasManagedPeople }));
+    pass(gdResult.viewScopeType === 'all_company', 'PART G: GĐ viewScopeType vẫn all_company (capability field, không đổi bởi fix này)');
+
+    const tlgdResult = await listTasks(sessionFor('TLGD_G'), { relation: 'received' });
+    pass(tlgdResult.hasManagedPeople === true, 'PART G: TLGĐ hasManagedPeople=true (company-tier, có report thật hay không không quan trọng) dù KHÔNG có Task nào (0 Task hiện tại vẫn eligible)');
+    pass(tlgdResult.tasks.length === 0, 'PART G: sanity — TLGD_G thật sự có 0 Task trong "Tôi nhận" ở dataset này (chứng minh eligibility không dựa vào tasks.length)');
+
+    const tbpResult = await listTasks(sessionFor('TBP_G'), { relation: 'received' });
+    pass(tbpResult.hasManagedPeople === true, 'PART G: TBP CÓ report thật -> hasManagedPeople=true (baseline không regress, cùng field mới, vẫn org-graph-derived)');
+
+    const nvResult = await listTasks(sessionFor('NV_G'), { relation: 'received' });
+    pass(nvResult.hasManagedPeople === false, 'PART G: nhân viên thường -> hasManagedPeople=false (menu KHÔNG hiện, không phải company-tier, không có managedEmployeeCodes)');
+
+    const nvManagedScopeResult = await listTasks(sessionFor('NV_G'), { relation: 'received', scope: 'managed' });
+    pass(nvManagedScopeResult.hasManagedPeople === false, 'PART G: hasManagedPeople là thuộc tính của ACTOR, không đổi theo scopeParam được yêu cầu (nhân viên thường vẫn false dù tự ý truyền scope=managed)');
+    pass(nvManagedScopeResult.tasks.length === 0, 'PART G: nhân viên thường scope=managed vẫn KHÔNG được cấp company-wide access (không phải company-tier) — không regress bảo mật');
   }
 
   console.log('PHF Task Received/Managed Backend Separation V1 test: ' + passed + '/' + passed + ' PASS');
