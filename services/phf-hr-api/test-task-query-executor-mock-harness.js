@@ -267,6 +267,89 @@ async function run() {
       resultNull.data.length === 0 && !nullClient.calls.some((c) => /FROM task\.tasks/.test(c.sql)));
   }
 
+  // =========================================================================
+  // PROD FIX (2026-08-30) — relation='proposal_received' ("Đề xuất tôi nhận
+  // xử lý"). A PENDING Proposal has NO task.assignees row (Primary is created
+  // only on Accept); the recipient lives in task.proposal_decisions.
+  // recipient_employee_code. The list must match THAT, NOT role='primary'
+  // (always empty pre-Accept → recipient saw an empty list).
+  // =========================================================================
+  {
+    const propRecvBase = Object.assign({}, baseDescriptor, {
+      requesterEmployeeCode: 'PHF012', requesterActorType: 'truong_bo_phan',
+      mode: 'assignee_in', creatorEmployeeCode: null, creatorAccountId: null,
+      assigneeEmployeeCodes: ['PHF012'], flowType: 'de_xuat',
+      excludeDraft: true, relation: 'proposal_received', scope: 'default',
+      nonce: crypto.randomBytes(16).toString('hex'),
+    });
+    const propRecvDescriptor = signDescriptor(propRecvBase, secret);
+    const propRecvScript = [
+      { expect: /^BEGIN READ ONLY$/ },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/ },
+      { expect: /^SET LOCAL statement_timeout/ },
+      {
+        expect: /SELECT proposal_task_id FROM task\.proposal_decisions WHERE upper\(recipient_employee_code\) = ANY\(\$1::text\[\]\)/,
+        result: { rows: [{ proposal_task_id: 'prop-1' }] },
+      },
+      {
+        expect: /FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd .* WHERE flow_type = \$1 AND id = ANY\(\$2::uuid\[\]\) AND status <> 'draft' ORDER BY/,
+        result: {
+          rows: [{
+            id: 'prop-1', task_code: 'CV-2608-0015', flow_type: 'de_xuat', status: 'published',
+            title: 'Đề xuất mua thiết bị', priority: 'thuong', deadline: '2026-09-05T10:00:00Z',
+            category_code: 'NHAN_SU', progress_percent: 0, progress_status: 'chua_bat_dau',
+            created_by_employee_code: 'PHF001', is_cross_department: null,
+            source_department: null, target_department: null,
+            created_at: '2026-08-30T02:00:00Z', row_version: 1,
+            proposal_status: 'pending', recipient_employee_code: 'PHF012',
+            generated_task_id: null, reject_reason: null, cancel_reason: null,
+            decided_by_employee_code: null, decided_at: null,
+          }],
+        },
+      },
+      { expect: /SELECT task_id, employee_code\s+FROM task\.assignees/, result: { rows: [] } },
+      { expect: /^COMMIT$/ },
+    ];
+    const propRecvClient = makeFakeClient(propRecvScript);
+    const { executeResolvedTaskQuery: execPropRecv } = loadExecutorWithFakePg(propRecvClient);
+    const propRecvResult = await execPropRecv({}, propRecvDescriptor, secret);
+
+    check('proposal_received — recipient lookup hits task.proposal_decisions, NOT task.assignees role=primary',
+      /FROM task\.proposal_decisions WHERE upper\(recipient_employee_code\)/.test(propRecvClient.calls[3].sql)
+      && !/role = 'primary'/.test(propRecvClient.calls[3].sql));
+    check('proposal_received — recipient param upper-cased array',
+      Array.isArray(propRecvClient.calls[3].params[0]) && propRecvClient.calls[3].params[0][0] === 'PHF012');
+    check('proposal_received — pending Proposal (no Primary) IS returned to its recipient',
+      propRecvResult.data.length === 1 && propRecvResult.data[0].taskCode === 'CV-2608-0015'
+      && propRecvResult.data[0].proposalStatus === 'pending'
+      && propRecvResult.data[0].proposalRecipientEmployeeCode === 'PHF012');
+    check('proposal_received — no role=primary subquery issued for the id filter',
+      !propRecvClient.calls.some((c) => /SELECT DISTINCT task_id\s+FROM task\.assignees WHERE role = 'primary'/.test(c.sql)));
+  }
+
+  // proposal_received — a DIFFERENT recipient must NOT see this Proposal.
+  {
+    const otherBase = Object.assign({}, baseDescriptor, {
+      requesterEmployeeCode: 'PHF099', requesterActorType: 'nhan_vien',
+      mode: 'assignee_in', creatorEmployeeCode: null, creatorAccountId: null,
+      assigneeEmployeeCodes: ['PHF099'], flowType: 'de_xuat',
+      excludeDraft: true, relation: 'proposal_received', scope: 'default',
+      nonce: crypto.randomBytes(16).toString('hex'),
+    });
+    const otherDescriptor = signDescriptor(otherBase, secret);
+    const otherClient = makeFakeClient([
+      { expect: /^BEGIN READ ONLY$/ },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/ },
+      { expect: /^SET LOCAL statement_timeout/ },
+      { expect: /FROM task\.proposal_decisions WHERE upper\(recipient_employee_code\)/, result: { rows: [] } },
+      { expect: /^COMMIT$/ },
+    ]);
+    const { executeResolvedTaskQuery: execOther } = loadExecutorWithFakePg(otherClient);
+    const otherResult = await execOther({}, otherDescriptor, secret);
+    check('proposal_received — non-recipient gets 0 rows (recipient match is exact, no broadening)',
+      otherResult.data.length === 0 && otherClient.calls[3].params[0][0] === 'PHF099');
+  }
+
   console.log(`\n${PASS}/${PASS + FAIL} PASS`);
   if (FAIL > 0) process.exit(1);
 }

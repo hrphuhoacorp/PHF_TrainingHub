@@ -109,6 +109,32 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
         } else {
           return emptyResult(descriptor);
         }
+      } else if (descriptor.relation === 'proposal_received') {
+        // "Đề xuất tôi nhận xử lý" — a PENDING Proposal has NO task.assignees
+        // row at all (the Primary assignee is created only when the recipient
+        // Accepts). Its recipient — the actor allowed to Accept/Reject — is
+        // recorded ONLY in task.proposal_decisions.recipient_employee_code.
+        // Match THAT, never the role='primary' lookup used for every other
+        // received-like relation (which is always empty pre-Accept, so the
+        // recipient would never see the Proposal that is waiting on them).
+        // Proposal-only branch (relation==='proposal_received',
+        // flow_type='de_xuat') — relation='received' / normal "Tôi nhận" stays
+        // Primary-relationship-only, unchanged.
+        if (!Array.isArray(descriptor.assigneeEmployeeCodes) || !descriptor.assigneeEmployeeCodes.length) {
+          return emptyResult(descriptor);
+        }
+        const recipientResult = await client.query(
+          `SELECT proposal_task_id
+             FROM task.proposal_decisions
+            WHERE upper(recipient_employee_code) = ANY($1::text[])
+            LIMIT 5000`,
+          [descriptor.assigneeEmployeeCodes.map((c) => String(c).toUpperCase())]
+        );
+        const proposalIds = recipientResult.rows.map((r) => r.proposal_task_id);
+        if (!proposalIds.length) return emptyResult(descriptor);
+        params.push(proposalIds);
+        whereClauses.push(`id = ANY($${params.length}::uuid[])`);
+        if (descriptor.excludeDraft) whereClauses.push(`status <> 'draft'`);
       } else {
         if (descriptor.assigneeEmployeeCodes !== null) {
           if (!Array.isArray(descriptor.assigneeEmployeeCodes) || !descriptor.assigneeEmployeeCodes.length) {
