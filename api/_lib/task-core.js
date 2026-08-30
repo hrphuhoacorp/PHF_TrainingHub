@@ -1762,7 +1762,14 @@ function resolveAuthorizedTaskEmployeeScope(actorContext, scope, relation, scope
   const flowType = (relation === 'proposal_sent' || relation === 'proposal_received') ? 'de_xuat' : 'giao_viec';
 
   if (!isReceivedLike) {
-    return { mode: 'creator_eq', flowType, creatorEmployeeCode: actorContext.employeeCode };
+    // creator_eq — exact creator identity of THIS actor. Carry BOTH the
+    // employee identity and the account identity; the query applier
+    // (listTasks() below) picks whichever the actor actually has. Account-only
+    // actors (Admin without an employee profile) have creatorEmployeeCode = ''
+    // — they must still match Task rows they created (created_by_account_id),
+    // NOT fall through to an empty-string filter that matches nothing. Mirrors
+    // the bridged path (task-query-descriptor-builder.js / task-query-executor.js).
+    return { mode: 'creator_eq', flowType, creatorEmployeeCode: actorContext.employeeCode, creatorAccountId: actorContext.accountId || null };
   }
 
   // G3 fix (2026-08-28) — "Tôi nhận"/"Nhân sự tôi quản lý" (listTasks(), the
@@ -1936,7 +1943,16 @@ async function listTasks(session, params) {
     if (authScope.excludeDraft) taskQuery = taskQuery.neq('status', 'draft');
     if (authScope.crossDepartmentOnly) taskQuery = taskQuery.eq('is_cross_department', true);
   } else {
-    taskQuery = taskQuery.eq('created_by_employee_code', authScope.creatorEmployeeCode);
+    // creator_eq — exact creator identity of THIS actor. Employee identity when
+    // the actor has an employee profile; account identity for an account-only
+    // actor (Admin without a profile — created_by_employee_code stored NULL).
+    // Never a wildcard: an actor with neither identity cannot reach listTasks()
+    // (resolveActorContext throws first), but guard anyway.
+    const creatorEmp = code(authScope.creatorEmployeeCode);
+    const creatorAcct = text(authScope.creatorAccountId);
+    if (creatorEmp) taskQuery = taskQuery.eq('created_by_employee_code', creatorEmp);
+    else if (creatorAcct) taskQuery = taskQuery.eq('created_by_account_id', creatorAcct);
+    else return emptyResult;
   }
 
   if (statusFilter === 'completed') taskQuery = taskQuery.eq('status', 'completed');

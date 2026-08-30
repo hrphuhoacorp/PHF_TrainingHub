@@ -183,6 +183,90 @@ async function run() {
       result2.data[0].proposalRecipientEmployeeCode === 'PHF010');
   }
 
+  // =========================================================================
+  // Account-only creator (2026-08-30) — Admin without an employee profile.
+  // descriptor.creatorEmployeeCode = '' , creatorAccountId = 'acct-A'. The
+  // creator_eq WHERE must key off created_by_account_id (NOT an empty-string
+  // created_by_employee_code that matches nothing), and never widen to all rows.
+  // =========================================================================
+  {
+    const adminBase = Object.assign({}, baseDescriptor, {
+      requesterEmployeeCode: '', requesterActorType: 'admin',
+      mode: 'creator_eq', creatorEmployeeCode: '', creatorAccountId: 'acct-A',
+      nonce: crypto.randomBytes(16).toString('hex'),
+    });
+    const adminDescriptor = signDescriptor(adminBase, secret);
+    const adminScript = [
+      { expect: /^BEGIN READ ONLY$/ },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/ },
+      { expect: /^SET LOCAL statement_timeout/ },
+      {
+        expect: /WHERE flow_type = \$1 AND t\.created_by_account_id = \$2 ORDER BY/,
+        result: {
+          rows: [{
+            id: 'tA', task_code: 'CV-2608-0013', flow_type: 'giao_viec', status: 'published',
+            title: 'PROD-SMOKE', priority: 'thuong', deadline: '2026-09-01T00:00:00Z',
+            category_code: 'NHAN_SU', progress_percent: 0, progress_status: 'chua_bat_dau',
+            created_by_employee_code: null, is_cross_department: false,
+            source_department: null, target_department: null,
+            created_at: '2026-08-30T00:00:00Z', row_version: 1,
+          }],
+        },
+      },
+      { expect: /SELECT task_id, employee_code\s+FROM task\.assignees/, result: { rows: [{ task_id: 'tA', employee_code: 'PHF012' }] } },
+      { expect: /^COMMIT$/ },
+    ];
+    const clientA = makeFakeClient(adminScript);
+    const { executeResolvedTaskQuery: execAdmin } = loadExecutorWithFakePg(clientA);
+    const resultA = await execAdmin({}, adminDescriptor, secret);
+    check('account-only creator_eq — WHERE keys off created_by_account_id = $2',
+      / t\.created_by_account_id = \$2 /.test(clientA.calls[3].sql) && clientA.calls[3].params[1] === 'acct-A');
+    check('account-only creator_eq — Task CV-2608-0013 returned to its Admin creator',
+      resultA.data.length === 1 && resultA.data[0].taskCode === 'CV-2608-0013' && resultA.data[0].primaryEmployeeCode === 'PHF012');
+  }
+
+  // Admin B (acct-B) must NOT see Admin A's Task — account ids are unique, the
+  // WHERE is an exact equality, so a different account id simply returns 0 rows.
+  {
+    const adminBBase = Object.assign({}, baseDescriptor, {
+      requesterEmployeeCode: '', requesterActorType: 'admin',
+      mode: 'creator_eq', creatorEmployeeCode: '', creatorAccountId: 'acct-B',
+      nonce: crypto.randomBytes(16).toString('hex'),
+    });
+    const adminBDescriptor = signDescriptor(adminBBase, secret);
+    const adminBScript = [
+      { expect: /^BEGIN READ ONLY$/ },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/ },
+      { expect: /^SET LOCAL statement_timeout/ },
+      { expect: /WHERE flow_type = \$1 AND t\.created_by_account_id = \$2 ORDER BY/, result: { rows: [] } },
+      { expect: /^COMMIT$/ },
+    ];
+    const clientB = makeFakeClient(adminBScript);
+    const { executeResolvedTaskQuery: execAdminB } = loadExecutorWithFakePg(clientB);
+    const resultB = await execAdminB({}, adminBDescriptor, secret);
+    check('ADMIN_A_CANNOT_SEE_ADMIN_B — acct-B query filters on its own id, 0 rows for acct-A Task',
+      clientB.calls[3].params[1] === 'acct-B' && resultB.data.length === 0);
+  }
+
+  // Neither identity -> no wildcard, empty result, DB not even queried past setup.
+  {
+    const nullBase = Object.assign({}, baseDescriptor, {
+      mode: 'creator_eq', creatorEmployeeCode: '', creatorAccountId: null,
+      nonce: crypto.randomBytes(16).toString('hex'),
+    });
+    const nullDescriptor = signDescriptor(nullBase, secret);
+    const nullClient = makeFakeClient([
+      { expect: /^BEGIN READ ONLY$/ },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/ },
+      { expect: /^SET LOCAL statement_timeout/ },
+      { expect: /^COMMIT$/ },
+    ]);
+    const { executeResolvedTaskQuery: execNull } = loadExecutorWithFakePg(nullClient);
+    const resultNull = await execNull({}, nullDescriptor, secret);
+    check('creator_eq with no identity -> empty result, no task SELECT issued (no wildcard)',
+      resultNull.data.length === 0 && !nullClient.calls.some((c) => /FROM task\.tasks/.test(c.sql)));
+  }
+
   console.log(`\n${PASS}/${PASS + FAIL} PASS`);
   if (FAIL > 0) process.exit(1);
 }

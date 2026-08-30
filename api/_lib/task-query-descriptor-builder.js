@@ -96,6 +96,7 @@ async function buildResolvedTaskQueryDescriptor(session, params, options) {
 
   let mode;
   let creatorEmployeeCode = null;
+  let creatorAccountId = null;
   let assigneeEmployeeCodes = null;
 
   if (isReceivedLike) {
@@ -133,7 +134,14 @@ async function buildResolvedTaskQueryDescriptor(session, params, options) {
     }
   } else {
     mode = 'creator_eq';
-    creatorEmployeeCode = actorContext.employeeCode;
+    // Exact creator identity of THIS actor. An actor with a real employee
+    // profile is matched by employee_code; an account-only actor (Admin with no
+    // employee identity, actorContext.employeeCode = '') is matched by
+    // account_id. Both are carried so the executor picks whichever identity the
+    // actor actually has — never a wildcard, and Admin A can never match Admin
+    // B (account ids are unique per account).
+    creatorEmployeeCode = actorContext.employeeCode || '';
+    creatorAccountId = actorContext.accountId || null;
   }
 
   const now = Date.now();
@@ -143,6 +151,7 @@ async function buildResolvedTaskQueryDescriptor(session, params, options) {
     requesterActorType: actorContext.actorType,
     mode,
     creatorEmployeeCode,
+    creatorAccountId,
     assigneeEmployeeCodes,
     flowType,
     requirePrimaryRoleActive: true,
