@@ -64,7 +64,22 @@ async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
   // relation='received' is always received-like -> decision.mode is always
   // 'employee_codes' here (never 'creator_eq' — that branch is only hit for
   // relation !== received/proposal_received, which this builder never passes).
-  const employeeCodes = decision.employeeCodes;
+  //
+  // LOCKED REPORT_SCOPE (PHF_TASK_HANDOVER_TO_NEW_CLAUDE_BEFORE_REPORT_04.md §4):
+  // "TBP/Trưởng ca -> `employees` peopleScope (SELF + transitive managed subtree)".
+  // resolveAuthorizedTaskEmployeeScope(scopeParam='managed') returns
+  // managedEmployeeCodes ONLY (subtree, SELF dropped) — that is the correct
+  // semantic for the Task LIST "Nhân sự tôi quản lý" tab (manager view, NOT
+  // recipient) and MUST NOT change there. But Reporting V2 has no separate "Tôi
+  // nhận" surface to carry the self portion, so it silently lost the actor's own
+  // tasks. Union SELF back in for the 'employees' peopleScope by using the FULL
+  // authorized scope.peopleScope.values — never wider than that. Nhân_viên
+  // ('self' -> [self]) and Admin/GĐ/TLGĐ ('all_company' -> null) are unchanged.
+  let employeeCodes = decision.employeeCodes;
+  if (scope.peopleScope.type === 'employees') {
+    const authorized = Array.isArray(scope.peopleScope.values) ? scope.peopleScope.values : [];
+    employeeCodes = Array.from(new Set(authorized.filter(Boolean)));
+  }
 
   const now = Date.now();
   const descriptor = {
