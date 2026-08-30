@@ -3952,7 +3952,13 @@ function bindShell(root){
     if(event.target.matches('[data-task-permission-targets]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.employeeCodes=Array.from(event.target.selectedOptions||[]).map(function(option){return employeeCode(option.value);}).filter(Boolean);taskUiState.permissionError='';return;}
     var dtPart=event.target.getAttribute('data-task-dt-part'),dtField=event.target.getAttribute('data-task-dt-field');
     if(dtPart&&dtField){
-      var dtContainer=event.target.closest('[data-task-dt-field="'+dtField+'"]');
+      // Wrapper là <div data-task-dt-field="...">; các <input> con MANG CÙNG
+      // attr đó (để đọc dtField từ event.target) nên closest() không kèm
+      // 'div' sẽ khớp chính <input> → querySelector các part trả null →
+      // combined='' → xóa trắng deadline/start (bug PROD: "Chọn deadline."
+      // khi submit Đề xuất). Ràng 'div' để closest() bỏ qua <input> và bắt
+      // đúng wrapper.
+      var dtContainer=event.target.closest('div[data-task-dt-field="'+dtField+'"]');
       if(!dtContainer)return;
       var dateEl=dtContainer.querySelector('[data-task-dt-part="date"]'),hourEl=dtContainer.querySelector('[data-task-dt-part="hour"]'),minuteEl=dtContainer.querySelector('[data-task-dt-part="minute"]');
       var combined=combineTaskDateTimeParts(dateEl?dateEl.value:'',hourEl?hourEl.value:'',minuteEl?minuteEl.value:'');
