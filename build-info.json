@@ -1,7 +1,7 @@
 {
-  "version": "1.65.9",
-  "fingerprint": "1.65.9-checklist-retro-immutable-release",
-  "builtAt": "2026-08-21T15:45:00+07:00",
-  "notes": "1.65.9: Checklist — Account Admin loading stabilize (canonical route); Total Score Editor gọi đúng checklistRetroPreviewDiff/checklistRetroCopyVersion + hỏi Chỉ áp dụng phiếu mới/Cập nhật phiếu hiện có sau publish. Production migration 1.54.0 (template version immutable) và 1.53.0 (Retroactive Apply engine) đã áp dụng trước, post-check PASS. Không remediation 19/19 checklist_total trong release này — gate riêng.",
-  "build": "1.65.9"
+  "version": "1.65.10",
+  "fingerprint": "1.65.10-task-proposal-deadline-fix",
+  "builtAt": "2026-08-30T17:55:00+07:00",
+  "notes": "1.65.10: PHF Task — sửa lỗi PROD ô 'Hạn hoàn thành' bị xóa trắng khi bấm 'Gửi đề xuất' (control ngày-giờ 24h: closest() bắt nhầm chính <input> thay vì wrapper <div>, làm deadline/start_at không vào state). Chỉ sửa 1 selector trong bindShell oninput + test hồi quy; không đổi ngữ nghĩa ngày-giờ/validate/payload. Bump fingerprint để bust cache asset ?v=.",
+  "build": "1.65.10"
 }
