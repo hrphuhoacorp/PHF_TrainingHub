@@ -181,7 +181,14 @@ async function fetchAuthorizedTaskRows(ctx) {
     if (ctx.authorizedScope.excludeDraft) q = q.neq('status', 'draft');
     if (ctx.authorizedScope.crossDepartmentOnly) q = q.eq('is_cross_department', true);
   } else {
-    q = q.eq('created_by_employee_code', ctx.authorizedScope.creatorEmployeeCode);
+    // creator_eq — exact creator identity of THIS actor (see task-core.js
+    // listTasks()): employee identity when present, account identity for an
+    // account-only actor (Admin without an employee profile). Never a wildcard.
+    const creatorEmp = code(ctx.authorizedScope.creatorEmployeeCode);
+    const creatorAcct = text(ctx.authorizedScope.creatorAccountId);
+    if (creatorEmp) q = q.eq('created_by_employee_code', creatorEmp);
+    else if (creatorAcct) q = q.eq('created_by_account_id', creatorAcct);
+    else return [];
   }
   if (ctx.categoryCode) q = q.eq('category_code', ctx.categoryCode);
   const { data, error } = await q.limit(TASK_POPULATION_LIMIT);

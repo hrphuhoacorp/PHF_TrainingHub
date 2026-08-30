@@ -415,6 +415,19 @@ async function createDraftTask(config, params) {
 
   const auditToken = resolveAuditToken(actorEmployeeCode, actorAccountId);
   const normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+  // Creator identity columns follow the table's one-of contract
+  // (task_tasks_created_by_ck): an actor WITH a real employee identity writes
+  // created_by_employee_code; an account-only actor (Admin without an employee
+  // profile — actorContext.employeeCode = '') writes created_by_account_id and
+  // leaves created_by_employee_code NULL. NEVER fall an account id/token back
+  // into created_by_employee_code: that column feeds identity joins and the
+  // "Tôi giao" (assigned) creator match. resolveAuditToken() (employee||account
+  // fallback) is kept ONLY for the NOT NULL audit columns
+  // (assignees.assigned_by_employee_code, events.actor_employee_code).
+  const creatorEmployeeCode = actorEmployeeCode && String(actorEmployeeCode).trim() !== ''
+    ? String(actorEmployeeCode).trim() : null;
+  const creatorAccountId = actorAccountId && String(actorAccountId).trim() !== ''
+    ? String(actorAccountId).trim() : null;
   // Khớp đúng default cũ ở api/_lib/task-core.js: text(input.priority) || 'thuong'
   // — missing/null/blank -> 'thuong', giá trị hợp lệ giữ nguyên (trimmed).
   // Không omit cột khỏi INSERT (giữ nguyên shape) nên phải tự default ở đây:
@@ -424,9 +437,23 @@ async function createDraftTask(config, params) {
 
   return withTaskWriteTransaction(config, async (client) => {
     if (normalizedIdempotencyKey !== null) {
+      // Serialize concurrent create attempts that share this idempotency key so
+      // the replay-lookup + INSERT below is atomic across sessions. The partial
+      // unique index task_tasks_actor_idem_key_uniq only guards rows whose
+      // created_by_employee_code is non-null; an account-only creator writes
+      // created_by_employee_code = NULL (NULLs are distinct in a unique index),
+      // so without this advisory lock two concurrent Admin submits with the
+      // same key could both INSERT. Mirrors task.task_next_code()'s
+      // pg_advisory_xact_lock pattern — no schema change.
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        ['task-create-idem|' + normalizedIdempotencyKey]);
       const replay = await client.query(
-        `SELECT * FROM task.tasks WHERE created_by_employee_code = $1 AND create_idempotency_key = $2 LIMIT 1`,
-        [auditToken, normalizedIdempotencyKey]
+        `SELECT * FROM task.tasks
+          WHERE create_idempotency_key = $1
+            AND ( ($2::text IS NOT NULL AND created_by_employee_code = $2)
+               OR ($3::text IS NOT NULL AND created_by_account_id = $3) )
+          LIMIT 1`,
+        [normalizedIdempotencyKey, creatorEmployeeCode, creatorAccountId]
       );
       if (replay.rowCount > 0) return replay.rows[0];
     }
@@ -453,17 +480,22 @@ async function createDraftTask(config, params) {
       const inserted = await client.query(
         `INSERT INTO task.tasks (
            flow_type, status, title, content, category_code, priority,
-           start_at, deadline, created_by_employee_code, task_code, create_idempotency_key
-         ) VALUES ($1, 'draft', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           start_at, deadline, created_by_employee_code, task_code, create_idempotency_key,
+           created_by_account_id
+         ) VALUES ($1, 'draft', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [flowType, title, content || '', categoryCode, normalizedPriority, startAt || null, deadline, auditToken, taskCode, normalizedIdempotencyKey]
+        [flowType, title, content || '', categoryCode, normalizedPriority, startAt || null, deadline, creatorEmployeeCode, taskCode, normalizedIdempotencyKey, creatorAccountId]
       );
       task = inserted.rows[0];
     } catch (err) {
       if (err.code === '23505' && normalizedIdempotencyKey !== null) {
         const replay = await client.query(
-          `SELECT * FROM task.tasks WHERE created_by_employee_code = $1 AND create_idempotency_key = $2 LIMIT 1`,
-          [auditToken, normalizedIdempotencyKey]
+          `SELECT * FROM task.tasks
+            WHERE create_idempotency_key = $1
+              AND ( ($2::text IS NOT NULL AND created_by_employee_code = $2)
+                 OR ($3::text IS NOT NULL AND created_by_account_id = $3) )
+            LIMIT 1`,
+          [normalizedIdempotencyKey, creatorEmployeeCode, creatorAccountId]
         );
         if (replay.rowCount > 0) return replay.rows[0];
       }

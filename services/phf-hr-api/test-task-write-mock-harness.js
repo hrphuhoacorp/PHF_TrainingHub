@@ -774,7 +774,11 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
   // =========================================================================
   // createDraftTask (Batch 3) — task_create_draft V2, PHF_TASK_CODE_IDEMPOTENCY_1.71.0
   // ---------------------------------------------------------------------------
-  const REPLAY_LOOKUP = /^SELECT \* FROM task\.tasks WHERE created_by_employee_code = \$1 AND create_idempotency_key = \$2 LIMIT 1$/;
+  // Identity-aware replay lookup (2026-08-30 account-only creator fix): match
+  // on whichever creator identity is actually persisted — employee_code for an
+  // actor with an employee profile, account_id for an account-only Admin.
+  const IDEM_ADVISORY_LOCK = /^SELECT pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)$/;
+  const REPLAY_LOOKUP = /^SELECT \* FROM task\.tasks WHERE create_idempotency_key = \$1 AND \( \(\$2::text IS NOT NULL AND created_by_employee_code = \$2\) OR \(\$3::text IS NOT NULL AND created_by_account_id = \$3\) \) LIMIT 1$/;
   const CATEGORY_LOCK = /^SELECT is_active FROM task\.categories WHERE category_code = \$1 FOR SHARE$/;
   const NEXT_CODE = /^SELECT task\.task_next_code\(now\(\)\) AS code$/;
   const INSERT_TASK = /^INSERT INTO task\.tasks \(/;
@@ -953,6 +957,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
       { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: IDEM_ADVISORY_LOCK, result: {} },
       { expect: REPLAY_LOOKUP, result: { rows: [], rowCount: 0 } },
       { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
       { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0003' }], rowCount: 1 } },
@@ -973,6 +978,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
       { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: IDEM_ADVISORY_LOCK, result: {} },
       { expect: REPLAY_LOOKUP, result: { rows: [{ id: 'task-existing', status: 'draft', task_code: 'CV-2608-0000', row_version: 1 }], rowCount: 1 } },
       { expect: /^COMMIT$/, result: {} },
     ]);
@@ -991,6 +997,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
       { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: IDEM_ADVISORY_LOCK, result: {} },
       { expect: REPLAY_LOOKUP, result: { rows: [{ id: 'task-existing', status: 'draft', task_code: 'CV-2608-0000', row_version: 1 }], rowCount: 1 } },
       { expect: /^COMMIT$/, result: {} },
     ]);
@@ -1034,6 +1041,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     const client = makeFakeClient([
       { expect: /^BEGIN$/, result: {} },
       { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: IDEM_ADVISORY_LOCK, result: {} },
       { expect: REPLAY_LOOKUP, result: { rows: [], rowCount: 0 } },
       { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
       { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0005' }], rowCount: 1 } },
@@ -1081,6 +1089,65 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     await createDraftTask(MOCK_CONFIG, { flowType: 'giao_viec', title: 'x', categoryCode: 'CAT1', priority: 'thuong', deadline: '2026-09-01T00:00:00Z', actorEmployeeCode: 'PHF001' });
     const noEventInsert = client.calls.filter((c) => c.sql && /^INSERT INTO task\.events/.test(c.sql)).length === 0;
     record('createDraftTask_draftNoEventInsert', noEventInsert, { calls: client.calls.map((c) => c.sql) });
+  }
+
+  {
+    // CD14) ACCOUNT-ONLY CREATOR (2026-08-30) — Admin without an employee
+    // profile: actorEmployeeCode empty, actorAccountId = 'acct-A'. The INSERT
+    // must store created_by_employee_code = NULL and created_by_account_id =
+    // 'acct-A' — NEVER the account token in the *_employee_code column.
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: CATEGORY_LOCK, result: { rows: [{ is_active: true }], rowCount: 1 } },
+      { expect: NEXT_CODE, result: { rows: [{ code: 'CV-2608-0013' }], rowCount: 1 } },
+      { expect: INSERT_TASK, result: { rows: [{ id: 'task-adm', status: 'draft', task_code: 'CV-2608-0013', row_version: 1 }], rowCount: 1 } },
+      { expect: INSERT_PRIMARY_ASSIGNEE, result: { rows: [], rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createDraftTask } = loadTaskWriteWithFakePg(client);
+    await createDraftTask(MOCK_CONFIG, {
+      flowType: 'giao_viec', title: '[PROD-SMOKE] x', content: '', categoryCode: 'CAT1', priority: 'thuong',
+      startAt: null, deadline: '2026-09-01T00:00:00Z', primaryEmployeeCode: 'PHF012', idempotencyKey: null,
+      actorEmployeeCode: '', actorAccountId: 'acct-A',
+    });
+    const insertCall = client.calls.find((c) => c.sql && INSERT_TASK.test(c.sql));
+    // param order: $8 created_by_employee_code (idx 7), $9 task_code (idx 8),
+    // $10 create_idempotency_key (idx 9), $11 created_by_account_id (idx 10)
+    const empParam = insertCall.params[7];
+    const acctParam = insertCall.params[10];
+    record('createDraftTask_accountOnlyCreator_employeeCodeNull_accountIdSet',
+      empParam === null && acctParam === 'acct-A'
+      && insertCall.sql.includes('created_by_account_id'),
+      { empParam, acctParam });
+    // Regression guard: no acct-* string may land in the created_by_employee_code
+    // column (nullable, has a sibling account column). assigned_by_employee_code
+    // is NOT NULL / non-empty CHECK — a token there is schema-forced and allowed.
+    record('createDraftTask_accountOnlyCreator_noAcctTokenInCreatorEmployeeColumn',
+      !(typeof empParam === 'string' && /^acct-/.test(empParam)),
+      { empParam });
+  }
+
+  {
+    // CD15) account-only creator + idempotency — advisory lock still taken, the
+    // replay lookup keys off the account identity (param $3), and a replay hit
+    // returns the existing row without a new allocation.
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: IDEM_ADVISORY_LOCK, result: {} },
+      { expect: REPLAY_LOOKUP, result: { rows: [{ id: 'task-adm-existing', status: 'draft', task_code: 'CV-2608-0013', row_version: 1 }], rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createDraftTask } = loadTaskWriteWithFakePg(client);
+    const out = await createDraftTask(MOCK_CONFIG, {
+      flowType: 'giao_viec', title: 'x', categoryCode: 'CAT1', priority: 'thuong', deadline: '2026-09-01T00:00:00Z',
+      idempotencyKey: '55555555-5555-5555-5555-555555555555', actorEmployeeCode: '', actorAccountId: 'acct-A',
+    });
+    const replayCall = client.calls.find((c) => c.sql && REPLAY_LOOKUP.test(c.sql));
+    record('createDraftTask_accountOnlyCreator_idempotencyReplayByAccountId',
+      out.id === 'task-adm-existing' && replayCall.params[1] === null && replayCall.params[2] === 'acct-A',
+      { params: replayCall && replayCall.params });
   }
 
   // =========================================================================

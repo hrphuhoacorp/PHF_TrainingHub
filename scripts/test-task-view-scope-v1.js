@@ -170,6 +170,33 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
   }
 
   // ===========================================================================
+  // CASE A2 — ACCOUNT-ONLY CREATOR (2026-08-30 legacy parity). Admin account
+  // without an employee profile creates a Task (legacy write stamps
+  // created_by_account_id, created_by_employee_code NULL). "Tôi giao" must
+  // still return it (match by created_by_account_id) — NOT 0 rows, and NOT
+  // company-wide. A different Admin (acct-OTHER) must see nothing.
+  // ===========================================================================
+  resetState();
+  STATE.employees.push(emp({ employee_code: 'PHF012', full_name: 'Lê Vĩnh Thắng', department: 'Kinh doanh' }));
+  STATE.tasks.push(taskRow({ id: 'task-ADM1', task_code: 'CV-2608-0013', created_by_employee_code: null, created_by_account_id: 'acct-ADMIN-A' }));
+  STATE.tasks.push(taskRow({ id: 'task-EMP1', task_code: 'CV-2608-9001', created_by_employee_code: 'PHF012', created_by_account_id: null }));
+  STATE.assignees.push(assigneeRow({ task_id: 'task-ADM1', employee_code: 'PHF012' }));
+  {
+    const adminSession = Object.freeze({ sub: 'sess-admin-a', account: { id: 'acct-ADMIN-A', role: 'admin' } });
+    const assigned = await listTasks(adminSession, { relation: 'assigned' });
+    pass(assigned.tasks.length === 1 && assigned.tasks[0].task_id === 'task-ADM1',
+      'CASE A2: account-only Admin thấy ĐÚNG Task mình tạo ở "Tôi giao" (match created_by_account_id), KHÔNG company-wide');
+
+    const otherAdmin = Object.freeze({ sub: 'sess-admin-b', account: { id: 'acct-ADMIN-OTHER', role: 'admin' } });
+    const otherAssigned = await listTasks(otherAdmin, { relation: 'assigned' });
+    pass(otherAssigned.tasks.length === 0, 'CASE A2: Admin B (acct khác) KHÔNG thấy Task của Admin A ở "Tôi giao"');
+
+    const empAssigned = await listTasks(sessionFor('PHF012'), { relation: 'assigned' });
+    pass(empAssigned.tasks.length === 1 && empAssigned.tasks[0].task_id === 'task-EMP1',
+      'CASE A2: employee creator vẫn match theo employee_code (không regression, không nuốt Task account-only)');
+  }
+
+  // ===========================================================================
   // CASE B — Employee không liên quan → không thấy Task.
   // ===========================================================================
   STATE.employees.push(emp({ employee_code: 'C_UNRELATED', department: 'Phòng khác' }));

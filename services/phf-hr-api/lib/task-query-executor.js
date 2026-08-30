@@ -93,8 +93,22 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
       const params = [descriptor.flowType];
 
       if (descriptor.mode === 'creator_eq') {
-        params.push(descriptor.creatorEmployeeCode || '');
-        whereClauses.push(`created_by_employee_code = $${params.length}`);
+        // Exact creator identity of the requesting actor. Prefer the employee
+        // identity; fall back to the account identity for an account-only actor
+        // (Admin without an employee profile). An actor carrying neither
+        // identity matches nothing — never a wildcard, and Admin A can never
+        // see Admin B (account ids are unique per account).
+        const creatorEmp = descriptor.creatorEmployeeCode ? String(descriptor.creatorEmployeeCode).trim() : '';
+        const creatorAcct = descriptor.creatorAccountId ? String(descriptor.creatorAccountId).trim() : '';
+        if (creatorEmp) {
+          params.push(creatorEmp);
+          whereClauses.push(`created_by_employee_code = $${params.length}`);
+        } else if (creatorAcct) {
+          params.push(creatorAcct);
+          whereClauses.push(`created_by_account_id = $${params.length}`);
+        } else {
+          return emptyResult(descriptor);
+        }
       } else {
         if (descriptor.assigneeEmployeeCodes !== null) {
           if (!Array.isArray(descriptor.assigneeEmployeeCodes) || !descriptor.assigneeEmployeeCodes.length) {
@@ -164,7 +178,9 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
       // whereClauses (flow_type/status/deadline/is_cross_department/
       // task_code/title/id) không tồn tại ở proposal_decisions -> không cần
       // qualify, giữ nguyên như trước Proposal V2 (no-regression).
-      const qualifiedWhereClauses = whereClauses.map((c) => c.replace(/\bcreated_by_employee_code\b/g, 't.created_by_employee_code'));
+      const qualifiedWhereClauses = whereClauses.map((c) => c
+        .replace(/\bcreated_by_employee_code\b/g, 't.created_by_employee_code')
+        .replace(/\bcreated_by_account_id\b/g, 't.created_by_account_id'));
 
       const taskSql = `
         SELECT t.id, t.task_code, t.flow_type, t.status, t.title, t.priority, t.deadline,

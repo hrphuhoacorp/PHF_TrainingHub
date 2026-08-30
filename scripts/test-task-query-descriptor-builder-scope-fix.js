@@ -19,7 +19,7 @@ function check(name, cond) {
   else { FAIL++; console.error('FAIL:', name); }
 }
 
-function mockScope({ actorType, employeeCode, managedEmployeeCodes, peopleScopeType, peopleScopeValues }) {
+function mockScope({ actorType, employeeCode, accountId, managedEmployeeCodes, peopleScopeType, peopleScopeValues }) {
   delete require.cache[permissionsPath];
   delete require.cache[builderPath];
   require.cache[permissionsPath] = {
@@ -31,6 +31,7 @@ function mockScope({ actorType, employeeCode, managedEmployeeCodes, peopleScopeT
         actorContext: {
           actorType,
           employeeCode,
+          accountId: accountId || undefined,
           managedEmployeeCodes: managedEmployeeCodes || [],
         },
         scope: {
@@ -159,6 +160,38 @@ async function run() {
     check('relation=assigned -> mode=creator_eq, creatorEmployeeCode đúng actor',
       d.mode === 'creator_eq' && d.creatorEmployeeCode === 'PHF082');
     check('descriptor có signature hex 64 ký tự', typeof d.signature === 'string' && /^[0-9a-f]{64}$/.test(d.signature));
+    check('employee actor: creatorEmployeeCode set, creatorAccountId null', d.creatorEmployeeCode === 'PHF082' && d.creatorAccountId === null);
+  }
+
+  // Case 7 — ACCOUNT-ONLY CREATOR (2026-08-30): Admin without an employee
+  // profile (employeeCode = '') creating/listing "Tôi giao". Descriptor must
+  // carry creatorAccountId so the executor can match created_by_account_id —
+  // otherwise "Tôi giao" filters created_by_employee_code = '' and shows 0.
+  {
+    const { buildResolvedTaskQueryDescriptor } = mockScope({
+      actorType: 'admin',
+      employeeCode: '',
+      accountId: 'acct-11111111-1111-1111-1111-111111111111',
+      managedEmployeeCodes: [],
+      peopleScopeType: 'all_company',
+      peopleScopeValues: [],
+    });
+    const d = await buildResolvedTaskQueryDescriptor({}, { relation: 'assigned' }, { signingSecret: 'x' });
+    check('account-only Admin: mode=creator_eq, creatorEmployeeCode="" , creatorAccountId=acct id',
+      d.mode === 'creator_eq' && d.creatorEmployeeCode === '' && d.creatorAccountId === 'acct-11111111-1111-1111-1111-111111111111');
+    check('account-only Admin: creatorAccountId is inside the signed payload (signature still 64-hex)',
+      /^[0-9a-f]{64}$/.test(d.signature));
+  }
+
+  // Case 8 — Admin A vs Admin B: distinct account ids -> distinct descriptors,
+  // never a shared/empty identity that could cross-match.
+  {
+    const A = await (mockScope({ actorType: 'admin', employeeCode: '', accountId: 'acct-A', peopleScopeType: 'all_company' })
+      .buildResolvedTaskQueryDescriptor({}, { relation: 'assigned' }, { signingSecret: 'x' }));
+    const B = await (mockScope({ actorType: 'admin', employeeCode: '', accountId: 'acct-B', peopleScopeType: 'all_company' })
+      .buildResolvedTaskQueryDescriptor({}, { relation: 'assigned' }, { signingSecret: 'x' }));
+    check('ADMIN_A_CANNOT_SEE_ADMIN_B — descriptors carry each actor\'s own account id',
+      A.creatorAccountId === 'acct-A' && B.creatorAccountId === 'acct-B' && A.creatorAccountId !== B.creatorAccountId);
   }
 
   console.log(`\n${PASS}/${PASS + FAIL} PASS`);
