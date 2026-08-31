@@ -107,22 +107,28 @@ function mockFetch(overrides, captureBox) {
   await new Promise((resolve) => setTimeout(resolve, 0));
   pass(capture.getTaskOverviewV2.period.type === 'week' && capture.getTaskReportV2Trend.period.type === 'week' && capture.getTaskReportV2DepartmentAnalysis.period.type === 'week', 'OVERVIEW_TIME_CONTEXT_ALIGNED: đổi kỳ (Tuần) -> KPI/Trend/Department đều reload cùng period.type mới', { kpi: capture.getTaskOverviewV2.period.type, trend: capture.getTaskReportV2Trend.period.type, dept: capture.getTaskReportV2DepartmentAnalysis.period.type });
 
-  // ================= SIX_KPI_LAYOUT =================
-  const kpiRow = root.querySelector('.phft-kpi-row.is-managed');
-  pass(!!kpiRow, 'SIX_KPI_LAYOUT: KPI row renders as 6-column grid (.is-managed)');
-  pass(kpiRow.querySelectorAll('.phft-kpi').length === 6, 'SIX_KPI_LAYOUT: exactly 6 KPI cards render');
+  // ================= SIX_KPI_LAYOUT (UI/UX Step 2 — semantic groups) =====
+  const allKpi = root.querySelectorAll('.phft-kpi.phft-kpi-v2');
+  pass(allKpi.length === 6, 'SIX_KPI_LAYOUT: exactly 6 KPI cards render');
+  const attnRow = root.querySelector('.phft-kpi-row.phft-kpi-attention');
+  const sitRow = root.querySelector('.phft-kpi-row.phft-kpi-situation');
+  pass(!!attnRow && !!sitRow, 'SIX_KPI_LAYOUT: KPIs split into "cần chú ý" + "tình hình" groups (hierarchy by order/accent, not one flat 6-grid)');
+  pass(attnRow.querySelectorAll('.phft-kpi').length === 3 && sitRow.querySelectorAll('.phft-kpi').length === 3, 'SIX_KPI_LAYOUT: 3 + 3');
+  pass(html.indexOf('phft-kpi-attention') < html.indexOf('phft-kpi-situation'), 'SIX_KPI_LAYOUT: attention group rendered first');
   pass(html.includes('Công việc đang mở') && html.includes('Công việc quá hạn') && html.includes('Sắp tới hạn (3 ngày)') && html.includes('Hoàn thành trong kỳ') && html.includes('Tỷ lệ đúng hạn') && html.includes('Điểm nghẽn cần chú ý'), 'SIX_KPI_LAYOUT: all 6 LOCKED labels present');
-  pass(kpiRow.querySelectorAll('.phft-kpi-icon').length === 6, 'SIX_KPI_LAYOUT: every KPI card has an icon');
-  pass(root.querySelector('.phft-kpi-icon.is-bottleneck') !== null, 'SIX_KPI_LAYOUT: bottleneck KPI slot renders (value "—", no invented number)');
-  const bottleneckCard = Array.from(kpiRow.querySelectorAll('.phft-kpi')).find(c => c.textContent.includes('Điểm nghẽn'));
+  pass(root.querySelectorAll('.phft-kpi-v2 .phft-kpi-icon').length === 6, 'SIX_KPI_LAYOUT: every KPI card has an icon');
+  pass(root.querySelector('.phft-kpi-v2.tone-red') !== null && root.querySelector('.phft-kpi-v2.tone-orange') !== null && root.querySelector('.phft-kpi-v2.tone-green') !== null && root.querySelector('.phft-kpi-v2.tone-blue') !== null && root.querySelector('.phft-kpi-v2.tone-purple') !== null && root.querySelector('.phft-kpi-v2.tone-gray') !== null, 'SEMANTIC_COLOR_SYSTEM: red/orange/green/blue/purple/gray tones each present exactly where the contract expects');
+  const bottleneckCard = Array.from(allKpi).find(c => c.textContent.includes('Điểm nghẽn'));
   pass(bottleneckCard.querySelector('strong').textContent === '—', 'BOTTLENECK_NO_INVENTED_FORMULA: KPI card shows "—", not a fabricated number');
-  pass(!bottleneckCard.matches('button'), 'BOTTLENECK_NO_INVENTED_FORMULA: bottleneck KPI card is NOT clickable (no canonical drilldown for it)');
+  pass(!bottleneckCard.matches('button') && bottleneckCard.classList.contains('tone-gray'), 'BOTTLENECK_NO_INVENTED_FORMULA: bottleneck KPI card is NOT clickable + neutral gray tone');
 
   // ================= DRILLDOWN_PRESERVED (KPI click) =================
-  const openCard = Array.from(kpiRow.querySelectorAll('button.phft-kpi')).find(c => c.getAttribute('data-task-overview-metric') === 'open');
-  pass(!!openCard, 'DRILLDOWN_PRESERVED: "Công việc đang mở" KPI is a clickable button (data-task-overview-metric=open)');
+  const openCard = Array.from(allKpi).find(c => c.getAttribute('data-task-overview-metric') === 'open');
+  pass(!!openCard && openCard.matches('button.phft-kpi'), 'DRILLDOWN_PRESERVED: "Công việc đang mở" KPI is a clickable button (data-task-overview-metric=open)');
   const overdueCardBtn = root.querySelector('[data-task-overview-metric="overdue"]');
-  pass(!!overdueCardBtn && overdueCardBtn.classList.contains('is-overdue-accent'), 'DRILLDOWN_PRESERVED + visual hierarchy: overdue KPI clickable AND has accent styling');
+  pass(!!overdueCardBtn && overdueCardBtn.classList.contains('tone-red'), 'DRILLDOWN_PRESERVED + visual hierarchy: overdue KPI clickable AND carries the red critical tone');
+  const rateCard = Array.from(allKpi).find(c => c.textContent.includes('Tỷ lệ đúng hạn'));
+  pass(!rateCard.matches('button'), 'KPI_INTERACTION_CONTRACT: on_time_rate has no drill-down endpoint → not clickable (no fabricated drawer)');
 
   // ================= TREND_CHART (time-context aligned, 2026-08-29) =======
   pass(html.includes('Xu hướng công việc') && !html.includes('30 ngày gần nhất'), 'TREND_CHART: panel title no longer claims a fixed "30 ngày" window (time-context aligned to period selector)');
@@ -132,36 +138,41 @@ function mockFetch(overrides, captureBox) {
   pass(root.querySelectorAll('.phft-linechart-dot title').length > 0, 'TREND_CHART: hover tooltip (<title>) present on data points');
   pass(!/NaN/.test(html), 'TREND_CHART: no NaN in chart markup');
 
-  // ================= DEPARTMENT_WORKLOAD_CHART =================
+  // ================= DEPARTMENT_WORKLOAD_CHART (Step 2 §F) =================
   pass(html.includes('Khối lượng công việc theo phòng ban'), 'DEPARTMENT_WORKLOAD_CHART: panel title present');
-  pass(root.querySelectorAll('.phft-deptbar-row').length === 2, 'DEPARTMENT_WORKLOAD_CHART: horizontal bar per department (not a table)');
+  const deptRows = root.querySelectorAll('.phft-deptbar-row');
+  pass(deptRows.length === 2, 'DEPARTMENT_WORKLOAD_CHART: horizontal bar per department (not a table)');
   pass(html.indexOf('Kinh doanh') < html.indexOf('Nhân sự'), 'DEPARTMENT_WORKLOAD_CHART: sorted by workload desc (backend-provided order preserved)');
   pass(html.includes('3 quá hạn'), 'DEPARTMENT_WORKLOAD_CHART: overdue count shown per department');
+  pass(Array.from(deptRows).every(r => r.matches('button[data-task-overview-dept]')), 'DEPARTMENT_DRILLTHROUGH: each department row is a button → opens the population filtered to that department (SEE A PROBLEM → CLICK THE PROBLEM)');
+  pass(Array.from(deptRows).every(r => r.getAttribute('title') && r.querySelector('.phft-deptbar-name').textContent.indexOf('Bộ phận') < 0), 'DEPARTMENT_DISPLAY: "Bộ phận" prefix stripped for display, full name kept in title (no master-data mutation)');
   pass(!html.includes('Xem báo cáo theo phòng ban') || root.querySelector('[data-task-overview-goto-report]') !== null, 'DEPARTMENT_WORKLOAD_CHART: "Xem báo cáo theo phòng ban" action present');
 
   // ================= CANCELLED_NOT_IN_MAIN_VISUALS =================
   pass(!html.includes('Cơ cấu trạng thái'), 'CANCELLED_NOT_IN_MAIN_VISUALS: status-breakdown block removed from Tổng quan (per LOCKED decision, demo has no such block)');
   pass(!html.includes('Đã hủy'), 'CANCELLED_NOT_IN_MAIN_VISUALS: "Đã hủy" never appears anywhere on Tổng quan');
 
-  // ================= OVERDUE_TOP5 / DUE_SOON_TOP5 =================
+  // ================= OVERDUE_TOP5 / DUE_SOON_TOP5 (Step 2 §G) =============
   pass(html.includes('Top 5 công việc quá hạn') && html.includes('Top 5 công việc sắp tới hạn'), 'OVERDUE_TOP5/DUE_SOON_TOP5: both panel titles present');
   const top5Row = root.querySelector('.phft-top5-row');
   pass(!!top5Row && top5Row.children.length === 2, 'OVERDUE_TOP5/DUE_SOON_TOP5: side-by-side layout (2 cards in 1 row)');
-  pass(root.querySelector('.phft-top5-days.is-overdue') !== null, 'OVERDUE_TOP5: "X ngày" overdue badge renders');
-  pass(root.querySelector('.phft-top5-days.is-due-soon') !== null, 'DUE_SOON_TOP5: "X ngày" due-soon badge renders');
+  pass(root.querySelector('.phft-op-when.tone-red') !== null, 'OVERDUE_TOP5: overdue day badge renders with RED semantic');
+  pass(root.querySelector('.phft-op-when.tone-orange') !== null, 'DUE_SOON_TOP5: due-soon day badge renders with ORANGE semantic');
+  const opRows = root.querySelectorAll('.phft-top5-row .phft-op-row');
+  pass(opRows.length >= 1 && Array.from(opRows).every(r => r.querySelector('.phft-op-title') && r.querySelector('.phft-op-sub b')), 'TOP5_SHARED_ROW: Top-5 uses the same structured operational row as the drill-down (Primary bold, title strongest)');
   pass(html.includes('Xem tất cả công việc quá hạn') && html.includes('Xem tất cả công việc sắp tới hạn'), 'OVERDUE_TOP5/DUE_SOON_TOP5: "Xem tất cả" canonical drilldown links present');
   const goAllOverdue = root.querySelector('[data-task-overview-metric="overdue"].phft-panel-link');
   pass(!!goAllOverdue, 'DRILLDOWN_PRESERVED: "Xem tất cả công việc quá hạn" wired to canonical drilldown (data-task-overview-metric=overdue)');
 
-  // ================= HEADER =================
+  // ================= HEADER + FILTER (Step 2 §B) =========================
   pass(html.includes('Cập nhật lần cuối'), 'HEADER: "last updated" timestamp shown');
   pass(root.querySelector('[data-task-overview-period-type]') !== null, 'HEADER: period-type selector present');
   pass(root.querySelector('[data-task-overview-nav="prev"]') !== null && root.querySelector('[data-task-overview-nav="next"]') !== null, 'HEADER: prev/next period nav present');
-  pass(root.querySelector('[data-task-overview-filter]') !== null, 'HEADER: "Bộ lọc" control present (placeholder, does not fake a filter)');
+  pass(root.querySelector('[data-task-overview-filter]') !== null, 'HEADER: "Bộ lọc" control present (real advanced filter)');
   pass(root.querySelector('.phft-page-head h1').textContent === 'Tổng quan', 'HEADER: title is "Tổng quan" (not tall/cluttered)');
 
   // ================= REPORTING_V2_ARCHITECTURE_PRESERVED =================
-  pass(root.querySelector('[data-task-overview-tab="overview"].is-active') !== null, 'REPORTING_V2_ARCHITECTURE_PRESERVED: tab bar still present, Tổng quan active');
+  pass(root.querySelector('.phft-seg [data-task-overview-tab="overview"].is-active') !== null, 'REPORTING_V2_ARCHITECTURE_PRESERVED: segmented Tổng quan/Báo cáo control present, Tổng quan active');
   pass(root.querySelector('[data-task-overview-tab="report"]') !== null, 'REPORTING_V2_ARCHITECTURE_PRESERVED: Báo cáo tab still reachable');
 
   // ================= responsive class presence (structural, not pixel) ====

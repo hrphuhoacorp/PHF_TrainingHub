@@ -503,6 +503,9 @@ function taskReportDrilldownInput(payload) {
 function taskOverviewV2Input(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'period', 'period');
+  // UI/UX Step 2 — dashboard advanced filter. task-reporting-v2.js validates
+  // + applies it as a pure post-authorization narrowing (never widens scope).
+  copyTaskPayloadField(input, payload, 'filters', 'filters');
   return input;
 }
 function taskOverviewV2DrilldownInput(payload) {

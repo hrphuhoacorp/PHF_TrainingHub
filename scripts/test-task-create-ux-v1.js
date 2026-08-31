@@ -222,11 +222,36 @@ publishChecks.then(function () {
   pass(html.indexOf('data-task-field="category_code"') >= 0, 'QUICK HTML: has Category field');
   pass(html.indexOf('data-task-dt-field="deadline"') >= 0, 'QUICK HTML: has Deadline field (24h control)');
   pass(html.indexOf('data-task-add-link') >= 0, 'QUICK HTML: supports adding Links/Tài liệu');
-  pass(html.indexOf('data-task-field="priority"') < 0, 'QUICK HTML: no Priority selector (forced canonical default)');
+  // Step 4D — Quick now exposes a priority selector that REUSES the existing
+  // taskUiState.form.priority contract (values thuong/quan_trong/khan_cap,
+  // canonical default 'thuong'). It is NOT a <select data-task-field="priority">
+  // (that stays Full-only) — it is a chip group writing the same state key.
+  pass(html.indexOf('data-task-field="priority"') < 0, 'QUICK HTML: no <select data-task-field="priority"> (Full-form control unchanged)');
+  pass(/data-task-priority="thuong"/.test(html) && /data-task-priority="quan_trong"/.test(html) && /data-task-priority="khan_cap"/.test(html), 'QUICK HTML: priority chip group offers the 3 existing canonical values');
+  {
+    const s = T.getState(); const prevPrio = s.form.priority;
+    s.form.priority = T.defaultTaskForm().priority;
+    pass(s.form.priority === 'thuong', 'QUICK PRIORITY: canonical default is the existing "thuong" value');
+    const onHtml = T.createTaskQuickFormHtml();
+    pass(/class="phft-prio-chip prio-thuong is-on"/.test(onHtml), 'QUICK PRIORITY: default renders "Thường" chip active');
+    s.form.priority = 'khan_cap';
+    pass(/class="phft-prio-chip prio-khan_cap is-on"/.test(T.createTaskQuickFormHtml()), 'QUICK PRIORITY: selecting "khan_cap" reflects in the same form.priority state');
+    pass(/function buildCreatePayload[\s\S]{0,400}priority:form\.priority/.test(code), 'QUICK PRIORITY: create payload still carries form.priority verbatim (no new field / no Quick-specific schema)');
+    pass(/data-task-priority[\s\S]{0,200}taskUiState\.form\.priority=prioVal/.test(code), 'QUICK PRIORITY: chip click writes the SAME taskUiState.form.priority (single source of truth)');
+    // Step 4D E2E — the chosen priority must survive applyModeCanonicalOverrides('quick')
+    // (submit path) and reach the create payload. Regression guard for the
+    // "quick always forces thuong" bug found at the release gate.
+    ['thuong', 'quan_trong', 'khan_cap'].forEach(function (pv) {
+      const f = Object.assign(T.defaultTaskForm(), { priority: pv });
+      pass(T.applyModeCanonicalOverrides(f, 'quick').priority === pv, 'QUICK PRIORITY E2E: submit-path override keeps priority=' + pv + ' for Quick');
+      pass(T.buildCreatePayload(T.applyModeCanonicalOverrides(Object.assign(f, { deadline: T.taskDateTimeInputValue(new Date(Date.now() + 3600000)) }), 'quick')).priority === pv, 'QUICK PRIORITY E2E: create payload priority=' + pv + ' after the full Quick submit transform');
+    });
+    s.form.priority = prevPrio;
+  }
   pass(html.indexOf('data-task-field="flow_type"') < 0, 'QUICK HTML: no flow_type/Proposal choice');
   pass(html.indexOf('data-task-search="related"') < 0 && html.indexOf('Người liên quan') < 0, 'QUICK HTML: no CC/Related section');
   pass(!/Công việc lặp/.test(html), 'QUICK HTML: no recurrence section');
-  pass(html.indexOf('Chuyển sang Tạo đầy đủ') >= 0, 'QUICK HTML: has upsell path to Full for CC/lặp/advanced');
+  pass(/data-task-create-tab="full"/.test(html) && /Chuyển sang Tạo phiếu đầy đủ/.test(html), 'QUICK HTML: has upsell path to Full for CC/lặp/advanced');
 })();
 
 /* ---------------------------------------------------------------------
@@ -279,7 +304,7 @@ publishChecks.then(function () {
   pass(T.fullToQuickBlockingReasons(withProposal, { start: false }, { recurrence: false }).length === 1, 'SWITCH: Full→Quick warns when flow_type=de_xuat');
 
   const withPriority = Object.assign(T.cloneTaskForm(baseForm), { priority: 'khan_cap' });
-  pass(T.fullToQuickBlockingReasons(withPriority, { start: false }, { recurrence: false }).length === 1, 'SWITCH: Full→Quick warns when priority != thuong');
+  pass(T.fullToQuickBlockingReasons(withPriority, { start: false }, { recurrence: false }).length === 0, 'SWITCH: Full→Quick does NOT warn on priority (Step 4D — Quick has its own priority selector, value carried over)');
 
   pass(T.fullToQuickBlockingReasons(baseForm, { start: true }, { recurrence: false }).length === 1, 'SWITCH: Full→Quick warns when Start was explicitly touched');
   pass(T.fullToQuickBlockingReasons(baseForm, { start: false }, { recurrence: true }).length === 1, 'SWITCH: Full→Quick warns when recurrence section is open');
@@ -292,7 +317,8 @@ publishChecks.then(function () {
   const staleForm = { flow_type: 'de_xuat', title: 'X', content: '', category_code: 'CAT1', priority: 'khan_cap', start_at: '2020-01-01T00:00', deadline: '2026-09-01T10:00', primary_employee_code: 'NV001', related_employee_codes: ['NV002'], links: [] };
   const overridden = T.applyModeCanonicalOverrides(staleForm, 'quick');
   pass(overridden.flow_type === 'giao_viec', 'ENGINE: quick canonical override forces flow_type=giao_viec regardless of stale field');
-  pass(overridden.priority === 'thuong', 'ENGINE: quick canonical override forces priority=thuong regardless of stale field');
+  pass(overridden.priority === 'khan_cap', 'ENGINE: quick canonical override CARRIES the chosen priority through (Step 4D — no longer force-reset to thuong)');
+  pass(T.applyModeCanonicalOverrides(Object.assign({}, staleForm, { priority: 'bogus' }), 'quick').priority === 'thuong', 'ENGINE: quick override still coerces an invalid priority value back to the canonical thuong');
   pass(overridden.related_employee_codes.length === 0, 'ENGINE: quick canonical override forces related=[]');
   pass(Math.abs(Date.now() - Date.parse(T.serializeTaskLocalDateTime(overridden.start_at))) < 65000, 'ENGINE: quick canonical override resolves start_at at call time, not the stale 2020 value');
 

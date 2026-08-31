@@ -128,6 +128,43 @@ function predicateForMetric(metricId, ctx, nowMs) {
 // CONTEXT — resolved ONCE per request (population fetch is the only network
 // call), threaded into summary/breakdown/top-lists/drilldown.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// DASHBOARD FILTERS (UI/UX Step 2, 2026-08-30) — a PURE post-authorization
+// narrowing of the already-authorized Overview population. Applied ONCE in
+// resolveOverviewContext() so EVERY consumer (KPI summary / trend / department
+// / Top-5 / drill-down) sees the SAME filtered ctx.tasks — panels can never
+// silently diverge. NEVER widens scope: bridgeFetchOverviewPopulation() (the
+// authorization boundary) is unchanged; we only drop rows from its result.
+// Supported dims map 1:1 to fields already present on every population row
+// (+ Primary's department via the org index). 'priority' is intentionally
+// absent — it is not in the Overview population (task-overview-query-executor
+// does not SELECT it); the frontend surfaces that as "chưa hỗ trợ", not a
+// silent no-op.
+// ---------------------------------------------------------------------------
+const OVERVIEW_FILTER_STATUSES = new Set(['published', 'in_progress', 'completed', 'cancelled']);
+function normalizeOverviewFilters(raw) {
+  const f = raw && typeof raw === 'object' ? raw : {};
+  const department = text(f.department);
+  const employeeCode = text(f.employee_code).toUpperCase();
+  const categoryCode = text(f.category_code).toUpperCase();
+  const status = OVERVIEW_FILTER_STATUSES.has(text(f.status)) ? text(f.status) : '';
+  const active = !!(department || employeeCode || categoryCode || status);
+  return { department, employeeCode, categoryCode, status, active };
+}
+async function applyOverviewFilters(tasks, rawFilters) {
+  const f = normalizeOverviewFilters(rawFilters);
+  if (!f.active) return { tasks, filters: f };
+  const orgIndex = f.department ? await orgIndexByCode() : null;
+  const filtered = tasks.filter((t) => {
+    if (f.status && t.status !== f.status) return false;
+    if (f.employeeCode && text(t.primary_employee_code).toUpperCase() !== f.employeeCode) return false;
+    if (f.categoryCode && text(t.category_code).toUpperCase() !== f.categoryCode) return false;
+    if (f.department && primaryDepartmentOf(t, orgIndex) !== f.department) return false;
+    return true;
+  });
+  return { tasks: filtered, filters: f };
+}
+
 async function resolveOverviewContext(session, input) {
   if (!isOverviewBridgeEnabled()) {
     fail('Tổng quan (Reporting V2) chưa được bật trên môi trường này.', 503, 'TASK_OVERVIEW_V2_DISABLED');
@@ -136,7 +173,8 @@ async function resolveOverviewContext(session, input) {
   const periodInput = params.period || {};
   const period = resolvePeriodWindow(periodInput.type, periodInput.anchor_date);
   const { tasks, effectiveScope } = await bridgeFetchOverviewPopulation(session);
-  return { tasks, effectiveScope, period };
+  const { tasks: filteredTasks, filters } = await applyOverviewFilters(tasks, params.filters);
+  return { tasks: filteredTasks, effectiveScope, period, filters };
 }
 
 let orgIndexCache = null, orgIndexCachedAt = 0;
@@ -163,6 +201,7 @@ function toOverviewRowShape(t, orgIndex) {
   const person = t.primary_employee_code ? orgIndex.get(t.primary_employee_code) : null;
   return {
     task_id: t.task_id, task_code: t.task_code, title: t.title, status: t.status, deadline: t.deadline,
+    completed_at: t.completed_at || null, // Step 2 drawer/Top-5 "Hoàn thành dd/mm" — presentation only
     // Cross-department attribution: ALWAYS the Primary's own department (org
     // lookup by primary_employee_code) — never task.source_department/
     // target_department. Those raw fields stay available as a separate

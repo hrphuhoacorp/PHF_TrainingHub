@@ -1,7 +1,6 @@
 {
-  "version": "1.65.10",
-  "fingerprint": "1.65.10-task-proposal-deadline-fix",
-  "builtAt": "2026-08-30T17:55:00+07:00",
-  "notes": "1.65.10: PHF Task — sửa lỗi PROD ô 'Hạn hoàn thành' bị xóa trắng khi bấm 'Gửi đề xuất' (control ngày-giờ 24h: closest() bắt nhầm chính <input> thay vì wrapper <div>, làm deadline/start_at không vào state). Chỉ sửa 1 selector trong bindShell oninput + test hồi quy; không đổi ngữ nghĩa ngày-giờ/validate/payload. Bump fingerprint để bust cache asset ?v=.",
-  "build": "1.65.10"
+  "version": "1.66.0",
+  "fingerprint": "1.66.0-task-ui-productization",
+  "builtAt": "2026-08-31T09:30:00+07:00",
+  "notes": "1.66.0: PHF Task — productize toàn bộ UI/UX màn Admin (Tổng quan / Báo cáo / Tạo phiếu nhanh + đầy đủ / 5 màn quan hệ Tôi nhận·Tôi giao·Nhân sự tôi quản lý·Đề xuất tôi gửi·Đề xuất tôi nhận xử lý / Lịch tháng / Timeline). Presentation-only: hệ typography + màu ngữ nghĩa + chip/badge dùng chung; Tạo nhanh có selector Mức độ ưu tiên (dùng lại đúng contract priority thuong/quan_trong/khan_cap — sửa lỗi submit-path force-reset về thuong); Lịch khoá hình học ô ngày đều nhau, nội dung không kéo giãn hàng tuần; Timeline dạng rail hoạt động. Backend duy nhất: api/_lib/task-reporting-v2.js applyOverviewFilters — thu hẹp SAU phân quyền cho bộ lọc nâng cao Tổng quan (không bao giờ mở rộng scope). KHÔNG đổi Task lifecycle / Proposal lifecycle / permission / DB / canonical datastore (vẫn Company PostgreSQL). Bump fingerprint để bust asset ?v=."
 }

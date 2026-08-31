@@ -197,7 +197,9 @@ function endOfIctDay(daysFromNow) {
     pass(state.calendar.quickTaskId === '', 'G4: quick panel closes after navigating to detail');
   }
 
-  // ---- H. Week/Day/List are clearly placeholder, not silently "working" ----
+  // ---- H. Month is the ONLY view in V1 — the unfinished Week/Day/List
+  // placeholders are hidden from the operational UI (UI/UX Step 6). No
+  // "sắp có" roadmap text on a production-style screen; state stays 'month'. ----
   {
     const window = newWindow();
     const T = window.__PHF_TASK_TEST__;
@@ -205,14 +207,12 @@ function endOfIctDay(daysFromNow) {
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
     state.view = 'calendar';
-    let toasted = '';
-    window.phfToast = function (type, title, msg) { toasted = msg; };
     root.innerHTML = T.shellFrame(T.taskCalendarHtml());
     T.bindShell(root);
-    pass(root.innerHTML.includes('data-task-cal-view="week"') && root.innerHTML.includes('sắp có'), 'H1: Week view button present and labeled as not-yet-implemented');
-    click(window, root, '[data-task-cal-view="week"]');
-    pass(!!toasted, 'H2: clicking a placeholder view surfaces a real "not implemented" notice instead of silently doing nothing or faking a view');
-    pass(state.calendar.view === 'month', 'H3: view state stays on month — placeholder click never switches into a fake/broken view');
+    pass(!/data-task-cal-view="(week|day|list)"/.test(root.innerHTML), 'H1: Week/Day/List placeholder buttons are NOT rendered in the operational Calendar');
+    pass(!/sắp có/.test(root.innerHTML), 'H2: no "sắp có" roadmap text on the Calendar screen');
+    pass(/Xem theo tháng/.test(root.innerHTML), 'H3: a static "month view" indicator is shown instead of a fake view switcher');
+    pass(state.calendar.view === 'month', 'H4: view state is month');
   }
 
   // ---- I. Backend contract (source-level, no live DB harness in this file):

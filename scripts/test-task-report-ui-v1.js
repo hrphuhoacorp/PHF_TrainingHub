@@ -363,7 +363,7 @@ async function openReportWithFixtures(window, T, root, over) {
     pass(capturedPayload.limit === 20 && capturedPayload.offset === 0, 'DRILLDOWN: first page requests limit/offset per backend contract');
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     T.bindShell(root);
-    pass(root.innerHTML.includes('Tổng: <b>45</b>'), 'DRILLDOWN: total_count is shown exactly as returned by backend');
+    pass(root.innerHTML.includes('phft-op-count">45<'), 'DRILLDOWN: total_count is shown exactly as returned by backend (Step 2 drawer header count)');
     click(window, root, '[data-task-overview-drilldown-page="next"]');
     pass(capturedPayload.offset === 20, 'DRILLDOWN: "Sau" advances offset by limit');
     root.innerHTML = T.shellFrame(T.taskReportHtml());

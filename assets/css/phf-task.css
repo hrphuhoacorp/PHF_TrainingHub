@@ -1,7 +1,33 @@
 /* PHF Task — Batch 2C Dashboard/Create/Detail. Domain riêng
    (phft-*), không phụ thuộc CSS Checklist/KNL/Classroom — chỉ tái dùng
    typography/spacing/radius/shadow theo tinh thần PHF HR design system. */
-:root{--phft-accent:#2f6fed;--phft-accent-hover:#2559c7;--phft-ink:#17232f;--phft-muted:#71808f;--phft-line:#dde3ea;--phft-bg:#f5f7fa;--phft-white:#fff;--phft-soon-bg:#fff6dc;--phft-soon-ink:#8b681f}
+:root{--phft-accent:#2f6fed;--phft-accent-hover:#2559c7;--phft-ink:#17232f;--phft-muted:#71808f;--phft-line:#dde3ea;--phft-bg:#f5f7fa;--phft-white:#fff;--phft-soon-bg:#fff6dc;--phft-soon-ink:#8b681f;
+  /* UI/UX Step 1 (2026-08-30) — Task typography scale, readability baseline
+     aligned to PHF Checklist (--phfck-fs-*), kept one notch denser so Task
+     retains its higher information density. Applied via the foundation block
+     at the end of this file; structure/components/markup unchanged. */
+  --phft-font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --phft-fs-page:27px;--phft-fs-page-mobile:23px;
+  --phft-fs-section:17px;
+  --phft-fs-card:14px;
+  --phft-fs-body:13px;
+  --phft-fs-meta:12px;
+  --phft-fs-caption:11px;--phft-fs-caption-ls:.055em;
+  --phft-fs-button:13px;
+  --phft-fs-nav:13px;--phft-fs-nav-sub:11px;
+  --phft-fs-table:12px;--phft-fs-table-head:11px;
+  --phft-fs-input:13px;
+  --phft-fs-badge:10.5px;
+  --phft-lh-body:1.55;
+  /* UI/UX Step 2 (2026-08-30) — professional semantic status palette.
+     WCAG-conscious: text/icon colours below hit >= 4.5:1 on their -bg;
+     surfaces are used only as thin accents, never full-card fills. */
+  --phft-red:#c0271f;   --phft-red-bg:#fdecec;   --phft-red-line:#f0c7c4;
+  --phft-orange:#a25c07; --phft-orange-bg:#fdf1e2; --phft-orange-line:#eed8b4;
+  --phft-green:#0f7a43;  --phft-green-bg:#e7f5ec;  --phft-green-line:#bfe2cd;
+  --phft-blue:#2559c7;   --phft-blue-bg:#eaf1fd;   --phft-blue-line:#c8daf6;
+  --phft-purple:#6a37bd; --phft-purple-bg:#f1ebfb; --phft-purple-line:#dccbf1;
+  --phft-gray:#54606d;   --phft-gray-bg:#f1f3f6;   --phft-gray-line:#dfe4ea}
 .phf-task-root{min-height:100vh;background:var(--phft-bg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--phft-ink)}
 .phf-task-root,.phf-task-root *{box-sizing:border-box}.phf-task-root button{font:inherit}
 .phf-task-root-shell{min-height:100vh;display:flex;flex-direction:column}
@@ -392,3 +418,781 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 .phft-top5-days.is-due-soon{background:#fef1e0;color:#8b5a12}
 @media(max-width:1100px){.phft-ov-chart-row{grid-template-columns:1fr}.phft-top5-row{grid-template-columns:1fr}}
 @media(max-width:520px){.phft-deptbar-row{grid-template-columns:80px 1fr}}
+
+/* =====================================================================
+   UI/UX STEP 1 — ADMIN VISUAL FOUNDATION (2026-08-30)
+   Readability baseline aligned to PHF Checklist + left-menu module
+   identity (PHF logo / KHU VỰC QUẢN TRỊ / Điều hành công việc).
+   PRESENTATION ONLY — no business/permission/markup logic changed.
+   Appended last so it wins the cascade at equal specificity; the whole
+   block + the :root tokens + the shellFrame() brand/head markup revert
+   together with zero side effects.
+   ===================================================================== */
+.phf-task-root{font-family:var(--phft-font-family);font-size:var(--phft-fs-body);line-height:var(--phft-lh-body)}
+
+/* ---- Topbar: PHF logo lockup (white mark on the blue module bar) ---- */
+.phft-brand-lockup{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1}
+.phft-brand-logo{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;text-align:center}
+.phft-logo-crop{display:block;width:170px;height:34px;overflow:hidden;margin:0 auto}
+.phft-logo-crop img{width:170px;max-height:34px;object-fit:contain;object-position:center;filter:brightness(0) invert(1);opacity:.98}
+.phft-brand-lockup strong{font-size:13px;color:#fff;letter-spacing:.06em;margin-top:5px;line-height:1.05}
+.phft-brand-lockup small{font-size:10.5px;color:rgba(255,255,255,.82);margin-top:4px;line-height:1.2}
+
+/* ---- Sidebar: module identity head (mirrors .phfck-sidebar-head) ---- */
+.phft-sidebar{padding-top:18px;display:flex;flex-direction:column;gap:14px}
+.phft-sidebar-head{padding:2px 10px 12px;border-bottom:1px solid var(--phft-line)}
+.phft-sidebar-head small{display:block;color:#8896a4;font-size:10px;font-weight:800;letter-spacing:.07em}
+.phft-sidebar-head strong{display:block;color:var(--phft-accent);font-size:16px;font-weight:800;margin-top:7px;letter-spacing:-.01em}
+.phft-sidebar .phft-nav{gap:5px}
+
+/* ---- Sidebar nav text ---- */
+.phft-nav-item b{font-size:var(--phft-fs-nav)}
+.phft-nav-item small{font-size:var(--phft-fs-nav-sub);color:#78889a;margin-top:3px}
+.phft-nav-child,.phft-nav-child b{font-size:12.5px}
+.phft-nav-chevron{font-size:12px}
+.phft-soon-badge{font-size:9.5px;padding:3px 9px}
+
+/* ---- Page head + section headings ---- */
+.phft-page-head h1{font-size:var(--phft-fs-page);line-height:1.18}
+.phft-page-head small{font-size:var(--phft-fs-caption);letter-spacing:var(--phft-fs-caption-ls)}
+.phft-page-subtitle{font-size:var(--phft-fs-body);line-height:1.5}
+.phft-panel header h3,.phft-workspace-head h3,.phft-report-person-col>header h3{font-size:var(--phft-fs-section)}
+.phft-form-card header h2,.phft-detail-card header h2{font-size:var(--phft-fs-section)}
+.phft-form-card header p,.phft-detail-card header p{font-size:var(--phft-fs-meta);line-height:1.55}
+.phft-detail-card header h2{font-size:20px}
+
+/* ---- Tabs ---- */
+.phft-tab{font-size:var(--phft-fs-card)}
+.phft-mode-microcopy,.phft-quick-upsell{font-size:var(--phft-fs-meta)}
+
+/* ---- Buttons ---- */
+.phft-btn-primary,.phft-btn-secondary{font-size:var(--phft-fs-button)}
+.phft-btn-danger,.phft-permission-open,.phft-chip-btn{font-size:var(--phft-fs-meta)}
+.phft-linklike,.phft-panel-link{font-size:inherit}
+
+/* ---- Forms / inputs / labels ---- */
+.phft-form-grid label>span,.phft-picker-label>span,.phft-datetime-field>span,
+.phft-permission-create label>span,.phft-permission-reason>span,
+.phft-lifecycle-form label,.phft-workspace-label,.phft-people-filters label{font-size:var(--phft-fs-caption);letter-spacing:.02em}
+.phft-form input,.phft-form select,.phft-form textarea,
+.phft-lifecycle-form input,.phft-lifecycle-form select,.phft-lifecycle-form textarea,
+.phft-workspace-card textarea,.phft-workspace-card input[type="text"],
+.phft-select,.phft-input,.phft-people-dept-filter,.phft-cal-filters select,
+.phft-people-filters select,.phft-people-filters input,
+.phft-permission-create select,.phft-permission-reason textarea,
+.phft-category-add-row input,.phft-category-actions input[type="text"]{font-size:var(--phft-fs-input)}
+.phft-field-error{font-size:11px}
+.phft-datetime-display{font-size:var(--phft-fs-meta)}
+.phft-submit-phase,.phft-selected-primary{font-size:var(--phft-fs-meta)}
+.phft-person-option b{font-size:var(--phft-fs-body)}
+.phft-person-option small{font-size:11px}
+.phft-person-option em{font-size:10px}
+
+/* ---- KPI / summary tiles ---- */
+.phft-kpi span,.phft-admin-summary span,.phft-cal-summary-tile span,
+.phft-kpi-secondary span{font-size:var(--phft-fs-meta)}
+.phft-report-integrity-warning,.phft-role-banner,.phft-sla-badge,.phft-workspace-hint{font-size:var(--phft-fs-meta)}
+
+/* ---- Tables + list rows ---- */
+.phft-list-table th,.phft-list-table td,
+.phft-admin-people-table th,.phft-admin-people-table td,
+.phft-report-table{font-size:var(--phft-fs-table)}
+.phft-list-table th,.phft-admin-people-table th,
+.phft-report-table thead th{font-size:var(--phft-fs-table-head);letter-spacing:.02em}
+.phft-list-table td small,.phft-admin-people-table td>small{font-size:11px}
+.phft-list-code,.phft-report-table-name b{font-size:var(--phft-fs-body)}
+.phft-report-table-name small{font-size:11px}
+.phft-report-chip strong{font-size:var(--phft-fs-body)}
+.phft-detail-grid dd{font-size:var(--phft-fs-meta)}
+.phft-detail-grid dt,.phft-cal-quick-grid dt{font-size:10px}
+.phft-person-list li,.phft-detail-links li,.phft-timeline-body p{font-size:var(--phft-fs-meta)}
+.phft-timeline-body small,.phft-timeline-time{font-size:11px}
+.phft-comment-item p,.phft-comment-form textarea{font-size:var(--phft-fs-meta);line-height:1.55}
+.phft-comment-meta b{font-size:11px}
+
+/* ---- Status / badges / chips (kept compact but legible) ---- */
+.phft-status,.phft-people-status,.phft-permission-flag,.phft-checklist-badge,
+.phft-chip,.phft-cross-dept-tag,.phft-readonly-badge,.phft-cal-tag,
+.phft-top5-days,.phft-kpi-delta{font-size:var(--phft-fs-badge)}
+.phft-self-task-tag,.phft-repeat-tag,.phft-link-tag,.phft-managed-tag,
+.phft-cancel-pending-tag,.phft-demo-chip,.phft-report-inactive-tag,
+.phft-report-breakdown-role,.phft-report-drilldown-status{font-size:9.5px}
+
+/* ---- Alerts / empty / loading ---- */
+.phft-alert{font-size:var(--phft-fs-meta)}
+.phft-empty,.phft-inline-empty,.phft-chip-empty,.phft-picker-empty,
+.phft-report-drilldown-count,.phft-report-subnote{font-size:var(--phft-fs-meta)}
+.phft-loading{font-size:var(--phft-fs-card)}
+
+@media(max-width:760px){
+  .phft-page-head h1{font-size:var(--phft-fs-page-mobile)}
+  .phft-sidebar{flex-direction:column}
+  .phft-sidebar-head{display:none}
+}
+
+/* =====================================================================
+   UI/UX STEP 2 — ADMIN "TỔNG QUAN" OPERATIONAL DASHBOARD (2026-08-30)
+   Segmented tabs · advanced filter · semantic KPI system · structured
+   drill-down drawer · department drill-through · Top-5 · slim bottleneck ·
+   trend. Presentation only. Appended last so it wins the cascade cleanly.
+   ===================================================================== */
+
+/* semantic tone helper (shared by chips/dots/when-badges) */
+.tone-red{color:var(--phft-red)}   .tone-orange{color:var(--phft-orange)}
+.tone-green{color:var(--phft-green)}.tone-blue{color:var(--phft-blue)}
+.tone-purple{color:var(--phft-purple)}.tone-gray{color:var(--phft-gray)}
+
+/* ---- A. Segmented Tổng quan / Báo cáo control ---- */
+.phft-seg{display:inline-flex;gap:4px;padding:4px;margin:2px 0 18px;background:#eef1f6;border:1px solid var(--phft-line);border-radius:12px}
+.phft-seg-btn{border:0;background:transparent;border-radius:9px;padding:8px 16px;text-align:left;cursor:pointer;color:#5a6a7b;min-width:150px;transition:background .12s,color .12s,box-shadow .12s}
+.phft-seg-btn b{display:block;font-size:var(--phft-fs-card);font-weight:750;line-height:1.15}
+.phft-seg-btn small{display:block;font-size:10.5px;color:#8593a2;margin-top:2px;font-weight:500}
+.phft-seg-btn:hover{color:#26364a}
+.phft-seg-btn.is-active{background:#fff;color:var(--phft-accent);box-shadow:0 2px 8px rgba(24,42,64,.12)}
+.phft-seg-btn.is-active small{color:#6f7f90}
+.phft-seg-btn:focus-visible{outline:2px solid var(--phft-accent);outline-offset:2px}
+
+/* ---- B. Filter button + chips + drawer ---- */
+.phft-ov-filter-btn{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 13px;border:1px solid var(--phft-line);border-radius:10px;background:#fff;color:#344454;font-size:var(--phft-fs-button);font-weight:700;cursor:pointer}
+.phft-ov-filter-btn svg{width:15px;height:15px;fill:currentColor}
+.phft-ov-filter-btn:hover{background:#f6f8fb}
+.phft-ov-filter-btn.is-active{border-color:var(--phft-accent);color:var(--phft-accent);background:var(--phft-blue-bg)}
+.phft-ov-filter-btn b{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--phft-accent);color:#fff;font-size:11px;font-weight:800}
+.phft-ov-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:-6px 0 16px}
+.phft-ov-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 6px 5px 11px;border:1px solid var(--phft-blue-line);background:var(--phft-blue-bg);color:#274c86;border-radius:999px;font-size:var(--phft-fs-meta)}
+.phft-ov-chip b{font-weight:750}
+.phft-ov-chip button{width:19px;height:19px;border:0;border-radius:50%;background:#d5e3fa;color:#274c86;cursor:pointer;font-size:10px;line-height:1}
+.phft-ov-chip button:hover{background:#c2d6f6}
+.phft-ov-chip-clear{border:0;background:transparent;color:var(--phft-muted);font-size:var(--phft-fs-meta);font-weight:700;text-decoration:underline;cursor:pointer;padding:4px}
+.phft-ov-filter-drawer{width:min(430px,100%)}
+.phft-ov-filter-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.phft-ov-filter-row>span{font-size:var(--phft-fs-caption);font-weight:750;color:#405062}
+.phft-ov-filter-row .phft-select{width:100%;min-height:40px}
+.phft-ov-filter-row.is-disabled{opacity:.62}
+.phft-ov-filter-hint{font-size:10.5px;color:var(--phft-muted);line-height:1.45}
+.phft-ov-filter-loading{font-size:var(--phft-fs-meta);color:var(--phft-muted);padding:10px 0}
+.phft-ov-filter-foot{display:flex;justify-content:space-between;gap:10px;padding:16px 20px;border-top:1px solid var(--phft-line)}
+
+/* ---- C. Semantic KPI system ---- */
+.phft-ov-kpi-groups{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.phft-kpi-row.phft-kpi-attention,.phft-kpi-row.phft-kpi-situation{grid-template-columns:repeat(3,1fr);margin:0}
+.phft-kpi-row.phft-kpi-situation{opacity:.985}
+.phft-kpi.phft-kpi-v2{position:relative;padding:13px 15px 12px 17px;gap:4px;border-left:3px solid var(--phft-gray-line);overflow:hidden}
+.phft-kpi.phft-kpi-v2::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--phft-gray)}
+.phft-kpi.phft-kpi-v2.tone-red::before{background:var(--phft-red)} .phft-kpi.phft-kpi-v2.tone-red{border-left-color:var(--phft-red)}
+.phft-kpi.phft-kpi-v2.tone-orange::before{background:var(--phft-orange)} .phft-kpi.phft-kpi-v2.tone-orange{border-left-color:var(--phft-orange)}
+.phft-kpi.phft-kpi-v2.tone-green::before{background:var(--phft-green)} .phft-kpi.phft-kpi-v2.tone-green{border-left-color:var(--phft-green)}
+.phft-kpi.phft-kpi-v2.tone-blue::before{background:var(--phft-blue)} .phft-kpi.phft-kpi-v2.tone-blue{border-left-color:var(--phft-blue)}
+.phft-kpi.phft-kpi-v2.tone-purple::before{background:var(--phft-purple)} .phft-kpi.phft-kpi-v2.tone-purple{border-left-color:var(--phft-purple)}
+.phft-kpi-v2 .phft-kpi-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;margin-bottom:5px;background:var(--phft-gray-bg);color:var(--phft-gray)}
+.phft-kpi-v2 .phft-kpi-icon svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tone-red .phft-kpi-icon{background:var(--phft-red-bg);color:var(--phft-red)}
+.tone-orange .phft-kpi-icon{background:var(--phft-orange-bg);color:var(--phft-orange)}
+.tone-green .phft-kpi-icon{background:var(--phft-green-bg);color:var(--phft-green)}
+.tone-blue .phft-kpi-icon{background:var(--phft-blue-bg);color:var(--phft-blue)}
+.tone-purple .phft-kpi-icon{background:var(--phft-purple-bg);color:var(--phft-purple)}
+.phft-kpi-v2 strong{font-size:28px;font-weight:800;letter-spacing:-.02em;color:#141f2d;line-height:1.05}
+.phft-kpi-v2.tone-red strong{color:var(--phft-red)}
+.phft-kpi-v2.tone-orange.is-hot strong{color:var(--phft-orange)}
+.phft-kpi-v2 span{font-size:var(--phft-fs-meta);color:#56636f;font-weight:600}
+.phft-kpi-v2.is-na strong{color:#9aa6b2;font-weight:700}
+.phft-kpi-v2 .phft-kpi-cue{position:absolute;right:14px;bottom:11px;font-style:normal;font-size:10.5px;font-weight:700;color:var(--phft-accent);opacity:0;transform:translateY(2px);transition:opacity .12s,transform .12s;margin:0;pointer-events:none}
+.phft-kpi-v2.is-clickable{cursor:pointer}
+.phft-kpi-v2.is-clickable:hover,.phft-kpi-v2.is-clickable:focus-visible{border-color:currentColor;box-shadow:0 8px 22px rgba(24,42,64,.12)}
+.phft-kpi-v2.is-clickable:hover .phft-kpi-cue,.phft-kpi-v2.is-clickable:focus-visible .phft-kpi-cue{opacity:1;transform:none}
+.phft-kpi-v2.is-clickable:focus-visible{outline:2px solid var(--phft-accent);outline-offset:2px}
+.phft-kpi-v2.tone-red.is-hot,.phft-kpi-v2.tone-orange.is-hot{background:linear-gradient(180deg,#fff, #fff)}
+.phft-kpi-v2.tone-red.is-hot{box-shadow:inset 0 0 0 1px var(--phft-red-line)}
+
+/* ---- slim bottleneck note ---- */
+.phft-ov-bottleneck-note{display:flex;align-items:center;gap:10px;padding:9px 13px;margin:-4px 0 18px;border:1px dashed var(--phft-gray-line);border-radius:10px;background:#fafbfc;color:var(--phft-muted);font-size:var(--phft-fs-meta)}
+.phft-ov-bottleneck-note svg{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:#9aa8b6;stroke-width:1.7}
+.phft-ov-bottleneck-note b{color:#5a6673;font-weight:750}
+
+/* ---- E. structured operational row (drawer + Top-5) ---- */
+.phft-op-list{display:flex;flex-direction:column}
+.phft-op-row{display:flex;align-items:flex-start;gap:14px;width:100%;text-align:left;border:0;background:transparent;border-top:1px solid #eef1f5;padding:12px 6px;cursor:pointer;transition:background .1s}
+.phft-op-list .phft-op-row:first-child{border-top:0}
+.phft-op-row:hover{background:#f6f9fc}
+.phft-op-row:focus-visible{outline:2px solid var(--phft-accent);outline-offset:-2px}
+.phft-op-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.phft-op-code-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.phft-op-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;font-weight:700;color:var(--phft-accent);letter-spacing:.01em}
+.phft-op-title{font-size:var(--phft-fs-body);font-weight:650;color:#182534;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.phft-op-sub{font-size:var(--phft-fs-meta);color:#6a7684}
+.phft-op-sub b{color:#2b3947;font-weight:750}
+.phft-op-sub span{color:#7c8a98}
+.phft-op-aside{flex:0 0 auto;padding-top:1px}
+.phft-op-when{display:inline-block;font-size:10.5px;font-weight:750;padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--phft-gray-bg)}
+.phft-op-when.tone-red{background:var(--phft-red-bg);color:var(--phft-red)}
+.phft-op-when.tone-orange{background:var(--phft-orange-bg);color:var(--phft-orange)}
+.phft-op-when.tone-green{background:var(--phft-green-bg);color:var(--phft-green)}
+.phft-op-when.tone-gray{background:var(--phft-gray-bg);color:var(--phft-gray)}
+.phft-chip-s{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;padding:2px 7px;border-radius:999px;background:var(--phft-gray-bg);color:var(--phft-gray)}
+.phft-chip-s.tone-blue{background:var(--phft-blue-bg);color:var(--phft-blue)}
+.phft-chip-s.tone-green{background:var(--phft-green-bg);color:var(--phft-green)}
+.phft-chip-s.tone-gray{background:var(--phft-gray-bg);color:var(--phft-gray)}
+.phft-op-list.is-compact .phft-op-row{padding:10px 4px}
+.phft-op-list.is-compact .phft-op-title{-webkit-line-clamp:1}
+
+/* drawer header + pager */
+.phft-op-drawer{width:min(470px,100%)}
+.phft-op-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--phft-line)}
+.phft-op-drawer-head h3{margin:0;font-size:var(--phft-fs-section);color:#16243a;display:flex;align-items:center;gap:9px}
+.phft-op-drawer-head small{display:block;margin-top:4px;font-size:11px;color:var(--phft-muted);line-height:1.45}
+.phft-op-count{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 7px;border-radius:999px;background:var(--phft-blue-bg);color:var(--phft-blue);font-size:12px;font-weight:800}
+.phft-op-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--phft-line)}
+.phft-op-pager span{font-size:11px;color:var(--phft-muted);font-weight:700;font-variant-numeric:tabular-nums}
+.phft-op-pager .phft-btn-secondary{min-height:34px}
+
+/* section-heading dot */
+.phft-h-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--phft-gray)}
+.phft-h-dot.tone-red{background:var(--phft-red)} .phft-h-dot.tone-orange{background:var(--phft-orange)} .phft-h-dot.tone-blue{background:var(--phft-blue)}
+.phft-panel header h3{display:flex;align-items:center;gap:9px}
+
+/* ---- F. department workload ---- */
+.phft-deptbar-list{display:flex;flex-direction:column;gap:2px}
+.phft-deptbar-row{display:grid;grid-template-columns:130px 1fr 40px 84px;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:transparent;padding:9px 6px;border-top:1px solid #eef1f5;border-radius:8px;cursor:pointer}
+.phft-deptbar-list .phft-deptbar-row:first-child{border-top:0}
+.phft-deptbar-row:hover{background:#f6f9fc}
+.phft-deptbar-row:focus-visible{outline:2px solid var(--phft-accent);outline-offset:-2px}
+.phft-deptbar-name{font-size:var(--phft-fs-meta);font-weight:700;color:#2b3947;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phft-deptbar-track{position:relative;height:10px;background:#eef1f6;border-radius:999px;overflow:hidden}
+.phft-deptbar-fill{position:absolute;left:0;top:0;bottom:0;background:var(--phft-blue);border-radius:999px;min-width:4px}
+.phft-deptbar-fill.has-overdue{background:linear-gradient(90deg,var(--phft-blue),#7a6fd0)}
+.phft-deptbar-count{font-size:var(--phft-fs-body);font-weight:800;color:#16243a;text-align:right;font-variant-numeric:tabular-nums}
+.phft-deptbar-overdue{font-size:10px;font-weight:800;text-align:right;white-space:nowrap}
+.phft-deptbar-overdue.tone-red{color:var(--phft-red)}
+.phft-deptbar-overdue.is-none{color:#c2cbd4}
+
+/* ---- G. Top-5 blocks + trend + chart row ---- */
+.phft-top5-row,.phft-ov-chart-row{align-items:start}
+.phft-top5-row .phft-panel,.phft-ov-chart-row .phft-panel{height:100%}
+.phft-linechart-band{fill:transparent}
+.phft-linechart-band:hover{fill:rgba(37,89,199,.06)}
+.phft-linechart-line.is-created{stroke:var(--phft-blue)}
+.phft-linechart-line.is-completed{stroke:var(--phft-green)}
+.phft-linechart-line.is-overdue{stroke:var(--phft-red)}
+.phft-linechart-dot.is-created{fill:var(--phft-blue)}
+.phft-linechart-dot.is-completed{fill:var(--phft-green)}
+.phft-linechart-dot.is-overdue{fill:var(--phft-red)}
+.phft-trend-swatch.is-created{background:var(--phft-blue)}
+.phft-trend-swatch.is-completed{background:var(--phft-green)}
+.phft-trend-swatch.is-overdue{background:var(--phft-red)}
+.phft-trend-legend-item{font-size:var(--phft-fs-meta);color:#44515f;font-weight:700}
+.phft-linechart-axis{font-size:10px;fill:#7a8896}
+
+/* ---- J. responsive ---- */
+@media(max-width:1240px){
+  .phft-kpi-row.phft-kpi-attention,.phft-kpi-row.phft-kpi-situation{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:980px){
+  .phft-kpi-row.phft-kpi-attention,.phft-kpi-row.phft-kpi-situation{grid-template-columns:1fr 1fr}
+  .phft-ov-chart-row,.phft-top5-row{grid-template-columns:1fr}
+  .phft-deptbar-row{grid-template-columns:110px 1fr 34px 72px;gap:9px}
+}
+@media(max-width:680px){
+  .phft-seg-btn{min-width:0;flex:1}
+  .phft-seg-btn small{display:none}
+  .phft-kpi-row.phft-kpi-attention,.phft-kpi-row.phft-kpi-situation{grid-template-columns:1fr 1fr}
+  .phft-ov-header-actions{flex-wrap:wrap}
+  .phft-op-drawer,.phft-ov-filter-drawer{width:100%}
+  .phft-op-row{gap:10px}
+  .phft-op-aside{flex-basis:100%;padding-top:2px}
+  .phft-deptbar-row{grid-template-columns:1fr auto;grid-template-areas:"name count" "track track" "over over";row-gap:5px}
+  .phft-deptbar-name{grid-area:name}.phft-deptbar-count{grid-area:count}
+  .phft-deptbar-track{grid-area:track}.phft-deptbar-overdue{grid-area:over;text-align:left}
+}
+
+/* ===================================================================
+   UI/UX STEP 3 (2026-08-30) — ADMIN "Báo cáo" visual polish.
+   Presentation only: ONE semantic colour system across all 6 sections,
+   stronger typography hierarchy, better table scanning, full-width
+   trend timeline. No reporting calculation / population / scope change.
+   Appended last so equal-specificity rules win the cascade.
+   =================================================================== */
+
+/* --- 3.1 period control — stronger selected state, still compact --- */
+.phft-report-period-btn{font-size:var(--phft-fs-caption);padding:8px 15px;letter-spacing:.01em}
+.phft-report-period-btn.is-active{color:#16243a;box-shadow:0 1px 4px rgba(24,42,64,.14);font-weight:800}
+.phft-report-period-nav .phft-cal-title{font-size:var(--phft-fs-card);font-weight:800;color:#16243a}
+
+/* --- 3.2 "Tổng hợp kỳ báo cáo" KPI — semantic accent, SIZE UNCHANGED --- */
+.phft-kpi.phft-rk{box-shadow:inset 3px 0 0 var(--phft-gray-line),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.is-overdue-accent{border-left:0}
+.phft-kpi.phft-rk strong{font-weight:800}
+.phft-kpi.phft-rk span{color:#55626f;font-weight:650}
+.phft-kpi.phft-rk.tone-blue{box-shadow:inset 3px 0 0 var(--phft-blue),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.tone-blue strong{color:var(--phft-blue)}
+.phft-kpi.phft-rk.tone-red{box-shadow:inset 3px 0 0 var(--phft-red),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.tone-red strong{color:var(--phft-red)}
+.phft-kpi.phft-rk.tone-orange{box-shadow:inset 3px 0 0 var(--phft-orange),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.tone-orange strong{color:var(--phft-orange)}
+.phft-kpi.phft-rk.tone-green{box-shadow:inset 3px 0 0 var(--phft-green),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.tone-green strong{color:var(--phft-green)}
+.phft-kpi.phft-rk.tone-purple{box-shadow:inset 3px 0 0 var(--phft-purple),0 6px 18px rgba(24,42,64,.05)}
+.phft-kpi.phft-rk.tone-purple strong{color:var(--phft-purple)}
+
+/* --- 3.3 "Cơ cấu trạng thái" — colour as SIGNAL (dot + bar), not fill --- */
+.phft-report-status tbody td{padding-top:11px;padding-bottom:11px}
+.phft-st-label{font-weight:700;color:#243444;white-space:nowrap}
+.phft-st-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px;vertical-align:middle;background:var(--phft-gray)}
+.phft-st-row.tone-blue .phft-st-dot{background:var(--phft-blue)}
+.phft-st-row.tone-red .phft-st-dot{background:var(--phft-red)}
+.phft-st-row.tone-green .phft-st-dot{background:var(--phft-green)}
+.phft-st-row.tone-red .phft-st-label{color:var(--phft-red)}
+.phft-st-num{font-variant-numeric:tabular-nums;font-weight:800;color:#16243a;font-size:var(--phft-fs-body)}
+.phft-st-pct{white-space:nowrap}
+.phft-st-pct .phft-st-bar{display:inline-block;width:92px;max-width:32vw;height:7px;border-radius:999px;background:#eef1f5;vertical-align:middle;margin-right:9px;overflow:hidden}
+.phft-st-pct .phft-st-bar i{display:block;height:100%;border-radius:999px;background:var(--phft-gray)}
+.phft-st-row.tone-blue .phft-st-bar i{background:var(--phft-blue)}
+.phft-st-row.tone-red .phft-st-bar i{background:var(--phft-red)}
+.phft-st-row.tone-green .phft-st-bar i{background:var(--phft-green)}
+.phft-st-pct b{font-variant-numeric:tabular-nums;font-weight:700;color:#44515f}
+.phft-report-status tfoot .phft-st-total td{border-top:2px solid var(--phft-line);background:#f8fafc;font-weight:800;color:#16243a}
+.phft-report-status tfoot .phft-st-total .phft-st-num{font-size:var(--phft-fs-card)}
+
+/* --- 3.4 "Top công việc quá hạn / sắp tới hạn" — row hierarchy --- */
+.phft-report-table tbody tr.phft-rrow{cursor:pointer}
+.phft-rrow-title{font-weight:650;color:#182534;font-size:var(--phft-fs-body)}
+.phft-rrow-person b{display:block;font-weight:750;color:#1c2a3a;font-size:var(--phft-fs-body)}
+.phft-rrow-person small{display:block;color:var(--phft-muted);font-size:10.5px;margin-top:1px}
+/* Step 3A — date stays neutral/readable; only the severity is a red/orange
+   chip, so the right column is no longer "RED RED RED" top-to-bottom. */
+.phft-rrow-dl .phft-dl{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;font-variant-numeric:tabular-nums;font-weight:650;color:#2b3947}
+.phft-dl i{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.01em;padding:2px 7px;border-radius:999px;background:var(--phft-gray-bg);color:var(--phft-gray);white-space:nowrap}
+.phft-dl.tone-red i{background:var(--phft-red-bg);color:var(--phft-red)}
+.phft-dl.tone-orange i{background:var(--phft-orange-bg);color:var(--phft-orange)}
+
+/* --- 3.5 shared breakdown tables (nhân sự / phòng ban / loại việc) --- */
+.phft-report-analysis td{vertical-align:middle}
+.phft-report-analysis .phft-report-table-name b{font-weight:800;color:#16243a}
+/* Step 3A — sticky header within normal page scroll (wrapper must not clip). */
+.phft-report-table-scroll--sticky{overflow:visible}
+.phft-report-analysis thead th{position:sticky;top:0;z-index:3;background:#f4f7fa;box-shadow:0 1px 0 var(--phft-line)}
+/* Step 3A — very subtle zebra + slightly stronger hover for horizontal tracking. */
+.phft-report-analysis tbody tr:nth-child(even) td{background:#fafbfc}
+.phft-report-analysis tbody tr:hover td{background:#eef4fb}
+@media(max-width:820px){.phft-report-table-scroll--sticky{overflow:auto}}
+.phft-c-open,.phft-c-overdue{font-variant-numeric:tabular-nums;font-weight:700;color:#98a2ad}
+.phft-c-open.is-on{color:var(--phft-blue)}
+.phft-c-overdue.is-on{color:var(--phft-red);font-weight:800}
+.phft-c-perf{font-variant-numeric:tabular-nums;font-weight:800}
+.phft-c-perf.tone-green{color:var(--phft-green)}
+.phft-c-perf.tone-orange{color:var(--phft-orange)}
+.phft-c-perf.tone-red{color:var(--phft-red)}
+.phft-c-perf.is-na{color:#9aa6b2;font-weight:700}
+
+/* --- 3.6 "Xu hướng công việc" — full-width timeline (dàn ngang ra) --- */
+.phft-trend-scroll{overflow-x:auto}
+.phft-trend-svg{display:block;width:100%;height:auto;min-width:520px}
+.phft-trend-bar-created{fill:var(--phft-blue)}
+.phft-trend-bar-ontime{fill:var(--phft-green)}
+.phft-trend-bar-late{fill:#cf3b26}
+.phft-trend-bar-zero{fill:#d9dee6}
+.phft-trend-hit{fill:transparent}
+.phft-trend-svg g:hover>.phft-trend-hit{fill:rgba(37,89,199,.07)}
+.phft-trend-grid{stroke:#eef1f5;stroke-width:1}
+.phft-trend-axis-line{stroke:#cfd6df;stroke-width:1}
+.phft-trend-ytick{font-size:10px;fill:#8a96a3;text-anchor:end;font-variant-numeric:tabular-nums}
+.phft-trend-axis-label{font-size:10.5px;font-weight:650;fill:#5b6b7b;text-anchor:middle}
+.phft-trend-svg g.is-zero .phft-trend-axis-label{opacity:.5;font-weight:500}
+.phft-trend-swatch.phft-trend-bar-created{background:var(--phft-blue)}
+.phft-trend-swatch.phft-trend-bar-ontime{background:var(--phft-green)}
+.phft-trend-swatch.phft-trend-bar-late{background:#cf3b26}
+
+@media(max-width:640px){
+  .phft-st-pct .phft-st-bar{width:58px}
+}
+
+/* ===================================================================
+   UI/UX STEP 4 + 4A (2026-08-30) — CREATE TASK (Quick + Full form).
+   Presentation only. Quick = two-column workspace (form + live summary)
+   with the responsibility reminder below; Full = one structured
+   document (numbered sections). No field/payload/validation change.
+   Live summary reads current form state only — no 2nd source of truth.
+   =================================================================== */
+
+/* --- 4.1 segmented Quick/Full control (same language as Overview seg) --- */
+.phft-seg--create{display:flex;width:100%;max-width:560px;gap:4px}
+.phft-seg--create .phft-seg-btn{flex:1;min-width:0;text-align:center}
+.phft-seg--create .phft-seg-btn b{line-height:1.2}
+.phft-seg--create .phft-seg-btn small{margin-top:3px}
+
+/* --- 4A.1 Quick = compact assignment workspace (left form / right preview) --- */
+.phft-quick-workspace{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start;max-width:1160px}
+.phft-quick-main{min-width:0}
+.phft-quick-side{position:sticky;top:88px;display:flex;flex-direction:column;gap:14px}
+.phft-form-quick{gap:14px}
+.phft-quick-slip .phft-form-grid{gap:13px 14px}
+.phft-quick-slip>header{margin-bottom:14px}
+.phft-quick-primary,.phft-doc-field{display:flex;flex-direction:column;gap:6px}
+.phft-field-label{color:#405062;font-size:var(--phft-fs-caption);font-weight:750}
+.phft-field-hint{color:var(--phft-muted);font-size:10.5px;margin-top:-3px;line-height:1.45}
+.phft-quick-link-add{display:flex;align-items:center;gap:10px}
+.phft-quick-link-add small{color:var(--phft-muted);font-size:10.5px}
+.phft-form-actions--slip{margin-top:2px}
+
+/* deadline: date + HH:mm + shortcuts read as ONE control cluster */
+.phft-quick-deadline-cluster{background:#f8fafc;border:1px solid var(--phft-line);border-radius:11px;padding:12px 12px 11px;display:flex;flex-direction:column;gap:8px}
+.phft-quick-deadline-cluster .phft-datetime-display{margin-top:1px}
+.phft-quick-deadline-actions{margin-top:0}
+/* 4D — shortcuts must sit BELOW the field labels in weight */
+.phft-quick-deadline-actions .phft-chip-btn{background:#fff;border:1px solid var(--phft-line);color:#4a5766;font-weight:550;padding:5px 10px;border-radius:8px}
+.phft-quick-deadline-actions .phft-chip-btn:hover{border-color:var(--phft-accent);color:var(--phft-accent)}
+.phft-quick-links>header{margin-bottom:12px}
+
+/* 4D — date/time VALUES stay normal weight (only the field LABEL is bold) */
+.phft-form-quick .phft-datetime-inputs input,.phft-form-doc .phft-datetime-inputs input{font-weight:400}
+.phft-form-quick .phft-datetime-display,.phft-form-doc .phft-datetime-display{font-weight:400}
+.phft-form-quick .phft-dt-colon,.phft-form-doc .phft-dt-colon{font-weight:600}
+
+/* 4D — field labels: keep the bold weight but make it legible (11px Segoe UI
+   Bold reads thin; the visible-hierarchy fix is size + spacing, not a higher
+   weight number — the system font caps at 700 regardless). --- */
+.phft-form-quick .phft-form-grid>label>span,.phft-form-quick .phft-datetime-field>span,
+.phft-form-quick .phft-picker-label>span,.phft-form-quick .phft-field-label,
+.phft-form-doc .phft-form-grid>label>span,.phft-form-doc .phft-datetime-field>span,
+.phft-form-doc .phft-picker-label>span,.phft-form-doc .phft-field-label{font-size:var(--phft-fs-body);letter-spacing:0}
+
+/* 4D — Quick priority chips (reuses taskUiState.form.priority — no new state) */
+.phft-prio-chips{display:flex;gap:6px;flex-wrap:wrap}
+.phft-prio-chip{appearance:none;border:1px solid var(--phft-line);background:#fff;color:#4a5766;font:inherit;font-size:var(--phft-fs-meta);font-weight:600;padding:6px 12px;border-radius:9px;cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.phft-prio-chip:hover{border-color:var(--phft-accent)}
+.phft-prio-chip.is-on{font-weight:750}
+.phft-prio-chip.prio-thuong.is-on{border-color:var(--phft-blue);background:var(--phft-blue-bg);color:var(--phft-blue)}
+.phft-prio-chip.prio-quan_trong.is-on{border-color:var(--phft-orange);background:var(--phft-orange-bg);color:var(--phft-orange)}
+.phft-prio-chip.prio-khan_cap.is-on{border-color:var(--phft-red);background:var(--phft-red-bg);color:var(--phft-red)}
+.phft-prio-chip:focus-visible{outline:2px solid var(--phft-accent);outline-offset:2px}
+.phft-qsum-prio.prio-quan_trong>b{color:var(--phft-orange)}
+.phft-qsum-prio.prio-khan_cap>b{color:var(--phft-red)}
+
+/* --- 4A.2 live summary (presentation only) --- */
+.phft-quick-summary{background:#fff;border:1px solid var(--phft-line);border-radius:14px;padding:16px 18px;box-shadow:0 6px 18px rgba(24,42,64,.04)}
+.phft-quick-summary h3{margin:0 0 12px;font-size:var(--phft-fs-card);color:#16243a;text-transform:uppercase;letter-spacing:.03em}
+.phft-qsum-row{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid #eef1f5}
+.phft-qsum-row:first-of-type{border-top:0;padding-top:0}
+.phft-qsum-row>span{font-size:10.5px;font-weight:750;color:#8593a2;text-transform:uppercase;letter-spacing:.02em}
+.phft-qsum-row>b{font-size:var(--phft-fs-body);color:#1c2a3a;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.phft-qsum-row>b.phft-qsum-empty{color:#b7c0ca;font-weight:600}
+.phft-quick-summary-note{margin:12px 0 0;padding-top:11px;border-top:1px solid #eef1f5;font-size:10.5px;color:var(--phft-muted);line-height:1.5}
+
+/* --- 4A.3 responsibility reminder (amber, spans workspace, non-blocking) --- */
+/* 5A — lives in the Quick right column, directly under the live preview */
+.phft-create-notice{display:flex;gap:12px;margin:0;padding:13px 15px;background:var(--phft-orange-bg);border:1px solid var(--phft-orange-line);border-radius:13px}
+.phft-create-notice-icon{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#fff;color:var(--phft-orange)}
+.phft-create-notice-icon svg{width:17px;height:17px}
+.phft-create-notice-body{min-width:0}
+.phft-create-notice-body b{display:block;font-size:var(--phft-fs-body);color:#7a4d13;line-height:1.4}
+.phft-create-notice-body p{margin:5px 0 0;font-size:var(--phft-fs-meta);color:#8a6634;font-weight:600}
+.phft-create-notice-body ul{margin:6px 0 0;padding-left:17px;display:flex;flex-direction:column;gap:3px}
+.phft-create-notice-body li{font-size:var(--phft-fs-meta);color:#6f5a38;line-height:1.45}
+.phft-create-notice-close{margin-top:7px;font-weight:700}
+
+/* --- 4B.1 / 4C — required-label system. EVERY form field label is bold;
+   required labels are bold + entirely red. RED = "field is required", NOT a
+   validation-error state (no red borders, no pre-validation error text,
+   validateTaskForm untouched). Scoped to the two create forms so live-summary
+   labels, section titles, helper text and placeholders are never affected. --- */
+.phft-form-quick .phft-form-grid>label>span,
+.phft-form-quick .phft-datetime-field>span,
+.phft-form-quick .phft-picker-label>span,
+.phft-form-quick .phft-field-label,
+.phft-form-doc .phft-form-grid>label>span,
+.phft-form-doc .phft-datetime-field>span,
+.phft-form-doc .phft-picker-label>span,
+.phft-form-doc .phft-field-label,
+.phft-form-doc .phft-doc-sub-head b{font-weight:800;color:#2b3a4b}
+.phft-form-quick .phft-form-grid>label.is-req>span,
+.phft-form-quick .phft-datetime-field.is-req>span,
+.phft-form-quick .phft-field-label.is-req,
+.phft-form-doc .phft-form-grid>label.is-req>span,
+.phft-form-doc .phft-datetime-field.is-req>span,
+.phft-form-doc .phft-field-label.is-req{color:var(--phft-red)}
+/* helper text stays light + normal weight (never picks up the bold rule) */
+.phft-form-quick .phft-field-hint,.phft-form-doc .phft-field-hint,
+.phft-form-doc .phft-doc-sub-head small{font-weight:600;color:var(--phft-muted)}
+
+/* --- 4C — Quick slip footer: one coherent row (mode-switch hint · CTA) --- */
+.phft-quick-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 20px;margin-top:14px;padding-top:15px;border-top:1px solid var(--phft-line)}
+.phft-quick-foot-hint{font-size:var(--phft-fs-meta);color:var(--phft-muted);line-height:1.5;max-width:60ch}
+.phft-quick-foot-hint .phft-linklike{font-size:var(--phft-fs-meta);font-weight:700;margin-top:2px;display:inline-block}
+.phft-quick-foot-act{display:flex;align-items:center;gap:12px;margin-left:auto}
+.phft-quick-foot-act .phft-btn-primary{min-height:40px;padding-inline:22px}
+@media(max-width:560px){
+  .phft-quick-foot-act{width:100%;margin-left:0}
+  .phft-quick-foot-act .phft-btn-primary{flex:1}
+}
+
+/* --- 4A.4 Full form usage guidance — compact strip near the tabs --- */
+.phft-full-guidance{max-width:1160px;margin:-6px 0 16px;padding:9px 13px;background:#f5f7fa;border:1px solid var(--phft-line);border-left:3px solid var(--phft-blue);border-radius:9px;font-size:var(--phft-fs-meta);color:#4a5768;line-height:1.55}
+.phft-full-guidance b{color:#1c3b7a;font-weight:800;margin-right:4px}
+.phft-full-guidance .phft-linklike{font-size:var(--phft-fs-meta)}
+
+/* --- 4A.5 Full form = one structured document (numbered sections) --- */
+.phft-form-doc{gap:0;max-width:1160px}
+.phft-form-doc>.phft-alert{margin-bottom:14px}
+.phft-doc-section{background:#fff;border:1px solid var(--phft-line);border-radius:0;padding:0;box-shadow:none}
+.phft-doc-section:first-of-type{border-top-left-radius:14px;border-top-right-radius:14px}
+.phft-doc-section+.phft-doc-section{border-top:0}
+.phft-doc-section:last-of-type{border-bottom-left-radius:14px;border-bottom-right-radius:14px}
+.phft-doc-section>header{display:flex;align-items:flex-start;gap:12px;padding:16px 20px 0}
+.phft-doc-num{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--phft-blue);background:var(--phft-blue-bg);border-radius:7px;padding:3px 8px;letter-spacing:.03em;margin-top:1px}
+.phft-doc-section>header h2{margin:0;font-size:var(--phft-fs-section);color:#12261c;font-weight:800;letter-spacing:.01em}
+.phft-doc-section>header p{margin:3px 0 0;font-size:var(--phft-fs-meta);color:var(--phft-muted);line-height:1.5}
+.phft-doc-body{padding:13px 20px 18px;display:flex;flex-direction:column;gap:14px}
+.phft-doc-body>.phft-form-grid{margin-top:2px}
+.phft-doc-section--opt{background:#fcfdfe}
+.phft-doc-sub{border:1px solid var(--phft-line);border-radius:11px;padding:12px 13px;background:#fafbfc}
+.phft-doc-sub-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.phft-doc-sub-head b{font-size:var(--phft-fs-body);color:#243444;font-weight:750}
+.phft-doc-sub-head small{display:block;margin-top:2px;font-size:10.5px;color:var(--phft-muted);line-height:1.45}
+.phft-doc-sub .phft-picker-filterbar,.phft-doc-sub .phft-picker-results,.phft-doc-sub .phft-chip-row,.phft-doc-sub .phft-link-list{margin-top:11px}
+/* recurrence returns its own .phft-form-card — flatten it inside the doc */
+.phft-doc-sub>.phft-form-card{border:0;box-shadow:none;padding:0;background:transparent}
+.phft-doc-sub>.phft-form-card>header{margin-bottom:10px}
+.phft-form-doc>.phft-form-actions{border:1px solid var(--phft-line);border-top:0;border-radius:0 0 14px 14px;padding:14px 20px;margin-top:0;background:#fff}
+
+@media(max-width:1120px){
+  .phft-quick-workspace{grid-template-columns:1fr;max-width:720px}
+  .phft-quick-side{position:static}
+}
+@media(max-width:900px){
+  .phft-seg--create,.phft-create-notice,.phft-full-guidance,.phft-form-doc{max-width:none}
+}
+
+/* ===================================================================
+   UI/UX STEP 5 (2026-08-30) — WORKSPACE CONSOLIDATION.
+   ONE visual system for the 5 relation lists. Shared taskListHtml /
+   taskListTableHtml / taskListRowHtml — presentation only, no data /
+   scope / lifecycle change.
+   =================================================================== */
+.phft-list-page{max-width:1320px}
+
+/* ---- 5B · KPI: semantic left bar + faint tint + strong number ---- */
+.phft-list-page .phft-kpi-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.phft-list-page .phft-kpi-row.is-managed{grid-template-columns:repeat(3,minmax(0,1fr))}
+.phft-list-page .phft-kpi.phft-rk{padding:14px 15px 13px 17px;border-left:4px solid var(--phft-gray-line);box-shadow:0 4px 14px rgba(24,42,64,.05)}
+.phft-list-page .phft-kpi.phft-rk strong{font-size:26px;font-weight:800;letter-spacing:-.02em;color:#141f2d}
+.phft-list-page .phft-kpi.phft-rk span{font-size:11.5px;font-weight:700;color:#5a6875}
+.phft-list-page .phft-kpi.phft-rk[class]{box-shadow:0 4px 14px rgba(24,42,64,.05)}
+.phft-list-page .phft-kpi.phft-rk.tone-blue{border-left-color:var(--phft-blue);background:#f4f8fe}   .phft-list-page .phft-kpi.phft-rk.tone-blue strong{color:var(--phft-blue)}
+.phft-list-page .phft-kpi.phft-rk.tone-red{border-left-color:var(--phft-red);background:#fef6f5}      .phft-list-page .phft-kpi.phft-rk.tone-red strong{color:var(--phft-red)}
+.phft-list-page .phft-kpi.phft-rk.tone-orange{border-left-color:var(--phft-orange);background:#fef9f2} .phft-list-page .phft-kpi.phft-rk.tone-orange strong{color:var(--phft-orange)}
+.phft-list-page .phft-kpi.phft-rk.tone-green{border-left-color:var(--phft-green);background:#f3faf5}   .phft-list-page .phft-kpi.phft-rk.tone-green strong{color:var(--phft-green)}
+
+/* ---- 5B · toolbar reads as the table's top edge ---- */
+.phft-list-page .phft-panel{padding:0;overflow:hidden}
+.phft-list-toolbar{margin:0;padding:14px 16px;gap:12px;border-bottom:1px solid var(--phft-line);background:#fbfcfe}
+.phft-list-toolbar-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.phft-list-toolbar-right .phft-input{flex:0 1 300px}
+.phft-list-page .phft-table-scroll{border:0;border-radius:0}
+
+/* ---- 5B · shared semantic badges (status + priority) ---- */
+.phft-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:8px;font-size:11px;font-weight:800;line-height:1;white-space:nowrap;border:1px solid transparent;background:#eef1f4;color:#55606d}
+.phft-badge.tone-blue{background:var(--phft-blue-bg);color:var(--phft-blue);border-color:var(--phft-blue-line)}
+.phft-badge.tone-red{background:var(--phft-red-bg);color:var(--phft-red);border-color:var(--phft-red-line)}
+.phft-badge.tone-orange{background:var(--phft-orange-bg);color:var(--phft-orange);border-color:var(--phft-orange-line)}
+.phft-badge.tone-green{background:var(--phft-green-bg);color:var(--phft-green);border-color:var(--phft-green-line)}
+.phft-badge.tone-gray{background:#eef1f4;color:#55606d;border-color:#dde2e8}
+.phft-prio-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:8px;font-size:10.5px;font-weight:800;white-space:nowrap;border:1px solid transparent}
+.phft-prio-badge .phft-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:currentColor}
+.phft-prio-badge.tone-gray{color:#7d8896;background:transparent;border-color:#dde2e8}
+.phft-prio-badge.tone-orange{color:var(--phft-orange);background:var(--phft-orange-bg);border-color:var(--phft-orange-line)}
+.phft-prio-badge.tone-red{color:#fff;background:var(--phft-red);border-color:var(--phft-red)}
+
+/* ---- 5B · category chip = real identifier (unified teal, no severity) ---- */
+.phft-cat-chip{display:inline-block;max-width:100%;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:750;line-height:1.25;color:#0f5c63;background:#e2f4f3;border:1px solid #bfe4e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+
+/* ---- 5B · table: bigger type, clear header, zebra, deliberate widths ---- */
+.phft-list-table{min-width:1040px;font-size:12px}
+.phft-list-table colgroup .c-code{width:88px}
+.phft-list-table colgroup .c-title{width:auto}
+.phft-list-table colgroup .c-person{width:168px}
+.phft-list-table colgroup .c-person2{width:150px}
+.phft-list-table colgroup .c-cat{width:158px}
+.phft-list-table colgroup .c-dl{width:132px}
+.phft-list-table colgroup .c-prio{width:120px}
+.phft-list-table colgroup .c-status{width:126px}
+.phft-list-table colgroup .c-prog{width:104px}
+.phft-list-table thead th{position:sticky;top:0;z-index:2;background:#dfe6ee;color:#2f3c4a;font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:none;padding:12px 12px;border-bottom:2px solid #ccd5df;white-space:nowrap}
+.phft-list-table tbody td{padding:14px 12px;border-bottom:1px solid #edf0f4;color:#3b4653;vertical-align:middle}
+.phft-list-table tbody tr:nth-child(even) td{background:#f8fafc}
+.phft-list-table tbody tr:last-child td{border-bottom:0}
+.phft-list-table tbody tr[data-task-list-row]{cursor:pointer;transition:background .1s}
+.phft-list-table tbody tr[data-task-list-row]:hover td{background:#eaf1fb}
+.phft-list-table td small{font-size:10px}
+
+.phft-list-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10.5px;font-weight:700;color:var(--phft-blue);white-space:nowrap;line-height:1.5}
+.phft-list-code .phft-self-task-tag{display:inline-block;margin-left:5px}
+.phft-list-title-main{display:block;font-size:14px;font-weight:700;color:#14212f;line-height:1.35;letter-spacing:-.005em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.phft-list-title-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.phft-list-title-tags:empty{display:none}
+.phft-list-person b{display:block;font-size:12.5px;font-weight:800;color:#17222f;line-height:1.3}
+.phft-list-person small{display:block;margin-top:3px;color:#8592a0;font-size:10px}
+.phft-list-person.is-secondary b{font-size:12px;font-weight:600;color:#5f6b78}
+.phft-managed-recipient-note{display:block;margin-top:3px;color:#19714b;font-size:10px}
+.phft-list-deadline .phft-dl-cell{font-variant-numeric:tabular-nums;font-size:12px;color:#3b4653}
+.phft-list-deadline .phft-dl-cell.tone-red{color:var(--phft-red);font-weight:800}
+.phft-list-status{white-space:nowrap}
+.phft-list-prog-cell .phft-prog{display:flex;align-items:center;gap:8px}
+.phft-prog-track{flex:1;min-width:34px;height:6px;border-radius:999px;background:#e7ebf0;overflow:hidden}
+.phft-prog-track i{display:block;height:100%;border-radius:999px;background:var(--phft-blue)}
+.phft-list-prog-cell b{font-size:11px;font-weight:800;color:#5f6b78;font-variant-numeric:tabular-nums}
+.phft-cellmuted{color:#aab3bd}
+.phft-list-statecell{text-align:center;color:var(--phft-muted);font-size:var(--phft-fs-body)}
+.phft-list-table td.phft-list-statecell{padding:44px 12px}
+/* compact cross-dept chip — recognisable but secondary; full route in title */
+.phft-cross-dept-tag{cursor:help;font-size:9px}
+
+/* ---- 5B · footer as a real table footer ---- */
+.phft-list-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0;padding:13px 16px;border-top:1px solid var(--phft-line);background:#fbfcfe}
+.phft-list-foot-count{font-size:var(--phft-fs-meta);color:#4a5766;font-weight:700}
+.phft-list-foot-count b{font-weight:800;color:#16243a;font-variant-numeric:tabular-nums}
+.phft-list-foot .phft-btn-secondary{min-height:34px}
+
+@media(max-width:1024px){
+  .phft-list-page .phft-kpi-row,.phft-list-page .phft-kpi-row.is-managed{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phft-list-toolbar-right{width:100%;margin-left:0}
+  .phft-list-toolbar-right .phft-input{flex:1 1 auto}
+}
+
+/* ===================================================================
+   UI/UX STEP 6 (2026-08-30) — CALENDAR MONTH VIEW POLISH.
+   Month is the only view. HARD LOCK: every day cell is the same fixed
+   size — task content never stretches a row. Shared renderer, no
+   role-specific calendar CSS. Presentation only.
+   =================================================================== */
+
+/* 6.1 view control → static month indicator (no week/day/list placeholders) */
+.phft-cal-view-switch{border:0;background:transparent;padding:0}
+.phft-cal-view-current{display:inline-block;font-size:var(--phft-fs-meta);font-weight:750;color:#4a5766;background:#eef2f7;border:1px solid var(--phft-line);border-radius:9px;padding:7px 13px}
+
+/* 6.2 month nav hierarchy */
+.phft-cal-title{font-size:var(--phft-fs-section);font-weight:800;color:#16243a;margin-left:6px}
+
+/* 6.3 KPI strip — semantic, supports the calendar (does not dominate it) */
+.phft-cal-summary{gap:10px;margin-bottom:14px}
+.phft-cal-summary-tile{padding:11px 13px 10px 15px;border-left:4px solid var(--phft-gray-line);gap:3px;box-shadow:0 4px 12px rgba(24,42,64,.04)}
+.phft-cal-summary-tile strong{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.phft-cal-summary-tile span{font-size:10.5px;font-weight:700;color:#5b6875}
+.phft-cal-summary-tile.tone-red{border-left-color:var(--phft-red);background:#fef6f5}   .phft-cal-summary-tile.tone-red strong{color:var(--phft-red)}
+.phft-cal-summary-tile.tone-blue{border-left-color:var(--phft-blue);background:#f4f8fe}  .phft-cal-summary-tile.tone-blue strong{color:var(--phft-blue)}
+.phft-cal-summary-tile.tone-orange{border-left-color:var(--phft-orange);background:#fef9f2} .phft-cal-summary-tile.tone-orange strong{color:var(--phft-orange)}
+.phft-cal-summary-tile.tone-gray{border-left-color:#c8d0da}                              .phft-cal-summary-tile.tone-gray strong{color:#485663}
+.phft-cal-summary-tile.is-selected{box-shadow:0 0 0 2px rgba(37,89,199,.22)}
+
+/* 6.4 weekday header — one clear 7-col row, aligned to the grid below */
+.phft-cal-weekdays{grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.phft-cal-weekdays span{padding:9px 4px;border-radius:8px 8px 0 0;background:#e7ebf2;color:#37434f;font-size:10.5px;font-weight:800;letter-spacing:.03em;border-bottom:2px solid #d1d9e3}
+.phft-cal-weekdays span:nth-child(6){background:#e6eefb;color:var(--phft-blue);border-bottom-color:#c4d6f4}
+.phft-cal-weekdays span:nth-child(7){background:#fceded;color:#b93b3b;border-bottom-color:#efcccc}
+
+/* 6.5 month grid — FIXED equal cells (grid-auto-rows), clip overflow */
+.phft-cal-grid{grid-template-columns:repeat(7,1fr);gap:6px;grid-auto-rows:128px}
+.phft-cal-day{height:128px;min-height:0;padding:7px 7px 6px;gap:4px;border:1px solid var(--phft-line);border-radius:10px;overflow:hidden}
+.phft-cal-day header{align-items:center}
+.phft-cal-day header b{font-size:12px;font-weight:800;color:#1c2a3a}
+.phft-cal-hd-meta{display:inline-flex;align-items:center;gap:5px}
+.phft-cal-day header small{font-size:8px;font-weight:800;color:var(--phft-blue);letter-spacing:.03em}
+.phft-cal-count{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#e6ecf4;color:#4a5766;font-size:9px;font-weight:800}
+/* weekend cells — extremely light orientation tint only */
+.phft-cal-grid>.phft-cal-day:nth-child(7n+6){background:#f7f9fd}
+.phft-cal-grid>.phft-cal-day:nth-child(7n){background:#fbf7f7}
+/* priority order: today > task-presence > outside-month > weekend */
+.phft-cal-grid>.phft-cal-day.has-tasks{border-color:#c6d0dc;background:#fdfdff}
+.phft-cal-grid>.phft-cal-day.is-outside,
+.phft-cal-grid>.phft-cal-day.is-outside:nth-child(7n+6),
+.phft-cal-grid>.phft-cal-day.is-outside:nth-child(7n){background:#f4f6f9}
+.phft-cal-day.is-outside header b{color:#b0bac4}
+.phft-cal-grid>.phft-cal-day.is-today,
+.phft-cal-grid>.phft-cal-day.is-today.has-tasks{border-color:var(--phft-blue);box-shadow:inset 0 0 0 1px var(--phft-blue);background:#f4f9ff}
+
+/* 6.6 events area — scrolls INSIDE the fixed cell, never grows it */
+.phft-cal-events{flex:1 1 auto;min-height:0;gap:3px;overflow-y:auto;overflow-x:hidden}
+.phft-cal-events::-webkit-scrollbar{width:4px}
+.phft-cal-events::-webkit-scrollbar-thumb{background:#ccd6e0;border-radius:4px}
+
+/* 6.7 task chip — compact single line, left accent = status signal */
+.phft-cal-event{padding:2px 6px;font-size:9px;line-height:1.4;border-radius:5px;border-left:3px solid transparent;gap:4px;flex:0 0 auto}
+.phft-cal-event span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.phft-cal-event.is-overdue{border-left-color:var(--phft-red)}
+.phft-cal-event.is-due_today{border-left-color:var(--phft-blue)}
+.phft-cal-event.is-due_soon{border-left-color:var(--phft-orange)}
+.phft-cal-event.is-active{border-left-color:var(--phft-blue)}
+.phft-cal-event.is-completed{border-left-color:var(--phft-green)}
+.phft-cal-event.is-cancelled,.phft-cal-event.is-not_started{border-left-color:#c4ccd4}
+.phft-cal-more{flex:0 0 auto;padding:2px 6px;font-size:8.5px;font-weight:800;color:var(--phft-accent);background:#eef4ff;border:1px solid #d5e2fb;border-style:solid}
+
+@media(max-width:1180px){
+  .phft-cal-grid{grid-auto-rows:118px}
+  .phft-cal-day{height:118px}
+}
+@media(max-width:820px){
+  .phft-cal-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phft-cal-body{overflow-x:auto}
+  .phft-cal-weekdays,.phft-cal-grid{min-width:660px}
+}
+
+/* ===================================================================
+   UI/UX STEP 7 (2026-08-30) — TIMELINE operational activity polish.
+   Read-only history over the same task_events data (listTaskEvents).
+   Presentation only: rail, WHO→DID WHAT→WHICH TASK→WHAT CHANGED→WHEN.
+   =================================================================== */
+.phft-timeline-page{max-width:1240px}
+.phft-timeline-page .phft-panel{padding:0;overflow:visible}
+.phft-timeline-wrap{padding:6px 18px 20px}
+
+/* 7A · filter toolbar — one horizontal operational strip (Step 5B language) */
+.phft-tl-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;margin:0;padding:14px 18px;background:#fbfcfe;border-bottom:1px solid var(--phft-line)}
+.phft-tl-filter{display:flex;flex-direction:column;gap:4px}
+.phft-tl-filter>span{font-size:9.5px;font-weight:800;letter-spacing:.04em;color:#5b6875;text-transform:uppercase}
+.phft-tl-filter .phft-select{min-width:180px}
+
+/* 7A · day group header — strong, breathing room, quiet count */
+.phft-tl-day+.phft-tl-day{margin-top:8px}
+.phft-timeline-day-label{position:sticky;top:0;z-index:2;display:flex;align-items:baseline;gap:9px;margin:26px 0 6px;padding:8px 2px 7px;background:#fff;border-bottom:2px solid #e2e7ee}
+.phft-timeline-day-label>span:first-child{font-size:13px;font-weight:800;letter-spacing:.01em;color:#182634}
+.phft-tl-day:first-child .phft-timeline-day-label{margin-top:2px}
+/* 7B — event count: a quiet second-tier detail beside the date, not a peer
+   heading. Slightly more readable than 7A; no badge / pill / background. */
+.phft-tl-day-count{font-size:11px;font-weight:650;color:#7c8996;letter-spacing:.005em}
+
+/* 7A · timeline rows — flat, aligned 3-column grid, low density */
+.phft-timeline-list{list-style:none;margin:0;padding:0}
+.phft-tl-item{display:grid;grid-template-columns:52px 18px minmax(0,1fr);column-gap:12px;padding:6px 8px 6px 4px;border-radius:8px;cursor:pointer;align-items:start;transition:background .1s}
+.phft-tl-item+.phft-tl-item{border-top:1px solid #f0f2f6}
+.phft-tl-item:hover{background:#f6f9fc}
+.phft-tl-item:focus-visible{outline:2px solid var(--phft-accent);outline-offset:-2px}
+.phft-tl-time{font-size:10.5px;font-weight:700;color:#8a96a3;font-variant-numeric:tabular-nums;padding-top:2px;text-align:right;white-space:nowrap}
+.phft-tl-rail{position:relative;justify-self:center;width:18px;align-self:stretch}
+.phft-tl-rail::before{content:"";position:absolute;left:50%;top:3px;bottom:-13px;width:2px;background:#e5e9ef;transform:translateX(-50%)}
+.phft-timeline-list li:last-child .phft-tl-rail::before{display:none}
+.phft-tl-dot{position:absolute;left:50%;top:5px;width:8px;height:8px;border-radius:50%;transform:translateX(-50%);background:#c4ccd4;box-shadow:0 0 0 3px #fff}
+.phft-tl-item.tone-blue .phft-tl-dot{background:var(--phft-blue)}
+.phft-tl-item.tone-orange .phft-tl-dot{background:var(--phft-orange)}
+.phft-tl-item.tone-purple .phft-tl-dot{background:var(--phft-purple)}
+.phft-tl-item.tone-green .phft-tl-dot{background:var(--phft-green)}
+.phft-tl-item.tone-red .phft-tl-dot{background:var(--phft-red)}
+.phft-tl-item.tone-gray .phft-tl-dot{background:#9aa6b2}
+
+/* 7A · event content — line 1: actor + action · line 2: code + title (+ diff) */
+.phft-tl-main{min-width:0;display:flex;flex-direction:column;gap:2px;padding-bottom:1px}
+.phft-tl-act{font-size:var(--phft-fs-meta);color:#46525f;line-height:1.4}
+.phft-tl-actor{font-weight:800;color:#17222f}
+.phft-tl-verb{font-weight:500}
+.phft-tl-task{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 9px;min-width:0}
+.phft-tl-code{flex:0 0 auto;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;font-weight:800;color:var(--phft-blue)}
+.phft-tl-title{flex:1 1 auto;min-width:0;font-size:var(--phft-fs-meta);font-weight:700;color:#2f3b48;line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.phft-tl-metaline{flex:0 0 auto}
+.phft-tl-diff{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#5b6875;background:#f1f4f8;border-radius:6px;padding:1px 7px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.phft-tl-diff i{font-style:normal;color:#a4aeba;font-weight:800}
+.phft-tl-reason{font-size:10px;color:#8592a0;line-height:1.4}
+
+@media(max-width:1100px){ .phft-timeline-page{max-width:none} }
+@media(max-width:640px){
+  .phft-tl-item{grid-template-columns:42px 14px minmax(0,1fr);column-gap:9px}
+  .phft-tl-filter{flex:1 1 150px}
+  .phft-tl-filter .phft-select{min-width:0;width:100%}
+  .phft-tl-metaline{flex-basis:100%}
+}

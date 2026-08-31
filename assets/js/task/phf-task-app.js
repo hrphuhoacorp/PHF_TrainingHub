@@ -154,7 +154,11 @@ function applyModeCanonicalOverrides(form,mode){
   var next=cloneTaskForm(form);
   if(mode==='quick'){
     next.flow_type='giao_viec';
-    next.priority='thuong';
+    // UI/UX Step 4D — Quick now has a real "Mức độ ưu tiên" chip selector
+    // (data-task-priority), so priority is NO LONGER force-reset here; it is
+    // carried through exactly like the Full form. Still validated against the
+    // 3 canonical values by validateTaskForm(). Default stays 'thuong'.
+    if(['thuong','quan_trong','khan_cap'].indexOf(next.priority)<0)next.priority='thuong';
     next.start_at=taskDateTimeInputValue(new Date());
     next.related_employee_codes=[];
   }
@@ -167,7 +171,8 @@ function fullToQuickBlockingReasons(form,touched,expandedSections){
   var reasons=[];
   if((form.related_employee_codes||[]).length)reasons.push('Người liên quan (CC) đã chọn ('+form.related_employee_codes.length+' người)');
   if(form.flow_type==='de_xuat')reasons.push('Loại phiếu đang là Đề xuất');
-  if(form.priority&&form.priority!=='thuong')reasons.push('Ưu tiên khác Thường');
+  // UI/UX Step 4D — Quick has its own priority selector now; priority is
+  // carried across the Full→Quick switch, no longer a "will be lost" item.
   if(touched&&touched.start)reasons.push('Đã tùy chỉnh thời gian Bắt đầu');
   if(expandedSections&&expandedSections.recurrence)reasons.push('Đang mở thiết lập Công việc lặp');
   return reasons;
@@ -616,17 +621,34 @@ function navItemHtml(item,activeNav){
     (item.enabled?'':'<em class="phft-soon-badge">Sắp triển khai</em>') +
   '</button>';
 }
+// UI/UX Step 1 (2026-08-30) — left-menu module identity, mirroring PHF
+// Checklist's .phfck-sidebar-head (eyebrow "khu vực" + module heading).
+// Wording is cosmetic only; nav items / permissions / routing unchanged.
+function taskSidebarAreaEyebrow(){
+  return isTaskAdminUi() ? 'KHU VỰC QUẢN TRỊ' : 'KHU VỰC LÀM VIỆC';
+}
+function taskSidebarHeadHtml(){
+  return '<div class="phft-sidebar-head"><small>'+esc(taskSidebarAreaEyebrow())+'</small><strong>Điều hành công việc</strong></div>';
+}
+function taskBrandLockupHtml(){
+  // Canonical PHF mark reused from Checklist (assets/logo/phf-logo-white-
+  // transparent.png) — white on the blue module bar. No new asset.
+  return '<div class="phft-brand-lockup">' +
+    '<span class="phft-brand-logo"><span class="phft-logo-crop"><img src="assets/logo/phf-logo-white-transparent.png" alt="Phuhoa Fresh"></span></span>' +
+    '<strong>PHF TASK</strong><small>Điều hành công việc</small>' +
+  '</div>';
+}
 function shellFrame(bodyHtml){
   var activeNav=taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='settings'?'settings':(taskUiState.view==='calendar'?'lich':(taskUiState.view==='timeline'?'timeline':(taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||'toi-nhan'):'tong-quan-bao-cao'))));
   var navHtml = NAV_ITEMS.filter(function(item){return (!item.adminOnly||isTaskAdminUi())&&(!item.managePermissionsOnly||taskManagePermissionsAvailable());}).map(function(item){return navItemHtml(item,activeNav);}).join('');
   return '' +
     '<header class="phft-topbar">' +
       '<div class="phft-top-left"><button type="button" class="phft-back" data-task-back><span aria-hidden="true">←</span><span>PHF HR / Home</span></button></div>' +
-      '<div class="phft-brand-lockup"><strong>PHF TASK</strong><small>Quản lý công việc &amp; Theo dõi tiến độ</small></div>' +
+      taskBrandLockupHtml() +
       '<div class="phft-top-actions"><span class="phft-user-avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="phft-user-copy"><b>'+esc(currentUserName())+'</b><small>'+esc(currentUserTitle())+'</small></span></div>' +
     '</header>' +
     '<div class="phft-layout">' +
-      '<aside class="phft-sidebar"><nav class="phft-nav">'+navHtml+'</nav></aside>' +
+      '<aside class="phft-sidebar">'+taskSidebarHeadHtml()+'<nav class="phft-nav">'+navHtml+'</nav></aside>' +
       '<main class="phft-main">'+bodyHtml+'</main>' +
     '</div>';
 }
@@ -642,10 +664,16 @@ function emptyBlockHtml(title, message){
    (taskHomePath()/taskReportPath()), không phải state cục bộ, để F5/deep-
    link giữ đúng tab đang xem.
 --------------------------------------------------------------------- */
+// UI/UX Step 2 (2026-08-30) — segmented tab control (stronger than the old
+// text+underline). Route/behaviour unchanged (data-task-overview-tab).
 function taskOverviewReportTabBarHtml(activeTab){
-  return '<div class="phft-tabbar" role="tablist">' +
-    '<button type="button" class="phft-tab'+(activeTab==='overview'?' is-active':'')+'" data-task-overview-tab="overview">Tổng quan</button>' +
-    '<button type="button" class="phft-tab'+(activeTab==='report'?' is-active':'')+'" data-task-overview-tab="report">Báo cáo</button>' +
+  function seg(id,label,hint){
+    return '<button type="button" role="tab" aria-selected="'+(activeTab===id?'true':'false')+'" class="phft-seg-btn'+(activeTab===id?' is-active':'')+'" data-task-overview-tab="'+id+'">'+
+      '<b>'+esc(label)+'</b><small>'+esc(hint)+'</small></button>';
+  }
+  return '<div class="phft-seg" role="tablist" aria-label="Tổng quan hoặc Báo cáo">'+
+    seg('overview','Tổng quan','Tình hình · Cảnh báo · Xử lý')+
+    seg('report','Báo cáo','Phân tích sâu · Breakdown')+
   '</div>';
 }
 
@@ -661,20 +689,44 @@ function taskOverviewV2KpiCardHtml(id,label,value,suffix,clickable,extraClass){
   return '<'+tag+' class="phft-kpi'+(isClickable?' is-clickable':'')+accent+(extraClass?' '+extraClass:'')+'"'+openAttr+'><strong>'+taskOverviewV2KpiValueHtml(value,suffix)+'</strong><span>'+esc(label)+'</span></'+tag+'>';
 }
 var TASK_OVERVIEW_V2_STATUS_LABELS={not_started:'Chưa bắt đầu',in_progress:'Đang thực hiện',overdue:'Quá hạn',completed:'Hoàn thành',cancelled:'Đã hủy'};
+// UI/UX Step 3 — semantic status tone (dot + bar as SIGNAL, not row fill).
+// Values/percentages unchanged; "Tổng cộng" is the plain sum of the 5
+// existing buckets (no new calculation).
+var TASK_OVERVIEW_V2_STATUS_TONE={not_started:'gray',in_progress:'blue',overdue:'red',completed:'green',cancelled:'gray'};
 function taskOverviewV2StatusBreakdownHtml(sb){
   if(!sb)return '';
   var total=sb.not_started+sb.in_progress+sb.overdue+sb.completed+sb.cancelled;
   var rows=Object.keys(TASK_OVERVIEW_V2_STATUS_LABELS).map(function(key){
     var value=sb[key]||0, pct=total?Math.round(value/total*1000)/10:0;
-    return '<tr><td>'+esc(TASK_OVERVIEW_V2_STATUS_LABELS[key])+'</td><td>'+esc(value)+'</td><td>'+esc(pct)+'%</td></tr>';
+    return '<tr class="phft-st-row tone-'+TASK_OVERVIEW_V2_STATUS_TONE[key]+'">'+
+      '<td class="phft-st-label"><span class="phft-st-dot"></span>'+esc(TASK_OVERVIEW_V2_STATUS_LABELS[key])+'</td>'+
+      '<td class="phft-st-num">'+esc(value)+'</td>'+
+      '<td class="phft-st-pct"><span class="phft-st-bar"><i style="width:'+pct+'%"></i></span><b>'+esc(pct)+'%</b></td></tr>';
   }).join('');
+  var foot='<tr class="phft-st-total"><td class="phft-st-label">Tổng cộng</td><td class="phft-st-num">'+esc(total)+'</td><td class="phft-st-pct"><b>'+(total?'100%':'0%')+'</b></td></tr>';
   return '<section class="phft-panel"><header><h3>Cơ cấu trạng thái</h3></header>' +
-    '<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Trạng thái</th><th>Số lượng</th><th>Tỷ lệ</th></tr></thead><tbody>'+rows+'</tbody></table></div>' +
+    '<div class="phft-report-table-scroll"><table class="phft-report-table phft-report-status"><thead><tr><th>Trạng thái</th><th>Số lượng</th><th>Tỷ lệ</th></tr></thead><tbody>'+rows+'</tbody><tfoot>'+foot+'</tfoot></table></div>' +
   '</section>';
 }
+// BÁO CÁO tab "Tổng hợp kỳ" still uses this compact table list (Step 2 does
+// not touch Báo cáo). Tổng quan Top-5 + drill-down use taskOpRowHtml below.
+function taskReportDeadlineCellHtml(row){
+  var raw=row.deadline?new Date(row.deadline):null;
+  var txt=esc(formatTaskDateTime(row.deadline));
+  if(row.status==='completed'||row.status==='cancelled')return '<span class="phft-dl tone-gray">'+txt+'</span>';
+  if(!raw||isNaN(raw.getTime()))return '<span class="phft-dl tone-gray">'+txt+'</span>';
+  var diffDays=Math.ceil((raw.getTime()-Date.now())/86400000);
+  if(diffDays<0)return '<span class="phft-dl tone-red">'+txt+'<i>Quá hạn '+Math.abs(diffDays)+' ngày</i></span>';
+  if(diffDays<=3)return '<span class="phft-dl tone-orange">'+txt+'<i>Còn '+diffDays+' ngày</i></span>';
+  return '<span class="phft-dl tone-gray">'+txt+'</span>';
+}
 function taskOverviewV2RowLineHtml(row){
-  var dept=row.primary_department?' · '+esc(row.primary_department):'';
-  return '<tr data-task-list-row="'+esc(row.task_id)+'"><td class="phft-list-code">'+esc(row.task_code||'—')+'</td><td>'+esc(row.title)+'</td><td>'+esc(row.primary_full_name||'—')+dept+'</td><td>'+esc(formatTaskDateTime(row.deadline))+'</td></tr>';
+  var dept=row.primary_department?esc(taskDeptShortName(row.primary_department)):'';
+  return '<tr data-task-list-row="'+esc(row.task_id)+'" class="phft-rrow">'+
+    '<td class="phft-list-code">'+esc(row.task_code||'—')+'</td>'+
+    '<td class="phft-rrow-title">'+esc(row.title)+'</td>'+
+    '<td class="phft-rrow-person"><b>'+esc(row.primary_full_name||'—')+'</b>'+(dept?'<small>'+dept+'</small>':'')+'</td>'+
+    '<td class="phft-rrow-dl">'+taskReportDeadlineCellHtml(row)+'</td></tr>';
 }
 function taskOverviewV2TopListHtml(title, rows, emptyMsg){
   if(!rows||!rows.length)return '<section class="phft-panel"><header><h3>'+esc(title)+'</h3></header><div class="phft-empty">'+esc(emptyMsg)+'</div></section>';
@@ -682,30 +734,89 @@ function taskOverviewV2TopListHtml(title, rows, emptyMsg){
     '<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Mã việc</th><th>Tên công việc</th><th>Người thực hiện</th><th>Deadline</th></tr></thead><tbody>'+rows.map(taskOverviewV2RowLineHtml).join('')+'</tbody></table></div>' +
   '</section>';
 }
-function taskOverviewV2DrilldownRowHtml(row){
-  var dept=row.primary_department?' · '+esc(row.primary_department):'';
-  return '<li class="phft-report-drilldown-item" data-task-list-row="'+esc(row.task_id)+'"><b>'+esc(row.task_code||'—')+'</b> '+esc(row.title)+'<small>'+esc(row.primary_full_name||'—')+dept+' · '+esc(formatTaskDateTime(row.deadline))+'</small></li>';
+// UI/UX Step 2 — ONE reusable structured operational row (KPI drill-down +
+// Top-5). Stable hierarchy: code (small, accent) + status chip · title
+// (strongest, semibold, clamp 2 lines) · Primary (bold) + department
+// (secondary, "Bộ phận" stripped) · deadline/time (semantic chip).
+var TASK_OP_STATUS_CHIP={published:{t:'gray',l:'Chưa bắt đầu'},in_progress:{t:'blue',l:'Đang thực hiện'},completed:{t:'green',l:'Hoàn thành'},cancelled:{t:'gray',l:'Đã hủy'}};
+function taskOpDeadlineChipHtml(row){
+  var d=row.deadline?new Date(row.deadline):null;
+  if(row.status==='completed'){
+    var doneAt=row.completed_at||row.deadline;
+    return '<span class="phft-op-when tone-green">Hoàn thành'+(doneAt?' '+esc(taskOpDateShort(doneAt)):'')+'</span>';
+  }
+  if(row.status==='cancelled')return '<span class="phft-op-when tone-gray">Đã hủy</span>';
+  if(!d||isNaN(d.getTime()))return '<span class="phft-op-when tone-gray">Chưa có hạn</span>';
+  var diffDays=Math.ceil((d.getTime()-Date.now())/86400000);
+  if(diffDays<0)return '<span class="phft-op-when tone-red">Quá hạn '+Math.abs(diffDays)+' ngày</span>';
+  if(diffDays<=3)return '<span class="phft-op-when tone-orange">Còn '+diffDays+' ngày</span>';
+  return '<span class="phft-op-when tone-gray">'+esc(taskOpDateShort(row.deadline))+'</span>';
+}
+function taskOpDateShort(iso){
+  try{
+    return new Intl.DateTimeFormat('vi-VN',{timeZone:TASK_TIME_ZONE,day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso)).replace(',','·');
+  }catch(e){return formatTaskDateTime(iso);}
+}
+function taskOpRowHtml(row,opts){
+  var o=opts||{};
+  var st=TASK_OP_STATUS_CHIP[row.status]||{t:'gray',l:row.status||'—'};
+  var dept=row.primary_department?taskDeptShortName(row.primary_department):'';
+  var aside=o.aside!=null?o.aside:taskOpDeadlineChipHtml(row);
+  return '<button type="button" class="phft-op-row" data-task-list-row="'+esc(row.task_id)+'">'+
+    '<span class="phft-op-main">'+
+      '<span class="phft-op-code-line"><span class="phft-op-code">'+esc(row.task_code||'—')+'</span>'+
+        (o.hideStatus?'':'<span class="phft-chip-s tone-'+st.t+'">'+esc(st.l)+'</span>')+'</span>'+
+      '<span class="phft-op-title">'+esc(row.title||'(Không có tiêu đề)')+'</span>'+
+      '<span class="phft-op-sub"><b>'+esc(row.primary_full_name||'Chưa có người phụ trách')+'</b>'+(dept?' <span>· '+esc(dept)+'</span>':'')+'</span>'+
+    '</span>'+
+    '<span class="phft-op-aside">'+aside+'</span>'+
+  '</button>';
+}
+// UI/UX Step 2 — structured operational drawer. Header = KPI name + count +
+// context line (period · filters). Body = reusable taskOpRowHtml list.
+// Footer = clean Previous / range / Next.
+function taskOverviewV2DrilldownContextLine(dd){
+  var parts=[taskReportPeriodLabel(dd.periodType,dd.anchorDate)];
+  var chips=[];
+  if(dd.employeeCode)chips.push(taskOverviewV2EmployeeLabel(dd.employeeCode));
+  if(dd.department)chips.push(taskDeptShortName(dd.department));
+  if(dd.categoryCode)chips.push(taskOverviewV2CategoryLabel(dd.categoryCode));
+  var f=dd.filters||{};
+  if(f.department&&!dd.department)chips.push(taskDeptShortName(f.department));
+  if(f.employee_code&&!dd.employeeCode)chips.push(taskOverviewV2EmployeeLabel(f.employee_code));
+  if(f.category_code&&!dd.categoryCode)chips.push(taskOverviewV2CategoryLabel(f.category_code));
+  if(f.status)chips.push(TASK_OVERVIEW_V2_FILTER_STATUS_LABELS[f.status]||f.status);
+  if(chips.length)parts.push('Bộ lọc: '+chips.join(' · '));
+  return parts.join(' · ');
 }
 function taskOverviewV2DrilldownHtml(){
   var dd=taskUiState.overview.drilldown;
   if(!dd)return '';
+  var count=(dd.data&&typeof dd.data.total_count==='number')?dd.data.total_count:null;
   var body;
   if(dd.loading&&!dd.data)body='<div class="phft-loading">Đang tải danh sách…</div>';
   else if(dd.error)body='<div class="phft-alert is-error"><div><b>Không tải được danh sách.</b><small>'+esc(dd.error)+'</small></div><button type="button" class="phft-btn-secondary" data-task-overview-drilldown-retry>Thử lại</button></div>';
   else{
     var data=dd.data||{tasks:[],total_count:0,limit:TASK_OVERVIEW_V2_DRILLDOWN_LIMIT,offset:0,has_more:false};
-    var rows=(data.tasks||[]).length?'<ul class="phft-report-drilldown-list">'+data.tasks.map(taskOverviewV2DrilldownRowHtml).join('')+'</ul>':'<div class="phft-empty">Không có công việc phù hợp.</div>';
+    var list=(data.tasks||[]).length
+      ?'<div class="phft-op-list">'+data.tasks.map(function(r){return taskOpRowHtml(r,{});}).join('')+'</div>'
+      :'<div class="phft-empty">Không có công việc phù hợp với bộ lọc hiện tại.</div>';
     var from=data.total_count?data.offset+1:0, to=Math.min(data.offset+data.limit,data.total_count);
-    body='<div class="phft-report-drilldown-count">Tổng: <b>'+esc(data.total_count)+'</b> công việc'+(data.total_count?(' · Hiển thị '+esc(from)+'–'+esc(to)):'')+'</div>' +
-      rows +
-      '<div class="phft-report-drilldown-pager">' +
-        '<button type="button" class="phft-btn-secondary" data-task-overview-drilldown-page="prev"'+(data.offset<=0?' disabled':'')+'>‹ Trước</button>' +
-        '<button type="button" class="phft-btn-secondary" data-task-overview-drilldown-page="next"'+(!data.has_more?' disabled':'')+'>Sau ›</button>' +
-      '</div>';
+    var pager=data.total_count>data.limit
+      ?'<div class="phft-op-pager">'+
+        '<button type="button" class="phft-btn-secondary" data-task-overview-drilldown-page="prev"'+(data.offset<=0?' disabled':'')+'>‹ Trước</button>'+
+        '<span>'+esc(from)+'–'+esc(to)+' / '+esc(data.total_count)+'</span>'+
+        '<button type="button" class="phft-btn-secondary" data-task-overview-drilldown-page="next"'+(!data.has_more?' disabled':'')+'>Sau ›</button>'+
+      '</div>':'';
+    body=list+pager;
   }
   return '<div class="phft-report-drilldown-backdrop" data-task-overview-drilldown-backdrop></div>' +
-    '<aside class="phft-report-drilldown-panel">' +
-      '<header><h3>'+esc(dd.label)+'</h3><button type="button" class="phft-icon-btn" data-task-overview-drilldown-close aria-label="Đóng">✕</button></header>' +
+    '<aside class="phft-report-drilldown-panel phft-op-drawer" role="dialog" aria-label="'+esc(dd.label)+'">' +
+      '<header class="phft-op-drawer-head">' +
+        '<div><h3>'+esc(dd.label)+(count!=null?' <span class="phft-op-count">'+esc(count)+'</span>':'')+'</h3>' +
+        '<small>'+esc(taskOverviewV2DrilldownContextLine(dd))+'</small></div>' +
+        '<button type="button" class="phft-icon-btn" data-task-overview-drilldown-close aria-label="Đóng">✕</button>' +
+      '</header>' +
       '<div class="phft-report-drilldown-body">'+body+'</div>' +
     '</aside>';
 }
@@ -726,17 +837,36 @@ var TASK_OVERVIEW_V2_ICON_PATHS={
   rate:'<circle cx="12" cy="12" r="9"/><path d="m8 16 8-8M9 9h.01M15 15h.01"/>',
   bottleneck:'<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/>'
 };
+// UI/UX Step 2 — professional semantic KPI system.
+//   red = overdue/critical · orange = due-soon/warning · blue = active work ·
+//   green = completed/success · purple = on-time/performance · gray = neutral/NA.
+// White card surfaces stay dominant: color is a left accent bar + icon chip +
+// number tint, never a saturated fill. `group` establishes hierarchy
+// (attention row first) without literal headings.
+var TASK_OVERVIEW_V2_KPI_SPEC={
+  overdue:{tone:'red',icon:'overdue',group:'attention'},
+  due_soon:{tone:'orange',icon:'due_soon',group:'attention'},
+  bottleneck:{tone:'gray',icon:'bottleneck',group:'attention'},
+  open:{tone:'blue',icon:'open',group:'situation'},
+  completed_in_period:{tone:'green',icon:'completed',group:'situation'},
+  on_time_rate:{tone:'purple',icon:'rate',group:'situation'}
+};
 function taskOverviewV2KpiIconHtml(kind){
-  return '<span class="phft-kpi-icon is-'+kind.replace('_','-')+'"><svg viewBox="0 0 24 24">'+TASK_OVERVIEW_V2_ICON_PATHS[kind]+'</svg></span>';
+  return '<span class="phft-kpi-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+(TASK_OVERVIEW_V2_ICON_PATHS[kind]||'')+'</svg></span>';
 }
-function taskOverviewV2KpiCardV2Html(id,label,value,suffix,clickable,iconKind){
+function taskOverviewV2KpiCardV2Html(specKey,metricId,label,value,suffix,clickable){
+  var spec=TASK_OVERVIEW_V2_KPI_SPEC[specKey]||{tone:'gray',icon:'open',group:'situation'};
   var isClickable=clickable&&value!=null;
   var tag=isClickable?'button':'article';
-  var openAttr=isClickable?' type="button" data-task-overview-metric="'+id+'"':'';
-  var accent=(id==='overdue'&&value>0)?' is-overdue-accent':'';
-  return '<'+tag+' class="phft-kpi phft-kpi-v2'+(isClickable?' is-clickable':'')+accent+'"'+openAttr+'>'+
-    taskOverviewV2KpiIconHtml(iconKind)+
-    '<strong>'+taskOverviewV2KpiValueHtml(value,suffix)+'</strong><span>'+esc(label)+'</span>'+
+  var openAttr=isClickable?' type="button" data-task-overview-metric="'+metricId+'"':'';
+  var na=(value==null)?' is-na':'';
+  var hot=(value!=null&&value>0&&(spec.tone==='red'||spec.tone==='orange'))?' is-hot':'';
+  return '<'+tag+' class="phft-kpi phft-kpi-v2 tone-'+spec.tone+na+hot+(isClickable?' is-clickable':'')+'"'+openAttr+
+    (isClickable?' aria-label="'+esc(label)+' — mở chi tiết"':'')+'>'+
+    taskOverviewV2KpiIconHtml(spec.icon)+
+    '<strong>'+taskOverviewV2KpiValueHtml(value,suffix)+'</strong>'+
+    '<span>'+esc(label)+'</span>'+
+    (isClickable?'<em class="phft-kpi-cue" aria-hidden="true">Xem chi tiết →</em>':'')+
   '</'+tag+'>';
 }
 function taskOverviewV2DaysOverdue(deadline){
@@ -747,19 +877,22 @@ function taskOverviewV2DaysLeft(deadline){
   if(!deadline)return 0;
   return Math.max(0,Math.ceil((new Date(deadline).getTime()-Date.now())/86400000));
 }
+// UI/UX Step 2 — Top-5 blocks now share the reusable taskOpRowHtml renderer
+// with the drill-down drawer (same column/grid structure), semantic day chips.
 function taskOverviewV2Top5RowHtml(row,kind){
-  var badge=kind==='overdue'
-    ?'<span class="phft-top5-days is-overdue">'+esc(taskOverviewV2DaysOverdue(row.deadline))+' ngày</span>'
-    :'<span class="phft-top5-days is-due-soon">'+esc(taskOverviewV2DaysLeft(row.deadline))+' ngày</span>';
-  return '<tr data-task-list-row="'+esc(row.task_id)+'"><td class="phft-list-code">'+esc(row.task_code||'—')+'</td><td>'+esc(row.title)+'</td><td>'+esc(row.primary_full_name||'—')+'</td><td>'+badge+'</td></tr>';
+  var aside=kind==='overdue'
+    ?'<span class="phft-op-when tone-red">Quá hạn '+esc(taskOverviewV2DaysOverdue(row.deadline))+' ngày</span>'
+    :'<span class="phft-op-when tone-orange">Còn '+esc(taskOverviewV2DaysLeft(row.deadline))+' ngày</span>';
+  return taskOpRowHtml(row,{aside:aside,hideStatus:true});
 }
 function taskOverviewV2Top5Html(title,rows,emptyMsg,kind,metricId){
   var top5=(rows||[]).slice(0,5);
   var body=top5.length
-    ?'<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Mã việc</th><th>Tên công việc</th><th>Người chịu trách nhiệm chính</th><th>'+(kind==='overdue'?'Quá hạn':'Còn lại')+'</th></tr></thead><tbody>'+top5.map(function(r){return taskOverviewV2Top5RowHtml(r,kind);}).join('')+'</tbody></table></div>'
+    ?'<div class="phft-op-list is-compact">'+top5.map(function(r){return taskOverviewV2Top5RowHtml(r,kind);}).join('')+'</div>'
     :'<div class="phft-empty">'+esc(emptyMsg)+'</div>';
   var footer=(rows&&rows.length)?('<div class="phft-panel-foot"><button type="button" class="phft-panel-link" data-task-overview-metric="'+metricId+'">Xem tất cả '+(kind==='overdue'?'công việc quá hạn':'công việc sắp tới hạn')+' →</button></div>'):'';
-  return '<section class="phft-panel"><header><h3>'+esc(title)+'</h3></header>'+body+footer+'</section>';
+  var dot=kind==='overdue'?'tone-red':'tone-orange';
+  return '<section class="phft-panel"><header><h3><span class="phft-h-dot '+dot+'"></span>'+esc(title)+'</h3></header>'+body+footer+'</section>';
 }
 // TIME-CONTEXT ALIGNMENT (2026-08-29) — nhãn trục/tooltip TÁI SỬ DỤNG NGUYÊN
 // VẸN taskReportTrendBucketLabel()/taskReportTrendBucketFullLabel() (đã có,
@@ -787,12 +920,25 @@ function taskOverviewV2TrendChartHtml(buckets,periodType){
     if(i%labelStep!==0&&i!==n-1)return '';
     return '<text x="'+xAt(i).toFixed(1)+'" y="'+(chartH-6)+'" class="phft-linechart-axis" text-anchor="middle">'+esc(taskReportTrendBucketLabel(periodType,b))+'</text>';
   }).join('');
+  // Step 2 — richer per-point tooltip (date + all three series values on one
+  // native SVG <title>, shown on the vertical hover band so the value is
+  // reachable even between line dots).
+  var hoverBands=buckets.map(function(b,i){
+    var bw=n>1?innerW/(n-1):innerW;
+    var bx=(xAt(i)-bw/2).toFixed(1);
+    var tip=taskReportTrendBucketFullLabel(periodType,b)+
+      '\nPhát sinh: '+(b.created_in_period||0)+
+      '\nHoàn thành: '+(b.completed_in_period||0)+
+      '\nQuá hạn: '+(b.overdue_in_period||0);
+    return '<rect class="phft-linechart-band" x="'+bx+'" y="'+padT+'" width="'+bw.toFixed(1)+'" height="'+innerH+'"><title>'+esc(tip)+'</title></rect>';
+  }).join('');
   return '<div class="phft-trend-scroll"><svg viewBox="0 0 '+chartW+' '+chartH+'" class="phft-linechart-svg" preserveAspectRatio="none" role="img" aria-label="Biểu đồ xu hướng công việc theo kỳ đang chọn">'+
     gridLines+
     '<path class="phft-linechart-line is-created" d="'+pathFor('created_in_period')+'"></path>'+
     '<path class="phft-linechart-line is-completed" d="'+pathFor('completed_in_period')+'"></path>'+
     '<path class="phft-linechart-line is-overdue" d="'+pathFor('overdue_in_period')+'"></path>'+
     dotsFor('created_in_period','is-created')+dotsFor('completed_in_period','is-completed')+dotsFor('overdue_in_period','is-overdue')+
+    hoverBands+
     axisLabels+
   '</svg></div>'+
   '<div class="phft-trend-legend">'+
@@ -814,40 +960,99 @@ function taskOverviewV2TrendPanelHtml(){
     :taskOverviewV2TrendChartHtml(data.buckets||[],taskUiState.overview.periodType);
   return '<section class="phft-panel"><header><h3>Xu hướng công việc</h3></header>'+body+'</section>';
 }
+// UI/UX Step 2 §F — clean department row: "Bộ phận" prefix stripped for
+// display (full name in title), balanced label/bar/count/overdue columns,
+// whole row clickable → drill-down filtered to that department (SEE A
+// PROBLEM → CLICK THE PROBLEM).
 function taskOverviewV2DepartmentRowHtml(row,maxVal){
-  var pct=maxVal?Math.max(4,Math.round((row.open/maxVal)*100)):4;
-  var overdueBadge=row.overdue>0?'<span class="phft-deptbar-value is-outside">'+esc(row.overdue)+' quá hạn</span>':'';
-  return '<div class="phft-deptbar-row">'+
-    '<div class="phft-deptbar-name" title="'+esc(row.department)+'">'+esc(row.department)+'</div>'+
-    '<div style="display:flex;align-items:center;gap:8px;min-width:0">'+
-      '<div class="phft-deptbar-track" style="flex:1"><div class="phft-deptbar-fill" style="width:'+pct+'%"><span class="phft-deptbar-value">'+esc(row.open)+'</span></div></div>'+
-      overdueBadge+
-    '</div>'+
-  '</div>';
+  var pct=maxVal?Math.max(3,Math.round((row.open/maxVal)*100)):3;
+  var overdue=row.overdue>0?'<span class="phft-deptbar-overdue tone-red">'+esc(row.overdue)+' quá hạn</span>':'<span class="phft-deptbar-overdue is-none">—</span>';
+  var short=taskDeptShortName(row.department);
+  return '<button type="button" class="phft-deptbar-row" data-task-overview-dept="'+esc(row.department)+'" title="'+esc(row.department)+' — mở danh sách công việc đang mở">'+
+    '<span class="phft-deptbar-name">'+esc(short)+'</span>'+
+    '<span class="phft-deptbar-track"><span class="phft-deptbar-fill'+(row.overdue>0?' has-overdue':'')+'" style="width:'+pct+'%"></span></span>'+
+    '<span class="phft-deptbar-count">'+esc(row.open)+'</span>'+
+    overdue+
+  '</button>';
 }
 function taskOverviewV2DepartmentPanelHtml(){
   var panel=taskUiState.overview.department;
-  if(panel.loading&&!panel.data)return '<section class="phft-panel"><header><h3>Khối lượng công việc theo phòng ban</h3></header><div class="phft-loading">Đang tải…</div></section>';
-  if(panel.error)return '<section class="phft-panel"><header><h3>Khối lượng công việc theo phòng ban</h3></header><div class="phft-alert is-error"><div><b>Không tải được dữ liệu.</b><small>'+esc(panel.error)+'</small></div><button type="button" class="phft-btn-secondary" data-task-overview-retry="department">Thử lại</button></div></section>';
+  var head='<h3><span class="phft-h-dot tone-blue"></span>Khối lượng công việc theo phòng ban</h3>';
+  if(panel.loading&&!panel.data)return '<section class="phft-panel"><header>'+head+'</header><div class="phft-loading">Đang tải…</div></section>';
+  if(panel.error)return '<section class="phft-panel"><header>'+head+'</header><div class="phft-alert is-error"><div><b>Không tải được dữ liệu.</b><small>'+esc(panel.error)+'</small></div><button type="button" class="phft-btn-secondary" data-task-overview-retry="department">Thử lại</button></div></section>';
   var rows=((panel.data&&panel.data.departments)||[]).slice(0,8);
   var maxVal=1; rows.forEach(function(r){maxVal=Math.max(maxVal,r.open);});
   var body=rows.length?('<div class="phft-deptbar-list">'+rows.map(function(r){return taskOverviewV2DepartmentRowHtml(r,maxVal);}).join('')+'</div>'):'<div class="phft-empty">Không có phòng ban nào có công việc trong phạm vi bạn xem.</div>';
   var footer=rows.length?'<div class="phft-panel-foot"><button type="button" class="phft-panel-link" data-task-overview-goto-report>Xem báo cáo theo phòng ban →</button></div>':'';
-  return '<section class="phft-panel"><header><h3>Khối lượng công việc theo phòng ban</h3><p class="phft-report-subnote">Đang mở + Quá hạn — không tính công việc đã hủy</p></header>'+body+footer+'</section>';
+  return '<section class="phft-panel"><header>'+head+'<p class="phft-report-subnote">Cột số = việc đang mở · nhấp một phòng ban để xem danh sách</p></header>'+body+footer+'</section>';
 }
-function taskOverviewV2BottleneckPlaceholderHtml(){
-  return '<section class="phft-panel phft-bottleneck-panel"><header><h3>Điểm nghẽn cần chú ý</h3></header>'+
-    '<div class="phft-bottleneck-placeholder">'+
-      '<svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/></svg>'+
-      '<b>Điểm nghẽn sẽ được hiển thị sau khi quy tắc cảnh báo được thiết lập.</b>'+
-      '<span>Khu vực này giữ nguyên vị trí trong bố cục — khi công thức điểm nghẽn được chốt, dữ liệu sẽ hiển thị ngay mà không cần thiết kế lại màn hình.</span>'+
-    '</div>'+
-  '</section>';
+// UI/UX Step 2 §H — bottleneck is NOT operational yet: reduce it to a slim
+// inline note (no full panel, no big empty-state art) so it stops competing
+// for dashboard attention. It regains priority when real rules exist.
+function taskOverviewV2BottleneckNoteHtml(){
+  return '<div class="phft-ov-bottleneck-note">'+
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/></svg>'+
+    '<span><b>Điểm nghẽn cần chú ý</b> — chưa có dữ liệu. Sẽ hiển thị khi quy tắc cảnh báo được thiết lập.</span>'+
+  '</div>';
+}
+// UI/UX Step 2 §B — advanced filter drawer. Edits taskUiState.overview.filterDraft;
+// "Áp dụng" commits it to .filters and reloads every panel (ONE state).
+function taskOverviewV2FilterFieldOptions(list,current,valueKey,labelFn){
+  return '<option value="">— Tất cả —</option>'+list.map(function(x){
+    var v=String(x[valueKey]||'');
+    return '<option value="'+esc(v)+'"'+(String(current)===v?' selected':'')+'>'+esc(labelFn(x))+'</option>';
+  }).join('');
+}
+function taskOverviewV2FilterDrawerHtml(){
+  var ov=taskUiState.overview; if(!ov.filterOpen)return '';
+  var d=ov.filterDraft||defaultTaskOverviewV2Filters();
+  var deptRows=((ov.department.data&&ov.department.data.departments)||[]).map(function(r){return {code:r.department,name:taskDeptShortName(r.department),full:r.department};});
+  var catRows=(taskUiState.categories||[]).filter(function(c){return c.isActive!==false;});
+  var people=(ov.filterPeople&&ov.filterPeople.rows)||[];
+  var statusOpts='<option value="">— Tất cả —</option>'+Object.keys(TASK_OVERVIEW_V2_FILTER_STATUS_LABELS).map(function(k){
+    return '<option value="'+k+'"'+(d.status===k?' selected':'')+'>'+esc(TASK_OVERVIEW_V2_FILTER_STATUS_LABELS[k])+'</option>';
+  }).join('');
+  var peopleField=(ov.filterPeople&&ov.filterPeople.loading)
+    ?'<span class="phft-ov-filter-loading">Đang tải danh sách nhân sự…</span>'
+    :'<select class="phft-select" data-task-overview-filter-field="employee_code">'+taskOverviewV2FilterFieldOptions(people,d.employee_code,'employee_code',function(p){return (p.full_name||p.employee_code)+(p.department?' · '+taskDeptShortName(p.department):'');})+'</select>';
+  var count=taskOverviewV2FilterCount(d);
+  return '<div class="phft-report-drilldown-backdrop" data-task-overview-filter-backdrop></div>'+
+    '<aside class="phft-report-drilldown-panel phft-ov-filter-drawer" role="dialog" aria-label="Bộ lọc nâng cao">'+
+      '<header class="phft-op-drawer-head"><div><h3>Bộ lọc nâng cao</h3><small>Áp dụng cho toàn bộ Tổng quan — KPI, xu hướng, phòng ban, Top 5 và drill-down</small></div>'+
+        '<button type="button" class="phft-icon-btn" data-task-overview-filter-close aria-label="Đóng">✕</button></header>'+
+      '<div class="phft-report-drilldown-body">'+
+        '<label class="phft-ov-filter-row"><span>Phòng ban</span>'+
+          '<select class="phft-select" data-task-overview-filter-field="department">'+taskOverviewV2FilterFieldOptions(deptRows,d.department,'code',function(x){return x.name;})+'</select></label>'+
+        '<label class="phft-ov-filter-row"><span>Nhân sự (người phụ trách chính)</span>'+peopleField+'</label>'+
+        '<label class="phft-ov-filter-row"><span>Loại công việc</span>'+
+          '<select class="phft-select" data-task-overview-filter-field="category_code">'+taskOverviewV2FilterFieldOptions(catRows,d.category_code,'code',function(x){return x.name||x.code;})+'</select></label>'+
+        '<label class="phft-ov-filter-row"><span>Trạng thái</span>'+
+          '<select class="phft-select" data-task-overview-filter-field="status">'+statusOpts+'</select></label>'+
+        '<label class="phft-ov-filter-row is-disabled"><span>Mức ưu tiên</span>'+
+          '<select class="phft-select" disabled><option>Chưa hỗ trợ trên Tổng quan</option></select>'+
+          '<small class="phft-ov-filter-hint">Ưu tiên chưa có trong dữ liệu Tổng quan hiện tại — sẽ bổ sung khi mở rộng truy vấn.</small></label>'+
+      '</div>'+
+      '<footer class="phft-ov-filter-foot">'+
+        '<button type="button" class="phft-btn-secondary" data-task-overview-filter-clear>Xóa bộ lọc</button>'+
+        '<button type="button" class="phft-btn-primary" data-task-overview-filter-apply>Áp dụng'+(count?' · '+count:'')+'</button>'+
+      '</footer>'+
+    '</aside>';
+}
+function taskOverviewV2FilterChipsHtml(){
+  var entries=taskOverviewV2ActiveFilterEntries(taskUiState.overview.filters);
+  if(!entries.length)return '';
+  return '<div class="phft-ov-chips">'+
+    entries.map(function(e){
+      return '<span class="phft-ov-chip"><b>'+esc(e.label)+':</b> '+esc(e.value)+'<button type="button" data-task-overview-filter-drop="'+esc(e.key)+'" aria-label="Bỏ lọc '+esc(e.label)+'">✕</button></span>';
+    }).join('')+
+    '<button type="button" class="phft-ov-chip-clear" data-task-overview-filter-clear-all>Xóa tất cả</button>'+
+  '</div>';
 }
 function taskOverviewV2HeaderHtml(){
   var ov=taskUiState.overview;
   var typeOptions=['day','week','month','year'].map(function(t){return '<option value="'+t+'"'+(ov.periodType===t?' selected':'')+'>'+TASK_REPORT_PERIOD_LABELS[t]+'</option>';}).join('');
   var updated=ov.lastLoadedAt?formatTaskDateTime(ov.lastLoadedAt.toISOString()):'—';
+  var fcount=taskOverviewV2FilterCount(ov.filters);
   return '<div class="phft-page-head">'+
       '<div><small>PHF TASK / TỔNG QUAN &amp; BÁO CÁO</small><h1>Tổng quan</h1>'+
         '<div class="phft-ov-updated">Cập nhật lần cuối: '+esc(updated)+' <button type="button" data-task-overview-refresh aria-label="Làm mới">⟳</button></div>'+
@@ -860,36 +1065,42 @@ function taskOverviewV2HeaderHtml(){
           '<button type="button" class="phft-icon-btn" data-task-overview-nav="next" aria-label="Kỳ sau">›</button>'+
         '</div>'+
         '<button type="button" class="phft-btn-secondary" data-task-overview-nav="today">Hôm nay</button>'+
-        '<button type="button" class="phft-btn-secondary" data-task-overview-filter>Bộ lọc</button>'+
+        '<button type="button" class="phft-ov-filter-btn'+(fcount?' is-active':'')+'" data-task-overview-filter aria-haspopup="dialog">'+
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4Z"/></svg>Bộ lọc'+(fcount?' <b>'+fcount+'</b>':'')+'</button>'+
       '</div>'+
     '</div>';
 }
 function taskOverviewV2Html(){
   var ov=taskUiState.overview;
-  var head=taskOverviewV2HeaderHtml()+taskOverviewReportTabBarHtml('overview');
-  if(ov.loading&&!ov.data)return head+'<div class="phft-loading">Đang tải Tổng quan…</div>'+taskOverviewV2DrilldownHtml();
-  if(ov.error)return head+'<div class="phft-alert is-error"><div><b>Không tải được Tổng quan.</b><small>'+esc(ov.error)+'</small></div><button type="button" class="phft-btn-secondary" data-task-overview-retry>Thử lại</button></div>';
-  var data=ov.data; if(!data)return head;
+  var head=taskOverviewV2HeaderHtml()+taskOverviewReportTabBarHtml('overview')+taskOverviewV2FilterChipsHtml();
+  var overlays=taskOverviewV2DrilldownHtml()+taskOverviewV2FilterDrawerHtml();
+  if(ov.loading&&!ov.data)return head+'<div class="phft-loading">Đang tải Tổng quan…</div>'+overlays;
+  if(ov.error)return head+'<div class="phft-alert is-error"><div><b>Không tải được Tổng quan.</b><small>'+esc(ov.error)+'</small></div><button type="button" class="phft-btn-secondary" data-task-overview-retry>Thử lại</button></div>'+overlays;
+  var data=ov.data; if(!data)return head+overlays;
   var m=data.metrics||{};
-  var kpis=
-    taskOverviewV2KpiCardV2Html('open','Công việc đang mở',m.open&&m.open.value,'',true,'open') +
-    taskOverviewV2KpiCardV2Html('overdue','Công việc quá hạn',m.overdue&&m.overdue.value,'',true,'overdue') +
-    taskOverviewV2KpiCardV2Html('due_soon','Sắp tới hạn (3 ngày)',m.due_soon&&m.due_soon.value,'',true,'due_soon') +
-    taskOverviewV2KpiCardV2Html('completed_in_period','Hoàn thành trong kỳ',m.completed_in_period&&m.completed_in_period.value,'',true,'completed') +
-    taskOverviewV2KpiCardV2Html('','Tỷ lệ đúng hạn',m.on_time_rate&&m.on_time_rate.value,'%',false,'rate') +
-    taskOverviewV2KpiCardV2Html('','Điểm nghẽn cần chú ý',null,'',false,'bottleneck'); // KHÔNG có công thức LOCKED — cố tình hiện "—"
+  var attention=
+    taskOverviewV2KpiCardV2Html('overdue','overdue','Công việc quá hạn',m.overdue&&m.overdue.value,'',true) +
+    taskOverviewV2KpiCardV2Html('due_soon','due_soon','Sắp tới hạn (3 ngày)',m.due_soon&&m.due_soon.value,'',true) +
+    taskOverviewV2KpiCardV2Html('bottleneck','','Điểm nghẽn cần chú ý',null,'',false);
+  var situation=
+    taskOverviewV2KpiCardV2Html('open','open','Công việc đang mở',m.open&&m.open.value,'',true) +
+    taskOverviewV2KpiCardV2Html('completed_in_period','completed_in_period','Hoàn thành trong kỳ',m.completed_in_period&&m.completed_in_period.value,'',true) +
+    taskOverviewV2KpiCardV2Html('on_time_rate','','Tỷ lệ đúng hạn',m.on_time_rate&&m.on_time_rate.value,'%',false);
   return head +
-    '<section class="phft-kpi-row is-managed">'+kpis+'</section>' +
+    '<div class="phft-ov-kpi-groups">'+
+      '<section class="phft-kpi-row phft-kpi-attention" aria-label="Cần chú ý">'+attention+'</section>'+
+      '<section class="phft-kpi-row phft-kpi-situation" aria-label="Tình hình chung">'+situation+'</section>'+
+    '</div>'+
+    taskOverviewV2BottleneckNoteHtml() +
     '<div class="phft-ov-chart-row">' +
       taskOverviewV2TrendPanelHtml() +
       taskOverviewV2DepartmentPanelHtml() +
     '</div>' +
-    taskOverviewV2BottleneckPlaceholderHtml() +
     '<div class="phft-top5-row">' +
       taskOverviewV2Top5Html('Top 5 công việc quá hạn', data.top_overdue, 'Không có công việc quá hạn.', 'overdue', 'overdue') +
       taskOverviewV2Top5Html('Top 5 công việc sắp tới hạn', data.top_due_soon, 'Không có công việc sắp tới hạn.', 'due_soon', 'due_soon') +
     '</div>' +
-    taskOverviewV2DrilldownHtml();
+    overlays;
 }
 
 /* ---------------------------------------------------------------------
@@ -939,9 +1150,63 @@ function taskListRowStatusLabel(row){
   }
   return TASK_STATUS_DISPLAY_LABELS[row.status]||row.status;
 }
+// UI/UX Step 5 — semantic tone for the status label (label text itself is
+// UNCHANGED — see taskListRowStatusLabel). Presentation only.
+function taskListRowStatusTone(row){
+  if(row.proposal_status)return {pending:'blue',accepted:'green',rejected:'gray',cancelled:'gray'}[row.proposal_status]||'gray';
+  if(row.rework_state==='requested')return 'orange';
+  if(row.status==='completed')return 'green';
+  if(row.status==='cancelled')return 'gray';
+  if(row.status==='published'||row.status==='in_progress'){
+    if(row.deadline&&new Date(row.deadline).getTime()<Date.now())return 'red';
+    return 'blue';
+  }
+  return 'gray';
+}
+// UI/UX Step 5B — priority as an instantly-recognisable pill.
+// Contract unchanged (thuong/quan_trong/khan_cap). Unknown → verbatim muted.
+function taskListPriorityHtml(p){
+  var key=String(p||'').toLowerCase();
+  if(!TASK_PRIORITY_LABELS[key])return '<span class="phft-cellmuted">'+esc(p||'—')+'</span>';
+  var tone={thuong:'gray',quan_trong:'orange',khan_cap:'red'}[key];
+  return '<span class="phft-prio-badge tone-'+tone+'"><i class="phft-dot"></i>'+esc(TASK_PRIORITY_LABELS[key])+'</span>';
+}
+// UI/UX Step 5B — category as a real visual identifier: a unified branded
+// teal chip (one treatment for every category — colour carries NO business
+// meaning / no severity). Label humanised from the loaded category list;
+// falls back to whatever the row carries.
+function taskListCategoryLabel(row){
+  var hit=(taskUiState.categories||[]).find(function(c){return c.code===row.category_code;});
+  if(hit&&hit.name)return hit.name;
+  return row.category_display_name||row.category_name||row.category_code||'';
+}
+function taskListCategoryHtml(row){
+  var label=taskListCategoryLabel(row);
+  if(!label)return '<span class="phft-cellmuted">—</span>';
+  return '<span class="phft-cat-chip">'+esc(label)+'</span>';
+}
+// UI/UX Step 5B — progress: its OWN column, secondary to status. Calculation
+// untouched — only shown when the row carries a numeric progress_percent.
+function taskListProgressHtml(row){
+  if(typeof row.progress_percent!=='number')return '<span class="phft-cellmuted">—</span>';
+  var pct=Math.max(0,Math.min(100,row.progress_percent));
+  return '<span class="phft-prog"><span class="phft-prog-track"><i style="width:'+pct+'%"></i></span><b>'+pct+'%</b></span>';
+}
+// UI/UX Step 5 — deadline cell: neutral by default; red only when the row
+// is already overdue by the SAME rule taskListRowStatusLabel uses (no new
+// calculation).
+function taskListDeadlineHtml(row){
+  if(!row.deadline)return '<span class="phft-cellmuted">—</span>';
+  var open=row.status==='published'||row.status==='in_progress';
+  var overdue=open&&new Date(row.deadline).getTime()<Date.now();
+  return '<span class="phft-dl-cell'+(overdue?' tone-red':'')+'">'+esc(formatTaskDateTime(row.deadline))+'</span>';
+}
+// UI/UX Step 5 — compact cross-department chip. Full route kept in the
+// title tooltip (Task detail keeps the expanded presentation).
 function taskListCrossDeptTagHtml(row){
   if(row.is_cross_department!==true)return '';
-  return '<span class="phft-cross-dept-tag">Liên phòng ban'+(row.source_department&&row.target_department?': '+esc(row.source_department)+' → '+esc(row.target_department):'')+'</span>';
+  var route=(row.source_department&&row.target_department)?esc(row.source_department)+' → '+esc(row.target_department):'';
+  return '<span class="phft-cross-dept-tag"'+(route?' title="Liên phòng ban: '+route+'"':'')+'>Liên phòng ban</span>';
 }
 // V3 mục 12 — "Liên phòng ban" KHÔNG phải kho Task riêng, chỉ là tag/filter
 // trên is_cross_department (đã có từ trước). "Nhân sự tôi quản lý" cũng vậy:
@@ -986,29 +1251,40 @@ function taskListRowHtml(row,relation){
   // giao" cho relation=managed đúng row semantics mục 9.
   var managedTag=isManaged?'':taskListManagedTagHtml(row);
   var managedRecipientNote=(!isManaged&&row.scope_kind==='managed')?'<small class="phft-managed-recipient-note">Người thực hiện: '+esc(row.primary?row.primary.full_name:'—')+'</small>':'';
-  var creatorCell=isManaged?('<td>'+esc(row.created_by?row.created_by.full_name:'—')+'<small>'+esc(row.created_by?row.created_by.department:'')+'</small></td>'):'';
+  var creatorCell=isManaged?('<td class="phft-list-person is-secondary"><b>'+esc(row.created_by?row.created_by.full_name:'—')+'</b>'+(row.created_by&&row.created_by.department?'<small>'+esc(row.created_by.department)+'</small>':'')+'</td>'):'';
   return '<tr data-task-list-row="'+esc(row.task_id)+'">' +
-    '<td class="phft-list-code">'+esc(row.task_code||'—')+(row.self_task?' <span class="phft-self-task-tag">Tự giao</span>':'')+'</td>' +
-    '<td>'+esc(row.title)+taskListCrossDeptTagHtml(row)+managedTag+taskListCancelRequestTagHtml(row)+taskListDemoTagsHtml(row)+'</td>' +
-    '<td>'+esc(counterparty?counterparty.full_name:'—')+'<small>'+esc(counterparty?counterparty.department:'')+'</small>'+managedRecipientNote+'</td>' +
+    '<td class="phft-list-code">'+esc(row.task_code||'—')+(row.self_task?'<span class="phft-self-task-tag">Tự giao</span>':'')+'</td>' +
+    '<td class="phft-list-title"><span class="phft-list-title-main">'+esc(row.title)+'</span>'+
+      '<span class="phft-list-title-tags">'+taskListCrossDeptTagHtml(row)+managedTag+taskListCancelRequestTagHtml(row)+taskListDemoTagsHtml(row)+'</span></td>' +
+    '<td class="phft-list-person"><b>'+esc(counterparty?counterparty.full_name:'—')+'</b>'+(counterparty&&counterparty.department?'<small>'+esc(counterparty.department)+'</small>':'')+managedRecipientNote+'</td>' +
     creatorCell +
-    '<td>'+esc(row.category_code||'—')+'</td>' +
-    '<td>'+esc(formatTaskDateTime(row.deadline))+'</td>' +
-    '<td>'+esc(row.priority||'—')+'</td>' +
-    '<td>'+esc(taskListRowStatusLabel(row))+(typeof row.progress_percent==='number'?' · '+row.progress_percent+'%':'')+'</td>' +
+    '<td class="phft-list-cat">'+taskListCategoryHtml(row)+'</td>' +
+    '<td class="phft-list-deadline">'+taskListDeadlineHtml(row)+'</td>' +
+    '<td class="phft-list-prio">'+taskListPriorityHtml(row.priority)+'</td>' +
+    '<td class="phft-list-status"><span class="phft-badge tone-'+taskListRowStatusTone(row)+'">'+esc(taskListRowStatusLabel(row))+'</span></td>' +
+    '<td class="phft-list-prog-cell">'+taskListProgressHtml(row)+'</td>' +
   '</tr>';
 }
 function taskListTableHtml(){
   var relation=taskUiState.list.relation, rows=taskUiState.list.tasks||[];
-  if(taskUiState.list.loading)return '<div class="phft-empty">Đang tải danh sách công việc…</div>';
   if(taskUiState.list.error)return '<div class="phft-alert is-error"><div><b>Không tải được danh sách.</b><small>'+esc(taskUiState.list.error)+'</small></div></div>';
-  if(!rows.length)return '<div class="phft-empty">Không có công việc nào phù hợp.</div>';
   // V5 mục 9 — relation=managed cần thêm cột "Người giao" (bên cạnh "Nhân
   // viên thực hiện") vì viewer không phải 1 trong 2 phía của Task.
-  var extraHeader=relation==='managed'?'<th>Người giao</th>':'';
-  return '<div class="phft-table-scroll"><table class="phft-list-table"><thead><tr>' +
-    '<th>Mã phiếu</th><th>Tiêu đề</th><th>'+esc(taskListCounterpartyLabel(relation))+'</th>'+extraHeader+'<th>Danh mục</th><th>Deadline</th><th>Ưu tiên</th><th>Trạng thái</th>' +
-  '</tr></thead><tbody>'+rows.map(function(row){return taskListRowHtml(row,relation);}).join('')+'</tbody></table></div>';
+  var isManaged=relation==='managed';
+  var extraHeader=isManaged?'<th>Người giao</th>':'';
+  var colCount=isManaged?9:8;
+  // UI/UX Step 5 — loading / empty stay INSIDE the table body so the list
+  // shell (header, column meaning) never disappears.
+  var body;
+  if(taskUiState.list.loading)body='<tr><td colspan="'+colCount+'" class="phft-list-statecell">Đang tải danh sách công việc…</td></tr>';
+  else if(!rows.length)body='<tr><td colspan="'+colCount+'" class="phft-list-statecell">Không có công việc nào phù hợp.</td></tr>';
+  else body=rows.map(function(row){return taskListRowHtml(row,relation);}).join('');
+  // UI/UX Step 5B — deliberate shared column widths (title widest; operational
+  // signal columns compact). Horizontal scroll below the table min-width.
+  var cols='<col class="c-code"><col class="c-title"><col class="c-person">'+(isManaged?'<col class="c-person2">':'')+'<col class="c-cat"><col class="c-dl"><col class="c-prio"><col class="c-status"><col class="c-prog">';
+  return '<div class="phft-table-scroll"><table class="phft-list-table"><colgroup>'+cols+'</colgroup><thead><tr>' +
+    '<th>Mã phiếu</th><th>Tiêu đề công việc</th><th>'+esc(taskListCounterpartyLabel(relation))+'</th>'+extraHeader+'<th>Danh mục</th><th>Deadline</th><th>Ưu tiên</th><th>Trạng thái</th><th>Tiến độ</th>' +
+  '</tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 // V5 mục 5, 8 — "Liên phòng ban" là ATTRIBUTE FILTER (không phải status),
 // chỉ còn áp dụng trong relation='managed'. KHÔNG còn "Của tôi"/"Nhân sự
@@ -1047,9 +1323,9 @@ function taskListHeaderFor(){
   return TASK_LIST_HEADER[taskUiState.list.relation]||TASK_LIST_HEADER.received;
 }
 function taskListKpiTilesHtml(counts,relation){
-  var tiles=[['total','Tổng công việc'],['in_progress',relation==='managed'?'Đang thực hiện':'Đang làm'],['overdue','Quá hạn'],['completed','Hoàn thành']];
-  if(relation==='managed')tiles=tiles.concat([['rework','Cần xử lý lại'],['cancelled','Đã hủy']]);
-  return tiles.map(function(t){return '<article class="phft-kpi"><strong>'+(counts[t[0]]||0)+'</strong><span>'+esc(t[1])+'</span></article>';}).join('');
+  var tiles=[['total','Tổng công việc','gray'],['in_progress',relation==='managed'?'Đang thực hiện':'Đang làm','blue'],['overdue','Quá hạn','red'],['completed','Hoàn thành','green']];
+  if(relation==='managed')tiles=tiles.concat([['rework','Cần xử lý lại','orange'],['cancelled','Đã hủy','gray']]);
+  return tiles.map(function(t){return '<article class="phft-kpi phft-rk tone-'+t[2]+'"><strong>'+(counts[t[0]]||0)+'</strong><span>'+esc(t[1])+'</span></article>';}).join('');
 }
 function taskListHtml(){
   var relation=taskUiState.list.relation;
@@ -1059,7 +1335,7 @@ function taskListHtml(){
   var tabs=Object.keys(statusLabels).map(function(key){
     return '<button type="button" class="phft-tab'+(taskUiState.list.statusFilter===key?' is-active':'')+'" data-task-list-status="'+key+'">'+esc(statusLabels[key])+'</button>';
   }).join('');
-  return '' +
+  return '<div class="phft-list-page">' +
     '<div class="phft-page-head">' +
       '<div><small>PHF TASK</small><h1>'+esc(header.title)+'</h1><p class="phft-page-subtitle">'+esc(header.subtitle)+'</p></div>' +
       '<button type="button" class="phft-btn-primary" data-task-create>+ Tạo công việc mới</button>' +
@@ -1068,13 +1344,19 @@ function taskListHtml(){
     '<section class="phft-panel">' +
       '<div class="phft-list-toolbar">' +
         '<div class="phft-tabbar phft-tabbar-inline">'+tabs+'</div>' +
-        taskListManagerScopeFilterHtml() +
-        '<input type="search" class="phft-input" placeholder="Tìm theo mã phiếu hoặc tiêu đề (VD: CV-2608-0003)" value="'+esc(taskUiState.list.search)+'" data-task-list-search>' +
+        '<div class="phft-list-toolbar-right">' +
+          taskListManagerScopeFilterHtml() +
+          '<input type="search" class="phft-input" placeholder="Tìm theo mã phiếu hoặc tiêu đề (VD: CV-2608-0003)" value="'+esc(taskUiState.list.search)+'" data-task-list-search>' +
+        '</div>' +
       '</div>' +
       taskListTableHtml() +
-      (taskUiState.list.hasMore?'<div class="phft-list-load-more"><button type="button" class="phft-btn-secondary" data-task-list-load-more'+(taskUiState.list.loadingMore?' disabled':'')+'>'+(taskUiState.list.loadingMore?'Đang tải…':'Xem thêm')+'</button></div>':'') +
+      (counts.total>0?'<div class="phft-list-foot">' +
+        '<span class="phft-list-foot-count">Đang hiển thị <b>'+counts.total+'</b> công việc'+(taskUiState.list.hasMore?' · còn nữa':'')+'</span>' +
+        (taskUiState.list.hasMore?'<button type="button" class="phft-btn-secondary" data-task-list-load-more'+(taskUiState.list.loadingMore?' disabled':'')+'>'+(taskUiState.list.loadingMore?'Đang tải…':'Xem thêm')+'</button>':'') +
+      '</div>':'') +
     '</section>' +
-    demoTaskDetailModalHtml();
+    demoTaskDetailModalHtml() +
+  '</div>';
 }
 // PHF_TASK_UI_DEMO_V1 — công tắc DUY NHẤT đọc từ phf-task-ui-demo-fixtures.js.
 // KHÔNG có nhánh nào khác trong file này tạo dữ liệu giả — mọi write path
@@ -1337,19 +1619,18 @@ function taskCalendarMonthTitle(){
   var cal=taskUiState.calendar;
   return 'Tháng '+taskCalPad2(cal.cursorMonth+1)+'/'+cal.cursorYear;
 }
+// UI/UX Step 6 — Month is the only view in V1. Week/Ngày/Danh sách are not
+// implemented; they are hidden from the operational UI (no "sắp có" roadmap
+// text on a production-style screen). State stays 'month'.
 function taskCalendarViewSwitcherHtml(){
-  var views=[['month','Tháng'],['week','Tuần'],['day','Ngày'],['list','Danh sách']];
-  return '<div class="phft-cal-view-switch" role="group" aria-label="Chế độ xem lịch">'+views.map(function(v){
-    var implemented=v[0]==='month';
-    return '<button type="button" class="'+(taskUiState.calendar.view===v[0]?'is-active':'')+(implemented?'':' is-soon')+'" data-task-cal-view="'+v[0]+'">'+v[1]+(implemented?'':' · sắp có')+'</button>';
-  }).join('')+'</div>';
+  return '<div class="phft-cal-view-switch" role="group" aria-label="Chế độ xem lịch"><span class="phft-cal-view-current">Xem theo tháng</span></div>';
 }
 function taskCalendarSummaryHtml(rows,todayKey){
   var counts=taskCalendarSummaryCounts(rows,todayKey);
   var cal=taskUiState.calendar;
-  var tiles=[['overdue','Quá hạn'],['today','Hôm nay'],['soon','Sắp tới hạn'],['not_started','Chưa bắt đầu']];
+  var tiles=[['overdue','Quá hạn','red'],['today','Hôm nay','blue'],['soon','Sắp tới hạn','orange'],['not_started','Chưa bắt đầu','gray']];
   return '<section class="phft-cal-summary">'+tiles.map(function(t){
-    return '<button type="button" class="phft-cal-summary-tile is-'+t[0]+(cal.highlightVariant===t[0]?' is-selected':'')+'" data-task-cal-summary="'+t[0]+'"><strong>'+(counts[t[0]]||0)+'</strong><span>'+t[1]+'</span></button>';
+    return '<button type="button" class="phft-cal-summary-tile is-'+t[0]+' tone-'+t[2]+(cal.highlightVariant===t[0]?' is-selected':'')+'" data-task-cal-summary="'+t[0]+'"><strong>'+(counts[t[0]]||0)+'</strong><span>'+t[1]+'</span></button>';
   }).join('')+'</section>';
 }
 function taskCalendarFiltersHtml(){
@@ -1420,10 +1701,14 @@ function taskCalendarMonthGridHtml(rows){
     var dayEntries=byDay[key]||[];
     var expanded=cal.expandedDay===key;
     var visible=expanded?dayEntries:dayEntries.slice(0,3);
-    html+='<article class="phft-cal-day'+(outside?' is-outside':'')+(key===todayKey?' is-today':'')+'">'+
-      '<header><b>'+d.getDate()+'</b>'+(key===todayKey?'<small>Hôm nay</small>':'')+'</header>'+
+    // UI/UX Step 6 — the day cell is a FIXED size (see .phft-cal-day CSS).
+    // "expanded" no longer stretches the cell; the events area scrolls
+    // inside the fixed height. Task count never changes month geometry.
+    var countBadge=dayEntries.length?'<span class="phft-cal-count" aria-label="'+dayEntries.length+' công việc">'+dayEntries.length+'</span>':'';
+    html+='<article class="phft-cal-day'+(outside?' is-outside':'')+(key===todayKey?' is-today':'')+(dayEntries.length?' has-tasks':'')+'">'+
+      '<header><b>'+d.getDate()+'</b><span class="phft-cal-hd-meta">'+(key===todayKey?'<small>Hôm nay</small>':'')+countBadge+'</span></header>'+
       '<div class="phft-cal-events">'+visible.map(function(entry){return taskCalendarChipHtml(entry,todayKey);}).join('')+
-      (dayEntries.length>3&&!expanded?'<button type="button" class="phft-cal-more" data-task-cal-expand-day="'+key+'">+ '+(dayEntries.length-3)+' khác</button>':'')+
+      (dayEntries.length>3&&!expanded?'<button type="button" class="phft-cal-more" data-task-cal-expand-day="'+key+'">+'+(dayEntries.length-3)+' công việc</button>':'')+
       (expanded&&dayEntries.length>3?'<button type="button" class="phft-cal-more" data-task-cal-collapse-day="'+key+'">Thu gọn</button>':'')+
       '</div></article>';
   }
@@ -1515,20 +1800,48 @@ function taskTimelineActionVerb(event){
     default: return 'đã cập nhật';
   }
 }
+// UI/UX Step 7 — presentation tone for an activity event. Stored action
+// names are NOT changed. Unknown event_type → neutral 'gray' (honest).
+function taskTimelineActionTone(event){
+  switch(event.event_type){
+    case 'published': case 'progress': return 'blue';
+    case 'deadline_change': case 'priority_change': case 'extension_request':
+    case 'extension_decision': case 'reopen': case 'recurring_change': return 'orange';
+    case 'transfer': case 'assignment': case 'permission_change': return 'purple';
+    case 'completion': case 'monthly_close': return 'green';
+    case 'cancel': return 'red';
+    case 'comment': case 'link': case 'attachment': return 'gray';
+    default: return 'gray';
+  }
+}
 // Chỉ hiển thị before→after nếu payload THẬT có đủ field — không suy diễn
-// giá trị cũ nếu source không lưu (mục 3).
+// giá trị cũ nếu source không lưu (mục 3). Step 7: arrow wrapped for styling;
+// priority_change added (uses the existing TASK_PRIORITY_LABELS mapping).
+function taskTimelineDiff(before,after){
+  return '<span class="phft-tl-diff">'+esc(before)+'<i>→</i>'+esc(after)+'</span>';
+}
+// Step 7A — short "dd/mm HH:mm" for diff lines (display only; unambiguous in
+// the day/event context, the row already carries the full timestamp column).
+function taskTimelineShortDateTime(value){
+  if(!value)return '';
+  var d=new Date(value); if(isNaN(d.getTime()))return esc(String(value));
+  var p=taskTimeZoneParts(d);
+  return taskCalPad2(p.day)+'/'+taskCalPad2(p.month)+' '+taskCalPad2(p.hour)+':'+taskCalPad2(p.minute);
+}
 function taskTimelineMetadataHtml(event){
   var p=event.payload||{};
   if(event.event_type==='progress'&&p.old_percent!=null&&p.new_percent!=null)
-    return '<small>'+esc(p.old_percent)+'% → '+esc(p.new_percent)+'%</small>';
+    return taskTimelineDiff(p.old_percent+'%',p.new_percent+'%');
   if(event.event_type==='deadline_change'&&p.old_deadline&&p.new_deadline)
-    return '<small>'+esc(formatTaskDateTime(p.old_deadline))+' → '+esc(formatTaskDateTime(p.new_deadline))+'</small>';
+    return taskTimelineDiff(taskTimelineShortDateTime(p.old_deadline),taskTimelineShortDateTime(p.new_deadline));
   if(event.event_type==='transfer'&&p.from_employee_code&&p.to_employee_code)
-    return '<small>'+esc(p.from_employee_code)+' → '+esc(p.to_employee_code)+'</small>';
+    return taskTimelineDiff(p.from_employee_code,p.to_employee_code);
+  if(event.event_type==='priority_change'&&p.old_priority&&p.new_priority)
+    return taskTimelineDiff(TASK_PRIORITY_LABELS[String(p.old_priority).toLowerCase()]||p.old_priority,TASK_PRIORITY_LABELS[String(p.new_priority).toLowerCase()]||p.new_priority);
   if((event.event_type==='cancel'||event.event_type==='reopen'||event.event_type==='deadline_change'||event.event_type==='transfer')&&event.reason)
-    return '<small>Lý do: '+esc(event.reason)+'</small>';
+    return '<span class="phft-tl-reason">Lý do: '+esc(event.reason)+'</span>';
   if(event.event_type==='completion'&&p.result_text)
-    return '<small>'+esc(p.result_text)+'</small>';
+    return '<span class="phft-tl-reason">'+esc(p.result_text)+'</span>';
   return '';
 }
 // Nhóm filter loại hoạt động — CHỈ 4 nhóm có contract thật hỗ trợ rõ ràng
@@ -1554,16 +1867,25 @@ function taskTimelineDayLabel(dayKey,todayKey,yesterdayKey){
   var parts=dayKey.split('-');
   return parts[2]+'/'+parts[1]+'/'+parts[0];
 }
+// UI/UX Step 7 — operational row: TIME · rail dot · [actor did what] /
+// [task code · title] / [diff]. Whole <li> still opens the real Task detail
+// (data-task-timeline-open unchanged). "vào"/"khỏi" trailing prepositions
+// are trimmed for the 2-line layout — stored verb mapping is untouched.
 function taskTimelineItemHtml(event){
   var actorName=(event.actor&&(event.actor.full_name||event.actor.employee_code))||'—';
-  var verb=taskTimelineActionVerb(event);
+  var verb=String(taskTimelineActionVerb(event)).replace(/\s+(vào|khỏi)$/,'');
+  var tone=taskTimelineActionTone(event);
   var taskCode=event.task_code||'—';
   var title=event.task_title?String(event.task_title).trim():'';
   var time=taskCalendarTimeLabel(event.occurred_at);
   var meta=taskTimelineMetadataHtml(event);
-  return '<li class="phft-timeline-item" data-task-timeline-open="'+esc(event.task_id)+'">'+
-    '<div class="phft-timeline-time">'+esc(time)+'</div>'+
-    '<div class="phft-timeline-body"><p><b>'+esc(actorName)+'</b> '+esc(verb)+' <b>'+esc(taskCode)+'</b>'+(title?' · '+esc(title):'')+'</p>'+meta+'</div>'+
+  return '<li class="phft-tl-item tone-'+tone+'" data-task-timeline-open="'+esc(event.task_id)+'">'+
+    '<span class="phft-tl-time">'+esc(time)+'</span>'+
+    '<span class="phft-tl-rail"><i class="phft-tl-dot"></i></span>'+
+    '<span class="phft-tl-main">'+
+      '<span class="phft-tl-act"><b class="phft-tl-actor">'+esc(actorName)+'</b> <span class="phft-tl-verb">'+esc(verb)+'</span></span>'+
+      '<span class="phft-tl-task"><b class="phft-tl-code">'+esc(taskCode)+'</b>'+(title?'<span class="phft-tl-title">'+esc(title)+'</span>':'')+(meta?'<span class="phft-tl-metaline">'+meta+'</span>':'')+'</span>'+
+    '</span>'+
   '</li>';
 }
 function taskTimelineGroupedHtml(events){
@@ -1571,18 +1893,19 @@ function taskTimelineGroupedHtml(events){
   var todayKey=taskCalendarDateKey(new Date());
   var yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
   var yesterdayKey=taskCalendarDateKey(yesterday);
-  var html='', currentGroup=null;
+  var groups=[];
   events.forEach(function(event){
     var dayKey=taskCalendarDateKey(event.occurred_at);
-    if(dayKey!==currentGroup){
-      if(currentGroup!==null)html+='</ul>';
-      html+='<div class="phft-timeline-day-label">'+esc(taskTimelineDayLabel(dayKey,todayKey,yesterdayKey))+'</div><ul class="phft-timeline-list">';
-      currentGroup=dayKey;
-    }
-    html+=taskTimelineItemHtml(event);
+    var g=groups[groups.length-1];
+    if(!g||g.dayKey!==dayKey){g={dayKey:dayKey,items:[]};groups.push(g);}
+    g.items.push(event);
   });
-  if(currentGroup!==null)html+='</ul>';
-  return html;
+  return groups.map(function(g){
+    return '<section class="phft-tl-day">'+
+      '<div class="phft-timeline-day-label"><span>'+esc(taskTimelineDayLabel(g.dayKey,todayKey,yesterdayKey))+'</span><span class="phft-tl-day-count">'+g.items.length+' hoạt động</span></div>'+
+      '<ul class="phft-timeline-list">'+g.items.map(taskTimelineItemHtml).join('')+'</ul>'+
+    '</section>';
+  }).join('');
 }
 async function loadTaskTimeline(root){
   var tl=taskUiState.timeline;
@@ -1612,10 +1935,10 @@ async function openTaskTimeline(root){
 function taskTimelineFiltersHtml(){
   var tl=taskUiState.timeline;
   var relationOptions=[['received','Của tôi / Liên quan tới tôi'],['assigned','Tôi giao']].concat(taskManagerScopeAvailable()?[['managed','Nhân sự tôi quản lý']]:[]);
-  var activityOptions=[['all','Tất cả'],['progress','Tiến độ'],['note','Cập nhật/Ghi chú'],['completion','Hoàn thành'],['reopen_cancel','Mở lại/Hủy']];
-  return '<div class="phft-cal-filters">'+
-    '<select class="phft-select" data-task-timeline-relation>'+relationOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.relation===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
-    '<select class="phft-select" data-task-timeline-activity>'+activityOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.activityFilter===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
+  var activityOptions=[['all','Tất cả hoạt động'],['progress','Tiến độ'],['note','Ghi chú / Tài liệu'],['completion','Hoàn thành'],['reopen_cancel','Mở lại / Hủy']];
+  return '<div class="phft-tl-filters">'+
+    '<label class="phft-tl-filter"><span>Phạm vi</span><select class="phft-select" data-task-timeline-relation>'+relationOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.relation===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
+    '<label class="phft-tl-filter"><span>Loại hoạt động</span><select class="phft-select" data-task-timeline-activity>'+activityOptions.map(function(o){return '<option value="'+o[0]+'"'+(tl.activityFilter===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
   '</div>';
 }
 function taskTimelineHtml(){
@@ -1624,8 +1947,10 @@ function taskTimelineHtml(){
   if(tl.loading)body='<div class="phft-loading">Đang tải dòng thời gian…</div>';
   else if(tl.error)body='<div class="phft-alert is-error"><div><b>Không tải được dòng thời gian.</b><small>'+esc(tl.error)+'</small></div></div>';
   else body=taskTimelineGroupedHtml(taskTimelineFilteredEvents());
-  return '<div class="phft-page-head"><div><small>PHF TASK / DÒNG THỜI GIAN</small><h1>Dòng thời gian</h1><p class="phft-page-subtitle">Diễn biến nghiệp vụ thật trên các công việc bạn được phép xem — mới nhất trước.</p></div></div>'+
-    '<section class="phft-panel">'+taskTimelineFiltersHtml()+'<div class="phft-timeline-wrap">'+body+'</div></section>';
+  return '<div class="phft-timeline-page">'+
+    '<div class="phft-page-head"><div><small>PHF TASK / DÒNG THỜI GIAN</small><h1>Dòng thời gian</h1><p class="phft-page-subtitle">Diễn biến nghiệp vụ thật trên các công việc bạn được phép xem — mới nhất trước.</p></div></div>'+
+    '<section class="phft-panel">'+taskTimelineFiltersHtml()+'<div class="phft-timeline-wrap">'+body+'</div></section>'+
+  '</div>';
 }
 /* ---------------------------------------------------------------------
    REPORT / DASHBOARD V1 (Report-04) — dùng ĐÚNG 5 action backend đã có ở
@@ -1667,14 +1992,44 @@ var TASK_OVERVIEW_V2_METRIC_LABELS={open:'Công việc đang mở',overdue:'Đan
 // vào state Tổng quan, cùng pattern panel loading/error/data như summary —
 // KHÔNG tạo action/engine mới, chỉ 2 fetch bổ sung TÁI SỬ DỤNG action đã có
 // (getTaskReportV2Trend với window_days=30, getTaskReportV2DepartmentAnalysis).
+// UI/UX Step 2 (2026-08-30) — advanced dashboard filter. `filters` is the ONE
+// applied state; `filterDraft` is the in-drawer edit buffer (committed by "Áp
+// dụng"). Both only NARROW the authorized Reporting V2 population server-side
+// (api/_lib/task-reporting-v2.js::applyOverviewFilters) — never widen scope.
+// 'priority' is intentionally absent (not in the Overview population).
+function defaultTaskOverviewV2Filters(){
+  return { department:'', employee_code:'', category_code:'', status:'' };
+}
 function defaultTaskOverviewV2State(){
   return {
     periodType:'month', anchorDate:taskCalendarDateKey(new Date()),
     loading:false, error:'', data:null, seq:0, lastLoadedAt:null,
     trend:defaultTaskReportPanelState(),
     department:defaultTaskReportPanelState(),
-    drilldown:null
+    drilldown:null,
+    filters:defaultTaskOverviewV2Filters(),
+    filterOpen:false,
+    filterDraft:defaultTaskOverviewV2Filters(),
+    filterPeople:{loading:false,loaded:false,rows:[]}
   };
+}
+var TASK_OVERVIEW_V2_FILTER_STATUS_LABELS={published:'Chưa bắt đầu',in_progress:'Đang thực hiện',completed:'Hoàn thành',cancelled:'Đã hủy'};
+function taskOverviewV2ActiveFilterEntries(filters){
+  var f=filters||{}, out=[];
+  if(f.department)out.push({key:'department',label:'Phòng ban',value:taskDeptShortName(f.department),raw:f.department});
+  if(f.employee_code)out.push({key:'employee_code',label:'Nhân sự',value:taskOverviewV2EmployeeLabel(f.employee_code),raw:f.employee_code});
+  if(f.category_code)out.push({key:'category_code',label:'Loại việc',value:taskOverviewV2CategoryLabel(f.category_code),raw:f.category_code});
+  if(f.status)out.push({key:'status',label:'Trạng thái',value:TASK_OVERVIEW_V2_FILTER_STATUS_LABELS[f.status]||f.status,raw:f.status});
+  return out;
+}
+function taskOverviewV2FilterCount(filters){return taskOverviewV2ActiveFilterEntries(filters).length;}
+function taskOverviewV2FiltersPayload(filters){
+  var f=filters||{}, out={};
+  if(f.department)out.department=f.department;
+  if(f.employee_code)out.employee_code=f.employee_code;
+  if(f.category_code)out.category_code=f.category_code;
+  if(f.status)out.status=f.status;
+  return out;
 }
 var TASK_REPORT_CONTRACT_VERSION=1;
 var TASK_REPORT_PERIOD_LABELS={day:'Ngày',week:'Tuần',month:'Tháng',year:'Năm'};
@@ -1812,7 +2167,29 @@ async function openTaskReport(root){
 --------------------------------------------------------------------- */
 function taskOverviewV2ContextPayload(){
   var ov=taskUiState.overview;
-  return {period:{type:ov.periodType,anchor_date:ov.anchorDate}};
+  var payload={period:{type:ov.periodType,anchor_date:ov.anchorDate}};
+  var f=taskOverviewV2FiltersPayload(ov.filters);
+  if(Object.keys(f).length)payload.filters=f;
+  return payload;
+}
+// DISPLAY-ONLY department name cleanup (Step 2 §F) — strip the "Bộ phận"
+// prefix for readability; NEVER mutates department master data. Full name
+// stays available via title/tooltip at call sites.
+function taskDeptShortName(name){
+  var s=String(name||'').trim();
+  var stripped=s.replace(/^bộ\s*phận\s+/i,'').replace(/^phòng\s+/i,'');
+  return stripped.trim()?stripped.trim().replace(/^./,function(c){return c.toUpperCase();}):s;
+}
+function taskOverviewV2EmployeeLabel(code){
+  var c=String(code||'').toUpperCase();
+  var rows=(taskUiState.overview.filterPeople&&taskUiState.overview.filterPeople.rows)||[];
+  var hit=rows.find(function(p){return String(p.employee_code||'').toUpperCase()===c;});
+  return hit?(hit.full_name||c):c;
+}
+function taskOverviewV2CategoryLabel(code){
+  var c=String(code||'').toUpperCase();
+  var hit=(taskUiState.categories||[]).find(function(x){return String(x.code||'').toUpperCase()===c;});
+  return hit?(hit.name||c):c;
 }
 function taskOverviewV2CheckContract(result){return !!(result&&result.report_contract_version===TASK_OVERVIEW_V2_CONTRACT_VERSION);}
 async function loadTaskOverviewV2(root){
@@ -1875,6 +2252,50 @@ async function openTaskOverviewV2(root){
   renderTaskRoot(root);
   await Promise.all([loadTaskOverviewV2(root),loadTaskOverviewV2Trend(root),loadTaskOverviewV2Department(root)]);
 }
+function reloadTaskOverviewV2Panels(root){
+  taskUiState.overview.drilldown=null;
+  return Promise.all([loadTaskOverviewV2(root),loadTaskOverviewV2Trend(root),loadTaskOverviewV2Department(root)]);
+}
+// Step 2 — authorized person list for the "Nhân sự" filter option. Reuses the
+// scoped getTaskReportV2PersonAnalysis (same period, same authorization as the
+// dashboard). Fetched lazily the first time the filter drawer opens.
+async function loadTaskOverviewV2FilterPeople(root){
+  var fp=taskUiState.overview.filterPeople;
+  if(fp.loaded||fp.loading)return;
+  fp.loading=true;renderTaskRoot(root);
+  try{
+    var response=await taskApi(Object.assign({action:'getTaskReportV2PersonAnalysis'},{period:{type:taskUiState.overview.periodType,anchor_date:taskUiState.overview.anchorDate}}));
+    var result=taskResult(response)||{};
+    fp.rows=(result.people||[]).map(function(p){return {employee_code:p.employee_code,full_name:p.full_name,department:p.department};})
+      .filter(function(p){return p.employee_code;})
+      .sort(function(a,b){return String(a.full_name||a.employee_code).localeCompare(String(b.full_name||b.employee_code),'vi');});
+    fp.loaded=true;
+  }catch(e){ fp.rows=[]; fp.loaded=true; }
+  fp.loading=false;
+  if(taskUiState.view==='dashboard')renderTaskRoot(root);
+}
+function openTaskOverviewV2Filter(root){
+  var ov=taskUiState.overview;
+  ov.filterDraft=Object.assign(defaultTaskOverviewV2Filters(),ov.filters);
+  ov.filterOpen=true;
+  if(!taskUiState.categories.length&&!taskUiState.categoriesLoading){
+    taskUiState.categoriesLoading=true;
+    loadTaskCategories().then(function(rows){taskUiState.categories=rows;}).catch(function(){}).then(function(){
+      taskUiState.categoriesLoading=false;
+      if(taskUiState.view==='dashboard'&&taskUiState.overview.filterOpen)renderTaskRoot(root);
+    });
+  }
+  renderTaskRoot(root);
+  loadTaskOverviewV2FilterPeople(root);
+}
+function closeTaskOverviewV2Filter(root){taskUiState.overview.filterOpen=false;renderTaskRoot(root);}
+function applyTaskOverviewV2Filters(root,nextFilters){
+  var ov=taskUiState.overview;
+  ov.filters=Object.assign(defaultTaskOverviewV2Filters(),nextFilters||ov.filterDraft);
+  ov.filterOpen=false;
+  renderTaskRoot(root);
+  reloadTaskOverviewV2Panels(root);
+}
 function taskOverviewV2MetricLabel(metricId){return TASK_OVERVIEW_V2_METRIC_LABELS[metricId]||metricId;}
 // Drilldown CANONICAL DUY NHẤT cho cả 2 tab (Tổng quan + Báo cáo) — action
 // listTaskOverviewV2Drilldown, cùng state taskUiState.overview.drilldown bất
@@ -1888,9 +2309,16 @@ async function openTaskOverviewV2Drilldown(root,metricId,extra){
   var e=extra||{};
   var periodType=e.periodType||taskUiState.overview.periodType;
   var anchorDate=e.anchorDate||taskUiState.overview.anchorDate;
+  // Dashboard drill-down inherits the CURRENT applied dashboard filters (Step 2
+  // §D/§E) so the drawer population matches the KPI/department it opened from.
+  // A department/employee click (`extra`) composes ON TOP (both only narrow).
+  // Báo cáo tab table clicks (view==='report') do NOT carry dashboard filters.
+  var inheritFilters=(taskUiState.view==='dashboard')
+    ? taskOverviewV2FiltersPayload(taskUiState.overview.filters) : null;
   taskUiState.overview.drilldown={
     metricId:metricId,periodType:periodType,anchorDate:anchorDate,
     employeeCode:e.employeeCode||'',department:e.department||'',categoryCode:e.categoryCode||'',
+    filters:(inheritFilters&&Object.keys(inheritFilters).length)?inheritFilters:null,
     label:taskOverviewV2MetricLabel(metricId)+(e.labelSuffix?' — '+e.labelSuffix:''),
     loading:true,error:'',data:null,offset:0
   };
@@ -1905,6 +2333,7 @@ async function loadTaskOverviewV2DrilldownPage(root){
     if(dd.employeeCode)payload.employee_code=dd.employeeCode;
     if(dd.department)payload.department=dd.department;
     if(dd.categoryCode)payload.category_code=dd.categoryCode;
+    if(dd.filters&&Object.keys(dd.filters).length)payload.filters=dd.filters;
     var response=await taskApi(payload);
     var result=taskResult(response)||{};
     if(taskUiState.overview.drilldown!==dd)return;
@@ -1949,13 +2378,13 @@ function taskReportV2SummaryHtml(){
   var data=panel.data; if(!data)return '';
   var m=data.metrics||{};
   var kpis=
-    taskOverviewV2KpiCardHtml('open','Công việc đang mở',m.open&&m.open.value,'',true) +
-    taskOverviewV2KpiCardHtml('overdue','Đang quá hạn',m.overdue&&m.overdue.value,'',true) +
-    taskOverviewV2KpiCardHtml('due_soon','Sắp tới hạn (3 ngày)',m.due_soon&&m.due_soon.value,'',true) +
-    taskOverviewV2KpiCardHtml('completed_in_period','Hoàn thành trong kỳ',m.completed_in_period&&m.completed_in_period.value,'',true) +
-    taskOverviewV2KpiCardHtml('','Tỷ lệ hoàn thành đúng hạn',m.on_time_rate&&m.on_time_rate.value,'%',false);
+    taskOverviewV2KpiCardHtml('open','Công việc đang mở',m.open&&m.open.value,'',true,'phft-rk tone-blue') +
+    taskOverviewV2KpiCardHtml('overdue','Đang quá hạn',m.overdue&&m.overdue.value,'',true,'phft-rk tone-red') +
+    taskOverviewV2KpiCardHtml('due_soon','Sắp tới hạn (3 ngày)',m.due_soon&&m.due_soon.value,'',true,'phft-rk tone-orange') +
+    taskOverviewV2KpiCardHtml('completed_in_period','Hoàn thành trong kỳ',m.completed_in_period&&m.completed_in_period.value,'',true,'phft-rk tone-green') +
+    taskOverviewV2KpiCardHtml('','Tỷ lệ hoàn thành đúng hạn',m.on_time_rate&&m.on_time_rate.value,'%',false,'phft-rk tone-purple');
   return '<section class="phft-panel"><header><h3>Tổng hợp kỳ báo cáo</h3></header>'+
-    '<div class="phft-kpi-row">'+kpis+'</div>'+
+    '<div class="phft-kpi-row phft-kpi-row--report">'+kpis+'</div>'+
   '</section>'+
   taskOverviewV2StatusBreakdownHtml(data.status_breakdown)+
   taskOverviewV2TopListHtml('Top công việc quá hạn',data.top_overdue,'Không có công việc quá hạn.')+
@@ -1973,6 +2402,31 @@ function taskReportV2GroupChip(metricId,value,extra){
   return '<button'+attrs+' class="phft-report-chip"><strong>'+esc(value==null?'—':value)+'</strong></button>';
 }
 function taskReportV2OnTimeRateCell(rate){return rate==null?'—':esc(rate)+'%';}
+// UI/UX Step 3 — on-time rate as a performance SIGNAL (display bucketing of
+// the existing % only, no score invented): healthy≥85 green · 65–84 orange ·
+// <65 red · unavailable neutral "—".
+function taskReportV2PerfCell(rate){
+  if(rate==null)return '<td class="phft-c-perf is-na">—</td>';
+  var t=rate>=85?'green':(rate>=65?'orange':'red');
+  return '<td class="phft-c-perf tone-'+t+'">'+esc(rate)+'%</td>';
+}
+// UI/UX Step 3 — ONE shared renderer for the 3 breakdown tables ("Theo nhân
+// sự / phòng ban / loại công việc") so they read as members of the same
+// reporting system. identity = strongest row cell; metrics use the shared
+// semantic classes; workload/completed chips + drilldown wiring unchanged.
+function taskReportV2AnalysisTableHtml(headLabel,rows,identityFn,extraFn){
+  return '<div class="phft-report-table-scroll phft-report-table-scroll--sticky"><table class="phft-report-table phft-report-analysis">'+
+    '<thead><tr><th>'+esc(headLabel)+'</th><th>Khối lượng</th><th>Đang mở</th><th>Quá hạn</th><th>Hoàn thành trong kỳ</th><th>Tỷ lệ đúng hạn</th></tr></thead><tbody>'+
+    rows.map(function(r){
+      var extra=extraFn(r);
+      return '<tr>'+identityFn(r)+
+        '<td>'+taskReportV2GroupChip('workload',r.workload,extra)+'</td>'+
+        '<td class="phft-c-open'+(r.open>0?' is-on':'')+'">'+esc(r.open)+'</td>'+
+        '<td class="phft-c-overdue'+(r.overdue>0?' is-on phft-report-cell-overdue':'')+'">'+esc(r.overdue)+'</td>'+
+        '<td>'+taskReportV2GroupChip('completed_in_period',r.completed_in_period,extra)+'</td>'+
+        taskReportV2PerfCell(r.on_time_rate)+'</tr>';
+    }).join('')+'</tbody></table></div>';
+}
 function taskReportV2PanelShell(title,panel,body){
   if(panel.loading&&!panel.data)return '<section class="phft-panel"><header><h3>'+esc(title)+'</h3></header><div class="phft-loading">Đang tải…</div></section>';
   if(panel.error)return '<section class="phft-panel"><header><h3>'+esc(title)+'</h3></header><div class="phft-alert is-error"><div><b>Không tải được dữ liệu.</b><small>'+esc(panel.error)+'</small></div></div></section>';
@@ -1983,16 +2437,9 @@ function taskReportV2PersonHtml(){
   var body=function(data){
     var rows=data.people||[];
     if(!rows.length)return '<div class="phft-empty">Không có nhân sự nào có công việc trong phạm vi bạn xem.</div>';
-    return '<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Nhân sự</th><th>Khối lượng</th><th>Đang mở</th><th>Quá hạn</th><th>Hoàn thành trong kỳ</th><th>Tỷ lệ đúng hạn</th></tr></thead><tbody>'+
-      rows.map(function(r){
-        var extra={'employee-code':r.employee_code};
-        return '<tr><td class="phft-report-table-name"><b>'+esc(r.full_name||r.employee_code)+'</b><small>'+esc(r.department||'')+'</small></td>'+
-          '<td>'+taskReportV2GroupChip('workload',r.workload,extra)+'</td>'+
-          '<td>'+esc(r.open)+'</td>'+
-          '<td class="'+(r.overdue>0?'phft-report-cell-overdue':'')+'">'+esc(r.overdue)+'</td>'+
-          '<td>'+taskReportV2GroupChip('completed_in_period',r.completed_in_period,extra)+'</td>'+
-          '<td>'+taskReportV2OnTimeRateCell(r.on_time_rate)+'</td></tr>';
-      }).join('')+'</tbody></table></div>';
+    return taskReportV2AnalysisTableHtml('Nhân sự',rows,function(r){
+      return '<td class="phft-report-table-name"><b>'+esc(r.full_name||r.employee_code)+'</b><small>'+esc(taskDeptShortName(r.department||''))+'</small></td>';
+    },function(r){return {'employee-code':r.employee_code};});
   };
   return taskReportV2PanelShell('Theo nhân sự',panel,panel.data?body(panel.data):'');
 }
@@ -2001,16 +2448,9 @@ function taskReportV2DepartmentHtml(){
   var body=function(data){
     var rows=data.departments||[];
     if(!rows.length)return '<div class="phft-empty">Không có phòng ban nào có công việc trong phạm vi bạn xem.</div>';
-    return '<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Phòng ban</th><th>Khối lượng</th><th>Đang mở</th><th>Quá hạn</th><th>Hoàn thành trong kỳ</th><th>Tỷ lệ đúng hạn</th></tr></thead><tbody>'+
-      rows.map(function(r){
-        var extra={department:r.department};
-        return '<tr><td class="phft-report-table-name"><b>'+esc(r.department)+'</b></td>'+
-          '<td>'+taskReportV2GroupChip('workload',r.workload,extra)+'</td>'+
-          '<td>'+esc(r.open)+'</td>'+
-          '<td class="'+(r.overdue>0?'phft-report-cell-overdue':'')+'">'+esc(r.overdue)+'</td>'+
-          '<td>'+taskReportV2GroupChip('completed_in_period',r.completed_in_period,extra)+'</td>'+
-          '<td>'+taskReportV2OnTimeRateCell(r.on_time_rate)+'</td></tr>';
-      }).join('')+'</tbody></table></div>';
+    return taskReportV2AnalysisTableHtml('Phòng ban',rows,function(r){
+      return '<td class="phft-report-table-name"><b>'+esc(taskDeptShortName(r.department))+'</b></td>';
+    },function(r){return {department:r.department};});
   };
   return taskReportV2PanelShell('Theo phòng ban',panel,panel.data?body(panel.data):'');
 }
@@ -2019,16 +2459,9 @@ function taskReportV2CategoryHtml(){
   var body=function(data){
     var rows=data.categories||[];
     if(!rows.length)return '<div class="phft-empty">Không có loại công việc nào trong phạm vi bạn xem.</div>';
-    return '<div class="phft-report-table-scroll"><table class="phft-report-table"><thead><tr><th>Loại công việc</th><th>Khối lượng</th><th>Đang mở</th><th>Quá hạn</th><th>Hoàn thành trong kỳ</th><th>Tỷ lệ đúng hạn</th></tr></thead><tbody>'+
-      rows.map(function(r){
-        var extra={'category-code':r.category_code};
-        return '<tr><td class="phft-report-table-name"><b>'+esc(r.display_name)+'</b></td>'+
-          '<td>'+taskReportV2GroupChip('workload',r.workload,extra)+'</td>'+
-          '<td>'+esc(r.open)+'</td>'+
-          '<td class="'+(r.overdue>0?'phft-report-cell-overdue':'')+'">'+esc(r.overdue)+'</td>'+
-          '<td>'+taskReportV2GroupChip('completed_in_period',r.completed_in_period,extra)+'</td>'+
-          '<td>'+taskReportV2OnTimeRateCell(r.on_time_rate)+'</td></tr>';
-      }).join('')+'</tbody></table></div>';
+    return taskReportV2AnalysisTableHtml('Loại công việc',rows,function(r){
+      return '<td class="phft-report-table-name"><b>'+esc(r.display_name)+'</b></td>';
+    },function(r){return {'category-code':r.category_code};});
   };
   return taskReportV2PanelShell('Theo loại công việc',panel,panel.data?body(panel.data):'');
 }
@@ -2044,40 +2477,59 @@ function taskReportTrendBucketFullLabel(periodType,bucket){
   if(periodType==='year')return taskCalPad2(p.month)+'/'+p.year;
   return taskCalPad2(p.day)+'/'+taskCalPad2(p.month)+'/'+p.year;
 }
-// Report-05A mục 1 — chart cao/rộng hơn hẳn để không "lọt thỏm" giữa
-// khoảng trắng lớn trên màn hình quản trị; cột không có dữ liệu (0/0) vẽ 1
-// vạch đáy mỏng thay vì khoảng trống hoàn toàn trơ, và nhãn trục của cột đó
-// mờ đi (class is-zero) để mắt tự nhiên dồn vào các cột có hoạt động thật —
-// KHÔNG bịa số liệu, chỉ là 1 vạch trình bày cho giá trị 0 thật.
+// UI/UX Step 3 — "dàn ngang ra": the chart now uses a FIXED 1000-unit
+// viewBox distributed evenly across every bucket in the period and scales to
+// the full section width (preserveAspectRatio keeps geometry undistorted),
+// so active days no longer bunch on the left with dead whitespace on the
+// right. Every real day in the period stays a real column; zero-value days
+// keep a thin baseline mark + dimmed axis label (class is-zero). No value is
+// altered, no day removed, linear scale only.
 function taskReportTrendSvgHtml(buckets,periodType){
   if(!buckets.length)return '<div class="phft-empty">Không có dữ liệu xu hướng.</div>';
-  var maxVal=1;
-  buckets.forEach(function(b){maxVal=Math.max(maxVal,b.created_in_period,b.completed_in_period);});
-  var barW=Math.max(9,Math.min(28,Math.floor(900/buckets.length/2)-3));
-  var groupW=barW*2+10;
-  var chartW=Math.max(380,groupW*buckets.length+20);
-  var baseY=192,chartH=180;
+  var n=buckets.length;
+  var rawMax=1;
+  buckets.forEach(function(b){rawMax=Math.max(rawMax,b.created_in_period,b.completed_in_period);});
+  // "nice" ceiling so Y ticks land on round numbers (presentation only)
+  var step=Math.max(1,Math.ceil(rawMax/4));
+  var maxVal=step*4;
+  var VB_W=1000, VB_H=208, padL=44, padR=16, padT=10, baseY=168, chartH=baseY-padT;
+  var plotW=VB_W-padL-padR;
+  var slot=plotW/n;
+  var groupW=Math.min(slot*0.62,44);
+  var barW=Math.max(4,(groupW-4)/2);
+  var labelStep=Math.ceil(n/16);
+  var grid='',ticks='';
+  for(var t=0;t<=4;t++){
+    var gy=baseY-(t/4)*chartH;
+    grid+='<line x1="'+padL+'" y1="'+gy+'" x2="'+(VB_W-padR)+'" y2="'+gy+'" class="phft-trend-grid"></line>';
+    ticks+='<text x="'+(padL-8)+'" y="'+(gy+3.5)+'" class="phft-trend-ytick">'+(t*step)+'</text>';
+  }
+  var axis='<line x1="'+padL+'" y1="'+baseY+'" x2="'+(VB_W-padR)+'" y2="'+baseY+'" class="phft-trend-axis-line"></line>';
   var bars=buckets.map(function(b,i){
-    var x=10+i*groupW;
+    var gx=padL+i*slot+(slot-groupW)/2;
     var hasData=b.created_in_period>0||b.completed_in_period>0;
     var createdH=Math.round((b.created_in_period/maxVal)*chartH);
     var completedH=Math.round((b.completed_in_period/maxVal)*chartH);
     var onTimeH=b.completed_in_period?Math.round(completedH*(b.completed_on_time/b.completed_in_period)):0;
     var lateH=completedH-onTimeH;
+    var x2=gx+barW+2;
     var title=taskReportTrendBucketFullLabel(periodType,b)+' — Phát sinh: '+b.created_in_period+' · Hoàn thành đúng hạn: '+b.completed_on_time+' · Hoàn thành trễ: '+b.completed_late;
     var createdRect=createdH>0
-      ?'<rect x="'+x+'" y="'+(baseY-createdH)+'" width="'+barW+'" height="'+createdH+'" class="phft-trend-bar-created"></rect>'
-      :'<rect x="'+x+'" y="'+(baseY-2)+'" width="'+barW+'" height="2" class="phft-trend-bar-zero"></rect>';
-    var onTimeRect=onTimeH>0?'<rect x="'+(x+barW+3)+'" y="'+(baseY-lateH-onTimeH)+'" width="'+barW+'" height="'+onTimeH+'" class="phft-trend-bar-ontime"></rect>':'';
-    var lateRect=lateH>0?'<rect x="'+(x+barW+3)+'" y="'+(baseY-lateH)+'" width="'+barW+'" height="'+lateH+'" class="phft-trend-bar-late"></rect>':'';
-    var completedZeroRect=(onTimeH===0&&lateH===0)?'<rect x="'+(x+barW+3)+'" y="'+(baseY-2)+'" width="'+barW+'" height="2" class="phft-trend-bar-zero"></rect>':'';
+      ?'<rect x="'+gx+'" y="'+(baseY-createdH)+'" width="'+barW+'" height="'+createdH+'" rx="1.5" class="phft-trend-bar-created"></rect>'
+      :'<rect x="'+gx+'" y="'+(baseY-2)+'" width="'+barW+'" height="2" class="phft-trend-bar-zero"></rect>';
+    var onTimeRect=onTimeH>0?'<rect x="'+x2+'" y="'+(baseY-lateH-onTimeH)+'" width="'+barW+'" height="'+onTimeH+'" class="phft-trend-bar-ontime"></rect>':'';
+    var lateRect=lateH>0?'<rect x="'+x2+'" y="'+(baseY-lateH)+'" width="'+barW+'" height="'+lateH+'" rx="1.5" class="phft-trend-bar-late"></rect>':'';
+    var completedZeroRect=(onTimeH===0&&lateH===0)?'<rect x="'+x2+'" y="'+(baseY-2)+'" width="'+barW+'" height="2" class="phft-trend-bar-zero"></rect>':'';
+    var label=(i%labelStep===0)
+      ?'<text x="'+(gx+groupW/2)+'" y="'+(baseY+18)+'" class="phft-trend-axis-label">'+esc(taskReportTrendBucketLabel(periodType,b))+'</text>'
+      :'';
     return '<g class="'+(hasData?'':'is-zero')+'">'+
       '<title>'+esc(title)+'</title>'+
-      createdRect+onTimeRect+lateRect+completedZeroRect+
-      '<text x="'+(x+groupW/2-5)+'" y="'+(baseY+18)+'" class="phft-trend-axis-label">'+esc(taskReportTrendBucketLabel(periodType,b))+'</text>'+
+      '<rect x="'+gx+'" y="'+padT+'" width="'+groupW+'" height="'+(baseY-padT)+'" class="phft-trend-hit"></rect>'+
+      createdRect+onTimeRect+lateRect+completedZeroRect+label+
     '</g>';
   }).join('');
-  return '<div class="phft-trend-scroll"><svg viewBox="0 0 '+chartW+' 218" class="phft-trend-svg" role="img" aria-label="Biểu đồ xu hướng công việc">'+bars+'</svg></div>'+
+  return '<div class="phft-trend-scroll"><svg viewBox="0 0 '+VB_W+' '+VB_H+'" preserveAspectRatio="xMidYMid meet" class="phft-trend-svg" role="img" aria-label="Biểu đồ xu hướng công việc">'+grid+axis+ticks+bars+'</svg></div>'+
     '<div class="phft-trend-legend">'+
       '<span class="phft-trend-legend-item"><i class="phft-trend-swatch phft-trend-bar-created"></i>Phát sinh</span>'+
       '<span class="phft-trend-legend-item"><i class="phft-trend-swatch phft-trend-bar-ontime"></i>Hoàn thành đúng hạn</span>'+
@@ -2516,6 +2968,16 @@ function demoTaskDetailModalHtml(){
 async function openTaskList(root,relation){
   taskUiState.view='list';
   taskUiState.list=Object.assign(defaultTaskListState(),{relation:relation});
+  // UI/UX Step 5 — hydrate the category list once so list rows can show a
+  // human name instead of a raw code (display only; failure is non-fatal —
+  // the row falls back to whatever it already carries).
+  if(!taskUiState.categories.length&&!taskUiState.categoriesLoading){
+    taskUiState.categoriesLoading=true;
+    loadTaskCategories().then(function(rows){taskUiState.categories=rows;}).catch(function(){}).then(function(){
+      taskUiState.categoriesLoading=false;
+      if(taskUiState.view==='list')renderTaskRoot(root);
+    });
+  }
   await loadTaskList(root);
 }
 var taskListSearchDebounceTimer=null;
@@ -2693,7 +3155,7 @@ function taskFieldError(name){
 function taskDateTimeFieldHtml(fieldKey,label,required,explicitValue){
   var currentValue=(explicitValue!==undefined)?explicitValue:taskUiState.form[fieldKey];
   var parts=taskDateTimeInputValueParts(currentValue);
-  return '<div class="phft-datetime-field" data-task-dt-field="'+esc(fieldKey)+'">'+
+  return '<div class="phft-datetime-field'+(required?' is-req':'')+'" data-task-dt-field="'+esc(fieldKey)+'">'+
     '<span>'+esc(label)+(required?' *':'')+'</span>'+
     '<div class="phft-datetime-inputs">'+
       '<input type="date" data-task-dt-part="date" data-task-dt-field="'+esc(fieldKey)+'" value="'+esc(parts.date)+'" aria-label="'+esc(label)+' — ngày">'+
@@ -2788,7 +3250,8 @@ function taskPrimaryPickerHtml(){
     var label=row?(row.name+' · '+row.code+(row.department?' · '+row.department:'')):employeeLabel(selectedCode);
     return '<div class="phft-primary-chip"><span class="phft-chip is-primary">'+esc(label)+'</span><button type="button" class="phft-btn-secondary" data-task-change-primary>Thay đổi</button></div>';
   }
-  return '<div class="phft-picker-filterbar">'+taskDepartmentFilterHtml('primary')+'<label class="phft-picker-label"><span>Tìm người thực hiện chính</span><input data-task-search="primary" value="'+esc(taskUiState.primaryQuery)+'" placeholder="Tìm theo tên hoặc mã nhân viên" autofocus></label></div><div class="phft-picker-results" data-task-results="primary">'+employeeResultsHtml('primary')+'</div>';
+  var searchLabel=taskUiState.form.flow_type==='de_xuat'?'Tìm người nhận đề xuất':'Tìm người thực hiện chính';
+  return '<div class="phft-picker-filterbar">'+taskDepartmentFilterHtml('primary')+'<label class="phft-picker-label"><span>'+esc(searchLabel)+'</span><input data-task-search="primary" value="'+esc(taskUiState.primaryQuery)+'" placeholder="Tìm theo tên hoặc mã nhân viên" autofocus></label></div><div class="phft-picker-results" data-task-results="primary">'+employeeResultsHtml('primary')+'</div>';
 }
 function taskPeerManagerWarningHtml(){
   var row=taskPrimaryEmployeeRow();
@@ -2846,15 +3309,74 @@ function taskProposalHonestyNoticeHtml(){
   if(taskUiState.form.flow_type!=='de_xuat')return '';
   return '<div class="phft-alert is-info"><div><b>Đề xuất sẽ gửi ngay cho người nhận khi bấm "Gửi đề xuất".</b><small>Người nhận có thể Chấp nhận (tạo công việc chính thức) hoặc Từ chối. Bạn có thể Hủy khi đề xuất còn đang chờ xử lý.</small></div></div>';
 }
+// UI/UX Step 4 — segmented control matching Tổng quan / Báo cáo
+// (taskOverviewReportTabBarHtml). Route/behaviour unchanged (data-task-create-tab).
 function taskCreateTabsHtml(){
   var tab=taskUiState.createTab==='full'?'full':'quick';
-  return '<div class="phft-tabbar" role="tablist">'+
-    '<button type="button" role="tab" class="phft-tab'+(tab==='quick'?' is-active':'')+'" aria-selected="'+(tab==='quick'?'true':'false')+'" data-task-create-tab="quick">Tạo phiếu nhanh</button>'+
-    '<button type="button" role="tab" class="phft-tab'+(tab==='full'?' is-active':'')+'" aria-selected="'+(tab==='full'?'true':'false')+'" data-task-create-tab="full">Tạo phiếu đầy đủ</button>'+
+  function seg(id,label,hint){
+    return '<button type="button" role="tab" aria-selected="'+(tab===id?'true':'false')+'" class="phft-seg-btn'+(tab===id?' is-active':'')+'" data-task-create-tab="'+id+'">'+
+      '<b>'+esc(label)+'</b><small>'+esc(hint)+'</small></button>';
+  }
+  return '<div class="phft-seg phft-seg--create" role="tablist" aria-label="Chế độ tạo công việc">'+
+    seg('quick','Tạo phiếu nhanh','Giao việc thông thường')+
+    seg('full','Tạo phiếu đầy đủ','Nhiều thông tin & tùy chọn')+
   '</div>'+
   '<p class="phft-mode-microcopy">'+(tab==='quick'
-    ?'Giao việc thông thường cho một người.'
-    :'Có tất cả thông tin của Tạo nhanh và thêm CC, lặp, Đề xuất và thiết lập nâng cao.')+'</p>';
+    ?'Giao một công việc thông thường cho một người — chỉ với thông tin cần thiết để thực hiện rõ ràng.'
+    :'Dùng khi công việc cần quản trị chi tiết hơn: mô tả rõ yêu cầu/kết quả, thêm người liên quan, tùy chọn theo dõi.')+'</p>';
+}
+// UI/UX Step 4 — responsibility reminder shown under the Quick form. UI
+// guidance ONLY: no Checklist scoring, no duplicate-detection, no gate.
+function taskCreateResponsibilityNoticeHtml(){
+  return '<aside class="phft-create-notice" role="note">'+
+    '<div class="phft-create-notice-icon" aria-hidden="true">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>'+
+    '</div>'+
+    '<div class="phft-create-notice-body">'+
+      '<b>Giao việc đúng lúc, đúng việc</b>'+
+      '<p>Trước khi tạo công việc, hãy dành một chút thời gian kiểm tra:</p>'+
+      '<ul>'+
+        '<li>Công việc đã có mục tiêu và kết quả mong đợi rõ ràng chưa?</li>'+
+        '<li>Công việc có trùng lặp với Checklist hoặc tiêu chí công việc khác không?</li>'+
+        '<li>Với những việc nhỏ có thể trao đổi và xử lý ngay, không nhất thiết phải tạo thành một công việc riêng.</li>'+
+      '</ul>'+
+      '<p class="phft-create-notice-close">Giao việc phù hợp giúp đội ngũ tập trung và tránh ghi nhận trách nhiệm trùng lặp.</p>'+
+    '</div>'+
+  '</aside>';
+}
+// UI/UX Step 4A — compact one-line guidance strip near the tabs (not a
+// dominant panel). Guidance copy only — authorises no new fields.
+function taskCreateFullGuidanceHtml(){
+  return '<p class="phft-full-guidance" role="note"><b>Khi nào dùng phiếu đầy đủ?</b> Dùng cho công việc quan trọng / nhiều bước, cần thêm người liên quan hoặc tùy chọn theo dõi. Nếu chỉ là việc đơn giản, hãy dùng <button type="button" class="phft-linklike" data-task-create-tab="quick">Tạo phiếu nhanh</button>.</p>';
+}
+// UI/UX Step 4A — PRESENTATION-ONLY live summary of the Quick form. Reads
+// ONLY current taskUiState.form values (no API, no new state, no second
+// source of truth, no validation). Refreshed in-place from the existing
+// oninput handler as the real form state changes.
+function taskCreateSummaryRow(label,value){
+  var has=value!=null&&String(value).trim()!=='';
+  return '<div class="phft-qsum-row"><span>'+esc(label)+'</span><b class="'+(has?'':'phft-qsum-empty')+'">'+(has?esc(value):'—')+'</b></div>';
+}
+function taskCreateQuickSummaryHtml(){
+  var f=taskUiState.form;
+  var catRow=(taskUiState.categories||[]).find(function(c){return c.code===f.category_code;});
+  var primRow=taskPrimaryEmployeeRow();
+  var primName=primRow?primRow.name:(f.primary_employee_code?employeeLabel(f.primary_employee_code):'');
+  return '<aside class="phft-quick-summary" data-task-quick-summary aria-label="Xem trước phiếu giao việc">'+
+    '<h3>Xem trước phiếu giao việc</h3>'+
+    taskCreateSummaryRow('Tiêu đề',f.title)+
+    taskCreateSummaryRow('Danh mục',catRow?catRow.name:'')+
+    '<div class="phft-qsum-row phft-qsum-prio prio-'+(f.priority||'thuong')+'"><span>Mức độ ưu tiên</span><b>'+esc(TASK_PRIORITY_QUICK_LABELS[f.priority||'thuong']||'Thường')+'</b></div>'+
+    taskCreateSummaryRow('Hạn hoàn thành',f.deadline?taskDateTimeDisplayVN(f.deadline):'')+
+    taskCreateSummaryRow('Người thực hiện',primName)+
+    taskCreateSummaryRow('Nội dung công việc',f.content)+
+    '<p class="phft-quick-summary-note">Phiếu sẽ được tạo ngay và thông báo cho người thực hiện.</p>'+
+  '</aside>';
+}
+function updateTaskCreateQuickSummary(root){
+  if(taskUiState.view!=='create'||taskUiState.createTab!=='quick')return;
+  var el=root&&root.querySelector('[data-task-quick-summary]');
+  if(el)el.outerHTML=taskCreateQuickSummaryHtml();
 }
 function modeSwitchWarningHtml(){
   var w=taskUiState.modeSwitchWarning;if(!w)return '';
@@ -2864,6 +3386,21 @@ function quickSuccessBannerHtml(){
   var s=taskUiState.quickSuccess;if(!s)return '';
   var codeLine=s.taskCode?' · Mã phiếu: '+esc(s.taskCode):'';
   return '<div class="phft-alert is-success"><div><b>Đã giao công việc thành công.</b><small>'+esc(s.title||'')+codeLine+'</small></div><div class="phft-alert-actions"><button type="button" class="phft-btn-secondary" data-task-view-created="'+esc(s.taskId)+'">Xem công việc vừa tạo</button><button type="button" class="phft-btn-secondary" data-task-dismiss-quick-success>Tạo công việc khác</button></div></div>';
+}
+var TASK_PRIORITY_QUICK_LABELS={thuong:'Thường',quan_trong:'Quan trọng',khan_cap:'Khẩn cấp'};
+// UI/UX Step 4D — Quick priority selector. Reuses the EXISTING contract:
+// taskUiState.form.priority (values thuong/quan_trong/khan_cap), same state
+// key, same canonical default 'thuong', same create payload field as the
+// Full form. No new state, no API/DB/schema change.
+function quickPriorityChipsHtml(){
+  var cur=taskUiState.form.priority||'thuong';
+  return '<div class="phft-span-2 phft-quick-prio"><span class="phft-field-label">Mức độ ưu tiên</span>'+
+    '<div class="phft-prio-chips" role="group" aria-label="Mức độ ưu tiên">'+
+    Object.keys(TASK_PRIORITY_QUICK_LABELS).map(function(k){
+      var on=cur===k;
+      return '<button type="button" class="phft-prio-chip prio-'+k+(on?' is-on':'')+'" data-task-priority="'+k+'" aria-pressed="'+(on?'true':'false')+'">'+esc(TASK_PRIORITY_QUICK_LABELS[k])+'</button>';
+    }).join('')+
+    '</div></div>';
 }
 function quickDeadlineActionsHtml(){
   return '<div class="phft-quick-deadline-actions">'+
@@ -2875,25 +3412,35 @@ function quickDeadlineActionsHtml(){
 function createTaskQuickFormHtml(){
   var foundationReady=!!(taskUiState.foundationStatus&&taskUiState.foundationStatus.createTaskReady===true);
   var submitBlocked=!taskUiState.foundationStatusLoading&&!foundationReady;
+  var hasLinks=!!(taskUiState.form.links&&taskUiState.form.links.length);
+  var linksBlock=hasLinks
+    ?'<section class="phft-form-card phft-quick-links"><header class="phft-card-action"><div><h2>Tài liệu / Link</h2><p>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</p></div>'+
+      '<button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button></header>'+
+      '<div class="phft-link-list">'+linkRowsHtml()+'</div></section>'
+    :'<div class="phft-quick-link-add"><button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm tài liệu / link</button><small>Không bắt buộc</small></div>';
   return quickSuccessBannerHtml()+
-    '<form class="phft-form phft-form-quick" data-task-create-form novalidate>'+
-      (taskUiState.submitError?'<div class="phft-alert is-error">'+esc(taskUiState.submitError)+'</div>':'')+
-      '<section class="phft-form-card"><header><h2>Giao việc nhanh</h2><p>Bắt đầu = ngay lúc bấm "Giao việc". Ưu tiên = Thường.</p></header><div class="phft-form-grid">'+
-        '<label class="phft-span-2"><span>Tiêu đề *</span><input data-task-field="title" value="'+esc(taskUiState.form.title)+'" placeholder="Nhập tiêu đề công việc">'+taskFieldError('title')+'</label>'+
-        '<label><span>Danh mục *</span><select data-task-field="category_code"'+((taskUiState.categoriesLoading||taskUiState.categoriesError)?' disabled':'')+'>'+taskCategoryOptionsHtml()+'</select>'+taskFieldError('category_code')+'</label>'+
-        '<div class="phft-span-2">'+taskDateTimeFieldHtml('deadline','Hạn hoàn thành',true)+taskFieldError('deadline')+quickDeadlineActionsHtml()+'</div>'+
-        '<label class="phft-span-2"><span>Nội dung công việc</span><textarea data-task-field="content" rows="3" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea></label>'+
-      '</div></section>'+
-      '<section class="phft-form-card"><header><h2>Người thực hiện chính *</h2><p>Chỉ 01 người chịu trách nhiệm chính, chỉ chọn nhân sự đang làm.</p></header>'+
-        taskPrimaryPickerHtml()+taskFieldError('primary_employee_code')+taskPeerManagerWarningHtml()+taskCrossDepartmentNoticeHtml()+
-      '</section>'+
-      '<section class="phft-form-card"><header><h2>Tài liệu / Link</h2><p>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</p></header>'+
-        '<div class="phft-link-list">'+linkRowsHtml()+'</div>'+
-        '<button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button>'+
-      '</section>'+
-      '<p class="phft-quick-upsell">Cần CC, công việc lặp hoặc thiết lập thêm? <button type="button" class="phft-linklike" data-task-create-tab="full">Chuyển sang Tạo đầy đủ</button></p>'+
-      '<footer class="phft-form-actions"><span class="phft-submit-phase" data-task-phase>'+(taskUiState.submitting?esc(taskPhaseLabel()):'')+'</span><button type="submit" class="phft-btn-primary"'+((taskUiState.submitting||submitBlocked)?' disabled title="Nền tảng tạo phiếu chưa được kích hoạt."':'')+'>'+(taskUiState.submitting?'Đang lưu…':'Giao việc')+'</button></footer>'+
-    '</form>';
+    '<div class="phft-quick-workspace">'+
+      '<div class="phft-quick-main">'+
+        '<form class="phft-form phft-form-quick" data-task-create-form novalidate>'+
+          (taskUiState.submitError?'<div class="phft-alert is-error">'+esc(taskUiState.submitError)+'</div>':'')+
+          '<section class="phft-form-card phft-quick-slip"><header><h2>Phiếu giao việc nhanh</h2><p>Điền nhanh — kiểm tra kỹ — giao việc. Bắt đầu tính từ lúc bấm "Giao việc", ưu tiên mặc định "Thường".</p></header><div class="phft-form-grid">'+
+            '<label class="phft-span-2 is-req"><span>Tiêu đề công việc *</span><input data-task-field="title" value="'+esc(taskUiState.form.title)+'" placeholder="Tên công việc ngắn gọn, rõ ràng">'+taskFieldError('title')+'</label>'+
+            '<label class="phft-span-2 is-req"><span>Danh mục *</span><select data-task-field="category_code"'+((taskUiState.categoriesLoading||taskUiState.categoriesError)?' disabled':'')+'>'+taskCategoryOptionsHtml()+'</select>'+taskFieldError('category_code')+'</label>'+
+            quickPriorityChipsHtml()+
+            '<div class="phft-span-2 phft-quick-deadline-cluster">'+taskDateTimeFieldHtml('deadline','Hạn hoàn thành',true)+taskFieldError('deadline')+quickDeadlineActionsHtml()+'</div>'+
+            '<div class="phft-span-2 phft-quick-primary"><span class="phft-field-label is-req">Người thực hiện chính *</span><small class="phft-field-hint">Chỉ 01 người chịu trách nhiệm chính, chỉ chọn nhân sự đang làm.</small>'+
+              taskPrimaryPickerHtml()+taskFieldError('primary_employee_code')+taskPeerManagerWarningHtml()+taskCrossDepartmentNoticeHtml()+'</div>'+
+            '<label class="phft-span-2"><span>Nội dung công việc</span><textarea data-task-field="content" rows="3" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea></label>'+
+            '<div class="phft-span-2">'+linksBlock+'</div>'+
+          '</div></section>'+
+          '<footer class="phft-quick-foot">'+
+            '<div class="phft-quick-foot-hint">Cần thêm CC hoặc tùy chọn quản lý khác?<br><button type="button" class="phft-linklike" data-task-create-tab="full">Chuyển sang Tạo phiếu đầy đủ</button></div>'+
+            '<div class="phft-quick-foot-act"><span class="phft-submit-phase" data-task-phase>'+(taskUiState.submitting?esc(taskPhaseLabel()):'')+'</span><button type="submit" class="phft-btn-primary"'+((taskUiState.submitting||submitBlocked)?' disabled title="Nền tảng tạo phiếu chưa được kích hoạt."':'')+'>'+(taskUiState.submitting?'Đang lưu…':'Giao việc')+'</button></div>'+
+          '</footer>'+
+        '</form>'+
+      '</div>'+
+      '<div class="phft-quick-side">'+taskCreateQuickSummaryHtml()+taskCreateResponsibilityNoticeHtml()+'</div>'+
+    '</div>';
 }
 function createTaskFullFormHtml(){
   var contentOpen=!!taskUiState.expandedSections.content;
@@ -2901,28 +3448,41 @@ function createTaskFullFormHtml(){
   var linksOpen=!!taskUiState.expandedSections.links;
   var foundationReady=!!(taskUiState.foundationStatus&&taskUiState.foundationStatus.createTaskReady===true);
   var submitBlocked=!taskUiState.foundationStatusLoading&&!foundationReady;
-  return '<form class="phft-form" data-task-create-form novalidate>'+
+  var isDeXuat=taskUiState.form.flow_type==='de_xuat';
+  var primaryLabel=isDeXuat?'Người nhận đề xuất *':'Người thực hiện chính *';
+  var sec02Title=isDeXuat?'Người nhận đề xuất':'Phân công';
+  var sec02Hint=isDeXuat?'Chọn người tiếp nhận và xử lý đề xuất.':'Chọn người chịu trách nhiệm chính và người liên quan nếu cần.';
+  return '<form class="phft-form phft-form-doc" data-task-create-form novalidate>'+
       (taskUiState.submitError?'<div class="phft-alert is-error">'+esc(taskUiState.submitError)+'</div>':'')+
       taskProposalHonestyNoticeHtml()+
-      '<section class="phft-form-card"><header><h2>Thông tin công việc</h2><p>Card gọn — thao tác nhanh. Ngày giờ theo 24h, múi giờ Việt Nam.</p></header><div class="phft-form-grid">'+
-        '<label><span>Loại phiếu *</span><select data-task-field="flow_type"><option value="giao_viec"'+(taskUiState.form.flow_type==='giao_viec'?' selected':'')+'>Giao việc</option><option value="de_xuat"'+(taskUiState.form.flow_type==='de_xuat'?' selected':'')+'>Đề xuất</option></select>'+taskFieldError('flow_type')+'</label>'+
-        '<label><span>Danh mục công việc *</span><select data-task-field="category_code"'+((taskUiState.categoriesLoading||taskUiState.categoriesError)?' disabled':'')+'>'+taskCategoryOptionsHtml()+'</select>'+taskFieldError('category_code')+(taskUiState.categoriesError?'<small class="phft-field-error">'+esc(taskUiState.categoriesError)+'</small>':'')+'</label>'+
-        '<label class="phft-span-2"><span>Tiêu đề *</span><input data-task-field="title" value="'+esc(taskUiState.form.title)+'" placeholder="Nhập tiêu đề công việc">'+taskFieldError('title')+'</label>'+
+      // 01 · THÔNG TIN CÔNG VIỆC
+      '<section class="phft-doc-section"><header><span class="phft-doc-num">01</span><div><h2>Thông tin công việc</h2><p>Ngày giờ theo 24h, múi giờ Việt Nam.</p></div></header><div class="phft-doc-body"><div class="phft-form-grid">'+
+        '<label class="is-req"><span>Loại phiếu *</span><select data-task-field="flow_type"><option value="giao_viec"'+(taskUiState.form.flow_type==='giao_viec'?' selected':'')+'>Giao việc</option><option value="de_xuat"'+(taskUiState.form.flow_type==='de_xuat'?' selected':'')+'>Đề xuất</option></select>'+taskFieldError('flow_type')+'</label>'+
+        '<label class="is-req"><span>Danh mục công việc *</span><select data-task-field="category_code"'+((taskUiState.categoriesLoading||taskUiState.categoriesError)?' disabled':'')+'>'+taskCategoryOptionsHtml()+'</select>'+taskFieldError('category_code')+(taskUiState.categoriesError?'<small class="phft-field-error">'+esc(taskUiState.categoriesError)+'</small>':'')+'</label>'+
+        '<label class="phft-span-2 is-req"><span>Tiêu đề *</span><input data-task-field="title" value="'+esc(taskUiState.form.title)+'" placeholder="Nhập tiêu đề công việc">'+taskFieldError('title')+'</label>'+
         '<label><span>Ưu tiên</span><select data-task-field="priority"><option value="thuong"'+(taskUiState.form.priority==='thuong'?' selected':'')+'>Thường</option><option value="quan_trong"'+(taskUiState.form.priority==='quan_trong'?' selected':'')+'>Quan trọng</option><option value="khan_cap"'+(taskUiState.form.priority==='khan_cap'?' selected':'')+'>Khẩn cấp</option></select>'+taskFieldError('priority')+'</label>'+
-        '<div>'+taskDateTimeFieldHtml('start_at','Bắt đầu',true)+taskFieldError('start_at')+'</div>'+
-        '<div>'+taskDateTimeFieldHtml('deadline','Hạn hoàn thành',true)+taskFieldError('deadline')+'</div>'+
+        '<div class="phft-dt-slot">'+taskDateTimeFieldHtml('start_at','Bắt đầu',true)+taskFieldError('start_at')+'</div>'+
+        '<div class="phft-dt-slot">'+taskDateTimeFieldHtml('deadline','Hạn hoàn thành',true)+taskFieldError('deadline')+'</div>'+
+      '</div></div></section>'+
+      // 02 · PHÂN CÔNG
+      '<section class="phft-doc-section"><header><span class="phft-doc-num">02</span><div><h2>'+esc(sec02Title)+'</h2><p>'+esc(sec02Hint)+'</p></div></header><div class="phft-doc-body">'+
+        '<div class="phft-doc-field"><span class="phft-field-label is-req">'+esc(primaryLabel)+'</span><small class="phft-field-hint">Chỉ chọn nhân sự đang làm.</small>'+
+          taskPrimaryPickerHtml()+taskFieldError('primary_employee_code')+taskPeerManagerWarningHtml()+taskCrossDepartmentNoticeHtml()+'</div>'+
+        '<div class="phft-doc-sub"><div class="phft-doc-sub-head"><div><b>Người liên quan (CC)</b><small>Được xem/theo dõi Task — không chịu trách nhiệm chính, không tính KPI/trễ hạn.</small></div>'+(relatedOpen?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="related">+ Người liên quan</button>')+'</div>'+
+          (relatedOpen?'<div class="phft-picker-filterbar">'+taskDepartmentFilterHtml('related')+'<div class="phft-picker-label"><span>Tìm người liên quan (CC)</span><input data-task-search="related" value="'+esc(taskUiState.relatedQuery)+'" placeholder="Tìm và chọn nhiều người"></div></div><div class="phft-picker-results" data-task-results="related">'+employeeResultsHtml('related')+'</div><div class="phft-chip-row">'+selectedRelatedHtml()+'</div>':'')+
+        '</div>'+
       '</div></section>'+
-      '<section class="phft-form-card"><header><h2>'+(taskUiState.form.flow_type==='de_xuat'?'Người nhận đề xuất *':'Người thực hiện chính *')+'</h2><p>Chỉ 01 người chịu trách nhiệm chính, chỉ chọn nhân sự đang làm.</p></header><div class="phft-people-grid">'+
-        '<div>'+taskPrimaryPickerHtml()+taskFieldError('primary_employee_code')+taskPeerManagerWarningHtml()+taskCrossDepartmentNoticeHtml()+'</div>'+
+      // 03 · NỘI DUNG & YÊU CẦU
+      '<section class="phft-doc-section"><header><span class="phft-doc-num">03</span><div><h2>Nội dung &amp; yêu cầu</h2><p>Mô tả yêu cầu và kết quả mong đợi.</p></div></header><div class="phft-doc-body">'+
+        (contentOpen
+          ?'<textarea data-task-field="content" rows="5" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea>'
+          :'<button type="button" class="phft-btn-secondary" data-task-toggle-section="content">+ Thêm nội dung</button>')+
       '</div></section>'+
-      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Nội dung</h2><p>Mô tả yêu cầu và kết quả mong đợi.</p></div>'+(contentOpen?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="content">+ Thêm nội dung</button>')+'</header>'+
-        (contentOpen?'<textarea data-task-field="content" rows="4" placeholder="Mô tả yêu cầu và kết quả mong đợi">'+esc(taskUiState.form.content)+'</textarea>':'')+
-      '</section>'+
-      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Người liên quan (CC)</h2><p>Được xem/theo dõi Task — không chịu trách nhiệm chính, không tính KPI/trễ hạn.</p></div>'+(relatedOpen?'':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="related">+ Người liên quan</button>')+'</header>'+
-        (relatedOpen?'<div class="phft-picker-filterbar">'+taskDepartmentFilterHtml('related')+'<div class="phft-picker-label"><span>Tìm người liên quan (CC)</span><input data-task-search="related" value="'+esc(taskUiState.relatedQuery)+'" placeholder="Tìm và chọn nhiều người"></div></div><div class="phft-picker-results" data-task-results="related">'+employeeResultsHtml('related')+'</div><div class="phft-chip-row">'+selectedRelatedHtml()+'</div>':'')+
-      '</section>'+
-      taskRecurrenceSectionHtml()+
-      '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Tài liệu liên kết</h2><p>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</p></div>'+(linksOpen?'<button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button>':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="links">+ Tài liệu</button>')+'</header>'+(linksOpen?'<div class="phft-link-list">'+linkRowsHtml()+'</div>':'')+'</section>'+
+      // 04 · TÙY CHỌN BỔ SUNG
+      '<section class="phft-doc-section phft-doc-section--opt"><header><span class="phft-doc-num">04</span><div><h2>Tùy chọn bổ sung</h2><p>Không bắt buộc — chỉ dùng khi cần.</p></div></header><div class="phft-doc-body">'+
+        '<div class="phft-doc-sub">'+taskRecurrenceSectionHtml()+'</div>'+
+        '<div class="phft-doc-sub"><div class="phft-doc-sub-head"><div><b>Tài liệu liên kết</b><small>URL phải dùng http:// hoặc https://; nhãn là tùy chọn.</small></div>'+(linksOpen?'<button type="button" class="phft-btn-secondary" data-task-add-link>+ Thêm link</button>':'<button type="button" class="phft-btn-secondary" data-task-toggle-section="links">+ Tài liệu</button>')+'</div>'+(linksOpen?'<div class="phft-link-list">'+linkRowsHtml()+'</div>':'')+'</div>'+
+      '</div></section>'+
       '<footer class="phft-form-actions"><span class="phft-submit-phase" data-task-phase>'+(taskUiState.submitting?esc(taskPhaseLabel()):'')+'</span><button type="button" class="phft-btn-secondary" data-task-cancel-create'+(taskUiState.submitting?' disabled':'')+'>Hủy</button><button type="submit" class="phft-btn-primary"'+((taskUiState.submitting||submitBlocked)?' disabled title="Nền tảng tạo phiếu chưa được kích hoạt."':'')+'>'+esc(taskFlowSubmitLabel())+'</button></footer>'+
     '</form>';
 }
@@ -2931,6 +3491,7 @@ function createTaskHtml(){
   return '<div class="phft-page-head"><div><small>PHF TASK / TẠO MỚI</small><h1>Tạo công việc</h1></div><button type="button" class="phft-btn-secondary" data-task-cancel-create>Quay lại</button></div>'+
     taskFoundationBlockedNoticeHtml()+
     taskCreateTabsHtml()+
+    (tab==='full'?taskCreateFullGuidanceHtml():'')+
     modeSwitchWarningHtml()+
     (tab==='quick'?createTaskQuickFormHtml():createTaskFullFormHtml());
 }
@@ -3739,6 +4300,7 @@ function bindShell(root){
     }
     if(target.matches('[data-task-mode-switch-cancel]')){taskUiState.modeSwitchWarning=null;renderTaskRoot(root);return;}
     if(target.matches('[data-task-quick-deadline]')){taskUiState.form.deadline=quickDeadlineInputValue(target.getAttribute('data-task-quick-deadline'));delete taskUiState.formErrors.deadline;renderTaskRoot(root);return;}
+    if(target.matches('[data-task-priority]')){var prioVal=target.getAttribute('data-task-priority');if(['thuong','quan_trong','khan_cap'].indexOf(prioVal)>=0){taskUiState.form.priority=prioVal;delete taskUiState.formErrors.priority;renderTaskRoot(root);}return;}
     if(target.matches('[data-task-view-created]')){navigateTask(taskDetailPath(target.getAttribute('data-task-view-created')));return;}
     if(target.matches('[data-task-dismiss-quick-success]')){taskUiState.quickSuccess=null;renderTaskRoot(root);return;}
     if(target.matches('[data-task-copy]')){startCopyTaskFromDetail(root);return;}
@@ -3873,7 +4435,20 @@ function bindShell(root){
       else ovNav.anchorDate=taskReportShiftAnchor(ovNav.periodType,ovNav.anchorDate,ovNavDir==='prev'?-1:1);
       Promise.all([loadTaskOverviewV2(root),loadTaskOverviewV2Trend(root),loadTaskOverviewV2Department(root)]);return;
     }
-    if(target.matches('[data-task-overview-filter]')){taskToast('Bộ lọc nâng cao sẽ được triển khai ở phase tiếp theo.');return;}
+    if(target.matches('[data-task-overview-filter]')){openTaskOverviewV2Filter(root);return;}
+    if(target.matches('[data-task-overview-filter-close],[data-task-overview-filter-backdrop]')){closeTaskOverviewV2Filter(root);return;}
+    if(target.matches('[data-task-overview-filter-apply]')){applyTaskOverviewV2Filters(root);return;}
+    if(target.matches('[data-task-overview-filter-clear]')){taskUiState.overview.filterDraft=defaultTaskOverviewV2Filters();renderTaskRoot(root);return;}
+    if(target.matches('[data-task-overview-filter-clear-all]')){applyTaskOverviewV2Filters(root,defaultTaskOverviewV2Filters());return;}
+    if(target.matches('[data-task-overview-filter-drop]')){
+      var dropKey=target.getAttribute('data-task-overview-filter-drop');
+      var nextF=Object.assign({},taskUiState.overview.filters);nextF[dropKey]='';
+      applyTaskOverviewV2Filters(root,nextF);return;
+    }
+    if(target.matches('[data-task-overview-dept]')){
+      openTaskOverviewV2Drilldown(root,'open',{department:target.getAttribute('data-task-overview-dept'),labelSuffix:taskDeptShortName(target.getAttribute('data-task-overview-dept'))});
+      return;
+    }
     if(target.matches('[data-task-overview-goto-report]')){navigateTask(taskReportPath());return;}
     if(target.matches('[data-task-overview-metric]')){
       // "Tổng hợp kỳ báo cáo" (Báo cáo tab) reuses this CÙNG attribute/handler
@@ -3927,7 +4502,14 @@ function bindShell(root){
     if(event.target.matches('[data-task-demo-cancel-request-reason]')){taskUiState.demoCancelRequestReason=event.target.value;return;}
     if(event.target.matches('[data-task-overview-period-type]')){
       taskUiState.overview.periodType=event.target.value;
-      Promise.all([loadTaskOverviewV2(root),loadTaskOverviewV2Trend(root),loadTaskOverviewV2Department(root)]);return;
+      reloadTaskOverviewV2Panels(root);return;
+    }
+    var ovFilterField=event.target.getAttribute('data-task-overview-filter-field');
+    if(ovFilterField){
+      if(!taskUiState.overview.filterDraft)taskUiState.overview.filterDraft=defaultTaskOverviewV2Filters();
+      taskUiState.overview.filterDraft[ovFilterField]=String(event.target.value||'');
+      renderTaskRoot(root); // refresh the "Áp dụng · N" count; select is one-shot so focus loss is harmless
+      return;
     }
     if(event.target.matches('[data-task-timeline-relation]')){taskUiState.timeline.relation=event.target.value;loadTaskTimeline(root);return;}
     if(event.target.matches('[data-task-timeline-activity]')){taskUiState.timeline.activityFilter=event.target.value;renderTaskRoot(root);return;}
@@ -3973,12 +4555,14 @@ function bindShell(root){
       taskUiState.form[dtField]=combined;
       delete taskUiState.formErrors[dtField];
       if(dtDisplay)dtDisplay.textContent=taskDateTimeDisplayVN(combined)+' (24h)';
+      updateTaskCreateQuickSummary(root);
       return;
     }
     var field=event.target.getAttribute('data-task-field');
     if(field){
       if(field==='start_at')taskUiState.advancedTouched.start=true;
       taskUiState.form[field]=event.target.value;delete taskUiState.formErrors[field];
+      if(field!=='flow_type')updateTaskCreateQuickSummary(root);
       // Proposal V2 (2026-08-29) — đổi Loại phiếu cần render lại (label
       // "Người nhận đề xuất"/honesty notice cũ đã bỏ/recurrence disabled đều
       // tính theo flow_type lúc render) VÀ đổi nguồn picker (recipient
@@ -4078,7 +4662,10 @@ if(window.__PHF_TASK_TEST_MODE__){
   loadTaskOverviewV2Trend:loadTaskOverviewV2Trend,loadTaskOverviewV2Department:loadTaskOverviewV2Department,
   taskOverviewV2HeaderHtml:taskOverviewV2HeaderHtml,taskOverviewV2TrendChartHtml:taskOverviewV2TrendChartHtml,
   taskOverviewV2TrendPanelHtml:taskOverviewV2TrendPanelHtml,taskOverviewV2DepartmentPanelHtml:taskOverviewV2DepartmentPanelHtml,
-  taskOverviewV2Top5Html:taskOverviewV2Top5Html,taskOverviewV2BottleneckPlaceholderHtml:taskOverviewV2BottleneckPlaceholderHtml,
-  taskOverviewV2KpiCardV2Html:taskOverviewV2KpiCardV2Html,taskOverviewV2DaysOverdue:taskOverviewV2DaysOverdue,taskOverviewV2DaysLeft:taskOverviewV2DaysLeft};
+  taskOverviewV2Top5Html:taskOverviewV2Top5Html,taskOverviewV2BottleneckNoteHtml:taskOverviewV2BottleneckNoteHtml,
+  taskOverviewV2KpiCardV2Html:taskOverviewV2KpiCardV2Html,taskOverviewV2DaysOverdue:taskOverviewV2DaysOverdue,taskOverviewV2DaysLeft:taskOverviewV2DaysLeft,
+  taskOverviewV2FilterDrawerHtml:taskOverviewV2FilterDrawerHtml,taskOverviewV2FilterChipsHtml:taskOverviewV2FilterChipsHtml,
+  taskDeptShortName:taskDeptShortName,taskOpRowHtml:taskOpRowHtml,taskOverviewV2FilterCount:taskOverviewV2FilterCount,defaultTaskOverviewV2Filters:defaultTaskOverviewV2Filters,
+  applyTaskOverviewV2Filters:applyTaskOverviewV2Filters,taskOverviewV2FiltersPayload:taskOverviewV2FiltersPayload};
 }
 })();

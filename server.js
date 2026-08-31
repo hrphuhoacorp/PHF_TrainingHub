@@ -381,6 +381,7 @@ function taskReportDrilldownInput(payload) {
 function taskOverviewV2Input(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'period', 'period');
+  copyTaskPayloadField(input, payload, 'filters', 'filters');
   return input;
 }
 function taskOverviewV2DrilldownInput(payload) {
