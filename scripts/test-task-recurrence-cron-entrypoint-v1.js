@@ -1,10 +1,16 @@
 'use strict';
 
 /*
- * PHF Task — RECURRENCE V1 cron entrypoint (api/task-recurrence-cron.js) test.
+ * PHF Task — RECURRENCE V1 cron entrypoint test.
  *
- * MOCK ONLY. api/_lib/task-recurrence-actions.js is replaced via require.cache
- * before loading the handler. No DB, no phf-hr-api, no network, no engine.
+ * 1.66.8: the endpoint was consolidated into the shared cron function
+ * api/checklist-monthly-cron.js; the public route /api/task-recurrence-cron is
+ * kept by a vercel.json rewrite that appends ?__phf_cron=task-recurrence. This
+ * test drives the combined handler through that exact rewritten route.
+ *
+ * MOCK ONLY. api/_lib/task-recurrence-actions.js AND api/_lib/checklist-monthly.js
+ * are replaced via require.cache before loading the handler. No DB, no
+ * phf-hr-api, no network, no engine.
  *
  * Proves:
  *   A. env secret missing            -> 401, runTaskRecurrence NOT called
@@ -12,8 +18,12 @@
  *   C. unsupported method (PUT)       -> 405, runTaskRecurrence NOT called
  *   D. correct Bearer (GET and POST)  -> delegates to runTaskRecurrence(session,{}),
  *                                        200 { ok:true, result }
- *   E. handler source calls ONLY runTaskRecurrence — never generateDue,
- *      bridgeRunRecurrence, task-recurrence-bridge, or a pg client
+ *   E. combined handler: recurrence branch is a thin delegate — never
+ *      generateDue / bridgeRunRecurrence / recurrence engine / pg client;
+ *      exactly the two action-layer local requires; both secrets distinct
+ *   E2. the checklist-monthly route on the same function still works via
+ *       syncMonthlyCycle + CHECKLIST_CRON_SECRET (unweakened)
+ *   E3/E4. cross-secret isolation — neither secret opens the other route
  *   F. runTaskRecurrence throws (statusCode 409) -> NOT a fake success:
  *      body.ok === false, status propagated
  *   G. the synthesised session resolves to actorType='admin' through the REAL
@@ -26,9 +36,16 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const handlerPath = require.resolve(path.join(ROOT, 'api', 'task-recurrence-cron'));
+// 1.66.8: api/task-recurrence-cron.js was consolidated into the shared cron
+// function api/checklist-monthly-cron.js (Vercel Hobby 12-function budget).
+// The public route /api/task-recurrence-cron is preserved by a vercel.json
+// rewrite that appends ?__phf_cron=task-recurrence — this test drives the
+// combined handler through exactly that rewritten route.
+const handlerPath = require.resolve(path.join(ROOT, 'api', 'checklist-monthly-cron'));
 const actionsPath = require.resolve(path.join(ROOT, 'api', '_lib', 'task-recurrence-actions'));
+const checklistMonthlyPath = require.resolve(path.join(ROOT, 'api', '_lib', 'checklist-monthly'));
 const scopePath = require.resolve(path.join(ROOT, 'api', '_lib', 'task-employee-scope'));
+const RECURRENCE_ROUTE_URL = '/api/checklist-monthly-cron?__phf_cron=task-recurrence';
 
 let PASS = 0, FAIL = 0;
 function check(name, cond, detail) {
@@ -41,7 +58,9 @@ const SECRET = 'test-only-not-a-real-secret';
 function loadHandler(runImpl) {
   delete require.cache[handlerPath];
   delete require.cache[actionsPath];
+  delete require.cache[checklistMonthlyPath];
   const calls = [];
+  const checklistCalls = [];
   require.cache[actionsPath] = {
     id: actionsPath, filename: actionsPath, loaded: true,
     exports: {
@@ -51,8 +70,14 @@ function loadHandler(runImpl) {
       }
     }
   };
+  // the shared cron file also requires ./_lib/checklist-monthly at module top —
+  // stub it so this test never pulls the Checklist stack / DB.
+  require.cache[checklistMonthlyPath] = {
+    id: checklistMonthlyPath, filename: checklistMonthlyPath, loaded: true,
+    exports: { syncMonthlyCycle: async (s, o) => { checklistCalls.push({ s, o }); return { synced: true }; } }
+  };
   const handler = require(handlerPath);
-  return { handler, calls };
+  return { handler, calls, checklistCalls };
 }
 
 function mockRes() {
@@ -65,8 +90,8 @@ function mockRes() {
   };
 }
 
-async function invoke(handler, { method = 'POST', bearer } = {}) {
-  const req = { method, headers: {} };
+async function invoke(handler, { method = 'POST', bearer, url = RECURRENCE_ROUTE_URL } = {}) {
+  const req = { method, headers: {}, url };
   if (bearer !== undefined) req.headers.authorization = 'Bearer ' + bearer;
   const res = mockRes();
   await handler(req, res);
@@ -135,7 +160,8 @@ async function invoke(handler, { method = 'POST', bearer } = {}) {
     check('D2 body ok:true', json && json.ok === true);
   }
 
-  // ---- E. handler source: no direct engine / bridge / pg calls ----
+  // ---- E. shared-cron handler source: recurrence path stays a thin delegate,
+  //         no direct engine / bridge / pg calls ----
   {
     const src = fs.readFileSync(handlerPath, 'utf8');
     const codeSrc = src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, ''); // strip comments
@@ -143,13 +169,59 @@ async function invoke(handler, { method = 'POST', bearer } = {}) {
     check('E no generateDue', !/generateDue/.test(codeSrc));
     check('E no bridgeRunRecurrence', !/bridgeRunRecurrence/.test(codeSrc));
     check('E no task-recurrence-bridge require', !/task-recurrence-bridge/.test(codeSrc));
-    check('E no task-recurrence engine require', !/require\(['"][^'"]*task-recurrence['"]\)/.test(codeSrc));
+    check('E no recurrence engine require', !/require\(['"][^'"]*task-recurrence(-datemath)?['"]\)/.test(codeSrc));
     check('E no pg client', !/require\(['"]pg['"]\)/.test(codeSrc) && !/new\s+Client\s*\(/.test(codeSrc) && !/new\s+Pool\s*\(/.test(codeSrc));
     check('E no /v1/task/recurrence:run string', !/v1\/task\/recurrence:run/.test(codeSrc));
-    const localRequires = (codeSrc.match(/require\(['"]\.[^'"]+['"]\)/g) || []);
-    check('E only local require is ./_lib/task-recurrence-actions',
-      localRequires.length === 1 && /task-recurrence-actions/.test(localRequires[0]), localRequires);
-    check('E reads TASK_RECURRENCE_CRON_SECRET', /TASK_RECURRENCE_CRON_SECRET/.test(codeSrc));
+    // the shared cron file legitimately has exactly two local requires:
+    // the recurrence action layer + the checklist-monthly action layer.
+    const localRequires = (codeSrc.match(/require\(['"]\.[^'"]+['"]\)/g) || []).sort();
+    check('E local requires are exactly the two action layers',
+      localRequires.length === 2
+        && /task-recurrence-actions/.test(localRequires.join())
+        && /checklist-monthly/.test(localRequires.join()),
+      localRequires);
+    check('E recurrence branch reads TASK_RECURRENCE_CRON_SECRET', /TASK_RECURRENCE_CRON_SECRET/.test(codeSrc));
+    check('E checklist branch still reads CHECKLIST_CRON_SECRET (unweakened)', /CHECKLIST_CRON_SECRET/.test(codeSrc));
+    check('E the two secrets are never the same identifier',
+      !/TASK_RECURRENCE_CRON_SECRET\s*\|\|\s*CHECKLIST_CRON_SECRET/.test(codeSrc)
+      && !/CHECKLIST_CRON_SECRET\s*\|\|\s*TASK_RECURRENCE_CRON_SECRET/.test(codeSrc));
+  }
+
+  // ---- E2. checklist-monthly route on the SAME function is untouched ----
+  {
+    process.env.CHECKLIST_CRON_SECRET = 'checklist-only-not-a-real-secret';
+    process.env.TASK_RECURRENCE_CRON_SECRET = SECRET;
+    const { handler, calls, checklistCalls } = loadHandler(() => ({ generated: 9 }));
+    // hit the checklist route (no __phf_cron marker) with the CHECKLIST secret
+    const req = { method: 'POST', headers: { authorization: 'Bearer checklist-only-not-a-real-secret' }, url: '/api/checklist-monthly-cron' };
+    const res = mockRes();
+    await handler(req, res);
+    const json = JSON.parse(res.body);
+    check('E2 checklist route -> 200 via syncMonthlyCycle', res.statusCode === 200 && json.ok === true, res.statusCode);
+    check('E2 syncMonthlyCycle called, runTaskRecurrence NOT', checklistCalls.length === 1 && calls.length === 0);
+    check('E2 checklist route rejects the TASK secret', true); // covered by E3
+  }
+
+  // ---- E3. cross-secret isolation: task secret must NOT open checklist route ----
+  {
+    process.env.CHECKLIST_CRON_SECRET = 'checklist-only-not-a-real-secret';
+    process.env.TASK_RECURRENCE_CRON_SECRET = SECRET;
+    const { handler, calls, checklistCalls } = loadHandler(() => ({ generated: 1 }));
+    const req = { method: 'POST', headers: { authorization: 'Bearer ' + SECRET }, url: '/api/checklist-monthly-cron' };
+    const res = mockRes();
+    await handler(req, res);
+    check('E3 checklist route + task secret -> 401', res.statusCode === 401, res.statusCode);
+    check('E3 neither action invoked', checklistCalls.length === 0 && calls.length === 0);
+  }
+
+  // ---- E4. reverse isolation: checklist secret must NOT open recurrence route ----
+  {
+    process.env.CHECKLIST_CRON_SECRET = 'checklist-only-not-a-real-secret';
+    process.env.TASK_RECURRENCE_CRON_SECRET = SECRET;
+    const { handler, calls } = loadHandler(() => ({ generated: 1 }));
+    const { res } = await invoke(handler, { method: 'POST', bearer: 'checklist-only-not-a-real-secret' });
+    check('E4 recurrence route + checklist secret -> 401', res.statusCode === 401, res.statusCode);
+    check('E4 runTaskRecurrence not called', calls.length === 0);
   }
 
   // ---- F. runTaskRecurrence throws -> no fake success ----
@@ -178,7 +250,7 @@ async function invoke(handler, { method = 'POST', bearer } = {}) {
     delete require.cache[actionsPath];
     delete require.cache[scopePath];
     const { resolveActorContext } = require(scopePath);
-    // must mirror the literal in api/task-recurrence-cron.js
+    // must mirror the recurrence-branch literal in api/checklist-monthly-cron.js
     const session = {
       role: 'admin',
       sub: 'system-task-recurrence-cron',
