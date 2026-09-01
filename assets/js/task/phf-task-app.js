@@ -5810,16 +5810,19 @@ function bindShell(root){
     }
   };
   root.oninput=function(event){
-    // FILE ATTACHMENT V1 — <input type=file> fires 'change' (routed here via
-    // root.onchange=root.oninput). Consume the FileList, then reset the input
-    // so re-selecting the same file still fires.
-    if(event.target.matches('[data-task-attach-file-input]')){
-      var dFiles=event.target.files; try{event.target.value='';}catch(e){}
-      handleTaskDetailAttachUpload(root,dFiles);return;
-    }
-    if(event.target.matches('[data-task-create-attach-input]')){
-      var cFiles=event.target.files; try{event.target.value='';}catch(e){}
-      handleCreateAttachSelect(root,cFiles);return;
+    // FILE ATTACHMENT V1 FIX (regression audit, 1.66.8) — <input type=file>
+    // fires BOTH 'input' and 'change' for one selection, targeting the SAME
+    // original element. The upload/staging handlers below call
+    // renderTaskRoot() synchronously (root.innerHTML=...), which detaches
+    // that original <input> from root BEFORE the browser's already-queued
+    // 'change' can bubble — so a handler that reacts to 'input' can never be
+    // safely "double covered" by 'change' as a fallback; whichever event
+    // triggers the rebuild orphans the other. 'change' is now the SOLE
+    // authoritative event for both attach inputs (root.onchange below) —
+    // 'input' is intentionally ignored for them so there is exactly one
+    // processing path per file selection, with no dependency on event order.
+    if(event.target.matches('[data-task-attach-file-input]')||event.target.matches('[data-task-create-attach-input]')){
+      return;
     }
     // PHF_TASK_UI_DEMO_V1 — theo pattern chung của file: chỉ mutate state,
     // KHÔNG renderTaskRoot() trên mỗi keystroke (tránh mất vị trí con trỏ).
@@ -5964,7 +5967,29 @@ function bindShell(root){
       return;
     }
   };
-  root.onchange=root.oninput;
+  // FILE ATTACHMENT V1 FIX — 'change' is the SOLE authoritative event for
+  // both attach inputs (see the 'input'-ignoring guard above for why). Every
+  // other control keeps the exact prior behaviour: 'change' still delegates
+  // to root.oninput unchanged, so <select>/other change-driven fields are
+  // unaffected — only the two file inputs are special-cased here, and only
+  // ONE of them ever matches per event, so exactly one processing path runs
+  // per file selection regardless of whether the browser/tool also fired
+  // 'input' first (that 'input' was already a no-op above).
+  root.onchange=function(event){
+    if(event.target.matches('[data-task-attach-file-input]')){
+      var dFiles=Array.prototype.slice.call(event.target.files||[]);
+      try{event.target.value='';}catch(e){}
+      if(!dFiles.length)return;
+      handleTaskDetailAttachUpload(root,dFiles);return;
+    }
+    if(event.target.matches('[data-task-create-attach-input]')){
+      var cFiles=Array.prototype.slice.call(event.target.files||[]);
+      try{event.target.value='';}catch(e){}
+      if(!cFiles.length)return;
+      handleCreateAttachSelect(root,cFiles);return;
+    }
+    return root.oninput(event);
+  };
   root.onsubmit=function(event){if(event.target.matches('[data-task-create-form]')){event.preventDefault();submitTaskCreate(root);}};
   // FILE ATTACHMENT V1 — lightweight drag/drop onto the Task Detail attachment
   // zone (progressive enhancement; the "Chọn file" button is the primary path).
