@@ -243,9 +243,26 @@ function applyGrant(scope, grant, orgRows) {
   if (grant.grant_type === 'extend' || grant.grant_type === 'delegation') {
     if (grantScope.type === 'all_company') {
       next.peopleScope = { type: 'all_company', values: [] };
-    } else if (next.peopleScope.type !== 'all_company' && Array.isArray(grantScope.values) && grantScope.values.length) {
-      const mergedType = next.peopleScope.type === 'sales_all_branches_task' ? next.peopleScope.type : 'employees';
-      next.peopleScope = { type: mergedType, values: Array.from(new Set(next.peopleScope.values.concat(grantScope.values.map(code)))) };
+    } else if (next.peopleScope.type !== 'all_company') {
+      // MODULE-LEVEL DEPARTMENT SCOPE V1 (2026-09-01) — an EXTEND grant's own
+      // people_scope descriptor (employees | department | branch) is resolved
+      // to the concrete set of ACTIVE employee_codes it currently matches
+      // (via the same scopeToEmployeeSet() the RESTRICT path already uses) and
+      // UNION-ed into the running peopleScope. This keeps the accumulated
+      // scope an explicit employee list — the exact shape RESTRICT
+      // intersection collapses to — and finally makes a
+      // {type:'department', values:[...]} extend grant resolve to that
+      // department's people instead of being coerced into literal codes.
+      // Backward compatible: for {type:'employees'|'self'} scopeToEmployeeSet
+      // returns the value list verbatim, so existing grants behave identically.
+      const addCodes = scopeToEmployeeSet(grantScope, orgRows);
+      if (addCodes.size) {
+        const mergedType = next.peopleScope.type === 'sales_all_branches_task' ? next.peopleScope.type : 'employees';
+        next.peopleScope = {
+          type: mergedType,
+          values: Array.from(new Set((next.peopleScope.values || []).map(code).concat(Array.from(addCodes))))
+        };
+      }
     }
   } else if (grant.grant_type === 'restrict') {
     next.peopleScope = intersectPeopleScope(next.peopleScope, grantScope, orgRows);
@@ -270,6 +287,31 @@ function applyGrant(scope, grant, orgRows) {
  * restrict had just narrowed. Fixed here — see PHF_TASK_PERMISSION_GRANT_
  * PRECEDENCE_FIX_V1_REPORT.
  */
+// WHO vs WHAT (MODULE-LEVEL DEPARTMENT SCOPE V1 — authority-leak fix,
+// 2026-09-01). A grant whose people_scope.type is 'department' (or 'branch')
+// is VISIBILITY-only: it widens peopleScope so the holder can see / cover
+// those people, but it must NOT by itself confer lifecycle-intervention
+// authority (change deadline / transfer / reopen / direct cancel / attachment
+// manage). Only base scope plus grants that name people explicitly
+// ('employees'/'self') or open everything ('all_company'/
+// 'sales_all_branches_task') feed the parallel "authority" people scope that
+// resolveUpdate/DirectCancelAuthorityBasis() compares the primary against.
+// VISIBILITY-only grant scope types — a grant whose people_scope.type is one
+// of these widens who the holder can see/cover but confers NO lifecycle
+// intervention authority on its own. Everything else (explicit 'employees'/
+// 'self' lists, 'all_company', 'sales_all_branches_task', or an unrecognised/
+// legacy type) is treated as authority-conferring — i.e. the pre-existing
+// behaviour is preserved for every grant shape except the new module-level
+// department/branch VISIBILITY scope.
+const VISIBILITY_ONLY_GRANT_SCOPE_TYPES = Object.freeze(new Set(['department', 'branch']));
+
+function grantConfersInterventionAuthority(grant) {
+  if (!grant) return false;
+  if (grant.grant_type === 'restrict') return true; // restrict must always still narrow the authority scope
+  const type = String(grant.people_scope && grant.people_scope.type || '').toLowerCase();
+  return !VISIBILITY_ONLY_GRANT_SCOPE_TYPES.has(type);
+}
+
 function resolveEffectiveTaskScopeFromGrants(actorContext, grants, assignment, orgRows) {
   let scope = resolveBaseTaskScope(actorContext);
   const allGrants = grants || [];
@@ -277,7 +319,17 @@ function resolveEffectiveTaskScopeFromGrants(actorContext, grants, assignment, o
   const narrowing = allGrants.filter(grant => grant && grant.grant_type === 'restrict');
   broadening.forEach(grant => { scope = applyGrant(scope, grant, orgRows); });
   narrowing.forEach(grant => { scope = applyGrant(scope, grant, orgRows); });
-  return { actorContext, scope, assignment: assignment || null, grants: allGrants };
+
+  // Parallel authority-only people scope — base + only authority-conferring
+  // grants (department/branch VISIBILITY grants are deliberately excluded).
+  // Same two-phase extend-then-restrict application as the visibility scope.
+  // Returned as a SIBLING of `scope` (not a property on it) so `scope` stays
+  // byte-identical to the base preset when there are no grants.
+  let authorityScope = resolveBaseTaskScope(actorContext);
+  broadening.filter(grantConfersInterventionAuthority).forEach(grant => { authorityScope = applyGrant(authorityScope, grant, orgRows); });
+  narrowing.forEach(grant => { authorityScope = applyGrant(authorityScope, grant, orgRows); });
+
+  return { actorContext, scope, authorityPeopleScope: authorityScope.peopleScope, assignment: assignment || null, grants: allGrants };
 }
 
 async function resolveEffectiveTaskScopeForActorContext(actorContext) {
@@ -405,7 +457,7 @@ const INTERVENTION_EXECUTIVE_ACTOR_TYPES = Object.freeze(new Set(['giam_doc', 't
 const TASK_INTERVENTION_BASES = Object.freeze(new Set(['system_admin', 'executive_authority', 'active_primary', 'exception_grant', 'creator']));
 
 async function resolveUpdateAuthorityBasis(session, task, assignees) {
-  const { actorContext, scope } = await resolveEffectiveTaskScope(session);
+  const { actorContext, scope, authorityPeopleScope } = await resolveEffectiveTaskScope(session);
   if (actorContext.actorType === 'admin') return 'system_admin';
   if (!scope.capabilities.update) return null;
 
@@ -421,21 +473,98 @@ async function resolveUpdateAuthorityBasis(session, task, assignees) {
 
   // (2) company-wide executive authority (ADMIN already handled above).
   if (INTERVENTION_EXECUTIVE_ACTOR_TYPES.has(actorContext.actorType)) {
-    return subjectMatchesTaskScope(primarySubject, scope.peopleScope) ? 'executive_authority' : null;
+    return subjectMatchesTaskScope(primarySubject, authorityPeopleScope || scope.peopleScope) ? 'executive_authority' : null;
   }
 
   // (4) explicit exception grant beyond base scope. Base (managed-tree / self)
   // membership is NOT sufficient — that is the M1 defect this rule closes.
   const baseScope = resolveBaseTaskScope(actorContext);
   const inBaseScope = subjectMatchesTaskScope(primarySubject, baseScope.peopleScope);
-  const inEffectiveScope = subjectMatchesTaskScope(primarySubject, scope.peopleScope);
-  if (inEffectiveScope && !inBaseScope) return 'exception_grant';
+  // WHO vs WHAT — compare against the AUTHORITY people scope, not the
+  // visibility peopleScope. A department/branch VISIBILITY grant widens who
+  // the actor can SEE/cover but must not, on its own, confer lifecycle
+  // intervention authority (MODULE-LEVEL DEPARTMENT SCOPE V1 authority-leak
+  // fix). Explicit employee / all_company exception grants still match here
+  // unchanged — they feed authorityPeopleScope.
+  const inAuthorityScope = subjectMatchesTaskScope(primarySubject, authorityPeopleScope || scope.peopleScope);
+  if (inAuthorityScope && !inBaseScope) return 'exception_grant';
 
   return null;
 }
 
 async function canUpdateTask(session, task, assignees) {
   return !!(await resolveUpdateAuthorityBasis(session, task, assignees));
+}
+
+// CANCEL POLICY V1 (2026-08-31) — a basis that authorises a DIRECT
+// "Hủy công việc". Same architecture as resolveUpdateAuthorityBasis, MINUS the
+// "current active primary acting on their own Task" shortcut: an active primary
+// (or a proposer) is never a direct canceller unless they SEPARATELY hold an
+// authorised management basis (system_admin / executive_authority /
+// exception_grant). The creator/assigner is handled by the caller's
+// actorOwnsTask shortcut (basis 'creator'). A plain active primary must use
+// the "Yêu cầu hủy" request flow instead.
+async function resolveDirectCancelAuthorityBasis(session, task, assignees) {
+  const { actorContext, scope, authorityPeopleScope } = await resolveEffectiveTaskScope(session);
+  if (actorContext.actorType === 'admin') return 'system_admin';
+  if (!scope.capabilities.update) return null;
+
+  const activePrimary = (assignees || []).find(assignee => assignee.role === 'primary' && assignee.isActive);
+  if (!activePrimary) return null;
+  const primaryCode = code(activePrimary.employeeCode);
+
+  // (NOTE) deliberately NO "primaryCode === actorContext.employeeCode -> allow"
+  // branch here — that is exactly the case Cancel Policy V1 routes to the
+  // request flow. Fall through to the management-authority checks, which DO
+  // still apply even when the actor happens to also be the active primary.
+  const rows = await loadOrgRows();
+  const primarySubject = findByCode(rows, activePrimary.employeeCode) || { employeeCode: primaryCode };
+
+  if (INTERVENTION_EXECUTIVE_ACTOR_TYPES.has(actorContext.actorType)) {
+    return subjectMatchesTaskScope(primarySubject, authorityPeopleScope || scope.peopleScope) ? 'executive_authority' : null;
+  }
+
+  const baseScope = resolveBaseTaskScope(actorContext);
+  const inBaseScope = subjectMatchesTaskScope(primarySubject, baseScope.peopleScope);
+  // WHO vs WHAT — compare against the AUTHORITY people scope, not the
+  // visibility peopleScope. A department/branch VISIBILITY grant widens who
+  // the actor can SEE/cover but must not, on its own, confer lifecycle
+  // intervention authority (MODULE-LEVEL DEPARTMENT SCOPE V1 authority-leak
+  // fix). Explicit employee / all_company exception grants still match here
+  // unchanged — they feed authorityPeopleScope.
+  const inAuthorityScope = subjectMatchesTaskScope(primarySubject, authorityPeopleScope || scope.peopleScope);
+  if (inAuthorityScope && !inBaseScope) return 'exception_grant';
+
+  return null;
+}
+
+/*
+ * FILE ATTACHMENT V1 (2026-08-31) — canonical attachment authority resolvers.
+ * Deliberately NOT a new role model: they delegate to the exact same
+ * resolveUpdateAuthorityBasis / resolveDirectCancelAuthorityBasis decisions
+ * already used for lifecycle edit and direct-cancel, so UI flags and backend
+ * enforcement can never diverge.
+ *
+ *   UPLOAD  = creator/assigner  OR  current active primary  OR  authorised
+ *             management basis (system_admin / executive_authority /
+ *             exception_grant).  == resolveUpdateAuthorityBasis (+ creator
+ *             shortcut handled by the caller via classifyTaskRelation).
+ *
+ *   MANAGE  (remove someone else's attachment) = creator/assigner OR authorised
+ *             management basis ONLY — a bare active primary is NOT enough (they
+ *             may still remove their OWN upload; that per-row check is done at
+ *             the call site against uploaded_by_employee_code). == the
+ *             direct-cancel basis set.
+ *
+ * `task` here is the SAME { createdByAccountId, createdByEmployeeCode } +
+ * relation-assignees shape the two delegates already expect.
+ */
+async function resolveAttachmentUploadAuthorityBasis(session, task, assignees) {
+  return resolveUpdateAuthorityBasis(session, task, assignees);
+}
+
+async function resolveAttachmentManageAuthorityBasis(session, task, assignees) {
+  return resolveDirectCancelAuthorityBasis(session, task, assignees);
 }
 
 function toViewerAssignees(rows) {
@@ -479,6 +608,23 @@ async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
   const updateBasis = canView ? (isCreator ? 'creator' : await resolveUpdateAuthorityBasis(session, relationTask, assignees)) : null;
   const canUpdate = !!updateBasis;
 
+  // CANCEL POLICY V1 — DIRECT cancel = creator OR an authorised management
+  // basis (system_admin / executive_authority / exception_grant). A plain
+  // active primary is excluded and gets the request flow instead.
+  const directCancelBasis = canView
+    ? (isCreator ? 'creator' : await resolveDirectCancelAuthorityBasis(session, relationTask, assignees))
+    : null;
+  const canDirectCancel = !!directCancelBasis;
+  const canRequestCancel = isActivePrimary && !canDirectCancel;
+
+  // FILE ATTACHMENT V1 — upload authority is exactly the lifecycle-edit
+  // authority (creator / active primary / management); manage-other authority
+  // is exactly the direct-cancel basis set (creator / management, NOT a bare
+  // active primary). Same resolvers, no divergence from enforcement.
+  const attachmentUploadBasis = updateBasis;      // 'creator' | 'active_primary' | 'system_admin' | 'executive_authority' | 'exception_grant' | null
+  const attachmentManageBasis = directCancelBasis; // 'creator' | 'system_admin' | 'executive_authority' | 'exception_grant' | null
+  const canUploadAttachment = !!attachmentUploadBasis && status !== 'draft' && status !== 'cancelled';
+
   return {
     relation,
     is_creator: isCreator,
@@ -486,12 +632,22 @@ async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
     is_related: relation === 'related',
     managed_view_only: relation === 'manager_of_primary' && !canUpdate,
     intervention_basis: updateBasis || null,
+    direct_cancel_basis: directCancelBasis || null,
+    attachment_upload_basis: attachmentUploadBasis || null,
+    attachment_manage_basis: attachmentManageBasis || null,
+    // the caller's own employee code — needed by assembleTaskDetailDto to set
+    // per-row can_remove (uploader may always remove their own upload). Not
+    // sensitive: it is the identity of the very actor receiving this DTO.
+    actor_employee_code: actorContext.employeeCode || null,
     actions: {
+      upload_attachment: canUploadAttachment,
       view: canView,
       comment: canView,
       update_progress: isActivePrimary && activeStatus,
       complete: isActivePrimary && activeStatus,
-      cancel: canUpdate && activeStatus,
+      cancel: canDirectCancel && activeStatus,
+      request_cancel: canRequestCancel && activeStatus,
+      review_cancel_request: canDirectCancel && activeStatus,
       change_deadline: canUpdate && status !== 'cancelled' && status !== 'draft',
       transfer_primary: canUpdate && activeStatus,
       add_related: canUpdate && activeStatus,
@@ -720,6 +876,9 @@ module.exports = {
   canViewTask,
   canUpdateTask,
   resolveUpdateAuthorityBasis,
+  resolveDirectCancelAuthorityBasis,
+  resolveAttachmentUploadAuthorityBasis,
+  resolveAttachmentManageAuthorityBasis,
   resolveTaskViewerAuthority,
   TASK_INTERVENTION_BASES,
   canAssignTaskTo,

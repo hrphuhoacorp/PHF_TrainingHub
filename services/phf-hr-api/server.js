@@ -17,6 +17,15 @@ const logger = require('./lib/logger');
 const { requireServiceToken } = require('./lib/auth-middleware');
 const { probeTaskRead } = require('./lib/supabase-dev');
 const { listTaskCategories, getTaskById, TaskReadError } = require('./lib/task-read');
+// IN-APP NOTIFICATION V1 — read/mark (Company PG only). Recipient identity is
+// resolved by the MAIN APP from the session and passed in; this layer is
+// scoped to that one employee and never lists/marks anyone else's rows.
+const {
+  listNotificationsForRecipient,
+  markNotificationsRead,
+  markAllNotificationsRead,
+  TaskNotificationError,
+} = require('./lib/task-notification-read');
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const {
@@ -38,6 +47,27 @@ const {
   // (optional, chỉ dùng khi flow_type='de_xuat').
   acceptTaskProposal, rejectTaskProposal, cancelTaskProposal,
 } = require('./lib/task-write');
+// PHF Task — RECURRENCE V1 (2026-08-31, LOCAL ONLY). The engine + schema are
+// LOCKED (services/phf-hr-api/lib/task-recurrence.js +
+// migrations/phf_hr_task_recurrence_v1.sql, real-DB matrix 31/31 PASS on the
+// throwaway phf_hr_e2e). These routes are a THIN 1:1 mapping to that proven
+// engine — NO business logic, NO re-validation at the route layer, same
+// discipline as every batch below. Company PostgreSQL only, never Supabase.
+const {
+  createRule: createRecurrenceRule,
+  updateRule: updateRecurrenceRule,
+  transitionRule: transitionRecurrenceRule,
+  listRules: listRecurrenceRules,
+  generateDue: generateRecurrenceDue,
+  runRule: runRecurrenceRule,
+} = require('./lib/task-recurrence');
+// PHF Task — CANCEL POLICY V1 (2026-08-31). PostgreSQL-only "Yêu cầu hủy"
+// request flow (migrations/phf_hr_task_cancel_request_v1.sql). Same thin-route
+// discipline as every batch below; authorization decided upstream.
+const {
+  submitCancelRequest: submitTaskCancelRequest,
+  decideCancelRequest: decideTaskCancelRequest,
+} = require('./lib/task-cancel-request');
 // Gate 5.6 — attachment orchestration (G5.5 CLOSED, hash
 // fd58d08a393c70f0e70fdb699292006a32847ad09564fb00a96d383b83f297b0). Route
 // layer CHỈ gọi orchestrator, KHÔNG tự chạm filesystem/DB attachment nào.
@@ -63,6 +93,10 @@ const TASK_PUBLISH_RE = /^\/v1\/task\/tasks\/([^/:]+):publish$/;
 // cùng path style ":id:verb" như mọi route task-id-scoped khác.
 const TASK_PROPOSAL_ACCEPT_RE = /^\/v1\/task\/tasks\/([^/:]+):acceptProposal$/;
 const TASK_PROPOSAL_REJECT_RE = /^\/v1\/task\/tasks\/([^/:]+):rejectProposal$/;
+
+// CANCEL POLICY V1 — same ":id:verb" custom-method style. :id = task id.
+const TASK_REQUEST_CANCEL_RE = /^\/v1\/task\/tasks\/([^/:]+):requestCancel$/;
+const TASK_DECIDE_CANCEL_REQUEST_RE = /^\/v1\/task\/tasks\/([^/:]+):decideCancelRequest$/;
 const TASK_PROPOSAL_CANCEL_RE = /^\/v1\/task\/tasks\/([^/:]+):cancelProposal$/;
 
 // Batch 4-6 — verb đặt tên theo ĐÚNG transformation rule đã dùng nhất quán
@@ -110,6 +144,19 @@ const TASK_CATEGORY_DELETE_RE = /^\/v1\/task\/categories\/([^/:]+):delete$/;
 const TASK_PERMISSION_GRANT_CREATE_RE = /^\/v1\/task\/permission-grants:create$/;
 const TASK_PERMISSION_GRANT_REVOKE_RE = /^\/v1\/task\/permission-grants\/([^/:]+):revoke$/;
 
+// RECURRENCE V1 — resource path `/v1/task/recurrence`, same non-task-scoped
+// convention as `/v1/task/categories` / `/v1/task/permission-grants`. `:id` is
+// the rule's own id. `:run` is the idempotent scheduler entrypoint (custom
+// method, same ":verb" style as everywhere else). [^/:]+ blocks '/' and ':'
+// so `:pause` / `:resume` / `:stop` / `:run` never collide with the bare
+// `/:id` (PATCH) or the collection (`/recurrence`) routes.
+const TASK_RECURRENCE_COLLECTION_RE = /^\/v1\/task\/recurrence$/;      // POST create | GET list
+const TASK_RECURRENCE_RUN_RE = /^\/v1\/task\/recurrence:run$/;         // POST — generate due occurrences
+const TASK_RECURRENCE_ITEM_RE = /^\/v1\/task\/recurrence\/([^/:]+)$/;  // PATCH — edit (future occurrences only)
+const TASK_RECURRENCE_PAUSE_RE = /^\/v1\/task\/recurrence\/([^/:]+):pause$/;
+const TASK_RECURRENCE_RESUME_RE = /^\/v1\/task\/recurrence\/([^/:]+):resume$/;
+const TASK_RECURRENCE_STOP_RE = /^\/v1\/task\/recurrence\/([^/:]+):stop$/;
+
 // Gate 5.6 — attachment routes, path đã CLOSED ở G5.2 (KHÔNG redesign):
 // upload/remove dùng custom-method ":verb" style giống Batch 1-6; download
 // là GET resource path THẬT (không phải custom-method) vì đây là đọc 1 object
@@ -146,9 +193,11 @@ const ATTACHMENT_ERROR_STATUS = {
   ATTACHMENT_ORCHESTRATION_FILENAME_REQUIRED: 400,
   ATTACHMENT_ORCHESTRATION_MIME_INVALID: 400,
   ATTACHMENT_ORCHESTRATION_EXTENSION_REQUIRED: 400,
+  ATTACHMENT_ORCHESTRATION_MIME_EXTENSION_MISMATCH: 400,
   ATTACHMENT_ORCHESTRATION_STREAM_REQUIRED: 400,
   ATTACHMENT_ORCHESTRATION_EMPTY_FILE: 400,
   ATTACHMENT_ORCHESTRATION_UPLOAD_IN_PROGRESS: 409,
+  ATTACHMENT_ORCHESTRATION_LIMIT_REACHED: 409,
   ATTACHMENT_ORCHESTRATION_METADATA_FAILED_AFTER_PUBLISH: 500,
   // task-write.js (TASK_ATTACHMENT_*)
   TASK_ATTACHMENT_TASK_ID_REQUIRED: 400,
@@ -157,6 +206,7 @@ const ATTACHMENT_ERROR_STATUS = {
   TASK_ATTACHMENT_FILENAME_REQUIRED: 400,
   TASK_ATTACHMENT_EXTENSION_REQUIRED: 400,
   TASK_ATTACHMENT_MIME_INVALID: 400,
+  TASK_ATTACHMENT_MIME_EXTENSION_MISMATCH: 400,
   TASK_ATTACHMENT_SIZE_INVALID: 400,
   TASK_ATTACHMENT_TOO_LARGE: 400,
   TASK_ATTACHMENT_CHECKSUM_INVALID: 400,
@@ -269,7 +319,46 @@ const TASK_WRITE_ERROR_STATUS = {
   TASK_PROPOSAL_ALREADY_DECIDED: 409,
   TASK_PROPOSAL_ACTOR_DENIED: 403,
   TASK_PROPOSAL_REJECT_REASON_REQUIRED: 400,
+
+  // CANCEL POLICY V1 (2026-08-31)
+  TASK_CANCEL_REQUEST_REASON_REQUIRED: 400,
+  TASK_CANCEL_REQUEST_PENDING_EXISTS: 409,
+  TASK_CANCEL_REQUEST_NOT_FOUND: 404,
+  TASK_CANCEL_REQUEST_ALREADY_DECIDED: 409,
+  TASK_CANCEL_REQUEST_ACTOR_DENIED: 403,
+  TASK_CANCEL_REQUEST_DECISION_INVALID: 400,
+  TASK_CANCEL_REQUEST_UNSUPPORTED: 409,
+  TASK_CANCEL_REQUEST_REQUIRED: 403,
   TASK_PROPOSAL_CANCEL_REASON_REQUIRED: 400,
+};
+
+// RECURRENCE V1 — every code below is thrown verbatim by
+// services/phf-hr-api/lib/task-recurrence.js (rcErr()). TASK_CATEGORY_NOT_FOUND
+// / TASK_CATEGORY_INACTIVE are reused from TASK_WRITE_ERROR_STATUS (the engine
+// validates the category against task.categories exactly like createDraftTask).
+const RECURRENCE_ERROR_STATUS = {
+  RECURRENCE_TITLE_REQUIRED: 400,
+  RECURRENCE_CATEGORY_REQUIRED: 400,
+  RECURRENCE_PRIMARY_REQUIRED: 400,
+  RECURRENCE_START_DATE_INVALID: 400,
+  RECURRENCE_START_HOUR_INVALID: 400,
+  RECURRENCE_START_MINUTE_INVALID: 400,
+  RECURRENCE_DURATION_INVALID: 400,
+  RECURRENCE_FREQUENCY_INVALID: 400,
+  RECURRENCE_WEEKDAY_INVALID: 400,
+  RECURRENCE_DAY_OF_MONTH_INVALID: 400,
+  RECURRENCE_END_CONDITION_INVALID: 400,
+  RECURRENCE_END_DATE_INVALID: 400,
+  RECURRENCE_END_BEFORE_START: 400,
+  RECURRENCE_MAX_OCCURRENCES_INVALID: 400,
+  RECURRENCE_MAX_OCCURRENCES_UNSUPPORTED: 409,
+  RECURRENCE_ACTOR_REQUIRED: 401,
+  RECURRENCE_RULE_NOT_FOUND: 404,
+  RECURRENCE_RULE_ENDED: 409,
+  RECURRENCE_RULE_NOT_ACTIVE: 409,
+  RECURRENCE_RULE_NOT_PAUSED: 409,
+  RECURRENCE_RULE_ALREADY_ENDED: 409,
+  RECURRENCE_TRANSITION_INVALID: 400,
 };
 
 function readJsonBody(req, maxBytes) {
@@ -332,6 +421,26 @@ async function handleTaskWriteOperation(config, res, path, operationFn, args) {
     // KHÔNG lộ chi tiết DB/internal ra ngoài — chỉ log server-side.
     logger.error('task_write_unexpected_error', { path, message: err.message });
     return sendTaskWriteError(res, 500, 'TASK_WRITE_ERROR', 'Lỗi hệ thống khi ghi Task.');
+  }
+}
+
+// RECURRENCE V1 — same success/error envelope as handleTaskWriteOperation
+// ({ ok:true, data } / { ok:false, code, message }). operationFn is invoked
+// with no `config`-prepended contract: caller passes a zero-arg thunk that
+// already closed over config + args, because the engine's signatures vary
+// (createRule(config,input,actor) vs generateDue(config,options) …).
+async function handleRecurrenceOperation(res, path, thunk) {
+  try {
+    const result = await thunk();
+    return sendJson(res, 200, { ok: true, data: result });
+  } catch (err) {
+    const statusCode = RECURRENCE_ERROR_STATUS[err.code] || TASK_WRITE_ERROR_STATUS[err.code];
+    if (statusCode) {
+      logger.warn('recurrence_rejected', { path, code: err.code });
+      return sendTaskWriteError(res, statusCode, err.code, err.message);
+    }
+    logger.error('recurrence_unexpected_error', { path, message: err.message });
+    return sendTaskWriteError(res, 500, 'RECURRENCE_ERROR', 'Lỗi hệ thống khi xử lý lịch lặp.');
   }
 }
 
@@ -495,6 +604,53 @@ function createServer(config) {
         }
         const result = await listTaskCategories(config);
         return sendJson(res, 200, result);
+      }
+
+      // ---------------------------------------------------------------
+      // IN-APP NOTIFICATION V1 — Company-PG read/mark. Bearer service token
+      // only (server-to-service, like every route). The MAIN APP has already
+      // authorised the session and resolves `recipientEmployeeCode` from it —
+      // this route is scoped to that one employee and can neither list nor
+      // mark anyone else's rows.
+      //   GET  /v1/task/notifications?recipientEmployeeCode=&limit=
+      //   POST /v1/task/notifications:markRead     { recipientEmployeeCode, ids }
+      //   POST /v1/task/notifications:markAllRead  { recipientEmployeeCode }
+      // ---------------------------------------------------------------
+      {
+        const isNotifList = req.method === 'GET' && path === '/v1/task/notifications';
+        const isNotifMark = req.method === 'POST' && path === '/v1/task/notifications:markRead';
+        const isNotifMarkAll = req.method === 'POST' && path === '/v1/task/notifications:markAllRead';
+        if (isNotifList || isNotifMark || isNotifMarkAll) {
+          const auth = authCheck(req);
+          if (!auth.authorized) {
+            logger.warn('auth_denied', { path, reason: auth.reason });
+            return sendJson(res, 401, { error: auth.reason });
+          }
+          try {
+            if (isNotifList) {
+              const result = await listNotificationsForRecipient(config, {
+                recipientEmployeeCode: url.searchParams.get('recipientEmployeeCode'),
+                recipientAccountId: url.searchParams.get('recipientAccountId'),
+                limit: url.searchParams.get('limit'),
+              });
+              return sendJson(res, 200, result);
+            }
+            const body = await readJsonBody(req, 65536);
+            if (isNotifMark) {
+              const result = await markNotificationsRead(config, { recipientEmployeeCode: body.recipientEmployeeCode, recipientAccountId: body.recipientAccountId, ids: body.ids });
+              return sendJson(res, 200, { ok: true, data: result });
+            }
+            const result = await markAllNotificationsRead(config, { recipientEmployeeCode: body.recipientEmployeeCode, recipientAccountId: body.recipientAccountId });
+            return sendJson(res, 200, { ok: true, data: result });
+          } catch (err) {
+            if (err instanceof TaskNotificationError) {
+              logger.warn('task_notification_rejected', { path, code: err.code });
+              return sendTaskWriteError(res, err.statusCode || 500, err.code, err.message || err.code);
+            }
+            logger.error('task_notification_unexpected_error', { path, message: err && err.message });
+            return sendTaskWriteError(res, 500, 'TASK_NOTIFICATION_ERROR', 'Lỗi hệ thống khi xử lý Thông báo.');
+          }
+        }
       }
 
       // ---------------------------------------------------------------
@@ -665,6 +821,8 @@ function createServer(config) {
         const proposalAcceptMatch = path.match(TASK_PROPOSAL_ACCEPT_RE);
         const proposalRejectMatch = path.match(TASK_PROPOSAL_REJECT_RE);
         const proposalCancelMatch = path.match(TASK_PROPOSAL_CANCEL_RE);
+        const requestCancelMatch = path.match(TASK_REQUEST_CANCEL_RE);
+        const decideCancelRequestMatch = path.match(TASK_DECIDE_CANCEL_REQUEST_RE);
 
         if (
           updateProgressMatch || completeMatch || reopenMatch || cancelMatch || changeDeadlineMatch || createMatch || publishMatch ||
@@ -673,7 +831,8 @@ function createServer(config) {
           setPermissionAssignmentMatch ||
           categoryCreateMatch || categoryRenameMatch || categorySetActiveMatch || categoryReorderMatch || categoryDeleteMatch ||
           permissionGrantCreateMatch || permissionGrantRevokeMatch ||
-          proposalAcceptMatch || proposalRejectMatch || proposalCancelMatch
+          proposalAcceptMatch || proposalRejectMatch || proposalCancelMatch ||
+          requestCancelMatch || decideCancelRequestMatch
         ) {
           const auth = authCheck(req);
           if (!auth.authorized) {
@@ -833,6 +992,38 @@ function createServer(config) {
               reason: body.reason,
             };
             return handleTaskWriteOperation(config, res, path, cancelTaskProposal, args);
+          }
+
+          // CANCEL POLICY V1 — POST /v1/task/tasks/:id:requestCancel
+          // (active primary submits) and :decideCancelRequest (body.decision =
+          // approve | reject | withdraw). Authorization + interventionBasis are
+          // resolved by the main app; this route maps 1:1.
+          if (requestCancelMatch) {
+            const args = {
+              taskId: requestCancelMatch[1],
+              reason: body.reason,
+              actorEmployeeCode: actor.employeeCode,
+              actorAccountId: actor.accountId,
+              // IN-APP NOTIFICATION V1 — the authorised direct-cancel reviewers,
+              // resolved by the MAIN APP's permission graph and passed through
+              // 1:1 (this route never derives authority). Optional; the creator
+              // is always notified regardless (resolved in-transaction).
+              reviewerRecipients: Array.isArray(body.reviewerRecipients) ? body.reviewerRecipients : undefined,
+            };
+            return handleTaskWriteOperation(config, res, path, submitTaskCancelRequest, args);
+          }
+
+          if (decideCancelRequestMatch) {
+            const args = {
+              taskId: decideCancelRequestMatch[1],
+              decision: body.decision,
+              note: body.note,
+              expectedRowVersion: body.expectedRowVersion,
+              interventionBasis: actor.interventionBasis,
+              actorEmployeeCode: actor.employeeCode,
+              actorAccountId: actor.accountId,
+            };
+            return handleTaskWriteOperation(config, res, path, decideTaskCancelRequest, args);
           }
 
           // Batch 4 — POST /v1/task/tasks/:id:transferPrimary — path :id
@@ -1110,6 +1301,98 @@ function createServer(config) {
             reason: body.reason,
             actorEmployeeCode: actor.employeeCode,
           });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // RECURRENCE V1 — POST /v1/task/recurrence (create)
+      //                 GET  /v1/task/recurrence?status=&createdByEmployeeCode=
+      //                 PATCH /v1/task/recurrence/:id (edit — future only)
+      //                 POST /v1/task/recurrence/:id:pause|:resume|:stop
+      //                 POST /v1/task/recurrence:run (idempotent scheduler)
+      // Bearer service token only (auth SERVER-TO-SERVICE like every route).
+      // The main app has already resolved identity, permission scope AND — for
+      // :run — the ACTIVE employee/category sets, which it passes verbatim as
+      // activePrimaryCodes / activeCategoryCodes. phf_hr has no org data, so
+      // this route MUST NOT default to "everyone active".
+      // ---------------------------------------------------------------
+      {
+        const isRecurrenceRoute = (
+          path === '/v1/task/recurrence' || path === '/v1/task/recurrence:run' ||
+          TASK_RECURRENCE_ITEM_RE.test(path) || TASK_RECURRENCE_PAUSE_RE.test(path) ||
+          TASK_RECURRENCE_RESUME_RE.test(path) || TASK_RECURRENCE_STOP_RE.test(path)
+        );
+        if (isRecurrenceRoute) {
+          const auth = authCheck(req);
+          if (!auth.authorized) {
+            logger.warn('auth_denied', { path, reason: auth.reason });
+            return sendTaskWriteError(res, 401, 'UNAUTHORIZED', auth.reason);
+          }
+
+          // GET list — the only non-body verb.
+          if (req.method === 'GET' && TASK_RECURRENCE_COLLECTION_RE.test(path)) {
+            const filter = {
+              status: url.searchParams.get('status') || undefined,
+              createdByEmployeeCode: url.searchParams.get('createdByEmployeeCode') || undefined,
+            };
+            return handleRecurrenceOperation(res, path, () => listRecurrenceRules(config, filter));
+          }
+
+          if (req.method !== 'POST' && req.method !== 'PATCH') {
+            return sendTaskWriteError(res, 405, 'METHOD_NOT_ALLOWED', 'Method không hỗ trợ cho route lịch lặp.');
+          }
+
+          let body;
+          try {
+            body = await readJsonBody(req, 65536);
+          } catch (bodyErr) {
+            return sendTaskWriteError(res, bodyErr.statusCode || 400, 'BODY_INVALID', bodyErr.message || 'BODY_INVALID');
+          }
+          body = body || {};
+          const actor = { employeeCode: (body.actor && body.actor.employeeCode) || undefined, accountId: (body.actor && body.actor.accountId) || undefined };
+
+          if (req.method === 'POST' && TASK_RECURRENCE_COLLECTION_RE.test(path)) {
+            return handleRecurrenceOperation(res, path, () => createRecurrenceRule(config, body, actor));
+          }
+
+          if (req.method === 'POST' && TASK_RECURRENCE_RUN_RE.test(path)) {
+            // Single-rule path (body.ruleId) OR global sweep. activePrimaryCodes
+            // / activeCategoryCodes are pass-through allow-lists (see engine
+            // header) — null when the caller cannot resolve them.
+            const opts = {
+              nowMs: Number.isFinite(Number(body.nowMs)) ? Number(body.nowMs) : undefined,
+              activePrimaryCodes: Array.isArray(body.activePrimaryCodes) ? body.activePrimaryCodes : null,
+              activeCategoryCodes: Array.isArray(body.activeCategoryCodes) ? body.activeCategoryCodes : null,
+              maxCatchupPerRule: Number.isInteger(body.maxCatchupPerRule) ? body.maxCatchupPerRule : undefined,
+              maxTotalPerRun: Number.isInteger(body.maxTotalPerRun) ? body.maxTotalPerRun : undefined,
+            };
+            if (body.ruleId) {
+              return handleRecurrenceOperation(res, path, () => runRecurrenceRule(config, body.ruleId, {
+                nowMs: opts.nowMs,
+                maxOccurrences: opts.maxCatchupPerRule,
+                activePrimaryCodes: opts.activePrimaryCodes,
+                activeCategoryCodes: opts.activeCategoryCodes,
+              }));
+            }
+            return handleRecurrenceOperation(res, path, () => generateRecurrenceDue(config, opts));
+          }
+
+          const patchMatch = req.method === 'PATCH' ? path.match(TASK_RECURRENCE_ITEM_RE) : null;
+          if (patchMatch) {
+            return handleRecurrenceOperation(res, path, () => updateRecurrenceRule(config, patchMatch[1], body, actor));
+          }
+
+          const pauseMatch = path.match(TASK_RECURRENCE_PAUSE_RE);
+          const resumeMatch = path.match(TASK_RECURRENCE_RESUME_RE);
+          const stopMatch = path.match(TASK_RECURRENCE_STOP_RE);
+          if (req.method === 'POST' && (pauseMatch || resumeMatch || stopMatch)) {
+            const kind = pauseMatch ? 'pause' : resumeMatch ? 'resume' : 'stop';
+            const ruleId = (pauseMatch || resumeMatch || stopMatch)[1];
+            const input = { reason: body.reason, nowMs: Number.isFinite(Number(body.nowMs)) ? Number(body.nowMs) : undefined };
+            return handleRecurrenceOperation(res, path, () => transitionRecurrenceRule(config, ruleId, kind, input, actor));
+          }
+
+          return sendTaskWriteError(res, 404, 'NOT_FOUND', 'Route lịch lặp không khớp.');
         }
       }
 

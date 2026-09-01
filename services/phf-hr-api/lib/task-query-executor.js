@@ -208,13 +208,23 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
         .replace(/\bcreated_by_employee_code\b/g, 't.created_by_employee_code')
         .replace(/\bcreated_by_account_id\b/g, 't.created_by_account_id'));
 
+      // SOURCE OF WORK (2026-09-01, additive) — created_by_account_id +
+      // recurring_series_id + proposal_generated feed the creation-time
+      // "Tự giao" classification of each list row (see task-read-bridge.js).
+      // proposal_generated is a reverse EXISTS on proposal_decisions
+      // (this Task IS a generated one) — distinct from the LEFT JOIN pd above
+      // which surfaces THIS row's own proposal decision (proposal_sent/received).
       const taskSql = `
         SELECT t.id, t.task_code, t.flow_type, t.status, t.title, t.priority, t.deadline,
                t.category_code, t.progress_percent, t.progress_status,
-               t.created_by_employee_code, t.is_cross_department, t.source_department,
+               t.created_by_employee_code, t.created_by_account_id, t.recurring_series_id,
+               t.is_cross_department, t.source_department,
                t.target_department, t.created_at, t.row_version,
                pd.proposal_status, pd.recipient_employee_code, pd.generated_task_id,
-               pd.reject_reason, pd.cancel_reason, pd.decided_by_employee_code, pd.decided_at
+               pd.reject_reason, pd.cancel_reason, pd.decided_by_employee_code, pd.decided_at,
+               EXISTS (
+                 SELECT 1 FROM task.proposal_decisions gpd WHERE gpd.generated_task_id = t.id
+               ) AS proposal_generated
           FROM task.tasks t
           LEFT JOIN task.proposal_decisions pd ON pd.proposal_task_id = t.id
          WHERE ${qualifiedWhereClauses.join(' AND ')}
@@ -235,6 +245,7 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
 
       const ids = taskRows.map((t) => t.id);
       let primaryRows;
+      let initialPrimaryRows;
       try {
         const primaryResult = await client.query(
           `SELECT task_id, employee_code
@@ -244,10 +255,21 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
           [ids]
         );
         primaryRows = primaryResult.rows;
+        // INITIAL primary per task (earliest assigned_at) — retained across
+        // every transfer. Creation-time identity for source_of_work.
+        const initialPrimaryResult = await client.query(
+          `SELECT DISTINCT ON (task_id) task_id, employee_code
+             FROM task.assignees
+            WHERE role = 'primary' AND task_id = ANY($1::uuid[])
+            ORDER BY task_id, assigned_at ASC, id ASC`,
+          [ids]
+        );
+        initialPrimaryRows = initialPrimaryResult.rows;
       } catch (err) {
         throw wrapDbError(err);
       }
       const primaryByTaskId = new Map((primaryRows || []).map((r) => [r.task_id, r.employee_code]));
+      const initialPrimaryByTaskId = new Map((initialPrimaryRows || []).map((r) => [r.task_id, r.employee_code]));
 
       return {
         data: taskRows.map((t) => ({
@@ -262,7 +284,11 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
           progressPercent: t.progress_percent,
           progressStatus: t.progress_status,
           createdByEmployeeCode: t.created_by_employee_code,
+          createdByAccountId: t.created_by_account_id || null,
+          recurringSeriesId: t.recurring_series_id || null,
+          proposalGenerated: t.proposal_generated === true,
           primaryEmployeeCode: primaryByTaskId.get(t.id) || null,
+          initialPrimaryEmployeeCode: initialPrimaryByTaskId.get(t.id) || null,
           isCrossDepartment: t.is_cross_department,
           sourceDepartment: t.source_department,
           targetDepartment: t.target_department,

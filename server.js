@@ -57,6 +57,7 @@ const {
 } = require('./api/_lib/task-reporting');
 const {
   getTaskOverviewV2,
+  getTaskReportV2Bundle,
   listTaskOverviewV2Drilldown,
   getTaskReportV2PersonAnalysis,
   getTaskReportV2DepartmentAnalysis,
@@ -93,6 +94,10 @@ const {
   acceptTaskProposalViaServer,
   rejectTaskProposalViaServer,
   cancelTaskProposalViaServer,
+  requestTaskCancelViaServer,
+  approveTaskCancelRequestViaServer,
+  rejectTaskCancelRequestViaServer,
+  withdrawTaskCancelRequestViaServer,
   listProposalRecipientEmployeesViaServer
 } = require('./api/_lib/task-server-integration');
 // Proposal V2 — alias thẳng ViaServer (giống api/data.js): không có flag gate
@@ -101,7 +106,24 @@ const createTaskProposal = createTaskProposalViaServer;
 const acceptTaskProposal = acceptTaskProposalViaServer;
 const rejectTaskProposal = rejectTaskProposalViaServer;
 const cancelTaskProposal = cancelTaskProposalViaServer;
+// CANCEL POLICY V1 (2026-08-31) — PostgreSQL-only "Yêu cầu hủy" flow (no Legacy).
+const requestTaskCancel = requestTaskCancelViaServer;
+const approveTaskCancelRequest = approveTaskCancelRequestViaServer;
+const rejectTaskCancelRequest = rejectTaskCancelRequestViaServer;
+const withdrawTaskCancelRequest = withdrawTaskCancelRequestViaServer;
 const listProposalRecipientEmployees = listProposalRecipientEmployeesViaServer;
+// RECURRENCE V1 (2026-08-31) — same as Proposal V2: PostgreSQL-only, no Legacy
+// fallback (recurrence has never existed anywhere but Company PostgreSQL). The
+// action layer rides the shared PHF_TASK_WRITE_BRIDGE_ENABLED kill switch.
+const {
+  createTaskRecurrence,
+  updateTaskRecurrence,
+  pauseTaskRecurrence,
+  resumeTaskRecurrence,
+  stopTaskRecurrence,
+  listTaskRecurrence,
+  runTaskRecurrence,
+} = require('./api/_lib/task-recurrence-actions');
 // TASK-SERVER-02C read-path bridge — mirror đúng api/data.js. TẮT MẶC ĐỊNH:
 // khi flag OFF, getTaskDetail/listTaskCategories/listTasks giữ NGUYÊN legacy
 // (task-core.js → Supabase). Không đổi business rule / permission / schema.
@@ -210,6 +232,7 @@ const {
 } = require('./api/_lib/checklist-late-reconciliation-service');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./api/_lib/checklist-violations');
 const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence, streamChecklistEvidenceDownload } = require('./api/_lib/checklist-evidence');
+const { handleTaskAttachmentRequest } = require('./api/_lib/task-attachment-endpoint');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('./api/_lib/checklist-tasks');
 const { listChecklistPermissionGrants, saveChecklistPermissionGrants, disableChecklistPermissionGrant, getChecklistRoleWorkspace, requireChecklistWebOperator, isChecklistWebOperator } = require('./api/_lib/checklist-permissions');
 const { getMarketingMonthlyKpiConfig, saveMarketingMonthlyKpiConfig, listMonthly, createMonthly, openMonthly, lockMonthly, openMonthlyException, openMonthlyPilot, myMonthlyForm, saveMyMonthly, myMonthlyReviews, myMonthlyReviewDetail, saveMonthlyReview, changeMonthlyReviewer, exportMonthlyData, getMonthlyOverduePolicy, saveMonthlyOverduePolicy, processMonthlySelfOverdue, getChecklistMonthlyScorePolicy, saveChecklistMonthlyScorePolicy, getMonthlyCyclePolicy, saveMonthlyCyclePolicy, saveMonthlyCycleOverride, syncMonthlyCycle, getChecklistAssessmentProfile } = require('./api/_lib/checklist-monthly');
@@ -258,8 +281,10 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
   'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
-  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
-  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
+  'getTaskOverviewV2', 'getTaskReportV2Bundle', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend',
+  'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -324,6 +349,49 @@ function taskCategoryCreateInput(payload) {
   return input;
 }
 
+// RECURRENCE V1 — thin whitelist snake_case -> camelCase, same discipline as
+// every normalizer above. NO business logic here (frequency/weekday/day-range/
+// date validation all live in api/_lib/task-recurrence-actions.js + the LOCKED
+// engine). taskRecurrenceInput() is shared by create + update.
+function taskRecurrenceInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
+  copyTaskPayloadField(input, payload, 'related_employee_codes', 'relatedEmployeeCodes');
+  copyTaskPayloadField(input, payload, 'frequency', 'frequency');
+  copyTaskPayloadField(input, payload, 'weekday', 'weekday');
+  copyTaskPayloadField(input, payload, 'day_of_month', 'dayOfMonth');
+  copyTaskPayloadField(input, payload, 'start_date', 'startDate');
+  copyTaskPayloadField(input, payload, 'start_time', 'startTime');
+  copyTaskPayloadField(input, payload, 'duration_days', 'durationDays');
+  copyTaskPayloadField(input, payload, 'end_date', 'endDate');
+  copyTaskPayloadField(input, payload, 'repeat_count', 'repeatCount');
+  copyTaskPayloadField(input, payload, 'reason', 'reason');
+  copyTaskPayloadField(input, payload, 'initial_task_id', 'initialTaskId');
+  return input;
+}
+function taskRecurrenceListInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'status', 'status');
+  return input;
+}
+function taskRecurrenceRunInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'rule_id', 'ruleId');
+  return input;
+}
+// CANCEL POLICY V1 — approve/reject/withdraw decision options. Thin whitelist,
+// no business logic.
+function taskCancelRequestDecisionInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'expected_row_version', 'expectedRowVersion');
+  copyTaskPayloadField(input, payload, 'note', 'note');
+  return input;
+}
+
 function taskPermissionGrantInput(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'grantee_employee_code', 'granteeEmployeeCode');
@@ -384,6 +452,11 @@ function taskOverviewV2Input(payload) {
   copyTaskPayloadField(input, payload, 'filters', 'filters');
   return input;
 }
+function taskReportV2BundleInput(payload) {
+  const input = taskOverviewV2Input(payload);
+  copyTaskPayloadField(input, payload, 'sections', 'sections');
+  return input;
+}
 function taskOverviewV2DrilldownInput(payload) {
   const input = taskOverviewV2Input(payload);
   copyTaskPayloadField(input, payload, 'metric_id', 'metric_id');
@@ -433,6 +506,11 @@ async function dispatchTaskAction(session, payload) {
     case 'completeTask': return { handled: true, result: await completeTask(session, payload.task_id, payload.expected_row_version, payload.result_text) };
     case 'reopenTask': return { handled: true, result: await reopenTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
     case 'cancelTask': return { handled: true, result: await cancelTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
+    // CANCEL POLICY V1 — active primary "Yêu cầu hủy" + authorized-reviewer decision.
+    case 'requestTaskCancel': return { handled: true, result: await requestTaskCancel(session, payload.task_id, payload.reason) };
+    case 'approveTaskCancelRequest': return { handled: true, result: await approveTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
+    case 'rejectTaskCancelRequest': return { handled: true, result: await rejectTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
+    case 'withdrawTaskCancelRequest': return { handled: true, result: await withdrawTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
     case 'changeTaskDeadline': return { handled: true, result: await changeTaskDeadline(session, payload.task_id, payload.expected_row_version, payload.new_deadline, payload.reason) };
     case 'transferTaskPrimary': return { handled: true, result: await transferTaskPrimary(session, payload.task_id, payload.expected_row_version, payload.new_primary_employee_code, payload.reason) };
     case 'addTaskRelated': return { handled: true, result: await addTaskRelated(session, payload.task_id, payload.target_employee_code) };
@@ -451,11 +529,21 @@ async function dispatchTaskAction(session, payload) {
     case 'getTaskReportTrend': return { handled: true, result: await getTaskReportTrend(session, taskReportContextInput(payload)) };
     case 'listTaskReportDrilldown': return { handled: true, result: await listTaskReportDrilldown(session, taskReportDrilldownInput(payload)) };
     case 'getTaskOverviewV2': return { handled: true, result: await getTaskOverviewV2(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2Bundle': return { handled: true, result: await getTaskReportV2Bundle(session, taskReportV2BundleInput(payload)) };
     case 'listTaskOverviewV2Drilldown': return { handled: true, result: await listTaskOverviewV2Drilldown(session, taskOverviewV2DrilldownInput(payload)) };
     case 'getTaskReportV2PersonAnalysis': return { handled: true, result: await getTaskReportV2PersonAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2DepartmentAnalysis': return { handled: true, result: await getTaskReportV2DepartmentAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2CategoryAnalysis': return { handled: true, result: await getTaskReportV2CategoryAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2Trend': return { handled: true, result: await getTaskReportV2Trend(session, taskOverviewV2Input(payload)) };
+    // RECURRENCE V1 (2026-08-31) — "Công việc lặp" (Full Create) + "Lịch lặp"
+    // management view. Company PostgreSQL only; no mail/notification/cron in V1.
+    case 'createTaskRecurrence': return { handled: true, result: await createTaskRecurrence(session, taskRecurrenceInput(payload)) };
+    case 'updateTaskRecurrence': return { handled: true, result: await updateTaskRecurrence(session, payload.rule_id, taskRecurrenceInput(payload)) };
+    case 'pauseTaskRecurrence': return { handled: true, result: await pauseTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'resumeTaskRecurrence': return { handled: true, result: await resumeTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'stopTaskRecurrence': return { handled: true, result: await stopTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'listTaskRecurrence': return { handled: true, result: await listTaskRecurrence(session, taskRecurrenceListInput(payload)) };
+    case 'runTaskRecurrence': return { handled: true, result: await runTaskRecurrence(session, taskRecurrenceRunInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };
@@ -797,6 +885,13 @@ const server = http.createServer(async (req, res) => {
       if (!run) return sendJson(res, 400, {ok:false,error:'Hành động không hợp lệ.',code:'AI_CONVERSATION_ACTION_INVALID'});
       const result = await run(session, body);
       return sendJson(res, 200, {ok:true, ...result});
+    }
+
+    if (pathname === '/api/task-attachment') {
+      // FILE ATTACHMENT V1 — dedicated binary endpoint (see
+      // api/_lib/task-attachment-endpoint.js). Shared verbatim with the Vercel
+      // function api/task-attachment.js. Raw request body — NOT readBody().
+      return handleTaskAttachmentRequest(req, res);
     }
 
     if (pathname === '/api/data') {

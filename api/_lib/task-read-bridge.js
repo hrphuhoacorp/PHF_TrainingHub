@@ -36,6 +36,7 @@ const BRIDGE_TIMEOUT_MS = 6000;
 
 const { buildResolvedTaskQueryDescriptor } = require('./task-query-descriptor-builder');
 const { loadOrgRows } = require('./task-employee-scope');
+const { classifySourceOfWork: taskSourceOfWork } = require('./task-source-of-work');
 
 function isBridgeEnabled() {
   return String(process.env.PHF_TASK_READ_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -168,7 +169,22 @@ async function bridgeListTasks(session, params) {
     target_department: r.targetDepartment,
     created_by: personInfo(r.createdByEmployeeCode),
     primary: r.primaryEmployeeCode ? personInfo(r.primaryEmployeeCode) : null,
-    self_task: !!(r.primaryEmployeeCode && orgCode(r.createdByEmployeeCode) === orgCode(r.primaryEmployeeCode)),
+    // "Tự giao" — CREATION-TIME classification (creator vs the INITIAL primary,
+    // not the current one). A later transfer no longer flips the badge.
+    self_task: taskSourceOfWork({
+      createdByEmployeeCode: r.createdByEmployeeCode,
+      createdByAccountId: r.createdByAccountId,
+      initialPrimaryEmployeeCode: r.initialPrimaryEmployeeCode,
+      proposalGenerated: r.proposalGenerated === true,
+      recurringSeriesId: r.recurringSeriesId,
+    }) === 'self_assigned',
+    source_of_work: taskSourceOfWork({
+      createdByEmployeeCode: r.createdByEmployeeCode,
+      createdByAccountId: r.createdByAccountId,
+      initialPrimaryEmployeeCode: r.initialPrimaryEmployeeCode,
+      proposalGenerated: r.proposalGenerated === true,
+      recurringSeriesId: r.recurringSeriesId,
+    }),
     row_version: r.rowVersion,
     // Proposal V2 (2026-08-29) — null cho mọi row Giao việc (LEFT JOIN không
     // match ở phf-hr-api, xem lib/task-query-executor.js). Dùng cho list
@@ -227,13 +243,85 @@ async function bridgeGetTaskDetail(taskId) {
     clearTimeout(timer);
   }
 
-  if (response.status === 404) return { task: null, assignees: [], comments: [], links: [], events: [] };
+  if (response.status === 404) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null };
   if (!response.ok) {
     bridgeFail('phf-hr-api trả lỗi khi đọc chi tiết task (HTTP ' + response.status + ').', 502, 'TASK_READ_BRIDGE_UPSTREAM_ERROR');
   }
 
   const body = await response.json();
   return body.data;
+}
+
+// IN-APP NOTIFICATION V1 — Company-PG notification read/mark. Own flag (1 flag
+// / 1 risk). The DUAL identity `{ employeeCode, accountId }` is resolved by the
+// caller from the authenticated session (api/_lib/task-notifications.js) — never
+// from client input. Either field may be empty; phf-hr-api scopes by whichever
+// is present (handover §10 — account-only Admin has employeeCode='').
+function isNotificationBridgeEnabled() {
+  return String(process.env.PHF_TASK_NOTIFICATION_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
+}
+
+async function notificationFetch(method, pathAndQuery, body) {
+  if (!PHF_HR_API_BASE_URL || !PHF_HR_API_SERVICE_TOKEN) {
+    bridgeFail('PHF_TASK_NOTIFICATION_BRIDGE_ENABLED=true nhưng thiếu PHF_HR_API_BASE_URL hoặc PHF_HR_API_SERVICE_TOKEN trong env.', 500, 'TASK_NOTIFICATION_BRIDGE_MISCONFIGURED');
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(PHF_HR_API_BASE_URL + pathAndQuery, {
+      method,
+      headers: Object.assign({ Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN }, method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+      body: method === 'GET' ? undefined : JSON.stringify(body || {}),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi xử lý Thông báo (timeout).', 504, 'TASK_NOTIFICATION_BRIDGE_TIMEOUT');
+    bridgeFail('Không kết nối được phf-hr-api khi xử lý Thông báo: ' + err.message, 502, 'TASK_NOTIFICATION_BRIDGE_UNREACHABLE');
+  } finally {
+    clearTimeout(timer);
+  }
+  let parsed = null; try { parsed = await response.json(); } catch (_e) {}
+  if (!response.ok || (parsed && parsed.ok === false)) {
+    const code = (parsed && parsed.code) || 'TASK_NOTIFICATION_BRIDGE_UPSTREAM_ERROR';
+    const msg = (parsed && parsed.message) || ('phf-hr-api trả lỗi HTTP ' + response.status + ' khi xử lý Thông báo.');
+    bridgeFail(msg, response.status >= 400 && response.status < 600 ? response.status : 502, code);
+  }
+  return parsed;
+}
+
+function notificationIdentityFields(identity) {
+  const id = identity || {};
+  return {
+    recipientEmployeeCode: String(id.employeeCode || '').trim(),
+    recipientAccountId: String(id.accountId || '').trim(),
+  };
+}
+
+async function bridgeListTaskNotifications(identity, limit) {
+  const { recipientEmployeeCode, recipientAccountId } = notificationIdentityFields(identity);
+  const parts = [];
+  if (recipientEmployeeCode) parts.push('recipientEmployeeCode=' + encodeURIComponent(recipientEmployeeCode));
+  if (recipientAccountId) parts.push('recipientAccountId=' + encodeURIComponent(recipientAccountId));
+  if (limit) parts.push('limit=' + encodeURIComponent(String(limit)));
+  const parsed = await notificationFetch('GET', '/v1/task/notifications?' + parts.join('&'));
+  return {
+    notifications: (parsed && parsed.data) || [],
+    count: (parsed && parsed.count) || 0,
+    taskRelations: (parsed && parsed.taskRelations) || [],
+  };
+}
+
+async function bridgeMarkTaskNotificationsRead(identity, ids) {
+  const parsed = await notificationFetch('POST', '/v1/task/notifications:markRead',
+    Object.assign(notificationIdentityFields(identity), { ids }));
+  return (parsed && parsed.data) || { marked: 0 };
+}
+
+async function bridgeMarkAllTaskNotificationsRead(identity) {
+  const parsed = await notificationFetch('POST', '/v1/task/notifications:markAllRead',
+    notificationIdentityFields(identity));
+  return (parsed && parsed.data) || { marked: 0 };
 }
 
 module.exports = {
@@ -243,4 +331,8 @@ module.exports = {
   bridgeListTasks,
   isGetTaskDetailBridgeEnabled,
   bridgeGetTaskDetail,
+  isNotificationBridgeEnabled,
+  bridgeListTaskNotifications,
+  bridgeMarkTaskNotificationsRead,
+  bridgeMarkAllTaskNotificationsRead,
 };

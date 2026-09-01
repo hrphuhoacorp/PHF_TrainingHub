@@ -30,7 +30,7 @@
 
 const crypto = require('crypto');
 const { resolveEffectiveTaskScope } = require('./task-permissions');
-const { resolveAuthorizedTaskEmployeeScope } = require('./task-core');
+const { resolveAuthorizedTaskEmployeeScope, deriveTaskNavAuthoritySignals } = require('./task-core');
 
 const DESCRIPTOR_TTL_MS = 15000;
 
@@ -58,6 +58,10 @@ async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
 
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
   const effectiveScope = scope.peopleScope.type === 'self' ? 'self' : 'managed';
+  // navSignals — local-only (like effectiveScope): reused by the Overview
+  // bundle so the default landing route needs no separate managed-scope probe.
+  // SAME pure derivation listTasks() uses (task-core.js) — cannot drift.
+  const navSignals = deriveTaskNavAuthoritySignals(actorContext, scope);
   const scopeParam = effectiveScope === 'self' ? 'mine' : 'managed';
 
   const decision = resolveAuthorizedTaskEmployeeScope(actorContext, scope, 'received', scopeParam, { taskRelationshipOnly: true });
@@ -94,7 +98,7 @@ async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
   };
 
   const signature = crypto.createHmac('sha256', signingSecret).update(canonicalSortedJson(descriptor)).digest('hex');
-  return Object.assign({}, descriptor, { signature, effectiveScope });
+  return Object.assign({}, descriptor, { signature, effectiveScope, navSignals });
 }
 
 module.exports = { buildResolvedTaskOverviewQueryDescriptor, canonicalSortedJson };

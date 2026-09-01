@@ -255,7 +255,12 @@ publishChecks.then(function () {
 })();
 
 /* ---------------------------------------------------------------------
-   9) FULL skeleton — superset of Quick + advanced fields, recurrence honesty
+   9) FULL skeleton — superset of Quick + advanced fields + recurrence
+   TEST DRIFT FIX (RECURRENCE V1, 2026-08-31): the old placeholder text
+   ("sẽ khả dụng khi engine sinh phiếu tự động được triển khai") is gone —
+   "Công việc lặp" is now a real weekly/monthly control. Deep coverage of the
+   recurrence UI lives in scripts/test-task-recurrence-ui-v1.js; here we only
+   assert the section is present on the Full form and absent from Quick.
 --------------------------------------------------------------------- */
 (function () {
   const state = T.getState();
@@ -268,7 +273,8 @@ publishChecks.then(function () {
   pass(html.indexOf('data-task-field="priority"') >= 0, 'FULL HTML: Priority editable');
   pass(html.indexOf('data-task-dt-field="start_at"') >= 0, 'FULL HTML: Start editable (24h control)');
   pass(html.indexOf('data-task-search="related"') >= 0, 'FULL HTML: Related/CC available');
-  pass(/sẽ khả dụng khi engine sinh phiếu tự động được triển khai/.test(html), 'FULL HTML: recurrence area stays honestly non-functional (backend frozen)');
+  pass(/Công việc lặp/.test(html) && html.indexOf('data-task-recurrence-mode="weekly"') >= 0 && html.indexOf('data-task-recurrence-mode="monthly"') >= 0, 'FULL HTML: real recurrence control present (weekly/monthly)');
+  pass(html.indexOf('data-task-recurrence-mode="daily"') < 0 && html.indexOf('data-task-recurrence-mode="yearly"') < 0, 'FULL HTML: recurrence never exposes daily/yearly');
 })();
 
 /* ---------------------------------------------------------------------
@@ -307,7 +313,11 @@ publishChecks.then(function () {
   pass(T.fullToQuickBlockingReasons(withPriority, { start: false }, { recurrence: false }).length === 0, 'SWITCH: Full→Quick does NOT warn on priority (Step 4D — Quick has its own priority selector, value carried over)');
 
   pass(T.fullToQuickBlockingReasons(baseForm, { start: true }, { recurrence: false }).length === 1, 'SWITCH: Full→Quick warns when Start was explicitly touched');
-  pass(T.fullToQuickBlockingReasons(baseForm, { start: false }, { recurrence: true }).length === 1, 'SWITCH: Full→Quick warns when recurrence section is open');
+  // RECURRENCE V1 (2026-08-31): the blocking reason now comes from a real
+  // recurrence.mode selection, not an "expanded section" flag.
+  const withRecurrence = Object.assign(T.cloneTaskForm(baseForm), { recurrence: Object.assign(T.defaultTaskRecurrence(), { mode: 'weekly' }) });
+  pass(T.fullToQuickBlockingReasons(withRecurrence, { start: false }, {}).length === 1, 'SWITCH: Full→Quick warns when a recurrence rule (weekly/monthly) is set');
+  pass(T.fullToQuickBlockingReasons(baseForm, { start: false }, {}).length === 0, 'SWITCH: Full→Quick does NOT warn when recurrence stays "Không lặp"');
 })();
 
 /* ---------------------------------------------------------------------

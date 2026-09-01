@@ -57,6 +57,7 @@ const {
 } = require('./_lib/task-reporting');
 const {
   getTaskOverviewV2,
+  getTaskReportV2Bundle,
   listTaskOverviewV2Drilldown,
   getTaskReportV2PersonAnalysis,
   getTaskReportV2DepartmentAnalysis,
@@ -115,6 +116,10 @@ const {
   acceptTaskProposalViaServer,
   rejectTaskProposalViaServer,
   cancelTaskProposalViaServer,
+  requestTaskCancelViaServer,
+  approveTaskCancelRequestViaServer,
+  rejectTaskCancelRequestViaServer,
+  withdrawTaskCancelRequestViaServer,
   listProposalRecipientEmployeesViaServer,
   getTaskDetailProposalAwareViaServer,
 } = require('./_lib/task-server-integration');
@@ -126,7 +131,24 @@ const createTaskProposal = createTaskProposalViaServer;
 const acceptTaskProposal = acceptTaskProposalViaServer;
 const rejectTaskProposal = rejectTaskProposalViaServer;
 const cancelTaskProposal = cancelTaskProposalViaServer;
+// CANCEL POLICY V1 (2026-08-31) — PostgreSQL-only "Yêu cầu hủy" flow (no Legacy).
+const requestTaskCancel = requestTaskCancelViaServer;
+const approveTaskCancelRequest = approveTaskCancelRequestViaServer;
+const rejectTaskCancelRequest = rejectTaskCancelRequestViaServer;
+const withdrawTaskCancelRequest = withdrawTaskCancelRequestViaServer;
 const listProposalRecipientEmployees = listProposalRecipientEmployeesViaServer;
+// RECURRENCE V1 (2026-08-31) — PostgreSQL-only, no Legacy fallback (same as
+// Proposal V2). Action layer rides the shared PHF_TASK_WRITE_BRIDGE_ENABLED
+// kill switch (see api/_lib/task-recurrence-bridge.js).
+const {
+  createTaskRecurrence,
+  updateTaskRecurrence,
+  pauseTaskRecurrence,
+  resumeTaskRecurrence,
+  stopTaskRecurrence,
+  listTaskRecurrence,
+  runTaskRecurrence,
+} = require('./_lib/task-recurrence-actions');
 async function createTaskDraft(session, input) {
   if (isTaskServerWriteEnabled()) return createTaskDraftViaServer(session, input);
   return createTaskDraftLegacy(session, input);
@@ -203,18 +225,46 @@ async function deleteTaskCategory(session, categoryCode) {
   if (isTaskServerWriteEnabled()) return deleteTaskCategoryIfUnusedViaServer(session, categoryCode);
   return deleteTaskCategoryLegacy(session, categoryCode);
 }
+// ---------------------------------------------------------------------------
+// PERMISSION WRITE — HYBRID ROUTING LOCK (2026-08-31, temporary accepted arch)
+// ---------------------------------------------------------------------------
+// Task permission EFFECTIVE READS come from Supabase MAIN, unconditionally
+// (api/_lib/task-permissions.js — no read-bridge, no flag; also
+// task-core.js::listTaskAdminPeople). The 3 permission WRITE actions below
+// MUST therefore also target Supabase MAIN, or an Admin / Giám đốc / Trợ lý GĐ
+// change silently no-ops. Verified 2026-08-31: with the Task *business* write
+// flags ON (PHF_TASK_SERVER_WRITE_ENABLED=true), permission writes were being
+// routed to the EMPTY Company-PostgreSQL task.permission_* tables while reads
+// still saw the ~9 live Supabase rows → WRITE_READ_DIVERGENCE.
+//
+// Fix: these 3 permission actions are pinned to the Supabase legacy path and
+// DO NOT consult isTaskServerWriteEnabled() — UNLIKE every Task *business*
+// write above (createTaskDraft / publish / lifecycle / category / proposal…),
+// whose Company-PostgreSQL routing is deliberately UNCHANGED. Do not merge
+// these back into the flag-gated pattern.
+//
+// setTaskPermissionAssignmentViaServer / createTaskPermissionGrantViaServer /
+// revokeTaskPermissionGrantViaServer + api/_lib/task-write-bridge.js +
+// services/phf-hr-api task.permission_* stay imported and intact as
+// future-cutover infrastructure. A dedicated, separately-gated permission
+// cutover (migration + read bridge + write bridge + parity verification +
+// Permission Contract regression + rollback plan) is required before
+// permission writes may target Company PostgreSQL — and permission reads must
+// cut over in the SAME release, never independently.
+// See: PHF_HR_TASK_PERMISSION_HYBRID_LOCK_2026-08-31.md
 async function saveTaskPermissionAssignment(session, input) {
-  if (isTaskServerWriteEnabled()) return setTaskPermissionAssignmentViaServer(session, input);
   return saveTaskPermissionAssignmentLegacy(session, input);
 }
 async function createTaskPermissionGrant(session, input) {
-  if (isTaskServerWriteEnabled()) return createTaskPermissionGrantViaServer(session, input);
   return createTaskPermissionGrantLegacy(session, input);
 }
 async function revokeTaskPermissionGrant(session, grantId, reason) {
-  if (isTaskServerWriteEnabled()) return revokeTaskPermissionGrantViaServer(session, grantId, reason);
   return revokeTaskPermissionGrantLegacy(session, grantId, reason);
 }
+// NOTE: setTaskPermissionAssignmentViaServer / createTaskPermissionGrantViaServer /
+// revokeTaskPermissionGrantViaServer stay in the require() above on purpose —
+// intentionally-unused future permission-cutover infrastructure, not dead
+// imports to be cleaned up (see the HYBRID ROUTING LOCK block above).
 // getTaskDetail — cờ RIÊNG isTaskReadBridgeGetDetailEnabled(), KHÔNG gộp
 // chung với isTaskServerWriteEnabled()/isTaskReadBridgeEnabled() khác (đúng
 // nguyên tắc "1 cờ / 1 rủi ro" — xem task-read-bridge.js).
@@ -368,8 +418,10 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
   'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
-  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
-  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
+  'getTaskOverviewV2', 'getTaskReportV2Bundle', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend',
+  'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -446,6 +498,50 @@ function taskCategoryCreateInput(payload) {
   return input;
 }
 
+// RECURRENCE V1 — thin whitelist snake_case -> camelCase, same discipline as
+// every normalizer above. NO business logic here (frequency/weekday/day-range/
+// date validation all live in api/_lib/task-recurrence-actions.js + the LOCKED
+// engine). taskRecurrenceInput() is shared by create + update.
+function taskRecurrenceInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'title', 'title');
+  copyTaskPayloadField(input, payload, 'content', 'content');
+  copyTaskPayloadField(input, payload, 'category_code', 'categoryCode');
+  copyTaskPayloadField(input, payload, 'priority', 'priority');
+  copyTaskPayloadField(input, payload, 'primary_employee_code', 'primaryEmployeeCode');
+  copyTaskPayloadField(input, payload, 'related_employee_codes', 'relatedEmployeeCodes');
+  copyTaskPayloadField(input, payload, 'frequency', 'frequency');
+  copyTaskPayloadField(input, payload, 'weekday', 'weekday');
+  copyTaskPayloadField(input, payload, 'day_of_month', 'dayOfMonth');
+  copyTaskPayloadField(input, payload, 'start_date', 'startDate');
+  copyTaskPayloadField(input, payload, 'start_time', 'startTime');
+  copyTaskPayloadField(input, payload, 'duration_days', 'durationDays');
+  copyTaskPayloadField(input, payload, 'end_date', 'endDate');
+  copyTaskPayloadField(input, payload, 'repeat_count', 'repeatCount');
+  copyTaskPayloadField(input, payload, 'reason', 'reason');
+  copyTaskPayloadField(input, payload, 'initial_task_id', 'initialTaskId');
+  return input;
+}
+function taskRecurrenceListInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'status', 'status');
+  return input;
+}
+function taskRecurrenceRunInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'rule_id', 'ruleId');
+  return input;
+}
+// CANCEL POLICY V1 — approve/reject/withdraw decision options. Thin whitelist,
+// no business logic (authorization + state live in task-server-integration.js
+// + the LOCKED cancel-request module).
+function taskCancelRequestDecisionInput(payload) {
+  const input = {};
+  copyTaskPayloadField(input, payload, 'expected_row_version', 'expectedRowVersion');
+  copyTaskPayloadField(input, payload, 'note', 'note');
+  return input;
+}
+
 function taskPermissionGrantInput(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'grantee_employee_code', 'granteeEmployeeCode');
@@ -508,12 +604,19 @@ function taskOverviewV2Input(payload) {
   copyTaskPayloadField(input, payload, 'filters', 'filters');
   return input;
 }
+function taskReportV2BundleInput(payload) {
+  const input = taskOverviewV2Input(payload);
+  // section list — task-reporting-v2.js whitelists it against BUNDLE_SECTION_KEYS
+  copyTaskPayloadField(input, payload, 'sections', 'sections');
+  return input;
+}
 function taskOverviewV2DrilldownInput(payload) {
   const input = taskOverviewV2Input(payload);
   copyTaskPayloadField(input, payload, 'metric_id', 'metric_id');
   copyTaskPayloadField(input, payload, 'employee_code', 'employee_code');
   copyTaskPayloadField(input, payload, 'department', 'department');
   copyTaskPayloadField(input, payload, 'category_code', 'category_code');
+  copyTaskPayloadField(input, payload, 'source_of_work', 'source_of_work');
   copyTaskPayloadField(input, payload, 'limit', 'limit');
   copyTaskPayloadField(input, payload, 'offset', 'offset');
   return input;
@@ -634,6 +737,11 @@ async function dispatchTaskAction(session, payload) {
     case 'completeTask': return { handled: true, result: await completeTask(session, payload.task_id, payload.expected_row_version, payload.result_text) };
     case 'reopenTask': return { handled: true, result: await reopenTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
     case 'cancelTask': return { handled: true, result: await cancelTask(session, payload.task_id, payload.expected_row_version, payload.reason) };
+    // CANCEL POLICY V1 — active primary "Yêu cầu hủy" + authorized-reviewer decision.
+    case 'requestTaskCancel': return { handled: true, result: await requestTaskCancel(session, payload.task_id, payload.reason) };
+    case 'approveTaskCancelRequest': return { handled: true, result: await approveTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
+    case 'rejectTaskCancelRequest': return { handled: true, result: await rejectTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
+    case 'withdrawTaskCancelRequest': return { handled: true, result: await withdrawTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
     case 'changeTaskDeadline': return { handled: true, result: await changeTaskDeadline(session, payload.task_id, payload.expected_row_version, payload.new_deadline, payload.reason) };
     case 'transferTaskPrimary': return { handled: true, result: await transferTaskPrimary(session, payload.task_id, payload.expected_row_version, payload.new_primary_employee_code, payload.reason) };
     case 'addTaskRelated': return { handled: true, result: await addTaskRelated(session, payload.task_id, payload.target_employee_code) };
@@ -652,11 +760,21 @@ async function dispatchTaskAction(session, payload) {
     case 'getTaskReportTrend': return { handled: true, result: await getTaskReportTrend(session, taskReportContextInput(payload)) };
     case 'listTaskReportDrilldown': return { handled: true, result: await listTaskReportDrilldown(session, taskReportDrilldownInput(payload)) };
     case 'getTaskOverviewV2': return { handled: true, result: await getTaskOverviewV2(session, taskOverviewV2Input(payload)) };
+    case 'getTaskReportV2Bundle': return { handled: true, result: await getTaskReportV2Bundle(session, taskReportV2BundleInput(payload)) };
     case 'listTaskOverviewV2Drilldown': return { handled: true, result: await listTaskOverviewV2Drilldown(session, taskOverviewV2DrilldownInput(payload)) };
     case 'getTaskReportV2PersonAnalysis': return { handled: true, result: await getTaskReportV2PersonAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2DepartmentAnalysis': return { handled: true, result: await getTaskReportV2DepartmentAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2CategoryAnalysis': return { handled: true, result: await getTaskReportV2CategoryAnalysis(session, taskOverviewV2Input(payload)) };
     case 'getTaskReportV2Trend': return { handled: true, result: await getTaskReportV2Trend(session, taskOverviewV2Input(payload)) };
+    // RECURRENCE V1 (2026-08-31) — "Công việc lặp" (Full Create) + "Lịch lặp"
+    // management view. Company PostgreSQL only; no mail/notification/cron in V1.
+    case 'createTaskRecurrence': return { handled: true, result: await createTaskRecurrence(session, taskRecurrenceInput(payload)) };
+    case 'updateTaskRecurrence': return { handled: true, result: await updateTaskRecurrence(session, payload.rule_id, taskRecurrenceInput(payload)) };
+    case 'pauseTaskRecurrence': return { handled: true, result: await pauseTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'resumeTaskRecurrence': return { handled: true, result: await resumeTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'stopTaskRecurrence': return { handled: true, result: await stopTaskRecurrence(session, payload.rule_id, payload.reason) };
+    case 'listTaskRecurrence': return { handled: true, result: await listTaskRecurrence(session, taskRecurrenceListInput(payload)) };
+    case 'runTaskRecurrence': return { handled: true, result: await runTaskRecurrence(session, taskRecurrenceRunInput(payload)) };
     default:
       if (/task/i.test(action)) rejectUnknownTaskAction(action);
       return { handled: false, result: null };

@@ -19,7 +19,8 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { resolveActorContext, resolveActorContextForRecord, loadOrgRows, findByCode, TASK_PRESET_TO_ACTOR_TYPE } = require('./task-employee-scope');
+const { resolveActorContext, resolveActorContextForRecord, loadOrgRows, findByCode, normalizeScopeText, TASK_PRESET_TO_ACTOR_TYPE } = require('./task-employee-scope');
+const { classifySourceOfWork, isRecurringOccurrence } = require('./task-source-of-work');
 const {
   resolveBaseTaskScope,
   resolveEffectiveTaskScope,
@@ -31,6 +32,9 @@ const {
   canViewTask,
   canUpdateTask,
   resolveUpdateAuthorityBasis,
+  resolveDirectCancelAuthorityBasis,
+  resolveAttachmentUploadAuthorityBasis,
+  resolveAttachmentManageAuthorityBasis,
   resolveTaskViewerAuthority,
   canAssignTaskTo,
   canAddTaskRelated,
@@ -39,7 +43,7 @@ const {
   loadActiveTaskAssignment
 } = require('./task-permissions');
 const { listHubAccountSummaries } = require('./auth');
-const { emitTaskNotificationSafe } = require('./task-notifications');
+const { emitTaskNotificationSafe, isNotificationBridgeEnabled } = require('./task-notifications');
 
 // MANAGER_VIEW_ACTOR_TYPES — CÙNG danh sách canonical đã dùng ở
 // task-permissions.js canViewTask() cho quan hệ manager_of_primary (KHÔNG
@@ -149,12 +153,15 @@ async function checkTaskFoundationStatus(session) {
   let rpcPaths = new Set();
   let rpcReadError = '';
   try { rpcPaths = await readRpcInventory(); } catch (error) { rpcReadError = String(error && error.message || 'Không đọc được danh sách RPC.'); }
-  const [categoryAuditReady, categorySortReady, crossDeptSnapshotReady, taskNotificationsReady] = await Promise.all([
+  const [categoryAuditReady, categorySortReady, crossDeptSnapshotReady] = await Promise.all([
     columnExists(CATEGORIES_TABLE, 'created_by_account_id'),
     columnExists(CATEGORIES_TABLE, 'sort_order'),
-    columnExists(TASKS_TABLE, 'source_department'),
-    columnExists('task_notifications', 'dedupe_key')
+    columnExists(TASKS_TABLE, 'source_department')
   ]);
+  // IN-APP NOTIFICATION V1 — readiness now reflects the Company-PG notification
+  // path (task.notifications via phf-hr-api), NOT the retired Supabase table.
+  // The feature is available iff its dedicated read bridge flag is on.
+  const taskNotificationsReady = isNotificationBridgeEnabled();
   const result = {
     category_schema_ready: categoryAuditReady && categorySortReady,
     create_task_rpc_ready: rpcPaths.has('/rpc/task_create_draft'),
@@ -235,6 +242,12 @@ const RPC_ERROR_MAP = {
   TASK_ALREADY_CANCELLED: [409, 'Task đã bị hủy trước đó.'],
   TASK_MUST_REOPEN_BEFORE_CANCEL: [409, 'Task đã hoàn thành — cần mở lại (reopen) trước khi hủy.'],
   TASK_CANCEL_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi hủy task.'],
+  TASK_CANCEL_REQUEST_REQUIRED: [403, 'Người phụ trách chính chỉ có thể gửi "Yêu cầu hủy" — không tự hủy công việc.'],
+  TASK_CANCEL_REQUEST_NOT_FOUND: [404, 'Không tìm thấy yêu cầu hủy.'],
+  TASK_CANCEL_REQUEST_ALREADY_DECIDED: [409, 'Yêu cầu hủy đã được xử lý.'],
+  TASK_CANCEL_REQUEST_PENDING_EXISTS: [409, 'Đã có một yêu cầu hủy đang chờ xử lý cho công việc này.'],
+  TASK_CANCEL_REQUEST_ACTOR_DENIED: [403, 'Bạn không có quyền thực hiện thao tác này với yêu cầu hủy.'],
+  TASK_CANCEL_REQUEST_REASON_REQUIRED: [400, 'Bắt buộc nhập lý do khi gửi yêu cầu hủy.'],
   TASK_CANCELLED_IMMUTABLE: [409, 'Task đã hủy — không thể đổi deadline.'],
   TASK_DEADLINE_REQUIRED: [400, 'Deadline mới là bắt buộc.'],
   TASK_CATEGORY_NOT_FOUND: [400, 'Category không tồn tại.'],
@@ -350,7 +363,10 @@ function taskAccountStatus(account) {
 function taskPermissionGrantDto(grant) {
   const rawScope = grant && grant.people_scope && typeof grant.people_scope === 'object' ? grant.people_scope : {};
   const scopeType = text(rawScope.type).toLowerCase() || 'self';
-  const scopeValues = Array.from(new Set((Array.isArray(rawScope.values) ? rawScope.values : []).map(code).filter(Boolean)));
+  // 'department' values are People Master department NAMES (kept verbatim);
+  // every other scope type is a list of employee_codes (upper-cased).
+  const scopeValueFn = scopeType === 'department' ? text : code;
+  const scopeValues = Array.from(new Set((Array.isArray(rawScope.values) ? rawScope.values : []).map(scopeValueFn).filter(Boolean)));
   const rawCapabilities = grant && grant.capabilities && typeof grant.capabilities === 'object' ? grant.capabilities : {};
   const capabilities = {};
   ['view', 'assign', 'update', 'manage'].forEach(key => {
@@ -378,11 +394,14 @@ function taskPermissionAdjustmentPolicy(employmentStatus, baseScopeType) {
   if (employmentStatus !== 'active' || baseScopeType === 'all_company') {
     return { can_create_extend: false, supported_scope_types: [] };
   }
+  // MODULE-LEVEL DEPARTMENT SCOPE V1 — 'department' is an additive, module-only
+  // people-scope extension (WHICH people/area), NOT a capability change. It
+  // never widens assignScope and never touches the base preset / People Master.
   if (baseScopeType === 'self' || baseScopeType === 'employees') {
-    return { can_create_extend: true, supported_scope_types: ['employees', 'all_company'] };
+    return { can_create_extend: true, supported_scope_types: ['department', 'employees', 'all_company'] };
   }
   if (baseScopeType === 'sales_all_branches_task') {
-    return { can_create_extend: true, supported_scope_types: ['all_company'] };
+    return { can_create_extend: true, supported_scope_types: ['department', 'all_company'] };
   }
   return { can_create_extend: false, supported_scope_types: [] };
 }
@@ -427,6 +446,27 @@ function normalizeExtendPeopleScope(input, baseScopeType, orgRows) {
     fail('Phạm vi Extend không được engine V1 hỗ trợ an toàn cho vai trò này.', 400, 'TASK_PERMISSION_SCOPE_NOT_SUPPORTED');
   }
   if (scopeType === 'all_company') return { type: 'all_company', values: [] };
+
+  // MODULE-LEVEL DEPARTMENT SCOPE V1 — additional Task department scope. Values
+  // are department names validated against the canonical People Master
+  // department catalog (employee_profiles.department via orgRows) — Task never
+  // owns its own department list. Stored as the canonical department string;
+  // accent/case-insensitive match. Does NOT change the person's HR department.
+  if (scopeType === 'department') {
+    const requested = Array.from(new Set((Array.isArray(raw.values) ? raw.values : []).map(value => text(value)).filter(Boolean)));
+    if (!requested.length) fail('Cần chọn ít nhất một phòng ban để mở rộng phạm vi.', 400, 'TASK_PERMISSION_SCOPE_VALUES_REQUIRED');
+    if (requested.length > 30) fail('Mỗi lần chỉ được thêm tối đa 30 phòng ban.', 400, 'TASK_PERMISSION_SCOPE_VALUES_TOO_MANY');
+    const catalog = new Map();
+    (orgRows || []).forEach(row => { const dept = text(row.department); if (dept) catalog.set(normalizeScopeText(dept), dept); });
+    const canonical = [];
+    requested.forEach(value => {
+      const match = catalog.get(normalizeScopeText(value));
+      if (!match) fail('Phòng ban không tồn tại trong People Master: ' + value, 400, 'TASK_PERMISSION_SCOPE_DEPARTMENT_NOT_FOUND');
+      if (!canonical.includes(match)) canonical.push(match);
+    });
+    return { type: 'department', values: canonical };
+  }
+
   const values = Array.from(new Set((Array.isArray(raw.values) ? raw.values : []).map(code).filter(Boolean)));
   if (!values.length) fail('Cần chọn ít nhất một nhân sự để mở rộng phạm vi.', 400, 'TASK_PERMISSION_SCOPE_VALUES_REQUIRED');
   if (values.length > 100) fail('Mỗi grant chỉ được chọn tối đa 100 nhân sự.', 400, 'TASK_PERMISSION_SCOPE_VALUES_TOO_MANY');
@@ -798,6 +838,33 @@ async function listTaskAdminPeople(session) {
       has_active_grant: permissionSchemaReady && effective.grants.length > 0,
       active_grant_count: permissionSchemaReady ? effective.grants.length : 0,
       active_grants: permissionSchemaReady ? effective.grants.map(taskPermissionGrantDto) : [],
+      // MODULE-LEVEL DEPARTMENT SCOPE V1 — canonical People Master department
+      // (informational HR truth, unchanged by Task) + the additional Task-only
+      // department scope granted on top (module permission only).
+      primary_department: actorContext.department || '',
+      // Whether this person can RECEIVE additional Task department scope —
+      // decided ONLY from the canonical signals: currently-active employment +
+      // the BASE preset scope (NOT the effective/expanded scope, NOT the
+      // managed-people graph, NOT a scope label). all-company base or inactive
+      // => not eligible. Single authoritative flag for the editor's
+      // "Phạm vi bổ sung trong Task" section so the picker can never be hidden
+      // just because the effective scope later contains several people.
+      department_scope_supported: permissionSchemaReady
+        && employmentStatus === 'active'
+        && baseScope.peopleScope.type !== 'all_company',
+      additional_task_departments: permissionSchemaReady
+        ? Array.from(new Set(effective.grants
+            .filter(grant => grant && grant.grant_type === 'extend' && grant.is_active === true
+              && grant.people_scope && text(grant.people_scope.type).toLowerCase() === 'department')
+            .flatMap(grant => (Array.isArray(grant.people_scope.values) ? grant.people_scope.values : []))
+            .map(value => text(value)).filter(Boolean)))
+        : [],
+      department_scope_grants: permissionSchemaReady
+        ? effective.grants
+            .filter(grant => grant && grant.grant_type === 'extend' && grant.is_active === true
+              && grant.people_scope && text(grant.people_scope.type).toLowerCase() === 'department')
+            .map(taskPermissionGrantDto)
+        : [],
       can_receive_new_tasks: employmentStatus === 'active',
       checklist_mapping_status: checklistMapping.status,
       checklist_mapping_status_label: CHECKLIST_MAPPING_STATUS_LABELS[checklistMapping.status] || 'Chưa khả dụng',
@@ -1072,6 +1139,65 @@ async function resolveAndAuthorizeUpdateCapability(session, current, loadAssigne
   return actorContext;
 }
 
+// CANCEL POLICY V1 (2026-08-31) — DIRECT cancel authorization seam. Same
+// shape as resolveAndAuthorizeUpdateCapability but the ONLY accepted bases are
+// creator + authorised management (system_admin / executive_authority /
+// exception_grant). If the actor's only relationship is "current active
+// primary", it throws TASK_CANCEL_REQUEST_REQUIRED (403) — the UI routes them
+// to "Yêu cầu hủy". A pure non-relationship actor still gets TASK_UPDATE_DENIED.
+async function resolveAndAuthorizeDirectCancel(session, current, loadAssigneeRowsFn) {
+  const actorContext = await resolveActorContext(session);
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
+  if (actorOwnsTask(actorContext, current)) {
+    actorContext.interventionBasis = 'creator';
+    return actorContext;
+  }
+  const assigneeRows = await loadAssigneeRowsFn();
+  const relationTask = { createdByAccountId: current.created_by_account_id, createdByEmployeeCode: current.created_by_employee_code };
+  const relAssignees = toRelationAssignees(assigneeRows);
+  const directBasis = await resolveDirectCancelAuthorityBasis(session, relationTask, relAssignees);
+  if (directBasis) { actorContext.interventionBasis = directBasis; return actorContext; }
+  // No direct basis. Distinguish "you are the active primary -> request only"
+  // from "you have no cancel authority at all".
+  const fullBasis = await resolveUpdateAuthorityBasis(session, relationTask, relAssignees);
+  if (fullBasis === 'active_primary') {
+    fail('Người phụ trách chính chỉ có thể gửi "Yêu cầu hủy" — không tự hủy công việc.', 403, 'TASK_CANCEL_REQUEST_REQUIRED');
+  }
+  fail('Không có quyền hủy công việc này.', 403, 'TASK_UPDATE_DENIED');
+}
+
+// FILE ATTACHMENT V1 (2026-08-31) — UPLOAD authorization seam. Accepted bases:
+// creator/assigner + current active primary + authorised management
+// (system_admin / executive_authority / exception_grant). A plain viewer, a
+// CC/related, and a proposer-by-proposal-status-alone are all denied
+// (TASK_ATTACHMENT_UPLOAD_DENIED, 403). Same shape as
+// resolveAndAuthorizeUpdateCapability but named for the attachment call site.
+async function resolveAndAuthorizeAttachmentUpload(session, current, loadAssigneeRowsFn) {
+  const actorContext = await resolveActorContext(session);
+  if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
+  if (actorOwnsTask(actorContext, current)) {
+    actorContext.interventionBasis = 'creator';
+    return actorContext;
+  }
+  const assigneeRows = await loadAssigneeRowsFn();
+  const relationTask = { createdByAccountId: current.created_by_account_id, createdByEmployeeCode: current.created_by_employee_code };
+  const basis = await resolveAttachmentUploadAuthorityBasis(session, relationTask, toRelationAssignees(assigneeRows));
+  if (basis) { actorContext.interventionBasis = basis; return actorContext; }
+  fail('Không có quyền đính kèm tệp cho công việc này.', 403, 'TASK_ATTACHMENT_UPLOAD_DENIED');
+}
+
+// FILE ATTACHMENT V1 — MANAGE-OTHER authority (remove an attachment the actor
+// did NOT upload). Returns the winning basis string ('creator' /
+// 'system_admin' / 'executive_authority' / 'exception_grant') or null. A bare
+// active primary gets null here on purpose — they may only remove their OWN
+// upload, which the caller checks separately against uploaded_by_employee_code.
+async function resolveAttachmentManageBasis(session, current, assigneeRows) {
+  const actorContext = await resolveActorContext(session);
+  if (actorOwnsTask(actorContext, current)) return 'creator';
+  const relationTask = { createdByAccountId: current.created_by_account_id, createdByEmployeeCode: current.created_by_employee_code };
+  return resolveAttachmentManageAuthorityBasis(session, relationTask, toRelationAssignees(assigneeRows));
+}
+
 // SEAM — updateTaskProgress: chỉ primary hiện hành + version check tường
 // minh trước khi persist. KHÔNG chứa throttle check (Layer 1, xem CONTAINMENT
 // comment gốc) — throttle PHẢI chạy TRƯỚC BẤT KỲ I/O nào (kể cả load task/
@@ -1331,6 +1457,42 @@ async function resolveCrossDepartmentNotificationRecipient(actorContext, taskId,
   };
 }
 
+// MANAGEMENT NOTIFICATION — "Yêu cầu hủy" reviewer recipient (2026-09-01).
+//
+// AUDIT RESULT: across every current V1 lifecycle event, TASK_CANCEL_REQUESTED
+// is the ONLY one carrying a genuine management decision (approve / reject a
+// pending cancel request). Its emit + route layer already accepts
+// { creator + reviewerRecipients }; the creator is always resolved
+// in-transaction. What the MAIN APP was NOT yet supplying is the management
+// reviewer. This resolver names the one reviewer the main app can identify
+// canonically and cheaply: the active primary's manager-of-record — and ONLY
+// when they hold real Task management authority (the SAME manager_employee_code
+// + preset→actor-type gate that resolveCrossDepartmentNotificationRecipient()
+// and canViewTask()'s manager_of_primary branch already use).
+//
+// EXPLICIT NON-GOALS (locked): NO title/name heuristics. NO "company-wide
+// visibility ⇒ company-wide subscription" — Admin / Giám đốc / Trợ lý GĐ are
+// NOT added as recipients here or anywhere else just because they can see the
+// whole company. An empty result ([]) is a correct outcome (manager is the
+// actor, is the creator, is inactive, or has no Task authority), NOT a bug.
+async function resolveCancelRequestReviewerRecipients(actorContext, assigneeRows, createdByEmployeeCode) {
+  const activePrimary = (assigneeRows || []).find((a) => a.role === 'primary' && a.is_active);
+  if (!activePrimary) return [];
+  const rows = await loadOrgRows();
+  const primarySubject = findByCode(rows, activePrimary.employee_code);
+  if (!primarySubject || !primarySubject.managerCode) return []; // no real manager_employee_code — never guess
+  const managerCode = code(primarySubject.managerCode);
+  if (!managerCode) return [];
+  if (managerCode === code(actorContext.employeeCode)) return [];      // the requester's own manager path — actor already knows
+  if (managerCode === code(createdByEmployeeCode)) return [];          // creator is always notified regardless
+  const managerSubject = findByCode(rows, managerCode);
+  if (!managerSubject || String(managerSubject.status || '').toLowerCase() !== 'active') return []; // left the company
+  const managerAssignment = await loadActiveTaskAssignment({ employeeCode: managerCode, accountId: '' });
+  const managerActorType = managerAssignment && TASK_PRESET_TO_ACTOR_TYPE[code(managerAssignment.preset_code)];
+  if (!managerActorType || !CROSS_DEPT_MANAGER_ACTOR_TYPES.has(managerActorType)) return []; // has manager link but no Task authority
+  return [{ employeeCode: managerCode }];
+}
+
 // resolveTaskDepartmentSnapshot — thuần, KHÔNG DB write. Supabase path
 // KHÔNG dùng hàm này (RPC task_publish tự tính department snapshot bằng
 // trigger nội bộ đọc employee_profiles); phf_hr KHÔNG có bảng đó nên
@@ -1462,9 +1624,46 @@ function enrichCommentWithOrg(row, peopleByCode) {
   };
 }
 
-function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventRows, categoryDtoObj, orgRows, viewer) {
+// initialPrimaryEmployeeCode — the EARLIEST role='primary' assignee (min
+// assigned_at). Retained across every transfer, so it is the creation-time
+// identity source_of_work / the "Tự giao" badge compare against. NEVER the
+// current active primary.
+function initialPrimaryEmployeeCode(assigneeRows) {
+  const primaries = (assigneeRows || []).filter(a => a && a.role === 'primary');
+  if (!primaries.length) return '';
+  primaries.sort((a, b) => {
+    const ta = new Date(a.assigned_at || 0).getTime();
+    const tb = new Date(b.assigned_at || 0).getTime();
+    if (ta !== tb) return ta - tb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+  return code(primaries[0].employee_code);
+}
+
+function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventRows, categoryDtoObj, orgRows, viewer, recurrence, cancelRequest, attachmentRows, sourceMeta) {
   const peopleByCode = new Map((orgRows || []).map(person => [code(person.employeeCode), person]));
   const activePrimaryRow = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active) || null;
+  // FILE ATTACHMENT V1 — the phf-hr-api read path already returns ONLY active
+  // rows with a safe projection (no stored_object_key / checksum / deleted_*).
+  // Here we only add display name + the per-viewer can_remove flag, mirroring
+  // the same resolver the backend enforces (manage basis OR own upload).
+  const attachmentManageBasis = viewer && viewer.attachment_manage_basis;
+  const viewerEmployeeCode = code(viewer && viewer.actor_employee_code);
+  const attachments = (attachmentRows || []).map(row => {
+    const uploaderCode = code(row.uploaded_by_employee_code);
+    const uploader = peopleByCode.get(uploaderCode);
+    return {
+      id: row.id,
+      original_filename: row.original_filename,
+      mime_type: row.mime_type,
+      extension: row.extension,
+      size_bytes: row.size_bytes,
+      uploaded_by_employee_code: uploaderCode,
+      uploaded_by_full_name: uploader ? uploader.fullName : '',
+      created_at: row.created_at,
+      can_remove: !!attachmentManageBasis || (!!viewerEmployeeCode && uploaderCode === viewerEmployeeCode),
+    };
+  });
   return {
     task,
     category: categoryDtoObj || { category_code: code(task.category_code), display_name: code(task.category_code), description: '', color: '#64748B', is_active: false },
@@ -1472,14 +1671,41 @@ function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventR
     related: (assigneeRows || []).filter(a => a.role === 'related' && a.is_active).map(row => enrichAssigneeWithOrg(row, peopleByCode)),
     comments: (commentRows || []).map(row => enrichCommentWithOrg(row, peopleByCode)),
     links: filterActiveLinks(linkRows, eventRows),
+    attachments,
     events: eventRows || [],
-    // "Tự giao" (LOCKED UI requirement, 2026-08-28) — canonical identity
-    // comparison (employee_code), KHÔNG so sánh display name — cùng công
-    // thức với listTasks() (line ~1943). Display-only: KHÔNG ảnh hưởng
-    // permission/lifecycle/audit/progress ownership/performance calculation
-    // — chỉ 1 field bổ sung ở detail DTO, không đụng bất kỳ nhánh authorize/
-    // RPC nào.
-    self_task: !!(activePrimaryRow && code(task && task.created_by_employee_code) === code(activePrimaryRow.employee_code)),
+    // "Tự giao" (LOCKED UI requirement, 2026-08-28; source-of-work realignment
+    // 2026-09-01) — CREATION-TIME classification: creator vs the INITIAL
+    // primary (earliest role='primary' assignee), NOT the current active
+    // primary. A later transfer no longer flips the badge. Display-only:
+    // no permission/lifecycle/audit/progress/performance impact.
+    self_task: classifySourceOfWork({
+      createdByEmployeeCode: task && task.created_by_employee_code,
+      createdByAccountId: task && task.created_by_account_id,
+      initialPrimaryEmployeeCode: initialPrimaryEmployeeCode(assigneeRows),
+      proposalGenerated: !!(sourceMeta && sourceMeta.proposalGenerated) || !!(task && task.proposal_generated),
+      recurringSeriesId: task && task.recurring_series_id,
+    }) === 'self_assigned',
+    source_of_work: classifySourceOfWork({
+      createdByEmployeeCode: task && task.created_by_employee_code,
+      createdByAccountId: task && task.created_by_account_id,
+      initialPrimaryEmployeeCode: initialPrimaryEmployeeCode(assigneeRows),
+      proposalGenerated: !!(sourceMeta && sourceMeta.proposalGenerated) || !!(task && task.proposal_generated),
+      recurringSeriesId: task && task.recurring_series_id,
+    }),
+    is_recurring_occurrence: isRecurringOccurrence({ recurringSeriesId: task && task.recurring_series_id }),
+    // RECURRENCE V1 (2026-08-31) — compact non-technical recognition summary
+    // (frequency + finite-count remaining) for the Task Detail badge. null for
+    // normal non-recurring Tasks and for the legacy Supabase read path. Never
+    // carries rule_id / occurrence_id / recurring_series_id / version.
+    recurrence: recurrence || null,
+    // CANCEL POLICY V1 (2026-08-31) — the pending "Yêu cầu hủy" for this Task
+    // (null when none). Non-technical: status + reason + who/when + per-viewer
+    // can_review / can_withdraw. No ids beyond the request id it needs to act
+    // on. Legacy Supabase path passes nothing -> null.
+    cancel_request: cancelRequest ? Object.assign({}, cancelRequest, {
+      can_review: !!(viewer && viewer.actions && viewer.actions.review_cancel_request === true),
+      can_withdraw: !!(viewer && viewer.is_active_primary === true),
+    }) : null,
     viewer: viewer || null
   };
 }
@@ -1532,7 +1758,9 @@ async function reopenTask(session, taskId, expectedRowVersion, reason) {
 // ---------------------------------------------------------------------------
 async function cancelTask(session, taskId, expectedRowVersion, reason) {
   const current = await loadTaskRow(taskId);
-  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => loadAssignees(taskId));
+  // CANCEL POLICY V1 — direct cancel is creator / management only; an active
+  // primary is rejected here (must use requestTaskCancel).
+  const actorContext = await resolveAndAuthorizeDirectCancel(session, current, () => loadAssignees(taskId));
   return callRpc('task_cancel', {
     p_task_id: taskId, p_expected_row_version: expectedRowVersion, p_actor_employee_code: actorAuditToken(actorContext), p_reason: reason
   });
@@ -1735,6 +1963,21 @@ const TASK_LIST_SCOPES = new Set(['mine', 'managed', 'cross_department', 'all_co
 // nhánh 'mine'/rỗng bên dưới — KHÔNG đổi bởi set này).
 const COMPANY_TIER_ACTOR_TYPES = new Set(['admin', 'giam_doc', 'tro_ly_gd']);
 
+// SINGLE SOURCE OF TRUTH for the two Task-nav authority signals the frontend
+// uses to decide whether to render "Nhân sự tôi quản lý" / "Nhân sự & phân
+// quyền". listTasks() computes these inline (see below) as a piggyback on its
+// scoped probe; the Overview bundle path reuses THIS function so the values it
+// returns can never drift from the listTasks() probe. Pure — no I/O.
+//   hasManagedPeople         — company-tier actor OR a real managed subtree
+//   canManageTaskPermissions — capability-derived (scope.capabilities.manage),
+//                              the exact flag requireTaskPermissionAdmin() enforces
+function deriveTaskNavAuthoritySignals(actorContext, scope) {
+  const hasManagedPeople = COMPANY_TIER_ACTOR_TYPES.has(actorContext && actorContext.actorType)
+    || !!(actorContext && actorContext.managedEmployeeCodes && actorContext.managedEmployeeCodes.size > 0);
+  const canManageTaskPermissions = !!(scope && scope.capabilities && scope.capabilities.manage === true);
+  return { hasManagedPeople, canManageTaskPermissions };
+}
+
 // ---------------------------------------------------------------------------
 // SHARED AUTHORIZED TASK SCOPE RESOLVER — Report-02/03 mục 2: branching
 // "actorContext/scope + relation/scope input → concrete authorization
@@ -1912,8 +2155,7 @@ async function listTasks(session, params) {
   // phải suy đoán qua title/actorType không rõ nguồn: actorType ở đây đã
   // resolve canonical qua task_permission_assignments/session admin, KHÔNG
   // phải string so sánh display).
-  const hasManagedPeople = COMPANY_TIER_ACTOR_TYPES.has(actorContext.actorType)
-    || !!(actorContext.managedEmployeeCodes && actorContext.managedEmployeeCodes.size > 0);
+  const { hasManagedPeople, canManageTaskPermissions } = deriveTaskNavAuthoritySignals(actorContext, scope);
   // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29) — canManageTaskPermissions:
   // trustworthy, explicit, CAPABILITY-derived signal (scope.capabilities.manage
   // — the exact same flag requireTaskPermissionAdmin()/listTaskAdminPeople()
@@ -1921,7 +2163,6 @@ async function listTasks(session, params) {
   // frontend quyết định hiện nav "Nhân sự & phân quyền" hay không. KHÔNG suy
   // từ actorType/title phía client — piggybacks trên cùng listTasks() probe
   // đã dùng để hydrate hasManagedPeople, không thêm round-trip nào.
-  const canManageTaskPermissions = scope.capabilities.manage === true;
   const emptyResult = { tasks: [], relation, statusFilter, scope: scopeParam || 'default', viewScopeType: scope.peopleScope.type, requesterActorType: actorContext.actorType, hasManagedPeople, canManageTaskPermissions, offset, limit, hasMore: false };
 
   // listTasks() = the Task LIST/workspace contract ("Tôi nhận"/"Nhân sự tôi
@@ -1973,7 +2214,10 @@ async function listTasks(session, params) {
   if (!taskRows.length) return emptyResult;
 
   const taskIdsForEnrich = taskRows.map(t => t.id);
-  const { data: enrichAssignees, error: enrichError } = await supabase.from(ASSIGNEES_TABLE).select('*').in('task_id', taskIdsForEnrich).eq('is_active', true);
+  // Fetch the FULL primary assignee history (not just is_active) so the
+  // "Tự giao" badge can compare the creator against the INITIAL primary
+  // (creation-time), not the current one — a transfer no longer flips it.
+  const { data: enrichAssignees, error: enrichError } = await supabase.from(ASSIGNEES_TABLE).select('*').in('task_id', taskIdsForEnrich);
   if (enrichError) throwDb(enrichError);
   const orgRows = await loadOrgRows();
   const peopleByCode = new Map(orgRows.map(person => [code(person.employeeCode), person]));
@@ -1984,6 +2228,16 @@ async function listTasks(session, params) {
 
   const tasks = taskRows.map(t => {
     const primary = (enrichAssignees || []).find(a => a.task_id === t.id && a.role === 'primary' && a.is_active);
+    const taskPrimaryHistory = (enrichAssignees || []).filter(a => a.task_id === t.id && a.role === 'primary');
+    const sourceOfWork = classifySourceOfWork({
+      createdByEmployeeCode: t.created_by_employee_code,
+      createdByAccountId: t.created_by_account_id,
+      initialPrimaryEmployeeCode: initialPrimaryEmployeeCode(taskPrimaryHistory),
+      // legacy Supabase path: proposal-generated reverse lookup is not fetched
+      // here (bridged path is authoritative in PROD); recurrence linkage IS.
+      proposalGenerated: false,
+      recurringSeriesId: t.recurring_series_id,
+    });
     return {
       task_id: t.id,
       task_code: t.task_code,
@@ -2001,11 +2255,10 @@ async function listTasks(session, params) {
       target_department: t.target_department,
       created_by: personInfo(t.created_by_employee_code),
       primary: primary ? personInfo(primary.employee_code) : null,
-      // self-task metadata (mục 11 handoff — compatibility cho Dashboard/Report
-      // sau này, KHÔNG tính KPI ở đây): "được giao" (creator ≠ primary),
-      // "tự giao" (creator === primary), KHÔNG có "phối hợp" ở list level vì
-      // đó là quan hệ related (CC) — related không nằm trong scope list này.
-      self_task: !!(primary && code(t.created_by_employee_code) === code(primary.employee_code)),
+      // "Tự giao" — CREATION-TIME classification (creator vs the INITIAL
+      // primary), so a transfer no longer flips the badge. Display-only.
+      self_task: sourceOfWork === 'self_assigned',
+      source_of_work: sourceOfWork,
       row_version: t.row_version
     };
   });
@@ -2108,6 +2361,7 @@ module.exports = {
   publishTask,
   resolveAndAuthorizePublish,
   resolveCrossDepartmentNotificationRecipient,
+  resolveCancelRequestReviewerRecipients,
   resolveTaskDepartmentSnapshot,
   getTaskDetail,
   assembleTaskDetailDto,
@@ -2119,6 +2373,9 @@ module.exports = {
   reopenTask,
   cancelTask,
   resolveAndAuthorizeUpdateCapability,
+  resolveAndAuthorizeDirectCancel,
+  resolveAndAuthorizeAttachmentUpload,
+  resolveAttachmentManageBasis,
   changeTaskDeadline,
   transferTaskPrimary,
   addTaskRelated,
@@ -2129,6 +2386,7 @@ module.exports = {
   resolveAndAuthorizeView,
   listTasks,
   resolveAuthorizedTaskEmployeeScope,
+  deriveTaskNavAuthoritySignals,
   listTaskEvents,
   resolveAuthorizedTaskScope,
   TASK_LIST_RELATIONS,

@@ -225,11 +225,12 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
   const { permissions, core } = loadWithMocks();
   const {
     resolveEffectiveTaskScope, resolveBaseTaskScope, canViewTask, canUpdateTask,
-    resolveUpdateAuthorityBasis, canAssignTaskTo, canAddTaskRelated, listTaskAssignableEmployees
+    resolveUpdateAuthorityBasis, resolveDirectCancelAuthorityBasis, canAssignTaskTo, canAddTaskRelated, listTaskAssignableEmployees,
+    resolveAttachmentUploadAuthorityBasis, resolveAttachmentManageAuthorityBasis, resolveTaskViewerAuthority
   } = permissions;
   const {
     createTaskPermissionGrant, saveTaskPermissionAssignment, reopenTask, cancelTask,
-    completeTask, addTaskRelated
+    completeTask, addTaskRelated, resolveAndAuthorizeAttachmentUpload, resolveAttachmentManageBasis
   } = core;
 
   // =========================================================================
@@ -438,6 +439,23 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
     pass((await resolveUpdateAuthorityBasis(sessionFor('SUB_M'), mvTask, mvAssignees)) === 'active_primary',
       'BOUNDARY: primary hiện hành có basis active_primary trên Task của chính mình');
 
+    // CANCEL POLICY V1 — resolveDirectCancelAuthorityBasis drops active_primary,
+    // keeps management bases.
+    pass((await resolveDirectCancelAuthorityBasis(sessionFor('SUB_M'), mvTask, mvAssignees)) === null,
+      'CANCEL POLICY V1: active primary is NOT a direct canceller (basis null)');
+    pass((await resolveDirectCancelAuthorityBasis(sessionFor('GD_Z'), mvTask, mvAssignees)) === 'executive_authority',
+      'CANCEL POLICY V1: executive still has a direct-cancel basis');
+    pass((await resolveDirectCancelAuthorityBasis(sessionFor('MGR_X'), mvTask, mvAssignees)) === null,
+      'CANCEL POLICY V1: plain manager has no direct-cancel basis');
+    await rejects(
+      () => cancelTask(sessionFor('SUB_M'), 'task-mv', 7, 'Tôi muốn hủy việc của mình'),
+      error => error && error.code === 'TASK_CANCEL_REQUEST_REQUIRED' && error.statusCode === 403,
+      'CANCEL POLICY V1: active primary direct cancelTask() => TASK_CANCEL_REQUEST_REQUIRED (403)'
+    );
+    rpcCalls.length = 0;
+    await cancelTask(sessionFor('GD_Z'), 'task-mv', 7, 'GĐ vẫn hủy trực tiếp được');
+    pass(rpcCalls.some(c => c.fnName === 'task_cancel'), 'CANCEL POLICY V1: executive direct cancel still reaches task_cancel RPC');
+
     // A grant that only re-states the managed tree does NOT widen beyond base
     // scope => still no intervention (locked rule: "BEYOND their base scope").
     STATE.grants.push({
@@ -482,6 +500,102 @@ function adminSession(accountId) { return Object.freeze({ sub: accountId, accoun
       error => error && error.code === 'TASK_COMPLETE_ACTOR_DENIED',
       'LIFECYCLE: creator KHÔNG phải primary thì không được bấm Hoàn thành thay (Primary Complete trực tiếp, không phải creator)'
     );
+
+    // CANCEL POLICY V1 — the primary of task-2 cannot direct-cancel; the
+    // creator still can.
+    await rejects(
+      () => cancelTask(sessionFor('PRIMARY2'), 'task-2', 5, 'Xin hủy'),
+      error => error && error.code === 'TASK_CANCEL_REQUEST_REQUIRED' && error.statusCode === 403,
+      'CANCEL POLICY V1: PRIMARY2 direct cancelTask() => TASK_CANCEL_REQUEST_REQUIRED'
+    );
+    rpcCalls.length = 0;
+    await cancelTask(sessionFor('CREATOR2'), 'task-2', 5, 'Người tạo hủy');
+    pass(rpcCalls.some(c => c.fnName === 'task_cancel'), 'CANCEL POLICY V1: creator direct cancel still works (task_cancel RPC)');
+  }
+
+  // =========================================================================
+  // FILE ATTACHMENT V1 — upload / manage authority (2026-08-31)
+  // =========================================================================
+  resetState();
+  STATE.employees.push(
+    emp({ employee_code: 'ATT_CREATOR', full_name: 'Người giao' }),
+    emp({ employee_code: 'ATT_PRIMARY', full_name: 'Người phụ trách' }),
+    emp({ employee_code: 'ATT_CC', full_name: 'Người liên quan' }),
+    emp({ employee_code: 'ATT_STRANGER', full_name: 'Người ngoài' }),
+    emp({ employee_code: 'ATT_GD', full_name: 'Giám đốc' })
+  );
+  STATE.assignments.push(assignment({ employee_code: 'ATT_GD', preset_code: 'GIAM_DOC' }));
+  STATE.tasks.push({ id: 'att-task', status: 'in_progress', row_version: 2, created_by_account_id: null, created_by_employee_code: 'ATT_CREATOR' });
+  STATE.assignees.push(
+    { id: 'att-as-1', task_id: 'att-task', employee_code: 'ATT_PRIMARY', role: 'primary', is_active: true },
+    { id: 'att-as-2', task_id: 'att-task', employee_code: 'ATT_CC', role: 'related', is_active: true }
+  );
+  {
+    const taskRow = { id: 'att-task', status: 'in_progress', row_version: 2, created_by_account_id: null, created_by_employee_code: 'ATT_CREATOR' };
+    const assigneeRows = [
+      { employee_code: 'ATT_PRIMARY', role: 'primary', is_active: true },
+      { employee_code: 'ATT_CC', role: 'related', is_active: true },
+    ];
+    const loadAssignees = () => Promise.resolve(assigneeRows);
+    const relAssignees = assigneeRows.map(a => ({ employeeCode: a.employee_code, role: a.role, isActive: a.is_active }));
+    const relTask = { createdByAccountId: null, createdByEmployeeCode: 'ATT_CREATOR' };
+
+    // UPLOAD — creator
+    const c1 = await resolveAndAuthorizeAttachmentUpload(sessionFor('ATT_CREATOR'), taskRow, loadAssignees);
+    pass(c1.interventionBasis === 'creator', 'ATTACHMENT: creator/assigner được upload (basis creator)');
+    // UPLOAD — active primary
+    const c2 = await resolveAndAuthorizeAttachmentUpload(sessionFor('ATT_PRIMARY'), taskRow, loadAssignees);
+    pass(c2.interventionBasis === 'active_primary', 'ATTACHMENT: active primary được upload (basis active_primary)');
+    // UPLOAD — management (Giám đốc)
+    const c3 = await resolveAndAuthorizeAttachmentUpload(sessionFor('ATT_GD'), taskRow, loadAssignees);
+    pass(c3.interventionBasis === 'executive_authority', 'ATTACHMENT: Giám đốc được upload (basis executive_authority)');
+    // UPLOAD — plain related/CC denied
+    await rejects(
+      () => resolveAndAuthorizeAttachmentUpload(sessionFor('ATT_CC'), taskRow, loadAssignees),
+      e => e && e.code === 'TASK_ATTACHMENT_UPLOAD_DENIED' && e.statusCode === 403,
+      'ATTACHMENT: CC/related thuần -> TASK_ATTACHMENT_UPLOAD_DENIED'
+    );
+    // UPLOAD — unrelated stranger denied
+    await rejects(
+      () => resolveAndAuthorizeAttachmentUpload(sessionFor('ATT_STRANGER'), taskRow, loadAssignees),
+      e => e && e.code === 'TASK_ATTACHMENT_UPLOAD_DENIED',
+      'ATTACHMENT: người ngoài -> TASK_ATTACHMENT_UPLOAD_DENIED (proposer-by-status-alone cũng rơi vào nhánh này)'
+    );
+
+    // canonical resolver (task-permissions) mirrors the seam
+    pass((await resolveAttachmentUploadAuthorityBasis(sessionFor('ATT_PRIMARY'), relTask, relAssignees)) === 'active_primary',
+      'ATTACHMENT: resolveAttachmentUploadAuthorityBasis(active primary) = active_primary');
+
+    // MANAGE (remove-other) — bare active primary is NOT enough
+    pass((await resolveAttachmentManageBasis(sessionFor('ATT_PRIMARY'), taskRow, assigneeRows)) === null,
+      'ATTACHMENT: active primary KHÔNG có manage basis (chỉ được gỡ file của chính mình)');
+    pass((await resolveAttachmentManageBasis(sessionFor('ATT_CREATOR'), taskRow, assigneeRows)) === 'creator',
+      'ATTACHMENT: creator có manage basis');
+    pass((await resolveAttachmentManageBasis(sessionFor('ATT_GD'), taskRow, assigneeRows)) === 'executive_authority',
+      'ATTACHMENT: Giám đốc có manage basis (executive_authority)');
+    pass((await resolveAttachmentManageBasis(sessionFor('ATT_CC'), taskRow, assigneeRows)) === null,
+      'ATTACHMENT: CC/related không có manage basis');
+    pass((await resolveAttachmentManageAuthorityBasis(sessionFor('ATT_CC'), relTask, relAssignees)) === null,
+      'ATTACHMENT: resolveAttachmentManageAuthorityBasis(CC) = null');
+
+    // DTO — viewer authority flags derive from the SAME resolvers
+    const vPrimary = await resolveTaskViewerAuthority(sessionFor('ATT_PRIMARY'), taskRow, [
+      { employee_code: 'ATT_PRIMARY', role: 'primary', is_active: true },
+      { employee_code: 'ATT_CC', role: 'related', is_active: true },
+    ]);
+    pass(vPrimary.actions.upload_attachment === true && vPrimary.attachment_upload_basis === 'active_primary' && vPrimary.attachment_manage_basis === null,
+      'ATTACHMENT DTO: active primary -> upload_attachment=true, manage_basis=null');
+    const vCc = await resolveTaskViewerAuthority(sessionFor('ATT_CC'), taskRow, [
+      { employee_code: 'ATT_PRIMARY', role: 'primary', is_active: true },
+      { employee_code: 'ATT_CC', role: 'related', is_active: true },
+    ]);
+    pass(vCc.actions.upload_attachment === false && vCc.attachment_upload_basis === null,
+      'ATTACHMENT DTO: CC/related -> upload_attachment=false');
+    const vCreator = await resolveTaskViewerAuthority(sessionFor('ATT_CREATOR'), taskRow, [
+      { employee_code: 'ATT_PRIMARY', role: 'primary', is_active: true },
+    ]);
+    pass(vCreator.actions.upload_attachment === true && vCreator.attachment_manage_basis === 'creator' && vCreator.actor_employee_code === 'ATT_CREATOR',
+      'ATTACHMENT DTO: creator -> upload=true, manage_basis=creator, actor_employee_code stamped');
   }
 
   // delegation not exposed

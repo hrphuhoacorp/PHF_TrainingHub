@@ -312,6 +312,27 @@ async function bridgeCancelTask(taskId, expectedRowVersion, reason, actorEmploye
   });
 }
 
+// CANCEL POLICY V1 — "Yêu cầu hủy" request flow. PostgreSQL-only.
+async function bridgeRequestTaskCancel(taskId, reason, actorEmployeeCode, actorAccountId, reviewerRecipients) {
+  return callWriteRoute(`/v1/task/tasks/${encodeURIComponent(taskId)}:requestCancel`, {
+    reason,
+    actor: actorPayload(actorEmployeeCode, actorAccountId),
+    // IN-APP NOTIFICATION V1 — management reviewer(s) the main app resolved
+    // canonically (task-core.resolveCancelRequestReviewerRecipients). Optional;
+    // the creator is always notified in-transaction regardless.
+    reviewerRecipients: Array.isArray(reviewerRecipients) && reviewerRecipients.length ? reviewerRecipients : undefined,
+  });
+}
+// decision: 'approve' | 'reject' | 'withdraw'. opts: { note?, expectedRowVersion?,
+// interventionBasis?, actorEmployeeCode, actorAccountId }.
+async function bridgeDecideTaskCancelRequest(taskId, decision, opts) {
+  const o = opts || {};
+  return callWriteRoute(`/v1/task/tasks/${encodeURIComponent(taskId)}:decideCancelRequest`, {
+    decision, note: o.note, expectedRowVersion: o.expectedRowVersion,
+    actor: actorPayload(o.actorEmployeeCode, o.actorAccountId, o.interventionBasis),
+  });
+}
+
 async function bridgeChangeTaskDeadline(taskId, expectedRowVersion, newDeadline, reason, actorEmployeeCode, actorAccountId, interventionBasis) {
   return callWriteRoute(`/v1/task/tasks/${encodeURIComponent(taskId)}:changeDeadline`, {
     expectedRowVersion, newDeadline, reason, actor: actorPayload(actorEmployeeCode, actorAccountId, interventionBasis),
@@ -430,6 +451,8 @@ module.exports = {
   bridgeCompleteTask,
   bridgeReopenTask,
   bridgeCancelTask,
+  bridgeRequestTaskCancel,
+  bridgeDecideTaskCancelRequest,
   bridgeChangeTaskDeadline,
   bridgeTransferTaskPrimary,
   bridgeAddTaskRelated,

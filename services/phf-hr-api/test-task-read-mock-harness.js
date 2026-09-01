@@ -204,6 +204,12 @@ function signDescriptor(payload, secret) {
         expect: /^SELECT \* FROM task\.events WHERE task_id = \$1 ORDER BY occurred_at DESC$/,
         result: { rows: [{ id: 'e1', task_id: 't1', event_type: 'status' }] },
       },
+      // FILE ATTACHMENT V1 — additive ACTIVE-only safe projection (in Promise.all with the 4 above).
+      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, created_at FROM task\.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [{ id: 'att1', original_filename: 'mc.pdf', mime_type: 'application/pdf', extension: 'pdf', size_bytes: 111, uploaded_by_employee_code: 'PHF010', created_at: '2026-08-02' }] } },
+      // SOURCE OF WORK V1 — additive proposal-generated reverse lookup.
+      { expect: /SELECT 1 FROM task\.proposal_decisions WHERE generated_task_id = \$1 LIMIT 1/, result: { rows: [] } },
+      // CANCEL POLICY V1 — additive pending "Yêu cầu hủy" lookup (to_regclass-guarded).
+      { expect: /FROM task\.cancel_requests/, result: { rows: [] } },
       { expect: COMMIT, result: {} },
     ]);
     const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
@@ -214,6 +220,7 @@ function signDescriptor(payload, secret) {
       out.comments.length === 1 && out.comments[0].id === 'c1' &&
       out.links.length === 1 && out.links[0].id === 'l1' &&
       out.events.length === 1 && out.events[0].id === 'e1' &&
+      out.attachments.length === 1 && out.attachments[0].id === 'att1' && out.attachments[0].stored_object_key === undefined &&
       client._remainingSteps() === 0,
       { out });
   }
@@ -236,6 +243,7 @@ function signDescriptor(payload, secret) {
       Array.isArray(out.comments) && out.comments.length === 0 &&
       Array.isArray(out.links) && out.links.length === 0 &&
       Array.isArray(out.events) && out.events.length === 0 &&
+      Array.isArray(out.attachments) && out.attachments.length === 0 &&
       client._remainingSteps() === 0,
       { out });
   }
@@ -258,11 +266,14 @@ function signDescriptor(payload, secret) {
       { expect: /^SELECT \* FROM task\.comments WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
       { expect: /^SELECT \* FROM task\.links WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
       { expect: /^SELECT \* FROM task\.events WHERE task_id = \$1 ORDER BY occurred_at DESC$/, result: { rows: [] } },
+      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, created_at FROM task\.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [] } },
+      { expect: /SELECT 1 FROM task\.proposal_decisions WHERE generated_task_id = \$1 LIMIT 1/, result: { rows: [] } },
+      { expect: /FROM task\.cancel_requests/, result: { rows: [] } },
       { expect: COMMIT, result: {} },
     ]);
     const { getTaskById } = loadWithFakePg(TASK_READ_JS_PATH, client);
     const out = await getTaskById(MOCK_CONFIG, 't2');
-    record('getTaskById_multiple_assignees_all_rows_returned', out.assignees.length === 3, { out });
+    record('getTaskById_multiple_assignees_all_rows_returned', out.assignees.length === 3 && Array.isArray(out.attachments) && out.attachments.length === 0, { out });
   }
 
   {
@@ -312,10 +323,12 @@ function signDescriptor(payload, secret) {
       {
         // Proposal V2 (2026-08-29, additive) — SQL nay có alias t./pd. + LEFT
         // JOIN task.proposal_decisions (xem lib/task-query-executor.js).
-        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.created_by_account_id, t\.recurring_series_id, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at, EXISTS \( SELECT 1 FROM task\.proposal_decisions gpd WHERE gpd\.generated_task_id = t\.id \) AS proposal_generated FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
         result: { rows: [{ id: 't1', task_code: 'CV-1', flow_type: 'giao_viec', status: 'published', title: 'x', priority: 'normal', deadline: '2026-09-01', created_by_employee_code: 'PHF001', is_cross_department: false, source_department: 'Bán hàng', target_department: 'Bán hàng', created_at: '2026-08-01', row_version: 1 }] },
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND is_active = true AND task_id = ANY\(\$1::uuid\[\]\)$/, result: { rows: [{ task_id: 't1', employee_code: 'PHF001' }] } },
+      // SOURCE OF WORK V1 — additive INITIAL primary (earliest assigned_at).
+      { expect: /^SELECT DISTINCT ON \(task_id\) task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND task_id = ANY\(\$1::uuid\[\]\) ORDER BY task_id, assigned_at ASC, id ASC$/, result: { rows: [{ task_id: 't1', employee_code: 'PHF001' }] } },
       { expect: COMMIT, result: {} },
     ]);
     const { executeResolvedTaskQuery } = loadWithFakePg(TASK_QUERY_EXECUTOR_JS_PATH, client);
@@ -373,10 +386,11 @@ function signDescriptor(payload, secret) {
         result: { rows: [{ task_id: 't1' }, { task_id: 't2' }] },
       },
       {
-        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND id = ANY\(\$2::uuid\[\]\) AND status <> 'draft' AND is_cross_department = true ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.created_by_account_id, t\.recurring_series_id, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at, EXISTS \( SELECT 1 FROM task\.proposal_decisions gpd WHERE gpd\.generated_task_id = t\.id \) AS proposal_generated FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND id = ANY\(\$2::uuid\[\]\) AND status <> 'draft' AND is_cross_department = true ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$3 OFFSET \$4$/,
         result: { rows: [{ id: 't2', task_code: 'CV-2', flow_type: 'giao_viec', status: 'in_progress', title: 'y', priority: 'high', deadline: '2026-09-05', created_by_employee_code: 'PHF002', is_cross_department: true, source_department: 'A', target_department: 'B', created_at: '2026-08-02', row_version: 1 }] },
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND is_active = true AND task_id = ANY\(\$1::uuid\[\]\)$/, result: { rows: [{ task_id: 't2', employee_code: 'PHF080' }] } },
+      { expect: /^SELECT DISTINCT ON \(task_id\) task_id, employee_code FROM task\.assignees WHERE role = 'primary' AND task_id = ANY\(\$1::uuid\[\]\) ORDER BY task_id, assigned_at ASC, id ASC$/, result: { rows: [{ task_id: 't2', employee_code: 'PHF080' }] } },
       { expect: COMMIT, result: {} },
     ]);
     const { executeResolvedTaskQuery } = loadWithFakePg(TASK_QUERY_EXECUTOR_JS_PATH, client);
@@ -422,10 +436,11 @@ function signDescriptor(payload, secret) {
       { expect: SET_ROLE, result: {} },
       { expect: SET_TIMEOUT, result: {} },
       {
-        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 AND status IN \('published', 'in_progress'\) AND deadline < \$3 AND \(task_code ILIKE \$4 OR title ILIKE \$4\) ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$5 OFFSET \$6$/,
+        expect: /^SELECT t\.id, t\.task_code, t\.flow_type, t\.status, t\.title, t\.priority, t\.deadline, t\.category_code, t\.progress_percent, t\.progress_status, t\.created_by_employee_code, t\.created_by_account_id, t\.recurring_series_id, t\.is_cross_department, t\.source_department, t\.target_department, t\.created_at, t\.row_version, pd\.proposal_status, pd\.recipient_employee_code, pd\.generated_task_id, pd\.reject_reason, pd\.cancel_reason, pd\.decided_by_employee_code, pd\.decided_at, EXISTS \( SELECT 1 FROM task\.proposal_decisions gpd WHERE gpd\.generated_task_id = t\.id \) AS proposal_generated FROM task\.tasks t LEFT JOIN task\.proposal_decisions pd ON pd\.proposal_task_id = t\.id WHERE flow_type = \$1 AND t\.created_by_employee_code = \$2 AND status IN \('published', 'in_progress'\) AND deadline < \$3 AND \(task_code ILIKE \$4 OR title ILIKE \$4\) ORDER BY t\.created_at DESC, t\.id ASC LIMIT \$5 OFFSET \$6$/,
         result: { rows: [{ id: 't1', row_version: 1 }, { id: 't2', row_version: 1 }, { id: 't3', row_version: 1 }] }, // 3 rows for limit=2 -> hasMore
       },
       { expect: /^SELECT task_id, employee_code FROM task\.assignees/, result: { rows: [] } },
+      { expect: /^SELECT DISTINCT ON \(task_id\) task_id, employee_code FROM task\.assignees/, result: { rows: [] } },
       { expect: COMMIT, result: {} },
     ]);
     const { executeResolvedTaskQuery } = loadWithFakePg(TASK_QUERY_EXECUTOR_JS_PATH, client);

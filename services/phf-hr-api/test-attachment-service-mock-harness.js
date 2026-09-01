@@ -141,6 +141,14 @@ function findNullSteps() {
     { expect: COMMIT, result: {} },
   ];
 }
+function countActiveSteps(n) {
+  return [
+    { expect: BEGIN, result: {} },
+    { expect: SET_ROLE, result: {} },
+    { expect: /^SELECT count\(\*\)::int AS n FROM task\.attachments WHERE task_id = \$1 AND status = 'active'$/, result: { rows: [{ n: n || 0 }] } },
+    { expect: COMMIT, result: {} },
+  ];
+}
 function findFoundSteps(row) {
   return [
     { expect: BEGIN, result: {} },
@@ -224,6 +232,7 @@ function uuid() {
 
     const client = makeFakeClient([
       ...findNullSteps(),
+      ...countActiveSteps(),
       ...insertAttachmentSteps({ id: 'att-fresh-1', task_id: taskId, status: 'active', stored_object_key: objectKey }),
     ]);
     const service = loadServiceWithFakePg(client);
@@ -274,13 +283,39 @@ function uuid() {
     );
   }
 
+  // 2b) FILE ATTACHMENT V1 — per-task cap. 20 active -> reject BEFORE streaming.
+  {
+    const taskId = uuid();
+    const idempotencyKey = uuid();
+    const actor = 'PHF001';
+
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps(20)]);
+    const service = loadServiceWithFakePg(client);
+
+    const { readable, wasTouched } = trackedReadable(Buffer.from('should-not-be-read'));
+    let error;
+    try {
+      await service.uploadAttachment(MOCK_CONFIG, {
+        storageRoot: ROOT, taskId, actorEmployeeCode: actor, idempotencyKey,
+        originalFilename: 'over-limit.pdf', mimeType: 'application/pdf', readableStream: readable,
+      });
+    } catch (e) { error = e; }
+
+    record(
+      'upload_2b_perTaskCap_reject_noStream',
+      error && error.code === 'ATTACHMENT_ORCHESTRATION_LIMIT_REACHED' && wasTouched() === false &&
+        client._remainingSteps() === 0 && listTmpDirFiles(ROOT).length === 0,
+      { code: error && error.code }
+    );
+  }
+
   // 3) Empty file reject
   {
     const taskId = uuid();
     const idempotencyKey = uuid();
     const actor = 'PHF001';
 
-    const client = makeFakeClient(findNullSteps());
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps()]);
     const service = loadServiceWithFakePg(client);
 
     let error;
@@ -330,7 +365,7 @@ function uuid() {
     const { MAX_FILE_SIZE } = require('./lib/attachment-policy');
     const oversized = Buffer.alloc(MAX_FILE_SIZE + 1024, 7);
 
-    const client = makeFakeClient(findNullSteps());
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps()]);
     const service = loadServiceWithFakePg(client);
 
     let error;
@@ -354,7 +389,7 @@ function uuid() {
     const idempotencyKey = uuid();
     const actor = 'PHF001';
 
-    const client = makeFakeClient(findNullSteps());
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps()]);
     const service = loadServiceWithFakePg(client);
 
     let error;
@@ -383,7 +418,7 @@ function uuid() {
     fs.mkdirSync(path.dirname(finalPath), { recursive: true });
     fs.writeFileSync(finalPath, winnerContent); // simulate concurrent in-flight claim, fresh mtime
 
-    const client = makeFakeClient([...findNullSteps(), ...findNullSteps()]);
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps(), ...findNullSteps()]);
     const service = loadServiceWithFakePg(client);
 
     let error;
@@ -415,7 +450,7 @@ function uuid() {
     fs.writeFileSync(finalPath, winnerContent);
     const winnerRow = { id: 'att-winner-10', task_id: taskId, status: 'active', stored_object_key: objectKey };
 
-    const client = makeFakeClient([...findNullSteps(), ...findFoundSteps(winnerRow)]);
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps(), ...findFoundSteps(winnerRow)]);
     const service = loadServiceWithFakePg(client);
 
     const out = await service.uploadAttachment(MOCK_CONFIG, {
@@ -444,6 +479,7 @@ function uuid() {
 
     const client = makeFakeClient([
       ...findNullSteps(),
+      ...countActiveSteps(),
       { expect: BEGIN, result: {} },
       { expect: SET_ROLE, result: {} },
       { expect: INSERT_ATTACHMENTS, error: Object.assign(new Error('connection lost'), { code: 'ECONNRESET' }) },
@@ -487,6 +523,7 @@ function uuid() {
 
     const client = makeFakeClient([
       ...findNullSteps(), // replay check
+      ...countActiveSteps(), // per-task cap check
       ...findNullSteps(), // loser re-check (winner still absent) -> triggers reclaim
       ...insertAttachmentSteps({ id: 'att-recovered-12', task_id: orphanTaskId, status: 'active', stored_object_key: objectKey }),
     ]);
@@ -518,6 +555,7 @@ function uuid() {
 
     const client = makeFakeClient([
       ...findNullSteps(),
+      ...countActiveSteps(),
       { expect: BEGIN, result: {} },
       { expect: SET_ROLE, result: {} },
       { expect: INSERT_ATTACHMENTS, error: Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' }) },
@@ -554,7 +592,7 @@ function uuid() {
     fs.utimesSync(finalPath, staleMtime, staleMtime);
     const winnerRow = { id: 'att-winner-16', task_id: taskId, status: 'active', stored_object_key: objectKey };
 
-    const client = makeFakeClient([...findNullSteps(), ...findFoundSteps(winnerRow)]);
+    const client = makeFakeClient([...findNullSteps(), ...countActiveSteps(), ...findFoundSteps(winnerRow)]);
     const service = loadServiceWithFakePg(client);
     const spy = spyOnStorage(['reclaimStaleClaim']);
 
@@ -604,6 +642,7 @@ function uuid() {
 
     const client = makeFakeClient([
       ...findNullSteps(),
+      ...countActiveSteps(),
       ...insertAttachmentSteps({ id: 'att-checksum-18', task_id: taskId, status: 'active', stored_object_key: objectKey }),
     ]);
     const service = loadServiceWithFakePg(client);

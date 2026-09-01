@@ -252,12 +252,20 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
     const t = STATE.tasks.find(x => x.id === 'task-B');
     pass(t.is_cross_department === true, 'CASE B: cross-department publish snapshots is_cross_department=true');
     pass(t.source_department === 'Kinh doanh' && t.target_department === 'Kho vận', 'CASE B: source/target snapshot correct direction');
-    pass(STATE.notifications.length === 1, 'CASE B: exactly 1 manager notification created');
-    const n = STATE.notifications[0];
-    pass(n.recipient_employee_code === 'MGR_KHO', 'CASE B: notification recipient is the RECEIVING department manager (manager_of_primary), not the creator');
-    pass(n.event_code === 'TASK_CROSS_DEPARTMENT_ASSIGNED' && n.task_id === 'task-B', 'CASE B: correct event_code and task_id');
-    pass(/KHÔNG phải yêu cầu duyệt/i.test(n.message), 'CASE B: notification message explicitly states this is NOT an approval request (mục 9)');
-    pass(!/(cần|chờ|xin)\s+(duyệt|phê duyệt|approve)/i.test(n.message) && !/duyệt\s*\/\s*không\s*duyệt/i.test(n.message), 'CASE B: message never presents an Approve/Reject action to the recipient');
+    // IN-APP NOTIFICATION V1 (2026-08-31): the Supabase emit is RETIRED. The
+    // legacy publishTask() path (this test) no longer writes a notification
+    // anywhere. The real cross-department notification is emitted by
+    // publishTaskViaServer() -> bridgeEmitTaskNotification() -> phf-hr-api into
+    // Company PG task.notifications — proven by scripts/test-task-server-
+    // integration-v1.js and scripts/task-notification-v1-e2e-dev.js (scenario 15).
+    pass(STATE.notifications.length === 0, 'CASE B: legacy Supabase notification path is retired (no Supabase write from publishTask)');
+    const recipient = await core.resolveCrossDepartmentNotificationRecipient(
+      { actorType: 'truong_bo_phan', employeeCode: 'MGR_KD', department: 'Kinh doanh' },
+      'task-B', t, STATE.assignees.filter(a => a.task_id === 'task-B')
+    );
+    pass(recipient && recipient.recipientEmployeeCode === 'MGR_KHO', 'CASE B: cross-dept recipient resolver still routes to the RECEIVING department manager (manager_of_primary), not the creator');
+    pass(/KHÔNG phải yêu cầu duyệt/i.test(recipient.message), 'CASE B: resolved message explicitly states this is NOT an approval request (mục 9)');
+    pass(!/(cần|chờ|xin)\s+(duyệt|phê duyệt|approve)/i.test(recipient.message) && !/duyệt\s*\/\s*không\s*duyệt/i.test(recipient.message), 'CASE B: message never presents an Approve/Reject action to the recipient');
   }
 
   // ===========================================================================
@@ -303,22 +311,24 @@ function sessionFor(employeeCode) { return Object.freeze({ sub: 'sess-' + employ
   STATE.assignees.push({ id: 'as-E2', task_id: 'task-E2', employee_code: 'EMP_Z', role: 'primary', is_active: true });
   {
     await Promise.all([publishTask(sessionFor('MGR_X'), 'task-E1', 1), publishTask(sessionFor('MGR_X'), 'task-E2', 1)]);
-    pass(STATE.notifications.length === 2, 'CASE E: 2 concurrent cross-department publishes produce exactly 2 notifications');
-    const n1 = STATE.notifications.find(n => n.task_id === 'task-E1');
-    const n2 = STATE.notifications.find(n => n.task_id === 'task-E2');
-    pass(n1.recipient_employee_code === 'MGR_Y' && n2.recipient_employee_code === 'MGR_Z', 'CASE E: each notification routes to its OWN task\'s correct manager — no cross-link between the two concurrent Tasks');
+    pass(STATE.notifications.length === 0, 'CASE E: legacy Supabase notification path retired — no Supabase writes from concurrent publishes');
+    const r1 = await core.resolveCrossDepartmentNotificationRecipient({ actorType: 'truong_ca', employeeCode: 'MGR_X', department: 'Phòng X' }, 'task-E1', STATE.tasks.find(x => x.id === 'task-E1'), STATE.assignees.filter(a => a.task_id === 'task-E1'));
+    const r2 = await core.resolveCrossDepartmentNotificationRecipient({ actorType: 'truong_ca', employeeCode: 'MGR_X', department: 'Phòng X' }, 'task-E2', STATE.tasks.find(x => x.id === 'task-E2'), STATE.assignees.filter(a => a.task_id === 'task-E2'));
+    pass(r1.recipientEmployeeCode === 'MGR_Y' && r2.recipientEmployeeCode === 'MGR_Z', 'CASE E: recipient resolver routes each task to its OWN manager — no cross-link between the two concurrent Tasks');
   }
 
   // ===========================================================================
-  // CASE F — dedupe: same (task, recipient) never produces a second notification
+  // CASE F — the Supabase emit is RETIRED. Dedupe/idempotency is now enforced
+  // in Company PG (dedupe_key partial-unique + (event_id, recipient) partial-
+  // unique, ON CONFLICT DO NOTHING) — proven by scripts/task-notification-v1-
+  // e2e-dev.js scenarios 12 and 15b. This case only guards that the retired
+  // helper is a harmless no-op and NEVER touches Supabase.
   // ===========================================================================
   resetState();
   {
-    const first = await notifications.emitTaskNotification('TASK_CROSS_DEPARTMENT_ASSIGNED', { taskId: 'task-F', recipient: { employeeCode: 'MGR_DUP' }, title: 'T', message: 'M', dedupeKey: 'TASK_CROSS_DEPARTMENT_ASSIGNED|task-F' });
-    const second = await notifications.emitTaskNotification('TASK_CROSS_DEPARTMENT_ASSIGNED', { taskId: 'task-F', recipient: { employeeCode: 'MGR_DUP' }, title: 'T', message: 'M (retry)', dedupeKey: 'TASK_CROSS_DEPARTMENT_ASSIGNED|task-F' });
-    pass(first.created === 1, 'CASE F: first emit creates 1 row');
-    pass(second.created === 0, 'CASE F: replayed emit with the SAME dedupe_key creates 0 additional rows (publish retry/idempotency-safe)');
-    pass(STATE.notifications.filter(n => n.task_id === 'task-F').length === 1, 'CASE F: exactly 1 logical notification exists for this task+recipient after the "retry"');
+    const first = await notifications.emitTaskNotification('TASK_CROSS_DEPARTMENT_ASSIGNED', { taskId: 'task-F', recipient: { employeeCode: 'MGR_DUP' }, title: 'T', message: 'M' });
+    pass(first.created === 0 && first.skipped === 'supabase_path_retired', 'CASE F: emitTaskNotification is a retired no-op (created:0, skipped:supabase_path_retired)');
+    pass(STATE.notifications.length === 0, 'CASE F: retired helper writes nothing to Supabase');
   }
 
   // ===========================================================================

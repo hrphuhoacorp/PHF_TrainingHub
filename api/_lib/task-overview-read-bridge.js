@@ -19,6 +19,7 @@ const TASK_QUERY_DESCRIPTOR_SIGNING_SECRET = String(process.env.TASK_QUERY_DESCR
 const BRIDGE_TIMEOUT_MS = 6000;
 
 const { buildResolvedTaskOverviewQueryDescriptor } = require('./task-overview-query-descriptor-builder');
+const { classifySourceOfWork, isRecurringOccurrence } = require('./task-source-of-work');
 
 function isOverviewBridgeEnabled() {
   return String(process.env.PHF_TASK_OVERVIEW_READ_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -47,7 +48,7 @@ async function bridgeFetchOverviewPopulation(session) {
   }
 
   const built = await buildResolvedTaskOverviewQueryDescriptor(session, { signingSecret: TASK_QUERY_DESCRIPTOR_SIGNING_SECRET });
-  const { effectiveScope, ...descriptor } = built; // effectiveScope is local-only — never sent over the wire (see descriptor builder comment)
+  const { effectiveScope, navSignals, ...descriptor } = built; // effectiveScope + navSignals are local-only — never sent over the wire / never part of the signature (see descriptor builder comment)
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
@@ -88,6 +89,16 @@ async function bridgeFetchOverviewPopulation(session) {
     // denominator) whenever no completion event is found or its payload
     // lacks the flag, never guessed.
     const onTime = (event && event.payload && typeof event.payload.on_time === 'boolean') ? event.payload.on_time : null;
+    // SOURCE OF WORK — classified once here (creation-time identities), like
+    // on_time is pre-merged. task-reporting-v2.js consumes t.source_of_work /
+    // t.is_recurring_occurrence directly and never re-derives them.
+    const sourceOfWork = classifySourceOfWork({
+      createdByEmployeeCode: r.createdByEmployeeCode,
+      createdByAccountId: r.createdByAccountId,
+      initialPrimaryEmployeeCode: r.initialPrimaryEmployeeCode,
+      proposalGenerated: r.proposalGenerated === true,
+      recurringSeriesId: r.recurringSeriesId,
+    });
     return {
       task_id: r.id,
       task_code: r.taskCode,
@@ -97,17 +108,28 @@ async function bridgeFetchOverviewPopulation(session) {
       completed_at: r.completedAt,
       category_code: r.categoryCode,
       created_by_employee_code: r.createdByEmployeeCode,
+      created_by_account_id: r.createdByAccountId || null,
+      initial_primary_employee_code: r.initialPrimaryEmployeeCode || null,
+      recurring_series_id: r.recurringSeriesId || null,
+      proposal_generated: r.proposalGenerated === true,
       is_cross_department: r.isCrossDepartment,
       source_department: r.sourceDepartment,
       target_department: r.targetDepartment,
       created_at: r.createdAt,
+      published_at: r.publishedAt || null,
+      last_progress_at: r.lastProgressAt || null,
+      progress_percent: typeof r.progressPercent === 'number' ? r.progressPercent : null,
+      deadline_change_count: Number(r.deadlineChangeCount) || 0,
+      transfer_count: Number(r.transferCount) || 0,
       row_version: r.rowVersion,
       primary_employee_code: r.primaryEmployeeCode,
       on_time: onTime,
+      source_of_work: sourceOfWork,
+      is_recurring_occurrence: isRecurringOccurrence({ recurringSeriesId: r.recurringSeriesId }),
     };
   });
 
-  return { tasks, effectiveScope };
+  return { tasks, effectiveScope, navSignals: navSignals || { hasManagedPeople: false, canManageTaskPermissions: false } };
 }
 
 module.exports = { isOverviewBridgeEnabled, bridgeFetchOverviewPopulation };
