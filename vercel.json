@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/task-raw-body-echo",
+      "destination": "/api/task-attachment?__phf_route=raw-body-echo"
+    },
+    {
       "source": "/api/task-recurrence-cron",
       "destination": "/api/checklist-monthly-cron?__phf_cron=task-recurrence"
     },
