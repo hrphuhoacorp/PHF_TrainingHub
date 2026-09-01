@@ -12,6 +12,12 @@ begin;
 -- Order: drop the 'recurring_generated' event_type value LAST is unsafe if
 -- any task.events row already uses it, so this DOWN first checks and aborts
 -- with a clear message rather than silently leaving a broken CHECK.
+--
+-- The recreated whitelist removes ONLY 'recurring_generated' (this migration's
+-- own addition) and KEEPS 'cancel_request' / 'cancel_request_decision' — PROD
+-- has Cancel Policy V1, and rolling Recurrence V1 back must not regress that
+-- constraint. Mirrors phf_hr_task_cancel_request_v1_DOWN.sql, which likewise
+-- keeps 'recurring_generated'.
 
 do $$
 begin
@@ -37,7 +43,8 @@ alter table task.events add constraint task_events_event_type_ck check (event_ty
   'published', 'assignment', 'transfer', 'progress', 'comment', 'deadline_change',
   'extension_request', 'extension_decision', 'priority_change', 'attachment', 'link',
   'completion', 'reopen', 'cancel', 'recurring_change', 'monthly_close', 'permission_change',
-  'proposal_accept', 'proposal_reject', 'proposal_cancel'
+  'proposal_accept', 'proposal_reject', 'proposal_cancel',
+  'cancel_request', 'cancel_request_decision'
 ));
 
 commit;

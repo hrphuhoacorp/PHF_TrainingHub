@@ -13,6 +13,9 @@ begin;
 --   + task.recurrence_occurrences        (1 row per DECIDED occurrence)
 --   + task.recurrence_rule_history       (append-only audit)
 --   + 1 new event_type value 'recurring_generated' on task.events CHECK
+--     (the recreated whitelist also carries the Cancel Policy V1 values
+--     'cancel_request' / 'cancel_request_decision' so this migration is
+--     order-independent vs phf_hr_task_cancel_request_v1.sql — see section D)
 --   + GRANTs to phf_hr_app
 --
 -- Does NOT ALTER task.tasks (the recurrence linkage columns
@@ -197,6 +200,14 @@ create trigger task_recurrence_rule_history_forbid_delete before delete on task.
 --    'recurring_change' (rule edited) already exists from Foundation.
 --    'recurring_generated' is emitted once on each Task the recurrence engine
 --    creates — the ONLY hook a future Notification/Mail phase needs.
+--
+--    ORDER-INDEPENDENCE: this ALTER rewrites the whole event_type whitelist,
+--    and so does phf_hr_task_cancel_request_v1.sql. Whichever migration is
+--    applied SECOND wins. PROD already has Cancel Request V1, so the recreated
+--    list below MUST also carry 'cancel_request' / 'cancel_request_decision'
+--    or applying Recurrence V1 after it would regress the constraint and
+--    orphan valid task.events rows. Listing them before Cancel Request V1 is
+--    applied is harmless — a CHECK whitelist value with no rows referencing it.
 -- -----------------------------------------------------------------------------
 alter table task.events drop constraint task_events_event_type_ck;
 alter table task.events add constraint task_events_event_type_ck check (event_type in (
@@ -204,7 +215,8 @@ alter table task.events add constraint task_events_event_type_ck check (event_ty
   'extension_request', 'extension_decision', 'priority_change', 'attachment', 'link',
   'completion', 'reopen', 'cancel', 'recurring_change', 'monthly_close', 'permission_change',
   'proposal_accept', 'proposal_reject', 'proposal_cancel',
-  'recurring_generated'
+  'recurring_generated',
+  'cancel_request', 'cancel_request_decision'
 ));
 
 -- -----------------------------------------------------------------------------
@@ -270,7 +282,8 @@ from information_schema.triggers
 where trigger_schema = 'task' and event_object_table = 'recurrence_rule_history'
 order by trigger_name;
 
--- 6. event_type CHECK now includes 'recurring_generated'
+-- 6. event_type CHECK now includes 'recurring_generated' AND still keeps
+--    'cancel_request' / 'cancel_request_decision' (Cancel Policy V1)
 select pg_get_constraintdef(oid) from pg_constraint where conname = 'task_events_event_type_ck';
 
 -- 7. Grants — only phf_hr_app / owner, nothing to PUBLIC
