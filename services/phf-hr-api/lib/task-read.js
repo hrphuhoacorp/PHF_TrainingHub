@@ -179,13 +179,26 @@ async function getTaskById(config, taskId) {
         [taskId]
       );
       const task = taskResult.rows[0] || null;
-      if (!task) return { task: null, assignees: [], comments: [], links: [], events: [] };
+      if (!task) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null };
 
-      const [assigneesResult, commentsResult, linksResult, eventsResult] = await Promise.all([
+      const [assigneesResult, commentsResult, linksResult, eventsResult, attachmentsResult] = await Promise.all([
         client.query('SELECT * FROM task.assignees WHERE task_id = $1', [taskId]),
         client.query('SELECT * FROM task.comments WHERE task_id = $1 ORDER BY created_at ASC', [taskId]),
         client.query('SELECT * FROM task.links WHERE task_id = $1 ORDER BY created_at ASC', [taskId]),
         client.query('SELECT * FROM task.events WHERE task_id = $1 ORDER BY occurred_at DESC', [taskId]),
+        // FILE ATTACHMENT V1 (2026-08-31, additive) — ACTIVE rows only, safe
+        // projection ONLY. stored_object_key / checksum_sha256 / deleted_* are
+        // deliberately NOT selected so the on-disk object key never leaves this
+        // service on the read path (download resolves the key internally via
+        // task-write.getTaskAttachmentForDownload and streams bytes only).
+        client.query(
+          `SELECT id, original_filename, mime_type, extension, size_bytes,
+                  uploaded_by_employee_code, created_at
+             FROM task.attachments
+            WHERE task_id = $1 AND status = 'active'
+            ORDER BY created_at ASC`,
+          [taskId]
+        ),
       ]);
 
       // Proposal V2 (2026-08-29, additive) — chỉ query thêm khi flow_type=
@@ -195,12 +208,85 @@ async function getTaskById(config, taskId) {
         task.proposal_decision = proposalResult.rows[0] || null;
       }
 
+      // SOURCE OF WORK (2026-09-01, additive) — was this giao_viec Task
+      // produced by accepting a Proposal? Used by the detail DTO's creation-
+      // time "Tự giao" classification. Cheap indexed reverse lookup.
+      const proposalGenRes = await client.query(
+        'SELECT 1 FROM task.proposal_decisions WHERE generated_task_id = $1 LIMIT 1',
+        [taskId]
+      );
+      task.proposal_generated = proposalGenRes.rowCount > 0;
+
+      // RECURRENCE V1 (2026-08-31, additive) — a compact, NON-technical
+      // recognition summary for Task Detail, present ONLY when this Task
+      // belongs to a recurrence series (task.recurring_series_id set — that is
+      // true for BOTH the truthfully-claimed initial Task and every
+      // scheduler-generated Task). The recurrence RULE is the single source of
+      // truth for frequency + finite count. NO ids / version / internal fields
+      // are surfaced. Any failure here degrades to `recurrence: null` and never
+      // breaks Task Detail.
+      let recurrence = null;
+      if (task.recurring_series_id) {
+        try {
+          const ruleRes = await client.query(
+            `SELECT frequency, weekday, day_of_month, status, end_condition_type, max_occurrences
+               FROM task.recurrence_rules WHERE id = $1`,
+            [task.recurring_series_id]
+          );
+          const rule = ruleRes.rows[0];
+          if (rule) {
+            let remaining = null;
+            if (rule.end_condition_type === 'after_count' && rule.max_occurrences != null) {
+              const genRes = await client.query(
+                `SELECT count(*)::int AS n FROM task.recurrence_occurrences
+                  WHERE rule_id = $1 AND status = 'generated' AND is_initial = false`,
+                [task.recurring_series_id]
+              );
+              remaining = Math.max(0, Number(rule.max_occurrences) - genRes.rows[0].n);
+            }
+            recurrence = {
+              frequency: rule.frequency,               // 'weekly' | 'monthly'
+              weekday: rule.weekday || null,            // 'T2'..'CN' for weekly
+              day_of_month: rule.day_of_month || null,  // 1..31 for monthly
+              rule_active: rule.status === 'active',
+              remaining_occurrences: remaining,         // null => indefinite / not finite
+            };
+          }
+        } catch (_recErr) {
+          recurrence = null;
+        }
+      }
+
+      // CANCEL POLICY V1 (2026-08-31, additive) — the PENDING "Yêu cầu hủy" for
+      // this Task, if any (non-technical: status/reason/who/when). Guarded by
+      // to_regclass so it is a single no-op query until the schema patch
+      // (migrations/phf_hr_task_cancel_request_v1.sql) is applied, and never
+      // breaks Task Detail.
+      let cancelRequest = null;
+      try {
+        const crRes = await client.query(
+          `SELECT id, status, reason, requested_by_employee_code, requested_at,
+                  decided_by_employee_code, decided_at, decision_note
+             FROM task.cancel_requests
+            WHERE to_regclass('task.cancel_requests') IS NOT NULL
+              AND task_id = $1 AND status = 'pending'
+            ORDER BY requested_at DESC LIMIT 1`,
+          [taskId]
+        );
+        cancelRequest = crRes.rows[0] || null;
+      } catch (_crErr) {
+        cancelRequest = null;
+      }
+
       return {
         task,
         assignees: assigneesResult.rows,
         comments: commentsResult.rows,
         links: linksResult.rows,
         events: eventsResult.rows,
+        attachments: attachmentsResult.rows,
+        recurrence,
+        cancel_request: cancelRequest,
       };
     }, { timeoutMs: QUERY_TIMEOUT_MS });
   } catch (err) {

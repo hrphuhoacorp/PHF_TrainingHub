@@ -21,6 +21,24 @@ const fs = require('fs');
 
 const DB_JS_PATH = require.resolve('./lib/db.js');
 const TASK_WRITE_JS_PATH = require.resolve('./lib/task-write.js');
+// IN-APP NOTIFICATION V1 — the in-transaction notification emit is a SEPARATE
+// concern proven by scripts/task-notification-v1-e2e-dev.js (real DB). Here we
+// stub it to a total no-op so these SQL-shape assertions stay focused on the
+// lifecycle statements and are not coupled to notification queries.
+const NOTIFY_JS_PATH = require.resolve('./lib/task-notification-emit.js');
+require.cache[NOTIFY_JS_PATH] = {
+  id: NOTIFY_JS_PATH, filename: NOTIFY_JS_PATH, loaded: true,
+  exports: {
+    V1_EVENT_CODES: new Set(),
+    hasNotificationV1Schema: async () => false,
+    emitEventNotifications: async () => ({ created: 0, skipped: 'stub' }),
+    loadActiveAssignees: async () => ({ activePrimary: null, activeRelated: [] }),
+    dedupeRecipients: () => [],
+    messageFor: () => ({ title: 't', message: 'm' }),
+    targetPathFor: () => null,
+    _resetSchemaCache: () => {},
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Fake client — script-driven: mỗi lần .query() gọi, so khớp SQL với bước kế
@@ -2142,7 +2160,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       'transferTaskPrimary', 'addTaskRelated', 'removeTaskRelated',
       'addTaskComment', 'addTaskLink', 'removeTaskLink',
       'setTaskPermissionAssignment',
-      'findTaskAttachmentByObjectKey', 'createTaskAttachmentMetadata', 'removeTaskAttachment', 'getTaskAttachmentForDownload',
+      'findTaskAttachmentByObjectKey', 'countActiveTaskAttachments', 'createTaskAttachmentMetadata', 'removeTaskAttachment', 'getTaskAttachmentForDownload',
       'createTaskCategory', 'renameTaskCategory', 'setTaskCategoryActive', 'reorderTaskCategory', 'deleteTaskCategoryIfUnused',
       'createTaskPermissionGrant', 'revokeTaskPermissionGrant',
       'emitTaskNotification',
@@ -2151,7 +2169,7 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     ];
     const exactMatch = dynamicNames.length === expected.length && expected.every((k) => dynamicNames.includes(k));
     const staticExactMatch = staticNames.length === expected.length && expected.every((k) => staticNames.includes(k));
-    record('MODULE_EXPORTS_EXACTLY_29_FUNCTIONS', exactMatch && staticExactMatch, { dynamicNames, staticNames });
+    record('MODULE_EXPORTS_EXACTLY_30_FUNCTIONS', exactMatch && staticExactMatch, { dynamicNames, staticNames });
   }
 
   const allPass = results.every((r) => r.pass);

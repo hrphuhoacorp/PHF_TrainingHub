@@ -57,7 +57,41 @@
 //     cần đổi cấu trúc — giữ nguyên JS-side JSON.stringify như cũ.
 
 const { withTaskWriteTransaction } = require('./db');
-const { isAllowedMime, MAX_FILE_SIZE } = require('./attachment-policy');
+const { isAllowedMime, isAllowedMimeExtensionPair, MAX_FILE_SIZE } = require('./attachment-policy');
+const notify = require('./task-notification-emit');
+
+// IN-APP NOTIFICATION V1 — thin wrapper. Runs in the CALLER's transaction
+// (client), so the notification rows and the task.events row commit together.
+// A no-op until migrations/phf_hr_task_notification_v1.sql is applied. Never
+// throws into the lifecycle path — a notification failure must not roll back a
+// successful task mutation, but because it runs in-transaction a *SQL* error
+// here WOULD roll back; that is intentional and correct (event+notification are
+// one atomic unit), and the INSERT is ON CONFLICT DO NOTHING so retries/replays
+// are safe. Recipient resolution is the caller's job.
+async function emitTaskLifecycleNotification(client, opts) {
+  // Schema-gate FIRST. Before the V1 patch (and in SQL-shape unit harnesses)
+  // this returns immediately with NOT ONE extra query — the event-id read and
+  // recipient resolution below are skipped entirely.
+  if (!(await notify.hasNotificationV1Schema(client))) return { created: 0, skipped: 'schema' };
+  const eventId = typeof opts.getEventId === 'function' ? opts.getEventId() : (opts.eventId || null);
+  const recipients = typeof opts.resolveRecipients === 'function'
+    ? await opts.resolveRecipients()
+    : (opts.recipients || []);
+  const taskTitle = typeof opts.resolveTaskTitle === 'function' ? await opts.resolveTaskTitle() : opts.taskTitle;
+  const m = notify.messageFor(opts.eventCode, taskTitle);
+  return notify.emitEventNotifications({
+    client,
+    eventId,
+    eventCode: opts.eventCode,
+    taskId: opts.taskId,
+    title: m.title,
+    message: m.message,
+    targetPath: notify.targetPathFor(opts.taskId),
+    priority: opts.priority || 'Trung bình',
+    recipients,
+    actor: { employeeCode: opts.actorEmployeeCode, accountId: opts.actorAccountId },
+  });
+}
 
 function resolveAuditToken(actorEmployeeCode, actorAccountId) {
   const emp = actorEmployeeCode && String(actorEmployeeCode).trim();
@@ -216,12 +250,22 @@ async function completeTask(config, params) {
                   'deadline', deadline
                 )
            FROM updated
-         RETURNING 1
+         RETURNING id
        )
-       SELECT * FROM updated`,
+       SELECT updated.*, inserted_event.id AS _event_id
+         FROM updated CROSS JOIN inserted_event`,
       [taskId, auditToken, actorAccountId || null, resultText]
     );
     const updatedTask = updated.rows[0];
+    const eventId = updatedTask._event_id;
+    delete updatedTask._event_id;
+
+    // IN-APP NOTIFICATION V1 — completion -> creator/assigner (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      eventId, eventCode: 'TASK_COMPLETED', taskId, taskTitle: updatedTask.title,
+      recipients: [{ employeeCode: updatedTask.created_by_employee_code, accountId: updatedTask.created_by_account_id }],
+      actorEmployeeCode, actorAccountId,
+    });
 
     return updatedTask;
   });
@@ -263,12 +307,25 @@ async function reopenTask(config, params) {
                 jsonb_build_object('previous_completed_at', $4::timestamptz),
                 $5
            FROM updated
-         RETURNING 1
+         RETURNING id
        )
-       SELECT * FROM updated`,
+       SELECT updated.*, inserted_event.id AS _event_id
+         FROM updated CROSS JOIN inserted_event`,
       [taskId, auditToken, actorAccountId || null, prevCompletedAt, reason]
     );
     const updatedTask = updated.rows[0];
+    const eventId = updatedTask._event_id;
+    delete updatedTask._event_id;
+
+    // IN-APP NOTIFICATION V1 — reopen -> active primary (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      eventId, eventCode: 'TASK_REOPENED', taskId, taskTitle: updatedTask.title,
+      resolveRecipients: async () => {
+        const { activePrimary } = await notify.loadActiveAssignees(client, taskId);
+        return activePrimary ? [{ employeeCode: activePrimary }] : [];
+      },
+      actorEmployeeCode, actorAccountId,
+    });
 
     return updatedTask;
   });
@@ -310,11 +367,25 @@ async function cancelTask(config, params) {
     const updatedTask = updated.rows[0];
 
     const auditToken = resolveAuditToken(actorEmployeeCode, actorAccountId);
-    await client.query(
+    const cancelEvent = await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload, reason)
-       VALUES ($1, 'cancel', $2, $3, $4, $5)`,
+       VALUES ($1, 'cancel', $2, $3, $4, $5) RETURNING id`,
       [taskId, auditToken, actorAccountId || null, JSON.stringify({ previous_status: prevStatus }), reason]
     );
+
+    // IN-APP NOTIFICATION V1 — cancel -> active primary + active related (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      getEventId: () => cancelEvent.rows[0] && cancelEvent.rows[0].id,
+      eventCode: 'TASK_CANCELLED', taskId, taskTitle: task.title,
+      resolveRecipients: async () => {
+        const { activePrimary, activeRelated } = await notify.loadActiveAssignees(client, taskId);
+        return [
+          ...(activePrimary ? [{ employeeCode: activePrimary }] : []),
+          ...activeRelated.map((c) => ({ employeeCode: c })),
+        ];
+      },
+      actorEmployeeCode, actorAccountId,
+    });
 
     return updatedTask;
   });
@@ -373,12 +444,28 @@ async function changeTaskDeadline(config, params) {
                 ),
                 $7
            FROM updated
-         RETURNING 1
+         RETURNING id
        )
-       SELECT * FROM updated`,
+       SELECT updated.*, inserted_event.id AS _event_id
+         FROM updated CROSS JOIN inserted_event`,
       [taskId, newDeadline, auditToken, actorAccountId || null, oldDeadline, oldDeadlineVersion, reason]
     );
     const updatedTask = updated.rows[0];
+    const eventId = updatedTask._event_id;
+    delete updatedTask._event_id;
+
+    // IN-APP NOTIFICATION V1 — deadline change -> active primary + active related (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      eventId, eventCode: 'TASK_DEADLINE_CHANGED', taskId, taskTitle: updatedTask.title,
+      resolveRecipients: async () => {
+        const { activePrimary, activeRelated } = await notify.loadActiveAssignees(client, taskId);
+        return [
+          ...(activePrimary ? [{ employeeCode: activePrimary }] : []),
+          ...activeRelated.map((c) => ({ employeeCode: c })),
+        ];
+      },
+      actorEmployeeCode, actorAccountId,
+    });
 
     return updatedTask;
   });
@@ -604,12 +691,29 @@ async function publishTask(config, params) {
          INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
          SELECT id, 'published', $5, $6, jsonb_build_object('flow_type', flow_type)
            FROM updated
-         RETURNING 1
+         RETURNING id
        )
-       SELECT * FROM updated`,
+       SELECT updated.*, inserted_event.id AS _event_id
+         FROM updated CROSS JOIN inserted_event`,
       [taskId, normalizedSourceDept, normalizedTargetDept, isCrossDepartment, auditToken, actorAccountId || null]
     );
     const publishedTask = updated.rows[0];
+    const publishEventId = publishedTask._event_id;
+    delete publishedTask._event_id;
+
+    // IN-APP NOTIFICATION V1 — a real "Giao việc" publish -> active primary
+    // (minus actor). A 'de_xuat' publish is a PROPOSAL creation, not a task
+    // assignment — proposal notifications are out of V1 scope, so skip.
+    if (publishedTask.flow_type === 'giao_viec') {
+      await emitTaskLifecycleNotification(client, {
+        eventId: publishEventId, eventCode: 'TASK_PUBLISHED', taskId, taskTitle: publishedTask.title,
+        resolveRecipients: async () => {
+          const { activePrimary } = await notify.loadActiveAssignees(client, taskId);
+          return activePrimary ? [{ employeeCode: activePrimary }] : [];
+        },
+        actorEmployeeCode, actorAccountId,
+      });
+    }
 
     // PROPOSAL V2 (additive) — cùng transaction với publish, atomic: nếu
     // INSERT này fail (vd trùng creator=recipient, chặn bởi CHECK
@@ -723,11 +827,21 @@ async function acceptTaskProposal(config, params) {
       [generatedTask.id, normalizedPrimary, auditToken, actorAccountId || null]
     );
 
-    await client.query(
+    const genPublishEvent = await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
-       VALUES ($1, 'published', $2, $3, $4)`,
+       VALUES ($1, 'published', $2, $3, $4) RETURNING id`,
       [generatedTask.id, auditToken, actorAccountId || null, JSON.stringify({ flow_type: 'giao_viec', source_proposal_task_id: proposalTaskId })]
     );
+
+    // IN-APP NOTIFICATION V1 — the Task generated by accepting a Proposal is a
+    // real assignment -> its primary (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      getEventId: () => genPublishEvent.rows[0] && genPublishEvent.rows[0].id,
+      eventCode: 'TASK_PUBLISHED',
+      taskId: generatedTask.id, taskTitle: generatedTask.title,
+      recipients: [{ employeeCode: normalizedPrimary }],
+      actorEmployeeCode, actorAccountId,
+    });
 
     const updatedProposal = await client.query(
       `UPDATE task.proposal_decisions
@@ -881,9 +995,9 @@ async function transferTaskPrimary(config, params) {
     );
     const updatedTask = updated.rows[0];
 
-    await client.query(
+    const transferEvent = await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload, reason)
-       VALUES ($1, 'transfer', $2, $3, $4, $5)`,
+       VALUES ($1, 'transfer', $2, $3, $4, $5) RETURNING id`,
       [
         taskId,
         auditToken,
@@ -892,6 +1006,15 @@ async function transferTaskPrimary(config, params) {
         reason,
       ]
     );
+
+    // IN-APP NOTIFICATION V1 — transfer -> NEW primary only (minus actor).
+    // V1 does NOT notify the old primary.
+    await emitTaskLifecycleNotification(client, {
+      getEventId: () => transferEvent.rows[0] && transferEvent.rows[0].id,
+      eventCode: 'TASK_TRANSFERRED', taskId, taskTitle: task.title,
+      recipients: [{ employeeCode: newPrimary }],
+      actorEmployeeCode, actorAccountId,
+    });
 
     return updatedTask;
   });
@@ -962,9 +1085,9 @@ async function addTaskRelated(config, params) {
     );
     const assignee = inserted.rows[0];
 
-    await client.query(
+    const assignmentEvent = await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
-       VALUES ($1, 'assignment', $2, $3, $4)`,
+       VALUES ($1, 'assignment', $2, $3, $4) RETURNING id`,
       [
         taskId,
         auditToken,
@@ -972,6 +1095,18 @@ async function addTaskRelated(config, params) {
         JSON.stringify({ action: 'add', role: 'related', employee_code: target, assignee_id: assignee.id }),
       ]
     );
+
+    // IN-APP NOTIFICATION V1 — assignment -> the newly added employee (minus actor).
+    await emitTaskLifecycleNotification(client, {
+      getEventId: () => assignmentEvent.rows[0] && assignmentEvent.rows[0].id,
+      eventCode: 'TASK_ASSIGNED', taskId,
+      resolveTaskTitle: async () => {
+        const relTask = await client.query('SELECT title FROM task.tasks WHERE id = $1', [taskId]);
+        return relTask.rows[0] && relTask.rows[0].title;
+      },
+      recipients: [{ employeeCode: target }],
+      actorEmployeeCode, actorAccountId,
+    });
 
     return assignee;
   });
@@ -1037,11 +1172,36 @@ async function addTaskComment(config, params) {
     );
     const comment = inserted.rows[0];
 
-    await client.query(
+    const commentEvent = await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
-       VALUES ($1, 'comment', $2, $3, $4)`,
+       VALUES ($1, 'comment', $2, $3, $4) RETURNING id`,
       [taskId, auditToken, actorAccountId || null, JSON.stringify({ comment_id: comment.id })]
     );
+
+    // IN-APP NOTIFICATION V1 — comment -> creator + active primary + active
+    // related (minus actor, deduped). All lookups are lazy so nothing extra
+    // runs before the V1 schema patch.
+    await emitTaskLifecycleNotification(client, {
+      getEventId: () => commentEvent.rows[0] && commentEvent.rows[0].id,
+      eventCode: 'TASK_COMMENTED', taskId,
+      resolveTaskTitle: async () => {
+        const cTask = await client.query('SELECT title FROM task.tasks WHERE id = $1', [taskId]);
+        return cTask.rows[0] && cTask.rows[0].title;
+      },
+      resolveRecipients: async () => {
+        const cTask = await client.query(
+          'SELECT created_by_employee_code, created_by_account_id FROM task.tasks WHERE id = $1', [taskId]
+        );
+        const { activePrimary, activeRelated } = await notify.loadActiveAssignees(client, taskId);
+        const creator = cTask.rows[0] || {};
+        return [
+          { employeeCode: creator.created_by_employee_code, accountId: creator.created_by_account_id },
+          ...(activePrimary ? [{ employeeCode: activePrimary }] : []),
+          ...activeRelated.map((c) => ({ employeeCode: c })),
+        ];
+      },
+      actorEmployeeCode, actorAccountId,
+    });
 
     return comment;
   });
@@ -1570,6 +1730,21 @@ async function findTaskAttachmentByObjectKey(config, params) {
   });
 }
 
+// FILE ATTACHMENT V1 — count ACTIVE attachments on a task (for the per-task
+// soft cap). READ-ONLY, no filesystem. 'archived'/'pending_delete' rows do not
+// count toward the cap.
+async function countActiveTaskAttachments(config, params) {
+  const { taskId } = params;
+  if (!taskId || !String(taskId).trim()) throw taskWriteError('TASK_ATTACHMENT_TASK_ID_REQUIRED');
+  return withTaskWriteTransaction(config, async (client) => {
+    const result = await client.query(
+      "SELECT count(*)::int AS n FROM task.attachments WHERE task_id = $1 AND status = 'active'",
+      [taskId]
+    );
+    return result.rows[0].n;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // createTaskAttachmentMetadata — INSERT task.attachments + INSERT task.events
 // (event_type='attachment', action='add'), atomic trong 1 transaction.
@@ -1603,6 +1778,11 @@ async function createTaskAttachmentMetadata(config, params) {
   const ext = extension && String(extension).trim();
   if (!ext) throw taskWriteError('TASK_ATTACHMENT_EXTENSION_REQUIRED');
   if (!isAllowedMime(mimeType)) throw taskWriteError('TASK_ATTACHMENT_MIME_INVALID');
+  // DB-layer backstop for the FILE ATTACHMENT V1 filename/MIME pairing rule —
+  // the orchestrator (lib/attachment-service.js) already rejects a mismatched
+  // pair pre-stream; this guarantees no direct createTaskAttachmentMetadata()
+  // caller can persist a row whose extension contradicts its declared MIME.
+  if (!isAllowedMimeExtensionPair(mimeType, ext)) throw taskWriteError('TASK_ATTACHMENT_MIME_EXTENSION_MISMATCH');
 
   const normalizedSize = normalizeInteger(sizeBytes);
   if (normalizedSize === undefined || normalizedSize <= 0) throw taskWriteError('TASK_ATTACHMENT_SIZE_INVALID');
@@ -1787,6 +1967,7 @@ module.exports = {
   removeTaskLink,
   setTaskPermissionAssignment,
   findTaskAttachmentByObjectKey,
+  countActiveTaskAttachments,
   createTaskAttachmentMetadata,
   removeTaskAttachment,
   getTaskAttachmentForDownload,

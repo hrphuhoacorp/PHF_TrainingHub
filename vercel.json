@@ -1,12 +1,20 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/api/task-recurrence-cron",
+      "destination": "/api/checklist-monthly-cron?__phf_cron=task-recurrence"
+    },
+    {
+      "source": "/api/evidence",
+      "destination": "/api/task-attachment?__phf_route=evidence"
     },
     {
       "source": "/evidence/:id",
-      "destination": "/api/evidence?id=:id"
+      "destination": "/api/task-attachment?id=:id&__phf_route=evidence"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
       "source": "/assets/:path*",
@@ -47,7 +55,7 @@
         },
         {
           "key": "X-PHF-Build",
-          "value": "1.66.0"
+          "value": "1.66.8"
         }
       ]
     },

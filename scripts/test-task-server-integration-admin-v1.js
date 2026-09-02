@@ -11,6 +11,7 @@ const taskCorePath = require.resolve('../api/_lib/task-core');
 const employeeScopePath = require.resolve('../api/_lib/task-employee-scope');
 const permissionsPath = require.resolve('../api/_lib/task-permissions');
 const writeBridgePath = require.resolve('../api/_lib/task-write-bridge');
+const readBridgePath = require.resolve('../api/_lib/task-read-bridge');
 
 let PASS = 0, FAIL = 0;
 function check(name, cond) { if (cond) PASS++; else { FAIL++; console.error('FAIL:', name); } }
@@ -23,12 +24,14 @@ function setup(overrides = {}) {
   delete require.cache[employeeScopePath];
   delete require.cache[permissionsPath];
   delete require.cache[writeBridgePath];
+  delete require.cache[readBridgePath];
 
   const calls = {
     requireTaskAdmin: [], validateCategoryCode: [], validateCategoryName: [],
     validateCategoryActiveFlag: [], validateCategorySortOrder: [],
     resolveAssignment: [], resolveCreateGrant: [], resolveRevokeGrant: [],
-    authorizeView: [], getTaskById: [], bridge: {},
+    authorizeView: [], authorizeAttachmentUpload: [], attachmentManageBasis: [],
+    getTaskById: [], getTaskDetail: [], bridge: {},
   };
 
   require.cache[taskCorePath] = {
@@ -59,6 +62,17 @@ function setup(overrides = {}) {
         if (overrides.authorizeViewThrows) throw overrides.authorizeViewThrows;
         return overrides.authorizeViewResult || { employeeCode: 'PHF010', accountId: null };
       },
+      // FILE ATTACHMENT V1 seams
+      resolveAndAuthorizeAttachmentUpload: async (session, current, loadAssigneeRowsFn) => {
+        calls.authorizeAttachmentUpload.push({ session, current });
+        if (loadAssigneeRowsFn) await loadAssigneeRowsFn();
+        if (overrides.authorizeAttachmentUploadThrows) throw overrides.authorizeAttachmentUploadThrows;
+        return overrides.authorizeAttachmentUploadResult || { employeeCode: 'PHF010', accountId: null };
+      },
+      resolveAttachmentManageBasis: async (session, current, assignees) => {
+        calls.attachmentManageBasis.push({ session, current, assignees });
+        return overrides.attachmentManageBasisResult !== undefined ? overrides.attachmentManageBasisResult : 'creator';
+      },
     },
   };
 
@@ -87,6 +101,20 @@ function setup(overrides = {}) {
       bridgeRevokeTaskPermissionGrant: makeBridgeFn('revokeTaskPermissionGrant'),
       bridgeUploadTaskAttachment: makeBridgeFn('uploadTaskAttachment'),
       bridgeRemoveTaskAttachment: makeBridgeFn('removeTaskAttachment'),
+    },
+  };
+  require.cache[readBridgePath] = {
+    id: readBridgePath, filename: readBridgePath, loaded: true,
+    exports: {
+      bridgeGetTaskDetail: async (taskId) => {
+        calls.getTaskDetail.push(taskId);
+        return overrides.getTaskDetailResult || {
+          task: { id: taskId }, assignees: [],
+          attachments: [{ id: 'att-1', uploaded_by_employee_code: 'PHF010' }],
+        };
+      },
+      bridgeListTaskCategories: async () => ({ categories: [] }),
+      bridgeListTasks: async () => ({ tasks: [] }),
     },
   };
 
@@ -190,27 +218,48 @@ async function run() {
     catch (e) { check('revokeTaskPermissionGrant: seam throw -> KHÔNG gọi bridge', e.code === 'TASK_PERMISSION_GRANT_NOT_FOUND' && !calls.bridge.revokeTaskPermissionGrant); }
   }
 
-  // ---- uploadTaskAttachmentViaServer ----
+  // ---- uploadTaskAttachmentViaServer (FILE ATTACHMENT V1 authz) ----
   {
     const { integration, calls } = setup();
     const buf = Buffer.from('hello');
     await integration.uploadTaskAttachmentViaServer({}, 't1', buf, { filename: 'a.pdf', mimeType: 'application/pdf', idempotencyKey: 'idem-1' });
-    check('uploadTaskAttachment: dùng resolveAndAuthorizeView (giống addTaskComment/addTaskLink)', calls.authorizeView.length === 1);
+    check('uploadTaskAttachment: dùng resolveAndAuthorizeAttachmentUpload (KHÔNG phải resolveAndAuthorizeView)', calls.authorizeAttachmentUpload.length === 1 && calls.authorizeView.length === 0);
     check('uploadTaskAttachment: bridge nhận đúng taskId/buffer/options', calls.bridge.uploadTaskAttachment[0][0] === 't1' && calls.bridge.uploadTaskAttachment[0][1] === buf && calls.bridge.uploadTaskAttachment[0][2].filename === 'a.pdf' && calls.bridge.uploadTaskAttachment[0][2].actorEmployeeCode === 'PHF010');
   }
   {
-    const err = Object.assign(new Error('deny'), { code: 'TASK_VIEW_DENIED' });
-    const { integration, calls } = setup({ authorizeViewThrows: err });
+    const err = Object.assign(new Error('deny'), { code: 'TASK_ATTACHMENT_UPLOAD_DENIED', statusCode: 403 });
+    const { integration, calls } = setup({ authorizeAttachmentUploadThrows: err });
     try { await integration.uploadTaskAttachmentViaServer({}, 't1', Buffer.from('x'), {}); check('phải throw', false); }
-    catch (e) { check('uploadTaskAttachment: view denied -> KHÔNG gọi bridge', e.code === 'TASK_VIEW_DENIED' && !calls.bridge.uploadTaskAttachment); }
+    catch (e) { check('uploadTaskAttachment: upload denied -> KHÔNG gọi bridge', e.code === 'TASK_ATTACHMENT_UPLOAD_DENIED' && !calls.bridge.uploadTaskAttachment); }
+  }
+  {
+    const { integration, calls } = setup({ getTaskByIdResult: { task: null, assignees: [] } });
+    try { await integration.uploadTaskAttachmentViaServer({}, 'missing', Buffer.from('x'), {}); check('phải throw', false); }
+    catch (e) { check('uploadTaskAttachment: task not found -> 404, KHÔNG gọi bridge', e.code === 'TASK_NOT_FOUND' && e.statusCode === 404 && !calls.bridge.uploadTaskAttachment); }
   }
 
-  // ---- removeTaskAttachmentViaServer ----
+  // ---- removeTaskAttachmentViaServer (FILE ATTACHMENT V1 authz) ----
   {
-    const { integration, calls } = setup();
+    // manage basis present (creator) -> allowed regardless of uploader
+    const { integration, calls } = setup({ attachmentManageBasisResult: 'creator' });
     await integration.removeTaskAttachmentViaServer({}, 't1', 'att-1', 'sai file');
-    check('removeTaskAttachment: dùng resolveAndAuthorizeView', calls.authorizeView.length === 1);
+    check('removeTaskAttachment: view + manage basis được kiểm', calls.authorizeView.length === 1 && calls.attachmentManageBasis.length === 1);
     check('removeTaskAttachment: bridge nhận đúng taskId/attachmentId/reason/actor', calls.bridge.removeTaskAttachment[0][0] === 't1' && calls.bridge.removeTaskAttachment[0][1] === 'att-1' && calls.bridge.removeTaskAttachment[0][2] === 'sai file' && calls.bridge.removeTaskAttachment[0][3] === 'PHF010');
+  }
+  {
+    // no manage basis, actor IS the uploader (PHF010) -> allowed
+    const { integration, calls } = setup({ attachmentManageBasisResult: null });
+    await integration.removeTaskAttachmentViaServer({}, 't1', 'att-1', 'tôi tự gỡ');
+    check('removeTaskAttachment: uploader gỡ file của chính mình -> cho phép', calls.bridge.removeTaskAttachment.length === 1 && calls.bridge.removeTaskAttachment[0][3] === 'PHF010');
+  }
+  {
+    // no manage basis, actor is NOT the uploader -> denied
+    const { integration, calls } = setup({
+      attachmentManageBasisResult: null,
+      authorizeViewResult: { employeeCode: 'PHF999', accountId: null },
+    });
+    try { await integration.removeTaskAttachmentViaServer({}, 't1', 'att-1', 'gỡ hộ'); check('phải throw', false); }
+    catch (e) { check('removeTaskAttachment: non-uploader, no manage basis -> 403 TASK_ATTACHMENT_REMOVE_DENIED, KHÔNG gọi bridge', e.code === 'TASK_ATTACHMENT_REMOVE_DENIED' && e.statusCode === 403 && !calls.bridge.removeTaskAttachment); }
   }
 
   console.log(`\n${PASS}/${PASS + FAIL} PASS`);

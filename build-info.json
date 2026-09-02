@@ -1,6 +1,6 @@
 {
-  "version": "1.66.0",
-  "fingerprint": "1.66.0-task-ui-productization",
-  "builtAt": "2026-08-31T09:30:00+07:00",
-  "notes": "1.66.0: PHF Task — productize toàn bộ UI/UX màn Admin (Tổng quan / Báo cáo / Tạo phiếu nhanh + đầy đủ / 5 màn quan hệ Tôi nhận·Tôi giao·Nhân sự tôi quản lý·Đề xuất tôi gửi·Đề xuất tôi nhận xử lý / Lịch tháng / Timeline). Presentation-only: hệ typography + màu ngữ nghĩa + chip/badge dùng chung; Tạo nhanh có selector Mức độ ưu tiên (dùng lại đúng contract priority thuong/quan_trong/khan_cap — sửa lỗi submit-path force-reset về thuong); Lịch khoá hình học ô ngày đều nhau, nội dung không kéo giãn hàng tuần; Timeline dạng rail hoạt động. Backend duy nhất: api/_lib/task-reporting-v2.js applyOverviewFilters — thu hẹp SAU phân quyền cho bộ lọc nâng cao Tổng quan (không bao giờ mở rộng scope). KHÔNG đổi Task lifecycle / Proposal lifecycle / permission / DB / canonical datastore (vẫn Company PostgreSQL). Bump fingerprint để bust asset ?v=."
+  "version": "1.66.8",
+  "fingerprint": "1.66.8-task-feature-expansion",
+  "builtAt": "2026-09-02T09:54:11+07:00",
+  "notes": "PHF Task 1.66.8 feature expansion release: weekly/monthly task recurrence with finite repeat count, in-app notifications, file attachments (Quick Create parity), cancel-request policy, reporting source-of-work classification, deterministic bottleneck analysis, People & Permissions simplification with module-level department scope and cross-department visibility safeguards, identity-switch and loading/hydration safety, and Overview/Reporting performance improvements. Task business data remains on Company PostgreSQL."
 }

@@ -42,8 +42,14 @@ const expectedActions = [
   'listMyTaskNotifications', 'markTaskNotificationRead', 'markAllTaskNotificationsRead',
   'listTasks', 'listTaskEvents',
   'getTaskReportSummary', 'getTaskReportCategoryAnalysis', 'getTaskReportPersonAnalysis', 'getTaskReportTrend', 'listTaskReportDrilldown',
-  'getTaskOverviewV2', 'listTaskOverviewV2Drilldown',
-  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend'
+  'getTaskOverviewV2', 'getTaskReportV2Bundle', 'listTaskOverviewV2Drilldown',
+  'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend',
+  // RECURRENCE V1 (2026-08-31) — Company-PostgreSQL-only recurrence rules
+  // ("Công việc lặp" + "Lịch lặp"). Impl: api/_lib/task-recurrence-actions.js.
+  'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
+  // CANCEL POLICY V1 (2026-08-31) — PostgreSQL-only "Yêu cầu hủy" flow.
+  // Impl: api/_lib/task-server-integration.js (…ViaServer).
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -136,11 +142,23 @@ const payloads = {
   getTaskReportTrend: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' },
   listTaskReportDrilldown: { relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 },
   getTaskOverviewV2: { period:{type:'month',anchor_date:'2026-08-25'} },
+  getTaskReportV2Bundle: { period:{type:'month',anchor_date:'2026-08-25'}, sections:['overview','trend','department'] },
   listTaskOverviewV2Drilldown: { period:{type:'month',anchor_date:'2026-08-25'}, metric_id:'currently_overdue', employee_code:'NV002', department:'Kinh doanh', category_code:'CAT1', limit:20, offset:0 },
   getTaskReportV2PersonAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
   getTaskReportV2DepartmentAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
   getTaskReportV2CategoryAnalysis: { period:{type:'month',anchor_date:'2026-08-25'} },
-  getTaskReportV2Trend: { period:{type:'month',anchor_date:'2026-08-25'} }
+  getTaskReportV2Trend: { period:{type:'month',anchor_date:'2026-08-25'} },
+  createTaskRecurrence: { title:'CV lặp tuần', content:'Nội dung', category_code:'CAT1', priority:'thuong', primary_employee_code:'NV002', frequency:'weekly', weekday:'T2', start_date:'2026-09-07', start_time:'08:00', duration_days:1 },
+  updateTaskRecurrence: { rule_id:'rule-1', title:'CV lặp tuần', content:'Nội dung', category_code:'CAT1', priority:'thuong', primary_employee_code:'NV002', frequency:'weekly', weekday:'T2', start_date:'2026-09-07', start_time:'08:00', duration_days:1 },
+  pauseTaskRecurrence: { rule_id:'rule-1', reason:'Tạm dừng' },
+  resumeTaskRecurrence: { rule_id:'rule-1', reason:'Chạy lại' },
+  stopTaskRecurrence: { rule_id:'rule-1', reason:'Kết thúc' },
+  listTaskRecurrence: { status:'active' },
+  runTaskRecurrence: { rule_id:'rule-1' },
+  requestTaskCancel: { task_id:'task-1', reason:'Xin hủy vì trùng việc' },
+  approveTaskCancelRequest: { task_id:'task-1', expected_row_version:7, note:'Đồng ý hủy' },
+  rejectTaskCancelRequest: { task_id:'task-1', note:'Chưa đủ cơ sở' },
+  withdrawTaskCancelRequest: { task_id:'task-1', note:'Tự rút lại' }
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -188,11 +206,23 @@ const expectedCoreArgs = {
   getTaskReportTrend: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1' }],
   listTaskReportDrilldown: [{ relation:'received', scope:'managed', period:{type:'month',anchor_date:'2026-08-25'}, category_code:'CAT1', metric_id:'currently_overdue', employee_code:'NV002', limit:20, offset:0 }],
   getTaskOverviewV2: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  getTaskReportV2Bundle: [{ period:{type:'month',anchor_date:'2026-08-25'}, sections:['overview','trend','department'] }],
   listTaskOverviewV2Drilldown: [{ period:{type:'month',anchor_date:'2026-08-25'}, metric_id:'currently_overdue', employee_code:'NV002', department:'Kinh doanh', category_code:'CAT1', limit:20, offset:0 }],
   getTaskReportV2PersonAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
   getTaskReportV2DepartmentAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
   getTaskReportV2CategoryAnalysis: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
-  getTaskReportV2Trend: [{ period:{type:'month',anchor_date:'2026-08-25'} }]
+  getTaskReportV2Trend: [{ period:{type:'month',anchor_date:'2026-08-25'} }],
+  createTaskRecurrence: [{ title:'CV lặp tuần', content:'Nội dung', categoryCode:'CAT1', priority:'thuong', primaryEmployeeCode:'NV002', frequency:'weekly', weekday:'T2', startDate:'2026-09-07', startTime:'08:00', durationDays:1 }],
+  updateTaskRecurrence: ['rule-1', { title:'CV lặp tuần', content:'Nội dung', categoryCode:'CAT1', priority:'thuong', primaryEmployeeCode:'NV002', frequency:'weekly', weekday:'T2', startDate:'2026-09-07', startTime:'08:00', durationDays:1 }],
+  pauseTaskRecurrence: ['rule-1', 'Tạm dừng'],
+  resumeTaskRecurrence: ['rule-1', 'Chạy lại'],
+  stopTaskRecurrence: ['rule-1', 'Kết thúc'],
+  listTaskRecurrence: [{ status:'active' }],
+  runTaskRecurrence: [{ ruleId:'rule-1' }],
+  requestTaskCancel: ['task-1', 'Xin hủy vì trùng việc'],
+  approveTaskCancelRequest: ['task-1', { expectedRowVersion:7, note:'Đồng ý hủy' }],
+  rejectTaskCancelRequest: ['task-1', { note:'Chưa đủ cơ sở' }],
+  withdrawTaskCancelRequest: ['task-1', { note:'Tự rút lại' }]
 };
 
 (async () => {
@@ -268,7 +298,10 @@ const expectedCoreArgs = {
   // check stays real as the surface grows.
   const serverIntegrationSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-server-integration.js'), 'utf8');
   const reportingV2Source = fs.readFileSync(path.join(root, 'api', '_lib', 'task-reporting-v2.js'), 'utf8');
-  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource + '\n' + serverIntegrationSource + '\n' + reportingV2Source;
+  // RECURRENCE V1 (2026-08-31) — recurrence actions live in their own module
+  // (same domain-isolation convention). Include it in the union.
+  const recurrenceActionsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-recurrence-actions.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource + '\n' + serverIntegrationSource + '\n' + reportingV2Source + '\n' + recurrenceActionsSource;
   // Một số action wire qua seam ...ViaServer()/...Legacy() (Proposal V2,
   // read-bridge dual-path) — implementation identifier là <action>ViaServer,
   // không phải bare <action>. Chấp nhận cả 2 dạng.

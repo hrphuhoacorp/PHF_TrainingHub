@@ -18,7 +18,7 @@
 const path = require('path');
 const storage = require('./attachment-storage');
 const taskWrite = require('./task-write');
-const { isAllowedMime, MAX_FILE_SIZE } = require('./attachment-policy');
+const { isAllowedMime, isAllowedMimeExtensionPair, MAX_FILE_SIZE, MAX_ACTIVE_ATTACHMENTS_PER_TASK } = require('./attachment-policy');
 
 // Tối đa số lần thử claim final path trong 1 lượt gọi uploadAttachment().
 // 2 là đủ cho luồng "loser phát hiện stale -> reclaim -> retry claim thành
@@ -82,6 +82,15 @@ async function uploadAttachment(config, params) {
   const ext = deriveExtension(filename);
   if (!ext) throw orchestrationError('ATTACHMENT_ORCHESTRATION_EXTENSION_REQUIRED', 'Không xác định được phần mở rộng file.');
 
+  // FILE ATTACHMENT V1 — the filename extension must match the declared MIME
+  // (both already known to be in the allowlist via isAllowedMime above). This
+  // is the "do not trust the filename alone" cross-check: a mismatched pair
+  // (e.g. an executable renamed .pdf, or a .pdf sent as image/jpeg) is rejected
+  // before a single byte is streamed or a claim is made.
+  if (!isAllowedMimeExtensionPair(mimeType, ext)) {
+    throw orchestrationError('ATTACHMENT_ORCHESTRATION_MIME_EXTENSION_MISMATCH', 'Phần mở rộng tệp không khớp với định dạng khai báo.');
+  }
+
   if (!readableStream) throw orchestrationError('ATTACHMENT_ORCHESTRATION_STREAM_REQUIRED', 'Thiếu dữ liệu file.');
 
   // buildObjectKey tự validate taskId/actorEmployeeCode/idempotencyKey bằng
@@ -95,6 +104,19 @@ async function uploadAttachment(config, params) {
   // KHÔNG tạo duplicate event.
   const existing = await taskWrite.findTaskAttachmentByObjectKey(config, { storedObjectKey: objectKey });
   if (existing) return { attachment: existing, replayed: true };
+
+  // FILE ATTACHMENT V1 — per-task soft cap. Checked AFTER the replay lookup (a
+  // retry of an already-recorded upload must still succeed) and BEFORE
+  // streaming (so a 4 MB body is never accepted just to be rejected). Not a
+  // hard transactional guarantee — a tiny overshoot under simultaneous uploads
+  // is accepted for V1; nothing is ever pre-deleted to make room.
+  const activeCount = await taskWrite.countActiveTaskAttachments(config, { taskId });
+  if (activeCount >= MAX_ACTIVE_ATTACHMENTS_PER_TASK) {
+    throw orchestrationError(
+      'ATTACHMENT_ORCHESTRATION_LIMIT_REACHED',
+      'Công việc đã đạt giới hạn ' + MAX_ACTIVE_ATTACHMENTS_PER_TASK + ' tệp đính kèm. Hãy gỡ bớt tệp cũ trước khi thêm mới.'
+    );
+  }
 
   // B. Fresh upload — stream vào temp file unique-per-request. Byte thật +
   // checksum tính trong lúc stream (streamToTempFile tự abort + tự dọn temp

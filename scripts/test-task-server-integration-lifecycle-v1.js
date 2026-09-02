@@ -46,6 +46,13 @@ function setup(overrides = {}) {
         if (overrides.authorizeThrows) throw overrides.authorizeThrows;
         return overrides.authorizeResult || DEFAULT_ACTOR;
       },
+      // CANCEL POLICY V1 — direct-cancel seam (same mock shape as update-capability).
+      resolveAndAuthorizeDirectCancel: async (session, current, loadAssigneeRowsFn) => {
+        const assignees = await loadAssigneeRowsFn();
+        calls.authorizeCapability.push({ session, current, assignees });
+        if (overrides.authorizeThrows) throw overrides.authorizeThrows;
+        return overrides.authorizeResult || DEFAULT_ACTOR;
+      },
       resolveAndAuthorizeView: async (session, current, assignees) => {
         calls.authorizeView.push({ session, current, assignees });
         if (overrides.authorizeThrows) throw overrides.authorizeThrows;

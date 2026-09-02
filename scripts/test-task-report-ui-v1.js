@@ -109,9 +109,43 @@ function drilldownFixture(overrides) {
     tasks: [{ task_id: 'd1', task_code: 'CV-D1', title: 'Việc D1', status: 'in_progress', deadline: null, primary_employee_code: 'PHF010', primary_full_name: 'Nguyễn Văn A', primary_department: 'Bán hàng', is_cross_department: false }],
   }, overrides || {});
 }
+// PERF (2026-09-02) — the Báo cáo screen now fires ONE getTaskReportV2Bundle
+// call (context resolved once, every section computed from it) instead of 5
+// separate actions. Section objects are byte-identical to the standalone
+// results, so the same per-section override keys (o.summary/o.trend/…) drive
+// the bundle mock. Individual actions are kept as handlers for single-panel
+// retry. A section value that is an Error / bad-contract object is passed
+// through into sections[] so per-section isolation can still be exercised.
+function bundleSectionFor(o, section) {
+  const map = {
+    overview: ['summary', overviewFixture],
+    trend: ['trend', trendFixture],
+    person: ['person', personFixture],
+    department: ['department', departmentFixture],
+    category: ['category', categoryFixture],
+  };
+  const [key, fx] = map[section] || [];
+  if (!fx) return undefined;
+  return o[key] !== undefined ? o[key] : fx();
+}
+function bundleFixture(body, over) {
+  const o = over || {};
+  const requested = Array.isArray(body && body.sections) && body.sections.length ? body.sections : ['overview'];
+  const sections = {};
+  requested.forEach((s) => { const v = bundleSectionFor(o, s); if (v !== undefined) sections[s] = v; });
+  return Object.assign({
+    report_contract_version: 1,
+    period: { type: 'month', start: '2026-08-01T00:00:00.000Z', endExclusive: '2026-09-01T00:00:00.000Z', timezone: 'Asia/Ho_Chi_Minh' },
+    effective_scope: 'managed',
+    nav_signals: { hasManagedPeople: true, canManageTaskPermissions: true },
+    sections_included: requested,
+    sections,
+  }, o.bundleTop || {});
+}
 function allPanelsHandlers(over) {
   const o = over || {};
   return {
+    getTaskReportV2Bundle: (body) => bundleFixture(body, o),
     getTaskOverviewV2: () => o.summary !== undefined ? o.summary : overviewFixture(),
     getTaskReportV2CategoryAnalysis: () => o.category !== undefined ? o.category : categoryFixture(),
     getTaskReportV2PersonAnalysis: () => o.person !== undefined ? o.person : personFixture(),
@@ -164,12 +198,13 @@ async function openReportWithFixtures(window, T, root, over) {
     T.bindShell(root);
     let captured = null;
     window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskOverviewV2: (body) => { captured = body; return overviewFixture(); },
+      getTaskReportV2Bundle: (body) => { captured = body; return bundleFixture(body); },
     }));
     await T.openTaskReport(root);
-    const allowedKeys = ['action', 'period'];
-    pass(Object.keys(captured).every(k => allowedKeys.indexOf(k) >= 0), 'PERM: request payload carries ONLY action/period — no relation/scope/employee override, no client-chosen scope');
+    const allowedKeys = ['action', 'period', 'sections'];
+    pass(Object.keys(captured).every(k => allowedKeys.indexOf(k) >= 0), 'PERM: request payload carries ONLY action/period/sections — no relation/scope/employee override, no client-chosen scope');
     pass(!!captured.period && !!captured.period.type, 'PERM: period always present in request');
+    pass(Array.isArray(captured.sections) && captured.sections.length > 0, 'PERM: request lists the sections to bundle (server whitelists them)');
   }
 
   // ================= PERIOD =================
@@ -194,7 +229,7 @@ async function openReportWithFixtures(window, T, root, over) {
     T.bindShell(root);
     let captured = null;
     window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskOverviewV2: (body) => { captured = body; return overviewFixture(); },
+      getTaskReportV2Bundle: (body) => { captured = body; return bundleFixture(body); },
     }));
     await T.openTaskReport(root);
     root.innerHTML = T.shellFrame(T.taskReportHtml());
@@ -216,10 +251,10 @@ async function openReportWithFixtures(window, T, root, over) {
     T.bindShell(root);
     let capturedAction = '';
     window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskOverviewV2: (body) => { capturedAction = body.action; return overviewFixture(); },
+      getTaskReportV2Bundle: (body) => { capturedAction = body.action; return bundleFixture(body); },
     }));
     await T.openTaskReport(root);
-    pass(capturedAction === 'getTaskOverviewV2', 'SUMMARY: Báo cáo "Tổng hợp" reuses the SAME getTaskOverviewV2 action as Tổng quan tab (single canonical foundation, no 2nd summary engine)');
+    pass(capturedAction === 'getTaskReportV2Bundle', 'SUMMARY: Báo cáo "Tổng hợp" is served by the SAME getTaskReportV2Bundle call the whole screen uses — one context, no 2nd summary engine');
     root.innerHTML = T.shellFrame(T.taskReportHtml());
     pass(root.innerHTML.includes('Công việc đang mở') && root.innerHTML.includes('Đang quá hạn'), 'SUMMARY: KPI cards render with LOCKED labels');
     pass(root.innerHTML.includes('75%'), 'SUMMARY: on_time_rate renders as percentage');
@@ -327,12 +362,12 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    let capturedAction = '';
+    let capturedBody = null;
     window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskReportV2DepartmentAnalysis: (body) => { capturedAction = body.action; return departmentFixture(); },
+      getTaskReportV2Bundle: (body) => { capturedBody = body; return bundleFixture(body); },
     }));
     await T.openTaskReport(root);
-    pass(capturedAction === 'getTaskReportV2DepartmentAnalysis', 'DEPARTMENT: real backend action called');
+    pass(capturedBody && capturedBody.action === 'getTaskReportV2Bundle' && capturedBody.sections.indexOf('department') >= 0, 'DEPARTMENT: department data is requested as a section of the canonical bundle call');
     const html = T.taskReportV2DepartmentHtml();
     pass(html.includes('Bán hàng'), 'DEPARTMENT: department bucket renders by name (Primary\'s own department — LOCKED cross-department attribution)');
   }
@@ -406,12 +441,10 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskOverviewV2: () => overviewFixture({ report_contract_version: 2 }),
-    }));
+    window.fetch = mockFetchByAction(allPanelsHandlers({ summary: overviewFixture({ report_contract_version: 2 }) }));
     await T.openTaskReport(root);
     const state = T.getState();
-    pass(state.report.summary.data === null && !!state.report.summary.error, 'CONTRACT: report_contract_version mismatch is rejected client-side, not silently trusted');
+    pass(state.report.summary.data === null && !!state.report.summary.error, 'CONTRACT: a bundle section with a mismatched report_contract_version is rejected client-side, not silently trusted');
     pass(T.taskOverviewV2CheckContract({ report_contract_version: 1 }) === true, 'CONTRACT: version 1 is accepted');
     pass(T.taskOverviewV2CheckContract({ report_contract_version: 2 }) === false, 'CONTRACT: version 2 is rejected');
     pass(T.taskOverviewV2CheckContract({}) === false, 'CONTRACT: missing version field is rejected');
@@ -423,14 +456,12 @@ async function openReportWithFixtures(window, T, root, over) {
     const T = window.__PHF_TASK_TEST__;
     const root = window.document.getElementById('phfTaskRoot');
     T.bindShell(root);
-    window.fetch = mockFetchByAction(Object.assign(allPanelsHandlers({}), {
-      getTaskReportV2CategoryAnalysis: () => new Error('Lỗi hệ thống PHF Task Report: category boom'),
-    }));
+    window.fetch = mockFetchByAction(allPanelsHandlers({ category: Object.assign(new Error('Lỗi hệ thống PHF Task Report: category boom'), { code: 'ERR' }) }));
     await T.openTaskReport(root);
     const state = T.getState();
-    pass(!!state.report.summary.data && !state.report.summary.error, 'ISOLATION: summary panel loaded successfully despite category panel failing');
+    pass(!!state.report.summary.data && !state.report.summary.error, 'ISOLATION: summary panel loaded successfully despite the category section being malformed');
     pass(!state.report.category.data && !!state.report.category.error, 'ISOLATION: category panel independently shows its own error');
-    pass(!!state.report.person.data && !!state.report.department.data && !!state.report.trend.data, 'ISOLATION: person/department/trend panels are unaffected by the category panel failure');
+    pass(!!state.report.person.data && !!state.report.department.data && !!state.report.trend.data, 'ISOLATION: person/department/trend panels are unaffected by the bad category section');
     const html = T.taskReportHtml();
     pass(html.includes('Không tải được dữ liệu') && html.includes('Tổng hợp kỳ báo cáo'), 'ISOLATION: page renders summary content AND the category error side-by-side, never a blank page');
   }

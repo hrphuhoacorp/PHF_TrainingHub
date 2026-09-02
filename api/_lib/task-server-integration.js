@@ -26,8 +26,12 @@ const {
   checkTaskProgressThrottle,
   resolveAndAuthorizeComplete,
   resolveAndAuthorizeUpdateCapability,
+  resolveAndAuthorizeDirectCancel,
+  resolveAndAuthorizeAttachmentUpload,
+  resolveAttachmentManageBasis,
   resolveAndAuthorizeView,
   resolveCrossDepartmentNotificationRecipient,
+  resolveCancelRequestReviewerRecipients,
   resolveTaskDepartmentSnapshot,
   resolveAndAuthorizeSetPermissionAssignment,
   resolveAndAuthorizeCreatePermissionGrant,
@@ -47,6 +51,8 @@ const {
   bridgeGetTaskById,
   bridgePublishTask,
   bridgeAcceptTaskProposal,
+  bridgeRequestTaskCancel,
+  bridgeDecideTaskCancelRequest,
   bridgeRejectTaskProposal,
   bridgeCancelTaskProposal,
   bridgeUpdateTaskProgress,
@@ -71,6 +77,7 @@ const {
   bridgeEmitTaskNotification,
   bridgeUploadTaskAttachment,
   bridgeRemoveTaskAttachment,
+  bridgeDownloadTaskAttachment,
 } = require('./task-write-bridge');
 
 function isServerWriteEnabled() {
@@ -197,9 +204,83 @@ async function reopenTaskViaServer(session, taskId, expectedRowVersion, reason) 
 
 async function cancelTaskViaServer(session, taskId, expectedRowVersion, reason) {
   const { task: current, assignees } = await bridgeGetTaskById(taskId);
-  const actorContext = await resolveAndAuthorizeUpdateCapability(session, current, () => Promise.resolve(assignees));
+  // CANCEL POLICY V1 — direct cancel = creator / management only. An active
+  // primary is rejected here (TASK_CANCEL_REQUEST_REQUIRED) and must use
+  // requestTaskCancelViaServer instead. Same gate the DTO's actions.cancel uses.
+  const actorContext = await resolveAndAuthorizeDirectCancel(session, current, () => Promise.resolve(assignees));
   return bridgeCancelTask(taskId, expectedRowVersion, reason, actorContext.employeeCode, actorContext.accountId, actorContext.interventionBasis);
 }
+
+// -----------------------------------------------------------------------------
+// CANCEL POLICY V1 — "Yêu cầu hủy" request flow (PostgreSQL-only, no Legacy).
+// Authorization mirrors resolveTaskViewerAuthority exactly:
+//   submit   -> the current active primary (actions.request_cancel)
+//   approve  -> a direct-cancel basis (creator / management), which is also
+//               stamped as interventionBasis for the canonical cancel
+//   reject   -> same as approve
+//   withdraw -> the requester of the pending request
+// -----------------------------------------------------------------------------
+async function requestTaskCancelViaServer(session, taskId, reason) {
+  if (!reason || !String(reason).trim()) proposalFail('Lý do là bắt buộc khi gửi yêu cầu hủy.', 400, 'TASK_CANCEL_REQUEST_REASON_REQUIRED');
+  const { task: current, assignees } = await bridgeGetTaskById(taskId);
+  if (!current) proposalFail('Không tìm thấy công việc.', 404, 'TASK_NOT_FOUND');
+  const actorContext = await resolveActorContext(session);
+  const viewer = await resolveTaskViewerAuthority(session, current, assignees);
+  if (!viewer || !viewer.actions || viewer.actions.request_cancel !== true) {
+    proposalFail('Chỉ người phụ trách chính mới gửi được yêu cầu hủy.', 403, 'TASK_CANCEL_REQUEST_ACTOR_DENIED');
+  }
+  // MANAGEMENT NOTIFICATION V1 — a pending cancel request is the one V1 event
+  // with a genuine management decision. Resolve the canonical reviewer
+  // recipient(s) (active primary's manager-of-record with real Task authority)
+  // and pass them through; the creator is always notified in-transaction.
+  // NOT a broadcast to every admin/executive with company-wide visibility.
+  let reviewerRecipients = [];
+  try {
+    reviewerRecipients = await resolveCancelRequestReviewerRecipients(
+      actorContext,
+      (assignees || []).map((a) => ({
+        employee_code: a.employeeCode || a.employee_code,
+        role: a.role,
+        is_active: a.isActive === true || a.is_active === true,
+      })),
+      current && (current.created_by_employee_code || current.createdByEmployeeCode)
+    );
+  } catch (_e) { reviewerRecipients = []; } // notification resolution never blocks the request
+  return bridgeRequestTaskCancel(taskId, reason, actorContext.employeeCode, actorContext.accountId, reviewerRecipients);
+}
+
+async function decideTaskCancelRequestViaServer(session, taskId, decision, opts) {
+  const options = opts || {};
+  const { task: current, assignees } = await bridgeGetTaskById(taskId);
+  if (!current) proposalFail('Không tìm thấy công việc.', 404, 'TASK_NOT_FOUND');
+  const actorContext = await resolveActorContext(session);
+
+  if (decision === 'withdraw') {
+    const detail = await bridgeGetTaskDetail(taskId);
+    const cr = detail && detail.cancel_request;
+    if (!cr || cr.status !== 'pending') proposalFail('Không tìm thấy yêu cầu hủy đang chờ.', 404, 'TASK_CANCEL_REQUEST_NOT_FOUND');
+    const me = String(actorContext.employeeCode || '').trim().toUpperCase();
+    if (!me || me !== String(cr.requested_by_employee_code || '').trim().toUpperCase()) {
+      proposalFail('Chỉ người đã gửi yêu cầu mới rút được yêu cầu hủy.', 403, 'TASK_CANCEL_REQUEST_ACTOR_DENIED');
+    }
+    return bridgeDecideTaskCancelRequest(taskId, 'withdraw', {
+      note: options.note, actorEmployeeCode: actorContext.employeeCode, actorAccountId: actorContext.accountId,
+    });
+  }
+
+  // approve | reject -> must hold a direct-cancel basis (creator / management).
+  const authed = await resolveAndAuthorizeDirectCancel(session, current, () => Promise.resolve(assignees));
+  return bridgeDecideTaskCancelRequest(taskId, decision, {
+    note: options.note,
+    expectedRowVersion: options.expectedRowVersion,
+    interventionBasis: authed.interventionBasis,
+    actorEmployeeCode: authed.employeeCode,
+    actorAccountId: authed.accountId,
+  });
+}
+function approveTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'approve', opts); }
+function rejectTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'reject', opts); }
+function withdrawTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'withdraw', opts); }
 
 async function changeTaskDeadlineViaServer(session, taskId, expectedRowVersion, newDeadline, reason) {
   const { task: current, assignees } = await bridgeGetTaskById(taskId);
@@ -341,17 +422,42 @@ async function revokeTaskPermissionGrantViaServer(session, grantId, reason) {
 }
 
 // =============================================================================
-// GROUP: attachment upload/remove — KHÔNG có seam sẵn trong task-core.js
-// (tính năng đính kèm file CHƯA từng tồn tại ở Task path Supabase — greenfield
-// trên phf_hr, xem services/phf-hr-api/lib/attachment-service.js). Authorize
-// dùng LẠI NGUYÊN VẸN resolveAndAuthorizeView() — cùng seam đã áp dụng cho
-// addTaskComment/addTaskLink (2 operation gần nhất về bản chất: "nội dung bổ
-// sung trên Task, ai xem được Task thì thêm được"), KHÔNG phát minh rule mới.
+// GROUP: attachment upload/remove — FILE ATTACHMENT V1 AUTHORIZATION (2026-08-31).
+// Attachments are greenfield on phf_hr (never existed on the Supabase Task path
+// — see services/phf-hr-api/lib/attachment-service.js). The phf-hr-api routes
+// only check the service token; the business authorization is enforced HERE,
+// once, reusing the canonical resolvers:
+//   UPLOAD  -> resolveAndAuthorizeAttachmentUpload (creator/assigner OR active
+//              primary OR authorised management). Plain viewer / CC / proposer-
+//              by-status-alone -> TASK_ATTACHMENT_UPLOAD_DENIED (403).
+//   REMOVE  -> the uploader of that specific attachment, OR
+//              resolveAttachmentManageBasis (creator/assigner OR authorised
+//              management — a bare active primary is NOT enough). Otherwise
+//              TASK_ATTACHMENT_REMOVE_DENIED (403). Actor must also be able to
+//              VIEW the task.
 // =============================================================================
+
+function attachmentAuthzError(message, code) {
+  const err = new Error(message);
+  err.code = code;
+  err.statusCode = 403;
+  return err;
+}
+
+function sameEmployeeCode(a, b) {
+  return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase()
+    && String(a || '').trim() !== '';
+}
 
 async function uploadTaskAttachmentViaServer(session, taskId, fileBuffer, options) {
   const { task: current, assignees } = await bridgeGetTaskById(taskId);
-  const actorContext = await resolveAndAuthorizeView(session, current, assignees);
+  if (!current) {
+    const err = new Error('Không tìm thấy task.');
+    err.code = 'TASK_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  const actorContext = await resolveAndAuthorizeAttachmentUpload(session, current, () => Promise.resolve(assignees));
   return bridgeUploadTaskAttachment(taskId, fileBuffer, {
     filename: options && options.filename,
     mimeType: options && options.mimeType,
@@ -361,9 +467,40 @@ async function uploadTaskAttachmentViaServer(session, taskId, fileBuffer, option
 }
 
 async function removeTaskAttachmentViaServer(session, taskId, attachmentId, reason) {
-  const { task: current, assignees } = await bridgeGetTaskById(taskId);
-  const actorContext = await resolveAndAuthorizeView(session, current, assignees);
+  const detail = await bridgeGetTaskDetail(taskId);
+  if (!detail || !detail.task) {
+    const err = new Error('Không tìm thấy task.');
+    err.code = 'TASK_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  // Actor must at least be able to view the task.
+  const actorContext = await resolveAndAuthorizeView(session, detail.task, detail.assignees);
+  const manageBasis = await resolveAttachmentManageBasis(session, detail.task, detail.assignees);
+  const target = (detail.attachments || []).find(a => a.id === attachmentId);
+  const isUploader = !!target && sameEmployeeCode(target.uploaded_by_employee_code, actorContext.employeeCode);
+  if (!manageBasis && !isUploader) {
+    throw attachmentAuthzError('Không có quyền gỡ tệp đính kèm này.', 'TASK_ATTACHMENT_REMOVE_DENIED');
+  }
   return bridgeRemoveTaskAttachment(taskId, attachmentId, reason, actorContext.employeeCode);
+}
+
+// FILE ATTACHMENT V1 — DOWNLOAD. Anyone who can VIEW the task may download any
+// of its active attachments. Authorization is enforced here (phf-hr-api trusts
+// the service token); the raw phf-hr-api response (stream + Content-Type +
+// Content-Disposition + Content-Length) is handed back to the HTTP endpoint to
+// pipe. The on-disk object key is never in that response — phf-hr-api resolves
+// it internally and streams bytes only.
+async function downloadTaskAttachmentViaServer(session, taskId, attachmentId) {
+  const detail = await bridgeGetTaskDetail(taskId);
+  if (!detail || !detail.task) {
+    const err = new Error('Không tìm thấy task.');
+    err.code = 'TASK_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  await resolveAndAuthorizeView(session, detail.task, detail.assignees);
+  return bridgeDownloadTaskAttachment(taskId, attachmentId);
 }
 
 // =============================================================================
@@ -393,7 +530,7 @@ async function getTaskDetailViaServer(session, taskId) {
     resolveTaskViewerAuthority(session, detail.task, detail.assignees),
   ]);
   const categoryDtoObj = (categoriesResult.categories || []).find(c => c.category_code === detail.task.category_code) || null;
-  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer);
+  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments);
 }
 
 // =============================================================================
@@ -603,7 +740,7 @@ async function getTaskDetailProposalAwareViaServer(session, taskId) {
     resolveTaskViewerAuthority(session, detail.task, detail.assignees),
   ]);
   const categoryDtoObj = (categoriesResult.categories || []).find((c) => c.category_code === detail.task.category_code) || null;
-  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer);
+  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments);
 }
 
 // listProposalRecipientEmployeesViaServer — population cho recipient picker
@@ -641,6 +778,11 @@ module.exports = {
   completeTaskViaServer,
   reopenTaskViaServer,
   cancelTaskViaServer,
+  requestTaskCancelViaServer,
+  decideTaskCancelRequestViaServer,
+  approveTaskCancelRequestViaServer,
+  rejectTaskCancelRequestViaServer,
+  withdrawTaskCancelRequestViaServer,
   changeTaskDeadlineViaServer,
   transferTaskPrimaryViaServer,
   addTaskRelatedViaServer,
@@ -658,6 +800,7 @@ module.exports = {
   revokeTaskPermissionGrantViaServer,
   uploadTaskAttachmentViaServer,
   removeTaskAttachmentViaServer,
+  downloadTaskAttachmentViaServer,
   getTaskDetailViaServer,
   listTaskEventsViaServer,
   createTaskProposalViaServer,
