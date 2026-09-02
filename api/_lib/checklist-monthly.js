@@ -4,6 +4,7 @@ require('dotenv').config();
 const {createClient}=require('@supabase/supabase-js');
 const {getChecklistExportAccess,getChecklistMonthlyReviewAccess,getChecklistMonthlyViewAccess}=require('./checklist-permissions');
 const {SCORE_FORMULA_VERSION,calculateMonthlyScore}=require('./checklist-score-engine');
+const {diffDefinitions,classifyFormForApply}=require('./checklist-template-retroactive');
 const ready=Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SECRET_KEY);
 const db=ready?createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SECRET_KEY,{auth:{persistSession:false,autoRefreshToken:false}}):null;
 function t(v){return String(v==null?'':v).trim();}
@@ -451,7 +452,9 @@ async function listMonthly(session,input={}){
  assignments.forEach(x=>{const code=t(x.employee_code).toUpperCase();if(code)candidateMap.set(code,{id:t(x.employee_id),code,name:t(x.employee_name)});});
  assignments.forEach(x=>{const mc=t(x.manager_code).toUpperCase(),mn=t(x.manager_name);if(mc&&mn&&!candidateMap.has(mc))candidateMap.set(mc,{id:t(x.manager_id),code:mc,name:mn});});
  const histories=await formHistories(forms.map(x=>x.id));
- return {period:period||null,reviewerCandidates:[...candidateMap.values()].filter(x=>x.name).sort((a,b)=>a.name.localeCompare(b.name,'vi')),forms:forms.map(x=>{const current=byCode.get(t(x.employee_code).toUpperCase())||{},frozen=['reviewed','locked'].includes(x.status),score=frozen?Number(x.checklist_score||0):Math.max(0,100-(points[t(x.employee_code).toUpperCase()]||0)),currentBranch=t(current.branch)||t(x.branch),currentDepartment=t(current.department)||t(x.department),currentTitle=t(current.title)||t(x.title);return withScoreSummary({...x,history:histories.get(x.id)||[],checklist_score:score,current_reviewer_id:t(current.manager_id),current_reviewer_code:t(current.manager_code).toUpperCase(),current_reviewer_name:t(current.manager_name),reviewer_outdated:Boolean((t(current.manager_id)||t(current.manager_code))&&t(current.manager_id)!==t(x.reviewer_id)&&t(current.manager_code).toUpperCase()!==t(x.reviewer_code).toUpperCase()),current_branch:currentBranch,current_department:currentDepartment,current_title:currentTitle,current_employee_status:t(current.employee_status),current_template_id:t(current.template_id),current_template_version:t(current.template_version),template_outdated:Boolean(t(current.template_id)&&(t(current.template_id).toLowerCase()!==t(x.template_id).toLowerCase()||(t(current.template_version)&&t(current.template_version)!==t(x.template_version)))),template_repairable:Boolean(t(current.template_id)&&(t(current.template_id).toLowerCase()!==t(x.template_id).toLowerCase()||(t(current.template_version)&&t(current.template_version)!==t(x.template_version)))&&x.status==='draft'&&!t(x.pilot_opened_at)&&!t(x.self_saved_at)&&!t(x.self_submitted_at)&&!t(x.review_saved_at)&&!t(x.review_submitted_at)&&!t(x.reviewed_by)&&x.final_score==null&&!(x.self_answers&&typeof x.self_answers==='object'&&Object.keys(x.self_answers).length)&&!(x.review_answers&&typeof x.review_answers==='object'&&Object.keys(x.review_answers).length)),organization_mismatch:Boolean(current.branch&&(currentBranch!==t(x.branch)||currentDepartment!==t(x.department))),organization_source:'checklist_employee_assignments'});})};
+ const versionOverrideByForm=new Map();
+ forms.forEach(x=>{const evs=(histories.get(x.id)||[]).filter(h=>t(h.action)==='manual_version_override');const last=evs[evs.length-1];versionOverrideByForm.set(x.id,Boolean(last&&t((last.after_data||{}).templateVersion)===t(x.template_version)));});
+ return {period:period||null,reviewerCandidates:[...candidateMap.values()].filter(x=>x.name).sort((a,b)=>a.name.localeCompare(b.name,'vi')),forms:forms.map(x=>{const current=byCode.get(t(x.employee_code).toUpperCase())||{},frozen=['reviewed','locked'].includes(x.status),score=frozen?Number(x.checklist_score||0):Math.max(0,100-(points[t(x.employee_code).toUpperCase()]||0)),currentBranch=t(current.branch)||t(x.branch),currentDepartment=t(current.department)||t(x.department),currentTitle=t(current.title)||t(x.title),versionOverridden=versionOverrideByForm.get(x.id)===true,templateOutdatedRaw=Boolean(t(current.template_id)&&(t(current.template_id).toLowerCase()!==t(x.template_id).toLowerCase()||(t(current.template_version)&&t(current.template_version)!==t(x.template_version))));return withScoreSummary({...x,history:histories.get(x.id)||[],checklist_score:score,current_reviewer_id:t(current.manager_id),current_reviewer_code:t(current.manager_code).toUpperCase(),current_reviewer_name:t(current.manager_name),reviewer_outdated:Boolean((t(current.manager_id)||t(current.manager_code))&&t(current.manager_id)!==t(x.reviewer_id)&&t(current.manager_code).toUpperCase()!==t(x.reviewer_code).toUpperCase()),current_branch:currentBranch,current_department:currentDepartment,current_title:currentTitle,current_employee_status:t(current.employee_status),current_template_id:t(current.template_id),current_template_version:t(current.template_version),version_overridden:versionOverridden,template_outdated:templateOutdatedRaw&&!versionOverridden,template_repairable:Boolean(templateOutdatedRaw&&!versionOverridden&&x.status==='draft'&&!t(x.pilot_opened_at)&&!t(x.self_saved_at)&&!t(x.self_submitted_at)&&!t(x.review_saved_at)&&!t(x.review_submitted_at)&&!t(x.reviewed_by)&&x.final_score==null&&!(x.self_answers&&typeof x.self_answers==='object'&&Object.keys(x.self_answers).length)&&!(x.review_answers&&typeof x.review_answers==='object'&&Object.keys(x.review_answers).length)),version_override_eligible:['locked','cancelled'].indexOf(x.status)<0,organization_mismatch:Boolean(current.branch&&(currentBranch!==t(x.branch)||currentDepartment!==t(x.department))),organization_source:'checklist_employee_assignments'});})};
 }
 async function buildMonthlyCreationState(periodMonth){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');const m=month(periodMonth),{start,end}=periodBounds(m),scorePolicySnapshot=monthlyScorePolicySnapshot(await resolveMonthlyScorePolicyAt(m),m);
@@ -729,6 +732,64 @@ async function resnapshotMonthlyDraftTemplate(session,input={}){
  if(history.error)throw history.error;
  return {changed:true,form:upd.data,before,after};
 }
+/* Per-form version override (2026-09-02): Admin cố tình chọn MỘT phiên bản hợp lệ khác
+ * (cùng template_id) cho MỘT phiếu tháng — ngoại lệ có chủ đích, KHÔNG đụng
+ * checklist_employee_assignments. Tái dùng đúng engine thuần: diffDefinitions (preview)
+ * + classifyFormForApply (phân loại locked/cancelled/reviewed + remap câu trả lời theo id
+ * ổn định). Ghi lịch sử action 'manual_version_override'. Không RPC mới, không schema. */
+async function overrideMonthlyFormVersion(session,input={}){
+ if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
+ const id=t(input.formId),newVersion=t(input.newVersion),reason=t(input.reason),dryRun=input.dryRun===true;
+ if(!id)fail('Thiếu mã phiếu cần điều chỉnh phiên bản.');
+ if(!newVersion)fail('Thiếu phiên bản đích.',409,'CHECKLIST_MONTHLY_OVERRIDE_VERSION_REQUIRED');
+ if(!dryRun&&reason.length<10)fail('Lý do điều chỉnh phiên bản cần tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_OVERRIDE_REASON_REQUIRED');
+ const got=await db.from('checklist_monthly_forms').select('*').eq('id',id).maybeSingle();if(got.error)throw got.error;
+ const form=got.data;if(!form)fail('Không tìm thấy phiếu.',404,'CHECKLIST_MONTHLY_FORM_NOT_FOUND');
+ if(!dryRun&&t(input.expectedUpdatedAt)&&t(input.expectedUpdatedAt)!==t(form.updated_at))fail('Phiếu vừa thay đổi ở nơi khác. Vui lòng tải lại danh sách rồi thử lại.',409,'CHECKLIST_MONTHLY_OVERRIDE_STALE');
+ const templateKey=t(form.template_id).toLowerCase();
+ if(!templateKey)fail('Phiếu chưa gắn mẫu Checklist.',409,'CHECKLIST_MONTHLY_OVERRIDE_NO_TEMPLATE');
+ const verRes=await db.from('checklist_template_versions').select('*').eq('template_key',templateKey).eq('version_no',newVersion).maybeSingle();
+ if(verRes.error)throw verRes.error;
+ if(!verRes.data)fail('Phiên bản "'+newVersion+'" không thuộc mẫu '+t(form.template_id)+' hoặc không tồn tại.',409,'CHECKLIST_MONTHLY_OVERRIDE_VERSION_NOT_FOUND');
+ const newDefinition=verRes.data.definition||{};
+ const oldDefinition=(form.template_snapshot&&form.template_snapshot.version&&form.template_snapshot.version.definition)||{};
+ const before={templateId:t(form.template_id),templateVersion:t(form.template_version)};
+ const after={templateId:t(form.template_id),templateVersion:newVersion};
+ const diff=diffDefinitions(oldDefinition,newDefinition);
+ let assignmentVersion='';
+ try{const asg=await db.from('checklist_employee_assignments').select('template_id,template_version').eq('employee_key',t(form.employee_code).toLowerCase()).maybeSingle();
+  if(!asg.error&&asg.data&&t(asg.data.template_id).toLowerCase()===templateKey)assignmentVersion=t(asg.data.template_version);}catch(_e){/* display-only */}
+ const classification=classifyFormForApply({form,oldDefinition,newDefinition});
+ if(dryRun)return {ok:true,dryRun:true,before,after,diff,assignmentVersion,classification:{outcome:classification.outcome,reason:classification.reason}};
+ if(before.templateVersion===newVersion)return {changed:false,form,before,after,diff,assignmentVersion,message:'Phiếu đã ở phiên bản này. Không có gì để điều chỉnh.'};
+ if(classification.outcome!=='applied'){
+  const map={
+   'skipped-locked':['Phiếu đã khóa — không thể điều chỉnh phiên bản.','CHECKLIST_MONTHLY_OVERRIDE_LOCKED'],
+   'skipped-cancelled':['Phiếu đã hủy — không thuộc phạm vi.','CHECKLIST_MONTHLY_OVERRIDE_CANCELLED'],
+   'requires-reviewed-adjustment':['Phiếu đã thẩm định — dùng công cụ "điều chỉnh phiếu đã thẩm định" (xác nhận riêng), không điều chỉnh nhanh ở đây.','CHECKLIST_MONTHLY_OVERRIDE_REVIEWED'],
+   'skipped-unmapped':[t(classification.reason)||'Có câu trả lời gắn với dòng đã bị xóa ở phiên bản đích — cần xử lý thủ công.','CHECKLIST_MONTHLY_OVERRIDE_UNMAPPED'],
+   'skipped-unknown-status':['Trạng thái phiếu không nằm trong phạm vi điều chỉnh nhanh.','CHECKLIST_MONTHLY_OVERRIDE_STATUS']
+  };
+  const m=map[classification.outcome]||[t(classification.reason)||'Không thể điều chỉnh phiên bản cho phiếu này.','CHECKLIST_MONTHLY_OVERRIDE_BLOCKED'];
+  fail(m[0],409,m[1]);
+ }
+ const now=new Date().toISOString();
+ const newSnapshot={...(form.template_snapshot||{}),version:{...((form.template_snapshot&&form.template_snapshot.version)||{}),version_no:newVersion,definition:newDefinition}};
+ const patch={template_version:newVersion,template_snapshot:newSnapshot,
+  self_answers:classification.remappedSelfAnswers||form.self_answers||{},
+  review_answers:classification.remappedReviewAnswers||form.review_answers||{},
+  score_formula_version:SCORE_FORMULA_VERSION,updated_at:now};
+ const saved=await db.from('checklist_monthly_forms').update(patch).eq('id',id).eq('updated_at',form.updated_at).not('status','in','("locked","cancelled")').select('*').maybeSingle();
+ if(saved.error)throw saved.error;
+ if(!saved.data)fail('Phiếu vừa thay đổi hoặc đã khóa ở nơi khác. Vui lòng tải lại danh sách rồi thử lại.',409,'CHECKLIST_MONTHLY_OVERRIDE_STALE');
+ const a=actor(session);
+ const hist=await db.from('checklist_monthly_form_history').insert({form_id:id,period_month:form.period_month,employee_code:t(form.employee_code).toUpperCase(),
+  action:'manual_version_override',before_data:{templateVersion:before.templateVersion},
+  after_data:{templateVersion:newVersion,assignmentVersion,templateId:t(form.template_id),remappedSelf:hasAnswerData(classification.remappedSelfAnswers),remappedReview:hasAnswerData(classification.remappedReviewAnswers)},
+  reason,changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name,changed_at:now});
+ if(hist.error)throw hist.error;
+ return {changed:true,form:saved.data,before,after,diff};
+}
 function exportStatus(value){
  const aliases={all:'',draft:'draft',self:'waiting_self',review:'waiting_review',reviewed:'reviewed',locked:'locked',waiting_self:'waiting_self',waiting_review:'waiting_review'};
  return Object.prototype.hasOwnProperty.call(aliases,t(value))?aliases[t(value)]:'';
@@ -983,4 +1044,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional};
