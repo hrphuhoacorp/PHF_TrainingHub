@@ -373,6 +373,14 @@ const {
   createLinkedAdjustment: createChecklistLateLinkedAdjustment,
   exportLateReconciliation: exportChecklistLateReconciliation
 } = require('./_lib/checklist-late-reconciliation-service');
+const {
+  copyTemplateVersion: copyChecklistTemplateVersion,
+  previewDiff: previewChecklistRetroDiff,
+  dryRunRetroactiveApply: dryRunChecklistRetroApply,
+  retroactiveApply: applyChecklistRetro,
+  retroactiveApplyReviewedForm: applyChecklistRetroReviewedForm,
+  simulateEmployeeImpactBatch: simulateChecklistRetroEmployeeImpact
+} = require('./_lib/checklist-template-retroactive-service');
 const { getChecklistViolationMode, getChecklistLatePointsPolicy, saveChecklistLatePointsPolicy, getChecklistRepeatViolationPolicy, saveChecklistRepeatViolationPolicy, getChecklistRepeatViolationSuggestions, saveChecklistViolations, listChecklistViolations, listChecklistViolationHistory, getChecklistViolationTaskStatus, updateChecklistViolation, cancelChecklistViolation, deleteChecklistTestViolation, deleteChecklistTestViolations } = require('./_lib/checklist-violations');
 const { createChecklistEvidenceUpload, finalizeChecklistEvidenceUpload, attachChecklistEvidence, listChecklistEvidence, deleteChecklistEvidence } = require('./_lib/checklist-evidence');
 const { listChecklistTasks, transitionChecklistTask, getChecklistTaskHistory, getChecklistViolationDetail } = require('./_lib/checklist-tasks');
@@ -1174,6 +1182,28 @@ module.exports = async function handler(req, res) {
       if (payload && payload.action === 'saveChecklistTemplateLibrary') {
         const saved = await saveChecklistTemplateLibrary(session, payload.templates || []);
         return res.status(200).json({ok:true,...saved});
+      }
+      // Production entrypoint parity with server.js for the Checklist score-table
+      // versioning flow (Sửa Bảng tổng điểm → Xem trước → Phát hành → Cập nhật Phiếu
+      // tháng). Without these, the request fell through to legacy validatePayload and
+      // failed with EMPLOYEE_REQUIRED ("Thiếu thông tin học viên cần lưu.").
+      if (payload && payload.action === 'checklistRetroCopyVersion') {
+        return res.status(200).json({ok:true,...await copyChecklistTemplateVersion(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'checklistRetroPreviewDiff') {
+        return res.status(200).json({ok:true,...previewChecklistRetroDiff(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'checklistRetroDryRunApply') {
+        return res.status(200).json({ok:true,...await dryRunChecklistRetroApply(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'checklistRetroApply') {
+        return res.status(200).json({ok:true,...await applyChecklistRetro(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'checklistRetroApplyReviewedForm') {
+        return res.status(200).json({ok:true,...await applyChecklistRetroReviewedForm(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'checklistRetroSimulateEmployeeImpact') {
+        return res.status(200).json({ok:true,...await simulateChecklistRetroEmployeeImpact(session, payload.input || {})});
       }
       if (payload && payload.action === 'recordChecklistLateManagerObservation') {
         return res.status(200).json({ok:true,...await recordManagerLateObservation(session, payload.input || {})});
