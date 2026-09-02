@@ -14,6 +14,7 @@ const {diffDefinitions,simulateScoreImpact,runRetroactiveBatch,planEmployeeImpac
 const {validateScoredDefinition}=require('./checklist-templates');
 const {calculateMonthlyScore}=require('./checklist-score-engine');
 const {checklistBreakdown}=require('./checklist-monthly');
+const {saveChecklistAssignments}=require('./checklist-assignments');
 
 const hasEnv=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());
 const db=hasEnv?createClient(String(process.env.SUPABASE_URL).trim(),String(process.env.SUPABASE_SECRET_KEY).trim(),{auth:{persistSession:false,autoRefreshToken:false}}):null;
@@ -114,6 +115,121 @@ async function simulateEmployeeImpactBatch(session,input={}){
   return {templateKey,periodMonth,requested:employeeCodes.length,results,manual};
 }
 
+function periodOfDate(d){const s=t(d);return /^\d{4}-\d{2}-\d{2}$/.test(s)?s.slice(0,7):'';}
+
+/*
+ * Phase 2 — "Kích hoạt phiên bản": biến một checklist_template_versions row ĐÃ TỒN TẠI
+ * thành phiên bản đang áp dụng của mẫu, đồng thời trỏ lại các phân công đang gán mẫu đó
+ * (đang pin version cũ) sang version mới, hiệu lực từ 1 kỳ (period). KHÔNG tạo version mới,
+ * KHÔNG đụng People Master (department/manager lấy từ employee_profiles như write-lock hiện
+ * hành), KHÔNG đụng mẫu khác. Ghép 3 RPC canonical đã có (không thêm RPC/schema):
+ *   1) phf_save_checklist_template  — promote checklist_templates.current_version (replay
+ *      chính bản version đã lưu -> version insert là no-op, chỉ current_version đổi).
+ *   2) phf_save_checklist_assignments (qua saveChecklistAssignments) — repoint scoped
+ *      assignments + ghi checklist_employee_assignment_history, optimistic theo updated_at.
+ * Từng bước idempotent; nếu bước 2 lỗi giữa chừng, chạy lại: bước 1 no-op, bước 2 tiếp tục.
+ * Bước "Cập nhật Phiếu tháng hiện có" (retro) do UI gọi tiếp checklistRetroDryRunApply/Apply
+ * với retro hint trả về ở đây — KHÔNG nhân bản trong hàm này.
+ */
+async function activateTemplateVersion(session,input={}){
+  ensureAdmin(session);requireDb();
+  const templateKey=t(input.templateKey).toLowerCase();
+  const newVersion=t(input.newVersion);
+  const dryRun=input.dryRun===true;
+  if(!templateKey||!newVersion)fail('Thiếu template_key hoặc phiên bản cần kích hoạt.','CHECKLIST_ACTIVATE_INPUT_REQUIRED');
+  const reason=t(input.reason);
+  if(!dryRun&&reason.length<10)fail('Lý do kích hoạt phiên bản cần tối thiểu 10 ký tự.','CHECKLIST_ACTIVATE_REASON_REQUIRED',409);
+
+  const verRes=await db.from('checklist_template_versions').select('*').eq('template_key',templateKey).eq('version_no',newVersion).maybeSingle();
+  if(verRes.error)fail(verRes.error.message,'CHECKLIST_ACTIVATE_VERSION_LOOKUP_FAILED',503);
+  if(!verRes.data)fail('Phiên bản "'+newVersion+'" chưa tồn tại cho mẫu này. Hãy tạo phiên bản trước khi kích hoạt.','CHECKLIST_ACTIVATE_VERSION_NOT_FOUND',409);
+  const ver=verRes.data;
+  validateScoredDefinition(ver.definition);
+
+  const tplRes=await db.from('checklist_templates').select('*').eq('template_key',templateKey).maybeSingle();
+  if(tplRes.error)fail(tplRes.error.message,'CHECKLIST_ACTIVATE_TEMPLATE_LOOKUP_FAILED',503);
+  if(!tplRes.data)fail('Không tìm thấy mẫu Checklist.','CHECKLIST_ACTIVATE_TEMPLATE_NOT_FOUND',404);
+  const tpl=tplRes.data;
+  const currentVersionBefore=t(tpl.current_version);
+  const fromVersion=t(input.fromVersion)||currentVersionBefore;
+  const effectiveDate=t(input.effectiveDate)||t(ver.effective_date);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate))fail('Ngày hiệu lực (YYYY-MM-DD) không hợp lệ.','CHECKLIST_ACTIVATE_DATE_INVALID',409);
+  const periodMonth=periodOfDate(effectiveDate);
+
+  // Scope: TẤT CẢ phân công đang hoạt động gán đúng mẫu này VÀ đang pin version cũ.
+  const asgRes=await db.from('checklist_employee_assignments').select('*').limit(2000);
+  if(asgRes.error)fail(asgRes.error.message,'CHECKLIST_ACTIVATE_SCOPE_LOOKUP_FAILED',503);
+  const all=(asgRes.data||[]).filter(r=>t(r.template_id).toLowerCase()===templateKey);
+  const active=r=>t(r.employee_status)!=='Đã nghỉ việc';
+  // fromVersion===newVersion nghĩa là không có phiên bản cũ nào cần chuyển (thường là lần
+  // chạy lại sau khi đã kích hoạt) -> scope rỗng, không đụng phân công đã ở phiên bản mới.
+  const scoped=(fromVersion&&fromVersion!==newVersion)?all.filter(r=>active(r)&&t(r.template_version)===fromVersion):[];
+  const alreadyNew=all.filter(r=>t(r.template_version)===newVersion);
+  const inactivePinnedOld=all.filter(r=>!active(r)&&t(r.template_version)===fromVersion);
+  const otherVersion=all.filter(r=>t(r.template_version)&&t(r.template_version)!==fromVersion&&t(r.template_version)!==newVersion);
+  const scopeCodes=scoped.map(r=>t(r.employee_code).toUpperCase()).filter(Boolean).sort();
+
+  const retro={templateKey,oldVersion:fromVersion,newVersion,periodMonthFrom:periodMonth,periodMonthTo:periodMonth};
+  const summary={
+    templateKey,currentVersionBefore,newVersion,fromVersion,effectiveDate,periodMonth,
+    willPromoteTemplate:currentVersionBefore!==newVersion,
+    scopeCount:scoped.length,scopeCodes,
+    alreadyOnNewVersionCount:alreadyNew.length,alreadyOnNewVersionCodes:alreadyNew.map(r=>t(r.employee_code).toUpperCase()).sort(),
+    inactivePinnedOldCount:inactivePinnedOld.length,inactivePinnedOldCodes:inactivePinnedOld.map(r=>t(r.employee_code).toUpperCase()).sort(),
+    otherVersionCount:otherVersion.length,
+    retro
+  };
+  if(dryRun)return {ok:true,dryRun:true,...summary};
+
+  // 1) Promote current_version — replay chính bản version đã lưu (no-op ở tầng version,
+  //    chỉ current_version đổi). Kiểm tra trước để chắc chắn là no-op, không bao giờ ghi đè.
+  let promoted=false;
+  if(currentVersionBefore!==newVersion){
+    // phf_save_checklist_template coalesce reason rỗng -> default; nếu bản đã lưu có reason
+    // rỗng, replay sẽ vướng CHECKLIST_TEMPLATE_VERSION_IMMUTABLE. copyVersion RPC luôn set
+    // reason khác rỗng nên thực tế không xảy ra; chặn sớm với thông báo rõ nếu gặp.
+    if(t(ver.reason)==='')fail('Phiên bản "'+newVersion+'" được lưu thiếu lý do nên không thể kích hoạt an toàn qua đường canonical. Hãy tạo lại phiên bản kèm lý do.','CHECKLIST_ACTIVATE_VERSION_METADATA_INCOMPLETE',409);
+    const actorId=t(session.account?.id||session.sub),actorName=t(session.account?.name||session.email);
+    const p_template={
+      template_key:templateKey,code:t(tpl.code),name:t(tpl.name),group_name:t(tpl.group_name),
+      template_type:t(tpl.template_type)||'checklist_detail',has_checklist:tpl.has_checklist===true,
+      source:t(tpl.source),note:t(tpl.note),status:t(tpl.status)||'active',
+      effective_date:t(ver.effective_date),expected_updated_at:t(tpl.updated_at)
+    };
+    const p_version={
+      template_key:templateKey,version_no:newVersion,effective_date:t(ver.effective_date),
+      reason:t(ver.reason),source_version:t(ver.source_version),change_type:t(ver.change_type),
+      definition:ver.definition,created_at:t(ver.created_at)
+    };
+    const saved=await db.rpc('phf_save_checklist_template',{p_template,p_version,p_actor_id:actorId,p_actor_name:actorName});
+    if(saved.error){
+      const msg=String(saved.error.message||'');
+      if(/CHECKLIST_TEMPLATE_STALE/i.test(msg))fail('Mẫu vừa được cập nhật ở nơi khác. Vui lòng tải lại rồi kích hoạt lại.','CHECKLIST_ACTIVATE_TEMPLATE_STALE',409);
+      if(/CHECKLIST_TEMPLATE_VERSION_IMMUTABLE/i.test(msg))fail('Không thể kích hoạt: phiên bản đã lưu khác nội dung so với bản gửi lên. Đây là lỗi hệ thống bất thường — không tự sửa.','CHECKLIST_ACTIVATE_VERSION_IMMUTABLE_MISMATCH',409);
+      fail(msg,'CHECKLIST_ACTIVATE_PROMOTE_FAILED',503);
+    }
+    const result=saved.data||{};if(result.ok!==true)fail(t(result.message)||'Không promote được phiên bản.',t(result.code)||'CHECKLIST_ACTIVATE_PROMOTE_FAILED',409);
+    promoted=true;
+  }
+
+  // 2) Repoint scoped assignments qua đúng đường canonical (history + optimistic updated_at).
+  let assignmentsChanged=0;const assignmentResultCodes=[];
+  if(scoped.length){
+    const rows=scoped.map(r=>({
+      employeeKey:t(r.employee_key),employeeId:t(r.employee_id),employeeCode:t(r.employee_code),employeeName:t(r.employee_name),
+      employeeStatus:t(r.employee_status)||'Đang làm việc',leaveUntil:t(r.leave_until),statusNote:t(r.status_note),
+      templateId:t(r.template_id)||templateKey,templateVersion:newVersion,
+      effectiveDate,reason:reason||('Kích hoạt phiên bản '+newVersion+' từ kỳ '+periodMonth),
+      expectedUpdatedAt:t(r.updated_at),expectedAbsent:false
+    }));
+    const res=await saveChecklistAssignments(session,rows);
+    assignmentsChanged=Number(res&&res.changed)||0;
+    (res&&res.assignments||[]).forEach(a=>{assignmentResultCodes.push({code:t(a.employeeCode).toUpperCase(),version:t(a.templateVersion)});});
+  }
+
+  return {ok:true,promoted,...summary,assignmentsChanged,assignmentResultCodes};
+}
+
 /* Bước 5-6: chọn kỳ/phạm vi + dry-run (đọc dữ liệu thật, tính bằng cùng logic apply thật). */
 async function dryRunRetroactiveApply(session,input={}){
   return retroactiveApply(session,{...input,dryRun:true});
@@ -162,4 +278,4 @@ async function retroactiveApplyReviewedForm(session,input={}){
   return {...result,batchId};
 }
 
-module.exports={copyTemplateVersion,previewDiff,simulateEmployeeImpact,simulateEmployeeImpactBatch,dryRunRetroactiveApply,retroactiveApply,retroactiveApplyReviewedForm,runRetroactiveBatch};
+module.exports={copyTemplateVersion,previewDiff,activateTemplateVersion,simulateEmployeeImpact,simulateEmployeeImpactBatch,dryRunRetroactiveApply,retroactiveApply,retroactiveApplyReviewedForm,runRetroactiveBatch};

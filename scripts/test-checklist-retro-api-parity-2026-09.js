@@ -23,7 +23,7 @@ let passes = 0, failures = 0;
 function check(cond, msg) { if (!cond) { console.error('FAIL: ' + msg); failures++; } else { passes++; console.log('PASS: ' + msg); } }
 
 // ---- 1. Source-scan parity: the 6 retro actions must be in BOTH server.js and api/data.js
-const RETRO_ACTIONS = ['checklistRetroCopyVersion','checklistRetroPreviewDiff','checklistRetroDryRunApply','checklistRetroApply','checklistRetroApplyReviewedForm','checklistRetroSimulateEmployeeImpact'];
+const RETRO_ACTIONS = ['checklistRetroCopyVersion','checklistRetroPreviewDiff','checklistRetroDryRunApply','checklistRetroApply','checklistRetroApplyReviewedForm','checklistRetroSimulateEmployeeImpact','activateChecklistTemplateVersion'];
 const serverSrc = fs.readFileSync(path.resolve(__dirname,'..','server.js'),'utf8');
 const dataSrc = fs.readFileSync(path.resolve(__dirname,'..','api','data.js'),'utf8');
 RETRO_ACTIONS.forEach(a => {
@@ -104,6 +104,15 @@ const NEW_DEF = { templateType: 'score_summary', groups: [], totalRows: [
     await handler(req, res);
     check(res._status === 200 && res._body && res._body.code !== 'EMPLOYEE_REQUIRED', 'checklistRetroDryRunApply → 200, not legacy');
     check(rpcCalls.some(c => c.name === 'phf_retroactive_apply_checklist_template'), 'dry-run reaches phf_retroactive_apply_checklist_template RPC');
+  }
+
+  // Phase 2 — activateChecklistTemplateVersion routes to the service (not legacy validatePayload)
+  {
+    const { req, res } = fakeReqRes({ action: 'activateChecklistTemplateVersion', input: { templateKey: 'nv-ban-hang', newVersion: 'BH-2.0', effectiveDate: '2026-09-01', dryRun: true } });
+    await handler(req, res);
+    check(res._body && res._body.code !== 'EMPLOYEE_REQUIRED', 'activateChecklistTemplateVersion NOT blocked by EMPLOYEE_REQUIRED');
+    check(!(res._body && typeof res._body.message === 'string' && res._body.message.indexOf('học viên') >= 0), 'activate response has no "...học viên..." legacy message');
+    check(res._body && (res._body.code === 'CHECKLIST_ACTIVATE_VERSION_NOT_FOUND' || res._body.ok === true || res._body.ok === false), 'activate routed to checklist-template-retroactive-service (code=' + (res._body && res._body.code) + ')');
   }
 
   console.log('\n' + passes + ' PASS' + (failures ? (' / ' + failures + ' FAIL') : ''));
