@@ -376,6 +376,7 @@ const {
 const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
+  activateTemplateVersion: activateChecklistTemplateVersion,
   dryRunRetroactiveApply: dryRunChecklistRetroApply,
   retroactiveApply: applyChecklistRetro,
   retroactiveApplyReviewedForm: applyChecklistRetroReviewedForm,
@@ -1192,6 +1193,9 @@ module.exports = async function handler(req, res) {
       }
       if (payload && payload.action === 'checklistRetroPreviewDiff') {
         return res.status(200).json({ok:true,...previewChecklistRetroDiff(session, payload.input || {})});
+      }
+      if (payload && payload.action === 'activateChecklistTemplateVersion') {
+        return res.status(200).json({ok:true,...await activateChecklistTemplateVersion(session, payload.input || {})});
       }
       if (payload && payload.action === 'checklistRetroDryRunApply') {
         return res.status(200).json({ok:true,...await dryRunChecklistRetroApply(session, payload.input || {})});

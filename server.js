@@ -212,6 +212,7 @@ async function listTaskEvents(session, params) {
 const {
   copyTemplateVersion: copyChecklistTemplateVersion,
   previewDiff: previewChecklistRetroDiff,
+  activateTemplateVersion: activateChecklistTemplateVersion,
   dryRunRetroactiveApply: dryRunChecklistRetroApply,
   retroactiveApply: applyChecklistRetro,
   retroactiveApplyReviewedForm: applyChecklistRetroReviewedForm,
@@ -1221,6 +1222,9 @@ const server = http.createServer(async (req, res) => {
         }
         if (payload && payload.action === 'checklistRetroPreviewDiff') {
           return sendJson(res, 200, {ok:true,...previewChecklistRetroDiff(session, payload.input || {})});
+        }
+        if (payload && payload.action === 'activateChecklistTemplateVersion') {
+          return sendJson(res, 200, {ok:true,...await activateChecklistTemplateVersion(session, payload.input || {})});
         }
         if (payload && payload.action === 'checklistRetroDryRunApply') {
           return sendJson(res, 200, {ok:true,...await dryRunChecklistRetroApply(session, payload.input || {})});

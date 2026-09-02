@@ -8486,11 +8486,28 @@
    * tự viết lại logic này. Trả về '' nếu mẫu không có cơ chế Bảng tổng điểm
    * (xem checklistTemplateHasTotalScoreMechanism — điều kiện cấu trúc).
    */
+  function tsePendingActivationVersion(templateId){
+    ensureChecklistTemplatesHydrated();
+    var row=checklistTemplateDbState.byId[templateId];
+    if(!row||!Array.isArray(row.versions))return null;
+    var current=normalizeText(row.version);
+    var pending=row.versions.filter(function(v){return normalizeText(v&&v.version)&&normalizeText(v.version)!==current;})
+      .sort(function(a,b){return checklistIsoDate(b.effectiveDate||'').localeCompare(checklistIsoDate(a.effectiveDate||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''));});
+    return pending.length?{current:current,target:pending[0]}:null;
+  }
+  function tseActivateBannerHtml(templateId){
+    var info=tsePendingActivationVersion(templateId);
+    if(!info)return '';
+    var t=info.target;
+    return '<div class="phfck-notice is-warning phfck-tse-activate-banner"><b>Phiên bản '+esc(t.version)+' đã được tạo nhưng chưa kích hoạt</b>'
+      +'<p>Mẫu đang áp dụng phiên bản <b>'+esc(info.current||'—')+'</b>. Kích hoạt để phân công nhân sự và Phiếu tháng tạo mới dùng '+esc(t.version)+' từ kỳ đã chọn; sau đó cập nhật các Phiếu tháng hiện có bằng công cụ áp dụng lại.</p>'
+      +'<button type="button" class="phfck-primary" data-phfck-tse-activate="'+esc(templateId)+'" data-phfck-tse-activate-version="'+esc(t.version)+'" data-phfck-tse-activate-effdate="'+esc(t.effectiveDate||'')+'">Kích hoạt phiên bản '+esc(t.version)+'</button></div>';
+  }
   function checklistTotalScoreTabHtml(item){
     if(!item||!checklistTemplateHasTotalScoreMechanism(item))return '';
     var def=checklistTemplateEffectiveDefinition(item.id,item);
-    if(!def.totalRows.length)return tseButtonRowHtml(item.id)+checklistTotalScoreEmptyStateHtml(item.id);
-    return tseButtonRowHtml(item.id)+(loadBulkOverride(item.id)?overrideTotalScoreHtml(item.id,item.name,effectiveTemplateVersion(item.id)):checklistTotalScoreLegacyDemoHtml(item));
+    if(!def.totalRows.length)return tseActivateBannerHtml(item.id)+tseButtonRowHtml(item.id)+checklistTotalScoreEmptyStateHtml(item.id);
+    return tseActivateBannerHtml(item.id)+tseButtonRowHtml(item.id)+(loadBulkOverride(item.id)?overrideTotalScoreHtml(item.id,item.name,effectiveTemplateVersion(item.id)):checklistTotalScoreLegacyDemoHtml(item));
   }
   /* Tab-bar dùng chung: tab "Bảng tổng điểm" CHỈ xuất hiện khi mẫu có cơ chế
      (structural, xem checklistTemplateHasTotalScoreMechanism) — không phụ
@@ -8711,6 +8728,52 @@
       reviewedForms:{},permissionError:''
     };
   }
+  function traOpenFromActivation(retro,reason){
+    if(!retro)return;
+    checklistTraState={
+      templateId:retro.templateKey,oldVersion:retro.oldVersion,newVersion:retro.newVersion,
+      step:1,periodMonthFrom:retro.periodMonthFrom||'',periodMonthTo:retro.periodMonthTo||'',
+      scopeReason:reason||('Kích hoạt '+retro.newVersion+' từ kỳ '+(retro.periodMonthFrom||'')),batchId:'',
+      dryRunning:false,dryRunError:'',dryRun:null,
+      applying:false,applyError:'',applyResult:null,
+      reviewedForms:{},permissionError:''
+    };
+  }
+  var checklistTseActivateState=null;
+  function tseActivateOpen(templateId,version,effDate){
+    var iso=checklistIsoDate(effDate||'');
+    var pm=/^\d{4}-\d{2}-\d{2}$/.test(iso)?iso.slice(0,7):todayIso().slice(0,7);
+    checklistTseActivateState={
+      templateId:templateId,newVersion:normalizeText(version),
+      periodMonth:pm,effectiveDate:(/^\d{4}-\d{2}-\d{2}$/.test(iso)?iso:(pm+'-01')),
+      reason:'',previewing:false,preview:null,previewError:'',activating:false,activateError:''
+    };
+  }
+  function tseActivateRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTseActivateModalHtml());}
+  function checklistTseActivateModalHtml(){
+    var s=checklistTseActivateState;if(!s)return '';
+    var item=tseTemplateItem(s.templateId)||{};
+    var row=checklistTemplateDbState.byId[s.templateId]||{};
+    var reasonOk=normalizeText(s.reason).length>=10;
+    var impact=s.previewError
+      ? '<div class="phfck-notice"><b>Chưa thể xem tác động</b><p>'+esc(s.previewError)+'</p></div>'
+      : s.preview
+      ? '<div class="phfck-notice"><b>Tác động khi kích hoạt</b><p>Phân công đang gán <b>'+esc(row.version||'phiên bản cũ')+'</b> sẽ chuyển sang <b>'+esc(s.newVersion)+'</b> (hiệu lực từ kỳ '+esc(s.periodMonth)+'): <b>'+Number(s.preview.scopeCount||0)+'</b> nhân sự'
+        +(s.preview.scopeCount?' ('+esc((s.preview.scopeCodes||[]).join(', '))+')':'')+'.'
+        +(s.preview.alreadyOnNewVersionCount?(' Đã ở '+esc(s.newVersion)+': '+Number(s.preview.alreadyOnNewVersionCount)+'.'):'')
+        +(s.preview.inactivePinnedOldCount?(' Nhân sự đã nghỉ việc (giữ nguyên): '+Number(s.preview.inactivePinnedOldCount)+'.'):'')
+        +(s.preview.otherVersionCount?(' Đang dùng phiên bản khác (không đụng): '+Number(s.preview.otherVersionCount)+'.'):'')
+        +'</p><p>Sau khi kích hoạt, hệ thống mở tiếp bước "Cập nhật Phiếu tháng '+esc(s.periodMonth)+' hiện có" (dry-run rồi mới áp dụng).</p></div>'
+      : '<div class="phfck-modal-foot" style="border-top:0;padding:0 0 14px"><button type="button" class="phfck-secondary" '+(s.previewing?'disabled':'')+' data-phfck-tse-activate-preview>'+(s.previewing?'Đang tính tác động…':'Xem tác động (dữ liệu thật, chưa ghi)')+'</button></div>';
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-tse-activate-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>KÍCH HOẠT PHIÊN BẢN</small><h2>'+esc(item.name||s.templateId)+' · '+esc(row.version||'—')+' → '+esc(s.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
+      +'<div class="phfck-reviewer-before-after"><div><small>Đang áp dụng</small><b>'+esc(row.version||'—')+'</b></div><div><small>Sẽ kích hoạt</small><b>'+esc(s.newVersion)+'</b></div><div><small>Kỳ bắt đầu áp dụng</small><b>'+esc(s.periodMonth)+'</b></div></div>'
+      +'<div class="phfck-form-grid"><label><b>Kỳ bắt đầu áp dụng <em>*</em></b><input type="month" value="'+esc(s.periodMonth)+'" data-phfck-tse-activate-period></label><label><b>Ngày hiệu lực (DB)</b><input type="text" value="'+esc(s.effectiveDate)+'" disabled></label></div>'
+      +'<label><b>Lý do kích hoạt <em>*</em></b><input type="text" placeholder="vd: Áp dụng Bảng tổng điểm 70/30 cho Nhân viên bán hàng theo quyết định Ban Giám đốc" value="'+esc(s.reason)+'" data-phfck-tse-activate-reason></label>'
+      +impact
+      +(s.activateError?'<div class="phfck-notice"><b>Không kích hoạt được</b><p>'+esc(s.activateError)+'</p></div>':'')
+      +'<div class="phfck-notice"><b>Chỉ mẫu này</b><p>Không đụng People (phòng ban/quản lý lấy từ Hồ sơ nhân sự như hiện hành), không đụng mẫu khác, không tạo phiên bản mới. Phiên bản cũ vẫn giữ cho các kỳ trước '+esc(s.periodMonth)+'.</p></div>'
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-primary" '+((!reasonOk||!s.preview||s.activating)?'disabled':'')+' data-phfck-tse-activate-confirm>'+(s.activating?'Đang kích hoạt…':'Kích hoạt phiên bản')+'</button></div></div></div>';
+  }
   function traGotoStep(n){if(!checklistTraState)return;checklistTraState.step=n;traRerender();}
   function traRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTraDrawerHtml());}
   function traStep1Html(){
@@ -8804,6 +8867,43 @@
       checklistToast('success','Đã tạo phiên bản mới','Phiên bản mới chỉ áp dụng cho Phiếu tháng tạo mới từ nay. Phiếu tháng hiện có giữ nguyên.');
       return;
     }
+    var activateBtn=e.target.closest('[data-phfck-tse-activate]');
+    if(activateBtn){e.preventDefault();var aroot=document.getElementById('phfChecklistRoot');if(!aroot)return;
+      tseActivateOpen(activateBtn.getAttribute('data-phfck-tse-activate')||'',activateBtn.getAttribute('data-phfck-tse-activate-version')||'',activateBtn.getAttribute('data-phfck-tse-activate-effdate')||'');
+      appendSubmodal(aroot,checklistTseActivateModalHtml());return;}
+    var activateModal=e.target.closest('.phfck-tse-activate-modal');
+    if(activateModal&&checklistTseActivateState){
+      var as=checklistTseActivateState;
+      if(e.target.closest('[data-phfck-tse-activate-preview]')){
+        if(as.previewing)return;
+        as.reason=normalizeText((activateModal.querySelector('[data-phfck-tse-activate-reason]')||{}).value);
+        as.previewing=true;as.previewError='';as.preview=null;tseActivateRerender();
+        checklistRetroApiCall('activateChecklistTemplateVersion',{templateKey:as.templateId,newVersion:as.newVersion,effectiveDate:as.effectiveDate,dryRun:true}).then(function(data){
+          as.previewing=false;as.preview=data;tseActivateRerender();
+        }).catch(function(err){as.previewing=false;as.previewError=err&&err.message||'Chưa thể xem tác động.';tseActivateRerender();});
+        return;
+      }
+      if(e.target.closest('[data-phfck-tse-activate-confirm]')){
+        if(as.activating)return;
+        as.reason=normalizeText((activateModal.querySelector('[data-phfck-tse-activate-reason]')||{}).value);
+        if(as.reason.length<10){checklistToast('warning','Thiếu lý do','Lý do kích hoạt cần tối thiểu 10 ký tự.',true);return;}
+        if(!as.preview){checklistToast('warning','Chưa xem tác động','Vui lòng bấm "Xem tác động" trước khi kích hoạt.',true);return;}
+        as.activating=true;as.activateError='';tseActivateRerender();
+        checklistRetroApiCall('activateChecklistTemplateVersion',{templateKey:as.templateId,newVersion:as.newVersion,fromVersion:as.preview.fromVersion,effectiveDate:as.effectiveDate,reason:as.reason}).then(function(data){
+          as.activating=false;
+          addAudit({action:'Kích hoạt phiên bản mẫu',area:'Bảng tổng điểm',object:(tseTemplateItem(as.templateId)||{}).name||as.templateId,source:'Web',impact:'Mẫu + phân công',version:(data.currentVersionBefore||'')+' → '+as.newVersion,reason:as.reason+'; hiệu lực kỳ '+as.periodMonth+'; phân công cập nhật: '+Number(data.assignmentsChanged||0)});
+          var aroot2=document.getElementById('phfChecklistRoot');
+          var trow=checklistTemplateDbState.byId[as.templateId];if(trow){trow.version=as.newVersion;}
+          var alayer=activateModal.closest('[data-phfck-submodal]');if(alayer)alayer.remove();
+          if(aroot2)refreshTemplatesWorkspace(aroot2);
+          checklistToast('success','Đã kích hoạt '+as.newVersion,'Đã cập nhật '+Number(data.assignmentsChanged||0)+'/'+Number(data.scopeCount||0)+' phân công. Tiếp tục cập nhật Phiếu tháng '+as.periodMonth+' hiện có.');
+          traOpenFromActivation(data.retro,as.reason);
+          if(aroot2)traRerender();
+          checklistTseActivateState=null;
+        }).catch(function(err){as.activating=false;as.activateError=err&&err.message||'Máy chủ chưa xác nhận kích hoạt.';tseActivateRerender();});
+        return;
+      }
+    }
     if(e.target.closest('[data-phfck-tse-open-retro]')){
       traOpenFromPublish();
       var sm2=e.target.closest('[data-phfck-submodal]');if(sm2)sm2.remove();
@@ -8864,8 +8964,19 @@
       var reasonInput=e.target.closest('[data-phfck-tra-reviewed-reason]');
       if(reasonInput){var formId=reasonInput.getAttribute('data-phfck-tra-reviewed-reason');var rf=state.reviewedForms[formId]||(state.reviewedForms[formId]={reason:'',applying:false,result:null,error:''});rf.reason=reasonInput.value;rf.error='';return;}
     }
+    var activateModal=e.target.closest('.phfck-tse-activate-modal');
+    if(activateModal&&checklistTseActivateState){
+      var as=checklistTseActivateState;
+      if(e.target.matches('[data-phfck-tse-activate-reason]')){as.reason=e.target.value;var cb=activateModal.querySelector('[data-phfck-tse-activate-confirm]');if(cb)cb.disabled=!(normalizeText(as.reason).length>=10&&as.preview&&!as.activating);return;}
+    }
   });
   document.addEventListener('change',function(e){
+    var activateModalC=e.target.closest('.phfck-tse-activate-modal');
+    if(activateModalC&&checklistTseActivateState&&e.target.matches('[data-phfck-tse-activate-period]')){
+      var as=checklistTseActivateState,m=e.target.value||'';
+      if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)){as.periodMonth=m;as.effectiveDate=m+'-01';as.preview=null;as.previewError='';tseActivateRerender();}
+      return;
+    }
     var modal=e.target.closest('.phfck-tse-modal');
     if(modal&&checklistTseState&&e.target.closest('[data-phfck-tse-field]')){tseSyncRowsFromDom(modal);tsePatchValidation(modal);return;}
     var traModal=e.target.closest('.phfck-tra-modal');
