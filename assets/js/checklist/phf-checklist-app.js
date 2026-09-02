@@ -2703,7 +2703,30 @@
   function warehouseTemplateTreeHtml(){return templateTreeHtml(selectedTemplateGroups());}
   function warehouseManagerTemplateTreeHtml(){return templateTreeHtml(selectedTemplateGroups());}
   function assistantTemplateTreeHtml(config){return templateTreeHtml(selectedTemplateGroups());}
-  function overrideTotalScoreHtml(templateId,title,policy){var rows=effectiveTotalRows(templateId),totalWeight=rows.reduce(function(n,r){return n+Number(r[5]||0);},0);return '<div class="phfck-total-score"><div class="phfck-total-intro"><div><small>BẢNG TỔNG ĐIỂM · PHIÊN BẢN CẬP NHẬT</small><h3>'+esc(title)+'</h3><p>Dữ liệu được cập nhật từ file Excel hàng loạt và chỉ áp dụng theo phiên bản mới.</p></div><span class="phfck-total-policy-chip">'+esc(policy||effectiveTemplateVersion(templateId))+'</span></div><div class="phfck-total-formula-banner"><span>CÁCH TÍNH</span><strong>Theo trọng số Tự đánh giá – Thẩm định của kỳ</strong><p>Sau đó hệ thống quy đổi theo trọng số từng chỉ tiêu.</p></div><div class="phfck-total-scroll-top" data-phfck-total-scroll-top><div></div></div><div class="phfck-total-table-wrap" data-phfck-total-scroll-main><table class="phfck-total-table"><thead><tr><th>STT</th><th>Nội dung đánh giá</th><th>Mục tiêu</th><th>Trọng số</th><th>Nguồn kết quả</th><th>Ghi chú</th></tr></thead><tbody>'+rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><b>'+esc(r[2])+'</b>'+(r[6]==='Có'?'<span class="phfck-monthly-plan-tag">Thay đổi theo kế hoạch tháng</span>':'')+'</td><td>'+esc(String(r[3])+' '+String(r[4]||''))+'</td><td><span class="phfck-total-weight">'+Number(r[5])+'%</span></td><td>'+esc(r[7]||'Nhập đánh giá')+'</td><td>Áp dụng từ phiên bản '+esc(effectiveTemplateVersion(templateId))+'</td></tr>';}).join('')+'<tr class="phfck-total-final"><td></td><td><b>Tổng trọng số</b></td><td></td><td><strong>'+totalWeight+'%</strong></td><td></td><td><span class="phfck-result-chip '+(Math.abs(totalWeight-100)<0.001?'is-pass':'is-fail')+'">'+(Math.abs(totalWeight-100)<0.001?'Hợp lệ':'Cần điều chỉnh')+'</span></td></tr></tbody></table></div></div>';}
+  /* Bảng tổng điểm hỗ trợ CẢ HAI dạng dòng: dạng mảng vị trí cũ
+     [stt,code,name,target,unit,weight,monthlyTag,{type},code(,note)] và dạng OBJECT mới
+     {id,code,name,target,unit,weight,source:{type},note} do trình sửa Bảng tổng điểm /
+     checklistRetroCopyVersion (tseRowsForDefinition) ghi ra. Trước đây renderer chỉ đọc
+     r[2]/r[3]/r[5] nên phiên bản dạng object (vd BH-2.0) hiện undefined/NaN%/0%. */
+  function totalScoreRowView(r){
+    if(Array.isArray(r)){
+      var src=r[7],st=(src&&typeof src==='object')?String(src.type||''):String(src||'');
+      return {name:normalizeText(r[2]),target:r[3],unit:r[4]||'',weight:Number(r[5]),
+        sourceType:(st.toLowerCase()==='checklist_total'||normalizeMatchText(st)==='checklist'||normalizeMatchText(st)==='he thong')?'checklist_total':'manual',
+        monthlyPlan:r[6]==='Có'};
+    }
+    var s=r&&r.source,stt=(s&&typeof s==='object')?String(s.type||''):((typeof s==='string')?s:String((r&&r.sourceType)||''));
+    return {name:normalizeText(r&&(r.name||r.content)),target:(r&&r.target),unit:(r&&r.unit)||'',weight:Number(r&&r.weight),
+      sourceType:(stt.toLowerCase()==='checklist_total'||normalizeMatchText(stt)==='checklist'||normalizeMatchText(stt)==='he thong')?'checklist_total':'manual',
+      monthlyPlan:!!(r&&(r.monthlyPlan||r.monthly))};
+  }
+  function totalScoreSourceLabel(sourceType){return sourceType==='checklist_total'?'Điểm Checklist tự động':'Nhập đánh giá';}
+  function overrideTotalScoreHtml(templateId,title,policy){
+    var views=(effectiveTotalRows(templateId)||[]).map(totalScoreRowView);
+    var totalWeight=Math.round(views.reduce(function(n,v){var w=Number(v.weight);return n+(Number.isFinite(w)?w:0);},0)*100)/100;
+    return '<div class="phfck-total-score"><div class="phfck-total-intro"><div><small>BẢNG TỔNG ĐIỂM · PHIÊN BẢN CẬP NHẬT</small><h3>'+esc(title)+'</h3><p>Dữ liệu được cập nhật từ file Excel hàng loạt và chỉ áp dụng theo phiên bản mới.</p></div><span class="phfck-total-policy-chip">'+esc(policy||effectiveTemplateVersion(templateId))+'</span></div><div class="phfck-total-formula-banner"><span>CÁCH TÍNH</span><strong>Theo trọng số Tự đánh giá – Thẩm định của kỳ</strong><p>Sau đó hệ thống quy đổi theo trọng số từng chỉ tiêu.</p></div><div class="phfck-total-scroll-top" data-phfck-total-scroll-top><div></div></div><div class="phfck-total-table-wrap" data-phfck-total-scroll-main><table class="phfck-total-table"><thead><tr><th>STT</th><th>Nội dung đánh giá</th><th>Mục tiêu</th><th>Trọng số</th><th>Nguồn kết quả</th><th>Ghi chú</th></tr></thead><tbody>'
+      +views.map(function(v,i){var w=Number(v.weight);return '<tr><td>'+(i+1)+'</td><td><b>'+esc(v.name||'—')+'</b>'+(v.monthlyPlan?'<span class="phfck-monthly-plan-tag">Thay đổi theo kế hoạch tháng</span>':'')+'</td><td>'+esc((v.target==null||v.target===''?'—':String(v.target))+(v.unit?' '+String(v.unit):''))+'</td><td><span class="phfck-total-weight">'+(Number.isFinite(w)?w+'%':'—')+'</span></td><td>'+esc(totalScoreSourceLabel(v.sourceType))+'</td><td>Áp dụng từ phiên bản '+esc(effectiveTemplateVersion(templateId))+'</td></tr>';}).join('')
+      +'<tr class="phfck-total-final"><td></td><td><b>Tổng trọng số</b></td><td></td><td><strong>'+totalWeight+'%</strong></td><td></td><td><span class="phfck-result-chip '+(Math.abs(totalWeight-100)<0.001?'is-pass':'is-fail')+'">'+(Math.abs(totalWeight-100)<0.001?'Hợp lệ':'Cần điều chỉnh')+'</span></td></tr></tbody></table></div></div>';}
   function assistantTotalScoreHtml(config){
     var rows=config.rows||[];
     var totalWeight=rows.reduce(function(n,r){return n+Number(r[2]||0);},0);
