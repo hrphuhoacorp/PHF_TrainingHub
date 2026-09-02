@@ -473,11 +473,13 @@ function publicAttachmentView(attachment) {
     extension: attachment.extension,
     sizeBytes: attachment.size_bytes,
     checksumSha256: attachment.checksum_sha256,
-    uploadedByEmployeeCode: attachment.uploaded_by_employee_code,
+    uploadedByEmployeeCode: attachment.uploaded_by_employee_code || null,
+    uploadedByAccountId: attachment.uploaded_by_account_id || null,
     status: attachment.status,
     createdAt: attachment.created_at,
     deletedAt: attachment.deleted_at || null,
     deletedByEmployeeCode: attachment.deleted_by_employee_code || null,
+    deletedByAccountId: attachment.deleted_by_account_id || null,
   };
 }
 
@@ -1263,6 +1265,7 @@ function createServer(config) {
             storageRoot: attachmentStorageRoot,
             taskId: uploadMatch[1],
             actorEmployeeCode: req.headers['x-attachment-actor-employee-code'] || '',
+            actorAccountId: req.headers['x-attachment-actor-account-id'] || '',
             idempotencyKey: req.headers['x-attachment-idempotency-key'] || '',
             originalFilename,
             mimeType: req.headers['content-type'] || '',
@@ -1300,6 +1303,7 @@ function createServer(config) {
             attachmentId: body.attachmentId,
             reason: body.reason,
             actorEmployeeCode: actor.employeeCode,
+            actorAccountId: actor.accountId,
           });
         }
       }

@@ -122,7 +122,7 @@ function preflightCheck() {
 
 async function bridgeUploadTaskAttachment(taskId, fileBuffer, options) {
   preflightCheck();
-  const { filename, mimeType, actorEmployeeCode, idempotencyKey } = options || {};
+  const { filename, mimeType, actorEmployeeCode, actorAccountId, idempotencyKey } = options || {};
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
@@ -136,6 +136,7 @@ async function bridgeUploadTaskAttachment(taskId, fileBuffer, options) {
         'Content-Length': String(fileBuffer.length),
         'X-Attachment-Filename': encodeURIComponent(filename || ''),
         'X-Attachment-Actor-Employee-Code': actorEmployeeCode || '',
+        'X-Attachment-Actor-Account-Id': actorAccountId || '',
         'X-Attachment-Idempotency-Key': idempotencyKey || '',
       },
       body: fileBuffer,
@@ -154,9 +155,10 @@ async function bridgeUploadTaskAttachment(taskId, fileBuffer, options) {
   return parsed.data;
 }
 
-async function bridgeRemoveTaskAttachment(taskId, attachmentId, reason, actorEmployeeCode) {
+async function bridgeRemoveTaskAttachment(taskId, attachmentId, reason, actorEmployeeCode, actorAccountId) {
   return callWriteRoute(`/v1/task/tasks/${encodeURIComponent(taskId)}:removeAttachment`, {
-    attachmentId, reason, actor: { employeeCode: actorEmployeeCode || undefined },
+    attachmentId, reason,
+    actor: { employeeCode: actorEmployeeCode || undefined, accountId: actorAccountId || undefined },
   });
 }
 

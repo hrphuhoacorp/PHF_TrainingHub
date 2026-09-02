@@ -245,6 +245,34 @@ const VALID_ATTACHMENT_ROW = {
     );
   }
 
+  // 3b) ATTACHMENT ACTOR IDENTITY (2026-09-02) — X-Attachment-Actor-Account-Id
+  // is forwarded; an Admin-only actor (no employee-code header) still maps.
+  {
+    const { mod, calls } = makeFakeAttachmentServiceModule({
+      uploadAttachment: { return: { attachment: VALID_ATTACHMENT_ROW, replayed: false } },
+    });
+    const createServer = loadCreateServerWithFakeAttachmentService(mod);
+    const server = createServer(MOCK_CONFIG);
+    const headers = Object.assign(
+      {
+        'content-type': 'application/pdf',
+        'x-attachment-filename': encodeURIComponent('bao-cao.pdf'),
+        'x-attachment-idempotency-key': '22222222-2222-4222-8222-222222222222',
+        'x-attachment-actor-account-id': 'admin-acc-uuid-0001',
+      },
+      authHeader()
+    );
+    const { statusCode } = await sendJsonRequest(server, 'POST', '/v1/task/tasks/task-abc:uploadAttachment', undefined, headers);
+    const call = calls.find((c) => c.name === 'uploadAttachment');
+    record(
+      'upload_3b_actorAccountId_forwarded_adminOnly',
+      statusCode === 200 && call &&
+        call.args.actorAccountId === 'admin-acc-uuid-0001' &&
+        (call.args.actorEmployeeCode === '' || call.args.actorEmployeeCode === undefined),
+      { call: call && call.args }
+    );
+  }
+
   // 9) Content-Length > MAX rejects TRƯỚC khi gọi service
   {
     const { mod, calls } = makeFakeAttachmentServiceModule({});
@@ -464,7 +492,7 @@ const VALID_ATTACHMENT_ROW = {
     const server = createServer(MOCK_CONFIG);
     const { statusCode, body } = await sendJsonRequest(
       server, 'POST', '/v1/task/tasks/task-XYZ:removeAttachment',
-      { attachmentId: 'att-1', actor: { employeeCode: 'PHF001' } },
+      { attachmentId: 'att-1', actor: { employeeCode: 'PHF001', accountId: 'acc-001' } },
       authHeader()
     );
     const call = calls.find((c) => c.name === 'removeAttachment');
@@ -472,8 +500,30 @@ const VALID_ATTACHMENT_ROW = {
       'remove_25_26_27_pathAuthoritative_bodyMapping_reasonOptional',
       statusCode === 200 && body.ok === true && body.data.status === 'pending_delete' &&
         call.args.taskId === 'task-XYZ' && call.args.attachmentId === 'att-1' &&
-        call.args.actorEmployeeCode === 'PHF001' && call.args.reason === undefined,
+        call.args.actorEmployeeCode === 'PHF001' && call.args.actorAccountId === 'acc-001' &&
+        call.args.reason === undefined,
       { call: call && call.args, body }
+    );
+  }
+
+  // 27b) ATTACHMENT ACTOR IDENTITY — Admin-only remover (accountId only)
+  {
+    const { mod, calls } = makeFakeAttachmentServiceModule({
+      removeAttachment: { return: Object.assign({}, VALID_ATTACHMENT_ROW, { status: 'pending_delete' }) },
+    });
+    const createServer = loadCreateServerWithFakeAttachmentService(mod);
+    const server = createServer(MOCK_CONFIG);
+    const { statusCode } = await sendJsonRequest(
+      server, 'POST', '/v1/task/tasks/task-XYZ:removeAttachment',
+      { attachmentId: 'att-1', actor: { accountId: 'admin-acc-uuid' } },
+      authHeader()
+    );
+    const call = calls.find((c) => c.name === 'removeAttachment');
+    record(
+      'remove_27b_adminOnly_actorAccountId_forwarded',
+      statusCode === 200 && call && call.args.actorAccountId === 'admin-acc-uuid' &&
+        (call.args.actorEmployeeCode === undefined || call.args.actorEmployeeCode === ''),
+      { call: call && call.args }
     );
   }
 

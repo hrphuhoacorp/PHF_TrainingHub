@@ -258,6 +258,59 @@ function uuid() {
     );
   }
 
+  // 1c) ATTACHMENT ACTOR IDENTITY (2026-09-02) — Admin-only actor
+  // (actorEmployeeCode '' + actorAccountId) uploads: object key -> ACC_<id>,
+  // metadata INSERT gets uploaded_by_employee_code NULL + uploaded_by_account_id.
+  {
+    const taskId = uuid();
+    const idempotencyKey = uuid();
+    const accountId = 'a1b2c3d4-5566-7788-99aa-bbccddeeff00';
+    const content = Buffer.from('phf-admin-only-upload-content');
+    const objectKey = storage.buildObjectKey({ taskId, actorAccountId: accountId, idempotencyKey });
+
+    const client = makeFakeClient([
+      ...findNullSteps(),
+      ...countActiveSteps(),
+      ...insertAttachmentSteps({ id: 'att-admin-1', task_id: taskId, status: 'active', stored_object_key: objectKey }),
+    ]);
+    const service = loadServiceWithFakePg(client);
+
+    const out = await service.uploadAttachment(MOCK_CONFIG, {
+      storageRoot: ROOT, taskId, actorEmployeeCode: '', actorAccountId: accountId, idempotencyKey,
+      originalFilename: 'bao-cao.pdf', mimeType: 'application/pdf', readableStream: bufferReadable(content),
+    });
+
+    const finalPath = storage.resolveFinalPath(ROOT, objectKey);
+    const insertCall = client.calls.find((c) => INSERT_ATTACHMENTS.test(c.sql));
+    const eventCall = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
+    record(
+      'upload_1c_adminOnly_accountIdentity',
+      out.replayed === false &&
+        objectKey.includes(`/ACC_${accountId}/`) &&
+        fs.existsSync(finalPath) &&
+        fs.readFileSync(finalPath).equals(content) &&
+        insertCall.params[7] === null &&               // uploaded_by_employee_code
+        insertCall.params[8] === accountId &&          // uploaded_by_account_id
+        eventCall.params[1] === accountId &&           // audit token = accountId
+        eventCall.params[2] === accountId,             // actor_account_id
+      { objectKey, insertParams: insertCall && insertCall.params, eventParams: eventCall && eventCall.params }
+    );
+  }
+
+  // 1d) neither identity -> ATTACHMENT_STORAGE_INVALID_ACTOR, nothing written
+  {
+    const taskId = uuid();
+    const service = loadServiceWithFakePg(makeFakeClient([]));
+    let code = null;
+    try {
+      await service.uploadAttachment(MOCK_CONFIG, {
+        storageRoot: ROOT, taskId, actorEmployeeCode: '', actorAccountId: '', idempotencyKey: uuid(),
+        originalFilename: 'x.pdf', mimeType: 'application/pdf', readableStream: bufferReadable(Buffer.from('x')),
+      });
+    } catch (err) { code = err && err.code; }
+    record('upload_1d_noActorIdentity_rejected', code === 'ATTACHMENT_STORAGE_INVALID_ACTOR', { code });
+  }
+
   // 2) Replay — DB row already exists -> KHÔNG stream/upload lại
   {
     const taskId = uuid();

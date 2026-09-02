@@ -1649,9 +1649,16 @@ function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventR
   // the same resolver the backend enforces (manage basis OR own upload).
   const attachmentManageBasis = viewer && viewer.attachment_manage_basis;
   const viewerEmployeeCode = code(viewer && viewer.actor_employee_code);
+  const viewerAccountId = String((viewer && viewer.actor_account_id) || '').trim();
   const attachments = (attachmentRows || []).map(row => {
     const uploaderCode = code(row.uploaded_by_employee_code);
+    const uploaderAccountId = String(row.uploaded_by_account_id || '').trim();
     const uploader = peopleByCode.get(uploaderCode);
+    // Account-only uploader (Admin) — no People-Master row. Display a neutral
+    // label rather than a blank; the disk/metadata identity is the accountId.
+    const uploaderName = uploader ? uploader.fullName : (uploaderAccountId ? 'Quản trị hệ thống' : '');
+    const ownUpload = (!!viewerEmployeeCode && uploaderCode === viewerEmployeeCode)
+      || (!!viewerAccountId && !!uploaderAccountId && viewerAccountId === uploaderAccountId);
     return {
       id: row.id,
       original_filename: row.original_filename,
@@ -1659,9 +1666,10 @@ function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventR
       extension: row.extension,
       size_bytes: row.size_bytes,
       uploaded_by_employee_code: uploaderCode,
-      uploaded_by_full_name: uploader ? uploader.fullName : '',
+      uploaded_by_account_id: uploaderAccountId || null,
+      uploaded_by_full_name: uploaderName,
       created_at: row.created_at,
-      can_remove: !!attachmentManageBasis || (!!viewerEmployeeCode && uploaderCode === viewerEmployeeCode),
+      can_remove: !!attachmentManageBasis || ownUpload,
     };
   });
   return {

@@ -1768,7 +1768,7 @@ async function countActiveTaskAttachments(config, params) {
 // transaction đã hỏng.
 // ---------------------------------------------------------------------------
 async function createTaskAttachmentMetadata(config, params) {
-  const { taskId, originalFilename, storedObjectKey, mimeType, extension, sizeBytes, checksumSha256, uploadedByEmployeeCode } = params;
+  const { taskId, originalFilename, storedObjectKey, mimeType, extension, sizeBytes, checksumSha256, uploadedByEmployeeCode, uploadedByAccountId } = params;
 
   if (!taskId || !String(taskId).trim()) throw taskWriteError('TASK_ATTACHMENT_TASK_ID_REQUIRED');
   const filename = originalFilename && String(originalFilename).trim();
@@ -1791,18 +1791,26 @@ async function createTaskAttachmentMetadata(config, params) {
   const checksum = checksumSha256 && String(checksumSha256).trim().toLowerCase();
   if (!checksum || !CHECKSUM_SHA256_RE.test(checksum)) throw taskWriteError('TASK_ATTACHMENT_CHECKSUM_INVALID');
 
-  const uploadedBy = uploadedByEmployeeCode && String(uploadedByEmployeeCode).trim();
-  if (!uploadedBy) throw taskWriteError('TASK_ATTACHMENT_ACTOR_REQUIRED');
+  // ATTACHMENT ACTOR IDENTITY (2026-09-02) — employeeCode OR accountId, at
+  // least one required (mirrors the "actor identity" pattern already used for
+  // task.tasks.created_by_* and task.permission_grants). An Admin-only actor
+  // has employeeCode = '' and only an accountId.
+  const uploadedByEmp = uploadedByEmployeeCode && String(uploadedByEmployeeCode).trim();
+  const uploadedByAcc = uploadedByAccountId && String(uploadedByAccountId).trim();
+  if (!uploadedByEmp && !uploadedByAcc) throw taskWriteError('TASK_ATTACHMENT_ACTOR_REQUIRED');
+  // task.events.actor_employee_code is NOT NULL — it carries an audit token
+  // (employeeCode OR accountId), same as every other write in this file.
+  const auditToken = resolveAuditToken(uploadedByEmp, uploadedByAcc);
 
   try {
     return await withTaskWriteTransaction(config, async (client) => {
       const inserted = await client.query(
         `INSERT INTO task.attachments (
            task_id, original_filename, stored_object_key, mime_type, extension,
-           size_bytes, checksum_sha256, uploaded_by_employee_code
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           size_bytes, checksum_sha256, uploaded_by_employee_code, uploaded_by_account_id
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [taskId, filename, objectKey, mimeType, ext, normalizedSize, checksum, uploadedBy]
+        [taskId, filename, objectKey, mimeType, ext, normalizedSize, checksum, uploadedByEmp || null, uploadedByAcc || null]
       );
       const attachment = inserted.rows[0];
 
@@ -1811,8 +1819,8 @@ async function createTaskAttachmentMetadata(config, params) {
          VALUES ($1, 'attachment', $2, $3, $4)`,
         [
           taskId,
-          uploadedBy,
-          null,
+          auditToken,
+          uploadedByAcc || null,
           JSON.stringify({ action: 'add', attachment_id: attachment.id, original_filename: filename, size_bytes: normalizedSize }),
         ]
       );
@@ -1836,12 +1844,16 @@ async function createTaskAttachmentMetadata(config, params) {
 // sau, ngoài phạm vi DB-layer này).
 // ---------------------------------------------------------------------------
 async function removeTaskAttachment(config, params) {
-  const { taskId, attachmentId, reason, actorEmployeeCode } = params;
+  const { taskId, attachmentId, reason, actorEmployeeCode, actorAccountId } = params;
 
   if (!taskId || !String(taskId).trim()) throw taskWriteError('TASK_ATTACHMENT_TASK_ID_REQUIRED');
   if (!attachmentId || !String(attachmentId).trim()) throw taskWriteError('TASK_ATTACHMENT_ID_REQUIRED');
-  const actor = actorEmployeeCode && String(actorEmployeeCode).trim();
-  if (!actor) throw taskWriteError('TASK_ATTACHMENT_ACTOR_REQUIRED');
+  // ATTACHMENT ACTOR IDENTITY (2026-09-02) — same contract as upload:
+  // employeeCode OR accountId, at least one required.
+  const actorEmp = actorEmployeeCode && String(actorEmployeeCode).trim();
+  const actorAcc = actorAccountId && String(actorAccountId).trim();
+  if (!actorEmp && !actorAcc) throw taskWriteError('TASK_ATTACHMENT_ACTOR_REQUIRED');
+  const auditToken = resolveAuditToken(actorEmp, actorAcc);
 
   const trimmedReason = reason && String(reason).trim() ? String(reason).trim() : null;
 
@@ -1855,10 +1867,11 @@ async function removeTaskAttachment(config, params) {
 
     const updated = await client.query(
       `UPDATE task.attachments
-          SET status = 'pending_delete', deleted_at = now(), deleted_by_employee_code = $1
+          SET status = 'pending_delete', deleted_at = now(),
+              deleted_by_employee_code = $1, deleted_by_account_id = $4
         WHERE id = $2 AND task_id = $3 AND status = 'active'
         RETURNING *`,
-      [actor, attachmentId, taskId]
+      [actorEmp || null, attachmentId, taskId, actorAcc || null]
     );
     const attachment = updated.rows[0];
 
@@ -1868,7 +1881,7 @@ async function removeTaskAttachment(config, params) {
     await client.query(
       `INSERT INTO task.events (task_id, event_type, actor_employee_code, actor_account_id, payload)
        VALUES ($1, 'attachment', $2, $3, $4)`,
-      [taskId, actor, null, JSON.stringify(payload)]
+      [taskId, auditToken, actorAcc || null, JSON.stringify(payload)]
     );
 
     return attachment;

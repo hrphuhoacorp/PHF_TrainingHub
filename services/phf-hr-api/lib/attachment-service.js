@@ -65,6 +65,7 @@ async function uploadAttachment(config, params) {
     storageRoot,
     taskId,
     actorEmployeeCode,
+    actorAccountId,
     idempotencyKey,
     originalFilename,
     mimeType,
@@ -96,7 +97,7 @@ async function uploadAttachment(config, params) {
   // buildObjectKey tự validate taskId/actorEmployeeCode/idempotencyKey bằng
   // allowlist-regex (ATTACHMENT_STORAGE_INVALID_*) — KHÔNG lặp lại validate
   // ở đây, tránh 2 nguồn sự thật cho cùng 1 rule.
-  const objectKey = storage.buildObjectKey({ taskId, actorEmployeeCode, idempotencyKey });
+  const objectKey = storage.buildObjectKey({ taskId, actorEmployeeCode, actorAccountId, idempotencyKey });
   const finalPath = storage.resolveFinalPath(root, objectKey);
 
   // A. Replay — DB đã có row cho object key này (request lặp lại/y hệt
@@ -137,6 +138,7 @@ async function uploadAttachment(config, params) {
     tempPath,
     taskId,
     actorEmployeeCode,
+    actorAccountId,
     filename,
     mimeType,
     ext,
@@ -149,7 +151,7 @@ async function uploadAttachment(config, params) {
 // claimAndPublish — vòng claim/publish/DB-create, xử lý C/D/E của mục 11.
 // ---------------------------------------------------------------------------
 async function claimAndPublish(ctx) {
-  const { config, root, objectKey, finalPath, tempPath, taskId, actorEmployeeCode, filename, mimeType, ext, byteSize, checksum } = ctx;
+  const { config, root, objectKey, finalPath, tempPath, taskId, actorEmployeeCode, actorAccountId, filename, mimeType, ext, byteSize, checksum } = ctx;
 
   for (let attempt = 1; attempt <= MAX_CLAIM_ATTEMPTS; attempt += 1) {
     const claim = await storage.claimFinalPath(finalPath);
@@ -190,6 +192,7 @@ async function claimAndPublish(ctx) {
           sizeBytes: byteSize,
           checksumSha256: checksum,
           uploadedByEmployeeCode: actorEmployeeCode,
+          uploadedByAccountId: actorAccountId,
         });
         return { attachment, replayed: false };
       } catch (err) {

@@ -1992,6 +1992,42 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
     record('createTaskAttachmentMetadata_uniqueConflict_selfHeals_returnsWinner', out && out.id === 'att-winner' && client._remainingSteps() === 0, { out });
   }
 
+  {
+    // CA9) ATTACHMENT ACTOR IDENTITY (2026-09-02) — Admin-only actor
+    // (uploadedByEmployeeCode '' + uploadedByAccountId): attachment INSERT gets
+    // employee-code NULL + account-id; event actor token = account-id.
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: INSERT_ATTACHMENTS, result: { rows: [{ id: 'att-adm', task_id: 't1', status: 'active', size_bytes: 2048 }], rowCount: 1 } },
+      { expect: INSERT_EVENTS_GENERIC, result: { rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { createTaskAttachmentMetadata } = loadTaskWriteWithFakePg(client);
+    await createTaskAttachmentMetadata(MOCK_CONFIG, {
+      ...VALID_ATTACHMENT_INPUT,
+      storedObjectKey: 'tasks/t1/ACC_admin-acc-uuid/22222222-2222-4222-8222-222222222222',
+      uploadedByEmployeeCode: '', uploadedByAccountId: 'admin-acc-uuid',
+    });
+    const ins = client.calls.find((c) => INSERT_ATTACHMENTS.test(c.sql));
+    const ev = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
+    record(
+      'createTaskAttachmentMetadata_adminOnly_accountIdentity',
+      ins.params[7] === null && ins.params[8] === 'admin-acc-uuid' &&
+        ev.params[1] === 'admin-acc-uuid' && ev.params[2] === 'admin-acc-uuid',
+      { insParams: ins.params, evParams: ev.params }
+    );
+  }
+
+  {
+    // CA10) neither uploader identity -> ACTOR_REQUIRED, no DB call
+    const client = makeFakeClient([]);
+    const { createTaskAttachmentMetadata } = loadTaskWriteWithFakePg(client);
+    let error;
+    try { await createTaskAttachmentMetadata(MOCK_CONFIG, { ...VALID_ATTACHMENT_INPUT, uploadedByEmployeeCode: '', uploadedByAccountId: '' }); } catch (e) { error = e; }
+    record('createTaskAttachmentMetadata_noIdentity_ACTOR_REQUIRED_noDbCall', error && error.code === 'TASK_ATTACHMENT_ACTOR_REQUIRED' && client.calls.length === 0, { code: error && error.code });
+  }
+
   // =========================================================================
   // Gate 5.4 — removeTaskAttachment
   // =========================================================================
@@ -2014,6 +2050,39 @@ const COMBINED_CTE = /^WITH updated AS \( UPDATE task\.tasks/; // completeTask/r
       out.status === 'pending_delete' && out.deleted_by_employee_code === 'PHF001' && payload.action === 'remove' && payload.attachment_id === 'att-4' && payload.reason === 'Nhầm file.',
       { out, payload }
     );
+  }
+
+  {
+    // RA1b) ATTACHMENT ACTOR IDENTITY — Admin-only remover (accountId only):
+    // deleted_by_employee_code param NULL, deleted_by_account_id param set,
+    // event actor token = accountId.
+    const client = makeFakeClient([
+      { expect: /^BEGIN$/, result: {} },
+      { expect: /^SET LOCAL ROLE phf_hr_app$/, result: {} },
+      { expect: SELECT_ATTACHMENT_FOR_UPDATE, result: { rows: [{ id: 'att-adm', status: 'active' }], rowCount: 1 } },
+      { expect: UPDATE_ATTACHMENTS, result: { rows: [{ id: 'att-adm', status: 'pending_delete' }], rowCount: 1 } },
+      { expect: INSERT_EVENTS_GENERIC, result: { rowCount: 1 } },
+      { expect: /^COMMIT$/, result: {} },
+    ]);
+    const { removeTaskAttachment } = loadTaskWriteWithFakePg(client);
+    await removeTaskAttachment(MOCK_CONFIG, { taskId: 't1', attachmentId: 'att-adm', actorEmployeeCode: '', actorAccountId: 'admin-acc-uuid' });
+    const upd = client.calls.find((c) => UPDATE_ATTACHMENTS.test(c.sql));
+    const ev = client.calls.find((c) => INSERT_EVENTS_GENERIC.test(c.sql));
+    record(
+      'removeTaskAttachment_adminOnly_accountIdentity',
+      upd.params[0] === null && upd.params[3] === 'admin-acc-uuid' &&
+        ev.params[1] === 'admin-acc-uuid' && ev.params[2] === 'admin-acc-uuid',
+      { updParams: upd.params, evParams: ev.params }
+    );
+  }
+
+  {
+    // RA1c) neither remover identity -> ACTOR_REQUIRED, no DB call
+    const client = makeFakeClient([]);
+    const { removeTaskAttachment } = loadTaskWriteWithFakePg(client);
+    let error;
+    try { await removeTaskAttachment(MOCK_CONFIG, { taskId: 't1', attachmentId: 'att-x', actorEmployeeCode: '', actorAccountId: '' }); } catch (e) { error = e; }
+    record('removeTaskAttachment_noIdentity_ACTOR_REQUIRED_noDbCall', error && error.code === 'TASK_ATTACHMENT_ACTOR_REQUIRED' && client.calls.length === 0, { code: error && error.code });
   }
 
   {
