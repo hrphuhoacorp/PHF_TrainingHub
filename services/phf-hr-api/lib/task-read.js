@@ -193,7 +193,7 @@ async function getTaskById(config, taskId) {
         // task-write.getTaskAttachmentForDownload and streams bytes only).
         client.query(
           `SELECT id, original_filename, mime_type, extension, size_bytes,
-                  uploaded_by_employee_code, created_at
+                  uploaded_by_employee_code, uploaded_by_account_id, created_at
              FROM task.attachments
             WHERE task_id = $1 AND status = 'active'
             ORDER BY created_at ASC`,

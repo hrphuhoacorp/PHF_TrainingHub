@@ -4284,6 +4284,8 @@ function phftAttachErrorText(err){
     TASK_ATTACHMENT_UPLOAD_DENIED:'Bạn không có quyền đính kèm file cho công việc này.',
     TASK_ATTACHMENT_UPLOAD_AUTHZ_DENIED:'Bạn không có quyền đính kèm file cho công việc này.',
     TASK_ATTACHMENT_SERVER_REQUIRED:'Tính năng đính kèm file chưa được bật trên môi trường này.',
+    TASK_ATTACHMENT_ACTOR_REQUIRED:'Không xác định được danh tính người đính kèm. Vui lòng đăng nhập lại.',
+    ATTACHMENT_STORAGE_INVALID_ACTOR:'Không xác định được danh tính người đính kèm. Vui lòng đăng nhập lại.',
     TASK_NOT_FOUND:'Không tìm thấy công việc hoặc bạn không còn quyền xem.'
   };
   if(map[code])return map[code];
@@ -4378,9 +4380,18 @@ async function handleTaskDetailAttachUpload(root,fileList){
   phftAttach.busy=false;
   var okCount=files.length-failed;
   // keep failed rows visible briefly via the error string on the section, then refresh the real list
+  var failedSlots=phftAttach.uploading.slice();
   phftAttach.uploading=[];
   if(failed){
-    phftAttach.error=failed===files.length?'Không tải được file lên. Vui lòng thử lại.':('Đã tải lên '+okCount+'/'+files.length+' file. '+failed+' file chưa tải lên được.');
+    if(failed===files.length){
+      // surface the actual reason (first failed slot) instead of a blanket
+      // "thử lại" — a permission/identity error is not retryable
+      var firstErr='';
+      for(var k=0;k<failedSlots.length;k++){ if(failedSlots[k]&&failedSlots[k].error){ firstErr=failedSlots[k].error; break; } }
+      phftAttach.error=firstErr||'Không tải được file lên. Vui lòng thử lại.';
+    } else {
+      phftAttach.error='Đã tải lên '+okCount+'/'+files.length+' file. '+failed+' file chưa tải lên được.';
+    }
   }
   await reloadTaskDetail(root);
 }

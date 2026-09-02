@@ -53,6 +53,36 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // trong repo (PHF001, PARITY_TEST_E07, TEST_B46_HTTP_ACTOR...).
 const EMPLOYEE_CODE_RE = /^[A-Z0-9_]{1,64}$/;
 
+// ATTACHMENT ACTOR IDENTITY (2026-09-02) — the object-key actor segment is a
+// TYPED, path-safe representation so an Admin-only actor (accountId present,
+// employeeCode = '') can upload without ambiguity vs an employee actor:
+//   employeeCode -> "EMP_<CODE>"   (CODE already matches EMPLOYEE_CODE_RE)
+//   accountId    -> "ACC_<ID>"     (ID normalized/validated below)
+// Priority: employeeCode first, else accountId, else reject. The two prefixes
+// can never collide (EMP_ vs ACC_) and neither can contain '/', '\', '..',
+// spaces or a null byte — every allowed char is in the validating regex.
+// Account ids seen in this repo: Supabase auth UUIDs (hex + '-') and the
+// synthetic system-cron ids ("system-task-recurrence-cron"). Both match.
+const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+
+function buildActorSegment({ actorEmployeeCode, actorAccountId }) {
+  const emp = String(actorEmployeeCode || '').trim();
+  if (emp) {
+    if (!EMPLOYEE_CODE_RE.test(emp)) {
+      throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_ACTOR', 'actorEmployeeCode không hợp lệ.');
+    }
+    return `EMP_${emp}`;
+  }
+  const acc = String(actorAccountId || '').trim();
+  if (acc) {
+    if (!ACCOUNT_ID_RE.test(acc)) {
+      throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_ACTOR', 'actorAccountId không hợp lệ.');
+    }
+    return `ACC_${acc}`;
+  }
+  throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_ACTOR', 'Thiếu danh tính người thao tác (employeeCode hoặc accountId).');
+}
+
 function attachmentStorageError(code, message, extra) {
   const err = new Error(message);
   err.code = code;
@@ -69,22 +99,21 @@ function attachmentStorageError(code, message, extra) {
 // CLOSED). Validate CẢ 3 thành phần bằng allowlist-regex TRƯỚC khi build
 // string — '../', path separator, null byte, hay bất kỳ ký tự lạ nào đều
 // KHÔNG thể khớp regex nên tự động bị chặn, không cần blocklist riêng.
-function buildObjectKey({ taskId, actorEmployeeCode, idempotencyKey }) {
+function buildObjectKey({ taskId, actorEmployeeCode, actorAccountId, idempotencyKey }) {
   const taskIdStr = String(taskId || '');
-  const actorStr = String(actorEmployeeCode || '');
   const keyStr = String(idempotencyKey || '');
 
   if (!UUID_RE.test(taskIdStr)) {
     throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_TASK_ID', 'taskId không hợp lệ.');
   }
-  if (!EMPLOYEE_CODE_RE.test(actorStr)) {
-    throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_ACTOR', 'actorEmployeeCode không hợp lệ.');
-  }
+  // Typed, path-safe actor segment (EMP_<code> / ACC_<accountId>). Throws
+  // ATTACHMENT_STORAGE_INVALID_ACTOR when neither identity is present/valid.
+  const actorSegment = buildActorSegment({ actorEmployeeCode, actorAccountId });
   if (!UUID_RE.test(keyStr)) {
     throw attachmentStorageError('ATTACHMENT_STORAGE_INVALID_IDEMPOTENCY_KEY', 'idempotencyKey không hợp lệ.');
   }
 
-  return `tasks/${taskIdStr}/${actorStr}/${keyStr}`;
+  return `tasks/${taskIdStr}/${actorSegment}/${keyStr}`;
 }
 
 // Defense-in-depth: dù objectKey chỉ có thể sinh ra từ buildObjectKey() (đã
@@ -281,6 +310,7 @@ function createFinalReadStream(finalPath) {
 
 module.exports = {
   TMP_DIR_NAME,
+  buildActorSegment,
   buildObjectKey,
   resolveFinalPath,
   createTempPath,

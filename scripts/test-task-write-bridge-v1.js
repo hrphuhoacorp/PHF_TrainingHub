@@ -201,20 +201,30 @@ async function run() {
     try {
       const buf = Buffer.from('fake file bytes');
       await bridge.bridgeUploadTaskAttachment('t1', buf, {
-        filename: 'bao cao.pdf', mimeType: 'application/pdf', actorEmployeeCode: 'PHF002', idempotencyKey: 'idem-1',
+        filename: 'bao cao.pdf', mimeType: 'application/pdf', actorEmployeeCode: 'PHF002', actorAccountId: 'acc-002', idempotencyKey: 'idem-1',
       });
       check('uploadAttachment -> đúng path :uploadAttachment', calls[0].url.endsWith(':uploadAttachment'));
       check('uploadAttachment -> body chính là Buffer (raw binary, KHÔNG JSON.stringify)', Buffer.isBuffer(calls[0].body) && calls[0].body.equals(buf));
       check('uploadAttachment -> Content-Type = mimeType thật, KHÔNG phải application/json', calls[0].headers['Content-Type'] === 'application/pdf');
       check('uploadAttachment -> X-Attachment-Filename đã encodeURIComponent', calls[0].headers['X-Attachment-Filename'] === encodeURIComponent('bao cao.pdf'));
       check('uploadAttachment -> X-Attachment-Actor-Employee-Code đúng', calls[0].headers['X-Attachment-Actor-Employee-Code'] === 'PHF002');
+      check('uploadAttachment -> X-Attachment-Actor-Account-Id đúng (parity mọi write route)', calls[0].headers['X-Attachment-Actor-Account-Id'] === 'acc-002');
       check('uploadAttachment -> Content-Length đúng bytes thật', calls[0].headers['Content-Length'] === String(buf.length));
 
-      await bridge.bridgeRemoveTaskAttachment('t1', 'att-1', 'sai file', 'PHF002');
-      check('removeAttachment -> đúng path + body JSON đúng field (khác upload)', calls[1].url.endsWith(':removeAttachment') && JSON.parse(calls[1].body).attachmentId === 'att-1');
+      // ATTACHMENT ACTOR IDENTITY — Admin-only actor (employeeCode '' + accountId)
+      await bridge.bridgeUploadTaskAttachment('t1', buf, {
+        filename: 'x.pdf', mimeType: 'application/pdf', actorEmployeeCode: '', actorAccountId: 'admin-acc-uuid', idempotencyKey: 'idem-2',
+      });
+      check('uploadAttachment (admin) -> employee header rỗng, account header có', calls[1].headers['X-Attachment-Actor-Employee-Code'] === '' && calls[1].headers['X-Attachment-Actor-Account-Id'] === 'admin-acc-uuid');
+
+      await bridge.bridgeRemoveTaskAttachment('t1', 'att-1', 'sai file', 'PHF002', 'acc-002');
+      check('removeAttachment -> đúng path + body JSON đúng field (khác upload)', calls[2].url.endsWith(':removeAttachment') && JSON.parse(calls[2].body).attachmentId === 'att-1');
+      check('removeAttachment -> actor có cả employeeCode và accountId', JSON.parse(calls[2].body).actor.employeeCode === 'PHF002' && JSON.parse(calls[2].body).actor.accountId === 'acc-002');
+      await bridge.bridgeRemoveTaskAttachment('t1', 'att-1', 'sai file', '', 'admin-acc-uuid');
+      check('removeAttachment (admin) -> actor.accountId only', JSON.parse(calls[3].body).actor.employeeCode === undefined && JSON.parse(calls[3].body).actor.accountId === 'admin-acc-uuid');
 
       const dl = await bridge.bridgeDownloadTaskAttachment('t1', 'att-1');
-      check('downloadAttachment -> GET method, đúng path /attachments/:id', calls[2].method === 'GET' && calls[2].url.endsWith('/t1/attachments/att-1'));
+      check('downloadAttachment -> GET method, đúng path /attachments/:id', calls[4].method === 'GET' && calls[4].url.endsWith('/t1/attachments/att-1'));
       check('downloadAttachment -> trả về response thô (không parse JSON), caller tự pipe stream', dl.body === 'FAKE_STREAM');
     } finally {
       global.fetch = originalFetch;

@@ -205,7 +205,7 @@ function signDescriptor(payload, secret) {
         result: { rows: [{ id: 'e1', task_id: 't1', event_type: 'status' }] },
       },
       // FILE ATTACHMENT V1 — additive ACTIVE-only safe projection (in Promise.all with the 4 above).
-      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, created_at FROM task\.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [{ id: 'att1', original_filename: 'mc.pdf', mime_type: 'application/pdf', extension: 'pdf', size_bytes: 111, uploaded_by_employee_code: 'PHF010', created_at: '2026-08-02' }] } },
+      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, uploaded_by_account_id, created_at FROM task.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [{ id: 'att1', original_filename: 'mc.pdf', mime_type: 'application/pdf', extension: 'pdf', size_bytes: 111, uploaded_by_employee_code: 'PHF010', created_at: '2026-08-02' }] } },
       // SOURCE OF WORK V1 — additive proposal-generated reverse lookup.
       { expect: /SELECT 1 FROM task\.proposal_decisions WHERE generated_task_id = \$1 LIMIT 1/, result: { rows: [] } },
       // CANCEL POLICY V1 — additive pending "Yêu cầu hủy" lookup (to_regclass-guarded).
@@ -266,7 +266,7 @@ function signDescriptor(payload, secret) {
       { expect: /^SELECT \* FROM task\.comments WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
       { expect: /^SELECT \* FROM task\.links WHERE task_id = \$1 ORDER BY created_at ASC$/, result: { rows: [] } },
       { expect: /^SELECT \* FROM task\.events WHERE task_id = \$1 ORDER BY occurred_at DESC$/, result: { rows: [] } },
-      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, created_at FROM task\.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [] } },
+      { expect: /^SELECT id, original_filename, mime_type, extension, size_bytes, uploaded_by_employee_code, uploaded_by_account_id, created_at FROM task.attachments WHERE task_id = \$1 AND status = 'active' ORDER BY created_at ASC$/, result: { rows: [] } },
       { expect: /SELECT 1 FROM task\.proposal_decisions WHERE generated_task_id = \$1 LIMIT 1/, result: { rows: [] } },
       { expect: /FROM task\.cancel_requests/, result: { rows: [] } },
       { expect: COMMIT, result: {} },

@@ -458,11 +458,16 @@ async function uploadTaskAttachmentViaServer(session, taskId, fileBuffer, option
     throw err;
   }
   const actorContext = await resolveAndAuthorizeAttachmentUpload(session, current, () => Promise.resolve(assignees));
+  // ATTACHMENT ACTOR IDENTITY (2026-09-02) — forward BOTH identifiers, parity
+  // with every other Task write route. An Admin-only actor has employeeCode ''
+  // and only accountId; the storage object-key + metadata use whichever is
+  // present (employeeCode first).
   return bridgeUploadTaskAttachment(taskId, fileBuffer, {
     filename: options && options.filename,
     mimeType: options && options.mimeType,
     idempotencyKey: options && options.idempotencyKey,
     actorEmployeeCode: actorContext.employeeCode,
+    actorAccountId: actorContext.accountId,
   });
 }
 
@@ -478,11 +483,15 @@ async function removeTaskAttachmentViaServer(session, taskId, attachmentId, reas
   const actorContext = await resolveAndAuthorizeView(session, detail.task, detail.assignees);
   const manageBasis = await resolveAttachmentManageBasis(session, detail.task, detail.assignees);
   const target = (detail.attachments || []).find(a => a.id === attachmentId);
-  const isUploader = !!target && sameEmployeeCode(target.uploaded_by_employee_code, actorContext.employeeCode);
+  const isUploader = !!target && (
+    sameEmployeeCode(target.uploaded_by_employee_code, actorContext.employeeCode)
+    || (!!target.uploaded_by_account_id && !!actorContext.accountId
+        && String(target.uploaded_by_account_id).trim() === String(actorContext.accountId).trim())
+  );
   if (!manageBasis && !isUploader) {
     throw attachmentAuthzError('Không có quyền gỡ tệp đính kèm này.', 'TASK_ATTACHMENT_REMOVE_DENIED');
   }
-  return bridgeRemoveTaskAttachment(taskId, attachmentId, reason, actorContext.employeeCode);
+  return bridgeRemoveTaskAttachment(taskId, attachmentId, reason, actorContext.employeeCode, actorContext.accountId);
 }
 
 // FILE ATTACHMENT V1 — DOWNLOAD. Anyone who can VIEW the task may download any

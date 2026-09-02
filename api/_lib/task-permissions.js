@@ -639,6 +639,10 @@ async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
     // per-row can_remove (uploader may always remove their own upload). Not
     // sensitive: it is the identity of the very actor receiving this DTO.
     actor_employee_code: actorContext.employeeCode || null,
+    // the caller's own account id — parity with actor_employee_code, so
+    // assembleTaskDetailDto can set can_remove for an account-only (Admin)
+    // uploader removing their own upload.
+    actor_account_id: actorContext.accountId || null,
     actions: {
       upload_attachment: canUploadAttachment,
       view: canView,
