@@ -2664,10 +2664,21 @@
     function templateListMeta(item){
       var config=ASSISTANT_TEMPLATE_CONFIGS[item.id];
       var ready=item.id==='nv-ban-hang'||item.id==='truong-ca-ban-hang'||item.id==='nv-kho'||item.id==='tbp-kho'||!!config;
-      var version=config?config.version:(item.id==='truong-ca-ban-hang'?'TCP-BH-1.0':(item.id==='nv-kho'?'NVK-1.0':(item.id==='tbp-kho'?'TBP-KHO-1.0':'BH-1.0')));
+      var fallbackVersion=config?config.version:(item.id==='truong-ca-ban-hang'?'TCP-BH-1.0':(item.id==='nv-kho'?'NVK-1.0':(item.id==='tbp-kho'?'TBP-KHO-1.0':'BH-1.0')));
       var count=0;try{count=criteriaCount(baseTemplateGroups(item.id));}catch(_){count=0;}
       var override=loadBulkOverride(item.id);
-      return {ready:ready,version:ready?version:'Phiếu tháng',count:count,status:ready?'Đang áp dụng':'Nguồn đã chốt',effective:ready?((override&&override.effectiveDate)||'01/08/2026'):'Chưa phát hành'};
+      // Phiên bản + Hiệu lực PHẢI cùng đến từ đúng current_version của bản ghi mẫu trong CSDL
+      // (không lấy version từ hằng số cứng / assignment / phiếu tháng, không lấy hiệu lực từ
+      // một bản ghi version khác). Chỉ rơi về giá trị cũ khi mẫu chưa có bản ghi CSDL.
+      ensureChecklistTemplatesHydrated();
+      var dbRow=checklistTemplateDbState.byId[item.id]||{};
+      var currentVersion=normalizeText(dbRow.version);
+      var matchedVersion=(Array.isArray(dbRow.versions)?dbRow.versions:[]).find(function(v){return normalizeText(v&&v.version)===currentVersion;});
+      var version=currentVersion||(ready?fallbackVersion:'Phiếu tháng');
+      var effective=currentVersion
+        ?((matchedVersion&&matchedVersion.effectiveDate)||normalizeText(dbRow.effectiveFrom)||normalizeText(dbRow.effectiveDate)||(override&&override.effectiveDate)||'—')
+        :(ready?((override&&override.effectiveDate)||'01/08/2026'):'Chưa phát hành');
+      return {ready:ready,version:version,count:count,status:ready?'Đang áp dụng':'Nguồn đã chốt',effective:effective};
     }
     return '<div class="phfck-template-list-wrap"><table class="phfck-template-list"><thead><tr><th class="is-order">STT</th><th>Mẫu Checklist</th><th>Phòng ban</th><th>Phiên bản</th><th>Tiêu chí</th><th>Hiệu lực</th><th>Trạng thái</th><th class="is-action">Thao tác</th></tr></thead><tbody>'+rows.map(function(item,index){
       var meta=templateListMeta(item);
