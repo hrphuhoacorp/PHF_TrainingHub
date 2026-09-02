@@ -96,11 +96,29 @@ async function getMonthlyCyclePolicy(session,input={}){if(!db)fail('Supabase ch�
 async function resolveMonthlyCycleWindow(periodMonth,policyArg,overrideArg){const policy=policyArg||parseMonthlyCyclePolicy((await db.from('checklist_system_settings').select('setting_value').eq('setting_key',MONTHLY_CYCLE_SETTING_KEY).maybeSingle()).data?.setting_value),override=overrideArg===undefined?await monthlyCycleOverride(periodMonth):overrideArg||null;const pick=(key,base)=>override&&override[key]!=null?override[key]:base;return {periodMonth:month(periodMonth),selfOpenAt:periodDateTime(periodMonth,pick('self_start_day',policy.selfStartDay),'00:00'),selfDueAt:periodDateTime(periodMonth,pick('self_end_day',policy.selfEndDay),'23:59'),reviewOpenAt:periodDateTime(periodMonth,pick('review_start_day',policy.reviewStartDay),'00:00'),reviewDueAt:periodDateTime(periodMonth,pick('review_end_day',policy.reviewEndDay),'23:59'),lockAt:periodDateTime(periodMonth,pick('lock_day',policy.lockDay),pick('lock_time',policy.lockTime)),isOverride:Boolean(override),overrideReason:t(override&&override.reason)};}
 async function saveMonthlyCyclePolicy(session,input={}){if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);const reason=t(input.reason);if(reason.length<10)fail('Lý do thay đổi cần tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_CYCLE_REASON_REQUIRED');const old=await getMonthlyCyclePolicy(session,{period:input.effectiveFromPeriod}),a=actor(session),policy=parseMonthlyCyclePolicy(JSON.stringify({...old.policy,...input,reason,updatedAt:new Date().toISOString(),updatedBy:a.name}));if(policy.selfEndDay<policy.selfStartDay)fail('Ngày kết thúc tự đánh giá phải từ ngày bắt đầu trở đi.');if(policy.reviewEndDay<policy.reviewStartDay)fail('Ngày kết thúc thẩm định phải từ ngày bắt đầu trở đi.');const saved=await db.from('checklist_system_settings').upsert({setting_key:MONTHLY_CYCLE_SETTING_KEY,setting_value:JSON.stringify(policy),description:'Chu kỳ tự động phiếu đánh giá tháng',updated_at:new Date().toISOString(),updated_by:a.name},{onConflict:'setting_key'}).select('*').single();if(saved.error)monthlyCycleDbError(saved.error,'lưu cấu hình chu kỳ');const history=await db.from('checklist_monthly_cycle_policy_history').insert({before_data:old.policy,after_data:policy,reason,changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name});if(history.error)monthlyCycleDbError(history.error,'ghi lịch sử chu kỳ');return {saved:true,policy,window:await resolveMonthlyCycleWindow(policy.effectiveFromPeriod,policy,null)};}
 async function saveMonthlyCycleOverride(session,input={}){if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);const period=month(input.period),reason=t(input.reason);if(reason.length<10)fail('Lý do ngoại lệ cần tối thiểu 10 ký tự.');const a=actor(session),row={period_month:period,self_start_day:input.selfStartDay==null?null:boundedInt(input.selfStartDay,1,1,28),self_end_day:input.selfEndDay==null?null:boundedInt(input.selfEndDay,3,1,28),review_start_day:input.reviewStartDay==null?null:boundedInt(input.reviewStartDay,1,1,28),review_end_day:input.reviewEndDay==null?null:boundedInt(input.reviewEndDay,4,1,28),lock_day:input.lockDay==null?null:boundedInt(input.lockDay,4,1,28),lock_time:input.lockTime?validTime(input.lockTime):null,reason,updated_at:new Date().toISOString(),updated_by:a.id,updated_by_code:a.employeeCode,updated_by_name:a.name};const saved=await db.from('checklist_monthly_period_overrides').upsert(row,{onConflict:'period_month'}).select('*').single();if(saved.error)monthlyCycleDbError(saved.error,'lưu ngoại lệ chu kỳ');return {saved:true,override:saved.data,window:await resolveMonthlyCycleWindow(period,null,saved.data)};}
+const REVIEWER_AUTO_SYNC_REASON_PREFIX='Hệ thống đồng bộ người thẩm định theo phân công hiệu lực';
+function isAutoSyncReviewerReason(reason){return t(reason).startsWith(REVIEWER_AUTO_SYNC_REASON_PREFIX);}
+/* Bug B (2026-09-02): reconcile chỉ được auto-đồng bộ người thẩm định theo quản lý trực tiếp
+ * khi phiếu CHƯA từng bị Admin đổi người thẩm định một cách tường minh. Nếu sự kiện
+ * 'change_reviewer' gần nhất trong lịch sử phiếu KHÔNG phải auto-sync của hệ thống
+ * (tức Admin đã bấm "Đổi người thẩm định" và nhập lý do) VÀ người thẩm định hiện tại của
+ * phiếu vẫn đúng bằng lựa chọn tường minh đó — thì tôn trọng override, KHÔNG ghi đè. */
+function activeExplicitReviewerOverride(historyRows){
+ const events=(historyRows||[]).filter(x=>t(x.action)==='change_reviewer');
+ const last=events[events.length-1];
+ return last&&!isAutoSyncReviewerReason(last.reason)?last:null;
+}
+function overrideStillApplied(overrideEvent,form){
+ const after=overrideEvent&&overrideEvent.after_data||{};
+ const oc=t(after.reviewerCode||after.reviewer_code).toUpperCase(),oi=t(after.reviewerId||after.reviewer_id);
+ return Boolean((oc&&oc===t(form.reviewer_code).toUpperCase())||(oi&&oi===t(form.reviewer_id)));
+}
 async function reconcileMissingMonthlyReviewers(session,periodMonth){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
  const m=month(periodMonth),a=actor(session),end=periodBounds(m).end,assignmentState=await assignmentSnapshotsAt(end),byCode=new Map((assignmentState.snapshots||[]).map(x=>[t(x.employee_code).toUpperCase(),x]));
  const got=await db.from('checklist_monthly_forms').select('*').eq('period_month',m).eq('status','draft').limit(1000);if(got.error)throw got.error;
- const changed=[],warnings=[];
+ const historiesByForm=await formHistories((got.data||[]).map(x=>x.id));
+ const changed=[],warnings=[],skippedOverride=[];
  for(const form of got.data||[]){
   const current=byCode.get(t(form.employee_code).toUpperCase())||{};
   const currentReviewerId=t(current.manager_id),currentReviewerCode=t(current.manager_code).toUpperCase();
@@ -111,16 +129,21 @@ async function reconcileMissingMonthlyReviewers(session,periodMonth){
   }
   const matchesCurrent=t(form.reviewer_id)===currentReviewerId&&t(form.reviewer_code).toUpperCase()===currentReviewerCode;
   if(matchesCurrent)continue;
+  const override=activeExplicitReviewerOverride(historiesByForm.get(form.id));
+  if(override&&overrideStillApplied(override,form)){
+   skippedOverride.push({formId:form.id,employeeCode:t(form.employee_code).toUpperCase(),employeeName:t(form.employee_name),reviewerCode:t(form.reviewer_code).toUpperCase(),reviewerName:t(form.reviewer_name),reason:'EXPLICIT_ADMIN_OVERRIDE'});
+   continue;
+  }
   const reviewerId=currentReviewerId,reviewerCode=currentReviewerCode,reviewerName=t(current.manager_name);
   if(!reviewerName){warnings.push({code:'MISSING_REVIEWER_NAME',employeeCode:t(form.employee_code).toUpperCase(),employeeName:t(form.employee_name),message:'Người thẩm định hiệu lực chưa có họ tên.'});continue;}
-  const reason='Hệ thống đồng bộ người thẩm định theo phân công hiệu lực của kỳ '+m+'.';
+  const reason=REVIEWER_AUTO_SYNC_REASON_PREFIX+' của kỳ '+m+'.';
   const rpc=await db.rpc('change_checklist_monthly_reviewer',{p_form_id:form.id,p_reviewer_id:reviewerId,p_reviewer_code:reviewerCode,p_reviewer_name:reviewerName,p_reason:reason,p_actor_id:a.id,p_actor_code:a.employeeCode,p_actor_name:a.name});
   if(rpc.error){warnings.push({code:'REVIEWER_RECONCILE_FAILED',employeeCode:t(form.employee_code).toUpperCase(),employeeName:t(form.employee_name),message:t(rpc.error.message)||'Không thể đồng bộ người thẩm định.'});continue;}
   const result=rpc.data||{};
   if(result.ok===true)changed.push({formId:form.id,employeeCode:t(form.employee_code).toUpperCase(),employeeName:t(form.employee_name),reviewerId,reviewerCode,reviewerName});
   else warnings.push({code:t(result.code)||'REVIEWER_RECONCILE_BLOCKED',employeeCode:t(form.employee_code).toUpperCase(),employeeName:t(form.employee_name),message:t(result.message)||'Không thể đồng bộ người thẩm định.'});
  }
- return {updated:changed.length,changed,warnings};
+ return {updated:changed.length,changed,warnings,skippedOverride,overrideRespected:skippedOverride.length};
 }
 function periodCyclePolicySnapshot(periodRow){
  const raw=periodRow&&periodRow.cycle_policy_snapshot;
