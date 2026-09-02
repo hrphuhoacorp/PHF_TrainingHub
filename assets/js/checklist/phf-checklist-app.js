@@ -4945,7 +4945,7 @@
       : '<div class="phfck-modal-foot" style="border-top:0;padding:0 0 12px"><button type="button" class="phfck-secondary" '+(st.previewing?'disabled':'')+' data-phfck-version-override-preview>'+(st.previewing?'Đang tính…':'Xem thay đổi (chưa ghi)')+'</button></div>';
     var canConfirm=st.newVersion&&st.newVersion!==normalizeText(f.template_version)&&st.preview&&!(st.preview.classification&&st.preview.classification.outcome!=='applied')&&!monthlyUiState.versionOverriding;
     return '<div class="phfck-modal-layer" data-phfck-modal-layer><div class="phfck-modal phfck-monthly-version-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>ADMIN · ĐIỀU CHỈNH CÓ LỊCH SỬ</small><h2>Điều chỉnh phiên bản Phiếu tháng</h2></div><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
-      +'<div class="phfck-reviewer-before-after"><div><small>Nhân sự · Kỳ</small><b>'+esc(f.employee_name)+' · '+esc(f.employee_code)+' · '+esc(f.period_month)+'</b></div><div><small>Mẫu</small><b>'+esc(templateId)+'</b></div><div><small>Phiên bản phiếu hiện tại</small><b>'+esc(f.template_version||'chưa xác định')+'</b></div><div><small>Phiên bản theo phân công hiện tại</small><b>'+esc(assignmentVersion||activeVersion||'—')+'</b></div></div>'
+      +'<div class="phfck-reviewer-before-after"><div><small>Nhân sự · Kỳ</small><b>'+esc(f.employee_name)+' · '+esc(f.employee_code)+' · '+esc(reportMonthLabel(f.period_month))+'</b></div><div><small>Mẫu</small><b>'+esc(templateId)+'</b></div><div><small>Phiên bản phiếu hiện tại</small><b>'+esc(f.template_version||'chưa xác định')+'</b></div><div><small>Phiên bản theo phân công hiện tại</small><b>'+esc(assignmentVersion||activeVersion||'—')+'</b></div></div>'
       +'<label class="phfck-reviewer-field"><span>Chọn phiên bản áp dụng cho phiếu này <em>*</em></span><select data-phfck-version-override-select>'+opts+'</select><small>Chỉ hiện các phiên bản của cùng mẫu '+esc(templateId)+'.</small></label>'
       +previewBox
       +'<label class="phfck-reviewer-field"><span>Lý do điều chỉnh <em>*</em></span><textarea rows="3" data-phfck-version-override-reason placeholder="Ví dụ: giữ phiếu tháng 09 ở BH-1.0 theo quyết định Ban Giám đốc">'+esc(st.reason||'')+'</textarea><small>Tối thiểu 10 ký tự.</small></label>'
@@ -8860,29 +8860,29 @@
     var impact=s.previewError
       ? '<div class="phfck-notice"><b>Chưa thể xem tác động</b><p>'+esc(s.previewError)+'</p></div>'
       : s.preview
-      ? '<div class="phfck-notice"><b>Tác động khi kích hoạt</b><p>Phân công đang gán <b>'+esc(row.version||'phiên bản cũ')+'</b> sẽ chuyển sang <b>'+esc(s.newVersion)+'</b> (hiệu lực từ kỳ '+esc(s.periodMonth)+'): <b>'+Number(s.preview.scopeCount||0)+'</b> nhân sự'
+      ? '<div class="phfck-notice"><b>Tác động khi kích hoạt</b><p>Phân công đang gán <b>'+esc(row.version||'phiên bản cũ')+'</b> sẽ chuyển sang <b>'+esc(s.newVersion)+'</b> (hiệu lực từ '+esc(reportMonthLabel(s.periodMonth))+'): <b>'+Number(s.preview.scopeCount||0)+'</b> nhân sự'
         +(s.preview.scopeCount?' ('+esc((s.preview.scopeCodes||[]).join(', '))+')':'')+'.'
         +(s.preview.alreadyOnNewVersionCount?(' Đã ở '+esc(s.newVersion)+': '+Number(s.preview.alreadyOnNewVersionCount)+'.'):'')
         +(s.preview.inactivePinnedOldCount?(' Nhân sự đã nghỉ việc (giữ nguyên): '+Number(s.preview.inactivePinnedOldCount)+'.'):'')
         +(s.preview.otherVersionCount?(' Đang dùng phiên bản khác (không đụng): '+Number(s.preview.otherVersionCount)+'.'):'')
-        +'</p><p>Sau khi kích hoạt, hệ thống mở tiếp bước "Cập nhật Phiếu tháng '+esc(s.periodMonth)+' hiện có" (dry-run rồi mới áp dụng).</p></div>'
+        +'</p><p>Sau khi kích hoạt, hệ thống mở tiếp bước cập nhật các Phiếu tháng '+esc(reportMonthLabel(s.periodMonth))+' hiện có (xem tác động trước, rồi mới áp dụng).</p></div>'
       : '<div class="phfck-modal-foot" style="border-top:0;padding:0 0 14px"><button type="button" class="phfck-secondary" '+(s.previewing?'disabled':'')+' data-phfck-tse-activate-preview>'+(s.previewing?'Đang tính tác động…':'Xem tác động (dữ liệu thật, chưa ghi)')+'</button></div>';
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-tse-activate-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>KÍCH HOẠT PHIÊN BẢN</small><h2>'+esc(item.name||s.templateId)+' · '+esc(row.version||'—')+' → '+esc(s.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
-      +'<div class="phfck-reviewer-before-after"><div><small>Đang áp dụng</small><b>'+esc(row.version||'—')+'</b></div><div><small>Sẽ kích hoạt</small><b>'+esc(s.newVersion)+'</b></div><div><small>Kỳ bắt đầu áp dụng</small><b>'+esc(s.periodMonth)+'</b></div></div>'
-      +'<div class="phfck-form-grid"><label><b>Kỳ bắt đầu áp dụng <em>*</em></b><input type="month" value="'+esc(s.periodMonth)+'" data-phfck-tse-activate-period></label><label><b>Ngày hiệu lực (DB)</b><input type="text" value="'+esc(s.effectiveDate)+'" disabled></label></div>'
+      +'<div class="phfck-reviewer-before-after"><div><small>Đang áp dụng</small><b>'+esc(row.version||'—')+'</b></div><div><small>Sẽ kích hoạt</small><b>'+esc(s.newVersion)+'</b></div><div><small>Kỳ bắt đầu áp dụng</small><b>'+esc(reportMonthLabel(s.periodMonth))+'</b></div></div>'
+      +'<div class="phfck-form-grid"><label><b>Kỳ bắt đầu áp dụng <em>*</em></b><input type="month" value="'+esc(s.periodMonth)+'" data-phfck-tse-activate-period></label><label><b>Ngày hiệu lực</b><input type="text" value="'+esc(s.effectiveDate)+'" disabled></label></div>'
       +'<label><b>Lý do kích hoạt <em>*</em></b><input type="text" placeholder="vd: Áp dụng Bảng tổng điểm 70/30 cho Nhân viên bán hàng theo quyết định Ban Giám đốc" value="'+esc(s.reason)+'" data-phfck-tse-activate-reason></label>'
       +impact
       +(s.activateError?'<div class="phfck-notice"><b>Không kích hoạt được</b><p>'+esc(s.activateError)+'</p></div>':'')
-      +'<div class="phfck-notice"><b>Chỉ mẫu này</b><p>Không đụng People (phòng ban/quản lý lấy từ Hồ sơ nhân sự như hiện hành), không đụng mẫu khác, không tạo phiên bản mới. Phiên bản cũ vẫn giữ cho các kỳ trước '+esc(s.periodMonth)+'.</p></div>'
+      +'<div class="phfck-notice"><b>Chỉ mẫu này</b><p>Không thay đổi dữ liệu nhân sự (phòng ban / quản lý), không đụng mẫu khác, không tạo phiên bản mới. Các kỳ trước '+esc(reportMonthLabel(s.periodMonth))+' vẫn giữ phiên bản cũ.</p></div>'
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-primary" '+((!reasonOk||!s.preview||s.activating)?'disabled':'')+' data-phfck-tse-activate-confirm>'+(s.activating?'Đang kích hoạt…':'Kích hoạt phiên bản')+'</button></div></div></div>';
   }
   function traGotoStep(n){if(!checklistTraState)return;checklistTraState.step=n;traRerender();}
   function traRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTraDrawerHtml());}
   function traStep1Html(){
     var state=checklistTraState;
-    return '<p>Phạm vi áp dụng lại cho mẫu <b>'+esc((tseTemplateItem(state.templateId)||{}).name||state.templateId)+'</b>, từ phiên bản <b>'+esc(state.oldVersion)+'</b> sang <b>'+esc(state.newVersion)+'</b> (đã điền sẵn từ bước tạo phiên bản, không cần chọn lại).</p>'
+    return '<p>Cập nhật các Phiếu tháng đang dùng <b>'+esc(state.oldVersion)+'</b> sang <b>'+esc(state.newVersion)+'</b> cho mẫu <b>'+esc((tseTemplateItem(state.templateId)||{}).name||state.templateId)+'</b> (đã điền sẵn, không cần chọn lại).</p>'
       +'<div class="phfck-form-grid"><label><b>Từ kỳ</b><input type="month" data-phfck-tra-period-from value="'+esc(state.periodMonthFrom)+'"></label><label><b>Đến kỳ</b><input type="month" data-phfck-tra-period-to value="'+esc(state.periodMonthTo)+'"></label></div>'
-      +'<label><b>Lý do áp dụng lại</b><input type="text" placeholder="vd: Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc" data-phfck-tra-scope-reason value="'+esc(state.scopeReason)+'"></label>'
+      +'<label><b>Lý do cập nhật</b><input type="text" placeholder="vd: Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc" data-phfck-tra-scope-reason value="'+esc(state.scopeReason)+'"></label>'
       +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-primary" data-phfck-tra-next-from-1>Tiếp tục · Xem tác động</button></div>';
   }
   function traStep2Html(){
@@ -8897,14 +8897,14 @@
     var reviewedItems=((dr.items)||[]).filter(function(it){return it.outcome==='requires-reviewed-adjustment';});
     return (state.applyError?'<div class="phfck-notice"><b>Áp dụng thất bại</b><p>'+esc(state.applyError)+'</p></div>':'')
       +(!state.applyResult?(
-        '<div class="phfck-notice"><b>Xác nhận áp dụng batch (batch_id='+esc(state.batchId)+')</b><p>Áp dụng cho phiếu draft/waiting_self/waiting_review đủ điều kiện remap tự động, đúng phạm vi đã xem ở Bước 2. Phiếu đã thẩm định/đã khóa/đã hủy KHÔNG bị đụng bởi nút này.</p></div>'
-        +'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 18px"><button type="button" class="phfck-primary" '+(state.applying?'disabled':'')+' data-phfck-tra-confirm-apply>'+(state.applying?'Đang áp dụng…':'Xác nhận áp dụng batch')+'</button></div>'
+        '<div class="phfck-notice"><b>Xác nhận cập nhật các phiếu đủ điều kiện</b><p>Chỉ cập nhật các phiếu chưa mở, đang tự đánh giá hoặc chờ thẩm định trong phạm vi vừa xem. Phiếu đã thẩm định, đã khóa hoặc đã hủy không bị ảnh hưởng.</p></div>'
+        +'<div class="phfck-modal-foot" style="border-top:0;padding:0 0 18px"><button type="button" class="phfck-primary" '+(state.applying?'disabled':'')+' data-phfck-tra-confirm-apply>'+(state.applying?'Đang cập nhật…':'Xác nhận cập nhật')+'</button></div>'
       ):(
-        '<div class="phfck-notice"><b>Đã áp dụng — batch '+esc(state.applyResult.batchId)+'</b><p>Idempotent replay: '+(state.applyResult.idempotentReplay?'Có (đã áp dụng trước đó, không chạy lại)':'Không')+'</p></div>'
+        '<div class="phfck-notice"><b>Đã cập nhật xong</b><p>'+(state.applyResult.idempotentReplay?'Các phiếu này đã được cập nhật từ trước — hệ thống không chạy lại và không nhân đôi.':'Đã cập nhật cho các phiếu đủ điều kiện.')+'</p></div>'
         +crwCountsTableHtml(state.applyResult.counts)+crwItemsListHtml(state.applyResult.items)
       ))
       +(reviewedItems.length?(
-        '<div class="phfck-panel phfck-retro-reviewed-panel"><h3>Phiếu đã thẩm định — cần xác nhận riêng</h3><p>KHÔNG được đụng bởi nút xác nhận batch phía trên. Mỗi phiếu cần xác nhận + lý do (≥10 ký tự) riêng.</p>'
+        '<div class="phfck-panel phfck-retro-reviewed-panel"><h3>Phiếu đã thẩm định — cần xác nhận riêng</h3><p>Không bị ảnh hưởng bởi nút xác nhận phía trên. Mỗi phiếu cần xác nhận + lý do (≥10 ký tự) riêng.</p>'
         +'<div class="phfck-table-wrap"><table class="phfck-table"><thead><tr><th>Mã NV</th><th>Kỳ</th><th>Lý do điều chỉnh (≥10 ký tự)</th><th></th></tr></thead><tbody>'
         +reviewedItems.map(function(it){
           var rf=state.reviewedForms[it.formId]||{};
