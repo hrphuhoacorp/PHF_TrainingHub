@@ -2500,7 +2500,29 @@
     all[key]={templateId:templateId,templateVersion:meta.version,effectiveDate:effectiveDate,reason:reason,department:item.department||'',title:item.title||'',suggestedTemplateId:suggestChecklistTemplate(item).templateId||'',updatedAt:new Date().toISOString()};
     if(!saveFormAssignments(all)){if(err){err.hidden=false;err.textContent='Không lưu được phân công trong trình duyệt.';}return;}
     addAudit({action:previous?'Điều chỉnh mẫu Checklist':'Gán mẫu Checklist',area:'Nhân sự & phân công',object:item.name+' · '+(item.code||item.id),source:'Web',impact:'Một nhân sự',version:meta.version,reason:(previous&&templateById(previous.templateId)?templateById(previous.templateId).name+' '+(previous.templateVersion||'')+' → ':'')+template.name+' '+meta.version+'; hiệu lực '+effectiveDate+'; '+reason});
-    peopleUiState.selectedId='';refreshPeopleWorkspace(root);checklistToast('success',previous?'Đã điều chỉnh mẫu':'Đã gán mẫu Checklist',template.name+' · '+meta.version+' đã áp dụng cho '+item.name+'.');
+    peopleUiState.selectedId='';refreshPeopleWorkspace(root);
+    // Persistence contract: "Đã gán mẫu" chỉ được báo thành công SAU KHI Supabase (canonical)
+    // xác nhận commit. Không báo thành công dựa trên localStorage/optimistic state, không
+    // dựa vào ghi debounce/fire-and-forget. Nếu DB từ chối (kể cả stale/blocked) -> hoàn tác
+    // ghi tạm trên trình duyệt và hiện lỗi trung thực để tránh false-success khi F5.
+    clearTimeout(checklistAssignmentDbState.timer);
+    var successTitle=previous?'Đã điều chỉnh mẫu':'Đã gán mẫu Checklist';
+    var successMsg=template.name+' · '+meta.version+' đã áp dụng cho '+item.name+'.';
+    var pendingToast=checklistToast('info','Đang lưu phân công',template.name+' · '+meta.version+' đang được ghi vào hệ thống…');
+    Promise.resolve(persistChecklistAssignmentsToDatabase({throwOnError:true,noRetry:true,silent:true})).then(function(){
+      checklistToast('success',successTitle,successMsg);
+    }).catch(function(error){
+      var revert=loadFormAssignments();
+      if(previous)revert[key]=previous;else delete revert[key];
+      checklistAssignmentDbState.suppress=true;
+      try{saveFormAssignments(revert);}finally{checklistAssignmentDbState.suppress=false;}
+      refreshPeopleWorkspace(root);
+      var stale=error&&(error.code==='CHECKLIST_ASSIGNMENT_STALE');
+      checklistToast('error',stale?'Dữ liệu đã thay đổi ở nơi khác':'Chưa lưu được phân công',
+        stale
+          ?'Có thay đổi phân công ở tab/máy khác. Vui lòng F5 để tải dữ liệu mới rồi gán lại. Mẫu vừa chọn CHƯA được áp dụng.'
+          :'Máy chủ chưa xác nhận lưu phân công nên mẫu vừa chọn CHƯA được áp dụng. Vui lòng thử lại.',true);
+    }).finally(function(){if(pendingToast&&pendingToast.parentNode)pendingToast.parentNode.removeChild(pendingToast);});
   }
   var pendingPeopleWorkbookImport=null;
   function peopleExcelText(value){return normalizeText(value==null?'':String(value));}
