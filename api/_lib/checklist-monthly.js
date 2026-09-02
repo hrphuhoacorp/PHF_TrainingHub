@@ -445,7 +445,11 @@ async function listMonthly(session,input={}){
  const forms=data||[],range=periodBounds(m),codes=[...new Set(forms.filter(x=>['draft','waiting_self','waiting_review'].includes(x.status)).map(x=>t(x.employee_code).toUpperCase()).filter(Boolean))],points={};
  if(codes.length){const v=await db.from('checklist_violation_records').select('employee_code,points').in('employee_code',codes).eq('is_test',false).eq('record_status','official').gte('occurred_date',range.start).lte('occurred_date',range.end);if(v.error)throw v.error;(v.data||[]).forEach(x=>{const c=t(x.employee_code).toUpperCase();points[c]=(points[c]||0)+Math.max(0,Number(x.points||0));});}
  const assignments=(await readAllRows('checklist_employee_assignments',['employee_key','updated_at','id'])).filter(x=>t(x.employee_status)!=='Đã nghỉ việc'),byCode=new Map(assignments.map(x=>[t(x.employee_code).toUpperCase(),x])),candidateMap=new Map();
- assignments.forEach(x=>{const code=t(x.employee_code).toUpperCase(),id=t(x.employee_id);if(code||id)candidateMap.set(code||id,{id,code,name:t(x.employee_name)});const mc=t(x.manager_code).toUpperCase(),mi=t(x.manager_id);if(mc||mi)candidateMap.set(mc||mi,{id:mi,code:mc,name:t(x.manager_name)});});
+ /* Bug Round 2: một người thẩm định = đúng MỘT lựa chọn, khóa theo employee_code (khóa định danh
+  * thật của Checklist). Ưu tiên slot nhân viên (id chuẩn); slot quản lý chỉ bổ sung khi code đó
+  * chưa có và có đủ code + tên. Không tạo option "code rỗng" (gây trùng tên, id yếu). */
+ assignments.forEach(x=>{const code=t(x.employee_code).toUpperCase();if(code)candidateMap.set(code,{id:t(x.employee_id),code,name:t(x.employee_name)});});
+ assignments.forEach(x=>{const mc=t(x.manager_code).toUpperCase(),mn=t(x.manager_name);if(mc&&mn&&!candidateMap.has(mc))candidateMap.set(mc,{id:t(x.manager_id),code:mc,name:mn});});
  const histories=await formHistories(forms.map(x=>x.id));
  return {period:period||null,reviewerCandidates:[...candidateMap.values()].filter(x=>x.name).sort((a,b)=>a.name.localeCompare(b.name,'vi')),forms:forms.map(x=>{const current=byCode.get(t(x.employee_code).toUpperCase())||{},frozen=['reviewed','locked'].includes(x.status),score=frozen?Number(x.checklist_score||0):Math.max(0,100-(points[t(x.employee_code).toUpperCase()]||0)),currentBranch=t(current.branch)||t(x.branch),currentDepartment=t(current.department)||t(x.department),currentTitle=t(current.title)||t(x.title);return withScoreSummary({...x,history:histories.get(x.id)||[],checklist_score:score,current_reviewer_id:t(current.manager_id),current_reviewer_code:t(current.manager_code).toUpperCase(),current_reviewer_name:t(current.manager_name),reviewer_outdated:Boolean((t(current.manager_id)||t(current.manager_code))&&t(current.manager_id)!==t(x.reviewer_id)&&t(current.manager_code).toUpperCase()!==t(x.reviewer_code).toUpperCase()),current_branch:currentBranch,current_department:currentDepartment,current_title:currentTitle,current_employee_status:t(current.employee_status),organization_mismatch:Boolean(current.branch&&(currentBranch!==t(x.branch)||currentDepartment!==t(x.department))),organization_source:'checklist_employee_assignments'});})};
 }
@@ -668,10 +672,19 @@ async function changeMonthlyReviewer(session,input={}){
  if(!id)fail('Thiếu mã phiếu cần đổi người thẩm định.');if(!reviewerId&&!reviewerCode)fail('Vui lòng chọn người thẩm định mới.');if(!reviewerName)fail('Người thẩm định mới chưa có họ tên.');if(reason.length<10)fail('Lý do thay đổi cần tối thiểu 10 ký tự.');
  const got=await db.from('checklist_monthly_forms').select('*').eq('id',id).maybeSingle();if(got.error)throw got.error;const form=got.data;if(!form)fail('Không tìm thấy phiếu cần cập nhật.',404,'CHECKLIST_MONTHLY_FORM_NOT_FOUND');
  if(!['draft','waiting_self','waiting_review'].includes(form.status))fail('Chỉ được đổi người thẩm định trước khi hoàn tất thẩm định.',409,'CHECKLIST_MONTHLY_REVIEWER_LOCKED');
- if(t(form.reviewer_id)===reviewerId&&t(form.reviewer_code).toUpperCase()===reviewerCode)return {changed:false,form,message:'Phiếu đã dùng đúng người thẩm định này.'};
  const people=await db.from('checklist_employee_assignments').select('employee_id,employee_code,employee_name,manager_id,manager_code,manager_name').limit(1000);if(people.error)throw people.error;
- const canonical=(people.data||[]).map(x=>[{id:t(x.employee_id),code:t(x.employee_code).toUpperCase(),name:t(x.employee_name)},{id:t(x.manager_id),code:t(x.manager_code).toUpperCase(),name:t(x.manager_name)}]).flat().find(x=>(reviewerId&&x.id===reviewerId)||(reviewerCode&&x.code===reviewerCode));
+ /* Bug Round 2 (2026-09-02): employee_code là khóa định danh người thẩm định ở mọi chỗ khác của
+  * Checklist. reviewerId từ dropdown chỉ là chuỗi manager_id/employee_id do client cấu hình —
+  * KHÔNG duy nhất, có thể rỗng/cũ/trỏ nhầm người. Trước đây canonical khớp reviewerId TRƯỚC, nên
+  * một id yếu có thể chốt nhầm người thẩm định (thường là người cũ). Giờ khớp theo CODE trước,
+  * chỉ dùng id khi KHÔNG có code; và nếu code đã chọn nhưng không khớp được đúng code -> từ chối. */
+ const candidates=(people.data||[]).map(x=>[{id:t(x.employee_id),code:t(x.employee_code).toUpperCase(),name:t(x.employee_name)},{id:t(x.manager_id),code:t(x.manager_code).toUpperCase(),name:t(x.manager_name)}]).flat().filter(x=>x.name&&(x.code||x.id));
+ let canonical=null;
+ if(reviewerCode)canonical=candidates.find(x=>x.code===reviewerCode)||null;
+ if(!canonical&&!reviewerCode&&reviewerId)canonical=candidates.find(x=>x.id===reviewerId)||null;
  if(!canonical||!canonical.name)fail('Người thẩm định mới không còn tồn tại trong dữ liệu nhân sự.',409,'CHECKLIST_MONTHLY_REVIEWER_NOT_FOUND');
+ if(reviewerCode&&canonical.code&&canonical.code!==reviewerCode)fail('Không xác định đúng người thẩm định vừa chọn. Vui lòng tải lại phiếu và chọn lại.',409,'CHECKLIST_MONTHLY_REVIEWER_MISMATCH');
+ if(t(form.reviewer_code).toUpperCase()===t(canonical.code)&&(!t(canonical.id)||t(form.reviewer_id)===t(canonical.id)))return {changed:false,form,before:{reviewerId:t(form.reviewer_id),reviewerCode:t(form.reviewer_code).toUpperCase(),reviewerName:t(form.reviewer_name)},after:{reviewerId:t(canonical.id),reviewerCode:t(canonical.code),reviewerName:t(canonical.name)},message:'Phiếu đã dùng đúng người thẩm định này.'};
  const a=actor(session),rpc=await db.rpc('change_checklist_monthly_reviewer',{p_form_id:id,p_reviewer_id:canonical.id,p_reviewer_code:canonical.code,p_reviewer_name:canonical.name,p_reason:reason,p_actor_id:a.id,p_actor_code:a.employeeCode,p_actor_name:a.name});if(rpc.error)throw rpc.error;
  const result=rpc.data||{};if(result.ok!==true)fail(t(result.message)||'Không thể đổi người thẩm định.',409,t(result.code)||'CHECKLIST_MONTHLY_REVIEWER_CHANGE_BLOCKED');
  const saved=await db.from('checklist_monthly_forms').select('*').eq('id',id).single();if(saved.error)throw saved.error;
