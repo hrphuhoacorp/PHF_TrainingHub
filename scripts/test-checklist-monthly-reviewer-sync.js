@@ -34,11 +34,12 @@ const store = {
     // NV003: phân công hiện hành KHÔNG có quản lý (case 3).
     { employee_key: 'nv003', employee_id: 'id-nv003', employee_code: 'NV003', employee_name: 'Nhân Viên 3', manager_id: '', manager_code: '', manager_name: '', employee_status: 'Đang làm việc', effective_date: '2026-01-01', updated_at: '2026-01-01T00:00:00Z' },
     { employee_key: 'nv004', employee_id: 'id-nv004', employee_code: 'NV004', employee_name: 'Nhân Viên 4', manager_id: 'MGR-NEW-ID', manager_code: 'MGR-NEW', manager_name: 'Quản Lý Mới', employee_status: 'Đang làm việc', effective_date: '2026-01-01', updated_at: '2026-01-01T00:00:00Z' },
-    { employee_key: 'nv005', employee_id: 'id-nv005', employee_code: 'NV005', employee_name: 'Nhân Viên 5', manager_id: 'MGR-NEW-ID', manager_code: 'MGR-NEW', manager_name: 'Quản Lý Mới', employee_status: 'Đang làm việc', effective_date: '2026-01-01', updated_at: '2026-01-01T00:00:00Z' }
+    { employee_key: 'nv005', employee_id: 'id-nv005', employee_code: 'NV005', employee_name: 'Nhân Viên 5', manager_id: 'MGR-NEW-ID', manager_code: 'MGR-NEW', manager_name: 'Quản Lý Mới', employee_status: 'Đang làm việc', effective_date: '2026-01-01', updated_at: '2026-01-01T00:00:00Z' },
+    { employee_key: 'nv006', employee_id: 'id-nv006', employee_code: 'NV006', employee_name: 'Nhân Viên 6', manager_id: 'MGR-NEW-ID', manager_code: 'MGR-NEW', manager_name: 'Quản Lý Mới', employee_status: 'Đang làm việc', effective_date: '2026-01-01', updated_at: '2026-01-01T00:00:00Z' }
   ],
   checklist_employee_assignment_history: [],
   checklist_monthly_forms: [
-    // Case 1: reviewer cũ khác quản lý hiện hành -> phải cập nhật.
+    // Case 1: reviewer cũ khác quản lý hiện hành, KHÔNG có override tường minh -> phải cập nhật.
     { id: 'f1', period_month: PERIOD, status: 'draft', employee_code: 'NV001', employee_name: 'Nhân Viên 1', reviewer_id: 'MGR-OLD-ID', reviewer_code: 'MGR-OLD', reviewer_name: 'Quản Lý Cũ' },
     // Case 2: reviewer rỗng, có quản lý hợp lệ -> phải gán.
     { id: 'f2', period_month: PERIOD, status: 'draft', employee_code: 'NV002', employee_name: 'Nhân Viên 2', reviewer_id: '', reviewer_code: '', reviewer_name: '' },
@@ -47,7 +48,16 @@ const store = {
     // Case 4: reviewer đã khớp đầy đủ -> không gọi RPC.
     { id: 'f4', period_month: PERIOD, status: 'draft', employee_code: 'NV004', employee_name: 'Nhân Viên 4', reviewer_id: 'MGR-NEW-ID', reviewer_code: 'MGR-NEW', reviewer_name: 'Quản Lý Mới' },
     // Case 5: reviewer_id đúng nhưng reviewer_code/name thiếu -> phải đồng bộ đầy đủ.
-    { id: 'f5', period_month: PERIOD, status: 'draft', employee_code: 'NV005', employee_name: 'Nhân Viên 5', reviewer_id: 'MGR-NEW-ID', reviewer_code: '', reviewer_name: '' }
+    { id: 'f5', period_month: PERIOD, status: 'draft', employee_code: 'NV005', employee_name: 'Nhân Viên 5', reviewer_id: 'MGR-NEW-ID', reviewer_code: '', reviewer_name: '' },
+    // Case 6 (Bug B): Admin đã đổi người thẩm định tường minh (PHF042) khác quản lý snapshot (MGR-NEW)
+    // -> reconcile PHẢI tôn trọng override, KHÔNG ghi đè.
+    { id: 'f6', period_month: PERIOD, status: 'draft', employee_code: 'NV006', employee_name: 'Nhân Viên 6', reviewer_id: 'PHF042-ID', reviewer_code: 'PHF042', reviewer_name: 'Nguyễn Hoàng Khang' }
+  ],
+  checklist_monthly_form_history: [
+    // f1: chỉ có auto-sync trước đó -> KHÔNG phải override tường minh -> vẫn được reconcile.
+    { id: 'h1', form_id: 'f1', action: 'change_reviewer', reason: 'Hệ thống đồng bộ người thẩm định theo phân công hiệu lực của kỳ ' + PERIOD + '.', after_data: { reviewerCode: 'MGR-OLD', reviewerId: 'MGR-OLD-ID' }, changed_at: '2026-08-01T00:00:00Z' },
+    // f6: sự kiện change_reviewer gần nhất là Admin nhập lý do -> override tường minh còn hiệu lực.
+    { id: 'h6', form_id: 'f6', action: 'change_reviewer', reason: 'Admin đổi sang quản lý mới theo yêu cầu nghiệp vụ', after_data: { reviewerCode: 'PHF042', reviewerId: 'PHF042-ID' }, changed_at: '2026-08-05T09:00:00Z' }
   ]
 };
 
@@ -59,6 +69,7 @@ class FakeQuery {
   select() { return this; }
   eq(col, val) { this.filters.push(row => String(row[col]) === String(val)); return this; }
   neq(col, val) { this.filters.push(row => String(row[col]) !== String(val)); return this; }
+  in(col, arr) { const set = new Set((arr || []).map(String)); this.filters.push(row => set.has(String(row[col]))); return this; }
   order() { return this; }
   limit(n) { this._limit = n; return this; }
   range() { return this; }
@@ -156,7 +167,16 @@ async function main() {
     assert.ok(rpcCallFor('f5'), 'Phải gọi RPC cho f5 dù reviewer_id đã đúng, vì code/name chưa khớp.');
   });
 
-  await record('Tổng số phiếu được cập nhật (updated) = 3 (f1, f2, f5); f3, f4 không tính', async () => {
+  await record('Case 6 (Bug B) — Admin override tường minh khác quản lý snapshot -> KHÔNG ghi đè, KHÔNG gọi RPC', async () => {
+    const f6 = formById('f6'), f6Before = formsBefore.find(f => f.id === 'f6');
+    assert.deepStrictEqual({ reviewer_id: f6.reviewer_id, reviewer_code: f6.reviewer_code, reviewer_name: f6.reviewer_name },
+      { reviewer_id: f6Before.reviewer_id, reviewer_code: f6Before.reviewer_code, reviewer_name: f6Before.reviewer_name });
+    assert.ok(!rpcCallFor('f6'), 'Không được gọi RPC cho f6 vì phiếu đã có override tường minh của Admin.');
+    assert.ok((result.skippedOverride || []).some(x => x.formId === 'f6'), 'f6 phải nằm trong skippedOverride.');
+    assert.strictEqual(result.overrideRespected, 1);
+  });
+
+  await record('Tổng số phiếu được cập nhật (updated) = 3 (f1, f2, f5); f3, f4, f6 không tính', async () => {
     assert.strictEqual(result.updated, 3);
     const ids = result.changed.map(x => x.formId).sort();
     assert.deepStrictEqual(ids, ['f1', 'f2', 'f5']);
