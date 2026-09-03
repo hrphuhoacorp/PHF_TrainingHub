@@ -43,7 +43,9 @@ function up(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
 /*
  * resolveRecipients — one People-Master read for the whole batch, via the
  * canonical merge helper (work_email -> personal_email -> account email;
- * employment_status 'active'). Returns Map<EMPLOYEE_CODE, { email, active }>.
+ * employment_status 'active'; full_name). Returns
+ * Map<EMPLOYEE_CODE, { email, active, name }>. Callers use `email`/`active`
+ * for the recipient gate and `name` to humanise the rendered payload.
  */
 async function resolveRecipients(codes) {
   const out = new Map();
@@ -55,11 +57,42 @@ async function resolveRecipients(codes) {
     contacts = await resolveEmployeeContacts(want);
   } catch (_e) { contacts = {}; }
   for (const code of want) {
-    const c = contacts[code] || { email: '', active: false };
+    const c = contacts[code] || { email: '', active: false, name: '' };
     const email = String(c.email || '').trim().toLowerCase();
-    out.set(code, { email: EMAIL_RE.test(email) ? email : '', active: !!c.active });
+    out.set(code, { email: EMAIL_RE.test(email) ? email : '', active: !!c.active, name: String(c.name || '').trim() });
   }
   return out;
+}
+
+// Payload keys that carry a bare employee code the templates want to render as
+// a human name. For each `<x>_employee_code` present in a claimed row's payload
+// the drainer injects `<x>_name` (canonical display name, or '' -> the template
+// falls back to the code). Purely presentational — no business decision, no
+// change to who the mail goes to.
+const NAME_PAYLOAD_KEYS = Object.freeze([
+  'assigner', 'primary', 'creator', 'recipient', 'from', 'actor',
+]);
+
+function collectPayloadPersonCodes(rows) {
+  const set = new Set();
+  for (const r of rows) {
+    const p = (r && r.payload) || {};
+    for (const k of NAME_PAYLOAD_KEYS) {
+      const c = up(p[k + '_employee_code']);
+      if (c) set.add(c);
+    }
+  }
+  return set;
+}
+
+function enrichPayloadNames(payload, contactMap) {
+  for (const k of NAME_PAYLOAD_KEYS) {
+    const code = up(payload[k + '_employee_code']);
+    if (!code) continue;
+    const hit = contactMap.get(code);
+    payload[k + '_name'] = (hit && hit.name) || '';
+  }
+  return payload;
 }
 
 async function runMailDrain(options = {}) {
@@ -80,10 +113,13 @@ async function runMailDrain(options = {}) {
   if (!rows.length) return summary;
 
   // WEEKLY_REPORT rows carry their address in payload.to and are NOT People
-  // Master employees — resolve emails only for the transactional rows.
-  const recipientMap = await resolveRecipients(
-    rows.filter((r) => r.template_key !== 'WEEKLY_REPORT').map((r) => r.recipient_employee_code)
-  );
+  // Master employees — resolve emails only for the transactional rows. One
+  // People-Master read covers BOTH the recipient gate and the display-name
+  // enrichment of every person code referenced in a payload.
+  const transactionalRows = rows.filter((r) => r.template_key !== 'WEEKLY_REPORT');
+  const lookupCodes = new Set(transactionalRows.map((r) => up(r.recipient_employee_code)));
+  for (const c of collectPayloadPersonCodes(transactionalRows)) lookupCodes.add(c);
+  const recipientMap = await resolveRecipients([...lookupCodes]);
   const marks = [];
 
   for (const r of rows) {
@@ -126,7 +162,10 @@ async function runMailDrain(options = {}) {
       continue;
     }
 
-    const payload = Object.assign({}, r.payload || {}, { task_id: r.task_id });
+    const payload = enrichPayloadNames(
+      Object.assign({}, r.payload || {}, { task_id: r.task_id }),
+      recipientMap
+    );
     const rendered = renderTaskMail({ templateKey: r.template_key, payload });
     if (!rendered) {
       marks.push({ id: r.id, outcome: 'skipped', reason: 'template_missing:' + r.template_key });

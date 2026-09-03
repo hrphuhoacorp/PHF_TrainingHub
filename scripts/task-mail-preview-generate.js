@@ -39,10 +39,14 @@ const TASK_ID = '11111111-2222-3333-4444-555555555555';
 const CODE = 'CV-2609-0042';
 const LONG_CODE = 'CV-LG-1780735757518';
 
+// SYNTHETIC display names — the drainer injects the real ones from People
+// Master at send time; here we hand them in directly so the preview shows what
+// a recipient actually sees (fullName, with the code as fallback).
 function basePayload(over) {
   return Object.assign({
     task_id: TASK_ID, task_code: CODE, title: SHORT_TITLE, content: SHORT_CONTENT,
-    assigner_employee_code: 'PHF002', primary_employee_code: 'PHF041',
+    assigner_employee_code: 'PHF002', assigner_name: 'Nguyễn Văn An',
+    primary_employee_code: 'PHF041', primary_name: 'Lê Thị Bình',
     start_at: D_START, deadline: D_DEADLINE,
   }, over || {});
 }
@@ -52,21 +56,21 @@ const CASES = [
   ['TASK_NEW', 'Điển hình', basePayload()],
   ['TASK_NEW', 'Tiêu đề + nội dung dài (kiểm tra xuống dòng)', basePayload({ task_code: LONG_CODE, title: LONG_TITLE, content: LONG_CONTENT })],
 
-  ['PROPOSAL_NEW', 'Điển hình', basePayload({ creator_employee_code: 'PHF010', recipient_employee_code: 'PHF002', content: SHORT_CONTENT })],
-  ['PROPOSAL_NEW', 'Tiêu đề dài, chưa có hạn', basePayload({ task_code: '', title: LONG_TITLE, deadline: '', creator_employee_code: 'PHF010', recipient_employee_code: 'PHF002', content: LONG_CONTENT })],
+  ['PROPOSAL_NEW', 'Điển hình', basePayload({ creator_employee_code: 'PHF010', creator_name: 'Phạm Minh Cường', recipient_employee_code: 'PHF002', content: SHORT_CONTENT })],
+  ['PROPOSAL_NEW', 'Tiêu đề dài, chưa có hạn', basePayload({ task_code: '', title: LONG_TITLE, deadline: '', creator_employee_code: 'PHF010', creator_name: 'Phạm Minh Cường', recipient_employee_code: 'PHF002', content: LONG_CONTENT })],
 
-  ['TASK_DEADLINE_EARLIER', 'Rút ngắn 6 ngày', basePayload({ old_deadline: D_DEADLINE_OLD, new_deadline: D_DEADLINE })],
+  ['TASK_DEADLINE_EARLIER', 'Rút ngắn 6 ngày', basePayload({ old_deadline: D_DEADLINE_OLD, new_deadline: D_DEADLINE, actor_employee_code: 'PHF002', actor_name: 'Nguyễn Văn An' })],
 
-  ['TASK_TRANSFERRED', 'Điển hình', basePayload({ primary_employee_code: 'PHF076', from_employee_code: 'PHF041' })],
+  ['TASK_TRANSFERRED', 'Điển hình', basePayload({ primary_employee_code: 'PHF076', primary_name: 'Đỗ Thị Em', from_employee_code: 'PHF041', from_name: 'Lê Thị Bình', actor_employee_code: 'PHF002', actor_name: 'Nguyễn Văn An' })],
 
   ['TASK_COMPLETED', 'Đúng hạn', basePayload({ completed_at: D_DONE_ONTIME })],
 
   ['TASK_COMPLETED_LATE', 'Trễ ~2 ngày 7 giờ', basePayload({ completed_at: D_DONE_LATE })],
 
-  ['TASK_CANCELLED', 'Có người thực hiện + lý do', basePayload({ actor_name: 'Trần Văn Vinh', reason: 'Khách hàng hoãn đợt kiểm kê sang tháng sau.' })],
-  ['TASK_CANCELLED', 'Không có lý do', basePayload({ actor_name: 'Trần Văn Vinh' })],
+  ['TASK_CANCELLED', 'Có người hủy + thời điểm + lý do', basePayload({ actor_employee_code: 'PHF002', actor_name: 'Trần Văn Vinh', cancelled_at: D_DONE_ONTIME, reason: 'Khách hàng hoãn đợt kiểm kê sang tháng sau.' })],
+  ['TASK_CANCELLED', 'Không có lý do', basePayload({ actor_employee_code: 'PHF002', actor_name: 'Trần Văn Vinh', cancelled_at: D_DONE_ONTIME })],
 
-  ['TASK_REOPENED', 'Điển hình', basePayload({ actor_name: 'Nguyễn Thị Ngọc' })],
+  ['TASK_REOPENED', 'Điển hình', basePayload({ actor_employee_code: 'PHF002', actor_name: 'Nguyễn Thị Ngọc', reopened_at: D_DONE_LATE })],
 ];
 
 function pageWrap(title, bodyInner) {
@@ -124,16 +128,16 @@ function main() {
     task_id: 'x', task_code: 'CV-2609-0000', title: 'Việc', status: 'in_progress',
     primary_employee_code: 'PHF041', deadline: null, completed_at: null, on_time: null,
     created_at: iso(2026, 7, 20, 9), published_at: iso(2026, 7, 20, 10), last_progress_at: iso(2026, 8, 12, 9),
-    progress_percent: 30,
+    progress_percent: 30, source_of_work: 'assigned_by_other',
   }, o);
   const weeklyTasks = [
     T({ task_code: 'CV-2609-0101', title: 'Kiểm kê kho Quận 7', status: 'completed', completed_at: iso(2026, 8, 10, 15), deadline: iso(2026, 8, 12, 17), on_time: true, primary_employee_code: 'PHF010' }),
     T({ task_code: 'CV-2609-0102', title: 'Đối chiếu công nợ tháng 8', status: 'completed', completed_at: iso(2026, 8, 11, 18), deadline: iso(2026, 8, 9, 17), on_time: false, primary_employee_code: 'PHF002' }),
     T({ task_code: 'CV-2609-0103', title: 'Chuẩn hoá quy trình đặt hàng nhà cung cấp và cập nhật biểu mẫu KH-08 cho toàn bộ chi nhánh khu vực phía Nam', status: 'in_progress', deadline: iso(2026, 8, 2, 17), last_progress_at: iso(2026, 7, 25, 9), primary_employee_code: 'PHF041' }),
     T({ task_code: 'CV-2609-0104', title: 'Xử lý khiếu nại khách hàng lô hàng 0812', status: 'in_progress', deadline: iso(2026, 8, 30, 17), last_progress_at: iso(2026, 8, 13, 9), primary_employee_code: 'PHF076' }),
-    T({ task_code: 'CV-2609-0105', title: 'Tổng hợp báo cáo doanh số tuần', status: 'in_progress', deadline: iso(2026, 8, 16, 17), last_progress_at: iso(2026, 7, 30, 9), primary_employee_code: 'PHF041' }),
+    T({ task_code: 'CV-2609-0105', title: 'Tổng hợp báo cáo doanh số tuần', status: 'in_progress', deadline: iso(2026, 8, 16, 17), last_progress_at: iso(2026, 7, 30, 9), primary_employee_code: 'PHF041', source_of_work: 'self_assigned' }),
     T({ task_code: 'CV-2609-0106', title: 'Bảo trì xe nâng kho A', status: 'in_progress', deadline: iso(2026, 8, 5, 17), last_progress_at: null, primary_employee_code: 'PHF028' }),
-    T({ task_code: 'CV-2609-0107', title: 'Cập nhật sổ tay nhân viên mới', status: 'in_progress', deadline: iso(2026, 8, 25, 17), last_progress_at: iso(2026, 8, 13, 9), primary_employee_code: 'PHF002' }),
+    T({ task_code: 'CV-2609-0107', title: 'Cập nhật sổ tay nhân viên mới', status: 'in_progress', deadline: iso(2026, 8, 25, 17), last_progress_at: iso(2026, 8, 13, 9), primary_employee_code: 'PHF002', source_of_work: 'self_assigned' }),
     T({ task_code: 'CV-2609-0108', title: 'Nhập liệu tồn kho đầu kỳ', status: 'completed', completed_at: iso(2026, 8, 8, 12), deadline: iso(2026, 8, 8, 17), on_time: true, primary_employee_code: 'PHF010' }),
     T({ task_code: 'CV-2609-0109', title: 'Dọn dẹp khu vực đóng gói', status: 'cancelled', deadline: iso(2026, 8, 7, 17), primary_employee_code: 'PHF028' }),
     T({ task_code: 'CV-2609-0110', title: 'Việc chưa gán bộ phận', status: 'in_progress', deadline: iso(2026, 8, 3, 17), last_progress_at: iso(2026, 7, 20, 9), primary_employee_code: 'PHF999' }),

@@ -63,10 +63,14 @@ function mergeSources(source){
 
 // PHF Task MAIL CONTRACT V1 — canonical contact resolver for transactional
 // mail. NO session/admin gate (server-to-server, called only by the mail
-// drainer): given employee codes, return { CODE: { email, active } } using the
-// SAME merge precedence as the People Master UI (work_email -> personal_email
-// -> account email; employment_status 'active'). A code with no email or a
-// non-'active' status is returned so the drainer can log it as skipped.
+// drainer): given employee codes, return { CODE: { email, active, name } }
+// using the SAME merge precedence as the People Master UI (work_email ->
+// personal_email -> account email; employment_status 'active'; full_name from
+// employee_profiles -> employees/user_accounts). `name` is the canonical
+// display name for humane email rendering — the drainer falls back to the raw
+// code when it is empty (account-only actor, unsynced profile). A code with no
+// email or a non-'active' status is still returned so the drainer can log it
+// as skipped.
 async function resolveEmployeeContacts(codes){
   const want=new Set((Array.isArray(codes)?codes:[]).map(code).filter(Boolean));
   const out={};
@@ -76,7 +80,7 @@ async function resolveEmployeeContacts(codes){
   for(const r of records){
     const c=code(r.employeeCode);
     if(!c||!want.has(c))continue;
-    out[c]={email:text(r.email).toLowerCase(),active:normalizeEmploymentStatus(r.employmentStatus)==='active'};
+    out[c]={email:text(r.email).toLowerCase(),active:normalizeEmploymentStatus(r.employmentStatus)==='active',name:text(r.fullName)};
   }
   return out;
 }
