@@ -1317,6 +1317,11 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 .phft-hero-prio.prio-quan_trong{background:#fff4e6;color:#a6631a}
 .phft-hero-prio.prio-khan_cap{background:#fdecec;color:#b23636}
 .phft-hero-desc{margin:0;color:#33414f;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+/* "Nội dung công việc" — primary content card, read first, under the hero. */
+.phft-detail-content{margin:14px 0 0;border-left:3px solid var(--phft-accent)}
+.phft-detail-content>header{margin-bottom:12px}
+.phft-detail-content-body{color:#26323f;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.phft-detail-content-empty{margin:0;color:var(--phft-muted);font-size:12.5px;line-height:1.6}
 .phft-vitals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .phft-vital{padding:12px 13px;border-radius:11px;background:#f5f8fc;border:1px solid #e7eef6}
 .phft-vital--deadline{background:#fef6ee;border-color:#f2e0cb}
