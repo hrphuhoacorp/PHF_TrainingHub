@@ -248,5 +248,70 @@ const requestGuard = fs.readFileSync(requestGuardPath, 'utf8');
 check(/\.\.\.\(err\.details\s*\?\s*\{\s*details:\s*err\.details\s*\}\s*:\s*\{\}\)/.test(requestGuard),
   '13e. publicError() (lib/request-guard.js) spreads err.details into the response body only when present (additive, no shape change for errors that never set .details)');
 
+// ---------- 14. Primary official "Ghi nhận lỗi" action in the multi-person footer ----------
+// PROD bug: the Nhập nhanh -> Nhiều nhân viên footer only exposed [Lưu nháp]
+// [Xem lại] in the idle state; the official write was reachable only via the
+// secondary "Xem lại" -> review modal. Fix adds the same primary "Ghi nhận lỗi"
+// button the sibling flows (Nhập nhanh 1 nhân viên / Ghi nhận chi tiết / Ghi
+// nhận nhiều ngày) already have — routing to the SAME canonical write path.
+const qmpFooterSrc = extractFnSource(app, 'quickMultiPersonFooterActionsHtml');
+check(!!qmpFooterSrc, '14a. quickMultiPersonFooterActionsHtml() found');
+if (qmpFooterSrc) {
+  const idleBranch = qmpFooterSrc.split("if(state==='done')")[1] || '';
+  check(/data-phfck-qmp-submit/.test(idleBranch) && /class="phfck-primary"[^>]*data-phfck-qmp-submit/.test(idleBranch),
+    '14a. idle footer renders a phfck-primary button with data-phfck-qmp-submit');
+  check(/data-phfck-qmp-submit[^>]*>Ghi nhận lỗi</.test(idleBranch),
+    '14b. primary action is labelled "Ghi nhận lỗi" (matches sibling quick/detail/multi footers)');
+  check(/data-phfck-qmp-draft>Lưu nháp</.test(idleBranch) && /data-phfck-qmp-review>Xem lại</.test(idleBranch),
+    '14c. "Lưu nháp" and "Xem lại" are preserved alongside the new primary action');
+  check(/state==='inflight'/.test(qmpFooterSrc) && /state==='uncertain'/.test(qmpFooterSrc) && /state==='done'/.test(qmpFooterSrc),
+    '14d. non-idle states (inflight/uncertain/done) unchanged — no primary submit rendered while a batch is pending/locked');
+  check(!new RegExp("data-phfck-qmp-submit").test(qmpFooterSrc.split("return '<button")[0] || ''),
+    '14d2. data-phfck-qmp-submit only appears in the idle branch, never in inflight/uncertain/done');
+}
+
+// 14e. the new handler mirrors the sibling data-phfck-multi-submit / data-phfck-detail-submit:
+//      full validation -> block + surface offending rows -> else open the official review modal.
+const qmpSubmitHandlerMatch = app.match(/var qmpSubmit=e\.target\.closest\('\[data-phfck-qmp-submit\]'\);[^\n]*\n[^\n]*if\(qmpSubmit\)\{[^\n]*\}/);
+check(!!qmpSubmitHandlerMatch, '14e. a data-phfck-qmp-submit click handler exists');
+if (qmpSubmitHandlerMatch) {
+  const h = qmpSubmitHandlerMatch[0];
+  check(/quickMultiPersonValidation\(\)/.test(h), '14e. handler runs quickMultiPersonValidation() before proceeding (same business validation as the other official paths)');
+  check(/if\(!qmpSubmitCheck\.ok\)\{[\s\S]*?renderViolationWorkspace\(root,true\)[\s\S]*?quickMultiPersonFocusFirstInvalid\(root\)/.test(h),
+    '14f. invalid rows -> submission blocked, workspace re-rendered with per-row errors, first invalid focused (no false success)');
+  check(/appendSubmodal\(root,quickMultiPersonReviewModalHtml\(\)\)/.test(h) && !/fetch\(/.test(h) && !/saveChecklistViolations/.test(h),
+    '14g. valid -> opens quickMultiPersonReviewModalHtml() (existing official confirm) — the handler itself does NOT fetch or introduce a new persistence path');
+  check(/quickMultiPersonReviewOpen=true/.test(h), '14g2. review-open state flag set (consistent with data-phfck-qmp-review)');
+}
+
+// 14h. canonical official write path is the pre-existing one — unchanged.
+const qmpReviewModalSrc = extractFnSource(app, 'quickMultiPersonReviewModalHtml');
+check(!!qmpReviewModalSrc && /data-phfck-qmp-confirm-official/.test(qmpReviewModalSrc) && /phfck-primary/.test(qmpReviewModalSrc),
+  '14h. review modal still exposes the primary data-phfck-qmp-confirm-official ("Lưu chính thức")');
+const qmpConfirmHandler = app.match(/var qmpConfirm=e\.target\.closest\('\[data-phfck-qmp-confirm-official\]'\);[\s\S]{0,200}?saveQuickMultiPersonOfficial\(root\)/);
+check(!!qmpConfirmHandler, '14h2. data-phfck-qmp-confirm-official still routes to saveQuickMultiPersonOfficial()');
+const qmpSaveSrc = extractFnSource(app, 'saveQuickMultiPersonOfficial');
+check(!!qmpSaveSrc, '14i. saveQuickMultiPersonOfficial() found');
+if (qmpSaveSrc) {
+  check(/quickMultiPersonPayload\(\)/.test(qmpSaveSrc) && /\/api\/data\?checklistViolations=1/.test(qmpSaveSrc),
+    '14i. official write POSTs /api/data?checklistViolations=1 with quickMultiPersonPayload() (same endpoint as saveMultiOfficial/saveDetailOfficial)');
+  check(/canWriteViolationInCurrentMode\(\)/.test(qmpSaveSrc), '14j. admin/mode gate canWriteViolationInCurrentMode() still enforced — no permission broadening');
+  check(/listChecklistViolations/.test(qmpSaveSrc),
+    '14k. read-back verify (listChecklistViolations) retained — no success shown until canonical persistence confirms');
+  check(/quickMultiPersonSubmitState='uncertain'/.test(qmpSaveSrc) && /quickMultiPersonSubmitState='done'/.test(qmpSaveSrc),
+    '14l. idempotent request_id state machine (uncertain/done) retained — double-click / retry cannot create duplicate official records');
+}
+const qmpPayloadSrc = extractFnSource(app, 'quickMultiPersonPayload');
+check(!!qmpPayloadSrc && /action:'saveChecklistViolations'/.test(qmpPayloadSrc) && /status:'official'/.test(qmpPayloadSrc),
+  '14m. quickMultiPersonPayload() still action:saveChecklistViolations + status:official — no second persistence model, no new action string');
+
+// 14n. sibling flows keep THEIR primary official submit (regression).
+check(/data-phfck-quick-submit[^>]*>Ghi nhận lỗi</.test(app), '14n. Nhập nhanh (1 nhân viên) still has data-phfck-quick-submit "Ghi nhận lỗi"');
+check(/data-phfck-detail-submit[^>]*>Ghi nhận lỗi</.test(app), '14o. Ghi nhận chi tiết still has data-phfck-detail-submit "Ghi nhận lỗi"');
+check(/data-phfck-multi-submit[^>]*>Ghi nhận lỗi</.test(app), '14p. Ghi nhận nhiều ngày still has data-phfck-multi-submit "Ghi nhận lỗi"');
+
+// 14q. no schema / RPC touched by this fix.
+check(!/CREATE\s+FUNCTION|CREATE\s+TABLE|ALTER\s+TABLE/i.test(app), '14q. no DDL/RPC text introduced into the client bundle');
+
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL PASS'));
 process.exit(failures ? 1 : 0);

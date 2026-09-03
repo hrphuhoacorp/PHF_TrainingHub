@@ -3978,7 +3978,14 @@
     if(state==='inflight')return '<button type="button" class="phfck-primary" disabled>Đang lưu...</button>';
     if(state==='uncertain')return '<button type="button" class="phfck-secondary" data-phfck-qmp-edit-content>Sửa nội dung</button><button type="button" class="phfck-primary" data-phfck-qmp-retry>Thử lại</button>';
     if(state==='done')return '<button type="button" class="phfck-primary" data-phfck-qmp-new-batch>Bắt đầu lượt mới</button>';
-    return '<button type="button" class="phfck-secondary" data-phfck-qmp-draft>Lưu nháp</button><button type="button" class="phfck-secondary" data-phfck-qmp-review>Xem lại</button>';
+    // idle: draft is optional, "Xem lại" is a peek — "Ghi nhận lỗi" is the
+    // PRIMARY action that completes the workflow (same as Nhập nhanh 1 nhân
+    // viên / Ghi nhận nhiều ngày). It opens the same official confirmation
+    // (quickMultiPersonReviewModalHtml -> data-phfck-qmp-confirm-official ->
+    // saveQuickMultiPersonOfficial), the canonical Checklist official write.
+    return '<button type="button" class="phfck-secondary" data-phfck-qmp-draft>Lưu nháp</button>'
+      +'<button type="button" class="phfck-secondary" data-phfck-qmp-review>Xem lại</button>'
+      +'<button type="button" class="phfck-primary" data-phfck-qmp-submit>Ghi nhận lỗi</button>';
   }
   function quickMultiPersonUncertainBannerHtml(){
     if(quickMultiPersonSubmitState!=='uncertain')return '';
@@ -6423,6 +6430,12 @@
       if(qmpDraftDelete){e.preventDefault();deleteQuickMultiPersonDraft();renderViolationWorkspace(root,true);checklistToast('success','Đã xóa bản nháp','Bản nháp nhiều nhân viên đã được xóa khỏi trình duyệt.');return;}
       var qmpReview=e.target.closest('[data-phfck-qmp-review]');
       if(qmpReview){e.preventDefault();var qmpReviewCheck=quickMultiPersonValidation();if(!qmpReviewCheck.ok){renderViolationWorkspace(root,true);checklistToast('warning','Chưa thể xem lại',qmpReviewCheck.errors[0]||'Vui lòng kiểm tra lại thông tin.',true);quickMultiPersonFocusFirstInvalid(root);return;}violationUiState.quickMultiPersonReviewOpen=true;appendSubmodal(root,quickMultiPersonReviewModalHtml());return;}
+      // Primary "Ghi nhận lỗi": full row validation first; if any row is
+      // invalid, block and surface the offending row(s) inline (same as
+      // "Xem lại" / data-phfck-multi-submit). Otherwise open the official
+      // confirmation modal — no separate persistence path.
+      var qmpSubmit=e.target.closest('[data-phfck-qmp-submit]');
+      if(qmpSubmit){e.preventDefault();var qmpSubmitCheck=quickMultiPersonValidation();if(!qmpSubmitCheck.ok){renderViolationWorkspace(root,true);checklistToast('warning','Chưa thể ghi nhận',qmpSubmitCheck.errors[0]||'Vui lòng kiểm tra lại thông tin.',true);quickMultiPersonFocusFirstInvalid(root);return;}violationUiState.quickMultiPersonReviewOpen=true;appendSubmodal(root,quickMultiPersonReviewModalHtml());return;}
       var qmpConfirm=e.target.closest('[data-phfck-qmp-confirm-official]');
       if(qmpConfirm&&!qmpConfirm.disabled){e.preventDefault();saveQuickMultiPersonOfficial(root);return;}
       var qmpRetryBtn=e.target.closest('[data-phfck-qmp-retry]');
