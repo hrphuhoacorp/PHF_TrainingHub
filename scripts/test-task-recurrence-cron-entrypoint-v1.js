@@ -172,13 +172,17 @@ async function invoke(handler, { method = 'POST', bearer, url = RECURRENCE_ROUTE
     check('E no recurrence engine require', !/require\(['"][^'"]*task-recurrence(-datemath)?['"]\)/.test(codeSrc));
     check('E no pg client', !/require\(['"]pg['"]\)/.test(codeSrc) && !/new\s+Client\s*\(/.test(codeSrc) && !/new\s+Pool\s*\(/.test(codeSrc));
     check('E no /v1/task/recurrence:run string', !/v1\/task\/recurrence:run/.test(codeSrc));
-    // the shared cron file legitimately has exactly two local requires:
-    // the recurrence action layer + the checklist-monthly action layer.
+    // the shared cron file legitimately has exactly four local requires: the
+    // recurrence action layer, the checklist-monthly action layer, the Mail
+    // Contract V1 drain layer, and the Increment 2 weekly-report layer — all
+    // thin dispatch only.
     const localRequires = (codeSrc.match(/require\(['"]\.[^'"]+['"]\)/g) || []).sort();
-    check('E local requires are exactly the two action layers',
-      localRequires.length === 2
+    check('E local requires are exactly the four action layers',
+      localRequires.length === 4
         && /task-recurrence-actions/.test(localRequires.join())
-        && /checklist-monthly/.test(localRequires.join()),
+        && /checklist-monthly/.test(localRequires.join())
+        && /task-mail-drain/.test(localRequires.join())
+        && /task-weekly-report/.test(localRequires.join()),
       localRequires);
     check('E recurrence branch reads TASK_RECURRENCE_CRON_SECRET', /TASK_RECURRENCE_CRON_SECRET/.test(codeSrc));
     check('E checklist branch still reads CHECKLIST_CRON_SECRET (unweakened)', /CHECKLIST_CRON_SECRET/.test(codeSrc));

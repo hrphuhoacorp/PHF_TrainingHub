@@ -123,6 +123,17 @@ const {
   listProposalRecipientEmployeesViaServer,
   getTaskDetailProposalAwareViaServer,
 } = require('./_lib/task-server-integration');
+// MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview (Admin-only,
+// enforced inside these via requireTaskAdmin). PostgreSQL phf_hr via the mail
+// bridge. Never sends mail.
+const {
+  taskMailSettingsGet,
+  taskMailSetWeeklyEnabled,
+  taskMailAddRecipient,
+  taskMailSetRecipientEnabled,
+  taskMailRemoveRecipient,
+  taskMailWeeklyPreview,
+} = require('./_lib/task-mail-settings-actions');
 // Proposal V2 — KHÔNG có nhánh Legacy (Proposal chưa từng tồn tại ở Supabase,
 // xem BAN_GIAO_PHF_TASK_PROPOSAL_V2_CHECKPOINT_2026-08-29.md mục 0/0b/0c).
 // Đặt tên PHẲNG (không đổi tên qua wrapper if/else như createTaskDraft ở
@@ -430,7 +441,8 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'getTaskOverviewV2', 'getTaskReportV2Bundle', 'listTaskOverviewV2Drilldown',
   'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend',
   'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
-  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest'
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest',
+  'taskMailSettingsGet', 'taskMailSetWeeklyEnabled', 'taskMailAddRecipient', 'taskMailSetRecipientEnabled', 'taskMailRemoveRecipient', 'taskMailWeeklyPreview'
 ]);
 
 function copyTaskPayloadField(target, payload, publicName, coreName) {
@@ -694,6 +706,13 @@ async function dispatchTaskAction(session, payload) {
     case 'setTaskCategoryActive': return { handled: true, result: await setTaskCategoryActive(session, payload.category_code, payload.is_active) };
     case 'deleteTaskCategory': return { handled: true, result: await deleteTaskCategory(session, payload.category_code) };
     case 'reorderTaskCategory': return { handled: true, result: await reorderTaskCategory(session, payload.category_code, payload.sort_order) };
+    // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report (Admin-only).
+    case 'taskMailSettingsGet': return { handled: true, result: await taskMailSettingsGet(session) };
+    case 'taskMailSetWeeklyEnabled': return { handled: true, result: await taskMailSetWeeklyEnabled(session, payload && payload.enabled) };
+    case 'taskMailAddRecipient': return { handled: true, result: await taskMailAddRecipient(session, { email: payload && payload.email, label: payload && payload.label }) };
+    case 'taskMailSetRecipientEnabled': return { handled: true, result: await taskMailSetRecipientEnabled(session, { id: payload && payload.id, enabled: payload && payload.enabled }) };
+    case 'taskMailRemoveRecipient': return { handled: true, result: await taskMailRemoveRecipient(session, { id: payload && payload.id }) };
+    case 'taskMailWeeklyPreview': return { handled: true, result: await taskMailWeeklyPreview(session) };
     case 'checkTaskFoundationStatus': return { handled: true, result: await checkTaskFoundationStatus(session) };
     case 'createTaskDraft': return { handled: true, result: await createTaskDraft(session, taskCreateDraftInput(payload)) };
     // Proposal V2 (2026-08-29, LOCKED Phương án A — PostgreSQL-only)

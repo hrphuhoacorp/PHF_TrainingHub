@@ -5,6 +5,14 @@
       "destination": "/api/checklist-monthly-cron?__phf_cron=task-recurrence"
     },
     {
+      "source": "/api/task-mail-cron",
+      "destination": "/api/checklist-monthly-cron?__phf_cron=task-mail"
+    },
+    {
+      "source": "/api/task-weekly-report-cron",
+      "destination": "/api/checklist-monthly-cron?__phf_cron=task-weekly-report"
+    },
+    {
       "source": "/api/evidence",
       "destination": "/api/task-attachment?__phf_route=evidence"
     },

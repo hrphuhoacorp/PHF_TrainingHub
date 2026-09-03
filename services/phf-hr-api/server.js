@@ -68,6 +68,27 @@ const {
   submitCancelRequest: submitTaskCancelRequest,
   decideCancelRequest: decideTaskCancelRequest,
 } = require('./lib/task-cancel-request');
+// PHF Task — MAIL CONTRACT V1 (LOCAL ONLY until the migrations +
+// PHF_TASK_MAIL_OUTBOX_ENABLED). phf-hr-api NEVER sends mail — it owns the
+// transactional outbox state (drainer claims/marks over the bridge) and, for
+// Increment 2, the weekly-report settings store + weekly-outbox enqueue.
+const {
+  claimOutboxBatch: claimMailOutboxBatch,
+  markOutbox: markMailOutbox,
+  markOutboxBatch: markMailOutboxBatch,
+  enqueueWeeklyReportRows: enqueueMailWeeklyReportRows,
+  outboxStats: mailOutboxStats,
+  TaskMailOutboxError,
+} = require('./lib/task-mail-outbox');
+const {
+  getMailSettings,
+  setWeeklyReportEnabled,
+  addRecipient: addMailRecipient,
+  setRecipientEnabled: setMailRecipientEnabled,
+  removeRecipient: removeMailRecipient,
+  listActiveRecipients: listActiveMailRecipients,
+  TaskMailSettingsError,
+} = require('./lib/task-mail-settings');
 // Gate 5.6 — attachment orchestration (G5.5 CLOSED, hash
 // fd58d08a393c70f0e70fdb699292006a32847ad09564fb00a96d383b83f297b0). Route
 // layer CHỈ gọi orchestrator, KHÔNG tự chạm filesystem/DB attachment nào.
@@ -651,6 +672,102 @@ function createServer(config) {
             }
             logger.error('task_notification_unexpected_error', { path, message: err && err.message });
             return sendTaskWriteError(res, 500, 'TASK_NOTIFICATION_ERROR', 'Lỗi hệ thống khi xử lý Thông báo.');
+          }
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // MAIL CONTRACT V1 — outbox drain (transactional) + Increment 2
+      // weekly-report settings store + weekly-outbox enqueue. Bearer service
+      // token only (server-to-service). phf-hr-api never sends mail.
+      // Authorization for the *admin* settings routes is enforced on the Vercel
+      // side (requireTaskAdmin in api/data.js) before the bridge call — this
+      // service tier trusts the service token, same as every other route.
+      //   POST /v1/task/mail-outbox:claim    { limit }
+      //   POST /v1/task/mail-outbox:mark     { id, outcome, reason }
+      //   POST /v1/task/mail-outbox:markBatch{ marks: [...] }
+      //   POST /v1/task/mail-outbox:enqueueWeekly { periodKey, periodLabel, subject, html, recipients:[{email,label}] }
+      //   GET  /v1/task/mail-outbox/stats
+      //   GET  /v1/task/mail-settings
+      //   GET  /v1/task/mail-settings/active-recipients
+      //   POST /v1/task/mail-settings:setWeeklyReportEnabled { enabled, actor }
+      //   POST /v1/task/mail-settings:addRecipient           { email, label, actor }
+      //   POST /v1/task/mail-settings:setRecipientEnabled    { id, enabled }
+      //   POST /v1/task/mail-settings:removeRecipient        { id }
+      // ---------------------------------------------------------------
+      {
+        const isMailRoute = path === '/v1/task/mail-outbox:claim'
+          || path === '/v1/task/mail-outbox:mark'
+          || path === '/v1/task/mail-outbox:markBatch'
+          || path === '/v1/task/mail-outbox:enqueueWeekly'
+          || path === '/v1/task/mail-outbox/stats'
+          || path === '/v1/task/mail-settings'
+          || path === '/v1/task/mail-settings/active-recipients'
+          || path === '/v1/task/mail-settings:setWeeklyReportEnabled'
+          || path === '/v1/task/mail-settings:addRecipient'
+          || path === '/v1/task/mail-settings:setRecipientEnabled'
+          || path === '/v1/task/mail-settings:removeRecipient';
+        if (isMailRoute) {
+          const auth = authCheck(req);
+          if (!auth.authorized) {
+            logger.warn('auth_denied', { path, reason: auth.reason });
+            return sendJson(res, 401, { error: auth.reason });
+          }
+          try {
+            if (req.method === 'GET' && path === '/v1/task/mail-outbox/stats') {
+              return sendJson(res, 200, { ok: true, data: await mailOutboxStats(config) });
+            }
+            if (req.method === 'GET' && path === '/v1/task/mail-settings') {
+              return sendJson(res, 200, { ok: true, data: await getMailSettings(config) });
+            }
+            if (req.method === 'GET' && path === '/v1/task/mail-settings/active-recipients') {
+              return sendJson(res, 200, { ok: true, data: await listActiveMailRecipients(config) });
+            }
+            if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+            const body = await readJsonBody(req, 1048576);
+            if (path === '/v1/task/mail-outbox:claim') {
+              return sendJson(res, 200, { ok: true, data: await claimMailOutboxBatch(config, { limit: body.limit }) });
+            }
+            if (path === '/v1/task/mail-outbox:mark') {
+              return sendJson(res, 200, { ok: true, data: await markMailOutbox(config, { id: body.id, outcome: body.outcome, reason: body.reason }) });
+            }
+            if (path === '/v1/task/mail-outbox:markBatch') {
+              return sendJson(res, 200, { ok: true, data: await markMailOutboxBatch(config, body.marks) });
+            }
+            if (path === '/v1/task/mail-outbox:enqueueWeekly') {
+              return sendJson(res, 200, { ok: true, data: await enqueueMailWeeklyReportRows(config, {
+                periodKey: body.periodKey, periodLabel: body.periodLabel,
+                subject: body.subject, html: body.html, recipients: body.recipients,
+              }) });
+            }
+            if (path === '/v1/task/mail-settings:setWeeklyReportEnabled') {
+              return sendJson(res, 200, { ok: true, data: await setWeeklyReportEnabled(config, {
+                enabled: !!body.enabled,
+                actorEmployeeCode: body.actor && body.actor.employeeCode,
+                actorAccountId: body.actor && body.actor.accountId,
+              }) });
+            }
+            if (path === '/v1/task/mail-settings:addRecipient') {
+              return sendJson(res, 200, { ok: true, data: await addMailRecipient(config, {
+                email: body.email, label: body.label,
+                actorEmployeeCode: body.actor && body.actor.employeeCode,
+                actorAccountId: body.actor && body.actor.accountId,
+              }) });
+            }
+            if (path === '/v1/task/mail-settings:setRecipientEnabled') {
+              return sendJson(res, 200, { ok: true, data: await setMailRecipientEnabled(config, { id: body.id, enabled: !!body.enabled }) });
+            }
+            if (path === '/v1/task/mail-settings:removeRecipient') {
+              return sendJson(res, 200, { ok: true, data: await removeMailRecipient(config, { id: body.id }) });
+            }
+            return sendJson(res, 404, { error: 'NOT_FOUND' });
+          } catch (err) {
+            if (err instanceof TaskMailOutboxError || err instanceof TaskMailSettingsError) {
+              logger.warn('task_mail_rejected', { path, code: err.code });
+              return sendTaskWriteError(res, err.statusCode || 400, err.code, err.message || err.code);
+            }
+            logger.error('task_mail_unexpected_error', { path, message: err && err.message });
+            return sendTaskWriteError(res, 500, 'TASK_MAIL_ERROR', 'Lỗi hệ thống khi xử lý Mail V1.');
           }
         }
       }

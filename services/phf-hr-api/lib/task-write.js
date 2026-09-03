@@ -59,6 +59,28 @@
 const { withTaskWriteTransaction } = require('./db');
 const { isAllowedMime, isAllowedMimeExtensionPair, MAX_FILE_SIZE } = require('./attachment-policy');
 const notify = require('./task-notification-emit');
+const mailContract = require('./task-mail-contract');
+const { safeEnqueueMail } = require('./task-mail-emit');
+
+// MAIL CONTRACT V1 — thin wrapper. Best-effort SECONDARY channel: runs AFTER
+// the lifecycle mutation + event insert, inside the same transaction but inside
+// its own SAVEPOINT (see task-mail-emit.safeEnqueueMail) so a mail-outbox
+// problem can NEVER roll back or fail the task write. `decision` comes from
+// lib/task-mail-contract.js (pure, unit-tested). A schema/flag-gated no-op
+// until migrations/phf_hr_task_mail_v1.sql is applied AND
+// PHF_TASK_MAIL_OUTBOX_ENABLED=true.
+async function enqueueTaskMail(client, decision, opts) {
+  if (!decision || decision.send !== true) return { enqueued: 0, skipped: (decision && decision.reason) || 'no_decision' };
+  return safeEnqueueMail(client, {
+    businessEventId: opts.businessEventId || null,
+    eventCode: opts.eventCode,
+    taskId: opts.taskId,
+    templateKey: decision.templateKey,
+    recipientEmployeeCode: decision.recipientEmployeeCode,
+    payload: opts.payload || {},
+    dedupeKey: opts.dedupeKey,
+  });
+}
 
 // IN-APP NOTIFICATION V1 — thin wrapper. Runs in the CALLER's transaction
 // (client), so the notification rows and the task.events row commit together.
@@ -267,6 +289,29 @@ async function completeTask(config, params) {
       actorEmployeeCode, actorAccountId,
     });
 
+    // MAIL CONTRACT V1 — rules 10/11: completion -> ASSIGNER. Late completion
+    // uses a distinct "Hoàn thành trễ" template. on_time = completed_at<=deadline.
+    const onTime = updatedTask.deadline
+      ? new Date(updatedTask.completed_at).getTime() <= new Date(updatedTask.deadline).getTime()
+      : true;
+    const { activePrimary: completedPrimary } = await notify.loadActiveAssignees(client, taskId);
+    await enqueueTaskMail(client,
+      mailContract.decideCompletion({
+        assignerEmployeeCode: updatedTask.created_by_employee_code,
+        onTime,
+        actor: { employeeCode: actorEmployeeCode, accountId: actorAccountId },
+      }),
+      {
+        businessEventId: eventId, eventCode: 'TASK_COMPLETED', taskId,
+        payload: {
+          task_code: updatedTask.task_code, title: updatedTask.title,
+          assigner_employee_code: updatedTask.created_by_employee_code,
+          primary_employee_code: completedPrimary,
+          deadline: updatedTask.deadline, completed_at: updatedTask.completed_at,
+          on_time: onTime,
+        },
+      });
+
     return updatedTask;
   });
 }
@@ -318,14 +363,27 @@ async function reopenTask(config, params) {
     delete updatedTask._event_id;
 
     // IN-APP NOTIFICATION V1 — reopen -> active primary (minus actor).
+    const { activePrimary: reopenPrimary } = await notify.loadActiveAssignees(client, taskId);
     await emitTaskLifecycleNotification(client, {
       eventId, eventCode: 'TASK_REOPENED', taskId, taskTitle: updatedTask.title,
-      resolveRecipients: async () => {
-        const { activePrimary } = await notify.loadActiveAssignees(client, taskId);
-        return activePrimary ? [{ employeeCode: activePrimary }] : [];
-      },
+      recipients: reopenPrimary ? [{ employeeCode: reopenPrimary }] : [],
       actorEmployeeCode, actorAccountId,
     });
+
+    // MAIL CONTRACT V1 — rule 15: reopen/restore -> PRIMARY assignee.
+    await enqueueTaskMail(client,
+      mailContract.decideReopen({
+        primaryEmployeeCode: reopenPrimary,
+        actor: { employeeCode: actorEmployeeCode, accountId: actorAccountId },
+      }),
+      {
+        businessEventId: eventId, eventCode: 'TASK_REOPENED', taskId,
+        payload: {
+          task_code: updatedTask.task_code, title: updatedTask.title,
+          assigner_employee_code: updatedTask.created_by_employee_code,
+          primary_employee_code: reopenPrimary, deadline: updatedTask.deadline,
+        },
+      });
 
     return updatedTask;
   });
@@ -374,18 +432,35 @@ async function cancelTask(config, params) {
     );
 
     // IN-APP NOTIFICATION V1 — cancel -> active primary + active related (minus actor).
+    const cancelEventId = cancelEvent.rows[0] && cancelEvent.rows[0].id;
+    const { activePrimary: cancelPrimary, activeRelated: cancelRelated } = await notify.loadActiveAssignees(client, taskId);
     await emitTaskLifecycleNotification(client, {
-      getEventId: () => cancelEvent.rows[0] && cancelEvent.rows[0].id,
+      eventId: cancelEventId,
       eventCode: 'TASK_CANCELLED', taskId, taskTitle: task.title,
-      resolveRecipients: async () => {
-        const { activePrimary, activeRelated } = await notify.loadActiveAssignees(client, taskId);
-        return [
-          ...(activePrimary ? [{ employeeCode: activePrimary }] : []),
-          ...activeRelated.map((c) => ({ employeeCode: c })),
-        ];
-      },
+      recipients: [
+        ...(cancelPrimary ? [{ employeeCode: cancelPrimary }] : []),
+        ...cancelRelated.map((c) => ({ employeeCode: c })),
+      ],
       actorEmployeeCode, actorAccountId,
     });
+
+    // MAIL CONTRACT V1 — rule 14: an authorized user directly cancels -> PRIMARY
+    // assignee only (never collaborators). Rule 13 (cancel REQUEST + its
+    // decision) is deliberately MAIL=NO and lives in task-cancel-request.js —
+    // not wired here.
+    await enqueueTaskMail(client,
+      mailContract.decideDirectCancel({
+        primaryEmployeeCode: cancelPrimary,
+        actor: { employeeCode: actorEmployeeCode, accountId: actorAccountId },
+      }),
+      {
+        businessEventId: cancelEventId, eventCode: 'TASK_CANCELLED', taskId,
+        payload: {
+          task_code: task.task_code, title: task.title,
+          assigner_employee_code: task.created_by_employee_code,
+          primary_employee_code: cancelPrimary, reason: reason,
+        },
+      });
 
     return updatedTask;
   });
@@ -455,17 +530,35 @@ async function changeTaskDeadline(config, params) {
     delete updatedTask._event_id;
 
     // IN-APP NOTIFICATION V1 — deadline change -> active primary + active related (minus actor).
+    const { activePrimary: ddlPrimary, activeRelated: ddlRelated } = await notify.loadActiveAssignees(client, taskId);
     await emitTaskLifecycleNotification(client, {
       eventId, eventCode: 'TASK_DEADLINE_CHANGED', taskId, taskTitle: updatedTask.title,
-      resolveRecipients: async () => {
-        const { activePrimary, activeRelated } = await notify.loadActiveAssignees(client, taskId);
-        return [
-          ...(activePrimary ? [{ employeeCode: activePrimary }] : []),
-          ...activeRelated.map((c) => ({ employeeCode: c })),
-        ];
-      },
+      recipients: [
+        ...(ddlPrimary ? [{ employeeCode: ddlPrimary }] : []),
+        ...ddlRelated.map((c) => ({ employeeCode: c })),
+      ],
       actorEmployeeCode, actorAccountId,
     });
+
+    // MAIL CONTRACT V1 — rule 4: mail the PRIMARY only when the new deadline is
+    // strictly EARLIER than the old one. Later / start-only changes -> MAIL=NO
+    // (decided inside task-mail-contract.decideDeadlineChange).
+    await enqueueTaskMail(client,
+      mailContract.decideDeadlineChange({
+        oldDeadline: oldDeadline,
+        newDeadline: updatedTask.deadline,
+        primaryEmployeeCode: ddlPrimary,
+      }),
+      {
+        businessEventId: eventId, eventCode: 'TASK_DEADLINE_CHANGED', taskId,
+        payload: {
+          task_code: updatedTask.task_code, title: updatedTask.title,
+          assigner_employee_code: updatedTask.created_by_employee_code,
+          primary_employee_code: ddlPrimary,
+          old_deadline: oldDeadline, new_deadline: updatedTask.deadline,
+          reason: reason,
+        },
+      });
 
     return updatedTask;
   });
@@ -705,14 +798,57 @@ async function publishTask(config, params) {
     // (minus actor). A 'de_xuat' publish is a PROPOSAL creation, not a task
     // assignment — proposal notifications are out of V1 scope, so skip.
     if (publishedTask.flow_type === 'giao_viec') {
+      const { activePrimary: pubPrimary } = await notify.loadActiveAssignees(client, taskId);
       await emitTaskLifecycleNotification(client, {
         eventId: publishEventId, eventCode: 'TASK_PUBLISHED', taskId, taskTitle: publishedTask.title,
-        resolveRecipients: async () => {
-          const { activePrimary } = await notify.loadActiveAssignees(client, taskId);
-          return activePrimary ? [{ employeeCode: activePrimary }] : [];
-        },
+        recipients: pubPrimary ? [{ employeeCode: pubPrimary }] : [],
         actorEmployeeCode, actorAccountId,
       });
+
+      // MAIL CONTRACT V1 — rule 1: NEW TASK -> PRIMARY assignee, unless the
+      // assigner IS the primary (self-assigned). Assigner = task creator.
+      await enqueueTaskMail(client,
+        mailContract.decideNewTask({
+          primaryEmployeeCode: pubPrimary,
+          assigner: {
+            employeeCode: publishedTask.created_by_employee_code,
+            accountId: publishedTask.created_by_account_id,
+          },
+        }),
+        {
+          businessEventId: publishEventId, eventCode: 'TASK_PUBLISHED', taskId,
+          payload: {
+            task_code: publishedTask.task_code, title: publishedTask.title,
+            content: publishedTask.content,
+            assigner_employee_code: publishedTask.created_by_employee_code,
+            primary_employee_code: pubPrimary,
+            deadline: publishedTask.deadline, start_at: publishedTask.start_at,
+          },
+        });
+    }
+
+    // MAIL CONTRACT V1 — rule 2: NEW PROPOSAL -> the proposal recipient, unless
+    // creator == recipient. The proposal_decisions row is inserted just below;
+    // the publish event id is the business anchor.
+    if (normalizedRecipient !== null) {
+      await enqueueTaskMail(client,
+        mailContract.decideNewProposal({
+          recipientEmployeeCode: normalizedRecipient,
+          creator: {
+            employeeCode: task.created_by_employee_code,
+            accountId: task.created_by_account_id,
+          },
+        }),
+        {
+          businessEventId: publishEventId, eventCode: 'TASK_PROPOSAL_CREATED', taskId,
+          payload: {
+            task_code: publishedTask.task_code, title: publishedTask.title,
+            content: publishedTask.content,
+            creator_employee_code: task.created_by_employee_code,
+            recipient_employee_code: normalizedRecipient,
+            deadline: publishedTask.deadline,
+          },
+        });
     }
 
     // PROPOSAL V2 (additive) — cùng transaction với publish, atomic: nếu
@@ -835,13 +971,35 @@ async function acceptTaskProposal(config, params) {
 
     // IN-APP NOTIFICATION V1 — the Task generated by accepting a Proposal is a
     // real assignment -> its primary (minus actor).
+    const genPublishEventId = genPublishEvent.rows[0] && genPublishEvent.rows[0].id;
     await emitTaskLifecycleNotification(client, {
-      getEventId: () => genPublishEvent.rows[0] && genPublishEvent.rows[0].id,
+      eventId: genPublishEventId,
       eventCode: 'TASK_PUBLISHED',
       taskId: generatedTask.id, taskTitle: generatedTask.title,
       recipients: [{ employeeCode: normalizedPrimary }],
       actorEmployeeCode, actorAccountId,
     });
+
+    // MAIL CONTRACT V1 — rule 3: an accepted proposal creates a real Task ->
+    // treat as NEW TASK, mail its PRIMARY. The prior PROPOSAL_NEW mail does NOT
+    // suppress this one (separate business event). Self-assignment exception:
+    // the acceptor picks the primary; if they picked themselves -> no mail.
+    await enqueueTaskMail(client,
+      mailContract.decideNewTask({
+        primaryEmployeeCode: normalizedPrimary,
+        assigner: { employeeCode: actorEmployeeCode, accountId: actorAccountId },
+      }),
+      {
+        businessEventId: genPublishEventId, eventCode: 'TASK_PUBLISHED', taskId: generatedTask.id,
+        payload: {
+          task_code: generatedTask.task_code, title: generatedTask.title,
+          content: generatedTask.content,
+          assigner_employee_code: auditToken,
+          primary_employee_code: normalizedPrimary,
+          deadline: generatedTask.deadline, start_at: generatedTask.start_at,
+          source_proposal_task_id: proposalTaskId,
+        },
+      });
 
     const updatedProposal = await client.query(
       `UPDATE task.proposal_decisions
@@ -1009,12 +1167,27 @@ async function transferTaskPrimary(config, params) {
 
     // IN-APP NOTIFICATION V1 — transfer -> NEW primary only (minus actor).
     // V1 does NOT notify the old primary.
+    const transferEventId = transferEvent.rows[0] && transferEvent.rows[0].id;
     await emitTaskLifecycleNotification(client, {
-      getEventId: () => transferEvent.rows[0] && transferEvent.rows[0].id,
+      eventId: transferEventId,
       eventCode: 'TASK_TRANSFERRED', taskId, taskTitle: task.title,
       recipients: [{ employeeCode: newPrimary }],
       actorEmployeeCode, actorAccountId,
     });
+
+    // MAIL CONTRACT V1 — rule 5: a primary-assignee change ALWAYS mails the NEW
+    // primary (never the old one). No self-suppression for transfer.
+    await enqueueTaskMail(client,
+      mailContract.decideTransfer({ newPrimaryEmployeeCode: newPrimary }),
+      {
+        businessEventId: transferEventId, eventCode: 'TASK_TRANSFERRED', taskId,
+        payload: {
+          task_code: task.task_code, title: task.title,
+          assigner_employee_code: task.created_by_employee_code,
+          from_employee_code: oldPrimary, primary_employee_code: newPrimary,
+          deadline: task.deadline,
+        },
+      });
 
     return updatedTask;
   });

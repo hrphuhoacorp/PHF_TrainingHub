@@ -814,7 +814,11 @@ module.exports = {
   getTaskReportV2DepartmentAnalysis,
   getTaskReportV2CategoryAnalysis,
   getTaskReportV2Trend,
-  // exported for targeted unit testing only:
+  // exported for the Weekly Report generator (Increment 2) + targeted unit tests:
+  resolveOverviewContext,
+  orgIndexByCode,
+  primaryDepartmentOf,
+  UNASSIGNED_DEPARTMENT_LABEL,
   resolvePeriodWindow,
   isOpenRow,
   isOverdueRow,

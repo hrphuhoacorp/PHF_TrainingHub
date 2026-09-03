@@ -61,6 +61,26 @@ function mergeSources(source){
   return records.filter(row=>(row.employeeId||row.employeeCode||row.profileId)&&!(row.account&&row.account.accountType==='system_admin')&&!(!row.hasEmployeeRecord&&!row.profileId&&/^(ADMIN|SYSTEM)$/.test(row.employeeCode))).map(row=>({...row,employmentStatus:row.employmentStatus||'',status:row.employmentStatus||'unsynced',seniority:yearsSince(row.hireDate),hasAccount:!!row.account,hasProfile:!!row.profileId})).sort((a,b)=>a.fullName.localeCompare(b.fullName,'vi'));
 }
 
+// PHF Task MAIL CONTRACT V1 — canonical contact resolver for transactional
+// mail. NO session/admin gate (server-to-server, called only by the mail
+// drainer): given employee codes, return { CODE: { email, active } } using the
+// SAME merge precedence as the People Master UI (work_email -> personal_email
+// -> account email; employment_status 'active'). A code with no email or a
+// non-'active' status is returned so the drainer can log it as skipped.
+async function resolveEmployeeContacts(codes){
+  const want=new Set((Array.isArray(codes)?codes:[]).map(code).filter(Boolean));
+  const out={};
+  if(!want.size)return out;
+  let records=[];
+  try{records=mergeSources(await sources());}catch(e){records=[];}
+  for(const r of records){
+    const c=code(r.employeeCode);
+    if(!c||!want.has(c))continue;
+    out[c]={email:text(r.email).toLowerCase(),active:normalizeEmploymentStatus(r.employmentStatus)==='active'};
+  }
+  return out;
+}
+
 async function listEmployeeMaster(session){
   requireAdmin(session);const source=await sources();
   return{employees:mergeSources(source),schemaReady:source.schemaReady,organizationReady:source.organizationReady,organizationError:source.organizationError,fieldSources:{identity:'employees + user_accounts + employee_profiles',organization:'employee_profiles (People Master — department, title, position, branch, manager)',employmentStatus:'employee_profiles.employment_status',account:'user_accounts',personal:'employee_profiles / employee_private_profiles',contracts:'employee_contracts',compensation:'employee_compensation'},generatedAt:new Date().toISOString()};
@@ -106,4 +126,4 @@ async function saveCompensation(session,input){
   requireAdmin(session);requireDb();const profile=await ensureProfile(input),currentResult=await db.from('employee_compensation').select('*').eq('employee_profile_id',profile.id).is('effective_to',null).order('effective_from',{ascending:false}).limit(1).maybeSingle();if(currentResult.error)throw currentResult.error;const current=currentResult.data||null;let result;if(current)result=await db.from('employee_compensation').update({base_salary:money(input.baseSalary)}).eq('id',current.id).select('*').single();else result=await db.from('employee_compensation').insert({employee_profile_id:profile.id,base_salary:money(input.baseSalary),allowances:0,currency:'VND',effective_from:new Date().toISOString().slice(0,10),effective_to:null,note:''}).select('*').single();if(result.error)throw result.error;await history(session,profile.id,'compensation',current?'update':'create',current,result.data,input.reason||'Cập nhật mức lương hiện tại');return{compensation:result.data};
 }
 
-module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation};
+module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,resolveEmployeeContacts,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation};

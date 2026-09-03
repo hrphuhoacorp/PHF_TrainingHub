@@ -49,7 +49,10 @@ const expectedActions = [
   'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
   // CANCEL POLICY V1 (2026-08-31) — PostgreSQL-only "Yêu cầu hủy" flow.
   // Impl: api/_lib/task-server-integration.js (…ViaServer).
-  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest'
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest',
+  // MAIL V1 Increment 2 (Admin Mail Settings + Weekly Report preview).
+  // Impl: api/_lib/task-mail-settings-actions.js (requireTaskAdmin-gated).
+  'taskMailSettingsGet', 'taskMailSetWeeklyEnabled', 'taskMailAddRecipient', 'taskMailSetRecipientEnabled', 'taskMailRemoveRecipient', 'taskMailWeeklyPreview'
 ];
 const actorFields = ['actor_employee_code', 'actor_role', 'actor_scope', 'is_admin', 'permission_flags'];
 let passed = 0;
@@ -158,7 +161,13 @@ const payloads = {
   requestTaskCancel: { task_id:'task-1', reason:'Xin hủy vì trùng việc' },
   approveTaskCancelRequest: { task_id:'task-1', expected_row_version:7, note:'Đồng ý hủy' },
   rejectTaskCancelRequest: { task_id:'task-1', note:'Chưa đủ cơ sở' },
-  withdrawTaskCancelRequest: { task_id:'task-1', note:'Tự rút lại' }
+  withdrawTaskCancelRequest: { task_id:'task-1', note:'Tự rút lại' },
+  taskMailSettingsGet: {},
+  taskMailSetWeeklyEnabled: { enabled:true },
+  taskMailAddRecipient: { email:'bgd@phuhoa.com', label:'BGĐ' },
+  taskMailSetRecipientEnabled: { id:'r1', enabled:false },
+  taskMailRemoveRecipient: { id:'r1' },
+  taskMailWeeklyPreview: {}
 };
 const expectedCoreArgs = {
   listTaskAssignableEmployees: [],
@@ -222,7 +231,13 @@ const expectedCoreArgs = {
   requestTaskCancel: ['task-1', 'Xin hủy vì trùng việc'],
   approveTaskCancelRequest: ['task-1', { expectedRowVersion:7, note:'Đồng ý hủy' }],
   rejectTaskCancelRequest: ['task-1', { note:'Chưa đủ cơ sở' }],
-  withdrawTaskCancelRequest: ['task-1', { note:'Tự rút lại' }]
+  withdrawTaskCancelRequest: ['task-1', { note:'Tự rút lại' }],
+  taskMailSettingsGet: [],
+  taskMailSetWeeklyEnabled: [true],
+  taskMailAddRecipient: [{ email:'bgd@phuhoa.com', label:'BGĐ' }],
+  taskMailSetRecipientEnabled: [{ id:'r1', enabled:false }],
+  taskMailRemoveRecipient: [{ id:'r1' }],
+  taskMailWeeklyPreview: []
 };
 
 (async () => {
@@ -301,7 +316,10 @@ const expectedCoreArgs = {
   // RECURRENCE V1 (2026-08-31) — recurrence actions live in their own module
   // (same domain-isolation convention). Include it in the union.
   const recurrenceActionsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-recurrence-actions.js'), 'utf8');
-  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource + '\n' + serverIntegrationSource + '\n' + reportingV2Source + '\n' + recurrenceActionsSource;
+  // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview actions
+  // live in their own module (same domain-isolation convention).
+  const mailSettingsActionsSource = fs.readFileSync(path.join(root, 'api', '_lib', 'task-mail-settings-actions.js'), 'utf8');
+  const implementationSource = coreSource + '\n' + notificationsSource + '\n' + reportingSource + '\n' + serverIntegrationSource + '\n' + reportingV2Source + '\n' + recurrenceActionsSource + '\n' + mailSettingsActionsSource;
   // Một số action wire qua seam ...ViaServer()/...Legacy() (Proposal V2,
   // read-bridge dual-path) — implementation identifier là <action>ViaServer,
   // không phải bare <action>. Chấp nhận cả 2 dạng.

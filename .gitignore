@@ -46,3 +46,7 @@ scripts/*.result.json
 /scripts/task-training-acceptance-verify-v1.json
 # CHỨA EMAIL CÁ NHÂN THẬT của nhân viên (PII) — tuyệt đối không commit.
 /scripts/task-training-acceptance-persona-emails.json
+
+# PHF Task Mail V1 — offline HTML previews generated from SYNTHETIC demo data
+# for visual review only (scripts/task-mail-preview-generate.js). Not fixtures.
+/tmp/

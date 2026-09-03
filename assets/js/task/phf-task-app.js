@@ -569,7 +569,7 @@ function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'
 function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
 var TASK_LIST_PAGE_SIZE=50;
 function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false,loadedOnce:false};}
-var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,
+var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,mailSettings:null,mailSettingsLoading:false,mailSettingsError:'',mailSettingsSaving:false,newRecipientEmail:'',newRecipientLabel:'',newRecipientError:'',
   recurrenceManage:{loading:false,error:'',rules:[],editing:null,saving:false,confirmStop:null,filters:{q:'',status:'all',frequency:'all'},loadedOnce:false},
   // P0-2 FIX (2026-08-29) — detail-page business action UI (đổi hạn/chuyển
   // Primary/thêm-xóa Related). Gate hiện/ẩn HOÀN TOÀN dựa trên viewer.actions
@@ -3811,9 +3811,43 @@ function taskSettingsCategoriesHtml(){
     '</div>';
   return schemaWarning+'<section class="phft-form-card phft-admin-people-card"><header><h2>Danh mục công việc</h2><p>Bắt buộc khi tạo phiếu. Danh mục đã dùng không xóa được — chỉ Ngừng sử dụng; phiếu lịch sử vẫn giữ tên cũ.</p></header>'+body+'</section>'+addForm;
 }
+function taskMailSettingsHtml(){
+  var s=taskUiState.mailSettings;
+  var saving=taskUiState.mailSettingsSaving;
+  var body;
+  if(taskUiState.mailSettingsLoading){body='<div class="phft-loading">Đang tải cấu hình email…</div>';}
+  else if(taskUiState.mailSettingsError){body='<div class="phft-alert is-error"><div><b>Chưa tải được cấu hình email.</b><small>'+esc(taskUiState.mailSettingsError)+'</small></div><button type="button" class="phft-btn-secondary" data-task-mail-reload>Thử lại</button></div>';}
+  else if(!s||s.schemaReady===false){body='<div class="phft-alert is-warning"><div><b>Cấu hình email chưa sẵn sàng.</b><small>Cần áp dụng migration phf_hr_task_mail_settings_v1.sql trên môi trường này.</small></div></div>';}
+  else{
+    var enabled=!!s.weeklyReportEnabled;
+    var recips=s.recipients||[];
+    var toggle='<div class="phft-mail-toggle"><b>Báo cáo tuần</b> '
+      +'<button type="button" class="phft-btn-'+(enabled?'secondary':'primary')+'" data-task-mail-weekly-toggle="'+(enabled?'0':'1')+'"'+(saving?' disabled':'')+'>'+(enabled?'ĐANG BẬT — Tắt':'ĐANG TẮT — Bật')+'</button>'
+      +'<p><small>Lịch dự kiến: Thứ Hai hàng tuần — 10:00 (Asia/Ho_Chi_Minh). Chỉ gửi khi cả cờ hệ thống và cài đặt này cùng bật.</small></p></div>';
+    var rows=recips.length
+      ? recips.map(function(r){
+          return '<tr><td><b>'+esc(r.email)+'</b>'+(r.label?'<small>'+esc(r.label)+'</small>':'')+'</td>'
+            +'<td><span class="phft-people-status '+(r.isEnabled?'is-active':'is-inactive')+'">'+(r.isEnabled?'Đang nhận':'Tạm dừng')+'</span></td>'
+            +'<td class="phft-category-actions">'
+            +'<button type="button" class="phft-btn-secondary" data-task-mail-recip-toggle="'+esc(r.id)+'" data-task-mail-recip-to="'+(r.isEnabled?'0':'1')+'"'+(saving?' disabled':'')+'>'+(r.isEnabled?'Tạm dừng':'Bật lại')+'</button>'
+            +'<button type="button" class="phft-btn-danger" data-task-mail-recip-remove="'+esc(r.id)+'"'+(saving?' disabled':'')+'>Xóa</button>'
+            +'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="3"><div class="phft-inline-empty">Chưa có người nhận nào. Thêm email bên dưới.</div></td></tr>';
+    var table='<table class="phft-admin-people-table phft-category-table"><thead><tr><th>Email</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    var addForm='<div class="phft-category-add-row">'
+      +'<input type="email" data-task-mail-new-email value="'+esc(taskUiState.newRecipientEmail)+'" placeholder="email@phuhoafresh.com"'+(saving?' disabled':'')+'>'
+      +'<input type="text" data-task-mail-new-label value="'+esc(taskUiState.newRecipientLabel)+'" placeholder="Tên hiển thị (tùy chọn)"'+(saving?' disabled':'')+'>'
+      +'<button type="button" class="phft-btn-primary" data-task-mail-recip-add'+(saving?' disabled':'')+'>Thêm người nhận</button></div>'
+      +(taskUiState.newRecipientError?'<small class="phft-field-error">'+esc(taskUiState.newRecipientError)+'</small>':'');
+    var preview='<p class="phft-category-suggestions"><button type="button" class="phft-btn-secondary" data-task-mail-preview>Xem trước báo cáo tuần (không gửi)</button></p>';
+    body=toggle+table+addForm+preview;
+  }
+  return '<section class="phft-form-card phft-admin-people-card" style="margin-top:16px"><header><h2>Email báo cáo</h2><p>Báo cáo công việc tuần gửi cho BGĐ. Không lưu email trong mã nguồn — quản lý danh sách tại đây. Toggle bình thường dùng "Tạm dừng"; "Xóa" gỡ hẳn dòng.</p></header>'+body+'</section>';
+}
 function taskSettingsHtml(){
   var head='<div class="phft-page-head"><div><small>PHF TASK / CÀI ĐẶT</small><h1>Cài đặt</h1></div><button type="button" class="phft-btn-secondary" data-task-settings-reload>Tải lại</button></div>';
-  return head+taskSettingsCategoriesHtml();
+  return head+taskSettingsCategoriesHtml()+taskMailSettingsHtml();
 }
 function taskFieldError(name){
   var message=taskUiState.formErrors[name];
@@ -5178,12 +5212,40 @@ async function openTaskAdminPeople(root){
 }
 async function openTaskSettings(root){
   if(!isTaskAdminUi())return;
-  taskUiState.view='settings';taskUiState.settingsLoading=true;taskUiState.settingsError='';taskUiState.newCategoryName='';taskUiState.newCategoryError='';taskUiState.editingCategoryCode='';taskUiState.foundationStatus=null;taskUiState.foundationStatusLoading=true;renderTaskRoot(root);
+  taskUiState.view='settings';taskUiState.settingsLoading=true;taskUiState.settingsError='';taskUiState.newCategoryName='';taskUiState.newCategoryError='';taskUiState.editingCategoryCode='';taskUiState.foundationStatus=null;taskUiState.foundationStatusLoading=true;taskUiState.mailSettingsLoading=true;taskUiState.mailSettingsError='';taskUiState.newRecipientEmail='';taskUiState.newRecipientLabel='';taskUiState.newRecipientError='';renderTaskRoot(root);
   try{taskUiState.settingsCategories=await loadAdminTaskCategories();}
   catch(error){taskUiState.settingsCategories=[];taskUiState.settingsError=taskApiErrorMessage(error);}
   try{taskUiState.foundationStatus=await loadTaskFoundationStatus();}
   catch(error){taskUiState.foundationStatus={categorySchemaReady:false};}
-  taskUiState.settingsLoading=false;taskUiState.foundationStatusLoading=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+  try{taskUiState.mailSettings=taskResult(await taskApi({action:'taskMailSettingsGet'}))||null;}
+  catch(error){taskUiState.mailSettings=null;taskUiState.mailSettingsError=taskApiErrorMessage(error);}
+  taskUiState.settingsLoading=false;taskUiState.foundationStatusLoading=false;taskUiState.mailSettingsLoading=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function reloadTaskMailSettings(root){
+  taskUiState.mailSettingsLoading=true;taskUiState.mailSettingsError='';renderTaskRoot(root);
+  try{taskUiState.mailSettings=taskResult(await taskApi({action:'taskMailSettingsGet'}))||null;}
+  catch(error){taskUiState.mailSettings=null;taskUiState.mailSettingsError=taskApiErrorMessage(error);}
+  taskUiState.mailSettingsLoading=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function openTaskMailWeeklyPreview(root){
+  taskUiState.mailSettingsSaving=true;renderTaskRoot(root);
+  var win=window.open('','_blank');
+  try{
+    var res=taskResult(await taskApi({action:'taskMailWeeklyPreview'}))||{};
+    if(win){win.document.open();win.document.write('<title>Xem trước — '+esc(res.subject||'Báo cáo tuần')+'</title>'+(res.html||'<p>Không có dữ liệu.</p>'));win.document.close();}
+  }catch(error){
+    if(win){win.document.open();win.document.write('<p style="font-family:sans-serif;color:#b91c1c">Không tạo được bản xem trước: '+esc(taskApiErrorMessage(error))+'</p>');win.document.close();}
+  }
+  taskUiState.mailSettingsSaving=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+}
+async function runTaskMailAction(root,payload,onErr){
+  taskUiState.mailSettingsSaving=true;taskUiState.newRecipientError='';renderTaskRoot(root);
+  var ok=false;
+  try{await taskApi(payload);ok=true;}
+  catch(error){if(onErr){onErr(taskApiErrorMessage(error));}else{taskUiState.mailSettingsError=taskApiErrorMessage(error);}}
+  try{taskUiState.mailSettings=taskResult(await taskApi({action:'taskMailSettingsGet'}))||taskUiState.mailSettings;}catch(e){}
+  taskUiState.mailSettingsSaving=false;if(taskUiState.view==='settings')renderTaskRoot(root);
+  return ok;
 }
 async function reloadTaskSettingsCategories(root){
   taskUiState.settingsLoading=true;taskUiState.settingsError='';renderTaskRoot(root);
@@ -5779,6 +5841,17 @@ function bindShell(root){
     if(target.matches('[data-task-category-rename-save]')){renameTaskCategoryFromEditor(root,target.getAttribute('data-task-category-rename-save'));return;}
     if(target.matches('[data-task-category-toggle]')){toggleTaskCategoryFromEditor(root,target.getAttribute('data-task-category-toggle'),target.getAttribute('data-task-category-toggle-to')==='1');return;}
     if(target.matches('[data-task-category-delete]')){deleteTaskCategoryFromEditor(root,target.getAttribute('data-task-category-delete'));return;}
+    if(target.matches('[data-task-mail-reload]')){reloadTaskMailSettings(root);return;}
+    if(target.matches('[data-task-mail-weekly-toggle]')){runTaskMailAction(root,{action:'taskMailSetWeeklyEnabled',enabled:target.getAttribute('data-task-mail-weekly-toggle')==='1'});return;}
+    if(target.matches('[data-task-mail-recip-add]')){
+      var mEmail=String(taskUiState.newRecipientEmail||'').trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mEmail)){taskUiState.newRecipientError='Email không hợp lệ.';renderTaskRoot(root);return;}
+      runTaskMailAction(root,{action:'taskMailAddRecipient',email:mEmail,label:String(taskUiState.newRecipientLabel||'').trim()},function(msg){taskUiState.newRecipientError=msg;}).then(function(ok){if(ok){taskUiState.newRecipientEmail='';taskUiState.newRecipientLabel='';renderTaskRoot(root);}});
+      return;
+    }
+    if(target.matches('[data-task-mail-recip-toggle]')){runTaskMailAction(root,{action:'taskMailSetRecipientEnabled',id:target.getAttribute('data-task-mail-recip-toggle'),enabled:target.getAttribute('data-task-mail-recip-to')==='1'});return;}
+    if(target.matches('[data-task-mail-recip-remove]')){if(!window.confirm('Xóa hẳn người nhận này khỏi danh sách?'))return;runTaskMailAction(root,{action:'taskMailRemoveRecipient',id:target.getAttribute('data-task-mail-recip-remove')});return;}
+    if(target.matches('[data-task-mail-preview]')){openTaskMailWeeklyPreview(root);return;}
     if(target.matches('[data-task-cal-prev]')){var calP=taskUiState.calendar;calP.cursorMonth--;if(calP.cursorMonth<0){calP.cursorMonth=11;calP.cursorYear--;}calP.expandedDay='';renderTaskRoot(root);return;}
     if(target.matches('[data-task-cal-next]')){var calN=taskUiState.calendar;calN.cursorMonth++;if(calN.cursorMonth>11){calN.cursorMonth=0;calN.cursorYear++;}calN.expandedDay='';renderTaskRoot(root);return;}
     if(target.matches('[data-task-cal-today]')){var calT=taskUiState.calendar,today=new Date();calT.cursorYear=today.getFullYear();calT.cursorMonth=today.getMonth();calT.expandedDay='';renderTaskRoot(root);return;}
@@ -5972,6 +6045,8 @@ function bindShell(root){
       renderTaskRoot(root);return;
     }
     if(event.target.matches('[data-task-new-category-name]')){taskUiState.newCategoryName=event.target.value;taskUiState.newCategoryError='';return;}
+    if(event.target.matches('[data-task-mail-new-email]')){taskUiState.newRecipientEmail=event.target.value;taskUiState.newRecipientError='';return;}
+    if(event.target.matches('[data-task-mail-new-label]')){taskUiState.newRecipientLabel=event.target.value;return;}
     if(event.target.matches('[data-task-category-rename-input]')){taskUiState.editingCategoryName=event.target.value;return;}
     if(event.target.matches('[data-task-permission-reason]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.reason=event.target.value;taskUiState.permissionError='';return;}
     if(event.target.matches('[data-task-base-preset]')){if(taskUiState.permissionEditor)taskUiState.permissionEditor.basePresetCode=event.target.value;taskUiState.permissionError='';renderTaskRoot(root);return;}
