@@ -3,7 +3,7 @@
    regression. NO backend, NO network. Loads assets/js/task/phf-task-app.js in
    jsdom (same harness as scripts/test-task-create-ux-v1.js) and asserts:
      A. Full Create "Công việc lặp" controls (none/weekly/monthly, field
-        reveal, month-end helper, no daily/yearly, Quick + Proposal clean)
+        reveal, month-end helper, daily+weekly+monthly, no yearly, Quick + Proposal clean)
      B. "Lịch lặp" management view renders the listTaskRecurrence DTO +
         per-flag actions + edit "future only" copy + stop confirmation copy
      C. buildRecurrencePayload maps the form + recurrence sub-form correctly
@@ -39,10 +39,19 @@ function pass(cond, msg) { assert.ok(cond, msg); passed += 1; }
 
   // default render: segmented control present, no detail fields
   let html = T.taskRecurrenceSectionHtml();
-  pass(/data-task-recurrence-mode="none"/.test(html) && /data-task-recurrence-mode="weekly"/.test(html) && /data-task-recurrence-mode="monthly"/.test(html), 'A1: none/weekly/monthly segmented control rendered');
+  pass(/data-task-recurrence-mode="none"/.test(html) && /data-task-recurrence-mode="daily"/.test(html) && /data-task-recurrence-mode="weekly"/.test(html) && /data-task-recurrence-mode="monthly"/.test(html), 'A1: none/daily/weekly/monthly segmented control rendered');
   pass(!/data-task-recurrence-field=/.test(html), 'A2: mode=none hides all recurrence detail fields');
-  pass(!/data-task-recurrence-mode="daily"/.test(html) && !/data-task-recurrence-mode="yearly"/.test(html) && !/Hàng ngày/.test(html) && !/Hàng năm/.test(html), 'A3: daily/yearly never exposed');
+  pass(!/data-task-recurrence-mode="yearly"/.test(html) && !/Hàng năm/.test(html), 'A3: yearly never exposed');
   pass(!/end_date|Ngày kết thúc|Kết thúc lịch/.test(html), 'A4: no end-date control in V1');
+
+  // daily reveals ONLY start date + time (+ repeat count) — no weekday, no day-of-month
+  st.form.recurrence.mode = 'daily';
+  html = T.taskRecurrenceSectionHtml();
+  pass(/data-task-recurrence-field="start_date"/.test(html) && /data-task-recurrence-field="start_time"/.test(html), 'A3a: daily reveals start date + start time');
+  pass(!/data-task-recurrence-field="weekday"/.test(html) && !/data-task-recurrence-field="day_of_month"/.test(html), 'A3b: daily shows no weekday / day-of-month picker');
+  pass(!/ngày cuối cùng của tháng/.test(html), 'A3c: daily has no month-end helper');
+  st.form.recurrence.mode = 'none';
+  html = T.taskRecurrenceSectionHtml();
 
   // weekly reveals weekday + start date + start time
   st.form.recurrence.mode = 'weekly';
@@ -127,6 +136,11 @@ function pass(cond, msg) { assert.ok(cond, msg); passed += 1; }
         cycle: 'Hàng tháng · Ngày 31', frequency: 'monthly', weekday: null, day_of_month: 31, start_time: '09:30',
         anchor_date: '2026-08-31', end_date: null, next_run_date: null, generated_count: 1,
         status: 'paused', status_label: 'Tạm dừng', can_edit: true, can_pause: false, can_resume: true, can_stop: true },
+      { id: 'r-daily', title: 'Chốt quỹ ngày', content: '', category_code: 'CAT1', priority: 'thuong',
+        related_employee_codes: [], primary_employee_code: 'NV005', primary_employee_name: 'Phạm D',
+        cycle: 'Hàng ngày', frequency: 'daily', weekday: null, day_of_month: null, start_time: '18:00',
+        anchor_date: '2026-09-10', end_date: null, next_run_date: '2026-09-11', generated_count: 2,
+        status: 'active', status_label: 'Đang hoạt động', can_edit: true, can_pause: true, can_resume: false, can_stop: true },
       { id: 'r-ended', title: 'Việc cũ', content: '', category_code: 'CAT1', priority: 'thuong',
         related_employee_codes: [], primary_employee_code: 'NV004', primary_employee_name: 'Lê C',
         cycle: 'Hàng tuần · Thứ 6', frequency: 'weekly', weekday: 'T6', day_of_month: null, start_time: '07:00',
@@ -160,6 +174,16 @@ function pass(cond, msg) { assert.ok(cond, msg); passed += 1; }
   pass(/Thay đổi chỉ áp dụng cho các kỳ chưa được tạo\./.test(html), 'B8: edit copy says future occurrences only (verbatim)');
   pass(/data-task-recurrence-edit-field="day_of_month"/.test(html) && /data-task-recurrence-edit-field="start_date"/.test(html) && /data-task-recurrence-edit-field="start_time"/.test(html) && /data-task-recurrence-edit-field="title"/.test(html), 'B8b: editor exposes title + schedule fields (monthly)');
   pass(/ngày cuối cùng của tháng/.test(html), 'B8c: monthly editor shows month-end helper');
+  // daily row + editor
+  st.recurrenceManage.editing = null;
+  let mHtml = T.taskRecurrenceManageHtml();
+  pass(/Chốt quỹ ngày/.test(mHtml) && /Hàng ngày/.test(mHtml.split('data-task-recurrence-row="r-daily"')[1].split('</tr>')[0]), 'B10: daily rule row shows "Hàng ngày" cycle');
+  T.openTaskRecurrenceEditor({}, 'r-daily');
+  const dEd = T.taskRecurrenceEditorHtml(st.recurrenceManage.editing, st.recurrenceManage);
+  pass(/Hàng ngày/.test(dEd) && !/data-task-recurrence-edit-field="weekday"/.test(dEd) && !/data-task-recurrence-edit-field="day_of_month"/.test(dEd), 'B11: daily editor has no weekday / day-of-month picker');
+  pass(!/ngày cuối cùng của tháng/.test(dEd), 'B11b: daily editor has no month-end helper');
+  st.recurrenceManage.editing = null;
+
   // editor for a rule that cannot be edited -> no-op
   st.recurrenceManage.editing = null;
   T.openTaskRecurrenceEditor({}, 'r-ended');
@@ -181,7 +205,11 @@ function pass(cond, msg) { assert.ok(cond, msg); passed += 1; }
   pass(monthly.frequency === 'monthly' && monthly.day_of_month === 31 && monthly.weekday === undefined, 'C2: monthly payload — day 31 preserved as number 31, no weekday');
 
   pass(T.validateTaskRecurrenceInput({ mode: 'weekly', weekday: 'T2', start_date: '2026-09-02', start_time: '08:00' }) === '', 'C3: valid weekly passes client check');
-  pass(!!T.validateTaskRecurrenceInput({ mode: 'daily', start_date: '2026-09-02', start_time: '08:00' }), 'C3b: daily rejected by client check');
+  pass(T.validateTaskRecurrenceInput({ mode: 'daily', start_date: '2026-09-02', start_time: '08:00' }) === '', 'C3b: valid daily passes client check (no weekday / day-of-month needed)');
+  pass(!!T.validateTaskRecurrenceInput({ mode: 'daily', start_date: '', start_time: '08:00' }), 'C3b2: daily still needs a start date');
+  const daily = T.buildRecurrencePayload(form, { mode: 'daily', weekday: 'T4', day_of_month: '9', start_date: '2026-09-02', start_time: '06:15' });
+  pass(daily.frequency === 'daily' && daily.weekday === undefined && daily.day_of_month === undefined, 'C2b: daily payload — no weekday, no day_of_month');
+  pass(!!T.validateTaskRecurrenceInput({ mode: 'yearly', start_date: '2026-09-02', start_time: '08:00' }), 'C3b3: yearly still rejected by client check');
   pass(!!T.validateTaskRecurrenceInput({ mode: 'monthly', day_of_month: 0, start_date: '2026-09-02', start_time: '08:00' }), 'C3c: monthly day 0 rejected');
   pass(!!T.validateTaskRecurrenceInput({ mode: 'weekly', weekday: 'T2', start_date: '', start_time: '08:00' }), 'C3d: missing start date rejected');
 
@@ -217,8 +245,12 @@ function pass(cond, msg) { assert.ok(cond, msg); passed += 1; }
   h = badge({ task: {}, recurrence: { frequency: 'weekly', weekday: 'T2', remaining_occurrences: 2, rule_id: 'RID', occurrence_id: 'OID', recurring_series_id: 'SID', recurring_series_version: 7 } });
   pass(!/RID|OID|SID|series_id|rule_id|version|[0-9a-f]{8}-[0-9a-f]{4}/.test(h), 'D5: badge exposes no rule_id / occurrence_id / series_id / version');
 
+  // daily badge
+  h = badge({ task: {}, recurrence: { frequency: 'daily', weekday: null, day_of_month: null, rule_active: true, remaining_occurrences: null } });
+  pass(/↻ Công việc lặp · Hàng ngày/.test(h), 'D5b: daily badge copy "↻ Công việc lặp · Hàng ngày"');
+
   // unknown frequency -> nothing (defensive)
-  pass(badge({ task: {}, recurrence: { frequency: 'daily', remaining_occurrences: 3 } }) === '', 'D6: unknown frequency -> no badge');
+  pass(badge({ task: {}, recurrence: { frequency: 'yearly', remaining_occurrences: 3 } }) === '', 'D6: unknown frequency -> no badge');
 
   // placement: rendered right after "Mã phiếu", inside .phft-task-code, before content <p>
   const st = T.getState();

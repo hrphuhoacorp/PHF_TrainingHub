@@ -37,10 +37,12 @@ function fail(message, statusCode, errorCode) {
   throw e;
 }
 
-// The V1 business contract exposes ONLY these frequencies in the UI — daily /
-// yearly stay unreachable even though the date engine supports them.
-const UI_FREQUENCIES = new Set(['weekly', 'monthly']);
+// The V1 business contract exposes these frequencies in the UI. "daily" =
+// every calendar day (no per-weekday selection in V1); yearly stays unreachable
+// even though the date engine supports it.
+const UI_FREQUENCIES = new Set(['daily', 'weekly', 'monthly']);
 const WEEKDAYS = new Set(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
+const DAILY_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const DURATION_DAYS_ALLOWED = new Set([1, 2, 3, 5, 7]);
 const MAX_REPEAT_COUNT = 200; // mirrors RECURRENCE_MAX_OCCURRENCES in the engine
 
@@ -55,7 +57,7 @@ const MAX_REPEAT_COUNT = 200; // mirrors RECURRENCE_MAX_OCCURRENCES in the engin
 function normalizeRuleInput(payload) {
   const p = payload || {};
   const frequency = text(p.frequency);
-  if (!UI_FREQUENCIES.has(frequency)) fail('Chu kỳ lặp không hợp lệ (chỉ hỗ trợ Hàng tuần / Hàng tháng).', 400, 'RECURRENCE_FREQUENCY_INVALID');
+  if (!UI_FREQUENCIES.has(frequency)) fail('Chu kỳ lặp không hợp lệ (chỉ hỗ trợ Hàng ngày / Hàng tuần / Hàng tháng).', 400, 'RECURRENCE_FREQUENCY_INVALID');
 
   const startDateKey = text(p.startDate);
   if (!datemath.isValidDateKey(startDateKey)) fail('Ngày bắt đầu không hợp lệ (yêu cầu YYYY-MM-DD).', 400, 'RECURRENCE_START_DATE_INVALID');
@@ -95,7 +97,11 @@ function normalizeRuleInput(payload) {
     initialTaskId: text(p.initialTaskId) || undefined,
   };
 
-  if (frequency === 'weekly') {
+  if (frequency === 'daily') {
+    // "Hàng ngày" V1: every calendar day. No weekday / day-of-month input.
+    out.weekday = null;
+    out.dayOfMonth = null;
+  } else if (frequency === 'weekly') {
     out.weekday = code(p.weekday);
     if (!WEEKDAYS.has(out.weekday)) fail('Thứ trong tuần không hợp lệ.', 400, 'RECURRENCE_WEEKDAY_INVALID');
   } else {
@@ -153,9 +159,11 @@ function computeNextRunDateKey(rule) {
     // finite "Số lần lặp" already exhausted -> no next run (rule will auto-end)
     if (rule.max_occurrences !== null && rule.max_occurrences !== undefined
         && Number(rule.generated_future_count || 0) >= Number(rule.max_occurrences)) return null;
-    const engineRule = rule.frequency === 'weekly'
-      ? { frequency: 'weekly' }
-      : { frequency: 'monthly', monthlyMode: 'fixed_day', dayOfMonth: rule.day_of_month };
+    const engineRule = rule.frequency === 'daily'
+      ? { frequency: 'daily', weekdays: DAILY_WEEKDAYS.slice() }
+      : rule.frequency === 'weekly'
+        ? { frequency: 'weekly' }
+        : { frequency: 'monthly', monthlyMode: 'fixed_day', dayOfMonth: rule.day_of_month };
     const anchor = dcol(rule.anchor_date);
     const todayKey = datemath.formatDateKey(
       new Date(Date.now() + 7 * 3600 * 1000).getUTCFullYear(),
@@ -181,7 +189,7 @@ function computeNextRunDateKey(rule) {
   }
 }
 
-const FREQ_LABEL = { weekly: 'Hàng tuần', monthly: 'Hàng tháng' };
+const FREQ_LABEL = { daily: 'Hàng ngày', weekly: 'Hàng tuần', monthly: 'Hàng tháng' };
 const WEEKDAY_LABEL = { T2: 'Thứ 2', T3: 'Thứ 3', T4: 'Thứ 4', T5: 'Thứ 5', T6: 'Thứ 6', T7: 'Thứ 7', CN: 'Chủ nhật' };
 const STATUS_LABEL = { active: 'Đang hoạt động', paused: 'Tạm dừng', ended: 'Đã dừng' };
 

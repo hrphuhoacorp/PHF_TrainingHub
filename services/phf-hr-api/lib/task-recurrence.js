@@ -29,6 +29,10 @@ const notify = require('./task-notification-emit');
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 const WEEKDAYS = new Set(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
+// "Hàng ngày" V1 = every calendar day. The pure date-math engine models daily
+// as "these weekdays" — every day is all seven. No per-weekday selection is
+// exposed for daily in V1 (that is a later increment if ever needed).
+const DAILY_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const PRIORITIES = new Set(['thuong', 'quan_trong', 'khan_cap']);
 // "Số lần lặp" upper bound. No lifetime cap existed before this (generateDue
 // only had per-run caps). 200 ≈ ~4y weekly / ~16y monthly, inside smallint and
@@ -125,8 +129,11 @@ function validateRuleInput(input) {
   if (!Number.isInteger(out.startHour) || out.startHour < 0 || out.startHour > 23) throw rcErr('RECURRENCE_START_HOUR_INVALID');
   if (!Number.isInteger(out.startMinute) || out.startMinute < 0 || out.startMinute > 59) throw rcErr('RECURRENCE_START_MINUTE_INVALID');
   if (!Number.isInteger(out.durationMs) || out.durationMs <= 0) throw rcErr('RECURRENCE_DURATION_INVALID');
-  if (out.frequency !== 'weekly' && out.frequency !== 'monthly') throw rcErr('RECURRENCE_FREQUENCY_INVALID');
-  if (out.frequency === 'weekly') {
+  if (out.frequency !== 'daily' && out.frequency !== 'weekly' && out.frequency !== 'monthly') throw rcErr('RECURRENCE_FREQUENCY_INVALID');
+  if (out.frequency === 'daily') {
+    out.weekday = null;
+    out.dayOfMonth = null;
+  } else if (out.frequency === 'weekly') {
     if (!WEEKDAYS.has(out.weekday)) throw rcErr('RECURRENCE_WEEKDAY_INVALID');
     out.dayOfMonth = null;
   } else {
@@ -163,6 +170,7 @@ function validateRuleInput(input) {
 }
 
 function ruleToEngineShape(row) {
+  if (row.frequency === 'daily') return { frequency: 'daily', weekdays: DAILY_WEEKDAYS.slice() };
   return row.frequency === 'weekly'
     ? { frequency: 'weekly' }
     : { frequency: 'monthly', monthlyMode: 'fixed_day', dayOfMonth: row.day_of_month };
@@ -862,4 +870,5 @@ module.exports = {
   taskIdempotencyKey,
   RECURRENCE_NS,
   RECURRENCE_MAX_OCCURRENCES,
+  DAILY_WEEKDAYS,
 };

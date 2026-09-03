@@ -274,7 +274,8 @@ publishChecks.then(function () {
   pass(html.indexOf('data-task-dt-field="start_at"') >= 0, 'FULL HTML: Start editable (24h control)');
   pass(html.indexOf('data-task-search="related"') >= 0, 'FULL HTML: Related/CC available');
   pass(/Công việc lặp/.test(html) && html.indexOf('data-task-recurrence-mode="weekly"') >= 0 && html.indexOf('data-task-recurrence-mode="monthly"') >= 0, 'FULL HTML: real recurrence control present (weekly/monthly)');
-  pass(html.indexOf('data-task-recurrence-mode="daily"') < 0 && html.indexOf('data-task-recurrence-mode="yearly"') < 0, 'FULL HTML: recurrence never exposes daily/yearly');
+  pass(html.indexOf('data-task-recurrence-mode="daily"') >= 0, 'FULL HTML: recurrence exposes daily ("Hàng ngày")');
+  pass(html.indexOf('data-task-recurrence-mode="yearly"') < 0, 'FULL HTML: recurrence never exposes yearly');
 })();
 
 /* ---------------------------------------------------------------------

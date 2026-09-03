@@ -189,7 +189,7 @@ function fullToQuickBlockingReasons(form,touched,expandedSections){
   // UI/UX Step 4D — Quick has its own priority selector now; priority is
   // carried across the Full→Quick switch, no longer a "will be lost" item.
   if(touched&&touched.start)reasons.push('Đã tùy chỉnh thời gian Bắt đầu');
-  if(form.recurrence&&form.recurrence.mode&&form.recurrence.mode!=='none')reasons.push('Đã thiết lập Công việc lặp ('+(form.recurrence.mode==='weekly'?'Hàng tuần':'Hàng tháng')+')');
+  if(form.recurrence&&form.recurrence.mode&&form.recurrence.mode!=='none')reasons.push('Đã thiết lập Công việc lặp ('+({daily:'Hàng ngày',weekly:'Hàng tuần',monthly:'Hàng tháng'}[form.recurrence.mode]||form.recurrence.mode)+')');
   return reasons;
 }
 function taskDateTimeInputValueFromVnParts(parts){return parts.year+'-'+padTaskDatePart(parts.month)+'-'+padTaskDatePart(parts.day)+'T'+padTaskDatePart(parts.hour)+':'+padTaskDatePart(parts.minute);}
@@ -309,7 +309,7 @@ function buildCreatePayload(form,attemptKey){
 // server + engine validation). Returns an error string or '' when ok.
 function validateTaskRecurrenceInput(rec){
   var r=rec||{};
-  if(['weekly','monthly'].indexOf(r.mode)<0)return 'Chu kỳ lặp không hợp lệ.';
+  if(['daily','weekly','monthly'].indexOf(r.mode)<0)return 'Chu kỳ lặp không hợp lệ.';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(r.start_date||'')))return 'Chọn ngày bắt đầu cho lịch lặp.';
   if(!/^\d{1,2}:\d{2}$/.test(String(r.start_time||'')))return 'Chọn giờ bắt đầu cho lịch lặp.';
   if(r.mode==='weekly'&&['T2','T3','T4','T5','T6','T7','CN'].indexOf(String(r.weekday||''))<0)return 'Chọn thứ trong tuần cho lịch lặp.';
@@ -3950,6 +3950,7 @@ function taskRecurrenceDefaultStartDate(){
 }
 function taskRecurrenceFrequencyLabel(rule){
   if(!rule)return '';
+  if(rule.frequency==='daily')return 'Hàng ngày';
   if(rule.frequency==='weekly')return 'Hàng tuần · '+taskRecurrenceWeekdayLabel(rule.weekday);
   if(rule.frequency==='monthly')return 'Hàng tháng · Ngày '+rule.day_of_month;
   return rule.frequency||'';
@@ -3962,8 +3963,9 @@ function taskRecurrenceDayOptions(selected){
   var out='';for(var d=1;d<=31;d++)out+='<option value="'+d+'"'+(Number(selected)===d?' selected':'')+'>'+d+'</option>';return out;
 }
 // RECURRENCE V1 — replaces the old "Sắp triển khai" placeholder. Real controls,
-// weekly/monthly ONLY. No daily/yearly, no end-date, no technical IDs. Only
-// rendered on the Full Create form (Quick + Proposal never call this).
+// daily/weekly/monthly. "Hàng ngày" = every calendar day (no weekday picker).
+// No yearly, no end-date, no technical IDs. Only rendered on the Full Create
+// form (Quick + Proposal never call this).
 function taskRecurrenceSectionHtml(){
   if(taskUiState.form.flow_type==='de_xuat'){
     return '<section class="phft-form-card"><header class="phft-card-action"><div><h2>Công việc lặp</h2><p>Chỉ áp dụng cho Giao việc — không dùng cho Đề xuất.</p></div></header></section>';
@@ -3978,7 +3980,14 @@ function taskRecurrenceSectionHtml(){
   // whatever cell happens to be last on the row above.
   var repeatField='<label class="phft-recurrence-repeat"><span>Số lần lặp</span><input type="number" min="1" max="'+TASK_RECURRENCE_MAX_REPEAT+'" step="1" inputmode="numeric" placeholder="Không giới hạn" data-task-recurrence-field="repeat_count" value="'+esc(rec.repeat_count||'')+'"><small class="phft-field-hint" data-task-recurrence-repeat-note>Để trống nếu muốn lặp đến khi chủ động dừng.</small></label>';
   var controls='';
-  if(mode==='weekly'){
+  if(mode==='daily'){
+    controls='<div class="phft-form-grid phft-recurrence-grid">'+
+      '<label><span>Ngày bắt đầu</span><input type="date" data-task-recurrence-field="start_date" value="'+esc(rec.start_date||'')+'"></label>'+
+      '<label><span>Giờ bắt đầu</span><input type="time" data-task-recurrence-field="start_time" value="'+esc(rec.start_time||'08:00')+'"></label>'+
+      repeatField+
+    '</div>'+
+    '<p class="phft-field-hint" data-task-recurrence-daily-note>Sinh một công việc mỗi ngày, kể cả cuối tuần.</p>';
+  }else if(mode==='weekly'){
     controls='<div class="phft-form-grid phft-recurrence-grid">'+
       '<label><span>Thứ trong tuần</span><select data-task-recurrence-field="weekday">'+taskRecurrenceWeekdayOptions(rec.weekday||'T2')+'</select></label>'+
       '<label><span>Ngày bắt đầu</span><input type="date" data-task-recurrence-field="start_date" value="'+esc(rec.start_date||'')+'"></label>'+
@@ -3995,7 +4004,7 @@ function taskRecurrenceSectionHtml(){
     '<p class="phft-field-hint" data-task-recurrence-monthend-note>Nếu tháng không có ngày này, hệ thống sẽ chạy vào ngày cuối cùng của tháng.</p>';
   }
   return '<section class="phft-form-card phft-recurrence-card"><header class="phft-card-action"><div><h2>Công việc lặp</h2><p>Tự động tạo công việc theo lịch. Mỗi kỳ sinh một công việc độc lập — không tạo trước các kỳ tương lai.</p></div></header>'+
-    '<div class="phft-seg phft-seg--recurrence" role="group" aria-label="Chu kỳ lặp">'+seg('none','Không lặp')+seg('weekly','Hàng tuần')+seg('monthly','Hàng tháng')+'</div>'+
+    '<div class="phft-seg phft-seg--recurrence" role="group" aria-label="Chu kỳ lặp">'+seg('none','Không lặp')+seg('daily','Hàng ngày')+seg('weekly','Hàng tuần')+seg('monthly','Hàng tháng')+'</div>'+
     controls+
   '</section>';
 }
@@ -4484,8 +4493,8 @@ function taskCrossDepartmentDetailHtml(task){
 // renders for a non-recurring Task.
 function taskRecurrenceDetailBadgeHtml(source){
   var rec=source&&source.recurrence;
-  if(!rec||(rec.frequency!=='weekly'&&rec.frequency!=='monthly'))return '';
-  var freqLabel=rec.frequency==='weekly'?'Hàng tuần':'Hàng tháng';
+  if(!rec||['daily','weekly','monthly'].indexOf(rec.frequency)<0)return '';
+  var freqLabel={daily:'Hàng ngày',weekly:'Hàng tuần',monthly:'Hàng tháng'}[rec.frequency];
   var text='↻ Công việc lặp · '+freqLabel;
   if(rec.remaining_occurrences!=null&&isFinite(rec.remaining_occurrences)){
     text+=' · còn '+Math.max(0,Math.trunc(rec.remaining_occurrences))+' lần';
@@ -5278,7 +5287,7 @@ function taskRecurrenceManageHtml(){
   var filterBar='<div class="phft-recurrence-filterbar">'+
     '<input type="search" class="phft-input phft-recurrence-filter-q" placeholder="Tìm theo tên công việc hoặc người nhận" value="'+esc(flt.q||'')+'" data-task-recurrence-filter="q">'+
     '<select data-task-recurrence-filter="status">'+[['all','Tất cả trạng thái'],['active','Đang hoạt động'],['paused','Tạm dừng'],['ended','Đã dừng']].map(function(o){return '<option value="'+o[0]+'"'+(flt.status===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'+
-    '<select data-task-recurrence-filter="frequency">'+[['all','Tất cả chu kỳ'],['weekly','Hàng tuần'],['monthly','Hàng tháng']].map(function(o){return '<option value="'+o[0]+'"'+(flt.frequency===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'+
+    '<select data-task-recurrence-filter="frequency">'+[['all','Tất cả chu kỳ'],['daily','Hàng ngày'],['weekly','Hàng tuần'],['monthly','Hàng tháng']].map(function(o){return '<option value="'+o[0]+'"'+(flt.frequency===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'+
     (fltActive?'<button type="button" class="phft-btn-secondary" data-task-recurrence-filter-reset>Xóa lọc</button>':'')+
     '<span class="phft-recurrence-filter-count">'+rows.length+'/'+allRows.length+' lịch</span>'+
   '</div>';
@@ -5306,6 +5315,8 @@ function taskRecurrenceManageHtml(){
 }
 function taskRecurrenceEditorHtml(ed,rm){
   var isWeekly=ed.frequency==='weekly';
+  var isDaily=ed.frequency==='daily';
+  var freqDisplay=isDaily?'Hàng ngày':(isWeekly?'Hàng tuần':'Hàng tháng');
   function grp(legend,inner){return '<fieldset class="phft-rec-group"><legend>'+esc(legend)+'</legend><div class="phft-rec-group-grid">'+inner+'</div></fieldset>';}
   var groupA=grp('Thông tin công việc',
     '<label class="phft-span-2"><span>Tên công việc</span><input data-task-recurrence-edit-field="title" value="'+esc(ed.title)+'"></label>'+
@@ -5313,11 +5324,13 @@ function taskRecurrenceEditorHtml(ed,rm){
       [['thuong','Thường'],['quan_trong','Quan trọng'],['khan_cap','Khẩn cấp']].map(function(p){return '<option value="'+p[0]+'"'+(ed.priority===p[0]?' selected':'')+'>'+esc(p[1])+'</option>';}).join('')+
     '</select></label>');
   var groupB=grp('Chu kỳ lặp',
-    '<label><span>Chu kỳ</span><input value="'+esc(isWeekly?'Hàng tuần':'Hàng tháng')+'" disabled></label>'+
-    (isWeekly
-      ?'<label><span>Thứ trong tuần</span><select data-task-recurrence-edit-field="weekday">'+taskRecurrenceWeekdayOptions(ed.weekday)+'</select></label>'
-      :'<label><span>Ngày trong tháng</span><select data-task-recurrence-edit-field="day_of_month">'+taskRecurrenceDayOptions(ed.day_of_month)+'</select></label>')+
-    (isWeekly?'':'<p class="phft-rec-group-hint phft-span-2">Nếu tháng không có ngày này, hệ thống sẽ chạy vào ngày cuối cùng của tháng.</p>'));
+    '<label><span>Chu kỳ</span><input value="'+esc(freqDisplay)+'" disabled></label>'+
+    (isDaily
+      ?'<p class="phft-rec-group-hint phft-span-2">Sinh một công việc mỗi ngày, kể cả cuối tuần.</p>'
+      :isWeekly
+        ?'<label><span>Thứ trong tuần</span><select data-task-recurrence-edit-field="weekday">'+taskRecurrenceWeekdayOptions(ed.weekday)+'</select></label>'
+        :'<label><span>Ngày trong tháng</span><select data-task-recurrence-edit-field="day_of_month">'+taskRecurrenceDayOptions(ed.day_of_month)+'</select></label>'+
+         '<p class="phft-rec-group-hint phft-span-2">Nếu tháng không có ngày này, hệ thống sẽ chạy vào ngày cuối cùng của tháng.</p>'));
   var groupC=grp('Thời gian',
     '<label><span>Ngày bắt đầu</span><input type="date" data-task-recurrence-edit-field="start_date" value="'+esc(ed.start_date)+'"></label>'+
     '<label><span>Giờ bắt đầu</span><input type="time" data-task-recurrence-edit-field="start_time" value="'+esc(ed.start_time)+'"></label>');
