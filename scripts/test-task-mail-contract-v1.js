@@ -237,9 +237,11 @@ function stripComments(src) {
     task_id: '11111111-1111-1111-1111-111111111111',
     assigner_employee_code: A, primary_employee_code: P, creator_employee_code: A,
     recipient_employee_code: P, from_employee_code: 'PHF041',
+    actor_employee_code: 'PHF002',
     start_at: '2026-09-04T01:00:00Z', deadline: '2026-09-06T10:00:00Z',
     old_deadline: '2026-09-12T10:00:00Z', new_deadline: '2026-09-06T10:00:00Z',
     completed_at: '2026-09-08T02:15:00Z', actor_name: 'Trần Văn Vinh',
+    cancelled_at: '2026-09-05T04:00:00Z', reopened_at: '2026-09-09T07:30:00Z',
     reason: 'Khách hàng hoãn.',
   };
 
@@ -289,9 +291,9 @@ function stripComments(src) {
     const late = templates.renderTaskMail({ templateKey: 'TASK_COMPLETED_LATE', payload: BASE_PL });
     pass(/Hoàn thành trễ/.test(late.subject) && !/trễ/i.test(ok.subject),
       '11 subjects: LATE says "Hoàn thành trễ", on-time does not');
-    pass(/HOÀN THÀNH TRỄ/.test(late.html) && !/HOÀN THÀNH TRỄ/.test(ok.html)
-      && /Công việc đã hoàn thành/.test(ok.html),
-      '11 heading: LATE = "HOÀN THÀNH TRỄ", on-time = "Công việc đã hoàn thành"');
+    pass(/Hoàn thành trễ/.test(late.html) && !/Hoàn thành trễ/.test(ok.html)
+      && /Công việc đã hoàn thành/.test(ok.html) && /Công việc đã hoàn thành/.test(late.html),
+      '11 heading: both say "Công việc đã hoàn thành"; LATE adds a "Hoàn thành trễ" marker, on-time does not');
     // BASE_PL: deadline 06/09 10:00Z -> done 08/09 02:15Z = 1 ngày 16 giờ 15 phút
     pass(late.html !== ok.html && /Mức trễ/.test(late.html) && /Trễ 1 ngày 16 giờ/.test(late.html),
       '11 LATE derives + shows "Mức trễ" (late-by) from deadline/completed_at');
@@ -314,13 +316,76 @@ function stripComments(src) {
   pass(templates.renderTaskMail({ templateKey: 'NOPE', payload: {} }) === null, 'template: unknown key -> null (drainer marks skipped)');
   pass(templates.renderTaskMail({ templateKey: 'TASK_NEW', payload: {} }) !== null, 'template: empty payload still renders (safe fallbacks)');
 
-  // email-safety: no JS, no SVG, no remote fonts/assets in any rendered template
+  // email-safety: no JS, no SVG, no remote fonts; the ONLY remote asset allowed
+  // is the canonical PHF brand logo, served from the same app base as the deep
+  // link (TASK_MAIL_BASE_URL) — never a hardcoded host, never a tracking pixel.
   for (const key of ALL8) {
     const h = templates.renderTaskMail({ templateKey: key, payload: BASE_PL }).html;
     pass(!/<script|onclick=|onerror=|javascript:/i.test(h), 'template ' + key + ': no JS / event handlers');
     pass(!/<svg|<iframe|<object|<embed/i.test(h), 'template ' + key + ': no SVG/iframe/object');
     pass(!/@import|fonts\.googleapis|fonts\.gstatic|<link/i.test(h), 'template ' + key + ': no remote fonts / <link>');
-    pass(!/src="https?:\/\//i.test(h), 'template ' + key + ': no remote asset src');
+    const remoteSrcs = h.match(/src="https?:\/\/[^"]+"/gi) || [];
+    pass(remoteSrcs.length === 1 && remoteSrcs[0] === 'src="' + templates.LOGO_URL + '"',
+      'template ' + key + ': the only remote src is the brand logo at LOGO_URL');
+    pass(templates.LOGO_URL === templates.BASE_URL + '/assets/logo/phf-logo.png'
+      && /^https:\/\//.test(templates.LOGO_URL),
+      'template ' + key + ': logo URL is derived from the app base (no hardcoded host)');
+  }
+
+  // brand shell — logo, PHF-green wordmark, exact PHF Task font stack
+  for (const key of ALL8) {
+    const h = templates.renderTaskMail({ templateKey: key, payload: BASE_PL }).html;
+    pass(h.includes('assets/logo/phf-logo.png') && /alt="PHUHOA FRESH"/.test(h),
+      'shell ' + key + ': reuses the canonical assets/logo/phf-logo.png (not redrawn)');
+    pass(!/#0f172a/i.test(h), 'shell ' + key + ': no dark navy header colour');
+    pass(h.includes("Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"),
+      'shell ' + key + ': exact PHF Task production font stack');
+    pass(new RegExp('background:#0f7a43;color:#ffffff;text-decoration:none[^"]*">' + 'MỞ PHF TASK').test(h),
+      'shell ' + key + ': CTA fill is the approved #0f7a43 with white text');
+    pass(h.includes('Không trả lời email này.'), 'shell ' + key + ': footer "Không trả lời email này."');
+  }
+
+  // display name: `<x>_name` wins, raw code is the fallback
+  {
+    const named = templates.renderTaskMail({ templateKey: 'TASK_NEW', payload: Object.assign({}, BASE_PL, {
+      assigner_employee_code: 'PHF002', assigner_name: 'Nguyễn Văn An',
+    }) }).html;
+    pass(named.includes('Nguyễn Văn An') && !/>PHF002</.test(named),
+      'display name: assigner_name renders instead of the code when present');
+    const bare = templates.renderTaskMail({ templateKey: 'TASK_NEW', payload: Object.assign({}, BASE_PL, {
+      assigner_employee_code: 'PHF002', assigner_name: '',
+    }) }).html;
+    pass(bare.includes('PHF002'), 'display name: falls back to the raw employee code when no name');
+  }
+
+  // new payload fields land in the right templates
+  {
+    const t = templates.renderTaskMail({ templateKey: 'TASK_TRANSFERRED', payload: BASE_PL }).html;
+    pass(/PHF041/.test(t) && /Người thực hiện/.test(t) && /&#8594;/.test(t),
+      'TRANSFERRED: renders from_employee_code as "cũ -> mới"');
+    pass(/Người chuyển/.test(t), 'TRANSFERRED: shows the actor ("Người chuyển")');
+    pass(/Nội dung công việc/.test(t) && /Đếm và đối chiếu/.test(t), 'TRANSFERRED: shows task content');
+
+    const d = templates.renderTaskMail({ templateKey: 'TASK_DEADLINE_EARLIER', payload: BASE_PL }).html;
+    pass(/Người thay đổi/.test(d) && /&#8594;/.test(d) && /Đếm và đối chiếu/.test(d),
+      'DEADLINE_EARLIER: shows actor + old->new strip + content');
+
+    const c = templates.renderTaskMail({ templateKey: 'TASK_CANCELLED', payload: BASE_PL }).html;
+    pass(/Người hủy/.test(c) && /Thời điểm hủy/.test(c) && /05\/09\/2026/.test(c),
+      'CANCELLED: shows actor + cancelled_at');
+    pass(/Lý do hủy/.test(c) && /Khách hàng hoãn/.test(c), 'CANCELLED: shows reason when present');
+    const cNoReason = templates.renderTaskMail({ templateKey: 'TASK_CANCELLED', payload: Object.assign({}, BASE_PL, { reason: '' }) }).html;
+    pass(!/Lý do hủy/.test(cNoReason), 'CANCELLED: "Lý do hủy" row omitted when payload has no reason');
+
+    const r = templates.renderTaskMail({ templateKey: 'TASK_REOPENED', payload: BASE_PL }).html;
+    pass(/Người mở lại/.test(r) && /Thời điểm mở lại/.test(r) && /09\/09\/2026/.test(r),
+      'REOPENED: shows actor + reopened_at');
+    pass(/Hạn hoàn thành/.test(r) && /06\/09\/2026/.test(r), 'REOPENED: uses the current deadline');
+
+    for (const key of ['TASK_COMPLETED', 'TASK_COMPLETED_LATE']) {
+      const h = templates.renderTaskMail({ templateKey: key, payload: BASE_PL }).html;
+      pass(/Nội dung công việc/.test(h) && /Đếm và đối chiếu/.test(h), key + ': now shows task content');
+    }
   }
 
   // =====================================================================

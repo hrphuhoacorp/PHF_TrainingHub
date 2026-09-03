@@ -305,6 +305,7 @@ async function completeTask(config, params) {
         businessEventId: eventId, eventCode: 'TASK_COMPLETED', taskId,
         payload: {
           task_code: updatedTask.task_code, title: updatedTask.title,
+          content: updatedTask.content,
           assigner_employee_code: updatedTask.created_by_employee_code,
           primary_employee_code: completedPrimary,
           deadline: updatedTask.deadline, completed_at: updatedTask.completed_at,
@@ -380,8 +381,11 @@ async function reopenTask(config, params) {
         businessEventId: eventId, eventCode: 'TASK_REOPENED', taskId,
         payload: {
           task_code: updatedTask.task_code, title: updatedTask.title,
+          content: updatedTask.content,
           assigner_employee_code: updatedTask.created_by_employee_code,
           primary_employee_code: reopenPrimary, deadline: updatedTask.deadline,
+          actor_employee_code: actorEmployeeCode || null,
+          reopened_at: updatedTask.updated_at,
         },
       });
 
@@ -457,8 +461,11 @@ async function cancelTask(config, params) {
         businessEventId: cancelEventId, eventCode: 'TASK_CANCELLED', taskId,
         payload: {
           task_code: task.task_code, title: task.title,
+          content: task.content,
           assigner_employee_code: task.created_by_employee_code,
           primary_employee_code: cancelPrimary, reason: reason,
+          actor_employee_code: actorEmployeeCode || null,
+          cancelled_at: updatedTask.cancelled_at,
         },
       });
 
@@ -553,8 +560,10 @@ async function changeTaskDeadline(config, params) {
         businessEventId: eventId, eventCode: 'TASK_DEADLINE_CHANGED', taskId,
         payload: {
           task_code: updatedTask.task_code, title: updatedTask.title,
+          content: updatedTask.content,
           assigner_employee_code: updatedTask.created_by_employee_code,
           primary_employee_code: ddlPrimary,
+          actor_employee_code: actorEmployeeCode || null,
           old_deadline: oldDeadline, new_deadline: updatedTask.deadline,
           reason: reason,
         },
@@ -1183,8 +1192,10 @@ async function transferTaskPrimary(config, params) {
         businessEventId: transferEventId, eventCode: 'TASK_TRANSFERRED', taskId,
         payload: {
           task_code: task.task_code, title: task.title,
+          content: task.content,
           assigner_employee_code: task.created_by_employee_code,
           from_employee_code: oldPrimary, primary_employee_code: newPrimary,
+          actor_employee_code: actorEmployeeCode || null,
           deadline: task.deadline,
         },
       });
