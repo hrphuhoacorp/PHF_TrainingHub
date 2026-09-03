@@ -138,7 +138,9 @@ const weekly = require(path.join(API, 'task-weekly-report'));
   pass(d.kpi.completedLate.value === 1, 'KPI: completed-late-in-window = 1 (C2)');
   pass(d.kpi.overdue.value === 3 && d.kpi.overdue.comparable === false, 'KPI: overdue-now = 3 (O1,O2,O3), current snapshot, no delta');
   pass(d.kpi.inProgress.comparable === false, 'KPI: "đang thực hiện" is current snapshot, no week-over-week delta');
-  pass(/^[↑↓=]/.test(d.kpi.activity.delta) && /^[↑↓=]/.test(d.kpi.completed.delta), 'KPI: activity + completed carry a deterministic ↑/↓/= delta');
+  pass(/^(▲ \d+|▼ \d+|—)$/.test(d.kpi.activity.delta.text) && ['up', 'down', 'flat'].includes(d.kpi.activity.delta.dir),
+    'KPI: comparable KPIs carry a deterministic {text: ▲/▼/—, dir} delta');
+  pass(d.kpi.inProgress.delta === null && d.kpi.overdue.delta === null, 'KPI: no fabricated delta for "Đang thực hiện" / "Quá hạn"');
 
   const sigJoined = d.attention.join(' || ');
   pass(d.attention.length >= 1 && d.attention.length <= 5, 'attention: 1–5 deterministic signals');
@@ -150,8 +152,9 @@ const weekly = require(path.join(API, 'task-weekly-report'));
   pass(d.topTasks.length >= 1 && d.topTasks.length <= 5, 'top tasks: 3–5 max');
   pass(d.topTasks[0].task_code === 'O3' || d.topTasks[0].task_code === 'O1', 'top tasks: most-overdue first (O1/O3, longest overdue)');
   pass(/Quá hạn \d+ ngày/.test(d.topTasks[0].reason), 'top tasks: reason string "Quá hạn N ngày"');
-  const staleTop = d.topTasks.find((t) => /chưa cập nhật/.test(t.reason));
-  pass(!!staleTop, 'top tasks: at least one reason notes "N ngày chưa cập nhật"');
+  const staleTop = d.topTasks.find((t) => /Tiến độ chưa cập nhật \d+ ngày/.test(t.reason));
+  pass(!!staleTop, 'top tasks: stale wording is "Tiến độ chưa cập nhật N ngày"');
+  pass(!d.topTasks.some((t) => /\d+ ngày chưa cập nhật/.test(t.reason)), 'top tasks: old wording "N ngày chưa cập nhật" is gone');
 
   const deptCodes = d.departments.map((r) => r.department);
   pass(deptCodes.length >= 2 && deptCodes.every((x) => ['Bán hàng', 'Kho', 'HCNS'].includes(x)),
@@ -183,6 +186,182 @@ const weekly = require(path.join(API, 'task-weekly-report'));
   pass(rl.html.includes('Email được gửi tự động từ hệ thống PHF Task.'), 'render: approved footer');
   pass(!/<script|onclick=|<svg|fonts\.googleapis|<link/i.test(rl.html), 'render: no JS / SVG / remote fonts');
   pass(rl.subject === 'Báo cáo công việc tuần ' + dl.period.label, 'render: subject = "Báo cáo công việc tuần <DD/MM/YYYY> - <DD/MM/YYYY>"');
+
+  // ---- B2. SELF-TASK: NOT excluded + no KPI subline ------------------------
+  pass(!/Trong đó:\s*\d+ việc tự giao/.test(weekly.renderWeeklyReport(d).html),
+    'self-task: KPI "Công việc có hoạt động" has NO "Trong đó: X việc tự giao" subline');
+  {
+    const pOrg = new Map([['P1', { department: 'Bán hàng', fullName: 'Phan Văn Tự' }], ['P2', { department: 'Kho' }]]);
+    const pTasks = [
+      // P1: self-task that is overdue + a self-task completed LATE this week -> must appear in attention & workload
+      T({ task_code: 'SLF-OD', status: 'in_progress', deadline: iso(2026, 8, 1, 17), last_progress_at: iso(2026, 7, 10, 9), primary_employee_code: 'P1', source_of_work: 'self_assigned' }),
+      T({ task_code: 'SLF-LATE', status: 'completed', completed_at: iso(2026, 8, 10, 12), deadline: iso(2026, 8, 6, 17), on_time: false, primary_employee_code: 'P1', source_of_work: 'self_assigned' }),
+      T({ task_code: 'AB-OD', status: 'in_progress', deadline: iso(2026, 8, 8, 17), last_progress_at: iso(2026, 8, 9, 9), primary_employee_code: 'P2', source_of_work: 'assigned_by_other' }),
+    ];
+    const dp = weekly.buildWeeklyReportData(pTasks, pOrg, nowMs);
+    const p1a = dp.attentionPeople.find((x) => x.employee_code === 'P1');
+    pass(p1a && p1a.overdue === 1 && p1a.late === 1 && p1a.total === 2, 'self-task: a self_assigned task still counts in overdue + completed-late attention');
+    const p1w = dp.workloadPeople.find((x) => x.employee_code === 'P1');
+    pass(p1w && p1w.source.self_assigned === 1, 'self-task: still counted in workload + shown as its own source, not hidden');
+  }
+
+  // ---- B2b. NHÂN SỰ CẦN CHÚ Ý — deterministic top 3 -----------------------
+  const atOrg = new Map([['A', {}], ['B', {}], ['C', {}], ['D', {}], ['E', {}]]);
+  const atTasks = [
+    // A: 3 overdue + 1 late-in-week = total 4
+    T({ task_code: 'A-1', status: 'in_progress', deadline: iso(2026, 8, 1, 17), primary_employee_code: 'A' }),
+    T({ task_code: 'A-2', status: 'in_progress', deadline: iso(2026, 8, 2, 17), primary_employee_code: 'A' }),
+    T({ task_code: 'A-3', status: 'in_progress', deadline: iso(2026, 8, 3, 17), primary_employee_code: 'A' }),
+    T({ task_code: 'A-4', status: 'completed', completed_at: iso(2026, 8, 10, 9), deadline: iso(2026, 8, 6, 17), on_time: false, primary_employee_code: 'A' }),
+    // B: 2 overdue + 2 late = total 4  (tie with A on total; A wins on overdue count)
+    T({ task_code: 'B-1', status: 'in_progress', deadline: iso(2026, 8, 5, 17), primary_employee_code: 'B' }),
+    T({ task_code: 'B-2', status: 'in_progress', deadline: iso(2026, 8, 6, 17), primary_employee_code: 'B' }),
+    T({ task_code: 'B-3', status: 'completed', completed_at: iso(2026, 8, 9, 9), deadline: iso(2026, 8, 4, 17), on_time: false, primary_employee_code: 'B' }),
+    T({ task_code: 'B-4', status: 'completed', completed_at: iso(2026, 8, 11, 9), deadline: iso(2026, 8, 4, 17), on_time: false, primary_employee_code: 'B' }),
+    // C: 2 overdue only = total 2
+    T({ task_code: 'C-1', status: 'in_progress', deadline: iso(2026, 8, 7, 17), primary_employee_code: 'C' }),
+    T({ task_code: 'C-2', status: 'in_progress', deadline: iso(2026, 8, 8, 17), primary_employee_code: 'C' }),
+    // D: 1 late-in-week only = total 1
+    T({ task_code: 'D-1', status: 'completed', completed_at: iso(2026, 8, 12, 9), deadline: iso(2026, 8, 6, 17), on_time: false, primary_employee_code: 'D' }),
+    // E: completed ON TIME + a historical late OUTSIDE the report week -> total 0, must NOT appear
+    T({ task_code: 'E-1', status: 'completed', completed_at: iso(2026, 8, 10, 9), deadline: iso(2026, 8, 12, 17), on_time: true, primary_employee_code: 'E' }),
+    T({ task_code: 'E-2', status: 'completed', completed_at: iso(2026, 7, 15, 9), deadline: iso(2026, 7, 10, 17), on_time: false, primary_employee_code: 'E' }),
+  ];
+  const dat = weekly.buildWeeklyReportData(atTasks, atOrg, nowMs);
+  pass(dat.attentionPeople.length === 3, 'attention people: top 3 (A,B,C — D drops off, E excluded)');
+  pass(dat.attentionPeople.map((p) => p.employee_code).join(',') === 'A,B,C',
+    'attention people: sort TOTAL desc -> overdue desc (A[4o=3]>B[4o=2]>C[2])');
+  const A = dat.attentionPeople[0];
+  pass(A.overdue === 3 && A.late === 1 && A.total === 4, 'attention people: A = 3 quá hạn + 1 hoàn thành trễ (report week)');
+  const B = dat.attentionPeople[1];
+  pass(B.late === 2, 'attention people: B late = 2 report-week LATE completions, historical late excluded');
+  pass(!dat.attentionPeople.some((p) => p.employee_code === 'E'),
+    'attention people: E excluded — completed on time; the July late completion is outside the report week');
+  pass(dat.attentionPeople.every((p) => (p.overdue + p.late) === p.total && p.total > 0),
+    'attention people: total always reconciles = overdue + late');
+  // tie-break by employee_code ASC when everything else equal
+  {
+    const tieOrg = new Map([['Z9', {}], ['A1', {}]]);
+    const tieTasks = [
+      T({ task_code: 'T-Z', status: 'in_progress', deadline: iso(2026, 8, 5, 17), last_progress_at: iso(2026, 8, 5, 9), primary_employee_code: 'Z9' }),
+      T({ task_code: 'T-A', status: 'in_progress', deadline: iso(2026, 8, 5, 17), last_progress_at: iso(2026, 8, 5, 9), primary_employee_code: 'A1' }),
+    ];
+    const dt = weekly.buildWeeklyReportData(tieTasks, tieOrg, nowMs);
+    pass(dt.attentionPeople[0].employee_code === 'A1', 'attention people: full tie -> employee_code ASC');
+  }
+  // display name fallback + neutral empty state
+  {
+    const dnOrg = new Map([['NN', { fullName: 'Ngô Thị Nga' }], ['CC', {}]]);
+    const dnTasks = [
+      T({ task_code: 'AN', status: 'in_progress', deadline: iso(2026, 8, 1, 17), primary_employee_code: 'NN' }),
+      T({ task_code: 'AC', status: 'in_progress', deadline: iso(2026, 8, 1, 17), primary_employee_code: 'CC' }),
+    ];
+    const rdn = weekly.renderWeeklyReport(weekly.buildWeeklyReportData(dnTasks, dnOrg, nowMs)).html;
+    pass(/Ngô Thị Nga — \d+ việc cần chú ý/.test(rdn), 'attention people: render uses fullName');
+    pass(/CC — \d+ việc cần chú ý/.test(rdn), 'attention people: render falls back to employee_code');
+    const empty = weekly.renderWeeklyReport(weekly.buildWeeklyReportData([
+      T({ task_code: 'OK1', status: 'completed', completed_at: iso(2026, 8, 10, 9), deadline: iso(2026, 8, 12, 17), on_time: true, primary_employee_code: 'NN' }),
+    ], dnOrg, nowMs)).html;
+    pass(/Không có nhân sự nào có công việc quá hạn hoặc hoàn thành trễ/.test(empty), 'attention people: neutral empty state, no scolding language');
+    pass(!/kém|tệ|vi phạm|yếu/i.test(empty), 'attention people: no judgemental wording');
+  }
+
+  // ---- B2c. KHỐI LƯỢNG CÔNG VIỆC — predicate + source reconcile ------------
+  {
+    const wOrg = new Map([['W1', { fullName: 'Vương Văn Một' }]]);
+    const wTasks = [
+      T({ task_code: 'W-S', status: 'in_progress', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'self_assigned' }),
+      T({ task_code: 'W-A', status: 'in_progress', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'assigned_by_other' }),
+      T({ task_code: 'W-P', status: 'published', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'proposal' }),
+      T({ task_code: 'W-U', status: 'in_progress', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'mystery-value' }),
+      // NOT open -> excluded from workload
+      T({ task_code: 'W-DONE', status: 'completed', completed_at: iso(2026, 8, 9, 9), deadline: iso(2026, 8, 9, 17), on_time: true, primary_employee_code: 'W1', source_of_work: 'assigned_by_other' }),
+      T({ task_code: 'W-CANC', status: 'cancelled', deadline: iso(2026, 8, 9, 17), primary_employee_code: 'W1', source_of_work: 'self_assigned' }),
+    ];
+    const dw = weekly.buildWeeklyReportData(wTasks, wOrg, nowMs);
+    const w1 = dw.workloadPeople.find((x) => x.employee_code === 'W1');
+    pass(w1.total === 4, 'workload: predicate = current OPEN tasks only (published|in_progress) — completed/cancelled excluded');
+    const s = w1.source;
+    pass(s.self_assigned === 1 && s.assigned_by_other === 1 && s.proposal === 1 && s.unknown === 1,
+      'workload: 4-way source_of_work breakdown, unknown = unrecognised enum ("mystery-value")');
+    pass(s.self_assigned + s.assigned_by_other + s.proposal + s.unknown === w1.total,
+      'workload: source parts always reconcile with the total');
+    const rw = weekly.renderWeeklyReport(dw).html;
+    pass(/Vương Văn Một — 4 việc/.test(rw), 'workload: render "<name> — N việc"');
+    pass(/1 tự giao · 1 được giao · 1 từ đề xuất · 1 chưa xác định nguồn/.test(rw),
+      'workload: proposal + unknown are NOT collapsed into "được giao"');
+    // categories with count 0 are hidden
+    const dw0 = weekly.buildWeeklyReportData([
+      T({ task_code: 'X1', status: 'in_progress', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'assigned_by_other' }),
+      T({ task_code: 'X2', status: 'in_progress', deadline: iso(2026, 9, 30, 17), primary_employee_code: 'W1', source_of_work: 'assigned_by_other' }),
+    ], wOrg, nowMs);
+    const rw0 = weekly.renderWeeklyReport(dw0).html;
+    pass(/2 được giao/.test(rw0) && !/tự giao|từ đề xuất|chưa xác định nguồn/.test(rw0),
+      'workload: only source categories with count > 0 are shown');
+    pass(dw.workloadPeople.length <= 3, 'workload: top 3 max');
+  }
+
+  // ---- B3. DISPLAY NAME in "Công việc cần nhìn ngay" ------------------------
+  const nameOrg = new Map([['S1', { department: 'Bán hàng', fullName: 'Trần Thị Hằng' }], ['K1', { department: 'Kho' }]]);
+  const nameTasks = [
+    T({ task_code: 'N1', status: 'in_progress', deadline: iso(2026, 8, 1, 17), last_progress_at: iso(2026, 7, 20, 9), primary_employee_code: 'S1' }), // has fullName
+    T({ task_code: 'N2', status: 'in_progress', deadline: iso(2026, 8, 2, 17), last_progress_at: iso(2026, 7, 20, 9), primary_employee_code: 'K1' }), // no fullName -> code
+  ];
+  const dn = weekly.buildWeeklyReportData(nameTasks, nameOrg, nowMs);
+  const n1 = dn.topTasks.find((t) => t.task_code === 'N1');
+  const n2 = dn.topTasks.find((t) => t.task_code === 'N2');
+  pass(n1.primary_full_name === 'Trần Thị Hằng', 'display name: topTasks carries fullName from orgIndex');
+  pass(n2.primary_full_name === '', 'display name: empty when orgIndex has no fullName');
+  const rn = weekly.renderWeeklyReport(dn);
+  pass(rn.html.includes('Phụ trách: Trần Thị Hằng'), 'display name: render uses fullName when present');
+  pass(rn.html.includes('Phụ trách: K1'), 'display name: render falls back to employee code when no fullName');
+
+  // ---- B4. BRAND SHELL (sync with transactional Mail V1) -------------------
+  const rb = weekly.renderWeeklyReport(weekly.buildWeeklyReportData(tasks, org, nowMs)).html;
+  pass(rb.includes('assets/logo/phf-logo.png') && /alt="PHUHOA FRESH"/.test(rb), 'brand: canonical assets/logo/phf-logo.png in the header (not redrawn)');
+  const remoteSrcs = rb.match(/src="https?:\/\/[^"]+"/gi) || [];
+  pass(remoteSrcs.length === 1 && /\/assets\/logo\/phf-logo\.png"$/.test(remoteSrcs[0]) && /^src="https:\/\//.test(remoteSrcs[0]),
+    'brand: the only remote src is the brand logo, derived from BASE_URL (no hardcoded host)');
+  pass(!/#0f172a/i.test(rb) && !/background:#0f172a|background:#000/i.test(rb), 'brand: no navy / black header');
+  pass(rb.includes("Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"),
+    'brand: exact PHF Task production font stack');
+  pass(/color:#0e5b43;font-size:13px;font-weight:700;letter-spacing:2px;">PHF TASK/.test(rb), 'brand: "PHF TASK" wordmark green #0e5b43, weight 700');
+  pass(/background:#0f7a43;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700[^"]*">MỞ PHF TASK — XEM BÁO CÁO CHI TIẾT/.test(rb),
+    'brand: single CTA #0f7a43 white weight 700, weekly label kept');
+  pass((rb.match(/MỞ PHF TASK/g) || []).length === 1, 'brand: exactly ONE CTA');
+  pass(rb.includes('Email được gửi tự động từ hệ thống PHF Task.') && rb.includes('Không trả lời email này.'),
+    'brand: 2-line footer incl. "Không trả lời email này."');
+  pass(!/font-weight:800/.test(rb), 'brand: no 800 weight (title/CTA are 700, matching PHF Task)');
+  pass(/Tuần \d{2}\/\d{2}\/\d{4} - \d{2}\/\d{2}\/\d{4}/.test(rb), 'brand: period shown in the body');
+
+  // ---- B5. MANAGEMENT NOTE (once, before CTA, quiet) ----------------------
+  pass((rb.match(/Quản trị tốt bắt đầu từ những điều được ghi nhận\./g) || []).length === 1,
+    'management note: appears exactly once');
+  pass(rb.indexOf('Quản trị tốt bắt đầu') < rb.indexOf('MỞ PHF TASK — XEM BÁO CÁO CHI TIẾT'),
+    'management note: placed before the CTA');
+  pass(rb.includes('để việc phối hợp và xử lý dựa trên thông tin thay vì trí nhớ.'), 'management note: full approved body text');
+  pass(/background:#f1f7f4;border:1px solid #d7e8df;border-radius:10px[^"]*"><div style="font-size:13px;font-weight:700;color:#0e5b43/.test(rb),
+    'management note: light-green card, green 700 heading, no icon/uppercase');
+  pass(!/BÁO CÁO|⚠|WARNING/i.test(rb.split('Quản trị tốt')[1].split('MỞ PHF TASK')[0]), 'management note: no warning icon / uppercase banner');
+
+  // ---- B6. DELTA SEMANTIC COLOURS ---------------------------------------
+  // completed UP -> green ; completed-late UP -> red ; activity -> always grey
+  const cu = weekly.buildWeeklyReportData([
+    T({ task_code: 'CU1', status: 'completed', completed_at: iso(2026, 8, 10, 9), deadline: iso(2026, 8, 12, 17), on_time: true, primary_employee_code: 'S1' }),
+    T({ task_code: 'CU2', status: 'completed', completed_at: iso(2026, 8, 11, 9), deadline: iso(2026, 8, 5, 17), on_time: false, primary_employee_code: 'S1' }),
+  ], org, nowMs);
+  const rcu = weekly.renderWeeklyReport(cu).html;
+  pass(/Hoàn thành<\/td>[^]*?color:#0f7a43;">▲ \d+<\/span>/.test(rcu), 'delta colour: "Hoàn thành" increase renders green (#0f7a43)');
+  pass(/Hoàn thành trễ<\/td>[^]*?color:#b91c1c;">▲ \d+<\/span>/.test(rcu), 'delta colour: "Hoàn thành trễ" increase renders red (#b91c1c)');
+  pass(/Công việc có hoạt động trong tuần<\/td>[^]*?color:#6b7280;">▲ \d+<\/span>/.test(rcu),
+    'delta colour: activity delta is neutral grey regardless of direction');
+  // a completion that lands only in the PREVIOUS window -> current delta decreases
+  const cdData = weekly.buildWeeklyReportData([
+    T({ task_code: 'PW1', status: 'completed', completed_at: iso(2026, 8, 3, 9), deadline: iso(2026, 8, 4, 17), on_time: true, primary_employee_code: 'S1' }),
+  ], org, nowMs);
+  pass(cdData.kpi.completed.delta.dir === 'down' && cdData.kpi.completed.value === 0,
+    'delta: prev-week-only completion -> current 0, delta dir "down"');
+
 
   // =====================================================================
   // C. SETTINGS CRUD (fake db)
