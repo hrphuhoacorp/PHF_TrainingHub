@@ -70,6 +70,11 @@ async function schemaApplied() {
   const r = await q("select count(*)::int n from information_schema.tables where table_schema='task' and table_name='recurrence_rules'");
   return r.rows[0].n === 1;
 }
+async function dailySchemaApplied() {
+  // migrations/phf_hr_task_recurrence_v1_daily.sql widens frequency_ck to include 'daily'.
+  const r = await q("select pg_get_constraintdef(oid) d from pg_constraint where conname='task_recurrence_rules_frequency_ck'");
+  return !!(r.rows[0] && /daily/.test(r.rows[0].d));
+}
 async function neutralizePriorRuns() {
   // recurrence_rule_history is append-only (Z-51 forbid-update/delete trigger) and
   // recurrence_rules FK is ON DELETE RESTRICT, so prior-run fixtures cannot be
@@ -92,6 +97,14 @@ async function mkMonthly(over) {
     primaryEmployeeCode: PRIMARY, relatedEmployeeCodes: [],
     startDateKey: '2026-01-31', startHour: 9, startMinute: 0, durationMs: 3 * 86400000,
     frequency: 'monthly', dayOfMonth: 31, endConditionType: 'never', reason: 'test',
+  }, over || {}), actor);
+}
+async function mkDaily(over) {
+  return engine.createRule(loadEnv._cfg, Object.assign({
+    title: TAG + ' daily', content: '', categoryCode: CAT, priority: 'thuong',
+    primaryEmployeeCode: PRIMARY, relatedEmployeeCodes: [],
+    startDateKey: '2026-01-03', startHour: 9, startMinute: 0, durationMs: 86400000,
+    frequency: 'daily', endConditionType: 'never', reason: 'test',
   }, over || {}), actor);
 }
 const vnNow = (dateKey, h = 12) => Date.parse(engine.vnWallToUtcIso(dateKey, h, 0));
@@ -134,6 +147,23 @@ async function events(id) {
   // [3] monthly rule create
   const m = await mkMonthly();
   ok(m.frequency === 'monthly' && m.day_of_month === 31, '[3] monthly rule create — day_of_month=31', m.day_of_month);
+
+  // [D1][D2][D3] daily ("Hàng ngày") — every calendar day incl. weekend, retry-safe
+  // 2026-01-03 is a Saturday; run at 2026-01-05 (Mon) -> Sat+Sun+Mon = 3 Tasks.
+  const dailyReady = await dailySchemaApplied();
+  ok(dailyReady, '[D0] daily migration applied (frequency_ck allows daily) — apply migrations/phf_hr_task_recurrence_v1_daily.sql if this fails');
+  if (dailyReady) {
+  const dly = await mkDaily();
+  ok(dly.frequency === 'daily' && dcol(dly.anchor_date) === '2026-01-03' && dly.weekday === null && dly.day_of_month === null,
+    '[D1] daily rule create — anchor = start date, no weekday/day_of_month', dcol(dly.anchor_date));
+  await run1(dly.id, '2026-01-05');
+  let dg = await gens(dly.id);
+  ok(dg.length === 3 && dg.map((x) => x.d).join(',') === '2026-01-03,2026-01-04,2026-01-05',
+    '[D2] daily run -> one Task per calendar day incl. Sat/Sun', dg.map((x) => x.d).join(','));
+  await run1(dly.id, '2026-01-05', { nowMs: vnNow('2026-01-05', 13) });
+  dg = await gens(dly.id);
+  ok(dg.length === 3, '[D3] daily re-run -> 0 duplicate Tasks', dg.length);
+  }
 
   // [8] run -> exactly 1 Task for the first due occurrence
   await run1(w.id, '2026-01-05');
