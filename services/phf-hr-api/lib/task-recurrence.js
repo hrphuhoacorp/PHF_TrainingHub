@@ -26,6 +26,8 @@ const crypto = require('crypto');
 const { withTaskWriteTransaction } = require('./db');
 const datemath = require('./task-recurrence-datemath');
 const notify = require('./task-notification-emit');
+const mailContract = require('./task-mail-contract');
+const { safeEnqueueMail } = require('./task-mail-emit');
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 const WEEKDAYS = new Set(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
@@ -832,6 +834,36 @@ async function generateOneOccurrence(config, rule, planItem, ctx) {
           priority: 'Trung bình',
           recipients: [{ employeeCode: upper(rule.primary_employee_code) }],
           actor: {},
+        });
+      }
+
+      // MAIL CONTRACT V1 — rule 18: MONTHLY recurrence -> mail every
+      // auto-generated occurrence's PRIMARY (unless primary == creator).
+      // DAILY / WEEKLY -> MAIL=NO (decided in task-mail-contract). The mail is
+      // tied to the recurring_generated EVENT id (one per generated Task), NOT
+      // the cron invocation — a cron retry re-enters via the `replay` branch
+      // above (taskRow already set) and never reaches this block, and the
+      // outbox dedupe key (evt:<event id>|<primary>) is the final backstop.
+      const mailDecision = mailContract.decideRecurrenceOccurrence({
+        frequency: rule.frequency,
+        primaryEmployeeCode: rule.primary_employee_code,
+        creator: { employeeCode: creatorEmp, accountId: creatorAcc },
+      });
+      if (mailDecision.send) {
+        await safeEnqueueMail(client, {
+          eventCode: 'TASK_RECURRING_GENERATED',
+          businessEventId: recurEvent.rows[0] && recurEvent.rows[0].id,
+          taskId: taskRow.id,
+          templateKey: mailDecision.templateKey,
+          recipientEmployeeCode: mailDecision.recipientEmployeeCode,
+          payload: {
+            task_code: taskRow.task_code, title: rule.title,
+            content: rule.content,
+            assigner_employee_code: creatorEmp,
+            primary_employee_code: upper(rule.primary_employee_code),
+            start_at: startIso, deadline: deadlineIso,
+            frequency: rule.frequency, occurrence_date: occurrenceDate,
+          },
         });
       }
     }

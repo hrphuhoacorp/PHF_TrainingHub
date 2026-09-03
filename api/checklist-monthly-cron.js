@@ -22,6 +22,8 @@
 
 const { syncMonthlyCycle } = require('./_lib/checklist-monthly');
 const { runTaskRecurrence } = require('./_lib/task-recurrence-actions');
+const { runMailDrain } = require('./_lib/task-mail-drain');
+const { runWeeklyReport } = require('./_lib/task-weekly-report');
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -38,6 +40,65 @@ function isTaskRecurrenceRoute(req) {
     return false;
   } catch (_e) {
     return false;
+  }
+}
+
+function isTaskMailRoute(req) {
+  try {
+    const u = new URL(req.url || '/', 'http://localhost');
+    if (u.searchParams.get('__phf_cron') === 'task-mail') return true;
+    if (u.pathname === '/api/task-mail-cron') return true;
+    return false;
+  } catch (_e) {
+    return false;
+  }
+}
+
+function isTaskWeeklyReportRoute(req) {
+  try {
+    const u = new URL(req.url || '/', 'http://localhost');
+    if (u.searchParams.get('__phf_cron') === 'task-weekly-report') return true;
+    if (u.pathname === '/api/task-weekly-report-cron') return true;
+    return false;
+  } catch (_e) {
+    return false;
+  }
+}
+
+// ---- /api/task-weekly-report-cron — MAIL V1 Increment 2 --------------------
+// Target schedule: Monday 10:00 Asia/Ho_Chi_Minh (VPS cron -> this route).
+// Does NOTHING unless PHF_TASK_WEEKLY_REPORT_ENABLED === 'true' AND
+// task.mail_settings.weekly_report_enabled === true (both checked inside
+// runWeeklyReport). Never sends — only enqueues into task.mail_outbox.
+async function handleTaskWeeklyReportCron(req, res) {
+  if (req.method !== 'POST' && req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed' });
+  const expected = String(process.env.TASK_WEEKLY_REPORT_CRON_SECRET || '').trim();
+  const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!expected || provided !== expected) return send(res, 401, { ok: false, message: 'Cron secret khong hop le.' });
+  try {
+    const summary = await runWeeklyReport({});
+    return send(res, 200, { ok: true, summary });
+  } catch (error) {
+    console.error('[PHF Task weekly report cron]', (error && error.code) || '', (error && error.message) || error);
+    return send(res, 500, { ok: false, code: (error && error.code) || undefined, message: (error && error.message) || 'Weekly report loi.' });
+  }
+}
+
+// ---- /api/task-mail-cron — MAIL CONTRACT V1 drainer ----------------------
+// Same shared-function + Bearer-secret pattern as the recurrence cron. Does
+// NOTHING unless PHF_TASK_MAIL_V1_ENABLED === 'true' (checked inside
+// runMailDrain). A drain error never affects any business write.
+async function handleTaskMailCron(req, res) {
+  if (req.method !== 'POST' && req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed' });
+  const expected = String(process.env.TASK_MAIL_CRON_SECRET || '').trim();
+  const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!expected || provided !== expected) return send(res, 401, { ok: false, message: 'Cron secret không hợp lệ.' });
+  try {
+    const summary = await runMailDrain({});
+    return send(res, 200, { ok: true, summary });
+  } catch (error) {
+    console.error('[PHF Task mail cron]', (error && error.code) || '', (error && error.message) || error);
+    return send(res, 500, { ok: false, code: (error && error.code) || undefined, message: (error && error.message) || 'Mail drain lỗi.' });
   }
 }
 
@@ -93,6 +154,8 @@ async function handleTaskRecurrenceCron(req, res) {
 }
 
 module.exports = async function handler(req, res) {
+  if (isTaskWeeklyReportRoute(req)) return handleTaskWeeklyReportCron(req, res);
+  if (isTaskMailRoute(req)) return handleTaskMailCron(req, res);
   return isTaskRecurrenceRoute(req)
     ? handleTaskRecurrenceCron(req, res)
     : handleChecklistMonthlyCron(req, res);
