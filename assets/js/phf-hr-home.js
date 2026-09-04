@@ -23,7 +23,21 @@ function icon(type){
     tasks:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
     help:'<circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1-1.4 2.1M12 17h.01"/>',
     notice:'<path d="M5 12h3l8-5v10l-8-5H5v5H3V7h2v5ZM16 9c2 1 2 5 0 6"/>',
-    gear:'<circle cx="12" cy="12" r="2.7"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.55 1.55M7.15 16.85 5.6 18.4M18.4 18.4l-1.55-1.55M7.15 7.15 5.6 5.6"/>'
+    gear:'<circle cx="12" cy="12" r="2.7"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.55 1.55M7.15 16.85 5.6 18.4M18.4 18.4l-1.55-1.55M7.15 7.15 5.6 5.6"/>',
+    home:'<path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/>',
+    chevron:'<path d="m6 9 6 6 6-6"/>',
+    menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+    inbox:'<path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5L5 5Z"/>',
+    send:'<path d="M4 12 20 4l-6 16-3-7-7-1Z"/>',
+    chart:'<path d="M4 19h16"/><path d="M7 16V9M12 16V5M17 16v-4"/>',
+    book:'<path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z"/><path d="M5 16h13"/>',
+    award:'<circle cx="12" cy="9" r="5"/><path d="m9 13-1.5 8L12 18l4.5 3L15 13"/>',
+    trophy:'<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 20h6M10 16h4l1 4H9l1-4Z"/>',
+    sparkles:'<path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6L12 4Z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z"/>',
+    quote:'<path d="M7 7h4v4c0 2.5-1.5 4-4 5M14 7h4v4c0 2.5-1.5 4-4 5"/>',
+    grid:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+    arrow:'<path d="M5 12h13"/><path d="m12 6 6 6-6 6"/>',
+    sprout:'<path d="M12 20v-8"/><path d="M12 12C12 8 9 6 5 6c0 4 3 6 7 6Z"/><path d="M12 13c0-3 2.5-5 6-5 0 3.5-2.5 5-6 5Z"/>'
   };
   return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(paths[type]||'')+'</svg>';
 }
@@ -114,6 +128,304 @@ function applyCapabilityChip(main){
     }
   });
 }
+/* PHF HR Home V1 — parent navigation model. Every href is an EXISTING router
+   route (see assets/js/phf-url-router.js ROUTE_TABLE); nothing is invented.
+   Role gating here is a UX convenience only — the router role guard remains the
+   real backstop on every navigation. */
+function hrNavModel(){
+  var p=prefix(),r=role();
+  var isMgr=(r==='manager'||r==='admin'),isAdmin=(r==='admin');
+  var mgrPrefix=isAdmin?'/admin':'/ql';
+  var model=[{key:'home',label:'Trang chủ',href:p+'/home',current:true}];
+  // Công việc — module-level children only (PHF Task's internal areas stay inside PHF Task).
+  model.push({key:'cong-viec',label:'Công việc',children:[
+    {label:'PHF Task',href:p+'/task',icon:'tasks'},
+    {label:'Lịch làm việc & Chấm công',soon:true,icon:'calendar'},
+    // Quản trị tổng hợp — module CHƯA XÂY trên Home V1: placeholder cho MỌI role,
+    // không route (route /admin/quan-tri hiện có là khu Quản trị chung của Training
+    // Hub, KHÔNG phải module QTTH của PHF HR Home).
+    {label:'Quản trị tổng hợp',soon:true,icon:'gear'},
+    {label:'Thông báo',soon:true,icon:'notice'}
+  ]});
+  // Phát triển nhân sự — module-level people-development spaces.
+  var ptns=[{label:'Training Hub',href:p,icon:'hub'},{label:'Classroom',href:p+'/classroom',icon:'classroom'},{label:'Khung năng lực',href:p+'/knl',icon:'knl'}];
+  if(isMgr)ptns.push({label:'Nội dung đào tạo',href:mgrPrefix+'/noi-dung',icon:'book'});
+  model.push({key:'phat-trien',label:'Phát triển nhân sự',children:ptns});
+  // Đánh giá — Checklist only for V1 (Khung năng lực lives under Phát triển nhân sự).
+  model.push({key:'danh-gia',label:'Đánh giá',children:[
+    {label:'Checklist',href:p+'/checklist',icon:'checklist'}
+  ]});
+  model.push({key:'thi-dua',label:'Thi đua & Thưởng',children:[
+    {label:'Chương trình thi đua',soon:true,icon:'trophy'},
+    {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
+  ]});
+  return model;
+}
+function hrNavHtml(model){
+  var out='<nav class="phf-hr-nav" data-phf-hr-nav aria-label="Điều hướng PHF HR">';
+  model.forEach(function(it){
+    if(!it.children){
+      out+='<a class="phf-hr-nav-item'+(it.current?' is-active':'')+'" href="'+esc(it.href)+'" data-phf-hr-nav-link="'+esc(it.href)+'"'+(it.current?' aria-current="page"':'')+'>'+esc(it.label)+'</a>';
+      return;
+    }
+    var panelId='phfHrMega-'+it.key;
+    out+='<div class="phf-hr-nav-group" data-phf-hr-nav-group="'+esc(it.key)+'">'
+      +'<button type="button" class="phf-hr-nav-item phf-hr-nav-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="'+panelId+'" data-phf-hr-mega-trigger>'
+        +esc(it.label)+'<span class="phf-hr-nav-caret" aria-hidden="true">'+icon('chevron')+'</span></button>'
+      +'<div class="phf-hr-megamenu" id="'+panelId+'" role="menu" aria-label="'+esc(it.label)+'" hidden>';
+    it.children.forEach(function(c){
+      if(c.soon){
+        out+='<span class="phf-hr-mega-item is-soon" role="menuitem" aria-disabled="true">'
+          +'<span class="phf-hr-mega-ico">'+icon(c.icon||'notice')+'</span>'
+          +'<span class="phf-hr-mega-text">'+esc(c.label)+'</span>'
+          +'<span class="phf-hr-mega-soon">Sắp triển khai</span></span>';
+        return;
+      }
+      if(c.disabled){
+        out+='<span class="phf-hr-mega-item is-disabled" role="menuitem" aria-disabled="true">'
+          +'<span class="phf-hr-mega-ico">'+icon(c.icon||'grid')+'</span>'
+          +'<span class="phf-hr-mega-text">'+esc(c.label)+'</span>'
+          +(c.note?'<span class="phf-hr-mega-soon is-muted">'+esc(c.note)+'</span>':'')+'</span>';
+        return;
+      }
+      out+='<a class="phf-hr-mega-item" role="menuitem" href="'+esc(c.href)+'" data-phf-hr-nav-link="'+esc(c.href)+'">'
+        +'<span class="phf-hr-mega-ico">'+icon(c.icon||'grid')+'</span>'
+        +'<span class="phf-hr-mega-text">'+esc(c.label)+'</span></a>';
+    });
+    out+='</div></div>';
+  });
+  return out+'</nav>';
+}
+/* Mega-menu + mobile-nav controller. No hover dependency: open on click/Enter/
+   Space, close on outside click / Escape (focus returns to trigger). */
+function wireHrNav(main){
+  var nav=main.querySelector('[data-phf-hr-nav]');
+  var toggle=main.querySelector('[data-phf-hr-nav-toggle]');
+  if(!nav)return;
+  var groups=[].slice.call(nav.querySelectorAll('.phf-hr-nav-group'));
+  function closeAll(except){
+    groups.forEach(function(g){
+      var t=g.querySelector('[data-phf-hr-mega-trigger]'),pnl=g.querySelector('.phf-hr-megamenu');
+      if(t===except)return;
+      if(t)t.setAttribute('aria-expanded','false');
+      if(pnl)pnl.hidden=true;
+      g.classList.remove('is-open');
+    });
+  }
+  groups.forEach(function(g){
+    var t=g.querySelector('[data-phf-hr-mega-trigger]'),pnl=g.querySelector('.phf-hr-megamenu');
+    if(!t||!pnl)return;
+    t.addEventListener('click',function(e){
+      e.preventDefault();
+      var open=t.getAttribute('aria-expanded')==='true';
+      closeAll(open?null:t);
+      t.setAttribute('aria-expanded',open?'false':'true');
+      pnl.hidden=open;
+      g.classList.toggle('is-open',!open);
+    });
+    pnl.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){e.stopPropagation();closeAll();try{t.focus();}catch(_e){}}
+    });
+  });
+  nav.addEventListener('click',function(e){
+    var link=e.target&&e.target.closest?e.target.closest('[data-phf-hr-nav-link]'):null;
+    if(!link)return;
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;
+    e.preventDefault();
+    closeAll();
+    nav.classList.remove('is-open');
+    if(toggle)toggle.setAttribute('aria-expanded','false');
+    go(link.getAttribute('data-phf-hr-nav-link'));
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){var anyOpen=groups.some(function(g){return g.classList.contains('is-open');});if(anyOpen){closeAll();}}
+  });
+  document.addEventListener('click',function(e){
+    if(!document.body.contains(nav))return;
+    if(e.target&&e.target.closest&&e.target.closest('[data-phf-hr-nav],[data-phf-hr-nav-toggle]'))return;
+    closeAll();
+    nav.classList.remove('is-open');
+    if(toggle)toggle.setAttribute('aria-expanded','false');
+  });
+  if(toggle){
+    toggle.addEventListener('click',function(e){
+      e.preventDefault();e.stopPropagation();
+      var open=toggle.getAttribute('aria-expanded')==='true';
+      toggle.setAttribute('aria-expanded',open?'false':'true');
+      nav.classList.toggle('is-open',!open);
+      if(open)closeAll();
+    });
+  }
+}
+/* ---- HOME V1 body: 4 module groups (visual contract phf_hr_home_grouped_demo.html) ----
+   Each card carries EITHER a real router href OR soon:true (placeholder). Nothing
+   invented. Role gating: cards a role cannot reach render disabled, never a dead link. */
+function hrGroupsModel(){
+  var p=prefix(),r=role();
+  var isAdmin=(r==='admin');
+  return [
+    {key:'a',icon:'grid',title:'Làm việc hằng ngày',sub:'Các công cụ phục vụ vận hành thường nhật',cols:4,cards:[
+      {tint:'green',icon:'tasks',title:'PHF Task',desc:'Giao việc • Theo dõi • Báo cáo',badge:'Đang hoạt động',href:p+'/task'},
+      {tint:'blue',icon:'calendar',title:'Lịch làm việc & Chấm công',desc:'Ca làm • Lịch tuần • Chấm công',soon:true},
+      // Quản trị tổng hợp — module CHƯA XÂY: placeholder cho mọi role, không route.
+      {tint:'purple',icon:'gear',title:'Quản trị tổng hợp',desc:'Vận hành nội bộ • Quy trình • Biểu mẫu',soon:true},
+      {tint:'red',icon:'notice',title:'Thông báo',desc:'Tin tức • Quy định • Thông tin chung',soon:true}
+    ]},
+    {key:'b',icon:'hub',title:'Phát triển con người',sub:'Đào tạo, đánh giá và phát triển năng lực',cols:4,cards:[
+      {tint:'green',icon:'hub',title:'Training Hub',desc:'Hội nhập • Lộ trình • Khóa học',badge:'Đào tạo',href:p},
+      {tint:'blue',icon:'classroom',title:'Classroom',desc:'Lớp học • Tài liệu • Kiểm tra',badge:'Học tập',href:p+'/classroom'},
+      {tint:'yellow',icon:'checklist',title:'Checklist',desc:'Tuân thủ • Đánh giá • Cải tiến',badge:'Đánh giá',href:p+'/checklist'},
+      {tint:'purple',icon:'knl',title:'Khung năng lực',desc:'Bậc năng lực • Lộ trình phát triển',badge:'Phát triển',href:p+'/knl'}
+    ]},
+    {key:'c',icon:'award',title:'Thi đua & Thưởng hành động',sub:'Ghi nhận nỗ lực, lan tỏa hành động tích cực',cols:2,cards:[
+      {tint:'yellow',icon:'trophy',title:'Chương trình thi đua',desc:'Đóng góp • Xếp hạng • Vinh danh',soon:true},
+      {tint:'peach',icon:'sparkles',title:'Thưởng Hành động V.2',desc:'Ghi nhận • Xét thưởng • Lan tỏa',soon:true}
+    ]},
+    {key:'d',icon:'chart',title:'Hệ thống & Báo cáo',sub:'Dữ liệu, báo cáo và cấu hình hệ thống',cols:2,cards:[
+      // Báo cáo & Thống kê — module định hướng, CHƯA triển khai trên Home V1: placeholder, không route.
+      {tint:'blue',icon:'chart',title:'Báo cáo & Thống kê',desc:'Nhân sự • Đào tạo • Thi đua • Tổng hợp',soon:true},
+      // Quản trị hệ thống — lối vào khu quản trị nhân sự hiện hữu của PHF HR
+      // (screen 'employee-master' — Tài khoản & Hồ sơ nhân sự; route thật, Admin-only
+      // theo ROUTE_TABLE assets/js/phf-url-router.js). KHÔNG phải /admin/quan-tri (QTTH).
+      {tint:'gray',icon:'gear',title:'Quản trị hệ thống',desc:'Tài khoản • Hồ sơ • Phân quyền',badge:'Admin',
+        href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,disabledNote:'Dành cho quản trị viên'}
+    ]}
+  ];
+}
+function hrCardHtml(c){
+  var soon=!!c.soon,dis=!!c.disabled;
+  var cls='phf-hr-mod tint-'+(c.tint||'green')+(soon?' is-soon':'')+(dis?' is-disabled':'');
+  var attr=(!soon&&!dis&&c.href)?(' data-phf-hr-card-href="'+esc(c.href)+'" role="link" tabindex="0"'):' aria-disabled="true"';
+  var foot=soon
+    ? '<span class="phf-hr-mod-badge is-soon">Sắp triển khai</span>'
+    : (dis
+        ? '<span class="phf-hr-mod-badge is-muted">'+esc(c.disabledNote||'Chưa khả dụng')+'</span>'
+        : '<span class="phf-hr-mod-badge">'+esc(c.badge||'')+'</span><span class="phf-hr-mod-arrow" aria-hidden="true">'+icon('arrow')+'</span>');
+  return '<article class="'+cls+'"'+attr+'>'
+    +'<div class="phf-hr-mod-top"><span class="phf-hr-mod-ico">'+icon(c.icon||'grid')+'</span>'
+      +'<span class="phf-hr-mod-txt"><b>'+esc(c.title)+'</b><span>'+esc(c.desc||'')+'</span></span></div>'
+    +'<div class="phf-hr-mod-foot">'+foot+'</div></article>';
+}
+function hrGroupsHtml(){
+  return hrGroupsModel().map(function(g){
+    return '<section class="phf-hr-group" aria-label="'+esc(g.title)+'">'
+      +'<div class="phf-hr-group-head"><span class="phf-hr-group-ico">'+icon(g.icon)+'</span>'
+        +'<span class="phf-hr-group-meta"><h2>'+esc(g.title)+'</h2><span>'+esc(g.sub)+'</span></span></div>'
+      +'<div class="phf-hr-grid cols-'+g.cols+'">'+g.cards.map(hrCardHtml).join('')+'</div>'
+    +'</section>';
+  }).join('');
+}
+/* ---- HOME V1 sidebar: 4 blocks. Clock = real client time; the other 3 are
+   deliberate empty-state / current-calendar shells — NO production data, NO fake numbers. */
+var _hrClockTimer=null,_hrQuoteTimer=null;
+/* "Góc quản trị" — static local quote pool. No API, no backend, no network. */
+var HR_QUOTES=[
+  'Quản trị tốt bắt đầu từ dữ liệu đúng.',
+  'Đừng để việc gấp làm mất việc quan trọng.',
+  'Một quy trình tốt phải giúp người làm việc nhẹ hơn.',
+  'Minh bạch trước, tối ưu sau.',
+  'Vấn đề lặp lại nhiều lần là tín hiệu cần sửa hệ thống.',
+  'Giao việc rõ ràng là bước đầu của trách nhiệm rõ ràng.',
+  'Điều gì không được đo lường thì khó cải thiện.'
+];
+function startHrQuote(main){
+  if(_hrQuoteTimer){clearInterval(_hrQuoteTimer);_hrQuoteTimer=null;}
+  var el=main.querySelector('[data-hr-quote]');if(!el)return;
+  function pick(){
+    if(!document.body.contains(main)){if(_hrQuoteTimer){clearInterval(_hrQuoteTimer);_hrQuoteTimer=null;}return;}
+    el.textContent='“'+HR_QUOTES[Math.floor(Math.random()*HR_QUOTES.length)]+'”';
+  }
+  pick();_hrQuoteTimer=setInterval(pick,25000);
+}
+function hrWeekStripHtml(){
+  var now=new Date();var day=(now.getDay()+6)%7;
+  var mon=new Date(now);mon.setDate(now.getDate()-day);
+  var names=['T2','T3','T4','T5','T6','T7','CN'];var out='';
+  for(var i=0;i<7;i++){var d=new Date(mon);d.setDate(mon.getDate()+i);
+    var on=(d.toDateString()===now.toDateString());
+    out+='<span class="phf-hr-day'+(on?' is-today':'')+'">'+names[i]+'<b>'+String(d.getDate()).padStart(2,'0')+'</b></span>';}
+  return out;
+}
+function hrMini(label){return '<div class="phf-hr-mini"><span>'+esc(label)+'</span><b>—</b></div>';}
+function hrMonthLabel(){var d=new Date();return 'Tháng '+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function hrSidebarHtml(){
+  return ''
+  +'<section class="phf-hr-widget phf-hr-widget-clock"><div><span class="phf-hr-w-date" data-hr-clock-date>—</span>'
+    +'<span class="phf-hr-w-time" data-hr-clock-time>--:--</span></div><span class="phf-hr-w-sprout" aria-hidden="true">'+icon('sprout')+'</span></section>'
+  +'<section class="phf-hr-widget phf-hr-quote"><span class="phf-hr-quote-ico" aria-hidden="true">'+icon('quote')+'</span>'
+    +'<span class="phf-hr-quote-body"><b>Góc quản trị</b><q data-hr-quote>—</q></span></section>'
+  +'<section class="phf-hr-widget phf-hr-attn is-loading" data-hr-attn><div class="phf-hr-w-head"><h3>Công việc cần chú ý</h3></div>'
+    +'<div class="phf-hr-attn-grid">'
+      +'<div class="phf-hr-attn-cell is-overdue"><b data-hr-ov="overdue">·</b><span>Quá hạn</span></div>'
+      +'<div class="phf-hr-attn-cell is-soon"><b data-hr-ov="due_soon">·</b><span>Sắp đến hạn</span></div>'
+      +'<div class="phf-hr-attn-cell is-attn"><b data-hr-ov="attention">·</b><span>Cần chú ý</span></div>'
+    +'</div>'
+    +'<button type="button" class="phf-hr-attn-cta" data-hr-attn-cta>Xem PHF Task <span aria-hidden="true">→</span></button></section>'
+  +'<section class="phf-hr-widget"><div class="phf-hr-w-head"><h3>Lịch trong tuần</h3></div>'
+    +'<div class="phf-hr-week">'+hrWeekStripHtml()+'</div>'
+    +'<p class="phf-hr-w-note">Sự kiện lịch hiển thị khi kết nối nguồn.</p></section>'
+  +'<section class="phf-hr-widget"><div class="phf-hr-w-head"><h3>Số liệu nhanh</h3><span>'+esc(hrMonthLabel())+'</span></div>'
+    +'<div class="phf-hr-mini-grid">'+hrMini('Nhân sự')+hrMini('Đang đào tạo')+hrMini('Bài thi đua')+hrMini('Checklist')+'</div>'
+    +'<p class="phf-hr-w-note">Dữ liệu sẽ hiển thị khi kết nối nguồn.</p></section>';
+}
+function startHrClock(main){
+  if(_hrClockTimer){clearInterval(_hrClockTimer);_hrClockTimer=null;}
+  var wd=['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+  function tick(){
+    if(!document.body.contains(main)){if(_hrClockTimer){clearInterval(_hrClockTimer);_hrClockTimer=null;}return;}
+    var n=new Date();
+    var dEl=main.querySelector('[data-hr-clock-date]'),tEl=main.querySelector('[data-hr-clock-time]');
+    if(dEl)dEl.textContent=wd[n.getDay()]+', '+String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+n.getFullYear();
+    if(tEl)tEl.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  }
+  tick();_hrClockTimer=setInterval(tick,15000);
+}
+/* "Công việc cần chú ý" — consumes the AUTHORITATIVE PHF Task Reporting V2
+   summary (action getTaskOverviewV2) exactly under its existing scope/authz.
+   Home does NOT recompute anything: the 3 numbers are metrics.{overdue,
+   due_soon,attention_needed}.value verbatim. Error / unavailable / contract
+   mismatch -> "—" (never coerced to 0). Exactly ONE request per render. */
+var _hrOverviewSeq=0;
+function loadHrOverview(main){
+  var wrap=main.querySelector('[data-hr-attn]');if(!wrap)return;
+  var seq=++_hrOverviewSeq;
+  function setAll(v){wrap.querySelectorAll('[data-hr-ov]').forEach(function(el){el.textContent=v;});}
+  function setOne(key,v){var el=wrap.querySelector('[data-hr-ov="'+key+'"]');if(el)el.textContent=v;}
+  function num(x){return (x&&typeof x.value==='number'&&isFinite(x.value))?String(x.value):'—';}
+  wrap.classList.add('is-loading');
+  fetch('/api/data',{method:'POST',credentials:'same-origin',cache:'no-store',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({action:'getTaskOverviewV2'})
+  }).then(function(res){
+    return res.json().catch(function(){return {};}).then(function(j){return {ok:res.ok&&j&&j.ok!==false,data:j};});
+  }).then(function(r){
+    if(seq!==_hrOverviewSeq||!document.body.contains(wrap))return;
+    wrap.classList.remove('is-loading');
+    var result=(r.data&&r.data.result)||r.data||{};
+    var m=result&&result.metrics;
+    if(!r.ok||!m||result.report_contract_version!==1){setAll('—');return;}
+    setOne('overdue',num(m.overdue));
+    setOne('due_soon',num(m.due_soon));
+    setOne('attention',num(m.attention_needed));
+  }).catch(function(err){
+    if(seq!==_hrOverviewSeq||!document.body.contains(wrap))return;
+    wrap.classList.remove('is-loading');
+    setAll('—');
+    try{console.warn('[PHF HR] getTaskOverviewV2 lỗi:',err&&err.message||err);}catch(e){}
+  });
+}
+function wireHrCards(main){
+  main.querySelectorAll('[data-phf-hr-card-href]').forEach(function(el){
+    var href=el.getAttribute('data-phf-hr-card-href');
+    el.addEventListener('click',function(){go(href);});
+    el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go(href);}});
+  });
+  main.querySelectorAll('.phf-hr-mod.is-soon').forEach(function(el){
+    el.addEventListener('click',function(){taskHomeSoonNotice('Chức năng này sẽ được triển khai trong giai đoạn tiếp theo.');});
+  });
+  var attnCta=main.querySelector('[data-hr-attn-cta]');
+  if(attnCta)attnCta.addEventListener('click',function(){go(prefix()+'/task');});
+}
 window.phfRenderHrGateway=function(requestedPath){
   var actualPath=String((window.location&&window.location.pathname)||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
   if(actualPath.length>1)actualPath=actualPath.replace(/\/$/,'');
@@ -135,43 +447,30 @@ window.phfRenderHrGateway=function(requestedPath){
   var main=document.getElementById('phfHrRoot');if(!main)return false;
   var name=esc(userName()),avatar=esc(initials()),code=esc(userCode()),roleText=esc(roleLabel());
   main.innerHTML=`<section class="phf-hr-home" aria-label="Trang chủ PHF HR">
-    <header class="phf-hr-header">
-      <div class="phf-hr-brand"><img src="assets/intro/phf-falogo.png" alt="Phuhoafresh - Tươi mới trọn vẹn từ tâm"><span class="phf-hr-brand-rule" aria-hidden="true"></span><div><strong>PHF HR</strong><small>Hệ thống phát triển nhân sự</small></div></div>
+    <header class="phf-hr-topnav">
+      <div class="phf-hr-topnav-brand">
+        <button type="button" class="phf-hr-nav-toggle" data-phf-hr-nav-toggle aria-expanded="false" aria-label="Mở điều hướng">${icon('menu')}</button>
+        <img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH" class="phf-hr-logo" width="152" height="36" decoding="async">
+        <span class="phf-hr-brand-rule" aria-hidden="true"></span>
+        <span class="phf-hr-brand-name-block"><strong>PHF HR</strong><small>PHUHOA FRESH</small></span>
+      </div>
+      ${hrNavHtml(hrNavModel())}
       <div class="phf-hr-header-actions"><span class="phf-hr-scope-chip" data-phf-hr-scope hidden></span><button class="phf-hr-bell" type="button" aria-label="Thông báo">${icon('bell')}<span hidden>0</span></button><div class="phf-hr-account-wrap"><button class="phf-hr-account" type="button" aria-haspopup="menu" aria-expanded="false"><span class="phf-hr-avatar">${avatar}</span><span><small>Xin chào,</small><strong>${name}</strong><em>${roleText}${code?' · '+code:''}</em></span><i aria-hidden="true"></i></button><div class="phf-hr-account-menu" role="menu"><div class="phf-hr-account-summary"><strong>${name}</strong><small>${roleText}${code?' · Mã '+code:''}</small></div><button type="button" class="is-danger" data-hr-account="logout">Đăng xuất</button></div></div></div>
     </header>
-    <main class="phf-hr-main">
+    <div class="phf-hr-shell">
+      <div class="phf-hr-layout">
+      <main class="phf-hr-content">
       <section class="phf-hr-hero">
-        <div class="phf-hr-hero-copy"><span class="phf-hr-kicker">PHF HR <i aria-hidden="true"></i></span><h1><span>Nền tảng phát triển</span><span>nhân sự tại</span><span class="phf-hr-brand-name">PHUHOA FRESH</span></h1><p><span>Kết nối hội nhập, đào tạo, checklist và phát triển năng lực</span><span>trên một hành trình thống nhất.</span></p></div>
-        <div class="phf-hr-journey" aria-label="Hành trình phát triển nhân sự">
-          <div class="phf-hr-flow" aria-hidden="true"><span></span><i></i></div>
-          <div class="phf-hr-ops-hub" aria-hidden="true">
-            <span class="phf-hr-ops-hub-label">${icon('gear')}Vận hành</span>
-            <span class="phf-hr-ops-hub-body">
-              <span class="phf-hr-ops-hub-col"><span class="phf-hr-ops-hub-ico">${icon('tasks')}</span><span class="phf-hr-ops-hub-col-text"><strong>PHF Task</strong><small>Giao việc</small></span></span>
-              <span class="phf-hr-ops-hub-divider"></span>
-              <span class="phf-hr-ops-hub-col"><span class="phf-hr-ops-hub-ico">${icon('calendar')}</span><span class="phf-hr-ops-hub-col-text"><strong>Lịch làm việc</strong><small>Ca làm &middot; Chấm công</small></span></span>
-            </span>
-          </div>
-          <div class="phf-hr-step is-hub"><b>Bước 1</b><strong>Hội nhập &amp; Lộ trình</strong>${journeyIcon('hub')}</div>
-          <div class="phf-hr-step is-classroom"><b>Bước 2</b><strong>Đào tạo nội bộ</strong>${journeyIcon('classroom')}</div>
-          <div class="phf-hr-step is-checklist"><b>Bước 3</b><strong>Tuân thủ &amp; Đánh giá</strong>${journeyIcon('checklist')}</div>
-          <div class="phf-hr-step is-knl"><b>Bước 4</b><strong>Đánh giá &amp; Phát triển</strong>${journeyIcon('knl')}</div>
-        </div>
+        <div class="phf-hr-hero-copy"><span class="phf-hr-eyebrow">PHF HR</span><h1>Nền tảng phát triển nhân sự tại <span class="phf-hr-brand-name">PHUHOA FRESH</span></h1><p>Kết nối công việc, đào tạo, đánh giá, thi đua và quản trị trên cùng một hệ thống — dễ dùng, dễ mở rộng khi PHF HR có thêm module mới.</p><div class="phf-hr-hero-tags"><span>Một hệ thống nhân sự thống nhất</span><span>Công việc · Đào tạo · Đánh giá</span><span>Dữ liệu phục vụ vận hành</span></div></div>
       </section>
-      <section class="phf-hr-modules phf-hr-modules-ops" aria-label="Vận hành PHF HR">
-        <article class="is-task"><div class="phf-hr-card-head"><span>${icon('tasks')}</span><div><h2>PHF Task</h2><b>Giao việc &amp; Theo dõi</b></div></div><p>Giao việc, theo dõi deadline, tiến độ và kết quả thực hiện.</p><button type="button" data-phf-hr-module="task">Truy cập <span>→</span></button></article>
-        <article class="is-schedule is-soon"><div class="phf-hr-card-head"><span>${icon('calendar')}</span><div><h2>Lịch làm việc &amp; Chấm công</h2><b>Ca làm · Lịch tuần · Chấm công</b></div></div><p>Quản lý lịch làm việc, ca làm và dữ liệu chấm công nhân sự.</p><button type="button" class="is-soon-btn" data-phf-hr-soon="Lịch làm việc &amp; Chấm công sẽ được triển khai trong giai đoạn tiếp theo.">Sắp triển khai</button></article>
-        <article class="is-admin-general is-soon"><div class="phf-hr-card-head"><span>${icon('help')}</span><div><h2>Quản trị tổng hợp</h2></div></div><p>Không gian quản trị các nghiệp vụ tổng hợp và vận hành nội bộ.</p><button type="button" class="is-soon-btn" data-phf-hr-soon="Quản trị tổng hợp sẽ được triển khai trong giai đoạn tiếp theo.">Sắp triển khai</button></article>
-      </section>
-      <section class="phf-hr-modules" aria-label="Các hệ thống PHF HR">
-        <article class="is-hub"><div class="phf-hr-card-head"><span>${icon('hub')}</span><div><h2>Training Hub</h2><b>Hội nhập &amp; Lộ trình</b></div></div><p>Học theo lộ trình, hoàn thành bài học, kiểm tra và theo dõi tiến độ học tập.</p><div class="phf-hr-card-status">Lộ trình hội nhập và đào tạo nhân sự mới</div><button type="button" data-phf-hr-module="hub">Truy cập <span>→</span></button></article>
-        <article class="is-classroom"><div class="phf-hr-card-head"><span>${icon('classroom')}</span><div><h2>Classroom</h2><b>Đào tạo nội bộ</b></div></div><p>Tham gia lớp học, xem tài liệu, điểm danh và làm bài kiểm tra.</p><div class="phf-hr-card-status">Lớp học, tài liệu và bài kiểm tra nội bộ</div><button type="button" data-phf-hr-module="classroom">Truy cập <span>→</span></button></article>
-        <article class="is-checklist"><div class="phf-hr-card-head"><span>${icon('checklist')}</span><div><h2>Checklist</h2><b>Tuân thủ &amp; Đánh giá</b></div></div><p>Thực hiện checklist, ghi nhận lỗi, giải trình và theo dõi điểm đánh giá.</p><div class="phf-hr-card-status">Tuân thủ công việc và đánh giá hằng tháng</div><button type="button" data-phf-hr-module="checklist">Truy cập <span>→</span></button></article>
-        <article class="is-knl"><div class="phf-hr-card-head"><span>${icon('knl')}</span><div><h2>Khung năng lực</h2><b>Đánh giá &amp; Phát triển</b></div></div><p>Đánh giá năng lực, xem kết quả và xây dựng kế hoạch phát triển.</p><div class="phf-hr-card-status">Đánh giá năng lực và kế hoạch phát triển</div><button type="button" data-phf-hr-module="knl">Truy cập <span>→</span></button></article>
-      </section>
-      <section class="phf-hr-quick" aria-label="Tiện ích PHF HR"><article>${icon('notice')}<span><strong>Thông báo</strong><small>Các cập nhật mới sẽ hiển thị tại đây</small></span></article><article>${icon('calendar')}<span><strong>Lịch của tôi</strong><small>Lịch đào tạo và công việc được phân công</small></span></article><article>${icon('tasks')}<span><strong>Việc cần làm</strong><small>Các việc cần xử lý theo quyền tài khoản</small></span></article>${role()==='admin'?'<article class="is-hr-admin-entry" data-phf-hr-module="people" role="button" tabindex="0">'+icon('people')+'<span><strong>Quản trị nhân sự</strong><small>Tài khoản &amp; Hồ sơ nhân sự</small></span></article>':'<article class="is-hr-admin-entry is-locked" aria-disabled="true">'+icon('people')+'<span class="phf-hr-lock-badge">'+icon('lock')+'</span><span><strong>Quản trị nhân sự</strong><small>Dành cho Quản trị viên</small></span></article>'}</section>
-    </main>
-    <footer class="phf-hr-footer">PHF HR – Hệ sinh thái phát triển nhân sự nội bộ | Phòng Quản trị Tổng hợp phụ trách vận hành.</footer>
+      ${hrGroupsHtml()}
+      </main>
+      <aside class="phf-hr-sidebar" data-phf-hr-sidebar aria-label="Khu vực tiện ích">
+        ${hrSidebarHtml()}
+      </aside>
+      </div>
+      <footer class="phf-hr-footer">PHF HR – Hệ sinh thái phát triển nhân sự nội bộ | Phòng Quản trị Tổng hợp phụ trách vận hành.</footer>
+    </div>
   </section>`;
   main.querySelectorAll('[data-phf-hr-module]').forEach(function(btn){
     btn.addEventListener('click',function(){window.phfOpenHrModule(btn.getAttribute('data-phf-hr-module'));});
@@ -181,6 +480,11 @@ window.phfRenderHrGateway=function(requestedPath){
   var account=main.querySelector('.phf-hr-account'),menu=main.querySelector('.phf-hr-account-menu');
   if(account&&menu){account.addEventListener('click',function(e){e.stopPropagation();var open=account.getAttribute('aria-expanded')==='true';account.setAttribute('aria-expanded',open?'false':'true');menu.classList.toggle('is-open',!open);});main.addEventListener('click',function(e){if(!e.target.closest('.phf-hr-account-wrap')){account.setAttribute('aria-expanded','false');menu.classList.remove('is-open');}});}
   main.querySelectorAll('[data-hr-account]').forEach(function(btn){btn.addEventListener('click',function(){var act=btn.getAttribute('data-hr-account');if(act==='logout')return logout();});});
+  wireHrNav(main);
+  wireHrCards(main);
+  startHrClock(main);
+  startHrQuote(main);
+  loadHrOverview(main);
   document.title='PHF HR · Hệ thống phát triển nhân sự';
   applyCapabilityChip(main);
   try{window.scrollTo({top:0,behavior:'instant'});}catch(e){window.scrollTo(0,0);}return true;
