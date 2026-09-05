@@ -35,7 +35,7 @@ const READ_ACTIONS = new Set([
   'competition.submission.occurrenceCount',
   'competition.feed.get',
   'competition.leaderboard.get',
-  'competition.progress.mine', 'competition.progress.company',
+  'competition.progress.mine', 'competition.progress.company', 'competition.progress.submittedTotal',
   'competition.grant.listReviewers', 'competition.grant.listAdmins', 'competition.grant.listCapabilities',
   'competition.award.list', 'competition.award.autoCandidate',
   'competition.notification.list',
@@ -139,6 +139,7 @@ const HANDLERS = {
 
   'competition.progress.mine': (c, a, p) => progress.myProgress(c, a, p),
   'competition.progress.company': (c, a, p) => progress.companyProgress(c, a, p),
+  'competition.progress.submittedTotal': (c, a, p) => progress.submittedTotal(c, a, p),
 
   'competition.award.list': (c, a, p) => awards.listAwards(c, a, p),
   'competition.award.autoCandidate': (c, a, p) => awards.computeAutoCandidate(c, a, p),

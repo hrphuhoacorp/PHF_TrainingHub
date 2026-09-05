@@ -184,7 +184,11 @@ async function resolveOverviewContext(session, input) {
   const params = input || {};
   const periodInput = params.period || {};
   const period = resolvePeriodWindow(periodInput.type, periodInput.anchor_date);
-  const { tasks, effectiveScope, navSignals } = await bridgeFetchOverviewPopulation(session);
+  // view:'personal' — opt-in self-only population (Home "Việc hoàn thành").
+  // NEVER widens: forces scopeParam='mine' which resolveAuthorizedTaskEmployeeScope
+  // already pins to [actor's own code] for every actor type.
+  const forcePersonal = params.view === 'personal';
+  const { tasks, effectiveScope, navSignals } = await bridgeFetchOverviewPopulation(session, { forcePersonal });
   const { tasks: filteredTasks, filters } = await applyOverviewFilters(tasks, params.filters);
   return { tasks: filteredTasks, effectiveScope, navSignals: navSignals || null, period, filters };
 }

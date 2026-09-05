@@ -106,8 +106,8 @@ function ACTION_MAP_HAS_NO_ACTION_FIELD_COLLISION() {
   // action (competitionBulkSubmitSubmissions) + 3 V1.6 Admin Control Tower
   // actions (competitionAdminListAllSubmissions, competitionAdminGetSubmissionHistory,
   // competitionAdminRestoreSubmission).
-  ok(COMPETITION_ACTION_MANIFEST.length === 54, 'manifest has all 39 C1 + 1 C4.3 composite + 4 V1.1 + 2 V1.3 + 4 V1.4 + 1 V1.5 + 3 V1.6 actions mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
-  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 54, 'manifest has no duplicate action names');
+  ok(COMPETITION_ACTION_MANIFEST.length === 55, 'manifest has all 39 C1 + 1 C4.3 composite + 4 V1.1 + 2 V1.3 + 4 V1.4 + 1 V1.5 + 3 V1.6 + 1 Home submittedTotal actions mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
+  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 55, 'manifest has no duplicate action names');
 
   const unhandled = await dispatchCompetitionAction({ role: 'learner', employeeCode: 'NV001' }, { action: 'notAnAction' });
   ok(unhandled.handled === false, 'unknown action -> not handled (falls through to legacy dispatch)');
