@@ -50,6 +50,40 @@
 .phf-comp-brand small{font-size:11px;color:var(--comp-ink-soft);letter-spacing:.06em;text-transform:uppercase;}
 .phf-comp-brand-rule{width:1px;height:26px;background:linear-gradient(var(--comp-gold),transparent);}
 
+/* ---- V1.4 notification bell ---- */
+.phf-comp-notif-wrap{position:relative;margin-left:auto;}
+.phf-comp-notif-bell{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border:1px solid var(--comp-border);border-radius:999px;
+  background:var(--comp-surface);cursor:pointer;color:var(--comp-ink);
+}
+.phf-comp-notif-bell:hover{background:var(--comp-surface-cream);border-color:var(--comp-border-strong);}
+.phf-comp-notif-bell svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;}
+.phf-comp-notif-badge{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:999px;background:#b5502f;color:#fff;font:700 10px/16px "Segoe UI",Arial,sans-serif;
+  text-align:center;
+}
+.phf-comp-notif-panel{
+  position:absolute;top:calc(100% + 8px);right:0;width:min(360px,86vw);max-height:420px;overflow:auto;
+  border:1px solid var(--comp-border);border-radius:var(--comp-radius);background:var(--comp-surface);
+  box-shadow:var(--comp-shadow);z-index:40;
+}
+.phf-comp-notif-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 12px;border-bottom:1px solid var(--comp-border);position:sticky;top:0;background:var(--comp-surface);
+}
+.phf-comp-notif-head b{font-size:13px;}
+.phf-comp-notif-list{padding:4px;}
+.phf-comp-notif-item{padding:9px 10px;border-radius:10px;cursor:pointer;}
+.phf-comp-notif-item:hover{background:var(--comp-surface-cream);}
+.phf-comp-notif-item.is-unread{background:var(--comp-green-soft);}
+.phf-comp-notif-item.is-unread:hover{background:#dcecdf;}
+.phf-comp-notif-title{font-size:12.5px;font-weight:700;color:var(--comp-ink);}
+.phf-comp-notif-msg{font-size:12px;color:var(--comp-ink-soft);margin-top:2px;}
+.phf-comp-notif-when{font-size:10.5px;color:var(--comp-ink-soft);margin-top:4px;}
+.phf-comp-notif-panel .phf-comp-empty{padding:22px 14px;}
+
 .phf-comp-identity{
   display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;
   padding:10px 2px;border-bottom:1px dashed var(--comp-border);

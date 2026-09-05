@@ -39,12 +39,14 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionAdjustScore', 'competitionListAdjustable',
   'competitionCheckSimilarity', 'competitionConfirmOccurrence', 'competitionGetOccurrenceCount',
   'competitionGetReviewQueue', 'competitionGetReviewerProductivity', 'competitionGetSimilarForReview',
+  'competitionGetMyReviewed',
   'competitionReassignReview', 'competitionProcessOverdueReviews',
   'competitionGetFeed', 'competitionSetReaction',
   'competitionGetLeaderboard',
   'competitionGetMyProgress', 'competitionGetCompanyProgress',
   'competitionListAwards', 'competitionGetAutoAwardCandidate',
   'competitionProposeAward', 'competitionConfirmAward', 'competitionRevokeAward',
+  'competitionListMyNotifications', 'competitionMarkNotificationRead', 'competitionMarkAllNotificationsRead',
 ]);
 
 function str(v) { return v == null ? undefined : String(v); }
@@ -203,6 +205,13 @@ const ACTION_MAP = {
     remote: 'competition.review.productivity',
     params: (p) => ({ campaignId: str(p.campaign_id), all: bool(p.all) }),
   },
+  // V1.4 — "Bài tôi đã duyệt": reviewer-facing read-only history of the
+  // caller's OWN completed review_assignments. status_filter maps to the
+  // server's outcome grouping (Tất cả/Đã duyệt/Yêu cầu chỉnh sửa/Từ chối).
+  competitionGetMyReviewed: {
+    remote: 'competition.review.myReviewed',
+    params: (p) => ({ campaignId: str(p.campaign_id), statusFilter: str(p.status_filter), limit: num(p.limit) }),
+  },
   competitionReassignReview: {
     remote: 'competition.review.reassign',
     params: (p) => ({
@@ -242,6 +251,12 @@ const ACTION_MAP = {
     remote: 'competition.award.revoke',
     params: (p) => ({ campaignId: str(p.campaign_id), awardId: str(p.award_id), reason: str(p.reason) }),
   },
+
+  // V1.4 — Competition notifications (own standalone competition.notifications
+  // table; recipient-identity-scoped server-side, never a client-supplied id).
+  competitionListMyNotifications: { remote: 'competition.notification.list', params: (p) => ({ limit: num(p.limit) }) },
+  competitionMarkNotificationRead: { remote: 'competition.notification.markRead', params: (p) => ({ id: str(p.id), ids: Array.isArray(p.ids) ? p.ids.map(str) : undefined }) },
+  competitionMarkAllNotificationsRead: { remote: 'competition.notification.markAllRead', params: () => ({}) },
 };
 
 // C4.3 — "Phân quyền xét duyệt" people matrix. Composite, not a plain

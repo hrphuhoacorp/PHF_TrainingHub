@@ -338,7 +338,12 @@ function menuModel(boot){
     {key:'gui',         label:'+ Gửi bài dự thi',       icon:'plus',    href:p+'/thi-dua/gui', cta:true},
     {key:'ket-qua',     label:'Bảng xếp hạng & Kết quả',icon:'medal',   href:p+'/thi-dua/ket-qua'}
   ];
-  if(cap.canReview)items.push({key:'cho-duyet',label:'Chờ duyệt',icon:'review',href:p+'/thi-dua/cho-duyet',group:'Xét duyệt'});
+  if(cap.canReview){
+    items.push({key:'cho-duyet',label:'Chờ duyệt',icon:'review',href:p+'/thi-dua/cho-duyet',group:'Xét duyệt'});
+    // V1.4 — read-only history of the reviewer's OWN completed decisions,
+    // right after "Chờ duyệt" in the same group, same capability gate.
+    items.push({key:'da-duyet',label:'Bài tôi đã duyệt',icon:'check',href:p+'/thi-dua/da-duyet',group:'Xét duyệt'});
+  }
   if(cap.canAdmin){
     items.push({key:'quan-ly', label:'Quản lý chương trình', icon:'grid', href:p+'/thi-dua/quan-ly', group:'Quản trị'});
     items.push({key:'xet-duyet',label:'Phân quyền xét duyệt',   icon:'gear', href:p+'/thi-dua/xet-duyet',group:'Quản trị'});
@@ -385,7 +390,7 @@ function navLoadingHtml(){
  * already rejects an ineligible/inactive identity before this is reached). */
 function isScreenAuthorized(key,boot){
   var cap=(boot&&boot.capabilities)||{};
-  if(key==='cho-duyet')return !!cap.canReview;
+  if(key==='cho-duyet'||key==='da-duyet')return !!cap.canReview;
   if(key==='quan-ly'||key==='xet-duyet'||key==='chot')return !!cap.canAdmin;
   return true;
 }
@@ -1165,6 +1170,140 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
   });
 }
 
+/* ================================================================== *
+ * V1.4 — "Bài tôi đã duyệt" (My Reviewed). Read-only history of the
+ * reviewer's OWN completed decisions (competition.review.myReviewed —
+ * same base review_assignments WHERE clause as reviewerProductivity's
+ * "Đã xử lý" count, so the two numbers never drift apart). Distinguishes
+ * "Bạn đã xử lý" (immutable — what THIS reviewer decided, when) from
+ * "Kết quả hiện tại" (live state — may differ after a later admin/top-
+ * reviewer adjustment). Reviewer 2 gets NO new adjustment authority here —
+ * the adjustment entry point below is the SAME one screenReviewQueue
+ * already gates server-side (competitionListAdjustable), just surfaced
+ * inline per row instead of building a second component.
+ * ================================================================== */
+var MY_REVIEWED_FILTERS=[
+  {k:'all',label:'Tất cả'},
+  {k:'approved',label:'Đã duyệt'},
+  {k:'needs_revision',label:'Yêu cầu chỉnh sửa'},
+  {k:'rejected',label:'Từ chối'}
+];
+// Plain, honest per-outcome sentence — avoids over-engineering a single
+// generic formatter around the differently-shaped `after` JSON each
+// submission_history action writes (upgrade has from/to, approve/revision/
+// reject don't).
+function myReviewedDecisionHtml(item){
+  if(item.myAction==='approve'){
+    var s=(item.myResult&&item.myResult.level!=null)?item.myResult.level:null;
+    return 'Duyệt'+(s!=null?' · Mức '+esc(s):'');
+  }
+  if(item.myAction==='upgrade'){
+    var toScore=item.myResult&&item.myResult.to_score;
+    return 'Nâng mức'+(toScore!=null?' · '+esc(toScore)+' điểm':'');
+  }
+  if(item.myAction==='revision_requested')return 'Yêu cầu chỉnh sửa';
+  if(item.myAction==='reject')return 'Từ chối';
+  // fallback to the assignment's own outcome if no matching history row was found
+  if(item.outcome==='approved')return 'Duyệt';
+  if(item.outcome==='upgraded')return 'Nâng mức';
+  if(item.outcome==='needs_revision')return 'Yêu cầu chỉnh sửa';
+  if(item.outcome==='rejected')return 'Từ chối';
+  return '—';
+}
+function myReviewedCurrentHtml(item){
+  var lbl=statusLabel(item.currentStatus);
+  if(item.currentStatus==='approved'||item.currentStatus==='finalized'){
+    lbl+=' · '+esc(item.effectiveScore==null?'—':(item.effectiveScore===0?'0 · Không ghi nhận':item.effectiveScore+' điểm'));
+  }
+  return lbl;
+}
+function myReviewedCardHtml(item,canAdjust){
+  var decision=myReviewedDecisionHtml(item);
+  var current=myReviewedCurrentHtml(item);
+  // "Kết quả hiện tại" is worth its own line only when it actually diverges
+  // from what this reviewer decided (a later adjustment, or a subsequent
+  // reviewer action) — otherwise showing both is redundant noise.
+  var diverged=item.adjusted || (item.myAction==='approve'&&item.currentStatus!=='approved'&&item.currentStatus!=='finalized')
+    || (item.myAction==='reject'&&item.currentStatus!=='rejected')
+    || (item.myAction==='revision_requested'&&item.currentStatus!=='needs_revision'&&item.currentStatus!=='submitted');
+  return '<div class="phf-comp-card" style="margin-top:12px" data-comp-myreviewed-item data-submission-id="'+esc(item.submissionRef)+'">'
+    +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">'
+      +'<span class="rq-ref">'+esc(fmtDate(item.processedAt))+'</span>'
+      +'<span class="phf-comp-pill" data-s="'+(item.myAction==='reject'?'rejected':(item.myAction==='revision_requested'?'needs_revision':'approved'))+'">'+esc(decision)+'</span>'
+    +'</div>'
+    +qaFieldsHtml(item.payload,undefined,{showEvidence:true})
+    +(item.myNote?'<div class="phf-comp-field" style="margin:12px 0"><label>Ghi nhận của bạn khi xử lý</label><p class="phf-comp-qa-text">'+esc(item.myNote)+'</p></div>':'')
+    +'<div class="phf-comp-grid" style="margin-top:10px">'
+      +'<div class="phf-comp-fact"><b>Bạn đã xử lý</b><span>'+esc(decision)+'</span></div>'
+      +(diverged?'<div class="phf-comp-fact"><b>Kết quả hiện tại</b><span>'+esc(current)+'</span></div>':'')
+    +'</div>'
+    +(canAdjust?'<div class="phf-comp-actions" style="padding-top:12px"><button type="button" class="phf-comp-btn is-ghost" data-comp-open-adjust>Điều chỉnh kết quả chấm</button></div>':'')
+  +'</div>';
+}
+async function screenMyReviewed(slot,boot){
+  var campaign=boot.activeCampaign;
+  if(!boot.capabilities||!boot.capabilities.canReview){
+    slot.innerHTML=heroHtml(null)+'<section class="phf-comp-section"><h2>'+icon('check')+'Bài tôi đã duyệt</h2>'+noAuthorityState('lock','Bạn chưa được cấp quyền xét duyệt cho Chương trình thi đua.')+'</section>';
+    return;
+  }
+  if(!campaign){slot.innerHTML=heroHtml(null)+'<section class="phf-comp-section"><h2>'+icon('check')+'Bài tôi đã duyệt</h2>'+emptyState('check','Chưa có chương trình đang diễn ra.')+'</section>';return;}
+  slot.innerHTML=heroHtml(campaign,'Lịch sử các bài bạn đã xét duyệt — chỉ những bài do chính bạn xử lý.')
+    +'<section class="phf-comp-section"><h2>'+icon('check')+'Bài tôi đã duyệt</h2>'
+    +'<div data-comp-filters></div>'
+    +'<div data-comp-body style="margin-top:12px">'+loadingState()+'</div></section>';
+  var body=slot.querySelector('[data-comp-body]');
+  var filterBox=slot.querySelector('[data-comp-filters]');
+  // best-effort — only Reviewer top-level/Admin get anything back (see
+  // competitionListAdjustable authorization); a 403 here just means the
+  // inline "Điều chỉnh kết quả chấm" button never renders for a plain
+  // reviewer, exactly like screenReviewQueue's own adjust section.
+  var adjustableMap={};
+  try{
+    var adjustable=await call('competitionListAdjustable',{campaign_id:campaign.id});
+    (adjustable.items||[]).forEach(function(it){adjustableMap[it.submissionRef]=it;});
+  }catch(e){/* not authorized — no inline adjust button, same as screenReviewQueue */}
+
+  var activeFilter='all';
+  async function load(){
+    body.innerHTML=loadingState();
+    try{
+      var res=await call('competitionGetMyReviewed',{campaign_id:campaign.id,status_filter:activeFilter});
+      if(!res.items||!res.items.length){
+        body.innerHTML=emptyState('check','Chưa có bài nào ở nhóm này.','Các bài bạn đã xét duyệt sẽ hiển thị tại đây.');
+        return;
+      }
+      body.innerHTML=res.items.map(function(it){return myReviewedCardHtml(it,!!adjustableMap[it.submissionRef]);}).join('');
+      body.querySelectorAll('[data-comp-open-adjust]').forEach(function(btn){
+        btn.addEventListener('click',async function(){
+          var itemEl=btn.closest('[data-comp-myreviewed-item]');
+          var submissionId=itemEl.getAttribute('data-submission-id');
+          var current=adjustableMap[submissionId];
+          if(!current)return;
+          await openAdjustScoreModal(campaign,submissionId,current,function(updated){
+            toast('success','Đã điều chỉnh','Kết quả chấm đã được cập nhật.');
+            current.effectiveScore=updated.effectiveScore;current.adjusted=true;
+            load();
+          });
+        });
+      });
+    }catch(e){body.innerHTML=errorState(e);wireRetrySingle(body,load);}
+  }
+  filterBox.innerHTML='<div class="phf-comp-filters" role="tablist" aria-label="Lọc theo kết quả">'
+    +MY_REVIEWED_FILTERS.map(function(f){return '<button type="button" class="phf-comp-filter'+(f.k==='all'?' is-active':'')+'" data-comp-filter="'+f.k+'" role="tab" aria-selected="'+(f.k==='all'?'true':'false')+'">'+esc(f.label)+'</button>';}).join('')
+  +'</div>';
+  filterBox.querySelectorAll('[data-comp-filter]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      if(btn.getAttribute('data-comp-filter')===activeFilter)return;
+      activeFilter=btn.getAttribute('data-comp-filter');
+      filterBox.querySelectorAll('[data-comp-filter]').forEach(function(b){
+        var on=b===btn;b.classList.toggle('is-active',on);b.setAttribute('aria-selected',on?'true':'false');
+      });
+      load();
+    });
+  });
+  await load();
+}
+
 /* ---- ADMIN: shared campaign selector ---------------------------------- */
 var ADMIN_SELECTED_CAMPAIGN_ID=null;
 async function adminCampaignPicker(boot){
@@ -1568,8 +1707,93 @@ async function screenAdminFinalize(slot,boot){
 
 var RENDERERS={
   'tong-quan':screenOverview,'bang-tin':screenFeed,'bai-cua-toi':screenMySubmissions,'gui':screenSubmitForm,
-  'ket-qua':screenLeaderboard,'cho-duyet':screenReviewQueue,'quan-ly':screenAdminCampaigns,'xet-duyet':screenAdminApproval,'chot':screenAdminFinalize
+  'ket-qua':screenLeaderboard,'cho-duyet':screenReviewQueue,'da-duyet':screenMyReviewed,
+  'quan-ly':screenAdminCampaigns,'xet-duyet':screenAdminApproval,'chot':screenAdminFinalize
 };
+
+/* ================================================================== *
+ * V1.4 — Competition notification bell. Own standalone
+ * competition.notifications table (never task.notifications). Path is
+ * ALWAYS rebuilt client-side from the current role prefix() + the
+ * server-sent module-relative targetPath (e.g. '/thi-dua/bai-cua-toi' for
+ * a participant event, '/thi-dua/cho-duyet' for a reviewer-assignment
+ * event) — never a stored absolute literal, so the same notification row
+ * still routes correctly regardless of which namespace the current
+ * session is viewing it from.
+ * ================================================================== */
+function notifTargetPath(n){
+  return prefix()+(n.targetPath||'/thi-dua');
+}
+function notifItemHtml(n){
+  return '<div class="phf-comp-notif-item'+(n.status==='unread'?' is-unread':'')+'" data-comp-notif-item data-notif-id="'+esc(n.id)+'" data-notif-path="'+esc(notifTargetPath(n))+'">'
+    +'<div class="phf-comp-notif-title">'+esc(n.title)+'</div>'
+    +'<div class="phf-comp-notif-msg">'+esc(n.message)+'</div>'
+    +'<div class="phf-comp-notif-when">'+esc(fmtDate(n.createdAt))+'</div>'
+  +'</div>';
+}
+function notifBellHtml(unreadCount){
+  return '<button type="button" class="phf-comp-notif-bell" data-comp-notif-toggle aria-label="Thông báo Chương trình thi đua">'+icon('inbox')
+    +(unreadCount>0?'<span class="phf-comp-notif-badge">'+(unreadCount>99?'99+':unreadCount)+'</span>':'')
+  +'</button>';
+}
+async function wireNotificationBell(wrap){
+  wrap.innerHTML=notifBellHtml(0);
+  var list=[];
+  function closePanel(){
+    var p=wrap.querySelector('[data-comp-notif-panel]');
+    if(p)p.remove();
+    document.removeEventListener('click',onDocClick,true);
+  }
+  function onDocClick(e){if(!wrap.contains(e.target))closePanel();}
+  function panelHtml(){
+    if(!list.length)return '<div class="phf-comp-notif-panel" data-comp-notif-panel>'+emptyState('inbox','Chưa có thông báo.')+'</div>';
+    return '<div class="phf-comp-notif-panel" data-comp-notif-panel>'
+      +'<div class="phf-comp-notif-head"><b>Thông báo</b><button type="button" class="phf-comp-btn is-ghost" data-comp-notif-mark-all style="padding:4px 10px;font-size:11.5px">Đánh dấu tất cả đã đọc</button></div>'
+      +'<div class="phf-comp-notif-list">'+list.map(notifItemHtml).join('')+'</div>'
+    +'</div>';
+  }
+  async function refresh(){
+    try{
+      var res=await call('competitionListMyNotifications',{});
+      list=res.notifications||[];
+      var btn=wrap.querySelector('[data-comp-notif-toggle]');
+      if(btn)btn.outerHTML=notifBellHtml(res.unreadCount||0);
+      wireToggle();
+    }catch(e){/* best-effort — bell stays at 0, never blocks the shell */}
+  }
+  function openPanel(){
+    if(wrap.querySelector('[data-comp-notif-panel]'))return;
+    var holder=document.createElement('div');
+    holder.innerHTML=panelHtml();
+    wrap.appendChild(holder.firstChild);
+    wrap.querySelectorAll('[data-comp-notif-item]').forEach(function(el){
+      el.addEventListener('click',async function(){
+        var id=el.getAttribute('data-notif-id');
+        var path=el.getAttribute('data-notif-path');
+        closePanel();
+        try{await call('competitionMarkNotificationRead',{id:id});}catch(e){/* navigate regardless */}
+        go(path);
+      });
+    });
+    var markAllBtn=wrap.querySelector('[data-comp-notif-mark-all]');
+    if(markAllBtn)markAllBtn.addEventListener('click',async function(e){
+      e.stopPropagation();
+      markAllBtn.disabled=true;
+      try{await call('competitionMarkAllNotificationsRead',{});await refresh();closePanel();}
+      catch(err){toast('error','Không cập nhật được',err.message);markAllBtn.disabled=false;}
+    });
+    setTimeout(function(){document.addEventListener('click',onDocClick,true);},0);
+  }
+  function wireToggle(){
+    var btn=wrap.querySelector('[data-comp-notif-toggle]');
+    if(btn)btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(wrap.querySelector('[data-comp-notif-panel]'))closePanel();else openPanel();
+    });
+  }
+  wireToggle();
+  await refresh();
+}
 
 window.phfRenderCompetition=async function(requestedPath){
   var actual=String((window.location&&window.location.pathname)||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
@@ -1592,6 +1816,7 @@ window.phfRenderCompetition=async function(requestedPath){
       +'<img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH" class="phf-comp-logo" width="152" height="32" decoding="async">'
       +'<span class="phf-comp-brand-rule" aria-hidden="true"></span>'
       +'<span class="phf-comp-brand"><b>Chương trình thi đua</b><small>PHF HR</small></span>'
+      +'<div class="phf-comp-notif-wrap" data-comp-notif-wrap></div>'
     +'</header>'
     +'<div data-comp-identity-slot></div>'
     +'<div class="phf-comp-body" data-comp-nav-slot>'
@@ -1670,6 +1895,11 @@ window.phfRenderCompetition=async function(requestedPath){
 
   var identitySlot=main.querySelector('[data-comp-identity-slot]');
   if(identitySlot)identitySlot.outerHTML=identityHeaderHtml(boot);
+
+  // V1.4 — notification bell, independent of the main screen render (best-
+  // effort: a failed fetch just leaves the bell at 0, never blocks the shell).
+  var notifWrap=main.querySelector('[data-comp-notif-wrap]');
+  if(notifWrap)wireNotificationBell(notifWrap);
 
   var navEl=navSlot.querySelector('nav');
   if(navEl)navEl.outerHTML=navHtml(boot,key);
