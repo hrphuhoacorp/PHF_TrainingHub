@@ -1,6 +1,8 @@
 -- =============================================================================
 -- PHF HR — CHƯƠNG TRÌNH THI ĐUA (Competition) V1.6 · Admin Control Tower
--- Target : Company PostgreSQL, database phf_hr_e2e (dev/test), schema competition
+-- Target : Company PostgreSQL, schema competition. Validated on phf_hr_e2e
+--          (dev/test) first; this file is the canonical version applied to
+--          phf_hr (Production) after review.
 -- Owner  : phf_hr_owner   ·   Runtime role : phf_hr_app — additive only: widens
 --          two existing CHECK whitelists (drop + re-add, same values plus one
 --          each — no data rewrite, no existing row is touched, no new table,
