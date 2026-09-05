@@ -429,3 +429,88 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-mod.tint-peach .phf-hr-mod-ico{color:#b5566a;background:linear-gradient(145deg,#fff 5%,#f8e6df 95%)}
 /* nav breathing room after the longer "Phát triển con người" label */
 .phf-hr-nav{column-gap:2px}
+
+/* ============================================================================
+   PHF HR — HOME V1 · FINAL VISUAL COLOR CORRECTION (approved reference).
+   Prod feedback: overall page reads too pale/washed-out vs the approved
+   composite — same structure/markup/data, stronger saturation + contrast +
+   brand-green presence + card depth only. No new classes are introduced that
+   the JS doesn't already emit; this block only re-declares existing selectors
+   with stronger values (cascade order = wins over earlier declarations above).
+   ========================================================================== */
+
+/* --- header: stronger brand presence + active nav --- */
+.phf-hr-topnav{border-bottom:1px solid #cfe3d6;box-shadow:0 2px 10px rgba(9,60,40,.05)}
+.phf-hr-brand-name-block strong{color:#0a4634}
+.phf-hr-nav-item{color:#3d5c50;font-weight:600}
+.phf-hr-nav-item:hover{background:#e3f4ea;color:#0a4634}
+.phf-hr-nav-item.is-active,.phf-hr-nav-item[aria-current="page"]{background:#0f7a43;color:#fff;font-weight:800;box-shadow:0 4px 12px rgba(15,122,67,.28)}
+.phf-hr-nav-trigger[aria-expanded="true"]{background:#dcf1e4;color:#0a4634}
+
+/* --- hero: deeper green wash + bolder copy --- */
+.phf-hr-content .phf-hr-hero{
+  background:radial-gradient(circle at 86% 20%,rgba(95,190,120,.30),transparent 45%),linear-gradient(120deg,#eaf7ee 0%,#ffffff 46%,#f2f6c9 100%);
+  border:1px solid #cfe6d7;box-shadow:0 14px 34px rgba(10,60,40,.12);
+}
+.phf-hr-eyebrow{color:#0a6b3d;font-weight:900}
+.phf-hr-content .phf-hr-hero-copy h1{color:#0a4634;font-weight:800}
+.phf-hr-content .phf-hr-hero-copy>p{color:#3e5750}
+.phf-hr-hero-tags span{border:1px solid #cfe6d7;color:#1f4739;font-weight:700;box-shadow:0 6px 14px rgba(10,60,40,.09)}
+.phf-hr-hero-tags span svg{stroke:#0a6b3d}
+
+/* --- section headings: branded, not floating gray text --- */
+.phf-hr-group-ico{background:#0a6b3d;border-color:#0a6b3d;color:#fff;box-shadow:0 8px 18px rgba(10,107,61,.28)}
+.phf-hr-group-meta h2{font-weight:800;color:#0a4634;font-size:20px}
+.phf-hr-group-meta span{color:#59695f;font-weight:600}
+
+/* --- module cards: real surface tint + stronger border/depth --- */
+.phf-hr-mod{border:1px solid #dbe8e0;box-shadow:0 8px 20px rgba(10,60,40,.09)}
+.phf-hr-mod[role="link"]:hover{box-shadow:0 18px 34px rgba(10,60,40,.16);border-color:#9fcfb0}
+.phf-hr-mod.tint-green{background:linear-gradient(150deg,#eefaf1 0%,#dcf3e2 100%);border-color:#c3e6cd}
+.phf-hr-mod.tint-blue{background:linear-gradient(150deg,#eef4ff 0%,#dfeaff 100%);border-color:#c4d8f7}
+.phf-hr-mod.tint-yellow{background:linear-gradient(150deg,#fff6de 0%,#ffedb8 100%);border-color:#f0d98a}
+.phf-hr-mod.tint-purple{background:linear-gradient(150deg,#f5eeff 0%,#e8daff 100%);border-color:#d7c2f5}
+.phf-hr-mod.tint-red{background:linear-gradient(150deg,#ffeded 0%,#ffdcdb 100%);border-color:#f3bdba}
+.phf-hr-mod.tint-gray{background:linear-gradient(150deg,#f2f4f6 0%,#e4e8eb 100%);border-color:#d3dae0}
+.phf-hr-mod.tint-peach{background:linear-gradient(150deg,#fff2ea 0%,#ffe1d0 100%);border-color:#f3c8ac}
+.phf-hr-mod.is-soon,.phf-hr-mod.is-disabled{border-color:#d7dde0;background:linear-gradient(150deg,#f7f8f9,#eef0f2)}
+
+.phf-hr-mod-ico{box-shadow:inset 2px 2px 0 rgba(255,255,255,.95),inset -3px -4px 8px rgba(10,60,40,.14),0 8px 16px rgba(10,60,40,.22)}
+.phf-hr-mod-txt b{color:#0a4634;font-weight:800}
+.phf-hr-mod-txt span{color:#5a6c63}
+.phf-hr-mod-badge{color:#fff;background:#0a6b3d;font-weight:800}
+.phf-hr-mod-badge.is-soon{color:#8b681f;background:#fff1c8;border-color:#e9c96a}
+.phf-hr-mod-badge.is-muted{color:#5a6c63;background:#e6ebe8}
+.phf-hr-mod-arrow{background:#0a6b3d;color:#fff;border-color:#0a6b3d}
+
+/* Chương trình thi đua (active) reads gold/warm, not the generic yellow tint */
+.phf-hr-mod.tint-yellow .phf-hr-mod-ico{color:#8a5b00;background:linear-gradient(145deg,#fff9ec,#ffe9ad);box-shadow:inset 2px 2px 0 rgba(255,255,255,.95),inset -3px -4px 8px rgba(154,106,0,.18),0 8px 16px rgba(154,106,0,.22)}
+.phf-hr-mod.tint-yellow .phf-hr-mod-badge{background:#8a5b00}
+.phf-hr-mod.tint-peach .phf-hr-mod-ico{color:#a03d55;background:linear-gradient(145deg,#fff5f0,#ffd3bd)}
+
+/* --- sidebar widgets: stronger surface + accents --- */
+.phf-hr-widget{border:1px solid #dbe8e0;box-shadow:0 8px 20px rgba(10,60,40,.09)}
+.phf-hr-widget-clock{background:linear-gradient(150deg,#e3f7ea,#f4f6c0);border-color:#c3e6cd}
+.phf-hr-w-time{color:#0a4634}
+.phf-hr-w-head h3{color:#0a4634;font-weight:800}
+.phf-hr-day.is-today{background:#0a6b3d;border-color:#0a6b3d}
+
+/* "Công việc cần chú ý" — clearly visible states, not faint pastel */
+.phf-hr-attn-cell{border-width:1.5px}
+.phf-hr-attn-cell b{font-weight:900}
+.phf-hr-attn-cell.is-overdue{background:#fde3e1;border-color:#f0a9a4}
+.phf-hr-attn-cell.is-overdue b{color:#a81f18}
+.phf-hr-attn-cell.is-soon{background:#fcecc9;border-color:#e9c877}
+.phf-hr-attn-cell.is-soon b{color:#8a5b00}
+.phf-hr-attn-cell.is-attn{background:#dcf3e2;border-color:#a3d9b1}
+.phf-hr-attn-cell.is-attn b{color:#0a6b3d}
+.phf-hr-attn-cta{background:#0a6b3d;border-color:#0a6b3d;color:#fff;font-weight:800}
+.phf-hr-attn-cta:hover{background:#095b34}
+
+.phf-hr-notice.is-unread .phf-hr-notice-dot{background:#0a6b3d}
+.phf-hr-notice-body b{color:#1b332a}
+
+.phf-hr-mini{border-color:#dbe8e0;background:#f4faf6}
+.phf-hr-mini b{color:#0a4634}
+
+.phf-hr-footer{color:#5a6c63}

@@ -1,6 +1,6 @@
 {
-  "version": "1.66.11",
-  "fingerprint": "1.66.11-hr-home-approved-reference",
-  "builtAt": "2026-09-05T16:10:00+07:00",
-  "notes": "PHF HR Home V1 visual rebuild to the approved reference image (home final.png): hero copy/tags matched exactly to the approved target text, added Bao cao / Quan tri top-nav groups mirroring the existing He thong & Bao cao body group 1:1 (no new module/route), tinted the Cong viec can chu y cells (same 3 real getTaskOverviewV2 signals, styling only), wired Thong bao moi to the real listMyTaskNotifications action (session-scoped, privacy-checked, honest empty state), and removed the non-reference decorative Goc quan tri quote card. No weather widget added and So lieu nhanh / Lich trong tuan keep their honest empty states - no real data source exists for either. assets/js/phf-hr-home.js and assets/css/phf-hr-home.css both use hand-written index.html ?v= tags (not this fingerprint) and were bumped individually - phf-hr-home.css added to scripts/phf-check-js.js MANUAL_VERSIONED_ASSETS (phf-hr-home.js was already there)."
+  "version": "1.66.12",
+  "fingerprint": "1.66.12-hr-home-final-color-correction",
+  "builtAt": "2026-09-05T00:00:00+07:00",
+  "notes": "PHF HR Home V1 final visual color correction: CSS-only strengthening of saturation/contrast/brand-green presence on top of the approved reference rebuild (no markup/class changes, no business logic, no new data). Deeper green header/nav active state, bolder hero wash, branded section-heading chips, module cards moved from near-white pastel gradients to visibly tinted surfaces with stronger borders/shadows, gold-accented active competition card (Chuong trinh thi dua) distinct from the coming-soon peach card (Thuong Hanh dong V.2, still inactive), stronger right-rail widgets (clock, So lieu nhanh, Thong bao moi) and clearly saturated red/amber/green Cong viec can chu y states. assets/css/phf-hr-home.css bumped to ?v=1.66.17_final_color_correction in index.html (already tracked in scripts/phf-check-js.js MANUAL_VERSIONED_ASSETS)."
 }
