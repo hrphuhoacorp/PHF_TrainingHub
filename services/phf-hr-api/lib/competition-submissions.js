@@ -41,6 +41,74 @@ function reviewNotificationContent(histAction, score, note) {
   return null;
 }
 
+// V1.6 — Admin Control Tower "Phục hồi trạng thái bài" author notification.
+// Content mirrors reviewNotificationContent's plain-language style: no
+// technical detail, no reviewer/admin identity, message reflects the
+// RESULTING state only.
+function restoreNotificationContent(targetStatus, targetScore) {
+  if (targetStatus === 'submitted') {
+    return { title: 'Trạng thái bài dự thi đã được phục hồi',
+      message: 'Trạng thái bài dự thi của bạn đã được phục hồi và đang chờ xét duyệt.' };
+  }
+  if (targetStatus === 'needs_revision') {
+    return { title: 'Trạng thái bài dự thi đã được phục hồi',
+      message: 'Bài dự thi của bạn đã được phục hồi về trạng thái cần chỉnh sửa.' };
+  }
+  if (targetStatus === 'rejected') {
+    return { title: 'Trạng thái bài dự thi đã được phục hồi',
+      message: 'Bài dự thi của bạn đã được phục hồi về trạng thái chưa được ghi nhận.' };
+  }
+  if (targetStatus === 'approved') {
+    return { title: 'Trạng thái bài dự thi đã được phục hồi',
+      message: 'Bài dự thi của bạn đã được phục hồi và ghi nhận ' + targetScore + ' điểm.' };
+  }
+  return null;
+}
+
+// V1.6 — history actions a checkpoint can legitimately be restored FROM.
+// Exactly the set spec'd: submit/revise -> submitted, approve/upgrade ->
+// approved (+ level + score), revision_requested -> needs_revision,
+// reject -> rejected. Never 'create' (draft), 'finalize', 'admin_override',
+// 'approval_withdrawn', 'score_adjust' or 'restore' itself — those either
+// have no reliably-derivable level+score or would compound audit noise.
+const RESTORABLE_HISTORY_ACTIONS = ['submit', 'revise', 'approve', 'upgrade', 'revision_requested', 'reject'];
+
+// Re-derive {status, level, score} FROM the history row's OWN recorded
+// `after` JSON — never from client-supplied values. 'approve' didn't record
+// a score at write time (see reviewAction's histPayload), so its score is
+// looked up against the CAMPAIGN'S CURRENT approval_levels config (same
+// source reviewAction/adjustScore already trust); 'upgrade' recorded
+// to_level/to_score directly, so those are reused verbatim for full
+// historical fidelity.
+async function deriveRestoreTarget(client, campaignId, historyRow) {
+  const after = historyRow.after || {};
+  switch (historyRow.action) {
+    case 'submit':
+    case 'revise':
+      return { status: 'submitted', level: null, score: null };
+    case 'revision_requested':
+      return { status: 'needs_revision', level: null, score: null };
+    case 'reject':
+      return { status: 'rejected', level: null, score: null };
+    case 'approve': {
+      const target = Number(after.level);
+      if (!target) throw cErr('COMPETITION_RESTORE_CHECKPOINT_INVALID', 'Không xác định được mức duyệt để phục hồi.', 409);
+      const lv = await client.query(
+        'SELECT score FROM competition.approval_levels WHERE campaign_id = $1 AND level_order = $2', [campaignId, target]);
+      if (!lv.rowCount) throw cErr('COMPETITION_LEVEL_NOT_FOUND', 'Mức duyệt của điểm phục hồi này không còn tồn tại.', 409);
+      return { status: 'approved', level: target, score: Number(lv.rows[0].score) };
+    }
+    case 'upgrade': {
+      const target = Number(after.to_level);
+      const score = after.to_score != null ? Number(after.to_score) : null;
+      if (!target || score == null) throw cErr('COMPETITION_RESTORE_CHECKPOINT_INVALID', 'Không xác định được mức duyệt để phục hồi.', 409);
+      return { status: 'approved', level: target, score };
+    }
+    default:
+      throw cErr('COMPETITION_RESTORE_CHECKPOINT_INVALID', 'Sự kiện này không thể dùng để phục hồi.', 400);
+  }
+}
+
 const OWNER_EDITABLE = ['draft', 'needs_revision'];
 
 function ownerView(r) {
@@ -501,6 +569,91 @@ async function adminOverride(config, actor, params) {
   });
 }
 
+// ---- V1.6 Admin Control Tower — lifecycle restore -----------------------
+// "Phục hồi trạng thái bài" — undoes a technical/erroneous lifecycle event by
+// restoring a submission to a REAL prior checkpoint reconstructed from its
+// own submission_history (never an arbitrary client-supplied status/level/
+// score — see deriveRestoreTarget above). Admin-only. Mirrors adminOverride's
+// write discipline: `reason` is audit-only (submission_history.reason),
+// last_review_note is left untouched (this is a lifecycle correction, not a
+// reviewer judgment). Stale-state safety is the WHERE row_version=$expected
+// match on the UPDATE itself — a retry after a successful restore carries a
+// now-stale expectedRowVersion and correctly fails with COMPETITION_STALE_STATE.
+async function adminRestoreSubmission(config, actor, params) {
+  const auth = await resolveAuthority(config, actor, params.campaignId);
+  requireCompetitionAdmin(auth);
+  const reason = cleanText(params.reason);
+  if (!reason) throw cErr('COMPETITION_RESTORE_REASON_REQUIRED', 'Phục hồi trạng thái bài phải có lý do.', 400);
+  const aa = auditActor(actor);
+  const submissionId = String(params.submissionId || '');
+  const targetHistoryEventId = String(params.targetHistoryEventId || '');
+  if (!submissionId || !targetHistoryEventId) throw cErr('COMPETITION_RESTORE_TARGET_REQUIRED', 'Thiếu điểm phục hồi.', 400);
+  const expectedRowVersion = params.expectedRowVersion == null || params.expectedRowVersion === '' ? null : Number(params.expectedRowVersion);
+  if (expectedRowVersion == null) throw cErr('COMPETITION_RESTORE_ROWVERSION_REQUIRED', 'Thiếu phiên bản bài để phục hồi an toàn.', 400);
+
+  return writeTx(config, async (client) => {
+    const cur = await client.query('SELECT * FROM competition.submissions WHERE id = $1 FOR UPDATE', [submissionId]);
+    if (!cur.rowCount) throw cErr('COMPETITION_SUBMISSION_NOT_FOUND', 'Không tìm thấy bài.', 404);
+    const row = cur.rows[0];
+    if (params.campaignId && row.campaign_id !== params.campaignId) throw cErr('COMPETITION_CAMPAIGN_MISMATCH', 'Sai chương trình.', 400);
+    if (isSamePerson(actor, row.author_account_id, row.author_employee_code)) {
+      throw cErr('COMPETITION_SELF_REVIEW_BLOCKED', 'Admin không thể tự can thiệp bài của chính mình.', 403);
+    }
+
+    // stale-state safety FIRST — compare against the version the frontend
+    // captured when it opened the restore modal, before touching anything.
+    if (Number(expectedRowVersion) !== row.row_version) {
+      throw cErr('COMPETITION_STALE_STATE', 'Trạng thái bài đã thay đổi ở nơi khác — vui lòng tải lại và mở lại.', 409);
+    }
+
+    const histR = await client.query(
+      `SELECT id, action, after, at FROM competition.submission_history WHERE id = $1 AND submission_id = $2`,
+      [targetHistoryEventId, submissionId]);
+    if (!histR.rowCount) throw cErr('COMPETITION_RESTORE_CHECKPOINT_NOT_FOUND', 'Không tìm thấy điểm phục hồi này trên bài.', 404);
+    const histRow = histR.rows[0];
+    if (!RESTORABLE_HISTORY_ACTIONS.includes(histRow.action)) {
+      throw cErr('COMPETITION_RESTORE_CHECKPOINT_INVALID', 'Sự kiện này không thể dùng làm điểm phục hồi.', 400);
+    }
+
+    const target = await deriveRestoreTarget(client, row.campaign_id, histRow);
+    const sameAsCurrent = target.status === row.status
+      && target.level === row.current_level_order
+      && Number(target.score || 0) === Number(row.current_score || 0);
+    if (sameAsCurrent) throw cErr('COMPETITION_RESTORE_NOOP', 'Bài đã ở đúng trạng thái này — không có gì để phục hồi.', 409);
+
+    await client.query(`SET LOCAL competition.allow_submission_override = 'on'`);
+    const r = await client.query(
+      `UPDATE competition.submissions SET
+         status = $2, current_level_order = $3, current_score = $4,
+         row_version = row_version + 1
+       WHERE id = $1 AND row_version = $5 RETURNING *`,
+      [submissionId, target.status, target.level, target.score, expectedRowVersion]);
+    if (!r.rowCount) throw cErr('COMPETITION_STALE_STATE', 'Trạng thái bài đã thay đổi ở nơi khác — vui lòng tải lại và mở lại.', 409);
+
+    await client.query(
+      `INSERT INTO competition.submission_history (submission_id, action, actor_account_id, actor_employee_code, actor_display_name, before, after, reason)
+       VALUES ($1,'restore',$2,$3,$4,$5::jsonb,$6::jsonb,$7)`,
+      [submissionId, aa.account_id, aa.employee_code, aa.display_name,
+       JSON.stringify({ status: row.status, level: row.current_level_order, score: row.current_score }),
+       JSON.stringify({ status: target.status, level: target.level, score: target.score, restoredFromHistoryId: histRow.id }),
+       reason]);
+
+    const content = restoreNotificationContent(target.status, target.score);
+    if (content) {
+      await emitCompetitionNotifications({
+        client, eventCode: 'COMPETITION_SUBMISSION_RESTORED', submissionId,
+        title: content.title, message: content.message,
+        targetPath: '/thi-dua/bai-cua-toi', priority: 'Trung bình',
+        recipients: [{ accountId: row.author_account_id, employeeCode: row.author_employee_code }],
+        actor: aa,
+        dedupeKey: 'cmp:' + submissionId + ':COMPETITION_SUBMISSION_RESTORED:v' + r.rows[0].row_version,
+      });
+    }
+
+    return ownerView(r.rows[0]);
+  });
+}
+
 // ---- V1.3 post-approval score adjustment (effective 0/2/5) -------------
 // Authorized to: Competition Admin, OR a reviewer at the campaign's TOP
 // configured level (the same "high reviewer" concept competition-review.js
@@ -655,5 +808,6 @@ async function finalizeCampaignSubmissions(config, actor, params) {
 
 module.exports = {
   ownerView, listMySubmissions, getMySubmission,
-  createDraft, editDraft, submit, bulkSubmit, reviewAction, adminOverride, adjustScore, listAdjustable, finalizeCampaignSubmissions,
+  createDraft, editDraft, submit, bulkSubmit, reviewAction, adminOverride, adminRestoreSubmission,
+  adjustScore, listAdjustable, finalizeCampaignSubmissions,
 };

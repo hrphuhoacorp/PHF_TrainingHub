@@ -25,6 +25,8 @@ const EVENT_CODES = Object.freeze(new Set([
   'COMPETITION_SUBMISSION_REJECTED',
   'COMPETITION_SUBMISSION_ADJUSTED',
   'COMPETITION_REVIEW_ASSIGNED',
+  // V1.6 — Admin Control Tower "Phục hồi trạng thái bài" (lifecycle restore).
+  'COMPETITION_SUBMISSION_RESTORED',
 ]));
 const PRIORITIES = new Set(['Trung bình', 'Cao', 'Khẩn']);
 
