@@ -109,7 +109,23 @@ var SUBMISSION_STATUSES=[
   {k:'draft',label:'Nháp'},{k:'submitted',label:'Chờ duyệt'},{k:'needs_revision',label:'Cần chỉnh sửa'},
   {k:'approved',label:'Đã duyệt'},{k:'rejected',label:'Từ chối'},{k:'finalized',label:'Đã chốt'}
 ];
-function statusLabel(k){var s=SUBMISSION_STATUSES.filter(function(x){return x.k===k;})[0];return s?s.label:(k||'—');}
+// Campaign status is a SEPARATE enum from submission status (draft/accepting/
+// reviewing/finalized vs draft/submitted/needs_revision/approved/rejected/
+// finalized) — 'draft' and 'finalized' happen to share the same Vietnamese
+// wording, but 'accepting'/'reviewing' have no submission-status equivalent
+// and were falling through to the raw English enum value before this map
+// existed (visible in "Thể lệ chương trình" and the admin campaign screens).
+var CAMPAIGN_STATUSES=[
+  {k:'draft',label:'Nháp'},{k:'accepting',label:'Đang nhận bài'},{k:'reviewing',label:'Đang xét duyệt'},{k:'finalized',label:'Đã chốt'}
+];
+var AWARD_STATUSES=[
+  {k:'proposed',label:'Đã đề xuất'},{k:'confirmed',label:'Đã xác nhận'},{k:'superseded',label:'Đã thay thế'},{k:'revoked',label:'Đã thu hồi'}
+];
+function statusLabel(k){
+  var s=SUBMISSION_STATUSES.filter(function(x){return x.k===k;})[0]||CAMPAIGN_STATUSES.filter(function(x){return x.k===k;})[0];
+  return s?s.label:(k||'—');
+}
+function awardStatusLabel(k){var s=AWARD_STATUSES.filter(function(x){return x.k===k;})[0];return s?s.label:(k||'—');}
 function statusPill(k){return '<span class="phf-comp-pill" data-s="'+esc(k)+'">'+esc(statusLabel(k))+'</span>';}
 
 /* C4.3 — Chương trình thi đua contribution = QUESTION + ANSWER, always both.
@@ -284,13 +300,27 @@ function screenForPath(path){
   if(!m)return 'tong-quan';
   return m[1]||'tong-quan';
 }
+// Final polish — each nav group (Tham gia / Xét duyệt / Quản trị) renders as
+// its own light, bordered grouping (a visual "card" for the section, not a
+// flat label + list) so the hierarchy reads at a glance. Grouping/order logic
+// is unchanged (still 1:1 with menuModel()'s sequential group field) — only
+// the wrapper markup changed, so permission visibility is untouched.
 function navHtml(boot,activeKey){
-  var items=menuModel(boot),out='<nav class="phf-comp-nav" aria-label="Menu Chương trình thi đua">',lastGroup='__none__';
+  var items=menuModel(boot);
+  var groups=[],byName={};
   items.forEach(function(it){
     var grp=it.group||'Tham gia';
-    if(grp!==lastGroup){out+='<span class="phf-comp-nav-group">'+esc(grp)+'</span>';lastGroup=grp;}
-    var cls=(it.cta?'is-cta':'')+(it.key===activeKey?' is-active':'');
-    out+='<a href="'+esc(it.href)+'" data-comp-nav="'+esc(it.href)+'"'+(cls.trim()?' class="'+cls.trim()+'"':'')+(it.key===activeKey?' aria-current="page"':'')+'>'+icon(it.icon)+'<span>'+esc(it.label)+'</span></a>';
+    if(!(grp in byName)){byName[grp]=groups.length;groups.push({name:grp,items:[]});}
+    groups[byName[grp]].items.push(it);
+  });
+  var out='<nav class="phf-comp-nav" aria-label="Menu Chương trình thi đua">';
+  groups.forEach(function(g){
+    out+='<div class="phf-comp-nav-group-wrap"><span class="phf-comp-nav-group">'+esc(g.name)+'</span><div class="phf-comp-nav-group-items">';
+    g.items.forEach(function(it){
+      var cls=(it.cta?'is-cta':'')+(it.key===activeKey?' is-active':'');
+      out+='<a href="'+esc(it.href)+'" data-comp-nav="'+esc(it.href)+'"'+(cls.trim()?' class="'+cls.trim()+'"':'')+(it.key===activeKey?' aria-current="page"':'')+'>'+icon(it.icon)+'<span>'+esc(it.label)+'</span></a>';
+    });
+    out+='</div></div>';
   });
   return out+'</nav>';
 }
@@ -447,7 +477,7 @@ async function screenFeed(slot,boot){
   slot.innerHTML=heroHtml(campaign,'Hoạt động của chương trình — các đóng góp đủ điều kiện hiển thị ẩn danh dưới dạng thẻ tin, có thể thả tim để ghi nhận.')
     +'<section class="phf-comp-section"><h2>'+icon('feed')+'Bảng tin</h2>'
     +'<div class="phf-comp-note">'+icon('lock')+'<span>Trong thời gian chương trình đang chạy, bảng tin không hiển thị danh tính tác giả. Danh tính chỉ mở sau khi chương trình được chốt và bật công bố.</span></div>'
-    +'<div class="phf-comp-feed" data-comp-feed style="margin-top:14px">'+loadingState('Đang tải bảng tin…')+'</div>'
+    +'<div class="phf-comp-feed" data-comp-feed style="margin-top:18px">'+loadingState('Đang tải bảng tin…')+'</div>'
   +'</section>';
   var feedBox=slot.querySelector('[data-comp-feed]');
   try{
@@ -678,7 +708,7 @@ async function screenReviewQueue(slot,boot){
   slot.innerHTML=heroHtml(campaign,'Xét duyệt ẩn danh — danh tính người gửi được ẩn trong suốt quá trình xét duyệt.')
     +'<section class="phf-comp-section"><h2>'+icon('review')+'Chờ duyệt</h2>'
     +'<div class="phf-comp-note">'+icon('lock')+'<span><b>Xét duyệt ẩn danh.</b> Danh tính người gửi được ẩn trong suốt quá trình xét duyệt.</span></div>'
-    +'<div data-comp-body style="margin-top:12px">'+loadingState()+'</div></section>'
+    +'<div data-comp-body style="margin-top:18px">'+loadingState()+'</div></section>'
     +'<section class="phf-comp-section" data-comp-productivity><h2>'+icon('users')+'Năng suất xét duyệt của bạn</h2>'
     +'<p class="phf-comp-em-sub" style="margin:-4px 0 10px">Đây là tốc độ xử lý hàng chờ của bạn — KHÔNG phải điểm thi đua.</p>'
     +'<div class="phf-comp-card">'+loadingState()+'</div></section>';
@@ -1143,7 +1173,7 @@ async function screenAdminFinalize(slot,boot){
           +(cand&&cand.candidate?'<p style="font-size:12.5px;margin:8px 0">Ứng viên giải tự động: <b>'+esc(cand.candidate.displayName||cand.candidate.employeeCode)+'</b> ('+esc(cand.candidate.totalScore)+' điểm)'+(cand.needsAdminDecision?' — <span style="color:#8a6a2c">cần Admin quyết định do hòa</span>':'')+'</p>':'')
           +(awards.length?'<div class="phf-comp-table-wrap"><table class="phf-comp-table"><thead><tr><th>Loại</th><th>Người nhận</th><th>Số tiền</th><th>Trạng thái</th><th></th></tr></thead><tbody>'
             +awards.map(function(a){return '<tr><td data-th="Loại">'+(a.awardType==='auto'?'Tự động':'Giá trị')+'</td><td data-th="Người nhận">'+esc(a.recipientDisplayName||a.recipientEmployeeCode)+'</td>'
-              +'<td data-th="Số tiền">'+esc(Number(a.amountVnd).toLocaleString('vi-VN'))+' đ</td><td data-th="Trạng thái">'+esc(a.status)+'</td>'
+              +'<td data-th="Số tiền">'+esc(Number(a.amountVnd).toLocaleString('vi-VN'))+' đ</td><td data-th="Trạng thái">'+esc(awardStatusLabel(a.status))+'</td>'
               +'<td>'+(a.status==='proposed'?'<button type="button" class="phf-comp-btn is-ghost" data-comp-confirm-award="'+esc(a.id)+'" style="padding:6px 10px;font-size:12px">Xác nhận</button>':'')+'</td></tr>';}).join('')+'</tbody></table></div>'
             :emptyState('medal','Chưa có giải thưởng nào được đề xuất.'))
           +'<div class="phf-comp-actions" style="padding-top:14px;flex-wrap:wrap">'
@@ -1217,7 +1247,6 @@ window.phfRenderCompetition=async function(requestedPath){
       +'<img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH" class="phf-comp-logo" width="152" height="32" decoding="async">'
       +'<span class="phf-comp-brand-rule" aria-hidden="true"></span>'
       +'<span class="phf-comp-brand"><b>Chương trình thi đua</b><small>PHF HR</small></span>'
-      +'<span class="phf-comp-top-tag">DEV · dữ liệu thật trên phf_hr_e2e</span>'
     +'</header>'
     +'<div data-comp-identity-slot></div>'
     +'<div class="phf-comp-body" data-comp-nav-slot>'
