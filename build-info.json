@@ -1,6 +1,6 @@
 {
-  "version": "1.66.8",
-  "fingerprint": "1.66.8-task-feature-expansion",
-  "builtAt": "2026-09-02T09:54:11+07:00",
-  "notes": "PHF Task 1.66.8 feature expansion release: weekly/monthly task recurrence with finite repeat count, in-app notifications, file attachments (Quick Create parity), cancel-request policy, reporting source-of-work classification, deterministic bottleneck analysis, People & Permissions simplification with module-level department scope and cross-department visibility safeguards, identity-switch and loading/hydration safety, and Overview/Reporting performance improvements. Task business data remains on Company PostgreSQL."
+  "version": "1.66.9",
+  "fingerprint": "1.66.9-competition-v1-go-live",
+  "builtAt": "2026-09-05T10:57:00+07:00",
+  "notes": "PHF HR Competition V1 (Chuong trinh thi dua) go-live: /admin|ql|hv/thi-dua wired into phf-url-router.js. Fingerprint bump is required here because assets/js/phf-url-router.js is served with Cache-Control: immutable, max-age=1y under a query string keyed to this fingerprint — without bumping it, browsers that cached the site before this deploy keep serving the pre-Competition router (no /thi-dua route match), which falls through to the router's default Home redirect. Task business data remains on Company PostgreSQL."
 }
