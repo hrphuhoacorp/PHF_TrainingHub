@@ -437,12 +437,33 @@ async function reviewerProductivity(config, actor, params) {
 }
 
 // ---- anonymous reviewer queue (NO identity fields, by construction) ----
+// Base/L1 level order — the level any reviewer (Reviewer 2 included) is
+// granted by definition. A reviewer whose max_level_order authority goes
+// ABOVE this base (i.e. Reviewer-5-tier, covering L2/"5 điểm" and therefore,
+// per the locked permission contract, also covering the base L1/"2 điểm"
+// review) is considered "high-tier" for queue-visibility purposes. Reviewer 2
+// (base-level-only, reviewerMaxLevel === BASE_LEVEL_ORDER) must see EXACTLY
+// the pre-existing query results — this constant/branch must never change
+// their WHERE-clause outcome.
+const BASE_LEVEL_ORDER = 1;
+
 async function anonymousQueue(config, actor, params) {
   const auth = await resolveAuthority(config, actor, params.campaignId);
   if (!auth.canReview) throw cErr('COMPETITION_NOT_A_REVIEWER', 'Bạn không có quyền duyệt.', 403);
+  // Reviewer 5 (or higher) tier authority: max level above the base/L1 level.
+  // Per the locked contract "Reviewer 5 max-level authority includes
+  // Reviewer 2 authority", such a reviewer must see the FULL actionable pool
+  // for any level they're authorized on — not just submissions that already
+  // happen to carry an explicit review_assignments row for them (those rows
+  // are created lazily by ensureHighAssignment for exactly one lowest-load
+  // reviewer; other equally-authorized high-tier reviewers never get one).
+  const isHighTierReviewer = !auth.isCompetitionAdmin
+    && auth.reviewerMaxLevel != null && auth.reviewerMaxLevel > BASE_LEVEL_ORDER;
   return readTx(config, async (client) => {
     // submissions this actor may act on: their own active assignments +
-    // (admin) any pending submission. Author is filtered out server-side.
+    // (admin) any pending submission + (high-tier reviewer) any submission
+    // whose NEXT target level is within their authority, even with no
+    // assignment row yet. Author is filtered out server-side.
     const r = await client.query(
       `SELECT s.id AS submission_ref, s.campaign_id, c.title AS campaign_title,
               s.payload, s.status AS review_status, s.current_level_order, s.submitted_at,
@@ -456,9 +477,11 @@ async function anonymousQueue(config, actor, params) {
         WHERE s.campaign_id = $1
           AND s.status IN ('submitted','needs_revision')
           AND NOT ( ($2 <> '' AND s.author_account_id = $2) OR ($3 <> '' AND s.author_employee_code = $3) )
-          AND ( $4::boolean = true OR ra.id IS NOT NULL )
+          AND ( $4::boolean = true OR ra.id IS NOT NULL
+                OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) + 1 <= $5::int ) )
         ORDER BY s.submitted_at ASC NULLS LAST`,
-      [params.campaignId, actor.accountId || '', actor.employeeCode || '', auth.isCompetitionAdmin]);
+      [params.campaignId, actor.accountId || '', actor.employeeCode || '', auth.isCompetitionAdmin,
+       auth.reviewerMaxLevel, isHighTierReviewer]);
     const levels = await client.query(
       'SELECT level_order, name, score FROM competition.approval_levels WHERE campaign_id = $1 ORDER BY level_order', [params.campaignId]);
     const eligible = levels.rows
@@ -479,6 +502,12 @@ async function anonymousQueue(config, actor, params) {
         // their earlier assessment note, not a blank textarea.
         lastReviewNote: x.last_review_note,
         assignmentId: x.assignment_id, tier: x.tier, dueAt: x.due_at,
+        // 'assigned' = an active review_assignments row exists for this
+        // caller on this submission; 'open_pool' = visible only because the
+        // caller's high-tier authority covers the next target level (no
+        // assignment row yet). Additive/optional — never used server-side
+        // for authorization, purely informational for the UI.
+        responsibility: x.assignment_id != null ? 'assigned' : 'open_pool',
         // DELIBERATELY ABSENT: author name / code / department / branch / account
       })),
     };

@@ -648,8 +648,15 @@ async function screenSubmitForm(slot,boot){
   var campaign=boot.activeCampaign;
   if(!campaign){slot.innerHTML=heroHtml(null)+'<section class="phf-comp-section"><h2>'+icon('plus')+'Gửi bài dự thi</h2>'+emptyState('plus','Chưa có chương trình đang nhận bài.')+'</section>';return;}
   slot.innerHTML=submitHeroHtml(campaign,'Gửi một câu hỏi / tình huống khách hàng thật và cách bạn đã xử lý.')
+    +'<div class="phf-comp-section" style="padding-bottom:0">'
+      +'<div class="phf-comp-note" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+        +'<span>'+icon('inbox')+'<span>Có nhiều câu hỏi/tình huống muốn gửi cùng lúc? Dùng file Excel để nhập nhiều bài một lần.</span></span>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-bulk-open>Nhập nhiều bài</button>'
+      +'</div>'
+    +'</div>'
     +'<div class="phf-comp-section" data-comp-body>'+loadingState()+'</div>';
   var body=slot.querySelector('[data-comp-body]');
+  slot.querySelector('[data-comp-bulk-open]').addEventListener('click',function(){openBulkUploadModal(campaign);});
   try{
     var mine=await call('competitionListMySubmissions',{campaign_id:campaign.id});
     var draft=(mine||[]).filter(function(s){return s.status==='draft'||s.status==='needs_revision';})[0]||null;
@@ -829,10 +836,213 @@ function renderSubmitForm(body,campaign,draft){
       if(!draftId){var created=await call('competitionCreateSubmissionDraft',{campaign_id:campaign.id,payload:p});draftId=created.id;}
       await call('competitionSubmitSubmission',{submission_id:draftId,payload:p});
       toast('success','Đã gửi duyệt','Nội dung của bạn đã vào hàng chờ xét duyệt ẩn danh.');
-      go(prefix()+'/thi-dua/bai-cua-toi');
+      renderSubmitSuccess(body,campaign);
     }catch(e){toast('error','Không gửi được',e.message);}
     finally{btn.disabled=false;}
   });
+}
+// V1.5 — "Gửi thêm bài" convenience: after a successful submit, stay on the
+// submit screen with a quick confirmation instead of silently navigating
+// away to "Bài của tôi" with no path back. No cooldown, no write-path
+// change — purely a post-submit UX affordance using the existing PHF
+// card/button styling (never a native alert/confirm).
+function renderSubmitSuccess(body,campaign){
+  body.innerHTML='<div class="phf-comp-card">'
+    +'<div class="phf-comp-note">'+icon('info')+'<span>Bài dự thi của bạn đã được gửi và vào hàng chờ xét duyệt ẩn danh.</span></div>'
+    +'<div class="phf-comp-actions">'
+      +'<button type="button" class="phf-comp-btn" data-comp-submit-more>Gửi thêm bài</button>'
+      +'<button type="button" class="phf-comp-btn is-ghost" data-comp-goto-mine>Xem bài của tôi</button>'
+    +'</div>'
+  +'</div>';
+  body.querySelector('[data-comp-submit-more]').addEventListener('click',function(){renderSubmitForm(body,campaign,null);});
+  body.querySelector('[data-comp-goto-mine]').addEventListener('click',function(){go(prefix()+'/thi-dua/bai-cua-toi');});
+}
+
+/* ================================================================== *
+ * V1.5 — "Nhập nhiều bài" (bulk upload), a PARTICIPANT capability (not
+ * admin). Client-side Excel parsing reuses the exact vendored/lazy-load
+ * pattern as assets/js/phf-employee-master.js (loadXlsx) — same library,
+ * same approach, no new dependency. Author identity is ALWAYS the server-
+ * verified caller; the template/columns below deliberately have NO
+ * employee/account/reviewer/score/status column, and any such column a
+ * user adds by hand is stripped server-side regardless (see
+ * competitionBulkSubmitSubmissions in api/_lib/competition-actions.js).
+ * ================================================================== */
+var BULK_COLUMNS=[
+  {key:'customer_question',header:'Câu hỏi / Tình huống khách hàng',required:true},
+  {key:'answer',header:'Cách trả lời / Xử lý',required:true},
+  {key:'actual_result',header:'Kết quả thực tế / Ghi nhận',required:false},
+  {key:'evidence_reference',header:'Bằng chứng / Thông tin đối chiếu',required:false}
+];
+function bulkImportKey(value){return String(value||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+var BULK_HEADER_ALIASES=(function(){
+  var m={};
+  BULK_COLUMNS.forEach(function(c){m[bulkImportKey(c.header)]=c.key;});
+  // a few forgiving short aliases, still mapped to the SAME 4 keys only
+  m[bulkImportKey('Câu hỏi')]='customer_question';
+  m[bulkImportKey('Tình huống')]='customer_question';
+  m[bulkImportKey('Cách xử lý')]='answer';
+  m[bulkImportKey('Trả lời')]='answer';
+  m[bulkImportKey('Kết quả')]='actual_result';
+  m[bulkImportKey('Bằng chứng')]='evidence_reference';
+  return m;
+})();
+function loadBulkXlsx(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  return new Promise(function(resolve,reject){
+    var script=document.createElement('script');
+    script.src='/assets/vendor/xlsx.full.min.js';
+    script.onload=function(){window.XLSX?resolve(window.XLSX):reject(new Error('Không khởi tạo được thư viện Excel.'));};
+    script.onerror=function(){reject(new Error('Không tải được thư viện Excel.'));};
+    document.head.appendChild(script);
+  });
+}
+function downloadBulkTemplate(){
+  return loadBulkXlsx().then(function(X){
+    var rows=[BULK_COLUMNS.map(function(c){return c.header;})];
+    var wb=X.utils.book_new(),ws=X.utils.aoa_to_sheet(rows);
+    ws['!cols']=BULK_COLUMNS.map(function(){return {wch:40};});
+    X.utils.book_append_sheet(wb,ws,'Bai du thi');
+    X.writeFile(wb,'PHF_Thi_Dua_Mau_Nhap_Nhieu_Bai.xlsx');
+  });
+}
+// Parses the uploaded file into raw row objects ({customer_question, answer,
+// actual_result, evidence_reference} — ONLY these 4 keys are ever read off
+// a column, matching the required columns exactly; any other column in the
+// file, including one a user names "employee"/"account"/"score"/"status",
+// is simply never looked at).
+function parseBulkFile(file){
+  return loadBulkXlsx().then(function(X){
+    return file.arrayBuffer().then(function(buffer){
+      var wb=X.read(buffer,{type:'array'});
+      var sheet=wb.Sheets[wb.SheetNames[0]];
+      var matrix=X.utils.sheet_to_json(sheet,{header:1,raw:false,defval:''});
+      var headerIndex=-1,map={};
+      for(var r=0;r<Math.min(matrix.length,5);r++){
+        var candidate={};
+        (matrix[r]||[]).forEach(function(v,c){var key=BULK_HEADER_ALIASES[bulkImportKey(v)];if(key)candidate[c]=key;});
+        if(Object.values(candidate).indexOf('customer_question')>=0&&Object.values(candidate).indexOf('answer')>=0){headerIndex=r;map=candidate;}
+      }
+      if(headerIndex<0)throw new Error('Không tìm thấy đủ 2 cột bắt buộc: "Câu hỏi / Tình huống khách hàng" và "Cách trả lời / Xử lý".');
+      var rows=[];
+      for(var i=headerIndex+1;i<matrix.length;i++){
+        var line=matrix[i]||[];
+        var item={customer_question:'',answer:'',actual_result:'',evidence_reference:''},has=false;
+        Object.keys(map).forEach(function(c){
+          var value=String(line[Number(c)]==null?'':line[Number(c)]).trim();
+          item[map[c]]=value;if(value)has=true;
+        });
+        if(has)rows.push(item);
+      }
+      return rows;
+    });
+  });
+}
+function bulkRowClientStatus(row){
+  if(!String(row.customer_question||'').trim()||!String(row.answer||'').trim())return {k:'invalid',label:'Thiếu thông tin'};
+  return {k:'ok',label:'Hợp lệ'};
+}
+function bulkClientDedupeKey(row){
+  return String(row.customer_question||'').trim().toLowerCase().replace(/\s+/g,' ')+''+String(row.answer||'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function bulkRowsPreviewHtml(rows){
+  var seen={};
+  return rows.map(function(row,i){
+    var st=bulkRowClientStatus(row);
+    var key=bulkClientDedupeKey(row);
+    var isDup=st.k==='ok'&&seen[key]!=null;
+    if(st.k==='ok')seen[key]=(seen[key]==null)?i:seen[key];
+    var kind=st.k==='invalid'?'invalid':(isDup?'dup':'ok');
+    var label=st.k==='invalid'?st.label:(isDup?'Trùng trong file':'Hợp lệ');
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td><small>'+esc(String(row.customer_question||'').slice(0,80))+'</small></td>'
+      +'<td><small>'+esc(String(row.answer||'').slice(0,80))+'</small></td>'
+      +'<td><span class="phf-comp-bulk-status phf-comp-bulk-status-'+kind+'">'+esc(label)+'</span></td>'
+    +'</tr>';
+  }).join('');
+}
+function openBulkUploadModal(campaign){
+  var state={rows:null,fileName:'',batchId:(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():('bulk-'+Date.now()+'-'+Math.random().toString(16).slice(2))};
+  var wrap=document.createElement('div');
+  wrap.className='phf-comp-simwarn-backdrop';
+  function render(){
+    var rows=state.rows;
+    var body=!rows?('<div class="phf-comp-note">'+icon('info')+'<span>Chọn file Excel (.xlsx) theo mẫu để nhập nhiều bài cùng lúc. Bắt buộc 2 cột: "Câu hỏi / Tình huống khách hàng" và "Cách trả lời / Xử lý".</span></div>')
+      :('<div class="phf-comp-bulk-table-wrap"><table class="phf-comp-bulk-table"><thead><tr><th>Dòng</th><th>Câu hỏi / Tình huống</th><th>Cách xử lý</th><th>Trạng thái</th></tr></thead><tbody>'+bulkRowsPreviewHtml(rows)+'</tbody></table></div>'
+        +'<p class="phf-comp-em-sub" style="margin:10px 0 0">Tổng '+rows.length+' dòng. Dòng "Thiếu thông tin" hoặc "Trùng trong file" sẽ không được gửi. Bài có nội dung tương tự đã có trong hệ thống sẽ được đánh dấu sau khi gửi để bạn xem lại.</p>');
+    wrap.innerHTML='<div class="phf-comp-simwarn phf-comp-bulk-modal" role="dialog" aria-modal="true" aria-label="Nhập nhiều bài">'
+      +'<h3>'+icon('doc')+'Nhập nhiều bài</h3>'
+      +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Tải mẫu → Chọn file → Xem trước → Xác nhận gửi.</p>'
+      +'<div class="phf-comp-actions" style="flex-wrap:wrap">'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-bulk-template>Tải file mẫu</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-bulk-pick>Chọn file Excel</button>'
+        +'<input type="file" hidden accept=".xlsx,.xls" data-comp-bulk-file>'
+        +(state.fileName?'<span class="phf-comp-em-sub">'+esc(state.fileName)+'</span>':'')
+      +'</div>'
+      +body
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+        +'<button type="button" class="phf-comp-btn" data-comp-bulk-confirm'+(!rows||!rows.length?' disabled':'')+'>Xác nhận gửi</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-bulk-cancel>Đóng</button>'
+      +'</div>'
+    +'</div>';
+    wire();
+  }
+  function wire(){
+    wrap.querySelector('[data-comp-bulk-cancel]').addEventListener('click',close);
+    wrap.querySelector('[data-comp-bulk-template]').addEventListener('click',function(){downloadBulkTemplate().catch(function(e){toast('error','Không tải được file mẫu',e.message);});});
+    wrap.querySelector('[data-comp-bulk-pick]').addEventListener('click',function(){wrap.querySelector('[data-comp-bulk-file]').click();});
+    wrap.querySelector('[data-comp-bulk-file]').addEventListener('change',function(e){
+      var file=e.target.files&&e.target.files[0];
+      if(!file)return;
+      state.fileName=file.name;
+      parseBulkFile(file).then(function(rows){
+        if(rows.length>200){toast('error','File quá nhiều dòng','Chỉ chấp nhận tối đa 200 dòng mỗi lần tải lên (file có '+rows.length+' dòng).');state.rows=null;render();return;}
+        if(!rows.length){toast('error','File trống','Không tìm thấy dòng dữ liệu nào trong file.');state.rows=null;render();return;}
+        state.rows=rows;render();
+      }).catch(function(e){toast('error','Không đọc được file',e.message);state.rows=null;render();});
+    });
+    var confirmBtn=wrap.querySelector('[data-comp-bulk-confirm]');
+    if(confirmBtn)confirmBtn.addEventListener('click',async function(){
+      if(!state.rows||!state.rows.length)return;
+      confirmBtn.disabled=true;
+      try{
+        var res=await call('competitionBulkSubmitSubmissions',{campaign_id:campaign.id,batch_id:state.batchId,rows:state.rows});
+        renderBulkResult(wrap,campaign,res);
+      }catch(e){toast('error','Không gửi được',e.message);confirmBtn.disabled=false;}
+    });
+  }
+  function close(){wrap.remove();}
+  wrap.addEventListener('click',function(e){if(e.target===wrap)close();});
+  document.body.appendChild(wrap);
+  render();
+}
+var BULK_RESULT_REASON={
+  invalid:function(r){return r.reason||'Thiếu thông tin bắt buộc.';},
+  duplicate_in_file:function(r){return r.reason||'Trùng nội dung với dòng khác trong cùng file.';},
+  already_exists:function(r){return 'Nội dung này đã được gửi trước đó — không tạo bài mới.';}
+};
+function renderBulkResult(wrap,campaign,res){
+  var failed=(res.results||[]).filter(function(r){return r.status!=='submitted';});
+  var submitted=(res.results||[]).filter(function(r){return r.status==='submitted';});
+  var similarCount=submitted.filter(function(r){return r.similar;}).length;
+  wrap.innerHTML='<div class="phf-comp-simwarn phf-comp-bulk-modal" role="dialog" aria-modal="true" aria-label="Kết quả nhập nhiều bài">'
+    +'<h3>'+icon('check')+'Kết quả nhập nhiều bài</h3>'
+    +'<div class="phf-comp-note">'+icon('info')+'<span>Đã gửi thành công: <b>'+res.submittedCount+'</b> bài'+(res.needsAttentionCount?' · Cần xử lý lại: <b>'+res.needsAttentionCount+'</b> dòng':'')+'.</span></div>'
+    +(similarCount?'<div class="phf-comp-note">'+icon('warn')+'<span>'+similarCount+' bài trong số vừa gửi có nội dung tương tự bài đã có — bạn có thể xem lại trong "Bài của tôi", không ảnh hưởng việc bài đã được ghi nhận.</span></div>':'')
+    +(failed.length?('<div class="phf-comp-bulk-table-wrap"><table class="phf-comp-bulk-table"><thead><tr><th>Dòng</th><th>Trạng thái</th><th>Lý do</th></tr></thead><tbody>'
+      +failed.map(function(r){
+        var label=r.status==='invalid'?'Thiếu thông tin':(r.status==='duplicate_in_file'?'Trùng trong file':(r.status==='already_exists'?'Đã tồn tại':r.status));
+        var reasonFn=BULK_RESULT_REASON[r.status];
+        return '<tr><td>'+r.rowIndex+'</td><td><span class="phf-comp-bulk-status phf-comp-bulk-status-invalid">'+esc(label)+'</span></td><td><small>'+esc(reasonFn?reasonFn(r):(r.reason||''))+'</small></td></tr>';
+      }).join('')+'</tbody></table></div>'):'')
+    +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+      +'<button type="button" class="phf-comp-btn" data-comp-bulk-close>Đóng</button>'
+      +'<button type="button" class="phf-comp-btn is-ghost" data-comp-bulk-goto-mine>Xem bài của tôi</button>'
+    +'</div>'
+  +'</div>';
+  wrap.querySelector('[data-comp-bulk-close]').addEventListener('click',function(){wrap.remove();});
+  wrap.querySelector('[data-comp-bulk-goto-mine]').addEventListener('click',function(){wrap.remove();go(prefix()+'/thi-dua/bai-cua-toi');});
 }
 
 async function screenLeaderboard(slot,boot){
@@ -1106,8 +1316,15 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
         }).join('')
       +'</div>';
     })();
+    // V1.5 — Reviewer 5 full pool: `responsibility` is informational only
+    // (server already decided visibility/authorization). 'open_pool' means
+    // this item has no assignment row for the caller yet — surfaced as a
+    // small honest tag, never a second tab/section (kept to a single
+    // unified queue per spec's own "minimal, clean UI" guidance).
+    var isAdminViewer=boot&&boot.viewer&&boot.viewer.isCompetitionAdmin;
+    var respTag=(!isAdminViewer&&it.responsibility==='open_pool')?' <span class="phf-comp-review-resp-tag" title="Bạn có thể xử lý bài này dù chưa được giao riêng">· Có thể xử lý</span>':'';
     return '<div class="phf-comp-review-item" data-comp-review-item data-submission-id="'+esc(it.submissionRef)+'" style="margin-top:12px">'
-      +'<span class="rq-ref">'+esc(it.reviewStatus==='needs_revision'?'Đã yêu cầu chỉnh sửa · Mã bài: '+String(it.submissionRef).slice(0,8):'Mã bài: '+String(it.submissionRef).slice(0,8))+'</span>'
+      +'<span class="rq-ref">'+esc(it.reviewStatus==='needs_revision'?'Đã yêu cầu chỉnh sửa · Mã bài: '+String(it.submissionRef).slice(0,8):'Mã bài: '+String(it.submissionRef).slice(0,8))+respTag+'</span>'
       +qaFieldsHtml(it.payload,undefined,{showEvidence:true})
       +(it.currentLevelOrder?'<p style="font-size:12.5px;color:var(--comp-green-deep)">Đã duyệt mức '+esc(it.currentLevelOrder)+' — có thể nâng mức</p>':'')
       +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')

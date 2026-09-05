@@ -101,6 +101,7 @@ const HANDLERS = {
   'competition.submission.createDraft': (c, a, p) => submissions.createDraft(c, a, p),
   'competition.submission.editDraft': (c, a, p) => submissions.editDraft(c, a, p),
   'competition.submission.submit': (c, a, p) => submissions.submit(c, a, p),
+  'competition.submission.bulkSubmit': (c, a, p) => submissions.bulkSubmit(c, a, p),
   'competition.submission.review': (c, a, p) => submissions.reviewAction(c, a, p),
   'competition.submission.adminOverride': (c, a, p) => submissions.adminOverride(c, a, p),
   'competition.submission.adjustScore': (c, a, p) => submissions.adjustScore(c, a, p),

@@ -181,7 +181,13 @@ function bootstrapWith(overrides) {
     await flush();
     check(m.calls.some((c) => c.action === 'competitionCreateSubmissionDraft'), 'submit with no existing draft creates one first');
     check(m.calls.some((c) => c.action === 'competitionSubmitSubmission' && c.submission_id === 'new-sub'), 'then submits the newly created draft');
-    check(navigatedTo === '/hv/thi-dua/bai-cua-toi', 'navigates to "Bài của tôi" after a real successful submit');
+    // V1.5 — "Gửi thêm bài" UX: a successful submit no longer auto-navigates
+    // away to "Bài của tôi". The participant stays on the submit screen with
+    // an inline confirmation offering "Gửi thêm bài" (reset form, stay) or
+    // "Xem bài của tôi" (navigate) — see renderSubmitSuccess().
+    check(navigatedTo === null, 'no longer auto-navigates away after a real successful submit (V1.5 "Gửi thêm bài")');
+    check(m.root.querySelector('[data-comp-submit-more]') != null, 'shows a "Gửi thêm bài" action after a successful submit');
+    check(m.root.querySelector('[data-comp-goto-mine]') != null, 'shows a "Xem bài của tôi" action after a successful submit');
   }
   {
     const m = mount('/hv/thi-dua/gui', { role: 'learner', handlers: {
