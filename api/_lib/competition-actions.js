@@ -36,6 +36,7 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionListMySubmissions', 'competitionGetMySubmission',
   'competitionCreateSubmissionDraft', 'competitionEditSubmissionDraft', 'competitionSubmitSubmission',
   'competitionReviewSubmission', 'competitionAdminOverrideSubmission',
+  'competitionAdjustScore', 'competitionListAdjustable',
   'competitionCheckSimilarity', 'competitionConfirmOccurrence', 'competitionGetOccurrenceCount',
   'competitionGetReviewQueue', 'competitionGetReviewerProductivity', 'competitionGetSimilarForReview',
   'competitionReassignReview', 'competitionProcessOverdueReviews',
@@ -157,6 +158,20 @@ const ACTION_MAP = {
       campaignId: str(p.campaign_id), submissionId: str(p.submission_id), mode: str(p.mode),
       targetStatus: str(p.target_status), payload: p.payload, reason: str(p.reason),
     }),
+  },
+  // V1.3 — post-approval effective-score adjustment (0/2/5), Reviewer top-
+  // level/Admin only (server-authoritative, see competition-submissions.js
+  // adjustScore). targetLevelOrder 0/absent => "Không ghi nhận" (score 0).
+  competitionAdjustScore: {
+    remote: 'competition.submission.adjustScore',
+    params: (p) => ({
+      campaignId: str(p.campaign_id), submissionId: str(p.submission_id),
+      targetLevelOrder: num(p.target_level_order), reviewerRecord: str(p.reviewer_record), reason: str(p.reason),
+    }),
+  },
+  competitionListAdjustable: {
+    remote: 'competition.submission.listAdjustable',
+    params: (p) => ({ campaignId: str(p.campaign_id) }),
   },
   // V1.1 — NO-AI similarity suggestion (pre-submit sender check). Never a
   // verdict: server returns a bounded top-3 list of candidate content, the

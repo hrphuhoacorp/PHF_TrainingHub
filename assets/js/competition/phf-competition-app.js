@@ -30,9 +30,18 @@ function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){retur
 function role(){try{return window.phfGetSessionRole?window.phfGetSessionRole():'learner';}catch(e){return 'learner';}}
 function prefix(){var r=role();return r==='admin'?'/admin':(r==='manager'?'/ql':'/hv');}
 function go(path){if(window.phfNavigate)return window.phfNavigate(path);location.href=path;}
+/* V1.3 — no native alert(), even as a fallback: if the shared window.phfToast
+ * is unavailable, fall back to a small self-dismissing PHF-styled toast
+ * built inline rather than a blocking browser alert(). */
 function toast(kind,title,msg){
   if(typeof window.phfToast==='function'){window.phfToast(kind||'info',title||'',msg||'',3600,'phf-comp-toast');return;}
-  try{window.alert((title?title+': ':'')+(msg||''));}catch(e){}
+  try{
+    var el=document.createElement('div');
+    el.className='phf-comp-fallback-toast';
+    el.textContent=(title?title+': ':'')+(msg||'');
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove();},3600);
+  }catch(e){}
 }
 function fmtDate(v){
   if(!v)return '—';
@@ -144,11 +153,21 @@ function statusPill(k){return '<span class="phf-comp-pill" data-s="'+esc(k)+'">'
  * honest "chưa ghi nhận" empty state below — never the "bài gửi trước khi
  * biểu mẫu cập nhật" missing-field message, which stays reserved for the
  * genuinely-required customer_question/answer fields only. */
-function qaFieldsHtml(payload,maxLen){
+/* V1.3 — "Bằng chứng / Thông tin đối chiếu" (payload.evidence_reference) is a
+ * FOURTH, OPTIONAL field, plain text only (no upload/file infra). Unlike
+ * actual_result, an empty evidence field renders NOTHING (no placeholder
+ * block) — "empty evidence should not create a large empty UI block". Only
+ * shown when opts.showEvidence is true (Bài của tôi / Chờ duyệt / reviewer
+ * detail) — Feed calls qaFieldsHtml with no opts, so evidence NEVER appears
+ * there (privacy: participant-supplied reference text may contain internal
+ * order codes etc., not meant for the public/company-wide Feed). */
+function qaFieldsHtml(payload,maxLen,opts){
   var p=payload||{};
   var q=p.customer_question;
   var a=p.answer;
   var r=p.actual_result;
+  var ev=p.evidence_reference;
+  opts=opts||{};
   function val(v){
     if(v==null||String(v).trim()==='')return '<span class="phf-comp-qa-missing">Chưa có nội dung (bài được gửi trước khi biểu mẫu được cập nhật).</span>';
     var s=String(v);
@@ -159,10 +178,12 @@ function qaFieldsHtml(payload,maxLen){
     var s=String(v);
     return esc(maxLen?s.slice(0,maxLen):s);
   }
+  var hasEvidence=ev!=null&&String(ev).trim()!=='';
   return '<div class="phf-comp-qa">'
     +'<div class="phf-comp-qa-block"><span class="phf-comp-qa-label">Câu hỏi / tình huống khách hàng</span><p class="phf-comp-qa-text">'+val(q)+'</p></div>'
     +'<div class="phf-comp-qa-block"><span class="phf-comp-qa-label">Cách trả lời / xử lý</span><p class="phf-comp-qa-text">'+val(a)+'</p></div>'
     +'<div class="phf-comp-qa-block phf-comp-qa-result"><span class="phf-comp-qa-label">Kết quả thực tế / Ghi nhận</span><p class="phf-comp-qa-text">'+resultVal(r)+'</p></div>'
+    +(opts.showEvidence&&hasEvidence?'<div class="phf-comp-qa-block phf-comp-qa-evidence"><span class="phf-comp-qa-label">Bằng chứng / Thông tin đối chiếu</span><p class="phf-comp-qa-text">'+esc(maxLen?String(ev).slice(0,maxLen):String(ev))+'</p></div>':'')
   +'</div>';
 }
 
@@ -557,7 +578,7 @@ function mySubmissionCardHtml(s){
   return '<div class="phf-comp-card" style="margin-top:12px">'
     +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">'
       +statusPill(s.status)+'<span style="font-size:12px;color:var(--comp-ink-soft)">'+esc(fmtDate(s.updatedAt))+'</span></div>'
-    +qaFieldsHtml(s.payload)
+    +qaFieldsHtml(s.payload,undefined,{showEvidence:true})
     +(s.currentLevelOrder?'<p style="margin:6px 0 0;font-size:12.5px;color:var(--comp-green-deep)">Mức '+esc(s.currentLevelOrder)+' · '+esc(s.currentScore)+' điểm</p>':'')
     +(( ['needs_revision','rejected'].indexOf(s.status)>=0 && s.lastReviewNote )?'<div class="phf-comp-note">'+icon('info')+'<span>'+esc(s.lastReviewNote)+'</span></div>':'')
     +(['draft','needs_revision'].indexOf(s.status)>=0?'<div class="phf-comp-actions" style="padding-top:12px"><button type="button" class="phf-comp-btn" data-comp-go="'+esc(prefix()+'/thi-dua/gui')+'">Tiếp tục chỉnh sửa</button></div>':'')
@@ -646,6 +667,61 @@ function formFieldHtml(field,value){
  * confirmOccurrence never creates a competition.submissions row). Candidate
  * content here is the SENDER-safe view: question excerpt + submitted date
  * only — never the candidate's answer, never author identity. */
+/* V1.3 — generic PHF modal primitives, replacing every remaining Competition
+ * window.prompt()/window.alert() usage (window.confirm() was never used
+ * here). Both resolve a Promise instead of blocking the thread; Cancel/
+ * backdrop-click always resolves to "no write happened".
+ * showInputModal -> string (trimmed) on confirm, null on cancel/empty-required.
+ * showConfirmModal -> true on confirm, false on cancel. */
+function showInputModal(opts){
+  opts=opts||{};
+  return new Promise(function(resolve){
+    var wrap=document.createElement('div');
+    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="'+esc(opts.title||'')+'">'
+      +'<h3>'+esc(opts.title||'')+'</h3>'
+      +(opts.description?'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">'+esc(opts.description)+'</p>':'')
+      +'<textarea data-comp-modal-input placeholder="'+esc(opts.placeholder||'')+'" style="min-height:110px;width:100%"></textarea>'
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+        +'<button type="button" class="phf-comp-btn" data-comp-modal-confirm>'+esc(opts.confirmLabel||'Xác nhận')+'</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-modal-cancel>'+esc(opts.cancelLabel||'Hủy')+'</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(wrap);
+    var input=wrap.querySelector('[data-comp-modal-input]');
+    if(opts.initialValue)input.value=opts.initialValue;
+    input.focus();
+    function close(val){wrap.remove();resolve(val);}
+    wrap.addEventListener('click',function(e){if(e.target===wrap)close(null);});
+    wrap.querySelector('[data-comp-modal-cancel]').addEventListener('click',function(){close(null);});
+    wrap.querySelector('[data-comp-modal-confirm]').addEventListener('click',function(){
+      var val=input.value.trim();
+      if(opts.required!==false&&!val){input.focus();input.style.borderColor='#b5502f';return;}
+      close(val);
+    });
+    input.addEventListener('keydown',function(e){if(e.key==='Escape')close(null);});
+  });
+}
+function showConfirmModal(opts){
+  opts=opts||{};
+  return new Promise(function(resolve){
+    var wrap=document.createElement('div');
+    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="'+esc(opts.title||'')+'">'
+      +'<h3>'+esc(opts.title||'')+'</h3>'
+      +(opts.description?'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">'+esc(opts.description)+'</p>':'')
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+        +'<button type="button" class="phf-comp-btn'+(opts.danger?' is-danger':'')+'" data-comp-modal-confirm>'+esc(opts.confirmLabel||'Xác nhận')+'</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-modal-cancel>'+esc(opts.cancelLabel||'Hủy')+'</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(wrap);
+    function close(val){wrap.remove();resolve(val);}
+    wrap.addEventListener('click',function(e){if(e.target===wrap)close(false);});
+    wrap.querySelector('[data-comp-modal-cancel]').addEventListener('click',function(){close(false);});
+    wrap.querySelector('[data-comp-modal-confirm]').addEventListener('click',function(){close(true);});
+  });
+}
 function showSimilarityWarning(campaignId,candidates){
   return new Promise(function(resolve){
     var wrap=document.createElement('div');
@@ -694,7 +770,12 @@ function renderSubmitForm(body,campaign,draft){
     // result isn't known yet. Stored in payload.actual_result (existing
     // jsonb column) — fully backward-compatible, no migration.
     {key:'actual_result',label:'Kết quả thực tế / Ghi nhận',type:'textarea',required:false,
-     help:'Sau khi bạn trả lời/xử lý, khách phản hồi thế nào hoặc tình huống mang lại kết quả gì?'}
+     help:'Sau khi bạn trả lời/xử lý, khách phản hồi thế nào hoặc tình huống mang lại kết quả gì?'},
+    // V1.3 — "Bằng chứng / Thông tin đối chiếu", optional, plain text only
+    // (no upload/file infra in V1.3). payload.evidence_reference — existing
+    // jsonb column, no migration, fully backward-compatible.
+    {key:'evidence_reference',label:'Bằng chứng / Thông tin đối chiếu (không bắt buộc)',type:'textarea',required:false,
+     help:'Nếu có, bạn có thể ghi mã đơn, thông tin đối chiếu hoặc mô tả ngắn liên quan.'}
   ];
   var payload=(draft&&draft.payload)||{};
   var isLocked=draft&&['submitted','approved','rejected','finalized'].indexOf(draft.status)>=0;
@@ -857,9 +938,11 @@ async function screenReviewQueue(slot,boot){
     +'<div data-comp-body style="margin-top:18px">'+loadingState()+'</div></section>'
     +'<section class="phf-comp-section" data-comp-productivity><h2>'+icon('users')+'Năng suất xét duyệt của bạn</h2>'
     +'<p class="phf-comp-em-sub" style="margin:-4px 0 10px">Đây là tốc độ xử lý hàng chờ của bạn — KHÔNG phải điểm thi đua.</p>'
-    +'<div class="phf-comp-card">'+loadingState()+'</div></section>';
+    +'<div class="phf-comp-card">'+loadingState()+'</div></section>'
+    +'<section class="phf-comp-section" data-comp-adjust-section hidden></section>';
   var body=slot.querySelector('[data-comp-body]');
   var prodBox=slot.querySelector('[data-comp-productivity] .phf-comp-card');
+  var adjustSection=slot.querySelector('[data-comp-adjust-section]');
   // C4.4 latency fix: queue and productivity are independent reads (neither
   // depends on the other's result) — kick both off together instead of
   // waiting for the queue before even starting the productivity fetch.
@@ -881,6 +964,105 @@ async function screenReviewQueue(slot,boot){
   try{
     prodBox.innerHTML=productivityCardHtml(await prodP);
   }catch(e){prodBox.innerHTML=errorState(e);}
+  // V1.3 — "Điều chỉnh kết quả chấm": restrained, NOT shown by default.
+  // Authorization is server-authoritative (competition.submission.
+  // listAdjustable — Reviewer top-level/Admin only); a plain reviewer's
+  // call fails with COMPETITION_ADJUSTMENT_NOT_AUTHORIZED and the whole
+  // section simply stays hidden, never a client-side-only gate.
+  try{
+    var adjustable=await call('competitionListAdjustable',{campaign_id:campaign.id});
+    if(adjustable.items&&adjustable.items.length){
+      adjustSection.hidden=false;
+      renderAdjustSection(adjustSection,campaign,adjustable);
+    }
+  }catch(e){/* not authorized or nothing to adjust — section stays hidden */}
+}
+/* V1.3 — post-approval effective-score adjustment (0/2/5). Restrained by
+ * design: own quiet section, collapsed disclosure per item (not a loud
+ * permanent "Sửa điểm" button on every card), server-authoritative
+ * authorization (see screenReviewQueue's call site — this whole section
+ * only renders after a successful competitionListAdjustable call). */
+function effectiveScoreLabel(score){
+  if(score===0)return '0 · Không ghi nhận';
+  return score+' điểm';
+}
+function renderAdjustSection(section,campaign,adjustable){
+  section.innerHTML='<h2>'+icon('gear')+'Điều chỉnh kết quả chấm</h2>'
+    +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Chỉ dành cho Reviewer ở mức cao nhất hoặc Competition Admin — dùng khi cần rà soát lại một bài đã duyệt.</p>'
+    +adjustable.items.map(function(it){
+      return '<div class="phf-comp-card" style="margin-top:10px" data-comp-adjust-item data-submission-id="'+esc(it.submissionRef)+'">'
+        +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">'
+          +'<span class="rq-ref">Mã bài: '+esc(String(it.submissionRef).slice(0,8))+(it.adjusted?' · đã điều chỉnh':'')+'</span>'
+          +'<span style="font-size:12.5px;font-weight:700;color:var(--comp-green-deep)">Hiện tại: '+esc(effectiveScoreLabel(it.effectiveScore))+'</span>'
+        +'</div>'
+        +qaFieldsHtml(it.payload,220,{showEvidence:true})
+        +'<div class="phf-comp-actions" style="padding-top:12px">'
+          +'<button type="button" class="phf-comp-btn is-ghost" data-comp-open-adjust>Điều chỉnh kết quả chấm</button>'
+        +'</div>'
+      +'</div>';
+    }).join('');
+  section.querySelectorAll('[data-comp-open-adjust]').forEach(function(btn){
+    btn.addEventListener('click',async function(){
+      var item=btn.closest('[data-comp-adjust-item]');
+      var submissionId=item.getAttribute('data-submission-id');
+      var current=adjustable.items.find(function(x){return x.submissionRef===submissionId;});
+      await openAdjustScoreModal(campaign,submissionId,current,function(updated){
+        toast('success','Đã điều chỉnh','Kết quả chấm đã được cập nhật.');
+        current.effectiveScore=updated.effectiveScore;current.adjusted=true;
+        item.querySelector('.rq-ref').textContent='Mã bài: '+String(submissionId).slice(0,8)+' · đã điều chỉnh';
+        item.querySelectorAll('span')[1].textContent='Hiện tại: '+effectiveScoreLabel(updated.effectiveScore);
+      });
+    });
+  });
+}
+async function openAdjustScoreModal(campaign,submissionId,current,onDone){
+  var levels;
+  try{ levels=await call('competitionListLevels',{campaign_id:campaign.id}); }catch(e){ levels=[]; }
+  var options=[{targetLevelOrder:0,label:'0 · Không ghi nhận'}]
+    .concat((levels||[]).map(function(l){return {targetLevelOrder:l.levelOrder,label:l.score+' · '+l.name};}));
+  return new Promise(function(resolve){
+    var wrap=document.createElement('div');
+    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Điều chỉnh kết quả chấm">'
+      +'<h3>'+icon('gear')+'Điều chỉnh kết quả chấm</h3>'
+      +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Kết quả hiện tại: <b>'+esc(effectiveScoreLabel(current.effectiveScore))+'</b></p>'
+      +'<div class="phf-comp-field"><label>Kết quả mới</label>'
+        +'<div class="phf-comp-level-switch" role="group" aria-label="Chọn kết quả mới" data-comp-adjust-options>'
+          +options.map(function(o,i){return '<button type="button" class="phf-comp-level-opt" data-comp-adjust-opt="'+o.targetLevelOrder+'">'+esc(o.label)+'</button>';}).join('')
+        +'</div>'
+      +'</div>'
+      +'<div class="phf-comp-field"><label>Kết quả / Ghi nhận của giám khảo</label><textarea data-comp-adjust-record placeholder="Ghi chú đánh giá (không bắt buộc)…"></textarea></div>'
+      +'<div class="phf-comp-field"><label>Lý do điều chỉnh<span class="req">*</span></label><textarea data-comp-adjust-reason placeholder="Vì sao cần điều chỉnh kết quả này…"></textarea></div>'
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:6px">'
+        +'<button type="button" class="phf-comp-btn" data-comp-adjust-confirm>Xác nhận điều chỉnh</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-adjust-cancel>Hủy</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(wrap);
+    var selected=null;
+    wrap.querySelectorAll('[data-comp-adjust-opt]').forEach(function(b){
+      b.addEventListener('click',function(){
+        wrap.querySelectorAll('[data-comp-adjust-opt]').forEach(function(x){x.classList.remove('is-selected');});
+        b.classList.add('is-selected');selected=Number(b.getAttribute('data-comp-adjust-opt'));
+      });
+    });
+    function close(){wrap.remove();resolve(null);}
+    wrap.addEventListener('click',function(e){if(e.target===wrap)close();});
+    wrap.querySelector('[data-comp-adjust-cancel]').addEventListener('click',close);
+    wrap.querySelector('[data-comp-adjust-confirm]').addEventListener('click',async function(){
+      if(selected==null){toast('error','Thiếu thông tin','Vui lòng chọn kết quả mới.');return;}
+      var reason=wrap.querySelector('[data-comp-adjust-reason]').value.trim();
+      if(!reason){toast('error','Thiếu thông tin','Cần nhập lý do điều chỉnh.');return;}
+      var reviewerRecord=wrap.querySelector('[data-comp-adjust-record]').value.trim();
+      var confirmBtn=this;confirmBtn.disabled=true;
+      try{
+        var updated=await call('competitionAdjustScore',{campaign_id:campaign.id,submission_id:submissionId,target_level_order:selected,reviewer_record:reviewerRecord||undefined,reason:reason});
+        wrap.remove();
+        if(onDone)onDone(updated);
+        resolve(updated);
+      }catch(e){toast('error','Không điều chỉnh được',e.message);confirmBtn.disabled=false;}
+    });
+  });
 }
 function productivityCardHtml(prod){
   return '<div class="phf-comp-grid">'
@@ -921,7 +1103,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
     })();
     return '<div class="phf-comp-review-item" data-comp-review-item data-submission-id="'+esc(it.submissionRef)+'" style="margin-top:12px">'
       +'<span class="rq-ref">'+esc(it.reviewStatus==='needs_revision'?'Đã yêu cầu chỉnh sửa · Mã bài: '+String(it.submissionRef).slice(0,8):'Mã bài: '+String(it.submissionRef).slice(0,8))+'</span>'
-      +qaFieldsHtml(it.payload)
+      +qaFieldsHtml(it.payload,undefined,{showEvidence:true})
       +(it.currentLevelOrder?'<p style="font-size:12.5px;color:var(--comp-green-deep)">Đã duyệt mức '+esc(it.currentLevelOrder)+' — có thể nâng mức</p>':'')
       +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')
       +reviewerRecordHtml(it.lastReviewNote)
@@ -954,16 +1136,20 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       else{var selOpt=item.querySelector('[data-comp-level-opt].is-selected');levelOrder=selOpt?Number(selOpt.getAttribute('data-comp-level-opt')):undefined;}
       // V1.2 — "Kết quả / Ghi nhận của giám khảo" is now a single inline
       // textarea per item (reviewerRecordHtml), read for EVERY action —
-      // still MANDATORY for reject/request_revision (unchanged rule; a
-      // window.prompt fallback covers the rare case where a required note
-      // is missing, rather than silently failing the action), OPTIONAL for
-      // approve/upgrade (supporting assessment info only — never derives
+      // still MANDATORY for reject/request_revision (unchanged rule).
+      // V1.3 — if that textarea is empty for those 2 actions, a dedicated
+      // PHF input modal collects the required text (NO native window.prompt
+      // — this was the operator-reported bug, see showInputModal). Optional
+      // for approve/upgrade (supporting assessment info only — never derives
       // score, see competition-submissions.js reviewAction).
       var noteEl=item.querySelector('[data-comp-reviewer-record]');
       var note=(noteEl?noteEl.value:'').trim();
       if((action==='request_revision'||action==='reject')&&!note){
-        note=(window.prompt(action==='reject'?'Lý do từ chối:':'Ghi chú yêu cầu chỉnh sửa:')||'').trim();
-        if(!note){return;}
+        var modalNote=await showInputModal(action==='reject'
+          ?{title:'Từ chối bài dự thi',description:'Ghi rõ lý do từ chối nội dung này.',placeholder:'Lý do từ chối…',confirmLabel:'Từ chối bài'}
+          :{title:'Yêu cầu chỉnh sửa',description:'Ghi rõ nội dung cần người gửi bổ sung hoặc điều chỉnh.',placeholder:'Nội dung cần bổ sung/điều chỉnh…',confirmLabel:'Gửi yêu cầu chỉnh sửa'});
+        if(!modalNote){return;}
+        note=modalNote;
       }
       item.querySelectorAll('button').forEach(function(b){b.disabled=true;});
       try{
@@ -1144,7 +1330,7 @@ function wireLevelSection(body,c,refresh){
       var name=row.querySelector('[data-lvl="name"]').value.trim();
       var score=row.querySelector('[data-lvl="score"]').value.trim();
       var sla=row.querySelector('[data-lvl="sla"]').value.trim();
-      var reason=c.levelsFrozen?window.prompt('Chương trình đã khóa mức duyệt — nhập lý do điều chỉnh ngoại lệ:'):'';
+      var reason=c.levelsFrozen?await showInputModal({title:'Điều chỉnh ngoại lệ mức duyệt',description:'Chương trình đã khóa mức duyệt — nhập lý do điều chỉnh ngoại lệ.',placeholder:'Lý do điều chỉnh…',confirmLabel:'Xác nhận điều chỉnh'}):'';
       if(c.levelsFrozen&&!reason){return;}
       btn.disabled=true;
       try{
@@ -1259,7 +1445,8 @@ function wireAdminGrantSection(body,refresh){
   });
   body.querySelectorAll('[data-comp-revoke-admin]').forEach(function(btn){
     btn.addEventListener('click',async function(){
-      var reason=window.prompt('Lý do thu hồi quyền quản trị:');if(!reason){return;}
+      var reason=await showInputModal({title:'Thu hồi quyền quản trị',placeholder:'Lý do thu hồi…',confirmLabel:'Thu hồi quyền'});
+      if(!reason){return;}
       btn.disabled=true;
       try{await call('competitionSetAdminGrant',{account_id:btn.getAttribute('data-comp-revoke-admin'),active:false,reason:reason});toast('success','Đã thu hồi','');refresh();}
       catch(e){toast('error','Không thu hồi được',e.message);btn.disabled=false;}
@@ -1292,7 +1479,8 @@ function wireCapabilityGrantSection(body,refresh){
   });
   body.querySelectorAll('[data-comp-revoke-cap]').forEach(function(btn){
     btn.addEventListener('click',async function(){
-      var reason=window.prompt('Lý do thu hồi:');if(!reason){return;}
+      var reason=await showInputModal({title:'Thu hồi quyền xem tiến độ',placeholder:'Lý do thu hồi…',confirmLabel:'Thu hồi quyền'});
+      if(!reason){return;}
       btn.disabled=true;
       try{await call('competitionSetCapabilityGrant',{capability:'view_participation_progress',account_id:btn.getAttribute('data-comp-revoke-cap'),active:false,reason:reason});toast('success','Đã thu hồi','');refresh();}
       catch(e){toast('error','Không thu hồi được',e.message);btn.disabled=false;}

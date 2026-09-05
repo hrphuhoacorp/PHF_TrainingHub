@@ -256,6 +256,7 @@
   border:1px solid var(--comp-green);background:var(--comp-green);color:#fff;
 }
 .phf-comp-btn.is-ghost{background:var(--comp-surface);color:var(--comp-green-deep);border-color:var(--comp-border-strong);}
+.phf-comp-btn.is-danger{background:#a5573b;border-color:#a5573b;}
 .phf-comp-btn:disabled{background:var(--comp-surface-ivory);border-color:var(--comp-border-strong);color:var(--comp-ink-soft);cursor:not-allowed;}
 .phf-comp-disabled-hint{font-size:12px;color:var(--comp-ink-soft);align-self:center;}
 
@@ -459,6 +460,18 @@
    touch smaller text. */
 .phf-comp-qa-result .phf-comp-qa-label{color:#8a6a2c;}
 .phf-comp-qa-result .phf-comp-qa-text{font-size:13px;color:var(--comp-ink-soft);}
+/* V1.3 — "Bằng chứng / Thông tin đối chiếu": same quiet treatment as the
+   result block, kept distinct so it doesn't compete visually with Q/A. */
+.phf-comp-qa-evidence .phf-comp-qa-label{color:var(--comp-ink-soft);}
+.phf-comp-qa-evidence .phf-comp-qa-text{font-size:13px;color:var(--comp-ink-soft);word-break:break-word;}
+
+/* V1.3 — fallback toast (only used if window.phfToast is unavailable) and
+   PHF input/confirm modals share the existing .phf-comp-simwarn* look. */
+.phf-comp-fallback-toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1100;
+  background:var(--comp-ink);color:#fff;padding:10px 18px;border-radius:10px;
+  font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,.22);max-width:90vw;
+}
 
 /* ---- thả tim (reaction) — lightweight social control, not a pill button.
    Business logic unchanged (1 account × 1 submission = max 1 active heart) —
