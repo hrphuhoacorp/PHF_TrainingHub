@@ -150,3 +150,54 @@ override.
 ```
 Checklist consumes this later as an authoritative result; Competition never
 writes to Checklist.
+
+---
+
+## V1.1 — NO-AI similarity suggestion + "Tôi cũng gặp" occurrence signal
+
+**LOCKED**: a suggestion, never a verdict. No automatic rejection, no automatic
+score change, no external request/embedding/paid AI. See
+`services/phf-hr-api/lib/competition-similarity.js` (pure algorithm) and
+`competition-similarity-service.js` (DB-facing shaping). Thresholds — single
+source of truth, tuned against `scripts/test-competition-similarity-v1-1-2026-09.js`:
+`HIGH >= 0.50`, `MEDIUM >= 0.28`, else `DIFFERENT`. Score = max(token Jaccard,
+character-trigram Dice, diacritics-stripped token Jaccard) over normalized
+Vietnamese text — MAX is deliberately recall-favouring (a false positive costs
+one extra glance; a false negative hides a real duplicate).
+
+Candidate pool: same `campaign_id` only, `status IN (submitted, needs_revision,
+approved, finalized)` (never draft/rejected), newest 300 by `submitted_at`,
+top 3 by relevance after scoring.
+
+### SimilarityCheck (sender pre-submit, `competitionCheckSimilarity`)
+```
+{ hasSimilar: boolean,
+  candidates: [ { submissionRef: uuid, questionExcerpt: string(≤160),
+                  submittedAt: iso8601, submittedBeforeYou: true,
+                  questionLabel: 'HIGH'|'MEDIUM'|'DIFFERENT', answerLabel: same } ] }
+```
+Never includes: candidate answer text, candidate author identity. A
+participant's own other submissions are excluded from their own candidate pool.
+
+### SimilarityReview (reviewer on-demand expand, `competitionGetSimilarForReview`)
+```
+{ candidates: [ { submissionRef: uuid, question: string, answer: string,
+                  submittedAt: iso8601, relationship: 'before'|'after',
+                  questionLabel, answerLabel, occurrenceCount: int } ] }
+```
+Reviewer sees full question+answer (matches the existing anonymous review
+queue contract) but never author identity — consistent with V1's anonymous
+review. `competition.review.queue` items additionally carry `hasSimilar` /
+`similarCount` (boolean + count only, computed in-process from one shared
+candidate fetch — no per-item DB round trip, no per-card endpoint spam).
+
+### Occurrence (`competitionConfirmOccurrence`, `competitionGetOccurrenceCount`)
+```
+{ alreadyConfirmed: boolean, occurrenceCount: int }
+```
+Backed by `competition.submission_occurrences` (migration
+`phf_hr_competition_v1_1_submission_occurrences.sql`) — one row per
+(source_submission_id, account_id), never a `competition.submissions` row,
+never affects score/leaderboard/awards. Distinct from `competition.reactions`
+(heart = appreciation, different business meaning/owner). Author cannot
+confirm an occurrence against their own submission.

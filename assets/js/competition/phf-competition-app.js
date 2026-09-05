@@ -222,7 +222,7 @@ function levelChipsHtml(levels){
     return '<span class="phf-comp-level"><span class="lv-order">Mức '+esc(l.levelOrder)+'</span>'
       +'<span class="lv-name">'+esc(l.name)+'</span>'
       +'<span class="lv-score">'+esc(l.score)+' điểm</span>'
-      +(l.slaHours?'<span class="lv-order">SLA '+esc(l.slaHours)+'h</span>':'')
+      +(l.slaHours?'<span class="lv-order">Thời gian xử lý '+esc(l.slaHours)+'h</span>':'')
       +'</span>';
   }).join('')+'</div>';
 }
@@ -609,6 +609,52 @@ function formFieldHtml(field,value){
   return '<div class="phf-comp-field"><label>'+esc(field.label)+(field.required?'<span class="req">*</span>':'')+'</label>'
     +'<input type="text" data-comp-field="'+esc(field.key)+'" value="'+esc(v)+'" placeholder="'+esc(field.help||'')+'"></div>';
 }
+/* V1.1 sender pre-submit warning. Never blocks: closing/"Tôi có cách xử lý
+ * khác" always lets the participant submit their own content; "Tôi cũng gặp
+ * tình huống này" records a frequency signal against the chosen candidate
+ * and returns WITHOUT submitting (see competition-similarity-service.js —
+ * confirmOccurrence never creates a competition.submissions row). Candidate
+ * content here is the SENDER-safe view: question excerpt + submitted date
+ * only — never the candidate's answer, never author identity. */
+function showSimilarityWarning(campaignId,candidates){
+  return new Promise(function(resolve){
+    var wrap=document.createElement('div');
+    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Nội dung tương tự đã được gửi trước">'
+      +'<h3>'+icon('warn')+'Có nội dung tương tự đã được gửi trước</h3>'
+      +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Bạn vẫn có thể gửi bài của mình — hãy xem qua trước để tránh trùng lặp không cần thiết.</p>'
+      +'<div class="phf-comp-simwarn-list">'
+        +candidates.map(function(c,i){
+          var q=String(c.questionExcerpt||'');
+          return '<div class="phf-comp-simwarn-cand" data-comp-simwarn-cand="'+i+'">'
+            +'<span class="phf-comp-simwarn-meta">Đã gửi trước bạn · '+esc(fmtDate(c.submittedAt))+'</span>'
+            +'<p class="phf-comp-simwarn-q">'+esc(q)+(q.length>=160?'…':'')+'</p>'
+            +'<button type="button" class="phf-comp-btn is-ghost" data-comp-simwarn-same="'+esc(c.submissionRef)+'">Tôi cũng gặp tình huống này</button>'
+          +'</div>';
+        }).join('')
+      +'</div>'
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+        +'<button type="button" class="phf-comp-btn" data-comp-simwarn-diff>Tôi có cách xử lý khác — vẫn gửi bài của tôi</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-simwarn-cancel>Để tôi xem lại</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(wrap);
+    function close(result){wrap.remove();resolve(result);}
+    wrap.addEventListener('click',function(e){if(e.target===wrap)close(false);});
+    wrap.querySelector('[data-comp-simwarn-diff]').addEventListener('click',function(){close(true);});
+    wrap.querySelector('[data-comp-simwarn-cancel]').addEventListener('click',function(){close(false);});
+    wrap.querySelectorAll('[data-comp-simwarn-same]').forEach(function(btn){
+      btn.addEventListener('click',async function(){
+        wrap.querySelectorAll('button').forEach(function(b){b.disabled=true;});
+        try{
+          var res=await call('competitionConfirmOccurrence',{campaign_id:campaignId,source_submission_id:btn.getAttribute('data-comp-simwarn-same')});
+          toast('success','Đã ghi nhận',res.alreadyConfirmed?'Bạn đã xác nhận tình huống này trước đó.':'Cảm ơn bạn đã xác nhận tình huống này.');
+        }catch(e){toast('error','Không ghi nhận được',e.message);}
+        close(false);
+      });
+    });
+  });
+}
 function renderSubmitForm(body,campaign,draft){
   var schema=Array.isArray(campaign.formSchema)&&campaign.formSchema.length?campaign.formSchema:[
     {key:'customer_question',label:'Khách hàng đã hỏi gì / Tình huống gì xảy ra?',type:'textarea',required:true},
@@ -648,6 +694,16 @@ function renderSubmitForm(body,campaign,draft){
     if(missing.length){toast('error','Thiếu thông tin','Vui lòng nhập: '+missing.map(function(f){return f.label;}).join(', '));btn.disabled=false;return;}
     try{
       var p=collect();
+      // V1.1 pre-submit similarity check — a suggestion only (never blocks).
+      // Best-effort: if the check itself fails, submission proceeds normally
+      // rather than trapping the participant behind a broken suggestion.
+      try{
+        var check=await call('competitionCheckSimilarity',{campaign_id:campaign.id,question:p.customer_question,answer:p.answer,exclude_submission_id:draftId});
+        if(check&&check.hasSimilar&&check.candidates&&check.candidates.length){
+          var proceed=await showSimilarityWarning(campaign.id,check.candidates);
+          if(!proceed){btn.disabled=false;return;}
+        }
+      }catch(e){/* similarity check is a suggestion, not a gate — ignore failures */}
       if(!draftId){var created=await call('competitionCreateSubmissionDraft',{campaign_id:campaign.id,payload:p});draftId=created.id;}
       await call('competitionSubmitSubmission',{submission_id:draftId,payload:p});
       toast('success','Đã gửi duyệt','Nội dung của bạn đã vào hàng chờ xét duyệt ẩn danh.');
@@ -696,6 +752,60 @@ async function screenLeaderboard(slot,boot){
     +'</section>';
     body.outerHTML='<section class="phf-comp-section">'+html;
   }catch(e){body.innerHTML=errorState(e);wireRetrySingle(body,function(){return screenLeaderboard(slot,boot);});}
+}
+
+/* V1.1 — NO-AI similarity SUGGESTION (never a verdict; see
+ * competition-similarity.js on the server). Two independent surfaces:
+ *   - similarDisclosureHtml/wireSimilarDisclosure: reviewer-side quiet
+ *     warning on a queue item, expand-on-demand (competitionGetSimilarForReview
+ *     is called lazily, only when the reviewer actually opens it — never on
+ *     queue load, per the "no per-card endpoint spam" performance rule).
+ *   - showSimilarityWarning: sender-side pre-submit warning (below, near
+ *     renderSubmitForm) — a light Jaccard/Dice label, not a fake AI verdict.
+ */
+function similarDisclosureHtml(submissionRef){
+  return '<details class="phf-comp-similar-disclosure" data-comp-similar="'+esc(submissionRef)+'">'
+    +'<summary>'+icon('info')+'Có nội dung tương tự</summary>'
+    +'<div class="phf-comp-similar-body" data-comp-similar-body>'+loadingState('Đang tải…')+'</div>'
+  +'</details>';
+}
+function similarLabelText(k){
+  if(k==='HIGH')return 'Tương tự cao';
+  if(k==='MEDIUM')return 'Tương tự một phần';
+  return 'Khác biệt';
+}
+function similarCandidateHtml(c){
+  var sameHandling=c.questionLabel==='HIGH'&&c.answerLabel==='HIGH';
+  return '<div class="phf-comp-similar-item">'
+    +'<div class="phf-comp-similar-meta">'
+      +'<span>Mã bài '+esc(String(c.submissionRef).slice(0,8))+'</span>'
+      +'<span>'+(c.relationship==='before'?'Gửi trước bài đang xét':'Gửi sau bài đang xét')+'</span>'
+      +'<span>'+esc(fmtDate(c.submittedAt))+'</span>'
+      +(c.occurrenceCount?'<span>Đã ghi nhận tình huống này: '+esc(c.occurrenceCount)+' lần</span>':'')
+    +'</div>'
+    +'<p class="phf-comp-qa-label" style="margin:8px 0 2px">Câu hỏi / tình huống khách hàng</p><p class="phf-comp-qa-text">'+esc(c.question||'')+'</p>'
+    +'<p class="phf-comp-qa-label" style="margin:8px 0 2px">Cách trả lời / xử lý</p><p class="phf-comp-qa-text">'+esc(c.answer||'')+'</p>'
+    +'<div class="phf-comp-similar-verdict">'
+      +'<span class="phf-comp-pill" data-s="'+(c.questionLabel==='HIGH'?'rejected':'submitted')+'">Tình huống: '+similarLabelText(c.questionLabel)+'</span>'
+      +'<span class="phf-comp-pill" data-s="'+(sameHandling?'rejected':'approved')+'">Cách xử lý: '+(sameHandling?'Tương tự cao':similarLabelText(c.answerLabel))+'</span>'
+    +'</div>'
+  +'</div>';
+}
+function wireSimilarDisclosures(container){
+  container.querySelectorAll('[data-comp-similar]').forEach(function(det){
+    var loaded=false;
+    det.addEventListener('toggle',async function(){
+      if(!det.open||loaded)return;
+      loaded=true;
+      var bodyEl=det.querySelector('[data-comp-similar-body]');
+      try{
+        var res=await call('competitionGetSimilarForReview',{submission_id:det.getAttribute('data-comp-similar')});
+        bodyEl.innerHTML=(res.candidates||[]).length
+          ?res.candidates.map(similarCandidateHtml).join('')
+          :'<p class="phf-comp-em-sub">Không còn nội dung tương tự.</p>';
+      }catch(e){bodyEl.innerHTML='<p class="phf-comp-em-sub">Không tải được nội dung tương tự.</p>';loaded=false;}
+    });
+  });
 }
 
 async function screenReviewQueue(slot,boot){
@@ -777,6 +887,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       +'<span class="rq-ref">'+esc(it.reviewStatus==='needs_revision'?'Đã yêu cầu chỉnh sửa · Mã bài: '+String(it.submissionRef).slice(0,8):'Mã bài: '+String(it.submissionRef).slice(0,8))+'</span>'
       +qaFieldsHtml(it.payload)
       +(it.currentLevelOrder?'<p style="font-size:12.5px;color:var(--comp-green-deep)">Đã duyệt mức '+esc(it.currentLevelOrder)+' — có thể nâng mức</p>':'')
+      +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')
       +'<div class="phf-comp-review-controls">'
         +levelControlHtml
         +'<button type="button" class="phf-comp-btn" data-comp-review-act="'+(it.currentLevelOrder?'upgrade':'approve')+'">'+(it.currentLevelOrder?'Nâng mức':'Duyệt')+'</button>'
@@ -785,6 +896,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       +'</div>'
     +'</div>';
   }).join('');
+  wireSimilarDisclosures(body);
   body.querySelectorAll('[data-comp-level-switch]').forEach(function(grp){
     grp.querySelectorAll('[data-comp-level-opt]').forEach(function(btn){
       btn.addEventListener('click',function(){
@@ -967,12 +1079,12 @@ function levelSectionHtml(c,levels){
     +'<div class="phf-comp-card">'
       +(c.levelsFrozen?'<span class="phf-comp-freeze">'+icon('lock')+'Chương trình đã bắt đầu nhận bài: sửa mức cần lý do (điều chỉnh ngoại lệ, có audit)</span>':'')
       +'<div class="phf-comp-table-wrap" style="margin-top:12px"><table class="phf-comp-table">'
-        +'<thead><tr><th>Thứ tự</th><th>Tên mức</th><th>Điểm</th><th>SLA (giờ)</th><th></th></tr></thead><tbody>'
+        +'<thead><tr><th>Thứ tự</th><th>Tên mức</th><th>Điểm</th><th>Thời gian xử lý (giờ)</th><th></th></tr></thead><tbody>'
         +(levels.length?levels.map(function(l){
           return '<tr data-level-id="'+esc(l.id)+'"><td data-th="Thứ tự">Mức '+esc(l.levelOrder)+'</td>'
             +'<td data-th="Tên mức"><input type="text" data-lvl="name" value="'+esc(l.name)+'"></td>'
             +'<td data-th="Điểm"><input type="text" data-lvl="score" value="'+esc(l.score)+'" style="width:70px"></td>'
-            +'<td data-th="SLA"><input type="text" data-lvl="sla" value="'+esc(l.slaHours||'')+'" style="width:60px"></td>'
+            +'<td data-th="Thời gian xử lý"><input type="text" data-lvl="sla" value="'+esc(l.slaHours||'')+'" style="width:60px"></td>'
             +'<td><button type="button" class="phf-comp-btn is-ghost" data-comp-save-level style="padding:6px 10px;font-size:12px">Lưu</button></td></tr>';
         }).join(''):'<tr><td colspan="5" style="border:0;padding:0">'+emptyState('gear','Chưa có mức duyệt nào.')+'</td></tr>')
       +'</tbody></table></div>'
@@ -1069,24 +1181,24 @@ function wireReviewerMatrix(body,c,refresh){
 }
 function otherAuthoritySectionHtml(admins,caps){
   return '<section class="phf-comp-section"><h2>'+icon('gear')+'Quyền khác</h2>'
-    +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Competition Admin và quyền xem tiến độ toàn công ty — tách riêng khỏi bảng phân quyền xét duyệt ở trên.</p>'
+    +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Quản trị chương trình và quyền xem tiến độ toàn công ty — tách riêng khỏi bảng phân quyền xét duyệt ở trên.</p>'
     +adminGrantCardHtml(admins)
     +capabilityGrantCardHtml(caps)
   +'</section>';
 }
 function adminGrantCardHtml(admins){
-  return '<div class="phf-comp-card" style="margin-top:12px"><h3 style="margin:0 0 8px;font-size:13.5px">Competition Admin</h3>'
+  return '<div class="phf-comp-card" style="margin-top:12px"><h3 style="margin:0 0 8px;font-size:13.5px">Quản trị chương trình</h3>'
     +(admins.length?'<div class="phf-comp-table-wrap"><table class="phf-comp-table"><thead><tr><th>Mã NV</th><th>Trạng thái</th><th></th></tr></thead><tbody>'
       +admins.map(function(a){return '<tr><td data-th="Mã NV">'+esc(a.employeeCode)+(a.displayName?' · '+esc(a.displayName):'')+'</td><td data-th="Trạng thái">'+(a.isActive?'Đang hoạt động':'Đã thu hồi')+'</td>'
         +'<td>'+(a.isActive?'<button type="button" class="phf-comp-btn is-ghost" data-comp-revoke-admin="'+esc(a.accountId)+'" style="padding:6px 10px;font-size:12px">Thu hồi</button>':'')+'</td></tr>';}).join('')
-      +'</tbody></table></div>':emptyState('users','Chưa có Competition Admin bổ sung nào.'))
+      +'</tbody></table></div>':emptyState('users','Chưa có Quản trị chương trình bổ sung nào.'))
     +'<div class="phf-comp-actions" style="padding-top:14px;flex-wrap:wrap">'
-      +'<input type="text" data-new-adm-acc placeholder="account_id" style="max-width:160px">'
-      +'<input type="text" data-new-adm-emp placeholder="employee_code" style="max-width:140px">'
+      +'<input type="text" data-new-adm-acc placeholder="Mã tài khoản" style="max-width:160px">'
+      +'<input type="text" data-new-adm-emp placeholder="Mã nhân viên" style="max-width:140px">'
       +'<input type="text" data-new-adm-reason placeholder="Lý do cấp quyền" style="max-width:220px">'
-      +'<button type="button" class="phf-comp-btn" data-comp-add-admin>+ Cấp quyền Admin</button>'
+      +'<button type="button" class="phf-comp-btn" data-comp-add-admin>+ Cấp quyền quản trị</button>'
     +'</div>'
-    +'<div class="phf-comp-note">'+icon('info')+'<span>Admin hệ thống PHF tự động có toàn quyền Competition Admin. Đây là cấp bổ sung cho nhân sự cụ thể.</span></div>'
+    +'<div class="phf-comp-note">'+icon('info')+'<span>Admin hệ thống PHF tự động có toàn quyền Quản trị chương trình. Đây là cấp bổ sung cho nhân sự cụ thể.</span></div>'
   +'</div>';
 }
 function wireAdminGrantSection(body,refresh){
@@ -1097,12 +1209,12 @@ function wireAdminGrantSection(body,refresh){
     var reason=body.querySelector('[data-new-adm-reason]').value.trim();
     if((!acc&&!emp)||!reason){toast('error','Thiếu thông tin','Cần mã định danh và lý do.');return;}
     addBtn.disabled=true;
-    try{await call('competitionSetAdminGrant',{account_id:acc,employee_code:emp,reason:reason});toast('success','Đã cấp quyền Admin','');refresh();}
+    try{await call('competitionSetAdminGrant',{account_id:acc,employee_code:emp,reason:reason});toast('success','Đã cấp quyền quản trị','');refresh();}
     catch(e){toast('error','Không cấp được',e.message);addBtn.disabled=false;}
   });
   body.querySelectorAll('[data-comp-revoke-admin]').forEach(function(btn){
     btn.addEventListener('click',async function(){
-      var reason=window.prompt('Lý do thu hồi quyền Admin:');if(!reason){return;}
+      var reason=window.prompt('Lý do thu hồi quyền quản trị:');if(!reason){return;}
       btn.disabled=true;
       try{await call('competitionSetAdminGrant',{account_id:btn.getAttribute('data-comp-revoke-admin'),active:false,reason:reason});toast('success','Đã thu hồi','');refresh();}
       catch(e){toast('error','Không thu hồi được',e.message);btn.disabled=false;}
@@ -1116,8 +1228,8 @@ function capabilityGrantCardHtml(caps){
         +'<td>'+(a.isActive?'<button type="button" class="phf-comp-btn is-ghost" data-comp-revoke-cap="'+esc(a.accountId)+'" style="padding:6px 10px;font-size:12px">Thu hồi</button>':'')+'</td></tr>';}).join('')
       +'</tbody></table></div>':emptyState('users','Chưa có ai được cấp quyền xem tiến độ toàn công ty.'))
     +'<div class="phf-comp-actions" style="padding-top:14px;flex-wrap:wrap">'
-      +'<input type="text" data-new-cap-acc placeholder="account_id" style="max-width:160px">'
-      +'<input type="text" data-new-cap-emp placeholder="employee_code" style="max-width:140px">'
+      +'<input type="text" data-new-cap-acc placeholder="Mã tài khoản" style="max-width:160px">'
+      +'<input type="text" data-new-cap-emp placeholder="Mã nhân viên" style="max-width:140px">'
       +'<button type="button" class="phf-comp-btn" data-comp-add-cap>+ Cấp quyền</button>'
     +'</div>'
     +'<div class="phf-comp-note">'+icon('info')+'<span>Quyền này KHÔNG cấp quyền xét duyệt và không gắn với phòng ban.</span></div>'

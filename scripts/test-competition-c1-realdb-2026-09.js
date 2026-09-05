@@ -99,9 +99,11 @@ async function q(sql, params) {
   });
   await admin.connect();
 
-  // schema gate — pg_catalog shows all objects regardless of role privilege
+  // schema gate — pg_catalog shows all objects regardless of role privilege.
+  // 15 tables from the V1 foundation migration + submission_occurrences
+  // (V1.1, additive-only — see phf_hr_competition_v1_1_submission_occurrences.sql).
   const g = await admin.query("select count(*)::int n from pg_class c join pg_namespace nsp on nsp.oid=c.relnamespace where nsp.nspname='competition' and c.relkind='r'");
-  if (g.rows[0].n !== 15) { console.error('SCHEMA_NOT_APPLIED (competition tables=' + g.rows[0].n + ')'); process.exit(3); }
+  if (g.rows[0].n < 15) { console.error('SCHEMA_NOT_APPLIED (competition tables=' + g.rows[0].n + ')'); process.exit(3); }
 
   cleanupFixture(); // pre-clean any leftover fixture from a prior aborted run
 

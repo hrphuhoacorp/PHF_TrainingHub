@@ -98,9 +98,12 @@ function ACTION_MAP_HAS_NO_ACTION_FIELD_COLLISION() {
   const { dispatchCompetitionAction, COMPETITION_ACTION_MANIFEST } = require(path.join(ROOT, 'api/_lib/competition-actions'));
   // 39 C1 (phf-hr-api) actions + 1 C4.3 composite action
   // (competitionListReviewablePeople — People Master + phf-hr-api grants,
-  // not a plain ACTION_MAP passthrough, see competition-actions.js).
-  ok(COMPETITION_ACTION_MANIFEST.length === 40, 'manifest has all 39 C1 actions + 1 C4.3 composite action mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
-  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 40, 'manifest has no duplicate action names');
+  // not a plain ACTION_MAP passthrough, see competition-actions.js) + 4 V1.1
+  // similarity/occurrence actions (competitionCheckSimilarity,
+  // competitionConfirmOccurrence, competitionGetOccurrenceCount,
+  // competitionGetSimilarForReview).
+  ok(COMPETITION_ACTION_MANIFEST.length === 44, 'manifest has all 39 C1 + 1 C4.3 composite + 4 V1.1 similarity actions mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
+  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 44, 'manifest has no duplicate action names');
 
   const unhandled = await dispatchCompetitionAction({ role: 'learner', employeeCode: 'NV001' }, { action: 'notAnAction' });
   ok(unhandled.handled === false, 'unknown action -> not handled (falls through to legacy dispatch)');
