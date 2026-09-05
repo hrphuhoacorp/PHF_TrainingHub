@@ -9,6 +9,7 @@
 
 const { readTx, writeTx, cErr, auditActor, isSamePerson } = require('./competition-common');
 const { resolveAuthority, requireCompetitionAdmin } = require('./competition-permissions');
+const { emitCompetitionNotifications } = require('./competition-notification-emit');
 
 // pick reviewers of a campaign at tier, excluding an author, by lowest active
 // workload with random tie-break. Runs inside an open transaction.
@@ -83,6 +84,13 @@ async function assignForSubmission(client, params) {
     [submissionId, campaignId, reviewer.account_id, reviewer.employee_code, method, sla]);
   await histRow(client, submissionId, r.rows[0].id, 'auto_assign', reviewer.account_id, reviewer.employee_code, null,
     { method, active_load: reviewer.active_load }, null);
+  await emitCompetitionNotifications({
+    client, eventCode: 'COMPETITION_REVIEW_ASSIGNED', submissionId,
+    title: 'Có bài mới cần xét duyệt', message: 'Bạn có bài mới cần xét duyệt.',
+    targetPath: '/thi-dua/cho-duyet', priority: 'Trung bình',
+    recipients: [{ accountId: reviewer.account_id, employeeCode: reviewer.employee_code }],
+    dedupeKey: 'cmp:' + submissionId + ':COMPETITION_REVIEW_ASSIGNED:' + r.rows[0].id,
+  });
   return publicAssignment(r.rows[0]);
 }
 
@@ -122,6 +130,20 @@ function publicAssignment(a) {
 }
 
 // Close the acting reviewer's active assignment on a submission (any tier).
+//
+// OPEN-POOL / cross-reviewer intervention (V1.4, added for "Bài tôi đã
+// duyệt"): reviewAction() never required the caller to BE the currently
+// assigned reviewer (any reviewer/admin with sufficient level authority may
+// act — see competition-submissions.js reviewAction, only self-review is
+// blocked). Previously, when the acting reviewer's account/employee code
+// didn't match the active assignment row, this function only wrote an
+// audit-trail history breadcrumb and left the stale assignment dangling
+// 'assigned' forever — meaning neither reviewerProductivity() nor
+// myReviewedHistory() (both authoritative-data-only, sourced from
+// review_assignments) would ever reflect who actually processed the item.
+// Now: close out whichever assignment WAS open (status 'reassigned', audited)
+// and attribute a completed record to the ACTOR who did the work, so "Đã xử
+// lý" / "Bài tôi đã duyệt" stay truthful and consistent with each other.
 async function completeAssignmentForReviewer(client, { submissionId, reviewerAccountId, reviewerEmployeeCode, outcome, actor }) {
   const r = await client.query(
     `UPDATE competition.review_assignments
@@ -132,11 +154,31 @@ async function completeAssignmentForReviewer(client, { submissionId, reviewerAcc
     [submissionId, reviewerAccountId || '', reviewerEmployeeCode || '', outcome]);
   if (r.rowCount > 0) {
     await histRow(client, submissionId, r.rows[0].id, 'completed', r.rows[0].reviewer_account_id, r.rows[0].reviewer_employee_code, actor, { outcome }, null);
-  } else {
-    // acting reviewer had no assignment row (e.g. admin intervention) — record it
-    await histRow(client, submissionId, null, 'completed', reviewerAccountId || null, reviewerEmployeeCode || null, actor, { outcome, note: 'no_active_assignment_for_actor' }, null);
+    return r.rowCount;
   }
-  return r.rowCount;
+
+  const stale = await client.query(
+    `SELECT * FROM competition.review_assignments WHERE submission_id = $1 AND is_active ORDER BY assigned_at DESC LIMIT 1 FOR UPDATE`,
+    [submissionId]);
+  if (stale.rowCount > 0 && (reviewerAccountId || reviewerEmployeeCode)) {
+    const s = stale.rows[0];
+    await client.query(`UPDATE competition.review_assignments SET status='reassigned', is_active=false, returned_at=now() WHERE id=$1`, [s.id]);
+    await histRow(client, submissionId, s.id, 'reassign', s.reviewer_account_id, s.reviewer_employee_code, actor, { reason: 'processed_by_other_reviewer' }, null);
+    const ins = await client.query(
+      `INSERT INTO competition.review_assignments
+         (submission_id, campaign_id, reviewer_account_id, reviewer_employee_code, tier, level_scope_order,
+          status, assignment_method, assigned_by, assigned_at, completed_at, outcome, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,'completed','manual',$7,now(),now(),$8,false)
+       RETURNING *`,
+      [submissionId, s.campaign_id, reviewerAccountId || '', reviewerEmployeeCode || '', s.tier, s.level_scope_order,
+        (actor && (actor.account_id || actor.employee_code)) || 'system', outcome]);
+    await histRow(client, submissionId, ins.rows[0].id, 'completed', reviewerAccountId || null, reviewerEmployeeCode || null, actor, { outcome, note: 'processed_outside_own_assignment' }, null);
+    return 1;
+  }
+
+  // acting reviewer had no assignment row and none was open to close — record it
+  await histRow(client, submissionId, null, 'completed', reviewerAccountId || null, reviewerEmployeeCode || null, actor, { outcome, note: 'no_active_assignment_for_actor' }, null);
+  return 0;
 }
 
 // Ensure a lighter high-tier ownership assignment once a submission is approved
@@ -160,6 +202,13 @@ async function ensureHighAssignment(client, { submissionId, campaignId, authorAc
      RETURNING *`,
     [submissionId, campaignId, reviewer.account_id, reviewer.employee_code, highLevel, sla]);
   await histRow(client, submissionId, r.rows[0].id, 'auto_assign', reviewer.account_id, reviewer.employee_code, null, { tier: 'primary_high' }, null);
+  await emitCompetitionNotifications({
+    client, eventCode: 'COMPETITION_REVIEW_ASSIGNED', submissionId,
+    title: 'Có bài mới cần xét duyệt', message: 'Bạn có bài mới cần xét duyệt.',
+    targetPath: '/thi-dua/cho-duyet', priority: 'Trung bình',
+    recipients: [{ accountId: reviewer.account_id, employeeCode: reviewer.employee_code }],
+    dedupeKey: 'cmp:' + submissionId + ':COMPETITION_REVIEW_ASSIGNED:' + r.rows[0].id,
+  });
   return publicAssignment(r.rows[0]);
 }
 
@@ -192,6 +241,14 @@ async function manualReassign(config, actor, params) {
        a.tier, a.level_scope_order, aa.account_id || aa.employee_code, sla]);
     await histRow(client, a.submission_id, r.rows[0].id, 'manual_reassign', r.rows[0].reviewer_account_id, r.rows[0].reviewer_employee_code, aa,
       { from_reviewer: a.reviewer_account_id, to_reviewer: r.rows[0].reviewer_account_id }, reason);
+    // notify ONLY the new reviewer — never the old/revoked one
+    await emitCompetitionNotifications({
+      client, eventCode: 'COMPETITION_REVIEW_ASSIGNED', submissionId: a.submission_id,
+      title: 'Có bài mới cần xét duyệt', message: 'Bạn có bài mới cần xét duyệt.',
+      targetPath: '/thi-dua/cho-duyet', priority: 'Trung bình',
+      recipients: [{ accountId: r.rows[0].reviewer_account_id, employeeCode: r.rows[0].reviewer_employee_code }],
+      dedupeKey: 'cmp:' + a.submission_id + ':COMPETITION_REVIEW_ASSIGNED:' + r.rows[0].id,
+    });
     return publicAssignment(r.rows[0]);
   });
 }
@@ -428,8 +485,84 @@ async function anonymousQueue(config, actor, params) {
   });
 }
 
+// ---- "Bài tôi đã duyệt" (My Reviewed) ----------------------------------
+// V1.4 — reviewer-facing history of completed review_assignments. Base
+// WHERE clause is IDENTICAL to reviewerProductivity()'s self-view
+// processed_count (review_assignment_history.action='completed', actor =
+// self) via review_assignments.status='completed' + reviewer=self, so the
+// two stay provably consistent — never a second, drifting definition of
+// "processed". LEFT JOINs (submissions for "Kết quả hiện tại", a LATERAL
+// submission_history lookup for "Bạn đã xử lý") are read-only: they never
+// rewrite review_assignments / submission_history. Author identity columns
+// are NEVER selected — same discipline as anonymousQueue.
+const OUTCOME_FILTER = {
+  all: null,
+  approved: ['approved', 'upgraded'],
+  needs_revision: ['needs_revision'],
+  rejected: ['rejected'],
+};
+async function myReviewedHistory(config, actor, params) {
+  const auth = await resolveAuthority(config, actor, params.campaignId);
+  if (!auth.canReview) throw cErr('COMPETITION_NOT_A_REVIEWER', 'Bạn không có quyền duyệt.', 403);
+  const limit = Math.min(50, Math.max(1, Number(params.limit) || 50));
+  const statusFilter = String(params.statusFilter || 'all');
+  const outcomes = Object.prototype.hasOwnProperty.call(OUTCOME_FILTER, statusFilter) ? OUTCOME_FILTER[statusFilter] : null;
+
+  return readTx(config, async (client) => {
+    const r = await client.query(
+      `SELECT ra.id AS assignment_id, ra.submission_id, ra.tier, ra.outcome, ra.completed_at, ra.level_scope_order,
+              s.status AS current_status, s.current_level_order, s.current_score,
+              s.effective_score, s.payload,
+              hist.after AS my_action_after, hist.at AS my_action_at, hist.action AS my_action, hist.reason AS my_note
+         FROM competition.review_assignments ra
+         JOIN competition.submissions s ON s.id = ra.submission_id
+         LEFT JOIN LATERAL (
+           SELECT sh.after, sh.at, sh.action, sh.reason
+             FROM competition.submission_history sh
+            WHERE sh.submission_id = ra.submission_id
+              AND ( (sh.actor_account_id <> '' AND sh.actor_account_id = ra.reviewer_account_id)
+                 OR (sh.actor_employee_code <> '' AND sh.actor_employee_code = ra.reviewer_employee_code) )
+              AND sh.at >= ra.assigned_at
+              AND sh.at <= COALESCE(ra.completed_at, now())
+              AND sh.action IN ('approve','upgrade','revision_requested','reject')
+            ORDER BY sh.at DESC LIMIT 1
+         ) hist ON true
+        WHERE ra.campaign_id = $1 AND ra.status = 'completed'
+          AND ( ($2 <> '' AND ra.reviewer_account_id = $2) OR ($3 <> '' AND ra.reviewer_employee_code = $3) )
+          AND ( $4::text[] IS NULL OR ra.outcome = ANY($4::text[]) )
+        ORDER BY ra.completed_at DESC NULLS LAST
+        LIMIT $5`,
+      [params.campaignId, actor.accountId || '', actor.employeeCode || '', outcomes, limit]);
+
+    return {
+      items: r.rows.map((x) => {
+        const effectiveScore = x.effective_score != null ? Number(x.effective_score)
+          : (x.current_score == null ? null : Number(x.current_score));
+        return {
+          submissionRef: x.submission_id,
+          assignmentId: x.assignment_id,
+          tier: x.tier,
+          outcome: x.outcome,
+          processedAt: x.completed_at,
+          payload: x.payload,                    // content only — no author fields
+          myAction: x.my_action,                 // what THIS actor actually did
+          myActionAt: x.my_action_at,
+          myNote: x.my_note,
+          myResult: x.my_action_after,           // { from_level/to_level/... } as recorded at the time
+          currentStatus: x.current_status,       // "Kết quả hiện tại"
+          currentLevelOrder: x.current_level_order,
+          currentScore: x.current_score == null ? null : Number(x.current_score),
+          effectiveScore,
+          adjusted: x.effective_score != null,
+          // DELIBERATELY ABSENT: author name / code / department / branch / account
+        };
+      }),
+    };
+  });
+}
+
 module.exports = {
   pickReviewer, assignForSubmission, completeAssignmentForReviewer, ensureHighAssignment,
   manualReassign, processOverdueAssignments, returnAssignmentsForRevokedReviewer,
-  reviewerProductivity, anonymousQueue, publicAssignment,
+  reviewerProductivity, anonymousQueue, myReviewedHistory, publicAssignment,
 };

@@ -21,6 +21,7 @@ const awards = require('./competition-awards');
 const progress = require('./competition-progress');
 const { resolveAuthority } = require('./competition-permissions');
 const similarity = require('./competition-similarity-service');
+const notificationRead = require('./competition-notification-read');
 
 const READ_ACTIONS = new Set([
   'competition.bootstrap',
@@ -29,12 +30,14 @@ const READ_ACTIONS = new Set([
   'competition.submission.listMine', 'competition.submission.getMine',
   'competition.submission.checkSimilarity', 'competition.submission.listAdjustable',
   'competition.review.queue', 'competition.review.productivity', 'competition.review.similar',
+  'competition.review.myReviewed',
   'competition.submission.occurrenceCount',
   'competition.feed.get',
   'competition.leaderboard.get',
   'competition.progress.mine', 'competition.progress.company',
   'competition.grant.listReviewers', 'competition.grant.listAdmins', 'competition.grant.listCapabilities',
   'competition.award.list', 'competition.award.autoCandidate',
+  'competition.notification.list',
 ]);
 
 const HANDLERS = {
@@ -112,8 +115,13 @@ const HANDLERS = {
   },
   'competition.review.similar': (c, a, p) => similarity.getSimilarForReview(c, a, p),
   'competition.review.productivity': (c, a, p) => review.reviewerProductivity(c, a, p),
+  'competition.review.myReviewed': (c, a, p) => review.myReviewedHistory(c, a, p),
   'competition.review.reassign': (c, a, p) => review.manualReassign(c, a, p),
   'competition.review.processOverdue': (c, a, p) => review.processOverdueAssignments(c, p),
+
+  'competition.notification.list': (c, a, p) => notificationRead.listMyCompetitionNotifications(c, a, p),
+  'competition.notification.markRead': (c, a, p) => notificationRead.markCompetitionNotificationRead(c, a, p),
+  'competition.notification.markAllRead': (c, a) => notificationRead.markAllCompetitionNotificationsRead(c, a),
 
   'competition.feed.get': (c, a, p) => feed.getFeed(c, a, p),
   'competition.feed.react': (c, a, p) => feed.setReaction(c, a, p),

@@ -13,6 +13,33 @@ const { readTx, writeTx, cErr, auditActor, isSamePerson, cleanText } = require('
 const { resolveAuthority, requireCompetitionAdmin, assertReviewerCanActOnLevel } = require('./competition-permissions');
 const { ensureAlias } = require('./competition-alias');
 const review = require('./competition-review');
+const { emitCompetitionNotifications } = require('./competition-notification-emit');
+
+// V1.4 — participant-facing notification content for each reviewAction
+// outcome. Never includes reviewer identity (recipient is the submission
+// author, resolved server-side from the row's own columns — never client
+// input). note is the reviewer's own text (mandatory for request_revision/
+// reject already, see reviewAction below) and is surfaced verbatim when
+// present; otherwise a generic fallback sentence is used.
+function reviewNotificationContent(histAction, score, note) {
+  if (histAction === 'approve') {
+    return { eventCode: 'COMPETITION_SUBMISSION_APPROVED', title: 'Bài dự thi đã được duyệt',
+      message: 'Bài dự thi của bạn đã được ghi nhận ' + score + ' điểm.' };
+  }
+  if (histAction === 'upgrade') {
+    return { eventCode: 'COMPETITION_SUBMISSION_UPGRADED', title: 'Bài dự thi được nâng mức',
+      message: 'Bài dự thi của bạn được ghi nhận ' + score + ' điểm · Giá trị cao.' };
+  }
+  if (histAction === 'revision_requested') {
+    return { eventCode: 'COMPETITION_SUBMISSION_REVISION_REQUESTED', title: 'Bài dự thi cần chỉnh sửa',
+      message: note || 'Bài dự thi của bạn cần được chỉnh sửa lại.' };
+  }
+  if (histAction === 'reject') {
+    return { eventCode: 'COMPETITION_SUBMISSION_REJECTED', title: 'Bài dự thi chưa được ghi nhận',
+      message: note || 'Bài dự thi của bạn chưa được ghi nhận.' };
+  }
+  return null;
+}
 
 const OWNER_EDITABLE = ['draft', 'needs_revision'];
 
@@ -225,6 +252,23 @@ async function reviewAction(config, actor, params) {
        JSON.stringify({ status: row.status, level: row.current_level_order, score: row.current_score }),
        JSON.stringify(histPayload), note]);
 
+    // V1.4 — notify the AUTHOR (never the reviewer's identity revealed).
+    // Recipient resolved from the submission row's own author columns, never
+    // client input. dedupeKey is keyed off the row's new row_version so a
+    // retry of the same commit never duplicates, while a genuinely later
+    // event (e.g. a subsequent upgrade) gets its own row.
+    const notifContent = reviewNotificationContent(next.histAction, next.score, note);
+    if (notifContent) {
+      await emitCompetitionNotifications({
+        client, eventCode: notifContent.eventCode, submissionId: params.submissionId,
+        title: notifContent.title, message: notifContent.message,
+        targetPath: '/thi-dua/bai-cua-toi', priority: 'Trung bình',
+        recipients: [{ accountId: row.author_account_id, employeeCode: row.author_employee_code }],
+        actor: aa,
+        dedupeKey: 'cmp:' + params.submissionId + ':' + notifContent.eventCode + ':v' + r.rows[0].row_version,
+      });
+    }
+
     // close the active review assignment for the acting reviewer
     const OUTCOME = { approve: 'approved', reject: 'rejected', upgrade: 'upgraded', request_revision: 'needs_revision' };
     await review.completeAssignmentForReviewer(client, {
@@ -368,6 +412,23 @@ async function adjustScore(config, actor, params) {
       [params.submissionId, aa.account_id, aa.employee_code, aa.display_name,
        JSON.stringify({ effectiveScore: oldEffective }),
        JSON.stringify({ effectiveScore: newScore, targetLevelOrder: targetLevelOrder || null }), reason]);
+
+    // V1.4 — participant notification for a post-approval score adjustment.
+    // Recipient is the submission author (server-resolved); actor (the
+    // adjusting reviewer/admin) is excluded from recipients by the emit
+    // helper itself. →0 renders as "Không ghi nhận"; 0→restore renders the
+    // restored score, never a bare "0".
+    const fromLabel = oldEffective === 0 ? 'Không ghi nhận' : oldEffective + ' điểm';
+    const toLabel = newScore === 0 ? 'Không ghi nhận' : newScore + ' điểm';
+    await emitCompetitionNotifications({
+      client, eventCode: 'COMPETITION_SUBMISSION_ADJUSTED', submissionId: params.submissionId,
+      title: 'Kết quả chấm đã thay đổi',
+      message: 'Kết quả chấm bài dự thi của bạn đã thay đổi từ ' + fromLabel + ' thành ' + toLabel + '.',
+      targetPath: '/thi-dua/bai-cua-toi', priority: 'Trung bình',
+      recipients: [{ accountId: row.author_account_id, employeeCode: row.author_employee_code }],
+      actor: aa,
+      dedupeKey: 'cmp:' + params.submissionId + ':COMPETITION_SUBMISSION_ADJUSTED:v' + r.rows[0].row_version,
+    });
 
     return ownerView(r.rows[0]);
   });

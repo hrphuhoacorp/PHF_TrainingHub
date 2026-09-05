@@ -103,8 +103,8 @@ function ACTION_MAP_HAS_NO_ACTION_FIELD_COLLISION() {
   // competitionConfirmOccurrence, competitionGetOccurrenceCount,
   // competitionGetSimilarForReview) + 2 V1.3 effective-score actions
   // (competitionAdjustScore, competitionListAdjustable).
-  ok(COMPETITION_ACTION_MANIFEST.length === 46, 'manifest has all 39 C1 + 1 C4.3 composite + 4 V1.1 + 2 V1.3 actions mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
-  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 46, 'manifest has no duplicate action names');
+  ok(COMPETITION_ACTION_MANIFEST.length === 50, 'manifest has all 39 C1 + 1 C4.3 composite + 4 V1.1 + 2 V1.3 + 4 V1.4 actions mapped (' + COMPETITION_ACTION_MANIFEST.length + ')');
+  ok(new Set(COMPETITION_ACTION_MANIFEST).size === 50, 'manifest has no duplicate action names');
 
   const unhandled = await dispatchCompetitionAction({ role: 'learner', employeeCode: 'NV001' }, { action: 'notAnAction' });
   ok(unhandled.handled === false, 'unknown action -> not handled (falls through to legacy dispatch)');

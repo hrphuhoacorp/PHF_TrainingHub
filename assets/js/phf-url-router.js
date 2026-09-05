@@ -516,8 +516,15 @@
   window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/cai-dat','/admin/task/lich-lap','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
   // Chương trình thi đua (Competition) — Batch A UI skeleton, HR shell.
   window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua','/hv/thi-dua/bang-tin','/hv/thi-dua/bai-cua-toi','/hv/thi-dua/gui','/hv/thi-dua/ket-qua');
-  window.PHF_ROUTE_MAP.management.push('/ql/thi-dua','/ql/thi-dua/bang-tin','/ql/thi-dua/bai-cua-toi','/ql/thi-dua/gui','/ql/thi-dua/ket-qua','/ql/thi-dua/cho-duyet');
-  window.PHF_ROUTE_MAP.admin.push('/admin/thi-dua','/admin/thi-dua/bang-tin','/admin/thi-dua/bai-cua-toi','/admin/thi-dua/gui','/admin/thi-dua/ket-qua','/admin/thi-dua/cho-duyet','/admin/thi-dua/quan-ly','/admin/thi-dua/xet-duyet','/admin/thi-dua/chot');
+  // V1.4 — "Bài tôi đã duyệt" (da-duyet) is reviewer-only, same namespaces as
+  // "Chờ duyệt" (cho-duyet): management + admin (a /hv participant holding a
+  // reviewer grant reaches it via /hv/thi-dua/da-duyet too — see menuModel()'s
+  // capability-only gate; the namespace list here only needs to admit the URL
+  // for roles that can plausibly hold a reviewer/admin grant in the first
+  // place, same reasoning already applied to cho-duyet above).
+  window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua/da-duyet');
+  window.PHF_ROUTE_MAP.management.push('/ql/thi-dua','/ql/thi-dua/bang-tin','/ql/thi-dua/bai-cua-toi','/ql/thi-dua/gui','/ql/thi-dua/ket-qua','/ql/thi-dua/cho-duyet','/ql/thi-dua/da-duyet');
+  window.PHF_ROUTE_MAP.admin.push('/admin/thi-dua','/admin/thi-dua/bang-tin','/admin/thi-dua/bai-cua-toi','/admin/thi-dua/gui','/admin/thi-dua/ket-qua','/admin/thi-dua/cho-duyet','/admin/thi-dua/da-duyet','/admin/thi-dua/quan-ly','/admin/thi-dua/xet-duyet','/admin/thi-dua/chot');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw

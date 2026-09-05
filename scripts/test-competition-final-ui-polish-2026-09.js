@@ -124,7 +124,8 @@ function bootstrapWith(overrides) {
     check(groupNames.includes('Tham gia') && groupNames.includes('Xét duyệt') && groupNames.includes('Quản trị'), 'all three group titles render correctly');
     // every group's <a> items live inside its own .phf-comp-nav-group-items box
     wraps.forEach((w) => check(w.querySelector('.phf-comp-nav-group-items a') != null, 'each group wrapper contains its nav links nested inside .phf-comp-nav-group-items'));
-    check(m.root.querySelectorAll('.phf-comp-nav a').length === 9, 'all 9 menu items still present (5 participant + 1 review + 3 admin) despite the DOM restructure');
+    // V1.4 added "Bài tôi đã duyệt" to the Xét duyệt group (1 -> 2 review items).
+    check(m.root.querySelectorAll('.phf-comp-nav a').length === 10, 'all 10 menu items still present (5 participant + 2 review + 3 admin) despite the DOM restructure');
   }
   {
     // participant-only (no review/admin capability) must NOT see the extra groups —
