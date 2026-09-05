@@ -15,10 +15,51 @@
 
 const { readTx, cErr } = require('./competition-common');
 const { resolveAuthority } = require('./competition-permissions');
+const campaigns = require('./competition-campaigns');
 
 function periodKey(d) {
   const dt = d ? new Date(d) : new Date();
   return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0');
+}
+
+// Current month in Asia/Ho_Chi_Minh ('YYYY-MM') — used by submittedTotal so the
+// Home number honours Vietnam business-day boundaries.
+function ictPeriodKey(d) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit' })
+    .format(d ? new Date(d) : new Date()).slice(0, 7);
+}
+
+// submittedTotal — identity-free, campaign-wide count of submissions that have
+// actually been SENT (left draft) in the given period. NO capability gate:
+// aggregate only, no participant rows, no identities — any authenticated actor
+// may read it (Home "Bài thi đua" quick-stat). Counts submitted / needs_revision
+// / approved / rejected / finalized (effective score 0/2/5 all included);
+// excludes only draft. Period = submitted_at (immutable first-submit time) in
+// Asia/Ho_Chi_Minh. Active campaign resolved dynamically (never hard-coded).
+async function submittedTotal(config, actor, params) {
+  const period = (params && params.period) || ictPeriodKey();
+  let campaignId = (params && params.campaignId) || null;
+  let campaignCode = null;
+  if (!campaignId) {
+    const active = await campaigns.getActiveCampaign(config);
+    if (!active) return { campaignId: null, campaignCode: null, period, submittedTotal: 0 };
+    campaignId = active.id;
+    campaignCode = active.code;
+  }
+  return readTx(config, async (client) => {
+    if (campaignCode == null) {
+      const c = await client.query('SELECT code FROM competition.campaigns WHERE id = $1', [campaignId]);
+      campaignCode = c.rowCount ? c.rows[0].code : null;
+    }
+    const r = await client.query(
+      `SELECT count(*)::int AS n
+         FROM competition.submissions
+        WHERE campaign_id = $1
+          AND status <> 'draft'
+          AND to_char(submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') = $2`,
+      [campaignId, period]);
+    return { campaignId, campaignCode, period, submittedTotal: r.rows[0].n };
+  });
 }
 
 async function myProgress(config, actor, params) {
@@ -84,4 +125,4 @@ async function companyProgress(config, actor, params) {
   });
 }
 
-module.exports = { myProgress, companyProgress, periodKey };
+module.exports = { myProgress, companyProgress, submittedTotal, periodKey, ictPeriodKey };

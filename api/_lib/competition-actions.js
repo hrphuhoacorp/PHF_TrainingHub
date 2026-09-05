@@ -47,6 +47,8 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionGetFeed', 'competitionSetReaction',
   'competitionGetLeaderboard',
   'competitionGetMyProgress', 'competitionGetCompanyProgress',
+  // Home "Bài thi đua" quick-stat — identity-free campaign-wide submitted count.
+  'competitionGetSubmittedTotal',
   'competitionListAwards', 'competitionGetAutoAwardCandidate',
   'competitionProposeAward', 'competitionConfirmAward', 'competitionRevokeAward',
   'competitionListMyNotifications', 'competitionMarkNotificationRead', 'competitionMarkAllNotificationsRead',
@@ -273,6 +275,9 @@ const ACTION_MAP = {
 
   competitionGetMyProgress: { remote: 'competition.progress.mine', params: (p) => ({ campaignId: str(p.campaign_id), period: str(p.period) }) },
   competitionGetCompanyProgress: { remote: 'competition.progress.company', params: (p) => ({ campaignId: str(p.campaign_id), period: str(p.period) }) },
+  // Home "Bài thi đua" — no client params; phf-hr-api resolves the active
+  // campaign + current ICT month itself and returns aggregate metadata only.
+  competitionGetSubmittedTotal: { remote: 'competition.progress.submittedTotal', params: () => ({}) },
 
   competitionListAwards: { remote: 'competition.award.list', params: (p) => ({ campaignId: str(p.campaign_id) }) },
   competitionGetAutoAwardCandidate: {

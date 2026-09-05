@@ -268,6 +268,7 @@ const { getKnlDashboardOverview } = require('./api/_lib/knl-dashboard');
 const { askKnlDashboardAi } = require('./api/_lib/knl-dashboard-ai');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./api/_lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./api/_lib/employee-import');
+const { getActiveEmployeeCount, getChecklistMonthlyFormCount } = require('./api/_lib/home-quick-stats');
 const { runChatSandbox } = require('./api/_lib/ai-sandbox');
 const { listConversations, getConversation, createConversation, appendMessages, deleteConversation } = require('./api/_lib/ai-conversations');
 const {
@@ -466,6 +467,9 @@ function taskOverviewV2Input(payload) {
   const input = {};
   copyTaskPayloadField(input, payload, 'period', 'period');
   copyTaskPayloadField(input, payload, 'filters', 'filters');
+  // view:'personal' — opt-in self-only scope for getTaskOverviewV2 (Home
+  // "Việc hoàn thành"). Backward compatible; never widens scope.
+  copyTaskPayloadField(input, payload, 'view', 'view');
   return input;
 }
 function taskReportV2BundleInput(payload) {
@@ -1399,6 +1403,8 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='applyKnlCompensationFoundation')return sendJson(res,200,{ok:true,...await applyKnlCompensationFoundation(session,payload)});
       if(payload&&payload.action==='listKnlIncomeTargets')return sendJson(res,200,{ok:true,...await listKnlIncomeTargets(session)});
       if(payload&&payload.action==='getKnlEmployeeIncome')return sendJson(res,200,{ok:true,...await getKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='getActiveEmployeeCount')return sendJson(res,200,{ok:true,result:await getActiveEmployeeCount()});
+      if(payload&&payload.action==='getChecklistMonthlyFormCount')return sendJson(res,200,{ok:true,result:await getChecklistMonthlyFormCount(payload)});
       if(payload&&payload.action==='getKnlDashboardOverview')return sendJson(res,200,{ok:true,...await getKnlDashboardOverview(session,payload)});
       if(payload&&payload.action==='askKnlDashboardAi')return sendJson(res,200,{ok:true,...await askKnlDashboardAi(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeNextCompensationGrade')return sendJson(res,200,{ok:true,...await getKnlEmployeeNextCompensationGrade(session,payload)});

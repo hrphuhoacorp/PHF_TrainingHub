@@ -42,12 +42,12 @@ function bridgeFail(message, statusCode, errorCode) {
 // on_time (boolean|null) is pre-merged here from the raw completionEvents
 // array phf-hr-api returns (task-grain shape task-reporting-v2.js consumes
 // directly — no separate event-grain fetch needed at the caller).
-async function bridgeFetchOverviewPopulation(session) {
+async function bridgeFetchOverviewPopulation(session, opts) {
   if (!PHF_HR_API_BASE_URL || !PHF_HR_API_SERVICE_TOKEN || !TASK_QUERY_DESCRIPTOR_SIGNING_SECRET) {
     bridgeFail('PHF_TASK_OVERVIEW_READ_BRIDGE_ENABLED=true nhưng thiếu PHF_HR_API_BASE_URL/PHF_HR_API_SERVICE_TOKEN/TASK_QUERY_DESCRIPTOR_SIGNING_SECRET trong env.', 500, 'TASK_OVERVIEW_READ_BRIDGE_MISCONFIGURED');
   }
 
-  const built = await buildResolvedTaskOverviewQueryDescriptor(session, { signingSecret: TASK_QUERY_DESCRIPTOR_SIGNING_SECRET });
+  const built = await buildResolvedTaskOverviewQueryDescriptor(session, { signingSecret: TASK_QUERY_DESCRIPTOR_SIGNING_SECRET, forcePersonal: !!(opts && opts.forcePersonal) });
   const { effectiveScope, navSignals, ...descriptor } = built; // effectiveScope + navSignals are local-only — never sent over the wire / never part of the signature (see descriptor builder comment)
 
   const controller = new AbortController();

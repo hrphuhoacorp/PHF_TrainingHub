@@ -56,8 +56,15 @@ async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
     throw err;
   }
 
+  // forcePersonal (Home "Việc hoàn thành" only) — pin the population to the
+  // actor's OWN received tasks regardless of management authority. This can
+  // never widen scope: 'mine' -> resolveAuthorizedTaskEmployeeScope() returns
+  // [actorContext.employeeCode] for every actor type (see the G3-fix branch in
+  // task-core.js). Default (undefined) leaves the auto-selection untouched.
+  const forcePersonal = !!(options && options.forcePersonal);
+
   const { actorContext, scope } = await resolveEffectiveTaskScope(session);
-  const effectiveScope = scope.peopleScope.type === 'self' ? 'self' : 'managed';
+  const effectiveScope = forcePersonal ? 'self' : (scope.peopleScope.type === 'self' ? 'self' : 'managed');
   // navSignals — local-only (like effectiveScope): reused by the Overview
   // bundle so the default landing route needs no separate managed-scope probe.
   // SAME pure derivation listTasks() uses (task-core.js) — cannot drift.
@@ -80,7 +87,7 @@ async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
   // authorized scope.peopleScope.values — never wider than that. Nhân_viên
   // ('self' -> [self]) and Admin/GĐ/TLGĐ ('all_company' -> null) are unchanged.
   let employeeCodes = decision.employeeCodes;
-  if (scope.peopleScope.type === 'employees') {
+  if (!forcePersonal && scope.peopleScope.type === 'employees') {
     const authorized = Array.isArray(scope.peopleScope.values) ? scope.peopleScope.values : [];
     employeeCodes = Array.from(new Set(authorized.filter(Boolean)));
   }

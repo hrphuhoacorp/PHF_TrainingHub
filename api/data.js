@@ -420,6 +420,7 @@ const { getKnlDashboardOverview } = require('./_lib/knl-dashboard');
 const { askKnlDashboardAi } = require('./_lib/knl-dashboard-ai');
 const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./_lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./_lib/employee-import');
+const { getActiveEmployeeCount, getChecklistMonthlyFormCount } = require('./_lib/home-quick-stats');
 const {
   assertSameOrigin,
   assertJsonContentType,
@@ -628,6 +629,12 @@ function taskOverviewV2Input(payload) {
   // UI/UX Step 2 — dashboard advanced filter. task-reporting-v2.js validates
   // + applies it as a pure post-authorization narrowing (never widens scope).
   copyTaskPayloadField(input, payload, 'filters', 'filters');
+  // view:'personal' — opt-in self-only scope for getTaskOverviewV2. Backward
+  // compatible: absent -> unchanged auto-scope. task-reporting-v2.js only
+  // honours it for getTaskOverviewV2 and it can NEVER widen scope (self ⊆
+  // authorized). Used by the Home "Việc hoàn thành" quick-stat so an elevated
+  // account still sees a personal number.
+  copyTaskPayloadField(input, payload, 'view', 'view');
   return input;
 }
 function taskReportV2BundleInput(payload) {
@@ -1362,6 +1369,8 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='applyKnlCompensationFoundation')return res.status(200).json({ok:true,...await applyKnlCompensationFoundation(session,payload)});
       if(payload&&payload.action==='listKnlIncomeTargets')return res.status(200).json({ok:true,...await listKnlIncomeTargets(session)});
       if(payload&&payload.action==='getKnlEmployeeIncome')return res.status(200).json({ok:true,...await getKnlEmployeeIncome(session,payload)});
+      if(payload&&payload.action==='getActiveEmployeeCount')return res.status(200).json({ok:true,result:await getActiveEmployeeCount()});
+      if(payload&&payload.action==='getChecklistMonthlyFormCount')return res.status(200).json({ok:true,result:await getChecklistMonthlyFormCount(payload)});
       if(payload&&payload.action==='getKnlDashboardOverview')return res.status(200).json({ok:true,...await getKnlDashboardOverview(session,payload)});
       if(payload&&payload.action==='askKnlDashboardAi')return res.status(200).json({ok:true,...await askKnlDashboardAi(session,payload)});
       if(payload&&payload.action==='getKnlEmployeeNextCompensationGrade')return res.status(200).json({ok:true,...await getKnlEmployeeNextCompensationGrade(session,payload)});

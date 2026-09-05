@@ -514,3 +514,211 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-mini b{color:#0a4634}
 
 .phf-hr-footer{color:#5a6c63}
+
+/* ============================================================================
+   PHF HR — HOME VISUAL PATCH (LOCAL, surgical). Approved corporate direction:
+   PHF green dominant, white/ivory/cream structural, restrained champagne/gold
+   ONLY for "Thi đua & Thưởng", firm/square geometry, thin borders, restrained
+   shadow. No structure/markup/data change — this block only re-declares
+   existing selectors (cascade order = last-wins over every block above).
+   ========================================================================== */
+
+/* --- 6. CARD GEOMETRY — firmer, less rounded across Home --- */
+.phf-hr-content .phf-hr-hero{border-radius:12px}
+.phf-hr-group-ico{border-radius:8px}
+.phf-hr-mod{border-radius:10px}
+.phf-hr-mod-ico{border-radius:9px}
+.phf-hr-mod-badge,.phf-hr-mega-soon{border-radius:5px}
+.phf-hr-mod-arrow{border-radius:7px}
+.phf-hr-widget{border-radius:12px}
+.phf-hr-widget-clock{border-radius:12px}
+.phf-hr-hero-tags span{border-radius:7px}
+.phf-hr-attn-cell,.phf-hr-mini{border-radius:8px}
+.phf-hr-attn-cta{border-radius:8px}
+.phf-hr-day{border-radius:6px}
+.phf-hr-nav-item{border-radius:6px}
+.phf-hr-megamenu{border-radius:10px}
+.phf-hr-mega-item{border-radius:7px}
+.phf-hr-mega-ico{border-radius:8px}
+.phf-hr-account{border-radius:8px}
+.phf-hr-account-menu{border-radius:10px}
+.phf-hr-account-menu button{border-radius:6px}
+.phf-hr-nav-toggle{border-radius:8px}
+
+/* --- 3. HEADER — hidden scope chip stays gone; single-line brand --- */
+.phf-hr-scope-chip{display:none!important}
+.phf-hr-brand-name-block strong{font-size:16px}
+
+/* --- 4/12. MODULE CARDS — white / ivory / light PHF-green neutral surfaces.
+   Colour now lives in the icon, thin border and small badge only — no large
+   pastel card backgrounds (pink / lavender / baby-blue / peach removed). --- */
+.phf-hr-mod,
+.phf-hr-mod.tint-green,.phf-hr-mod.tint-blue,.phf-hr-mod.tint-purple,
+.phf-hr-mod.tint-red,.phf-hr-mod.tint-gray{
+  background:linear-gradient(160deg,#ffffff 0%,#f6faf7 100%);
+  border:1px solid #dde8e1;box-shadow:0 4px 12px rgba(10,60,40,.07);
+}
+.phf-hr-mod[role="link"]:hover{border-color:#a9d3b8;box-shadow:0 10px 22px rgba(10,60,40,.12)}
+.phf-hr-mod.is-soon,.phf-hr-mod.is-disabled{
+  background:#fbfcfb;border:1px dashed #d5ddd8;box-shadow:none;
+}
+/* every module icon = PHF green line-work on a faint green tile (consistent
+   stroke/weight already set on .phf-hr-mod-ico svg) */
+.phf-hr-mod .phf-hr-mod-ico,
+.phf-hr-mod.tint-green .phf-hr-mod-ico,.phf-hr-mod.tint-blue .phf-hr-mod-ico,
+.phf-hr-mod.tint-purple .phf-hr-mod-ico,.phf-hr-mod.tint-red .phf-hr-mod-ico,
+.phf-hr-mod.tint-gray .phf-hr-mod-ico{
+  color:#0a6b3d;background:#eef6f0;border:1px solid #d5e7dc;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 3px 8px rgba(10,60,40,.10);
+}
+.phf-hr-mod.is-soon .phf-hr-mod-ico,.phf-hr-mod.is-disabled .phf-hr-mod-ico{
+  color:#8a97a0;background:#eef0f2;border-color:#e0e4e2;box-shadow:none;
+}
+.phf-hr-mod-badge{background:#e9f4ee;color:#0a6b3d;border:1px solid #cfe6d8;font-weight:700}
+.phf-hr-mod-badge.is-soon{background:#f3f5f4;color:#6b7a72;border:1px dashed #d8ded9}
+.phf-hr-mod-badge.is-muted{background:#eef0f2;color:#6b7a72;border:1px solid #e0e4e2}
+.phf-hr-mod-arrow{background:#eef6f0;color:#0a6b3d;border:1px solid #cfe6d8}
+.phf-hr-mod-txt b{color:#123f31}
+.phf-hr-mod-txt span{color:#5c6d64}
+
+/* --- 5. "Thi đua & Thưởng hành động" — the ONLY champagne/gold accent. Card
+   base stays white/ivory; gold shows in icon + thin border + badge, kept
+   restrained (no saturated yellow block). The two cards read as related. --- */
+.phf-hr-mod.tint-yellow,.phf-hr-mod.tint-peach{
+  background:linear-gradient(160deg,#ffffff 0%,#fdf8ee 100%);
+  border:1px solid #e7d9b6;box-shadow:0 4px 12px rgba(120,90,20,.08);
+}
+.phf-hr-mod.tint-yellow[role="link"]:hover,.phf-hr-mod.tint-peach[role="link"]:hover{
+  border-color:#d8c187;box-shadow:0 10px 22px rgba(120,90,20,.14);
+}
+.phf-hr-mod.tint-yellow .phf-hr-mod-ico,.phf-hr-mod.tint-peach .phf-hr-mod-ico{
+  color:#8a6314;background:#faf1dc;border:1px solid #e9d8ac;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 3px 8px rgba(120,90,20,.12);
+}
+.phf-hr-mod.tint-yellow .phf-hr-mod-badge,.phf-hr-mod.tint-peach .phf-hr-mod-badge{
+  background:#f6ecd4;color:#7d5a12;border:1px solid #e4d2a4;
+}
+.phf-hr-mod.tint-yellow .phf-hr-mod-arrow{background:#faf1dc;color:#8a6314;border:1px solid #e9d8ac}
+.phf-hr-mod.tint-peach .phf-hr-mod-ico{color:#8a6314;background:#faf1dc}
+/* group C header icon picks up the same restrained gold */
+.phf-hr-group[aria-label="Thi đua & Thưởng hành động"] .phf-hr-group-ico{
+  background:#8a6314;border-color:#8a6314;box-shadow:0 6px 14px rgba(120,90,20,.22);
+}
+
+/* --- 7. HERO — corporate green/cream balance, firmer frame, stronger contrast.
+   Structure and copy untouched; right side stays open for a future real PHF
+   image (hero is a positioned block — a media child can be added later). --- */
+.phf-hr-content .phf-hr-hero{
+  background:linear-gradient(118deg,#e8f4ec 0%,#ffffff 52%,#f4f1e2 100%);
+  border:1px solid #cbe1d3;box-shadow:0 8px 22px rgba(10,60,40,.10);
+}
+.phf-hr-content .phf-hr-hero-copy h1{color:#0a3f30}
+.phf-hr-content .phf-hr-hero-copy>p{color:#3c554d}
+.phf-hr-eyebrow{color:#0a6b3d}
+.phf-hr-hero-tags span{border:1px solid #cfe0d6;color:#26483c;box-shadow:0 3px 9px rgba(10,60,40,.07)}
+
+/* --- 8. CLOCK CARD — decorative sprout removed; clean single-column clock --- */
+.phf-hr-widget-clock{grid-template-columns:1fr;background:linear-gradient(160deg,#eef7f0 0%,#f6f3e4 100%);border:1px solid #cbe1d3}
+.phf-hr-w-sprout{display:none!important}
+
+/* --- 9. MOTIVATION / LIGHT-HUMOUR ROTATOR (V1, hardcoded list) --- */
+.phf-hr-motiv-eyebrow{display:block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0a6b3d;margin-bottom:7px}
+.phf-hr-motiv-line.is-fading{opacity:0}
+@media (prefers-reduced-motion:reduce){.phf-hr-motiv-line{transition:none}}
+
+/* ============================================================================
+   PHF HR — HOME BATCH #2 · unified DAY / CLOCK / LUNAR / MOTIVATION card.
+   One card, two zones. Upper: Gregorian weekday + dd/mm/yyyy + large realtime
+   HH:mm:ss (left), ÂM LỊCH day/month + can-chi year (right). Lower: quotation
+   mark + rotating light-humour line (same PHF_HR_MOTIVATION list + timer, no
+   second rotator). Enterprise, firm radius, PHF dark-green type.
+   ========================================================================== */
+.phf-hr-daycard{
+  padding:16px 18px;
+  background:linear-gradient(160deg,#ffffff 0%,#f2f9f4 100%);
+  border:1px solid #d7e6dd;box-shadow:0 4px 12px rgba(10,60,40,.07);
+}
+.phf-hr-dc-top{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding-bottom:13px;border-bottom:1px solid #e5efe9;
+}
+.phf-hr-dc-greg{min-width:0}
+.phf-hr-dc-weekday{display:block;font-size:12.5px;font-weight:600;color:#5a6f66}
+.phf-hr-dc-time{
+  display:block;margin-top:3px;font-size:33px;line-height:1;font-weight:800;
+  color:#0a3f30;font-variant-numeric:tabular-nums;letter-spacing:.005em;
+}
+.phf-hr-dc-lunar{
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;text-align:right;
+  padding-left:14px;border-left:1px solid #e5efe9;
+}
+.phf-hr-dc-lunar-label{font-size:10px;font-weight:800;letter-spacing:.13em;color:#0a6b3d}
+.phf-hr-dc-lunar-dm{margin-top:3px;font-size:22px;font-weight:800;line-height:1.1;color:#0a3f30;font-variant-numeric:tabular-nums}
+.phf-hr-dc-lunar-year{margin-top:2px;font-size:11px;font-weight:600;color:#6b7a72}
+
+.phf-hr-daycard .phf-hr-motiv{
+  display:flex;align-items:flex-start;gap:10px;padding-top:13px;background:none;border:0;
+}
+.phf-hr-motiv-mark{
+  flex:0 0 auto;font-family:Georgia,"Times New Roman",serif;font-weight:700;
+  font-size:38px;line-height:.78;color:#a4ccb0;
+}
+.phf-hr-daycard .phf-hr-motiv-line{
+  margin:0;font-size:13.5px;line-height:1.5;color:#33443d;font-weight:600;
+  transition:opacity .4s ease;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+@media (max-width:360px){
+  .phf-hr-dc-top{flex-wrap:wrap}
+  .phf-hr-dc-lunar{border-left:0;padding-left:0;align-items:flex-start;text-align:left}
+}
+
+/* --- 10/11. RIGHT RAIL + SECTION HEADINGS — firmer surfaces, keep red/amber/
+   green semantics on "Công việc cần chú ý", branded green section headings. --- */
+.phf-hr-widget{border:1px solid #dde8e1;box-shadow:0 4px 12px rgba(10,60,40,.07)}
+.phf-hr-group-ico{background:#0a6b3d;border-color:#0a6b3d;box-shadow:0 6px 14px rgba(10,107,61,.22)}
+.phf-hr-group-meta h2{color:#0a3f30;font-weight:800}
+.phf-hr-attn-cell{border-width:1px}
+.phf-hr-attn-cell.is-overdue{background:#fdeeed;border-color:#eeb8b3}
+.phf-hr-attn-cell.is-soon{background:#fcf2dc;border-color:#e8ca86}
+.phf-hr-attn-cell.is-attn{background:#e8f4ec;border-color:#b3d9bf}
+.phf-hr-attn-cta{background:#0a6b3d;border-color:#0a6b3d}
+.phf-hr-day.is-today{background:#0a6b3d;border-color:#0a6b3d}
+
+/* --- 13. depth: trim page-wide shadow/softness a touch further --- */
+.phf-hr-megamenu{box-shadow:0 8px 20px rgba(18,53,42,.10)}
+.phf-hr-topnav{box-shadow:0 1px 6px rgba(9,60,40,.05)}
+
+/* ============================================================================
+   PHF HR — HOME HERO · FINAL FLAT ASSET (LOCAL). The approved hero is one
+   flattened image (assets/images/home/phf-hr-home-hero-2026.png, 1983x793) with
+   its text baked in. It is shown at its natural aspect ratio, whole composition
+   visible, never cropped or stretched: width:100% + height:auto scales the
+   entire picture down on narrow viewports. The old live HTML hero copy is
+   hidden so nothing overlays the image.
+   ========================================================================== */
+.phf-hr-content .phf-hr-hero{
+  display:block;position:static;overflow:hidden;padding:0;min-height:0;
+  background:#eef7f0;border:1px solid #cbe1d3;border-radius:12px;
+  box-shadow:0 8px 22px rgba(10,60,40,.10);
+}
+.phf-hr-content .phf-hr-hero::before,
+.phf-hr-content .phf-hr-hero::after{content:none}
+.phf-hr-hero-media{display:block;line-height:0}
+.phf-hr-hero-media img{display:block;width:100%;height:auto}
+.phf-hr-content .phf-hr-hero-copy{display:none!important}
+
+/* ============================================================================
+   PHF HR — HOME DATA PATCH · "Lịch trong tuần" → PHF Task projection.
+   Approved card geometry is LOCKED. The only visual addition: a very small
+   secondary dot on a displayed date that has ≥1 of the current user's open
+   PHF Task deadlines. Absolutely positioned -> no cell-size / column / label /
+   typography change; the current-day green state stays dominant.
+   ========================================================================== */
+.phf-hr-day.has-task{position:relative;cursor:pointer}
+.phf-hr-day.has-task::after{
+  content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;
+  border-radius:50%;background:#0a6b3d;
+}
+.phf-hr-day.is-today.has-task::after{background:#ffffff}
+.phf-hr-day.has-task:focus-visible{outline:2px solid #0f7a43;outline-offset:1px}
