@@ -27,6 +27,31 @@
   min-height:100%;
   display:block;
 }
+/* V1.5.1 — shared modal backdrops (showInputModal/showConfirmModal/
+   showSimilarityWarning/bulk-upload/adjust-score) are appended as siblings
+   of .phf-comp via document.body.appendChild, so they never inherit the
+   --comp-* custom properties declared only on .phf-comp above (custom
+   properties cascade to descendants only). This class re-declares ONLY the
+   tokens (exact values copied from .phf-comp) so every var(--comp-*) inside
+   a dynamically-created modal resolves correctly, without scattering
+   var(--comp-x, fallback) across every consuming rule. */
+.phf-comp-modal-scope{
+  --comp-green:#1f6f43;
+  --comp-green-deep:#164f30;
+  --comp-green-soft:#e8f2eb;
+  --comp-ink:#243027;
+  --comp-ink-soft:#5b6b60;
+  --comp-surface:#fffdf8;
+  --comp-surface-cream:#fbf6ec;
+  --comp-surface-ivory:#f7f1e4;
+  --comp-gold:#c8a86a;
+  --comp-gold-soft:#efe4cd;
+  --comp-border:#e7e0d0;
+  --comp-border-strong:#d9cfb8;
+  --comp-shadow:0 1px 2px rgba(36,48,39,.05), 0 8px 24px -12px rgba(36,48,39,.14);
+  --comp-radius:14px;
+  font-family:Arial, "Helvetica Neue", Helvetica, "Segoe UI", sans-serif;
+}
 .phf-comp *{box-sizing:border-box;}
 .phf-comp a{color:var(--comp-green-deep);text-decoration:none;}
 

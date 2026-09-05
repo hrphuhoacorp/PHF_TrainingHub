@@ -689,7 +689,7 @@ function showInputModal(opts){
   opts=opts||{};
   return new Promise(function(resolve){
     var wrap=document.createElement('div');
-    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
     wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="'+esc(opts.title||'')+'">'
       +'<h3>'+esc(opts.title||'')+'</h3>'
       +(opts.description?'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">'+esc(opts.description)+'</p>':'')
@@ -718,7 +718,7 @@ function showConfirmModal(opts){
   opts=opts||{};
   return new Promise(function(resolve){
     var wrap=document.createElement('div');
-    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
     wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="'+esc(opts.title||'')+'">'
       +'<h3>'+esc(opts.title||'')+'</h3>'
       +(opts.description?'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">'+esc(opts.description)+'</p>':'')
@@ -737,7 +737,7 @@ function showConfirmModal(opts){
 function showSimilarityWarning(campaignId,candidates){
   return new Promise(function(resolve){
     var wrap=document.createElement('div');
-    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
     wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Nội dung tương tự đã được gửi trước">'
       +'<h3>'+icon('warn')+'Có nội dung tương tự đã được gửi trước</h3>'
       +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Bạn vẫn có thể gửi bài của mình — hãy xem qua trước để tránh trùng lặp không cần thiết.</p>'
@@ -965,7 +965,7 @@ function bulkRowsPreviewHtml(rows){
 function openBulkUploadModal(campaign){
   var state={rows:null,fileName:'',batchId:(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():('bulk-'+Date.now()+'-'+Math.random().toString(16).slice(2))};
   var wrap=document.createElement('div');
-  wrap.className='phf-comp-simwarn-backdrop';
+  wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
   function render(){
     var rows=state.rows;
     var body=!rows?('<div class="phf-comp-note">'+icon('info')+'<span>Chọn file Excel (.xlsx) theo mẫu để nhập nhiều bài cùng lúc. Bắt buộc 2 cột: "Câu hỏi / Tình huống khách hàng" và "Cách trả lời / Xử lý".</span></div>')
@@ -1237,7 +1237,7 @@ async function openAdjustScoreModal(campaign,submissionId,current,onDone){
     .concat((levels||[]).map(function(l){return {targetLevelOrder:l.levelOrder,label:l.score+' · '+l.name};}));
   return new Promise(function(resolve){
     var wrap=document.createElement('div');
-    wrap.className='phf-comp-simwarn-backdrop';
+    wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
     wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Điều chỉnh kết quả chấm">'
       +'<h3>'+icon('gear')+'Điều chỉnh kết quả chấm</h3>'
       +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Kết quả hiện tại: <b>'+esc(effectiveScoreLabel(current.effectiveScore))+'</b></p>'
@@ -1359,17 +1359,30 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       // V1.2 — "Kết quả / Ghi nhận của giám khảo" is now a single inline
       // textarea per item (reviewerRecordHtml), read for EVERY action —
       // still MANDATORY for reject/request_revision (unchanged rule).
-      // V1.3 — if that textarea is empty for those 2 actions, a dedicated
-      // PHF input modal collects the required text (NO native window.prompt
-      // — this was the operator-reported bug, see showInputModal). Optional
-      // for approve/upgrade (supporting assessment info only — never derives
-      // score, see competition-submissions.js reviewAction).
+      // V1.3 — a dedicated PHF input modal collects the required text (NO
+      // native window.prompt — this was the operator-reported bug, see
+      // showInputModal). Optional for approve/upgrade (supporting assessment
+      // info only — never derives score, see competition-submissions.js
+      // reviewAction) — that path is unchanged and still reads the inline
+      // textarea's live value directly.
+      // V1.5.1 SAFETY FIX — reject/request_revision must ALWAYS open the
+      // confirmation modal, never silently reuse whatever text is already
+      // sitting in the inline textarea (that textarea is pre-filled with
+      // the submission's CURRENT lastReviewNote — see reviewerRecordHtml —
+      // and a stale/leftover value there must never be auto-submitted as
+      // the real reviewer reason; this is exactly how a real Production
+      // submission was wrongly rejected). The inline value is only used to
+      // pre-fill the modal (opts.initialValue) for convenience; nothing is
+      // submitted until the reviewer explicitly clicks Confirm inside the
+      // modal — Cancel/backdrop-click/Escape (showInputModal resolves null)
+      // aborts with zero server call, and a blank Confirm re-prompts
+      // in-place (showInputModal's own required-field guard).
       var noteEl=item.querySelector('[data-comp-reviewer-record]');
       var note=(noteEl?noteEl.value:'').trim();
-      if((action==='request_revision'||action==='reject')&&!note){
+      if(action==='request_revision'||action==='reject'){
         var modalNote=await showInputModal(action==='reject'
-          ?{title:'Từ chối bài dự thi',description:'Ghi rõ lý do từ chối nội dung này.',placeholder:'Lý do từ chối…',confirmLabel:'Từ chối bài'}
-          :{title:'Yêu cầu chỉnh sửa',description:'Ghi rõ nội dung cần người gửi bổ sung hoặc điều chỉnh.',placeholder:'Nội dung cần bổ sung/điều chỉnh…',confirmLabel:'Gửi yêu cầu chỉnh sửa'});
+          ?{title:'Từ chối bài dự thi',description:'Ghi rõ lý do từ chối nội dung này.',placeholder:'Lý do từ chối…',confirmLabel:'Từ chối bài',initialValue:note}
+          :{title:'Yêu cầu chỉnh sửa',description:'Ghi rõ nội dung cần người gửi bổ sung hoặc điều chỉnh.',placeholder:'Nội dung cần bổ sung/điều chỉnh…',confirmLabel:'Gửi yêu cầu chỉnh sửa',initialValue:note});
         if(!modalNote){return;}
         note=modalNote;
       }
