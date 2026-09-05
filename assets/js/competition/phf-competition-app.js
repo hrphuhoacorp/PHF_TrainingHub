@@ -348,6 +348,8 @@ function menuModel(boot){
     items.push({key:'quan-ly', label:'Quản lý chương trình', icon:'grid', href:p+'/thi-dua/quan-ly', group:'Quản trị'});
     items.push({key:'xet-duyet',label:'Phân quyền xét duyệt',   icon:'gear', href:p+'/thi-dua/xet-duyet',group:'Quản trị'});
     items.push({key:'chot',    label:'Chốt chương trình',    icon:'seal', href:p+'/thi-dua/chot',    group:'Quản trị'});
+    // V1.6 — Admin Control Tower: full real-identity view of every submission.
+    items.push({key:'toan-bo',label:'Toàn bộ bài dự thi',icon:'doc',href:p+'/thi-dua/toan-bo',group:'Quản trị'});
   }
   return items;
 }
@@ -391,7 +393,7 @@ function navLoadingHtml(){
 function isScreenAuthorized(key,boot){
   var cap=(boot&&boot.capabilities)||{};
   if(key==='cho-duyet'||key==='da-duyet')return !!cap.canReview;
-  if(key==='quan-ly'||key==='xet-duyet'||key==='chot')return !!cap.canAdmin;
+  if(key==='quan-ly'||key==='xet-duyet'||key==='chot'||key==='toan-bo')return !!cap.canAdmin;
   return true;
 }
 
@@ -1949,10 +1951,216 @@ async function screenAdminFinalize(slot,boot){
   await renderAll();
 }
 
+/* ================================================================== *
+ * V1.6 — Admin Control Tower.
+ *  "Toàn bộ bài dự thi" (screenAdminAllSubmissions): admin-only, real-
+ *  identity, bounded/paginated read of EVERY submission of a campaign, with
+ *  the assigned reviewer + the actual reviewer who processed it, and an
+ *  on-demand full history drill-down. "Phục hồi trạng thái bài" is reached
+ *  from the same detail panel — a lifecycle correction that restores a
+ *  submission to a REAL prior checkpoint reconstructed server-side from its
+ *  own history (never an arbitrary client-chosen status/level/score).
+ * ================================================================== */
+var ADMIN_ALL_FILTERS=[
+  {k:'all',label:'Tất cả'},
+  {k:'pending',label:'Chờ duyệt'},
+  {k:'needs_revision',label:'Cần chỉnh sửa'},
+  {k:'approved_low',label:'Đã duyệt 2 điểm'},
+  {k:'approved_high',label:'Đã duyệt 5 điểm'},
+  {k:'zero',label:'Không ghi nhận / 0 điểm'},
+  {k:'rejected',label:'Từ chối'}
+];
+var ADMIN_ALL_PAGE_SIZE=20;
+// Same 6-value restorable set the server enforces (competition-submissions.js
+// RESTORABLE_HISTORY_ACTIONS) — used here ONLY to decide whether the
+// "Phục hồi trạng thái bài" button/checkpoint list has anything to offer;
+// the server re-validates and re-derives the actual target independently.
+var ADMIN_RESTORABLE_ACTIONS=['submit','revise','approve','upgrade','revision_requested','reject'];
+function adminAllActorNameHtml(who){
+  if(!who)return '<span class="phf-comp-qa-missing">—</span>';
+  return esc(who.displayName||who.employeeCode||who.accountId||'—')+(who.employeeCode?' <span style="color:var(--comp-ink-soft);font-size:11.5px">('+esc(who.employeeCode)+')</span>':'');
+}
+function adminAllRowHtml(item){
+  var eff=item.effectiveScore;
+  var scoreLabel=eff==null?'—':(eff===0?'Không ghi nhận':eff+' điểm'+(item.adjusted?' (đã điều chỉnh)':''));
+  return '<details class="phf-comp-card phf-comp-admin-all-row" data-comp-admin-all-row data-submission-id="'+esc(item.id)+'" data-row-version="'+esc(item.rowVersion)+'" style="margin-top:12px">'
+    +'<summary style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;list-style:none">'
+      +'<span><b>'+esc(item.authorDisplayName||item.authorEmployeeCode||'—')+'</b> <span style="color:var(--comp-ink-soft);font-size:11.5px">('+esc(item.authorEmployeeCode||'—')+')</span></span>'
+      +statusPill(item.status)
+      +'<span style="font-size:12.5px">'+esc(scoreLabel)+'</span>'
+      +'<span style="font-size:11.5px;color:var(--comp-ink-soft)">'+esc(fmtDate(item.submittedAt))+'</span>'
+    +'</summary>'
+    +'<div class="phf-comp-admin-all-detail" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--comp-border)">'
+      +qaFieldsHtml(item.payload,undefined,{showEvidence:true})
+      +(item.lastReviewNote?'<div class="phf-comp-note">'+icon('info')+'<span><b>Kết quả / Ghi nhận của giám khảo:</b> '+esc(item.lastReviewNote)+'</span></div>':'')
+      +'<div class="phf-comp-grid" style="margin-top:10px">'
+        +'<div class="phf-comp-fact"><b>Phòng ban / Chi nhánh</b><span>'+esc([item.authorDepartment,item.authorBranch].filter(Boolean).join(' / ')||'—')+'</span></div>'
+        +'<div class="phf-comp-fact"><b>Người duyệt được phân công</b><span>'+adminAllActorNameHtml(item.assignedReviewer)+'</span></div>'
+        +'<div class="phf-comp-fact"><b>Người thực tế đã xử lý</b><span>'+adminAllActorNameHtml(item.actualReviewerActor)+(item.actualReviewerActor&&item.actualReviewerActor.action?' <span style="color:var(--comp-ink-soft);font-size:11px">('+esc(item.actualReviewerActor.action)+' · '+esc(fmtDate(item.actualReviewerActor.at))+')</span>':'')+'</span></div>'
+        +'<div class="phf-comp-fact"><b>Đã duyệt lúc</b><span>'+esc(fmtDate(item.approvedAt))+'</span></div>'
+        +'<div class="phf-comp-fact"><b>Đã từ chối lúc</b><span>'+esc(fmtDate(item.rejectedAt))+'</span></div>'
+        +'<div class="phf-comp-fact"><b>Đã chốt lúc</b><span>'+esc(fmtDate(item.finalizedAt))+'</span></div>'
+      +'</div>'
+      +'<div class="phf-comp-actions" style="padding-top:14px">'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-history>Xem lịch sử</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-restore>Phục hồi trạng thái bài</button>'
+      +'</div>'
+      +'<div data-comp-admin-all-history-box></div>'
+    +'</div>'
+  +'</details>';
+}
+function adminAllHistoryHtml(items){
+  if(!items.length)return emptyState('doc','Chưa có lịch sử.');
+  return '<div class="phf-comp-table-wrap" style="margin-top:10px"><table class="phf-comp-table"><thead><tr>'
+    +'<th>Thời điểm</th><th>Hành động</th><th>Người thực hiện</th><th>Lý do / Ghi chú</th></tr></thead><tbody>'
+    +items.map(function(h){
+      return '<tr><td data-th="Thời điểm">'+esc(fmtDate(h.at))+'</td><td data-th="Hành động">'+esc(h.action)+'</td>'
+        +'<td data-th="Người thực hiện">'+adminAllActorNameHtml({displayName:h.actorDisplayName,employeeCode:h.actorEmployeeCode,accountId:h.actorAccountId})+'</td>'
+        +'<td data-th="Lý do / Ghi chú">'+esc(h.reason||'—')+'</td></tr>';
+    }).join('')
+  +'</tbody></table></div>';
+}
+// Composite restore modal — same DOM/CSS scaffold as showInputModal/
+// showConfirmModal (`.phf-comp-simwarn-backdrop`/`.phf-comp-simwarn`), never a
+// new modal system. Resolves {targetHistoryEventId, reason} on confirm, null
+// on cancel.
+function showRestoreModal(checkpoints){
+  return new Promise(function(resolve){
+    var wrap=document.createElement('div');
+    wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
+    wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Phục hồi trạng thái bài dự thi">'
+      +'<h3>'+icon('warn')+'Phục hồi trạng thái bài dự thi</h3>'
+      +'<p class="phf-comp-em-sub" style="margin:-4px 0 12px">Chọn một điểm phục hồi hợp lệ từ lịch sử thật của bài — hệ thống sẽ tự xác định lại trạng thái/mức/điểm tại thời điểm đó.</p>'
+      +'<div class="phf-comp-field"><label>Điểm phục hồi</label><select data-comp-restore-checkpoint style="width:100%">'
+        +checkpoints.map(function(c,i){return '<option value="'+i+'">'+esc(fmtDate(c.at))+' · '+esc(c.label)+'</option>';}).join('')
+      +'</select></div>'
+      +'<div class="phf-comp-field"><label>Lý do phục hồi<span class="req">*</span></label>'
+        +'<textarea data-comp-restore-reason placeholder="Vì sao cần phục hồi trạng thái này…" style="min-height:90px;width:100%"></textarea></div>'
+      +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+        +'<button type="button" class="phf-comp-btn is-danger" data-comp-modal-confirm>Xác nhận phục hồi</button>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-modal-cancel>Hủy</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(wrap);
+    function close(val){wrap.remove();resolve(val);}
+    wrap.addEventListener('click',function(e){if(e.target===wrap)close(null);});
+    wrap.querySelector('[data-comp-modal-cancel]').addEventListener('click',function(){close(null);});
+    wrap.querySelector('[data-comp-modal-confirm]').addEventListener('click',function(){
+      var sel=wrap.querySelector('[data-comp-restore-checkpoint]');
+      var reasonEl=wrap.querySelector('[data-comp-restore-reason]');
+      var reason=reasonEl.value.trim();
+      if(!reason){reasonEl.focus();reasonEl.style.borderColor='#b5502f';return;}
+      var cp=checkpoints[Number(sel.value)];
+      close({targetHistoryEventId:cp.id,reason:reason});
+    });
+  });
+}
+async function screenAdminAllSubmissions(slot,boot){
+  slot.innerHTML=adminHeroHtml('Toàn bộ bài dự thi','Xem đầy đủ danh tính, người duyệt và lịch sử của mọi bài dự thi trong chương trình.')
+    +'<section class="phf-comp-section" data-comp-body>'+loadingState()+'</section>';
+  var body=slot.querySelector('[data-comp-body]');
+  var activeFilter='all';
+  var offset=0;
+  var currentCampaign=null;
+  async function renderAll(){
+    try{
+      var picker=await adminCampaignPicker(boot);
+      if(!picker.campaigns.length){body.innerHTML='<h2>'+icon('doc')+'Toàn bộ bài dự thi</h2>'+emptyState('doc','Chưa có chương trình nào.');return;}
+      currentCampaign=picker.selected;
+      await renderList();
+    }catch(e){body.innerHTML=errorState(e);wireRetrySingle(body,renderAll);}
+  }
+  async function renderList(){
+    var c=currentCampaign;
+    var res=await call('competitionAdminListAllSubmissions',{campaign_id:c.id,status:activeFilter,limit:ADMIN_ALL_PAGE_SIZE,offset:offset});
+    var items=res.items||[];
+    body.innerHTML=campaignSelectHtml((await adminCampaignPicker(boot)).campaigns,ADMIN_SELECTED_CAMPAIGN_ID)
+      +'<h2>'+icon('doc')+'Toàn bộ bài dự thi — '+esc(c.title)+'</h2>'
+      +'<div class="phf-comp-filters" role="tablist" aria-label="Lọc theo trạng thái">'
+        +ADMIN_ALL_FILTERS.map(function(f){return '<button type="button" class="phf-comp-filter'+(f.k===activeFilter?' is-active':'')+'" data-comp-admin-all-filter="'+f.k+'" role="tab" aria-selected="'+(f.k===activeFilter?'true':'false')+'">'+esc(f.label)+'</button>';}).join('')
+      +'</div>'
+      +'<div data-comp-admin-all-list style="margin-top:6px">'
+        +(items.length?items.map(adminAllRowHtml).join(''):emptyState('inbox','Không có bài nào ở nhóm này.'))
+      +'</div>'
+      +'<div class="phf-comp-actions" style="padding-top:14px">'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-prev'+(offset<=0?' disabled':'')+'>‹ Trước</button>'
+        +'<span style="font-size:12px;color:var(--comp-ink-soft);align-self:center">'+(res.total?(offset+1)+'–'+Math.min(offset+ADMIN_ALL_PAGE_SIZE,res.total)+' / '+res.total:'0')+'</span>'
+        +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-next'+(offset+ADMIN_ALL_PAGE_SIZE>=(res.total||0)?' disabled':'')+'>Sau ›</button>'
+      +'</div>';
+    wireCampaignSelect(body,function(){offset=0;renderAll();});
+    body.querySelectorAll('[data-comp-admin-all-filter]').forEach(function(btn){
+      btn.addEventListener('click',function(){activeFilter=btn.getAttribute('data-comp-admin-all-filter');offset=0;renderList();});
+    });
+    var prevBtn=body.querySelector('[data-comp-admin-all-prev]');
+    if(prevBtn)prevBtn.addEventListener('click',function(){offset=Math.max(0,offset-ADMIN_ALL_PAGE_SIZE);renderList();});
+    var nextBtn=body.querySelector('[data-comp-admin-all-next]');
+    if(nextBtn)nextBtn.addEventListener('click',function(){offset=offset+ADMIN_ALL_PAGE_SIZE;renderList();});
+    wireAdminAllRows(body,c,renderList);
+  }
+  function wireAdminAllRows(container,c,refresh){
+    container.querySelectorAll('[data-comp-admin-all-row]').forEach(function(rowEl){
+      var submissionId=rowEl.getAttribute('data-submission-id');
+      var historyBox=rowEl.querySelector('[data-comp-admin-all-history-box]');
+      var loadedHistory=null;
+      var histBtn=rowEl.querySelector('[data-comp-admin-all-history]');
+      var restoreBtn=rowEl.querySelector('[data-comp-admin-all-restore]');
+      async function ensureHistory(){
+        if(loadedHistory)return loadedHistory;
+        var res=await call('competitionAdminGetSubmissionHistory',{campaign_id:c.id,submission_id:submissionId});
+        loadedHistory=(res&&res.items)||[];
+        return loadedHistory;
+      }
+      histBtn.addEventListener('click',async function(e){
+        e.preventDefault();
+        histBtn.disabled=true;
+        try{
+          var items=await ensureHistory();
+          historyBox.innerHTML='<b style="font-size:13px">Lịch sử đầy đủ</b>'+adminAllHistoryHtml(items);
+        }catch(err){toast('error','Không tải được lịch sử',err.message);}
+        finally{histBtn.disabled=false;}
+      });
+      restoreBtn.addEventListener('click',async function(e){
+        e.preventDefault();
+        restoreBtn.disabled=true;
+        try{
+          var items=await ensureHistory();
+          var checkpoints=items.filter(function(h){return ADMIN_RESTORABLE_ACTIONS.indexOf(h.action)>=0;})
+            .map(function(h){
+              var label=h.action;
+              if(h.action==='submit'||h.action==='revise')label='Chờ duyệt (đã gửi)';
+              else if(h.action==='revision_requested')label='Cần chỉnh sửa';
+              else if(h.action==='reject')label='Từ chối';
+              else if(h.action==='approve')label='Đã duyệt · mức '+(h.after&&h.after.level!=null?h.after.level:'?');
+              else if(h.action==='upgrade')label='Đã duyệt (nâng mức) · mức '+(h.after&&h.after.to_level!=null?h.after.to_level:'?');
+              return {id:h.id,at:h.at,label:label};
+            }).reverse();
+          if(!checkpoints.length){toast('info','Không có điểm phục hồi','Bài này chưa có sự kiện lịch sử nào có thể dùng để phục hồi.');return;}
+          var rowVersion=rowEl.getAttribute('data-row-version');
+          var res=await showRestoreModal(checkpoints);
+          if(!res)return;
+          restoreBtn.disabled=true;
+          try{
+            await call('competitionAdminRestoreSubmission',{campaign_id:c.id,submission_id:submissionId,target_history_event_id:res.targetHistoryEventId,expected_row_version:rowVersion,reason:res.reason});
+            toast('success','Đã phục hồi','Trạng thái bài đã được phục hồi.');
+            loadedHistory=null;
+            refresh();
+          }catch(err){
+            if(err.code==='COMPETITION_STALE_STATE'){toast('error','Bài đã thay đổi','Trạng thái bài đã thay đổi ở nơi khác — vui lòng tải lại và mở lại.');}
+            else{toast('error','Không phục hồi được',err.message);}
+          }
+        }catch(err){toast('error','Không tải được lịch sử',err.message);}
+        finally{restoreBtn.disabled=false;}
+      });
+    });
+  }
+  await renderAll();
+}
+
 var RENDERERS={
   'tong-quan':screenOverview,'bang-tin':screenFeed,'bai-cua-toi':screenMySubmissions,'gui':screenSubmitForm,
   'ket-qua':screenLeaderboard,'cho-duyet':screenReviewQueue,'da-duyet':screenMyReviewed,
-  'quan-ly':screenAdminCampaigns,'xet-duyet':screenAdminApproval,'chot':screenAdminFinalize
+  'quan-ly':screenAdminCampaigns,'xet-duyet':screenAdminApproval,'chot':screenAdminFinalize,
+  'toan-bo':screenAdminAllSubmissions
 };
 
 /* ================================================================== *

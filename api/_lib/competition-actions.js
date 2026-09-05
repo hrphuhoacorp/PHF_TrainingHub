@@ -38,6 +38,8 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionBulkSubmitSubmissions',
   'competitionReviewSubmission', 'competitionAdminOverrideSubmission',
   'competitionAdjustScore', 'competitionListAdjustable',
+  // V1.6 — Admin Control Tower
+  'competitionAdminListAllSubmissions', 'competitionAdminGetSubmissionHistory', 'competitionAdminRestoreSubmission',
   'competitionCheckSimilarity', 'competitionConfirmOccurrence', 'competitionGetOccurrenceCount',
   'competitionGetReviewQueue', 'competitionGetReviewerProductivity', 'competitionGetSimilarForReview',
   'competitionGetMyReviewed',
@@ -192,6 +194,28 @@ const ACTION_MAP = {
   competitionListAdjustable: {
     remote: 'competition.submission.listAdjustable',
     params: (p) => ({ campaignId: str(p.campaign_id) }),
+  },
+  // V1.6 — Admin Control Tower: "Toàn bộ bài dự thi" (bounded, paginated,
+  // admin-only real-identity read) + its per-submission full history
+  // drill-down + the lifecycle "Phục hồi trạng thái bài" restore action.
+  competitionAdminListAllSubmissions: {
+    remote: 'competition.admin.listAllSubmissions',
+    params: (p) => ({
+      campaignId: str(p.campaign_id), status: str(p.status),
+      limit: num(p.limit), offset: num(p.offset),
+    }),
+  },
+  competitionAdminGetSubmissionHistory: {
+    remote: 'competition.admin.getSubmissionHistory',
+    params: (p) => ({ campaignId: str(p.campaign_id), submissionId: str(p.submission_id) }),
+  },
+  competitionAdminRestoreSubmission: {
+    remote: 'competition.submission.adminRestore',
+    params: (p) => ({
+      campaignId: str(p.campaign_id), submissionId: str(p.submission_id),
+      targetHistoryEventId: str(p.target_history_event_id), expectedRowVersion: num(p.expected_row_version),
+      reason: str(p.reason),
+    }),
   },
   // V1.1 — NO-AI similarity suggestion (pre-submit sender check). Never a
   // verdict: server returns a bounded top-3 list of candidate content, the

@@ -22,6 +22,7 @@ const progress = require('./competition-progress');
 const { resolveAuthority } = require('./competition-permissions');
 const similarity = require('./competition-similarity-service');
 const notificationRead = require('./competition-notification-read');
+const adminView = require('./competition-admin-view');
 
 const READ_ACTIONS = new Set([
   'competition.bootstrap',
@@ -38,6 +39,8 @@ const READ_ACTIONS = new Set([
   'competition.grant.listReviewers', 'competition.grant.listAdmins', 'competition.grant.listCapabilities',
   'competition.award.list', 'competition.award.autoCandidate',
   'competition.notification.list',
+  // V1.6 — Admin Control Tower reads
+  'competition.admin.listAllSubmissions', 'competition.admin.getSubmissionHistory',
 ]);
 
 const HANDLERS = {
@@ -104,6 +107,7 @@ const HANDLERS = {
   'competition.submission.bulkSubmit': (c, a, p) => submissions.bulkSubmit(c, a, p),
   'competition.submission.review': (c, a, p) => submissions.reviewAction(c, a, p),
   'competition.submission.adminOverride': (c, a, p) => submissions.adminOverride(c, a, p),
+  'competition.submission.adminRestore': (c, a, p) => submissions.adminRestoreSubmission(c, a, p),
   'competition.submission.adjustScore': (c, a, p) => submissions.adjustScore(c, a, p),
   'competition.submission.listAdjustable': (c, a, p) => submissions.listAdjustable(c, a, p),
   'competition.submission.checkSimilarity': (c, a, p) => similarity.checkSimilarityForSubmit(c, a, p),
@@ -119,6 +123,10 @@ const HANDLERS = {
   'competition.review.myReviewed': (c, a, p) => review.myReviewedHistory(c, a, p),
   'competition.review.reassign': (c, a, p) => review.manualReassign(c, a, p),
   'competition.review.processOverdue': (c, a, p) => review.processOverdueAssignments(c, p),
+
+  // V1.6 — Admin Control Tower
+  'competition.admin.listAllSubmissions': (c, a, p) => adminView.adminListAllSubmissions(c, a, p),
+  'competition.admin.getSubmissionHistory': (c, a, p) => adminView.adminGetSubmissionHistory(c, a, p),
 
   'competition.notification.list': (c, a, p) => notificationRead.listMyCompetitionNotifications(c, a, p),
   'competition.notification.markRead': (c, a, p) => notificationRead.markCompetitionNotificationRead(c, a, p),

@@ -191,7 +191,7 @@ async function runPartB() {
   // to include phf-comp-modal-scope (grep-level static proof, catches any
   // future modal helper that forgets it too).
   const appendSites = appCode.split(/\r?\n/).map((line, i) => ({ line, i })).filter((x) => /document\.body\.appendChild\(wrap\)/.test(x.line));
-  ok(appendSites.length === 5, 'B0d exactly 5 document.body.appendChild(wrap) sites found (showInputModal, showConfirmModal, showSimilarityWarning, bulk-upload modal, adjust-score modal)', appendSites.map((x) => x.i + 1));
+  ok(appendSites.length === 6, 'B0d exactly 6 document.body.appendChild(wrap) sites found (showInputModal, showConfirmModal, showSimilarityWarning, bulk-upload modal, adjust-score modal, V1.6 showRestoreModal)', appendSites.map((x) => x.i + 1));
 
   function makeFetchMock(handlers) {
     const calls = [];

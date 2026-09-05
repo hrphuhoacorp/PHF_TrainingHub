@@ -125,7 +125,8 @@ function bootstrapWith(overrides) {
     // every group's <a> items live inside its own .phf-comp-nav-group-items box
     wraps.forEach((w) => check(w.querySelector('.phf-comp-nav-group-items a') != null, 'each group wrapper contains its nav links nested inside .phf-comp-nav-group-items'));
     // V1.4 added "Bài tôi đã duyệt" to the Xét duyệt group (1 -> 2 review items).
-    check(m.root.querySelectorAll('.phf-comp-nav a').length === 10, 'all 10 menu items still present (5 participant + 2 review + 3 admin) despite the DOM restructure');
+    // V1.6 added "Toàn bộ bài dự thi" to the Quản trị group (3 -> 4 admin items).
+    check(m.root.querySelectorAll('.phf-comp-nav a').length === 11, 'all 11 menu items still present (5 participant + 2 review + 4 admin) despite the DOM restructure');
   }
   {
     // participant-only (no review/admin capability) must NOT see the extra groups —
