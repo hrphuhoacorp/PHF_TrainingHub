@@ -453,6 +453,12 @@
 .phf-comp-qa-label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--comp-ink-soft);margin-bottom:3px;}
 .phf-comp-qa-text{margin:0;font-size:14px;color:var(--comp-ink);line-height:1.6;white-space:pre-wrap;}
 .phf-comp-qa-missing{font-style:italic;color:var(--comp-ink-soft);}
+/* V1.2 — "Kết quả thực tế / Ghi nhận" (participant) is supporting info, kept
+   visually lighter than the primary question/answer pair so cards don't get
+   heavier — same block structure/spacing, just a quieter label color and a
+   touch smaller text. */
+.phf-comp-qa-result .phf-comp-qa-label{color:#8a6a2c;}
+.phf-comp-qa-result .phf-comp-qa-text{font-size:13px;color:var(--comp-ink-soft);}
 
 /* ---- thả tim (reaction) — lightweight social control, not a pill button.
    Business logic unchanged (1 account × 1 submission = max 1 active heart) —

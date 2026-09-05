@@ -136,18 +136,48 @@ function statusPill(k){return '<span class="phf-comp-pill" data-s="'+esc(k)+'">'
  * fabricating content) shows an explicit "chưa có nội dung" line instead of
  * silently dropping the field or inventing text. maxLen truncates each field
  * independently (list previews), omit for full detail views. */
+/* V1.2 — "Kết quả thực tế / Ghi nhận" (participant-written, payload.actual_result)
+ * is a THIRD, OPTIONAL field — distinct from the reviewer's own "Kết quả /
+ * Ghi nhận của giám khảo" (see reviewerRecordHtml below, review workflow
+ * only). Backward-compatible by construction: it lives in the existing
+ * payload jsonb, so older submissions without this key simply render the
+ * honest "chưa ghi nhận" empty state below — never the "bài gửi trước khi
+ * biểu mẫu cập nhật" missing-field message, which stays reserved for the
+ * genuinely-required customer_question/answer fields only. */
 function qaFieldsHtml(payload,maxLen){
   var p=payload||{};
   var q=p.customer_question;
   var a=p.answer;
+  var r=p.actual_result;
   function val(v){
     if(v==null||String(v).trim()==='')return '<span class="phf-comp-qa-missing">Chưa có nội dung (bài được gửi trước khi biểu mẫu được cập nhật).</span>';
+    var s=String(v);
+    return esc(maxLen?s.slice(0,maxLen):s);
+  }
+  function resultVal(v){
+    if(v==null||String(v).trim()==='')return '<span class="phf-comp-qa-missing">Chưa ghi nhận kết quả.</span>';
     var s=String(v);
     return esc(maxLen?s.slice(0,maxLen):s);
   }
   return '<div class="phf-comp-qa">'
     +'<div class="phf-comp-qa-block"><span class="phf-comp-qa-label">Câu hỏi / tình huống khách hàng</span><p class="phf-comp-qa-text">'+val(q)+'</p></div>'
     +'<div class="phf-comp-qa-block"><span class="phf-comp-qa-label">Cách trả lời / xử lý</span><p class="phf-comp-qa-text">'+val(a)+'</p></div>'
+    +'<div class="phf-comp-qa-block phf-comp-qa-result"><span class="phf-comp-qa-label">Kết quả thực tế / Ghi nhận</span><p class="phf-comp-qa-text">'+resultVal(r)+'</p></div>'
+  +'</div>';
+}
+
+/* Reviewer's OWN assessment note — "Kết quả / Ghi nhận của giám khảo".
+ * Backed by the EXISTING submissions.last_review_note / submission_history.
+ * reason columns (same plumbing every review action already writes through —
+ * see reviewAction in competition-submissions.js). No new table, no new
+ * column: this is purely a UI relabel + making the field available on
+ * EVERY review action (previously only prompted for reject/request_revision
+ * via window.prompt). Never derives score from this text — score stays the
+ * reviewer's separate 2đ/5đ/request_revision/reject decision. */
+function reviewerRecordHtml(lastNote){
+  return '<div class="phf-comp-field" data-comp-reviewer-record-wrap style="margin:12px 0">'
+    +'<label>Kết quả / Ghi nhận của giám khảo</label>'
+    +'<textarea data-comp-reviewer-record placeholder="Vì sao nội dung này hữu ích, kết quả xác nhận, ghi chú chất lượng…">'+esc(lastNote||'')+'</textarea>'
   +'</div>';
 }
 
@@ -529,7 +559,7 @@ function mySubmissionCardHtml(s){
       +statusPill(s.status)+'<span style="font-size:12px;color:var(--comp-ink-soft)">'+esc(fmtDate(s.updatedAt))+'</span></div>'
     +qaFieldsHtml(s.payload)
     +(s.currentLevelOrder?'<p style="margin:6px 0 0;font-size:12.5px;color:var(--comp-green-deep)">Mức '+esc(s.currentLevelOrder)+' · '+esc(s.currentScore)+' điểm</p>':'')
-    +(s.lastReviewNote?'<div class="phf-comp-note">'+icon('info')+'<span>'+esc(s.lastReviewNote)+'</span></div>':'')
+    +(( ['needs_revision','rejected'].indexOf(s.status)>=0 && s.lastReviewNote )?'<div class="phf-comp-note">'+icon('info')+'<span>'+esc(s.lastReviewNote)+'</span></div>':'')
     +(['draft','needs_revision'].indexOf(s.status)>=0?'<div class="phf-comp-actions" style="padding-top:12px"><button type="button" class="phf-comp-btn" data-comp-go="'+esc(prefix()+'/thi-dua/gui')+'">Tiếp tục chỉnh sửa</button></div>':'')
   +'</div>';
 }
@@ -658,7 +688,13 @@ function showSimilarityWarning(campaignId,candidates){
 function renderSubmitForm(body,campaign,draft){
   var schema=Array.isArray(campaign.formSchema)&&campaign.formSchema.length?campaign.formSchema:[
     {key:'customer_question',label:'Khách hàng đã hỏi gì / Tình huống gì xảy ra?',type:'textarea',required:true},
-    {key:'answer',label:'Cách bạn đã trả lời / xử lý',type:'textarea',required:true}
+    {key:'answer',label:'Cách bạn đã trả lời / xử lý',type:'textarea',required:true},
+    // V1.2 — participant's OWN "Kết quả thực tế / Ghi nhận", optional: a
+    // valuable câu hỏi/tình huống may be submitted even when the final
+    // result isn't known yet. Stored in payload.actual_result (existing
+    // jsonb column) — fully backward-compatible, no migration.
+    {key:'actual_result',label:'Kết quả thực tế / Ghi nhận',type:'textarea',required:false,
+     help:'Sau khi bạn trả lời/xử lý, khách phản hồi thế nào hoặc tình huống mang lại kết quả gì?'}
   ];
   var payload=(draft&&draft.payload)||{};
   var isLocked=draft&&['submitted','approved','rejected','finalized'].indexOf(draft.status)>=0;
@@ -888,6 +924,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       +qaFieldsHtml(it.payload)
       +(it.currentLevelOrder?'<p style="font-size:12.5px;color:var(--comp-green-deep)">Đã duyệt mức '+esc(it.currentLevelOrder)+' — có thể nâng mức</p>':'')
       +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')
+      +reviewerRecordHtml(it.lastReviewNote)
       +'<div class="phf-comp-review-controls">'
         +levelControlHtml
         +'<button type="button" class="phf-comp-btn" data-comp-review-act="'+(it.currentLevelOrder?'upgrade':'approve')+'">'+(it.currentLevelOrder?'Nâng mức':'Duyệt')+'</button>'
@@ -915,10 +952,18 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       var fixedEl=item.querySelector('[data-comp-fixed-level]');
       if(fixedEl){levelOrder=Number(fixedEl.getAttribute('data-comp-fixed-level'));}
       else{var selOpt=item.querySelector('[data-comp-level-opt].is-selected');levelOrder=selOpt?Number(selOpt.getAttribute('data-comp-level-opt')):undefined;}
-      var note='';
-      if(action==='request_revision'||action==='reject'){
-        note=window.prompt(action==='reject'?'Lý do từ chối:':'Ghi chú yêu cầu chỉnh sửa:')||'';
-        if(!note.trim()){return;}
+      // V1.2 — "Kết quả / Ghi nhận của giám khảo" is now a single inline
+      // textarea per item (reviewerRecordHtml), read for EVERY action —
+      // still MANDATORY for reject/request_revision (unchanged rule; a
+      // window.prompt fallback covers the rare case where a required note
+      // is missing, rather than silently failing the action), OPTIONAL for
+      // approve/upgrade (supporting assessment info only — never derives
+      // score, see competition-submissions.js reviewAction).
+      var noteEl=item.querySelector('[data-comp-reviewer-record]');
+      var note=(noteEl?noteEl.value:'').trim();
+      if((action==='request_revision'||action==='reject')&&!note){
+        note=(window.prompt(action==='reject'?'Lý do từ chối:':'Ghi chú yêu cầu chỉnh sửa:')||'').trim();
+        if(!note){return;}
       }
       item.querySelectorAll('button').forEach(function(b){b.disabled=true;});
       try{
