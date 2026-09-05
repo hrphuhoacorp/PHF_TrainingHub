@@ -1323,10 +1323,24 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
     // unified queue per spec's own "minimal, clean UI" guidance).
     var isAdminViewer=boot&&boot.viewer&&boot.viewer.isCompetitionAdmin;
     var respTag=(!isAdminViewer&&it.responsibility==='open_pool')?' <span class="phf-comp-review-resp-tag" title="Bạn có thể xử lý bài này dù chưa được giao riêng">· Có thể xử lý</span>':'';
+    // V1.5.2 — explicit authoritative-state label (never derived from
+    // assignment ownership): "Chưa duyệt" for a never-reviewed item,
+    // "Đã yêu cầu chỉnh sửa" unchanged, "Đã duyệt N điểm — có thể nâng mức"
+    // using the REAL score for the item's current level (looked up from the
+    // same eligibleLevels array driving the level-switch control), not a
+    // technical "mức N" phrase.
+    var currentLevelScore=(function(){
+      var lvl=levels.filter(function(l){return l.levelOrder===it.currentLevelOrder;})[0];
+      return lvl?lvl.score:null;
+    })();
+    var stateLabel=it.reviewStatus==='needs_revision'
+      ?'Đã yêu cầu chỉnh sửa'
+      :(it.currentLevelOrder
+        ?'Đã duyệt '+(currentLevelScore!=null?currentLevelScore:it.currentLevelOrder)+' điểm — có thể nâng mức'
+        :'Chưa duyệt');
     return '<div class="phf-comp-review-item" data-comp-review-item data-submission-id="'+esc(it.submissionRef)+'" style="margin-top:12px">'
-      +'<span class="rq-ref">'+esc(it.reviewStatus==='needs_revision'?'Đã yêu cầu chỉnh sửa · Mã bài: '+String(it.submissionRef).slice(0,8):'Mã bài: '+String(it.submissionRef).slice(0,8))+respTag+'</span>'
+      +'<span class="rq-ref">'+esc(stateLabel)+' · Mã bài: '+esc(String(it.submissionRef).slice(0,8))+respTag+'</span>'
       +qaFieldsHtml(it.payload,undefined,{showEvidence:true})
-      +(it.currentLevelOrder?'<p style="font-size:12.5px;color:var(--comp-green-deep)">Đã duyệt mức '+esc(it.currentLevelOrder)+' — có thể nâng mức</p>':'')
       +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')
       +reviewerRecordHtml(it.lastReviewNote)
       +'<div class="phf-comp-review-controls">'

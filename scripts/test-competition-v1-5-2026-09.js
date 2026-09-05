@@ -135,15 +135,17 @@ async function q(sql, params) {
     ok([s1InA, s1InB].some((i) => i.responsibility === 'open_pool'), '#5 the non-assigned Reviewer 5 sees responsibility=open_pool (not silently hidden)');
 
     // #6 — approve s1 at L1 via whichever R5 was actually assigned (mirrors
-    // real single-submit flow). IMPORTANT scope note: once approved, the
-    // submission's status is 'approved', not 'submitted'/'needs_revision' —
-    // anonymousQueue's WHERE clause requires that status regardless of the
-    // V1.5 open-pool branch (the open-pool broadening is about the PENDING
-    // pool, not the separate post-approval "possible upgrade" offer, which
-    // stays governed by ensureHighAssignment's existing single-pick — this
-    // is intentionally UNCHANGED by V1.5). So after approval, only whichever
-    // ONE reviewer ensureHighAssignment picked can see it; the other cannot,
-    // exactly like before this feature.
+    // real single-submit flow). V1.5.2 UPDATE (approved-and-now-locked
+    // business contract): an approved-at-2 submission that still has real
+    // upgrade room to 5 must be visible to EVERY high-tier (Reviewer 5+)
+    // reviewer authorized on it — not just whichever one reviewer
+    // ensureHighAssignment happened to lazily assign. anonymousQueue's
+    // status gate now admits 'approved' rows for admin/high-tier reviewers
+    // with COALESCE(current_level_order,0) < reviewerMaxLevel (see
+    // competition-review.js). The reviewer holding the actual primary_high
+    // assignment row sees it as responsibility='assigned'; the other
+    // equally-authorized Reviewer 5 sees the SAME item via the open-pool
+    // bypass, responsibility='open_pool' — both, not either/or.
     const l1Reviewer = s1InA.responsibility === 'assigned' ? REV5A : REV5B;
     const otherReviewer = l1Reviewer === REV5A ? REV5B : REV5A;
     await call(l1Reviewer, 'competition.submission.review', { campaignId: CID, submissionId: s1.submission.id, action: 'approve', levelOrder: 1 });
@@ -151,21 +153,19 @@ async function q(sql, params) {
     const qOtherAfterApprove = await call(otherReviewer, 'competition.review.queue', { campaignId: CID });
     const seenByL1 = qL1AfterApprove.items.some((i) => i.submissionRef === s1.submission.id);
     const seenByOther = qOtherAfterApprove.items.some((i) => i.submissionRef === s1.submission.id);
-    // anonymousQueue's WHERE clause requires s.status IN ('submitted',
-    // 'needs_revision') REGARDLESS of the V1.5 open-pool branch or of an
-    // actual primary_high assignment row existing — this is documented,
-    // pre-existing behaviour (see reviewerProductivity's long comment: an
-    // is_active 'assigned' primary_high row for an already-'approved'
-    // submission is invisible in the queue). V1.5 does not change this: the
-    // queue simply never lists an already-approved item for EITHER reviewer,
-    // whether or not ensureHighAssignment gave one of them the row.
-    ok(seenByL1 === false && seenByOther === false, '#6 an already-approved item (awaiting upgrade) stays invisible in the queue for BOTH Reviewer 5s — pre-existing status-filter behaviour, unaffected by the V1.5 open-pool broadening', { seenByL1, seenByOther });
+    ok(seenByL1 === true && seenByOther === true, '#6 an already-approved-at-2 item with upgrade room to 5 is visible in the queue for BOTH Reviewer 5s (V1.5.2 approved-item visibility completion)', { seenByL1, seenByOther });
+    const l1Item = qL1AfterApprove.items.find((i) => i.submissionRef === s1.submission.id);
+    const otherItem = qOtherAfterApprove.items.find((i) => i.submissionRef === s1.submission.id);
+    ok(!!l1Item && l1Item.responsibility === 'assigned', '#6b the reviewer holding the real primary_high assignment sees responsibility=assigned', l1Item);
+    ok(!!otherItem && otherItem.responsibility === 'open_pool', '#6c the OTHER equally-authorized Reviewer 5 sees the same item via responsibility=open_pool', otherItem);
+    ok(!!otherItem && otherItem.currentLevelOrder === 1, '#6d currentLevelOrder=1 -> UI label "Đã duyệt 2 điểm — có thể nâng mức"', otherItem);
 
-    // #7 — Reviewer 2 (base) must NOT see s1 anymore once approved at level 1
-    // (their authority tops out at level 1 — target level 2 exceeds it) unless
-    // they hold an actual assignment row for it (they don't here).
+    // #7 — Reviewer 2 (base) must still NOT see s1 once approved at level 1
+    // (their authority tops out at level 1 — target level 2 exceeds it, and
+    // the V1.5.2 'approved' status-gate branch is only ever reachable for
+    // admin/high-tier reviewers — Reviewer 2's query path is unchanged).
     const q7 = await call(REV2A, 'competition.review.queue', { campaignId: CID });
-    ok(!q7.items.some((i) => i.submissionRef === s1.submission.id), '#7 Reviewer 2 (base) does NOT gain visibility into a level-2 item via the broadened pool (their authority caps at level 1)');
+    ok(!q7.items.some((i) => i.submissionRef === s1.submission.id), '#7 Reviewer 2 (base) still does NOT see the approved-at-2 upgrade candidate (authority caps at level 1, unaffected by V1.5.2)');
 
     // #8 — anonymity preserved regardless of responsibility value: no author
     // identity leaks in either 'assigned' or 'open_pool' rows.

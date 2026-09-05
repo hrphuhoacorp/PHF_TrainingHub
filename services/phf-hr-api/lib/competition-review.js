@@ -368,6 +368,21 @@ async function reviewerProductivity(config, actor, params) {
       // therefore undercounts (0, for an admin who never holds assignments)
       // — count it from review_assignment_history's actor_* fields instead,
       // which is the true record of who performed the completion.
+      // V1.5.2 — pending/overdue must keep matching anonymousQueue's OWN
+      // actionability definition, which V1.5.2 itself just broadened to also
+      // admit an 'approved' submission with real upgrade room for admin/
+      // high-tier reviewers (see anonymousQueue's status gate comment).
+      // Leaving this narrower would silently reintroduce the exact
+      // "pending count says N, queue shows fewer" inconsistency this same
+      // query's own comment above describes — just in the opposite
+      // direction. Reviewer 2 (isHighTierReviewer=false, not admin) gets
+      // byte-identical counts to before, same as the queue.
+      const isHighTierReviewer = !auth.isCompetitionAdmin
+        && auth.reviewerMaxLevel != null && auth.reviewerMaxLevel > BASE_LEVEL_ORDER;
+      const actionableStatus = `( s.status IN ('submitted','needs_revision')
+                    OR ( s.status = 'approved'
+                         AND ( $4::boolean = true
+                               OR ( $5::boolean = true AND COALESCE(s.current_level_order,0) < $6::int ) ) ) )`;
       const self = await client.query(
         `SELECT
                 (SELECT COALESCE(count(*),0) FROM competition.review_assignments ra
@@ -377,13 +392,13 @@ async function reviewerProductivity(config, actor, params) {
                 (SELECT COALESCE(count(*),0) FROM competition.review_assignments ra
                   JOIN competition.submissions s ON s.id = ra.submission_id
                   WHERE ra.campaign_id = $1 AND ra.is_active AND ra.status IN ('assigned','in_progress')
-                    AND s.status IN ('submitted','needs_revision')
+                    AND ${actionableStatus}
                     AND ( ($2 <> '' AND ra.reviewer_account_id = $2) OR ($3 <> '' AND ra.reviewer_employee_code = $3) )
                 ) AS pending_count,
                 (SELECT COALESCE(count(*),0) FROM competition.review_assignments ra
                   JOIN competition.submissions s ON s.id = ra.submission_id
                   WHERE ra.campaign_id = $1 AND ra.is_active AND ra.status IN ('assigned','in_progress')
-                    AND s.status IN ('submitted','needs_revision')
+                    AND ${actionableStatus}
                     AND ra.due_at IS NOT NULL AND ra.due_at < now()
                     AND ( ($2 <> '' AND ra.reviewer_account_id = $2) OR ($3 <> '' AND ra.reviewer_employee_code = $3) )
                 ) AS overdue_count,
@@ -392,7 +407,8 @@ async function reviewerProductivity(config, actor, params) {
                   WHERE s.campaign_id = $1 AND rah.action = 'completed'
                     AND ( ($2 <> '' AND rah.actor_account_id = $2) OR ($3 <> '' AND rah.actor_employee_code = $3) )
                 ) AS processed_count`,
-        [params.campaignId, actor.accountId || '', actor.employeeCode || '']);
+        [params.campaignId, actor.accountId || '', actor.employeeCode || '',
+         auth.isCompetitionAdmin, isHighTierReviewer, auth.reviewerMaxLevel]);
       const x = self.rows[0];
       return {
         reviewerAccountId: actor.accountId || null, reviewerEmployeeCode: actor.employeeCode || null,
@@ -411,13 +427,20 @@ async function reviewerProductivity(config, actor, params) {
               COALESCE(count(ra.*),0)                                                   AS assigned_count,
               COALESCE(count(ra.*) FILTER (WHERE ra.status = 'completed'),0)            AS processed_count,
               -- "pending"/"overdue" must match anonymousQueue's own actionability
-              -- filter (submission still submitted/needs_revision) — see the
-              -- long comment on the self-view query above for why an
-              -- is_active/'assigned' row can otherwise exist for a submission
-              -- the queue no longer shows (e.g. an approved submission's
-              -- primary_high "possible upgrade" offer).
-              COALESCE(count(ra.*) FILTER (WHERE ra.is_active AND ra.status IN ('assigned','in_progress') AND s.status IN ('submitted','needs_revision')),0) AS pending_count,
-              COALESCE(count(ra.*) FILTER (WHERE ra.is_active AND ra.status IN ('assigned','in_progress') AND s.status IN ('submitted','needs_revision')
+              -- filter, which V1.5.2 broadened per-reviewer: submitted/
+              -- needs_revision always counts; an 'approved' row also counts
+              -- for THIS reviewer only if their own max_level_order is above
+              -- the base level (Reviewer-5-tier) AND the submission still has
+              -- room above its current level for them — Reviewer 2 rows
+              -- (max_level_order = base level) get byte-identical counts.
+              COALESCE(count(ra.*) FILTER (WHERE ra.is_active AND ra.status IN ('assigned','in_progress')
+                        AND ( s.status IN ('submitted','needs_revision')
+                              OR ( s.status = 'approved' AND rg.max_level_order > 1
+                                   AND COALESCE(s.current_level_order,0) < rg.max_level_order ) )),0) AS pending_count,
+              COALESCE(count(ra.*) FILTER (WHERE ra.is_active AND ra.status IN ('assigned','in_progress')
+                        AND ( s.status IN ('submitted','needs_revision')
+                              OR ( s.status = 'approved' AND rg.max_level_order > 1
+                                   AND COALESCE(s.current_level_order,0) < rg.max_level_order ) )
                         AND ra.due_at IS NOT NULL AND ra.due_at < now()),0)             AS overdue_count
          FROM rg
          LEFT JOIN competition.review_assignments ra
@@ -475,7 +498,20 @@ async function anonymousQueue(config, actor, params) {
                 ON ra.submission_id = s.id AND ra.is_active
                AND ( ($2 <> '' AND ra.reviewer_account_id = $2) OR ($3 <> '' AND ra.reviewer_employee_code = $3) )
         WHERE s.campaign_id = $1
-          AND s.status IN ('submitted','needs_revision')
+          AND ( s.status IN ('submitted','needs_revision')
+                -- V1.5.2 — status gate completion: V1.5's own contract calls
+                -- for "work that can be approved/upgraded at 5 points" to be
+                -- visible, and ensureHighAssignment() already creates a real
+                -- primary_high assignment row for exactly this case — but
+                -- this filter previously excluded 'approved' unconditionally,
+                -- so that row could never appear regardless of the
+                -- assignment. Admitted ONLY for admin or a high-tier reviewer
+                -- with real room above the row's current level; for Reviewer
+                -- 2 (isHighTierReviewer=false, not admin) this branch is
+                -- always false, so their result set is unchanged.
+                OR ( s.status = 'approved'
+                     AND ( $4::boolean = true
+                           OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) < $5::int ) ) ) )
           AND NOT ( ($2 <> '' AND s.author_account_id = $2) OR ($3 <> '' AND s.author_employee_code = $3) )
           AND ( $4::boolean = true OR ra.id IS NOT NULL
                 OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) + 1 <= $5::int ) )
