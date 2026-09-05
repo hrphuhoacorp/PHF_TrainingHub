@@ -1,6 +1,6 @@
 {
-  "version": "1.66.10",
-  "fingerprint": "1.66.10-competition-v1-final-ui-polish",
-  "builtAt": "2026-09-05T14:20:00+07:00",
-  "notes": "PHF HR Competition V1 final UI polish + Home activation (bugfix/visual only, no business logic change): removed the hardcoded DEV/phf_hr_e2e badge, grouped sidebar with light depth, added Vietnamese labels for campaign status (accepting/reviewing) and award status (proposed/confirmed/superseded/revoked) that were previously leaking raw enum values, light spacing increases in Bai cua toi/Bang tin/Cho duyet, and activated the Chuong trinh thi dua entry on PHF HR Home (nav + module card) under Thi dua & Thuong. assets/js/competition/phf-competition-app.js, assets/css/phf-competition.css and assets/js/phf-hr-home.js all use hand-written index.html ?v= tags (not this fingerprint) and were bumped individually — also added to scripts/phf-check-js.js MANUAL_VERSIONED_ASSETS so future edits to these three files are gated automatically."
+  "version": "1.66.11",
+  "fingerprint": "1.66.11-hr-home-approved-reference",
+  "builtAt": "2026-09-05T16:10:00+07:00",
+  "notes": "PHF HR Home V1 visual rebuild to the approved reference image (home final.png): hero copy/tags matched exactly to the approved target text, added Bao cao / Quan tri top-nav groups mirroring the existing He thong & Bao cao body group 1:1 (no new module/route), tinted the Cong viec can chu y cells (same 3 real getTaskOverviewV2 signals, styling only), wired Thong bao moi to the real listMyTaskNotifications action (session-scoped, privacy-checked, honest empty state), and removed the non-reference decorative Goc quan tri quote card. No weather widget added and So lieu nhanh / Lich trong tuan keep their honest empty states - no real data source exists for either. assets/js/phf-hr-home.js and assets/css/phf-hr-home.css both use hand-written index.html ?v= tags (not this fingerprint) and were bumped individually - phf-hr-home.css added to scripts/phf-check-js.js MANUAL_VERSIONED_ASSETS (phf-hr-home.js was already there)."
 }
