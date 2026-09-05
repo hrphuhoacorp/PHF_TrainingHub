@@ -123,6 +123,11 @@ const {
   listProposalRecipientEmployeesViaServer,
   getTaskDetailProposalAwareViaServer,
 } = require('./_lib/task-server-integration');
+// PHF HR — CHƯƠNG TRÌNH THI ĐUA (Competition) V1 · Batch C2 (2026-09-04, LOCAL
+// ONLY, flag-gated). See api/_lib/competition-actions.js header — resolves
+// the REAL PHF HR session actor from People Master (never a client-supplied
+// actor), forwards to phf-hr-api's /v1/competition dispatcher.
+const { dispatchCompetitionAction } = require('./_lib/competition-actions');
 // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview (Admin-only,
 // enforced inside these via requireTaskAdmin). PostgreSQL phf_hr via the mail
 // bridge. Never sends mail.
@@ -1406,6 +1411,8 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='cloneKnlSurveyVersionToDraft')return res.status(200).json({ok:true,...await cloneKnlSurveyVersionToDraft(session,payload)});
       const taskDispatch = await dispatchTaskAction(session, payload);
       if (taskDispatch.handled) return res.status(200).json({ok:true,result:taskDispatch.result});
+      const competitionDispatch = await dispatchCompetitionAction(session, payload);
+      if (competitionDispatch.handled) return res.status(200).json({ok:true,result:competitionDispatch.result});
       authorizePayload(session, payload);
       payload.actorName = session.account?.name || session.account?.email || '';
       payload.actorRole = session.role;

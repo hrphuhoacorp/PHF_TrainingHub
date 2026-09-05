@@ -26,6 +26,14 @@ const {
   markAllNotificationsRead,
   TaskNotificationError,
 } = require('./lib/task-notification-read');
+// PHF HR — CHƯƠNG TRÌNH THI ĐUA (Competition) V1 · Batch C1 (2026-09-04,
+// LOCAL/DEV ONLY, target phf_hr_e2e). One route POST /v1/competition dispatches
+// a Competition action against Company PostgreSQL competition.*. The verified
+// `actor` is supplied by the Vercel identity layer across the service-token
+// boundary — this service never resolves identity itself. No Task behaviour is
+// touched. Do NOT enable on Production.
+const competitionService = require('./lib/competition-service');
+const { CompetitionError } = require('./lib/competition-common');
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const {
@@ -769,6 +777,41 @@ function createServer(config) {
             logger.error('task_mail_unexpected_error', { path, message: err && err.message });
             return sendTaskWriteError(res, 500, 'TASK_MAIL_ERROR', 'Lỗi hệ thống khi xử lý Mail V1.');
           }
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/competition — Chương trình thi đua V1 action dispatcher.
+      // Body: { action, actor, params }. Bearer service token required. The
+      // `actor` is the VERIFIED actor resolved on the Vercel side against the
+      // People Master; the client can never supply an authoritative actor.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/competition') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 262144);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const action = body && body.action;
+        if (!action || typeof action !== 'string') {
+          return sendJson(res, 400, { ok: false, code: 'COMPETITION_ACTION_REQUIRED', message: 'Thiếu action.' });
+        }
+        try {
+          const data = await competitionService.dispatch(config, body.actor, action, body.params);
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          if (err instanceof CompetitionError || (err && err.isCompetitionError)) {
+            logger.warn('competition_rejected', { path, action, code: err.code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
+          }
+          logger.error('competition_unexpected_error', { path, action, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'COMPETITION_ERROR', message: 'Lỗi hệ thống khi xử lý Competition.' });
         }
       }
 
