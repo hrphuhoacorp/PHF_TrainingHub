@@ -389,6 +389,7 @@ async function anonymousQueue(config, actor, params) {
     const r = await client.query(
       `SELECT s.id AS submission_ref, s.campaign_id, c.title AS campaign_title,
               s.payload, s.status AS review_status, s.current_level_order, s.submitted_at,
+              s.last_review_note,
               ra.id AS assignment_id, ra.tier, ra.due_at
          FROM competition.submissions s
          JOIN competition.campaigns c ON c.id = s.campaign_id
@@ -415,6 +416,11 @@ async function anonymousQueue(config, actor, params) {
         reviewStatus: x.review_status,
         currentLevelOrder: x.current_level_order,
         submittedAt: x.submitted_at,
+        // Reviewer's own prior "Kết quả / Ghi nhận của giám khảo" (V1.2) —
+        // same last_review_note column every review action already writes;
+        // surfaced here so a reviewer re-opening a needs_revision item sees
+        // their earlier assessment note, not a blank textarea.
+        lastReviewNote: x.last_review_note,
         assignmentId: x.assignment_id, tier: x.tier, dueAt: x.due_at,
         // DELIBERATELY ABSENT: author name / code / department / branch / account
       })),
