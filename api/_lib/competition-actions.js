@@ -35,6 +35,7 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionListReviewerGrants', 'competitionListAdminGrants', 'competitionListCapabilityGrants',
   'competitionListMySubmissions', 'competitionGetMySubmission',
   'competitionCreateSubmissionDraft', 'competitionEditSubmissionDraft', 'competitionSubmitSubmission',
+  'competitionBulkSubmitSubmissions',
   'competitionReviewSubmission', 'competitionAdminOverrideSubmission',
   'competitionAdjustScore', 'competitionListAdjustable',
   'competitionCheckSimilarity', 'competitionConfirmOccurrence', 'competitionGetOccurrenceCount',
@@ -139,6 +140,23 @@ const ACTION_MAP = {
   competitionSubmitSubmission: {
     remote: 'competition.submission.submit',
     params: (p) => ({ submissionId: str(p.submission_id), payload: p.payload }),
+  },
+  // V1.5 — "Nhập nhiều bài" bulk upload. Every row is whitelisted to EXACTLY
+  // these 4 content keys, same anti-spread discipline as the rest of this
+  // file — an employee/account/reviewer/score/status column in the uploaded
+  // file can never reach phf-hr-api even if a user adds one by hand. Author
+  // is always the resolved actor (never taken from the row/file).
+  competitionBulkSubmitSubmissions: {
+    remote: 'competition.submission.bulkSubmit',
+    params: (p) => ({
+      campaignId: str(p.campaign_id), batchId: str(p.batch_id),
+      rows: Array.isArray(p.rows) ? p.rows.map((row) => ({
+        customer_question: str(row && row.customer_question),
+        answer: str(row && row.answer),
+        actual_result: str(row && row.actual_result),
+        evidence_reference: str(row && row.evidence_reference),
+      })) : [],
+    }),
   },
   competitionReviewSubmission: {
     // NOTE: the client field is `review_action` (approve/upgrade/request_revision/

@@ -174,6 +174,154 @@ async function submit(config, actor, params) {
   });
 }
 
+// ---- V1.5 bulk upload (participant capability) -------------------------
+// "Nhập nhiều bài" — lets a participant submit many rows from one uploaded
+// file in a single call. Each row becomes its own normal Competition
+// submission (own id, own submitted_at, own history/review/notification/
+// similarity/leaderboard lifecycle) by literally reusing createDraft()+
+// submit() above — never a shortcut/parallel write path. Author identity is
+// ALWAYS the server-verified `actor`; the payload can never carry an
+// employee/account selector (that field simply isn't read here).
+//
+// Row cap: a generous sane ceiling to block abuse, not a workflow limit.
+const BULK_MAX_ROWS = 200;
+// Idempotency window for retrying the SAME confirmed batch without a schema
+// change: an identical (author, campaign, normalized question+answer) row
+// created in the last N hours is treated as already imported.
+const BULK_DEDUPE_WINDOW_HOURS = 24;
+
+function normalizeForDedupe(s) {
+  return String(s || '')
+    .trim().toLowerCase()
+    .normalize('NFKC')
+    .replace(/\s+/g, ' ');
+}
+
+async function findExistingBulkDuplicate(client, { campaignId, authorAccountId, authorEmployeeCode, normQuestion, normAnswer }) {
+  // Case-insensitive/whitespace-normalized text comparison against the
+  // JSONB payload text columns — no new column/index needed.
+  const r = await client.query(
+    `SELECT id FROM competition.submissions
+      WHERE campaign_id = $1
+        AND ( ($2 <> '' AND author_account_id = $2) OR ($3 <> '' AND author_employee_code = $3) )
+        AND created_at >= now() - ($4 || ' hours')::interval
+        AND regexp_replace(lower(trim(both from COALESCE(payload->>'customer_question',''))), '\\s+', ' ', 'g') = $5
+        AND regexp_replace(lower(trim(both from COALESCE(payload->>'answer',''))), '\\s+', ' ', 'g') = $6
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [campaignId, authorAccountId || '', authorEmployeeCode || '', BULK_DEDUPE_WINDOW_HOURS, normQuestion, normAnswer]);
+  return r.rowCount ? r.rows[0].id : null;
+}
+
+async function bulkSubmit(config, actor, params) {
+  const aa = auditActor(actor);
+  const campaignId = String(params.campaignId || '');
+  if (!campaignId) throw cErr('COMPETITION_CAMPAIGN_REQUIRED', 'Thiếu chương trình.', 400);
+  const rawRows = Array.isArray(params.rows) ? params.rows : [];
+  if (!rawRows.length) throw cErr('COMPETITION_BULK_ROWS_REQUIRED', 'File không có dòng dữ liệu hợp lệ.', 400);
+  if (rawRows.length > BULK_MAX_ROWS) {
+    throw cErr('COMPETITION_BULK_TOO_MANY_ROWS', `Chỉ chấp nhận tối đa ${BULK_MAX_ROWS} dòng mỗi lần tải lên.`, 400);
+  }
+
+  // campaign must actually be accepting submissions — checked once, up
+  // front, same rule createDraft() enforces per-row.
+  const campaignStatus = await readTx(config, async (client) => {
+    const c = await client.query('SELECT status FROM competition.campaigns WHERE id = $1', [campaignId]);
+    if (!c.rowCount) throw cErr('COMPETITION_CAMPAIGN_NOT_FOUND', 'Không tìm thấy chương trình.', 404);
+    return c.rows[0].status;
+  });
+  if (!['accepting', 'reviewing'].includes(campaignStatus)) {
+    throw cErr('COMPETITION_CAMPAIGN_NOT_ACCEPTING', 'Chương trình hiện không nhận bài.', 409);
+  }
+
+  // NEVER an employee/account/reviewer/score/status selector — only these
+  // four content keys are ever read off an uploaded row, defensively,
+  // regardless of what extra columns a user's file may contain.
+  const seenInFile = new Map(); // normalized key -> first rowIndex
+  const results = [];
+
+  for (let i = 0; i < rawRows.length; i++) {
+    const raw = rawRows[i] || {};
+    const rowIndex = i + 1; // 1-based, matches a spreadsheet row-after-header convention on the frontend
+    const customerQuestion = cleanText(raw.customer_question);
+    const answer = cleanText(raw.answer);
+    const actualResult = cleanText(raw.actual_result);
+    const evidenceReference = cleanText(raw.evidence_reference);
+
+    if (!customerQuestion || !answer) {
+      results.push({ rowIndex, status: 'invalid', reason: 'Thiếu "Câu hỏi / Tình huống khách hàng" hoặc "Cách trả lời / Xử lý".' });
+      continue;
+    }
+
+    const normQuestion = normalizeForDedupe(customerQuestion);
+    const normAnswer = normalizeForDedupe(answer);
+    const dedupeKey = normQuestion + '' + normAnswer;
+
+    if (seenInFile.has(dedupeKey)) {
+      results.push({ rowIndex, status: 'duplicate_in_file', reason: 'Trùng nội dung với dòng #' + seenInFile.get(dedupeKey) + ' trong cùng file.' });
+      continue;
+    }
+    seenInFile.set(dedupeKey, rowIndex);
+
+    const payload = { customer_question: customerQuestion, answer };
+    if (actualResult) payload.actual_result = actualResult;
+    if (evidenceReference) payload.evidence_reference = evidenceReference;
+
+    try {
+      // idempotency: same author + campaign + normalized text within the
+      // recent window => treat a retry of the same confirmed batch as
+      // already-imported rather than creating a second submission.
+      const existingId = await readTx(config, (client) => findExistingBulkDuplicate(client, {
+        campaignId, authorAccountId: actor.accountId, authorEmployeeCode: actor.employeeCode, normQuestion, normAnswer,
+      }));
+      if (existingId) {
+        results.push({ rowIndex, status: 'already_exists', submissionId: existingId, reason: 'Bài với nội dung này đã được gửi trước đó.' });
+        continue;
+      }
+
+      // per-row similarity flag — informational only, never blocks (safe
+      // minimum per spec: no auto "Tôi cũng gặp" branching in bulk mode).
+      let similar = false, similarSubmissionRef = null;
+      try {
+        const sim = await similarityService().checkSimilarityForSubmit(config, actor, {
+          campaignId, question: customerQuestion, answer,
+        });
+        if (sim && sim.hasSimilar && sim.candidates && sim.candidates.length) {
+          similar = true;
+          similarSubmissionRef = sim.candidates[0].submissionRef;
+        }
+      } catch (e) { /* similarity is advisory only — never fail the row for it */ }
+
+      // reuse the exact single-submit lifecycle: own transaction each.
+      const draft = await createDraft(config, actor, { campaignId, payload });
+      await submit(config, actor, { submissionId: draft.id, payload });
+
+      results.push({
+        rowIndex, status: 'submitted', submissionId: draft.id,
+        similar, similarSubmissionRef,
+      });
+    } catch (e) {
+      results.push({ rowIndex, status: 'invalid', reason: (e && e.message) || 'Không gửi được dòng này.' });
+    }
+  }
+
+  const submittedCount = results.filter((x) => x.status === 'submitted').length;
+  const needsAttentionCount = results.length - submittedCount;
+  return {
+    batchId: params.batchId || null,
+    campaignId,
+    totalRows: rawRows.length,
+    submittedCount,
+    needsAttentionCount,
+    results,
+  };
+}
+
+// lazy require to avoid a require-cycle between competition-submissions.js
+// and competition-similarity-service.js (the latter does not import this
+// module, but keeping the require lazy here costs nothing and is defensive).
+function similarityService() { return require('./competition-similarity-service'); }
+
 // ---- reviewer / admin actions ------------------------------------------
 async function reviewAction(config, actor, params) {
   const action = String(params.action || '');
@@ -309,14 +457,23 @@ async function adminOverride(config, actor, params) {
     }
     await client.query(`SET LOCAL competition.allow_submission_override = 'on'`);
 
+    // NOTE (technical-note cleanup): `reason` here is an internal Admin
+    // audit/technical-correction note — it must go ONLY into
+    // submission_history.reason (the audit trail), never into
+    // last_review_note (the participant-visible "Kết quả / Ghi nhận của
+    // giám khảo" field). This mirrors the already-correct adjustScore()
+    // pattern below, which uses a SEPARATE dedicated param
+    // (reviewerRecord) for anything meant to reach last_review_note.
+    // last_review_note is therefore left UNTOUCHED by every adminOverride
+    // mode — do not add it back to any of these UPDATE statements.
     let r;
     let histAction = 'admin_override';
     if (mode === 'withdraw_approval') {
       if (row.status !== 'approved') throw cErr('COMPETITION_NOT_APPROVED', 'Bài chưa được duyệt.', 409);
       r = await client.query(
         `UPDATE competition.submissions SET status='submitted', current_level_order=NULL, current_score=NULL,
-           approved_at=NULL, last_review_note=$2, row_version=row_version+1 WHERE id=$1 RETURNING *`,
-        [params.submissionId, reason]);
+           approved_at=NULL, row_version=row_version+1 WHERE id=$1 RETURNING *`,
+        [params.submissionId]);
       histAction = 'approval_withdrawn';
     } else if (mode === 'set_status') {
       const target = String(params.targetStatus || '');
@@ -324,12 +481,12 @@ async function adminOverride(config, actor, params) {
         throw cErr('COMPETITION_STATUS_INVALID', 'Trạng thái không hợp lệ.', 400);
       }
       r = await client.query(
-        `UPDATE competition.submissions SET status=$2, last_review_note=$3, row_version=row_version+1 WHERE id=$1 RETURNING *`,
-        [params.submissionId, target, reason]);
+        `UPDATE competition.submissions SET status=$2, row_version=row_version+1 WHERE id=$1 RETURNING *`,
+        [params.submissionId, target]);
     } else if (mode === 'edit_payload') {
       r = await client.query(
-        `UPDATE competition.submissions SET payload=$2::jsonb, last_review_note=$3, row_version=row_version+1 WHERE id=$1 RETURNING *`,
-        [params.submissionId, JSON.stringify(params.payload || {}), reason]);
+        `UPDATE competition.submissions SET payload=$2::jsonb, row_version=row_version+1 WHERE id=$1 RETURNING *`,
+        [params.submissionId, JSON.stringify(params.payload || {})]);
     } else {
       throw cErr('COMPETITION_OVERRIDE_MODE_INVALID', 'mode không hợp lệ.', 400);
     }
@@ -498,5 +655,5 @@ async function finalizeCampaignSubmissions(config, actor, params) {
 
 module.exports = {
   ownerView, listMySubmissions, getMySubmission,
-  createDraft, editDraft, submit, reviewAction, adminOverride, adjustScore, listAdjustable, finalizeCampaignSubmissions,
+  createDraft, editDraft, submit, bulkSubmit, reviewAction, adminOverride, adjustScore, listAdjustable, finalizeCampaignSubmissions,
 };

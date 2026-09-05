@@ -301,6 +301,7 @@
   border-radius:12px;background:var(--comp-surface);padding:16px;
 }
 .phf-comp-review-item .rq-ref{font-size:11.5px;letter-spacing:.06em;color:var(--comp-ink-soft);text-transform:uppercase;}
+.phf-comp-review-resp-tag{color:var(--comp-green-deep);text-transform:none;letter-spacing:normal;font-weight:600;}
 .phf-comp-review-item h3{margin:6px 0;font-size:14.5px;}
 .phf-comp-review-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--comp-border);}
 .phf-comp-review-level-static{
@@ -348,6 +349,17 @@
 .phf-comp-simwarn-cand{border:1px solid var(--comp-border);border-radius:10px;background:var(--comp-surface-cream);padding:12px 14px;}
 .phf-comp-simwarn-meta{display:block;font-size:11px;color:var(--comp-ink-soft);}
 .phf-comp-simwarn-q{margin:6px 0 10px;font-size:13.5px;color:var(--comp-ink);line-height:1.5;}
+
+/* ---- V1.5 — bulk upload ("Nhập nhiều bài") preview/result modal -------- */
+.phf-comp-bulk-modal{max-width:720px;}
+.phf-comp-bulk-table-wrap{margin-top:12px;max-height:320px;overflow:auto;border:1px solid var(--comp-border);border-radius:10px;}
+.phf-comp-bulk-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.phf-comp-bulk-table th,.phf-comp-bulk-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--comp-border);vertical-align:top;}
+.phf-comp-bulk-table th{background:var(--comp-surface-cream);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--comp-ink-soft);position:sticky;top:0;}
+.phf-comp-bulk-status{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+.phf-comp-bulk-status-ok{background:#e4f1e6;color:var(--comp-green-deep);}
+.phf-comp-bulk-status-dup{background:#fdf1e0;color:#9a6a1f;}
+.phf-comp-bulk-status-invalid{background:#fbe6e0;color:#a5573b;}
 
 @media (max-width:1024px){
   .phf-comp-body{grid-template-columns:1fr;}

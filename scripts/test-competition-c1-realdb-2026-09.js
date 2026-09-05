@@ -209,9 +209,21 @@ async function q(sql, params) {
   // found live on PHF012 (pendingCount=1, queue empty).
   const revl2Prod = await call(REVL2, 'competition.review.productivity', { campaignId: CID });
   const revl2Queue = await call(REVL2, 'competition.review.queue', { campaignId: CID });
-  ok(revl2Prod.pending === revl2Queue.items.length,
-    'pending count is authoritatively consistent with the actual queue length (not counting an approved submission\'s "possible upgrade" offer as pending)',
-    { pending: revl2Prod.pending, queueLength: revl2Queue.items.length });
+  // V1.5 update: REVL2 is high-tier (maxLevelOrder=2 > base level 1), so the
+  // queue now ALSO shows the full open-pool of actionable items within their
+  // authority (see competition-review.js anonymousQueue's isHighTierReviewer
+  // branch) — a submission can appear with NO review_assignments row for
+  // REVL2 at all (responsibility: 'open_pool'). `pending` (reviewerProductivity)
+  // still counts only actual assignment rows, so it is no longer expected to
+  // equal the full queue length for a high-tier reviewer — it must still
+  // equal exactly the ASSIGNED subset of the queue (never more, never less).
+  const revl2QueueAssignedCount = revl2Queue.items.filter((i) => i.responsibility === 'assigned').length;
+  ok(revl2Prod.pending === revl2QueueAssignedCount,
+    'pending count is authoritatively consistent with the ASSIGNED subset of the queue (not counting an approved submission\'s "possible upgrade" offer, nor the V1.5 open-pool items, as pending)',
+    { pending: revl2Prod.pending, queueAssignedCount: revl2QueueAssignedCount, queueLength: revl2Queue.items.length });
+  ok(revl2Queue.items.length >= revl2QueueAssignedCount,
+    'V1.5: queue length is the assigned subset plus any open-pool items the high-tier reviewer is additionally authorized on',
+    { queueLength: revl2Queue.items.length, assigned: revl2QueueAssignedCount });
   await expectReject('COMPETITION_ADMIN_REQUIRED', () => call(REVL1, 'competition.review.productivity', { campaignId: CID, all: true }), 'reviewer cannot see all-reviewer productivity');
   const prodAll = await call(ADMIN, 'competition.review.productivity', { campaignId: CID, all: true });
   ok(Array.isArray(prodAll.reviewers) && prodAll.reviewers.length === 2, 'admin sees all reviewer productivity');
