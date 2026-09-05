@@ -100,6 +100,10 @@ const {
   withdrawTaskCancelRequestViaServer,
   listProposalRecipientEmployeesViaServer
 } = require('./api/_lib/task-server-integration');
+// PHF HR — CHƯƠNG TRÌNH THI ĐUA (Competition) V1 · Batch C2 (2026-09-04, LOCAL
+// ONLY, flag-gated). Mirrors api/data.js verbatim — see
+// api/_lib/competition-actions.js.
+const { dispatchCompetitionAction } = require('./api/_lib/competition-actions');
 // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview
 // (requireTaskAdmin-gated inside). Mirrors api/data.js.
 const {
@@ -1443,6 +1447,8 @@ const server = http.createServer(async (req, res) => {
       if(payload&&payload.action==='cloneKnlSurveyVersionToDraft')return sendJson(res,200,{ok:true,...await cloneKnlSurveyVersionToDraft(session,payload)});
         const taskDispatch = await dispatchTaskAction(session, payload);
         if (taskDispatch.handled) return sendJson(res, 200, {ok:true,result:taskDispatch.result});
+        const competitionDispatch = await dispatchCompetitionAction(session, payload);
+        if (competitionDispatch.handled) return sendJson(res, 200, {ok:true,result:competitionDispatch.result});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

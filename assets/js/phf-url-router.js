@@ -514,6 +514,10 @@
   window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly','/hv/task/lich','/hv/task/lich-lap','/hv/task/dong-thoi-gian','/hv/task/bao-cao');
   window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/nhan-su','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich','/ql/task/lich-lap','/ql/task/dong-thoi-gian','/ql/task/bao-cao');
   window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/cai-dat','/admin/task/lich-lap','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
+  // Chương trình thi đua (Competition) — Batch A UI skeleton, HR shell.
+  window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua','/hv/thi-dua/bang-tin','/hv/thi-dua/bai-cua-toi','/hv/thi-dua/gui','/hv/thi-dua/ket-qua');
+  window.PHF_ROUTE_MAP.management.push('/ql/thi-dua','/ql/thi-dua/bang-tin','/ql/thi-dua/bai-cua-toi','/ql/thi-dua/gui','/ql/thi-dua/ket-qua','/ql/thi-dua/cho-duyet','/ql/thi-dua/da-duyet');
+  window.PHF_ROUTE_MAP.admin.push('/admin/thi-dua','/admin/thi-dua/bang-tin','/admin/thi-dua/bai-cua-toi','/admin/thi-dua/gui','/admin/thi-dua/ket-qua','/admin/thi-dua/cho-duyet','/admin/thi-dua/da-duyet','/admin/thi-dua/quan-ly','/admin/thi-dua/xet-duyet','/admin/thi-dua/chot');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
@@ -1173,6 +1177,19 @@
       if(path==='/admin/ai-sandbox'){
         if(!requireRoles(['admin']))return false;
         await Promise.resolve(window.phfRenderAiSandbox&&window.phfRenderAiSandbox(path));
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/thi-dua(?:\/|$)/.test(path)){
+        /* Chương trình thi đua — Batch A UI skeleton. Renders inside the HR
+           shell (#phfHrRoot), same as /admin/nhan-su. Namespace role guard
+           only; the real Competition permission contract (Competition Admin
+           grants + approval-level reviewer grants, resolved server-side in
+           phf-hr-api against Company PostgreSQL) lands in a later batch. */
+        var compRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([compRole]))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderCompetition!=='function')return renderRouteModuleError('competition',path,new Error('PHF_COMPETITION_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderCompetition(targetRouteKey));
         return true;
       }
       if(path==='/admin/nhan-su'){

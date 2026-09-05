@@ -1,0 +1,460 @@
+/* PHF HR — Chương trình thi đua · Batch A visual skeleton.
+   Scoped entirely under .phf-comp (rendered inside #phfHrRoot / HR shell).
+   No global-selector bleed. Luxury-but-operational: PHF green structural,
+   ivory/cream surfaces, champagne-gold hairline accents, thin borders,
+   one restrained soft-shadow token. Arial-first. */
+
+.phf-comp{
+  --comp-green:#1f6f43;
+  --comp-green-deep:#164f30;
+  --comp-green-soft:#e8f2eb;
+  --comp-ink:#243027;
+  --comp-ink-soft:#5b6b60;
+  --comp-surface:#fffdf8;      /* warm white */
+  --comp-surface-cream:#fbf6ec; /* cream */
+  --comp-surface-ivory:#f7f1e4; /* ivory */
+  --comp-gold:#c8a86a;          /* champagne gold — hairlines / marks only */
+  --comp-gold-soft:#efe4cd;
+  --comp-border:#e7e0d0;
+  --comp-border-strong:#d9cfb8;
+  --comp-shadow:0 1px 2px rgba(36,48,39,.05), 0 8px 24px -12px rgba(36,48,39,.14);
+  --comp-radius:14px;
+  font-family:Arial, "Helvetica Neue", Helvetica, "Segoe UI", sans-serif;
+  color:var(--comp-ink);
+  background:
+    radial-gradient(1200px 340px at 12% -8%, rgba(200,168,106,.10), transparent 60%),
+    linear-gradient(180deg,#fffefb 0%, #fbf6ec 100%);
+  min-height:100%;
+  display:block;
+}
+.phf-comp *{box-sizing:border-box;}
+.phf-comp a{color:var(--comp-green-deep);text-decoration:none;}
+
+/* ---- shell layout ---- */
+.phf-comp-shell{max-width:1240px;margin:0 auto;padding:22px clamp(14px,3vw,32px) 56px;}
+.phf-comp-top{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--comp-border);
+}
+.phf-comp-top .phf-comp-logo{height:32px;width:auto;}
+.phf-comp-brand{display:flex;flex-direction:column;line-height:1.2;}
+.phf-comp-brand b{font-size:14px;letter-spacing:.02em;}
+.phf-comp-brand small{font-size:11px;color:var(--comp-ink-soft);letter-spacing:.06em;text-transform:uppercase;}
+.phf-comp-brand-rule{width:1px;height:26px;background:linear-gradient(var(--comp-gold),transparent);}
+.phf-comp-top-tag{
+  margin-left:auto;font-size:11.5px;color:var(--comp-green-deep);
+  border:1px solid var(--comp-gold);border-radius:999px;padding:4px 12px;
+  background:var(--comp-surface);letter-spacing:.03em;
+}
+
+.phf-comp-body{display:grid;grid-template-columns:238px minmax(0,1fr);gap:clamp(16px,2.4vw,30px);margin-top:22px;}
+
+/* ---- module menu ---- */
+.phf-comp-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:14px;align-self:start;}
+.phf-comp-nav-group{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--comp-ink-soft);
+  padding:14px 12px 6px;}
+.phf-comp-nav a{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  font-size:13.5px;color:var(--comp-ink);border:1px solid transparent;
+}
+.phf-comp-nav a svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;opacity:.8;}
+.phf-comp-nav a:hover{background:var(--comp-surface);border-color:var(--comp-border);}
+.phf-comp-nav a.is-active{
+  background:var(--comp-green-soft);border-color:#cfe3d6;color:var(--comp-green-deep);font-weight:700;
+}
+.phf-comp-nav a.is-active svg{opacity:1;}
+
+/* ---- content ---- */
+.phf-comp-main{min-width:0;}
+.phf-comp-hero{
+  border:1px solid var(--comp-border);border-radius:var(--comp-radius);
+  background:linear-gradient(135deg,#ffffff 0%, var(--comp-surface-cream) 100%);
+  box-shadow:var(--comp-shadow);padding:clamp(18px,2.6vw,30px);position:relative;overflow:hidden;
+}
+.phf-comp-hero::after{content:"";position:absolute;inset:0 0 auto auto;width:180px;height:180px;
+  background:radial-gradient(circle at 70% 30%, rgba(200,168,106,.16), transparent 70%);pointer-events:none;}
+.phf-comp-hero .phf-comp-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--comp-gold);}
+.phf-comp-hero h1{margin:.35em 0 .25em;font-size:clamp(20px,2.6vw,27px);color:var(--comp-green-deep);}
+.phf-comp-hero p{margin:0;color:var(--comp-ink-soft);font-size:14px;max-width:62ch;}
+
+.phf-comp-section{margin-top:22px;}
+.phf-comp-section > h2{font-size:15px;margin:0 0 12px;color:var(--comp-ink);display:flex;align-items:center;gap:8px;}
+.phf-comp-section > h2 svg{width:18px;height:18px;stroke:var(--comp-gold);fill:none;stroke-width:1.6;}
+
+.phf-comp-card{
+  border:1px solid var(--comp-border);border-radius:var(--comp-radius);background:var(--comp-surface);
+  box-shadow:var(--comp-shadow);padding:clamp(16px,2.2vw,24px);
+}
+.phf-comp-card + .phf-comp-card{margin-top:14px;}
+
+.phf-comp-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
+.phf-comp-fact{border:1px solid var(--comp-border);border-radius:12px;background:var(--comp-surface);padding:14px 16px;}
+.phf-comp-fact b{display:block;font-size:12px;color:var(--comp-ink-soft);font-weight:600;letter-spacing:.02em;}
+.phf-comp-fact span{display:block;margin-top:4px;font-size:15px;color:var(--comp-ink);}
+
+/* level chips — campaign configuration display (not runtime data) */
+.phf-comp-levels{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+.phf-comp-level{
+  display:flex;align-items:center;gap:10px;border:1px solid var(--comp-border-strong);
+  border-left:3px solid var(--comp-gold);border-radius:10px;padding:10px 14px;background:var(--comp-surface-cream);
+}
+.phf-comp-level .lv-name{font-weight:700;font-size:13.5px;}
+.phf-comp-level .lv-score{font-size:12.5px;color:var(--comp-green-deep);border:1px solid #cfe3d6;background:var(--comp-green-soft);
+  border-radius:999px;padding:2px 9px;}
+.phf-comp-level .lv-order{font-size:11px;color:var(--comp-ink-soft);}
+
+.phf-comp-note{
+  display:flex;gap:10px;font-size:12.5px;color:var(--comp-ink-soft);
+  background:var(--comp-surface-ivory);border:1px solid var(--comp-border);border-radius:10px;
+  padding:11px 13px;margin-top:12px;
+}
+.phf-comp-note svg{width:16px;height:16px;flex:none;stroke:var(--comp-gold);fill:none;stroke-width:1.6;margin-top:1px;}
+
+/* ---- empty state ---- */
+.phf-comp-empty{
+  text-align:center;padding:44px 20px;border:1px dashed var(--comp-border-strong);
+  border-radius:var(--comp-radius);background:var(--comp-surface);
+}
+.phf-comp-empty svg{width:34px;height:34px;stroke:var(--comp-gold);fill:none;stroke-width:1.3;opacity:.8;}
+.phf-comp-empty p{margin:12px 0 0;color:var(--comp-ink-soft);font-size:13.5px;}
+.phf-comp-empty .phf-comp-em-sub{font-size:12px;margin-top:4px;}
+
+/* ---- status legend / pills (visual language only, no rows) ---- */
+.phf-comp-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.phf-comp-pill{font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--comp-border);background:var(--comp-surface-cream);color:var(--comp-ink-soft);}
+.phf-comp-pill[data-s="draft"]{border-color:#d9cfb8;}
+.phf-comp-pill[data-s="submitted"]{border-color:#cfd8e6;color:#3a5478;background:#eef3f9;}
+.phf-comp-pill[data-s="needs_revision"]{border-color:#e6d3b3;color:#8a6a2c;background:#fbf2e0;}
+.phf-comp-pill[data-s="approved"]{border-color:#cfe3d6;color:var(--comp-green-deep);background:var(--comp-green-soft);}
+.phf-comp-pill[data-s="rejected"]{border-color:#e6cccc;color:#8a3b3b;background:#f8ecec;}
+.phf-comp-pill[data-s="finalized"]{border-color:var(--comp-gold);color:var(--comp-green-deep);background:var(--comp-gold-soft);}
+
+/* ---- toolbar (filters, disabled in Batch A) ---- */
+.phf-comp-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;}
+.phf-comp-toolbar select,.phf-comp-field input,.phf-comp-field textarea,.phf-comp-field select{
+  font:inherit;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:9px;padding:9px 11px;width:100%;
+}
+.phf-comp-toolbar select{width:auto;min-width:170px;}
+.phf-comp-toolbar select:disabled,.phf-comp-field :disabled{background:var(--comp-surface-ivory);color:var(--comp-ink-soft);cursor:not-allowed;}
+
+/* ---- form ---- */
+.phf-comp-field{margin-bottom:16px;}
+.phf-comp-field > label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;}
+.phf-comp-field > label .req{color:#b5502f;margin-left:3px;}
+.phf-comp-field .hint{font-size:11.5px;color:var(--comp-ink-soft);margin-top:5px;}
+.phf-comp-field textarea{min-height:96px;resize:vertical;}
+
+.phf-comp-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--comp-border);}
+.phf-comp-btn{
+  font:inherit;font-weight:700;font-size:13.5px;border-radius:10px;padding:10px 18px;cursor:pointer;
+  border:1px solid var(--comp-green);background:var(--comp-green);color:#fff;
+}
+.phf-comp-btn.is-ghost{background:var(--comp-surface);color:var(--comp-green-deep);border-color:var(--comp-border-strong);}
+.phf-comp-btn:disabled{background:var(--comp-surface-ivory);border-color:var(--comp-border-strong);color:var(--comp-ink-soft);cursor:not-allowed;}
+.phf-comp-disabled-hint{font-size:12px;color:var(--comp-ink-soft);align-self:center;}
+
+/* ---- reviewer queue: NO identity slot by construction ---- */
+.phf-comp-review-item{border:1px solid var(--comp-border);border-radius:12px;background:var(--comp-surface);padding:16px;}
+.phf-comp-review-item .rq-ref{font-size:11.5px;letter-spacing:.06em;color:var(--comp-ink-soft);text-transform:uppercase;}
+.phf-comp-review-item h3{margin:6px 0;font-size:14.5px;}
+.phf-comp-review-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--comp-border);}
+
+/* ---- admin tables → responsive stack ---- */
+.phf-comp-table{width:100%;border-collapse:collapse;font-size:13px;}
+.phf-comp-table th,.phf-comp-table td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--comp-border);}
+.phf-comp-table th{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--comp-ink-soft);}
+.phf-comp-table-wrap{overflow-x:auto;}
+
+.phf-comp-freeze{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#8a6a2c;
+  border:1px solid #e6d3b3;background:#fbf2e0;border-radius:999px;padding:3px 10px;}
+.phf-comp-freeze svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7;}
+
+@media (max-width:1024px){
+  .phf-comp-body{grid-template-columns:1fr;}
+  .phf-comp-nav{position:static;flex-flow:row wrap;gap:6px;}
+  .phf-comp-nav-group{width:100%;padding:6px 4px 2px;}
+  .phf-comp-nav a{flex:1 1 auto;}
+}
+@media (max-width:768px){
+  .phf-comp-shell{padding:16px 12px 44px;}
+  .phf-comp-top-tag{margin-left:0;order:3;width:100%;}
+  .phf-comp-table thead{display:none;}
+  .phf-comp-table,.phf-comp-table tbody,.phf-comp-table tr,.phf-comp-table td{display:block;width:100%;}
+  .phf-comp-table tr{border:1px solid var(--comp-border);border-radius:10px;margin-bottom:10px;padding:6px 4px;}
+  .phf-comp-table td{border:0;padding:6px 12px;}
+  .phf-comp-table td::before{content:attr(data-th);display:block;font-size:11px;text-transform:uppercase;color:var(--comp-ink-soft);}
+}
+@media (max-width:390px){
+  .phf-comp-hero h1{font-size:19px;}
+  .phf-comp-actions{flex-direction:column;align-items:stretch;}
+}
+
+/* ==========================================================================
+   BATCH A1 — VISUAL BASELINE FIX (scoped to .phf-comp, no global bleed)
+   1) Logo: phf-training-hub.css has  img[src*="assets/logo/phf-logo"]{
+      height:auto!important; max-width:100%!important }  — an !important global
+      "logo tamer" that overrode the non-important .phf-comp-top .phf-comp-logo
+      rule, letting the flex row stretch the 2048×485 logo to ~1200×280.
+      Fix: a 3-class scoped selector + !important on the box metrics.
+   2) Scale/width: the module sat in a 1240px centred band while the rest of
+      PHF HR (Employee Master, Home) runs near full-width. Widen the shell,
+      widen the sidebar, and lift typography ~1–2px to real reading size.
+      No colour / border / radius / shadow / IA / route / menu change.
+   ========================================================================== */
+.phf-comp .phf-comp-top .phf-comp-logo{
+  height:34px!important;width:auto!important;max-width:200px!important;
+  object-fit:contain;object-position:left center;display:block;flex:0 0 auto;
+}
+
+.phf-comp-shell{max-width:1560px;padding:26px clamp(18px,3vw,40px) 64px;}
+.phf-comp-body{grid-template-columns:256px minmax(0,1fr);gap:clamp(20px,2.4vw,34px);margin-top:24px;}
+.phf-comp{font-size:14px;}
+
+.phf-comp-nav-group{font-size:11px;padding:16px 12px 6px;}
+.phf-comp-nav a{font-size:14.5px;padding:10px 13px;}
+.phf-comp-nav a svg{width:18px;height:18px;}
+
+.phf-comp-top .phf-comp-brand b{font-size:15px;}
+.phf-comp-top .phf-comp-brand small{font-size:11.5px;}
+.phf-comp-top-tag{font-size:12px;}
+
+.phf-comp-hero{padding:clamp(22px,2.6vw,34px);}
+.phf-comp-hero .phf-comp-eyebrow{font-size:11.5px;}
+.phf-comp-hero h1{font-size:clamp(24px,2.2vw,32px);}
+.phf-comp-hero p{font-size:15px;max-width:70ch;}
+
+.phf-comp-section{margin-top:26px;}
+.phf-comp-section > h2{font-size:17px;margin-bottom:14px;}
+.phf-comp-section > h2 svg{width:19px;height:19px;}
+
+.phf-comp-card{padding:clamp(18px,2vw,28px);}
+.phf-comp-card + .phf-comp-card{margin-top:16px;}
+.phf-comp-grid{gap:16px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
+.phf-comp-fact{padding:15px 17px;}
+.phf-comp-fact b{font-size:12.5px;}
+.phf-comp-fact span{font-size:16px;margin-top:5px;}
+
+.phf-comp-level{padding:11px 15px;}
+.phf-comp-level .lv-name{font-size:14px;}
+.phf-comp-level .lv-score{font-size:13px;}
+
+.phf-comp-note{font-size:13px;padding:12px 14px;}
+.phf-comp-empty{padding:52px 22px;}
+.phf-comp-empty p{font-size:14px;}
+
+.phf-comp-toolbar select,.phf-comp-field input,.phf-comp-field textarea,.phf-comp-field select{padding:10px 12px;}
+.phf-comp-field > label{font-size:13.5px;}
+.phf-comp-field .hint{font-size:12px;}
+
+.phf-comp-btn{font-size:14px;padding:11px 20px;}
+.phf-comp-review-item{padding:17px;}
+.phf-comp-review-item h3{font-size:15px;}
+.phf-comp-table{font-size:13.5px;}
+.phf-comp-table th,.phf-comp-table td{padding:11px 13px;}
+/* keep the existing @media(max-width:1024px) single-column + row-nav rules — unchanged */
+
+/* ==========================================================================
+   BATCH A2 — Bảng tin (feed) · thả tim · Bảng xếp hạng ẩn danh · Tiến độ
+   tham gia. Scoped to .phf-comp. No colour/token/IA change beyond new
+   components. No fabricated data — all runtime values render as "—" / empty.
+   ========================================================================== */
+
+/* ---- participation progress (Tổng quan) ---- */
+.phf-comp-participation .phf-comp-prog{display:grid;gap:12px;grid-template-columns:repeat(3,1fr);}
+.phf-comp-participation .phf-comp-prog-cell{
+  border:1px solid var(--comp-border);border-radius:12px;background:var(--comp-surface-cream);
+  padding:12px 14px;text-align:center;
+}
+.phf-comp-participation .phf-comp-prog-cell span{display:block;font-size:11.5px;color:var(--comp-ink-soft);letter-spacing:.02em;}
+.phf-comp-participation .phf-comp-prog-cell b{display:block;margin-top:5px;font-size:19px;color:var(--comp-green-deep);}
+.phf-comp-prog-bar{margin-top:12px;height:8px;border-radius:999px;background:var(--comp-surface-ivory);border:1px solid var(--comp-border);overflow:hidden;}
+.phf-comp-prog-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--comp-green),var(--comp-gold));}
+
+/* ---- feed ---- */
+.phf-comp-feed{display:flex;flex-direction:column;gap:14px;}
+.phf-comp-post{
+  border:1px solid var(--comp-border);border-radius:var(--comp-radius);background:var(--comp-surface);
+  box-shadow:var(--comp-shadow);padding:clamp(15px,1.8vw,20px);
+}
+.phf-comp-post-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12px;color:var(--comp-ink-soft);}
+.phf-comp-post-token{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:var(--comp-ink);}
+.phf-comp-post-token svg{width:15px;height:15px;stroke:var(--comp-gold);fill:none;stroke-width:1.6;}
+.phf-comp-post-when{margin-left:auto;}
+.phf-comp-post-kind{border:1px solid var(--comp-border-strong);border-radius:999px;padding:2px 9px;background:var(--comp-surface-cream);}
+.phf-comp-post-body{margin:10px 0 0;font-size:14px;color:var(--comp-ink);line-height:1.7;}
+.phf-comp-post-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--comp-border);}
+.phf-comp-post-state{font-size:11.5px;color:var(--comp-ink-soft);}
+
+/* ---- thả tim (reaction) — visual state only ---- */
+.phf-comp-react{
+  display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:12.5px;font-weight:600;
+  border:1px solid var(--comp-border-strong);background:var(--comp-surface);color:var(--comp-ink-soft);
+  border-radius:999px;padding:6px 13px;cursor:pointer;
+}
+.phf-comp-react svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;transition:transform .12s ease;}
+.phf-comp-react:hover{border-color:var(--comp-gold);}
+.phf-comp-react.is-on{border-color:#e0b9b9;background:#fbeeee;color:#a53b3b;}
+.phf-comp-react.is-on svg{fill:currentColor;stroke:currentColor;transform:scale(1.06);}
+
+/* ---- leaderboard "Vị trí của bạn" ---- */
+.phf-comp-you{border-left:3px solid var(--comp-gold);}
+.phf-comp-you .phf-comp-fact{background:var(--comp-surface-cream);}
+
+@media (max-width:560px){
+  .phf-comp-participation .phf-comp-prog{grid-template-columns:1fr;}
+  .phf-comp-post-when{margin-left:0;width:100%;order:5;}
+}
+
+/* ==========================================================================
+   BATCH C3 — UI DEV WIRING. Scoped to .phf-comp, no global bleed, no new
+   colour tokens — reuses the A1 palette. Honest loading/error/empty states
+   only; no visual implies data that isn't really there.
+   ========================================================================== */
+.phf-comp-loading{
+  display:flex;align-items:center;gap:10px;padding:20px 4px;color:var(--comp-ink-soft);font-size:13px;
+}
+.phf-comp-loading svg{width:18px;height:18px;stroke:var(--comp-gold);fill:none;stroke-width:1.6;animation:phfCompSpin 1.1s linear infinite;}
+@keyframes phfCompSpin{to{transform:rotate(360deg);}}
+
+.phf-comp-error{
+  display:flex;gap:12px;align-items:flex-start;border:1px solid #e6cccc;background:#fdf4f4;border-radius:var(--comp-radius);
+  padding:16px;margin-top:4px;
+}
+.phf-comp-error svg{width:20px;height:20px;stroke:#a53b3b;fill:none;stroke-width:1.6;flex:none;margin-top:2px;}
+.phf-comp-error b{color:#8a3b3b;font-size:13.5px;}
+.phf-comp-error p{margin:4px 0 0;font-size:12.5px;color:#8a3b3b;}
+.phf-comp-error button{margin-left:auto;flex:none;}
+
+.phf-comp-react .rx-count{font-variant-numeric:tabular-nums;opacity:.85;}
+.phf-comp-post-token-alias{font-style:italic;}
+
+/* admin inline-edit inputs inside tables */
+.phf-comp-table input[type="text"]{
+  font:inherit;font-size:12.5px;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:7px;padding:6px 8px;width:100%;
+}
+.phf-comp-toolbar input[type="text"]{
+  font:inherit;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:9px;padding:9px 11px;
+}
+.phf-comp-actions input[type="text"]{
+  font:inherit;font-size:13px;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:9px;padding:9px 11px;
+}
+.phf-comp-actions select{
+  font:inherit;font-size:13px;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:9px;padding:9px 11px;
+}
+
+/* ==========================================================================
+   ROUND 3 — FINAL UI/UX POLISH (Bảng tin hierarchy, thả tim, gửi bài dự
+   thi, control chấm 2đ/5đ). Scoped to .phf-comp, no new colour tokens
+   beyond the existing PHF green/gold/cream palette. No IA/contract change.
+   ========================================================================== */
+
+/* ---- feed card: header hierarchy (alias primary, time secondary) ------- */
+.phf-comp-post-head{justify-content:space-between;}
+.phf-comp-post-id{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.phf-comp-post-id .phf-comp-post-when{margin-left:0;font-weight:400;}
+
+/* ---- feed card: question vs answer treatment ---- */
+.phf-comp-post-q{margin:0 0 12px;}
+.phf-comp-post-q:last-child{margin-bottom:0;}
+.phf-comp-post-label{display:block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--comp-ink-soft);margin-bottom:5px;font-weight:700;}
+.phf-comp-post-q p{margin:0;font-size:14.5px;font-weight:600;color:var(--comp-ink);line-height:1.65;}
+.phf-comp-post-a{margin:0;background:var(--comp-surface-ivory);border-left:3px solid var(--comp-border-strong);border-radius:0 10px 10px 0;padding:10px 14px;}
+.phf-comp-post-a p{margin:0;font-size:13.5px;color:var(--comp-ink-soft);line-height:1.65;}
+
+/* ---- feed card: 5-điểm (higher approval level) gentle accent ---- */
+.phf-comp-post.is-high-level{border-left:3px solid var(--comp-gold);}
+.phf-comp-post-kind.is-high{border-color:var(--comp-gold);background:var(--comp-gold-soft);color:#8a6a2c;font-weight:700;}
+.phf-comp-post-kind.is-high svg{width:12px;height:12px;stroke:#8a6a2c;margin-right:3px;vertical-align:-2px;}
+
+/* ---- feed footer: reaction is the primary footer element ---- */
+.phf-comp-post-foot{justify-content:space-between;}
+
+/* ---- thả tim: light social interaction, not a pink pill/heavy button --- */
+.phf-comp-react{
+  display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;font-weight:600;
+  border:1px solid transparent;background:transparent;color:var(--comp-ink-soft);
+  border-radius:8px;padding:6px 9px;cursor:pointer;
+}
+.phf-comp-react:hover{background:var(--comp-surface-cream);color:var(--comp-ink);}
+.phf-comp-react:focus-visible{outline:2px solid var(--comp-gold);outline-offset:1px;}
+.phf-comp-react.is-on{color:#b5433f;}
+.phf-comp-react.is-on:hover{background:#fdf4f4;}
+.phf-comp-react .rx-count::before{content:'· ';margin-right:1px;opacity:.75;}
+
+/* ---- submission form: hierarchy + focus state ---- */
+.phf-comp-context-sub{margin:-6px 0 16px;font-size:12.5px;color:var(--comp-ink-soft);}
+.phf-comp-field{margin-bottom:20px;}
+.phf-comp-field textarea:focus,.phf-comp-field input:focus{
+  outline:none;border-color:var(--comp-green);box-shadow:0 0 0 3px rgba(31,111,67,.12);
+}
+.phf-comp-form-note{margin:2px 0 0;font-size:12.5px;color:var(--comp-green-deep);font-style:italic;}
+
+/* ---- Chờ duyệt: level indicator (single level) / segmented switch ------ */
+.phf-comp-review-level-row{margin:10px 0 0;}
+.phf-comp-level-badge{
+  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
+  color:var(--comp-green-deep);background:var(--comp-green-soft);border:1px solid #cfe3d6;
+  border-radius:999px;padding:5px 12px;
+}
+.phf-comp-level-switch{display:inline-flex;border:1px solid var(--comp-border-strong);border-radius:10px;overflow:hidden;}
+.phf-comp-level-opt{
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--comp-ink-soft);background:var(--comp-surface);
+  border:0;border-right:1px solid var(--comp-border-strong);padding:8px 14px;cursor:pointer;
+}
+.phf-comp-level-switch .phf-comp-level-opt:last-child{border-right:0;}
+.phf-comp-level-opt.is-selected{background:var(--comp-green-soft);color:var(--comp-green-deep);}
+.phf-comp-level-opt[disabled]{color:var(--comp-border-strong);cursor:not-allowed;background:var(--comp-surface-ivory);}
+
+/* ---- Bài tôi đã duyệt: admin adjustment entry point -------------------- */
+.phf-comp-mr-adjust{margin-top:10px;padding-top:10px;border-top:1px dashed var(--comp-border-strong);}
+.phf-comp-mr-adjust textarea{
+  font:inherit;color:var(--comp-ink);background:var(--comp-surface);
+  border:1px solid var(--comp-border-strong);border-radius:9px;padding:9px 11px;width:100%;resize:vertical;
+}
+
+/* ---- Topbar notification bell + panel (pattern mirrors PHF Task's bell,
+   own classes/table — see phf-competition-app.js compNotif*) ------------- */
+.phf-comp-notif-wrap{position:relative;}
+.phf-comp-notif-bell{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:999px;border:1px solid var(--comp-border);
+  background:var(--comp-surface);cursor:pointer;color:var(--comp-green-deep);
+}
+.phf-comp-notif-bell svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;}
+.phf-comp-notif-bell:hover{background:var(--comp-surface-cream);}
+.phf-comp-notif-badge{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:999px;background:#b3452f;color:#fff;font-size:10px;font-weight:700;
+  line-height:16px;text-align:center;
+}
+.phf-comp-notif-panel{
+  position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:380px;overflow:auto;
+  background:var(--comp-surface);border:1px solid var(--comp-border);border-radius:12px;
+  box-shadow:var(--comp-shadow);z-index:40;
+}
+.phf-comp-notif-panel[hidden]{display:none;}
+.phf-comp-notif-panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 12px;border-bottom:1px solid var(--comp-border);font-size:12.5px;
+}
+.phf-comp-notif-panel-head button{
+  font:inherit;font-size:11.5px;color:var(--comp-green-deep);background:none;border:0;cursor:pointer;
+}
+.phf-comp-notif-panel-body{display:flex;flex-direction:column;}
+.phf-comp-notif-item{
+  display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;
+  padding:10px 12px;border:0;border-bottom:1px solid var(--comp-border);background:none;cursor:pointer;
+}
+.phf-comp-notif-item:hover{background:var(--comp-surface-cream);}
+.phf-comp-notif-item.unread{background:var(--comp-green-soft);}
+.phf-comp-notif-item-title{font-size:12.5px;font-weight:700;color:var(--comp-ink);}
+.phf-comp-notif-item-msg{font-size:12px;color:var(--comp-ink-soft);}
+.phf-comp-notif-item-time{font-size:10.5px;color:var(--comp-ink-soft);}
+.phf-comp-notif-empty{padding:18px 12px;text-align:center;font-size:12.5px;color:var(--comp-ink-soft);}
+.phf-comp-notif-retry{font:inherit;color:var(--comp-green-deep);background:none;border:0;cursor:pointer;text-decoration:underline;}
+.phf-comp-level-opt:focus-visible{outline:2px solid var(--comp-gold);outline-offset:-2px;}

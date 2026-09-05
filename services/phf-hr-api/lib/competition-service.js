@@ -1,0 +1,134 @@
+'use strict';
+
+// PHF HR — Competition V1 · action dispatcher.
+//
+// ONE canonical action map, shared by the phf-hr-api HTTP route
+// (POST /v1/competition) and — later, Batch C2 — the Vercel bridge, so the
+// action list never drifts between layers.
+//
+// Every handler is (config, actor, params). `actor` is the VERIFIED actor
+// object supplied across the service-token boundary — resolved on the Vercel
+// side against the People Master. phf-hr-api never resolves identity itself
+// and the client can never supply an authoritative actor.
+
+const { assertActor, CompetitionError } = require('./competition-common');
+const campaigns = require('./competition-campaigns');
+const submissions = require('./competition-submissions');
+const review = require('./competition-review');
+const feed = require('./competition-feed');
+const leaderboard = require('./competition-leaderboard');
+const awards = require('./competition-awards');
+const progress = require('./competition-progress');
+const { resolveAuthority } = require('./competition-permissions');
+const notificationRead = require('./competition-notification-read');
+
+const READ_ACTIONS = new Set([
+  'competition.bootstrap',
+  'competition.campaign.list', 'competition.campaign.detail', 'competition.campaign.active',
+  'competition.level.list',
+  'competition.submission.listMine', 'competition.submission.getMine',
+  'competition.review.queue', 'competition.review.productivity', 'competition.review.myReviewed',
+  'competition.feed.get',
+  'competition.leaderboard.get',
+  'competition.progress.mine', 'competition.progress.company',
+  'competition.grant.listReviewers', 'competition.grant.listAdmins', 'competition.grant.listCapabilities',
+  'competition.award.list', 'competition.award.autoCandidate',
+  'competition.notification.list',
+]);
+
+const HANDLERS = {
+  // bootstrap — one call the module shell uses on load
+  'competition.bootstrap': async (config, actor) => {
+    const active = await campaigns.getActiveCampaign(config);
+    const authority = await resolveAuthority(config, actor, active ? active.id : null);
+    let myProgress = null;
+    if (active) {
+      try { myProgress = await progress.myProgress(config, actor, { campaignId: active.id }); } catch (e) { myProgress = null; }
+    }
+    return {
+      viewer: {
+        accountId: actor.accountId, employeeCode: actor.employeeCode, displayName: actor.displayName,
+        isCompetitionAdmin: authority.isCompetitionAdmin,
+        reviewerMaxLevel: authority.reviewerMaxLevel,
+      },
+      activeCampaign: active,
+      myRequirement: myProgress,
+      capabilities: {
+        canSubmit: authority.canSubmit, canReview: authority.canReview, canAdmin: authority.canAdmin,
+        viewParticipationProgress: authority.capabilities.viewParticipationProgress,
+      },
+    };
+  },
+
+  'competition.campaign.list': (c, a) => campaigns.listCampaigns(c, a),
+  'competition.campaign.active': (c) => campaigns.getActiveCampaign(c),
+  'competition.campaign.detail': (c, a, p) => campaigns.getCampaignDetail(c, a, p.campaignId),
+  'competition.campaign.createDraft': (c, a, p) => campaigns.createDraftCampaign(c, a, p),
+  'competition.campaign.updateDraft': (c, a, p) => campaigns.updateDraftCampaign(c, a, p),
+  'competition.campaign.changeStatus': (c, a, p) => campaigns.changeCampaignStatus(c, a, p),
+  'competition.campaign.publish': (c, a, p) => campaigns.publishCampaign(c, a, p),
+  'competition.campaign.finalizeSubmissions': (c, a, p) => submissions.finalizeCampaignSubmissions(c, a, p),
+
+  'competition.level.list': (c, a, p) => campaigns.listLevels(c, p.campaignId),
+  'competition.level.upsert': (c, a, p) => campaigns.upsertLevel(c, a, p),
+  'competition.level.delete': (c, a, p) => campaigns.deleteLevel(c, a, p),
+
+  'competition.grant.reviewer': async (c, a, p) => {
+    const res = await campaigns.setReviewerGrant(c, a, p);
+    if (p.active === false) {
+      // return the revoked reviewer's unprocessed assignments to the pool
+      await review.returnAssignmentsForRevokedReviewer(c, { campaignId: p.campaignId, accountId: p.accountId });
+    }
+    return res;
+  },
+  'competition.grant.admin': (c, a, p) => campaigns.setAdminGrant(c, a, p),
+  'competition.grant.capability': (c, a, p) => campaigns.setCapabilityGrant(c, a, p),
+  'competition.grant.listReviewers': (c, a, p) => campaigns.listReviewerGrants(c, a, p),
+  'competition.grant.listAdmins': (c, a) => campaigns.listAdminGrants(c, a),
+  'competition.grant.listCapabilities': (c, a, p) => campaigns.listCapabilityGrants(c, a, p),
+
+  'competition.submission.listMine': (c, a, p) => submissions.listMySubmissions(c, a, p),
+  'competition.submission.getMine': (c, a, p) => submissions.getMySubmission(c, a, p.submissionId),
+  'competition.submission.createDraft': (c, a, p) => submissions.createDraft(c, a, p),
+  'competition.submission.editDraft': (c, a, p) => submissions.editDraft(c, a, p),
+  'competition.submission.submit': (c, a, p) => submissions.submit(c, a, p),
+  'competition.submission.review': (c, a, p) => submissions.reviewAction(c, a, p),
+  'competition.submission.adminOverride': (c, a, p) => submissions.adminOverride(c, a, p),
+
+  'competition.review.queue': (c, a, p) => review.anonymousQueue(c, a, p),
+  'competition.review.productivity': (c, a, p) => review.reviewerProductivity(c, a, p),
+  'competition.review.myReviewed': (c, a, p) => review.myReviewedHistory(c, a, p),
+  'competition.review.reassign': (c, a, p) => review.manualReassign(c, a, p),
+  'competition.review.processOverdue': (c, a, p) => review.processOverdueAssignments(c, p),
+
+  'competition.notification.list': (c, a, p) => notificationRead.listMyCompetitionNotifications(c, a, p),
+  'competition.notification.markRead': (c, a, p) => notificationRead.markCompetitionNotificationRead(c, a, p),
+  'competition.notification.markAllRead': (c, a) => notificationRead.markAllCompetitionNotificationsRead(c, a),
+
+  'competition.feed.get': (c, a, p) => feed.getFeed(c, a, p),
+  'competition.feed.react': (c, a, p) => feed.setReaction(c, a, p),
+
+  'competition.leaderboard.get': (c, a, p) => leaderboard.getLeaderboard(c, a, p),
+
+  'competition.progress.mine': (c, a, p) => progress.myProgress(c, a, p),
+  'competition.progress.company': (c, a, p) => progress.companyProgress(c, a, p),
+
+  'competition.award.list': (c, a, p) => awards.listAwards(c, a, p),
+  'competition.award.autoCandidate': (c, a, p) => awards.computeAutoCandidate(c, a, p),
+  'competition.award.propose': (c, a, p) => awards.proposeAward(c, a, p),
+  'competition.award.confirm': (c, a, p) => awards.confirmAward(c, a, p),
+  'competition.award.revoke': (c, a, p) => awards.revokeAward(c, a, p),
+};
+
+const ACTIONS = Object.keys(HANDLERS);
+
+function isReadAction(action) { return READ_ACTIONS.has(action); }
+
+async function dispatch(config, rawActor, action, params) {
+  const handler = HANDLERS[action];
+  if (!handler) throw new CompetitionError('COMPETITION_ACTION_UNKNOWN', 'Hành động Competition không hợp lệ: ' + action, 404);
+  const actor = assertActor(rawActor);
+  return handler(config, actor, params || {});
+}
+
+module.exports = { dispatch, ACTIONS, isReadAction, HANDLERS };
