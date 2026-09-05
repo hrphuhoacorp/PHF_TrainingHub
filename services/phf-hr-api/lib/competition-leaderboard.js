@@ -25,8 +25,13 @@ async function computeRows(client, campaignId) {
        SELECT s.author_account_id, s.author_employee_code,
               max(s.author_display_name_snapshot) AS display_name,
               count(*) FILTER (WHERE s.status IN ('approved','finalized'))                    AS approved_count,
-              count(*) FILTER (WHERE s.status IN ('approved','finalized') AND s.current_level_order >= 2) AS high_count,
-              COALESCE(sum(s.current_score) FILTER (WHERE s.status IN ('approved','finalized')),0)::numeric AS total_score,
+              -- V1.3: high_count/total_score are what RANKS people (leaderboard +
+              -- awards tiebreak) — a 0-adjusted submission (effective_score = 0,
+              -- "Không ghi nhận") must drop out of BOTH, even though it stays
+              -- status='approved' (audit truth, not a rejection).
+              count(*) FILTER (WHERE s.status IN ('approved','finalized') AND s.current_level_order >= 2
+                                AND COALESCE(s.effective_score, s.current_score, 0) > 0) AS high_count,
+              COALESCE(sum(COALESCE(s.effective_score, s.current_score, 0)) FILTER (WHERE s.status IN ('approved','finalized')),0)::numeric AS total_score,
               min(s.first_approved_at) FILTER (WHERE s.status IN ('approved','finalized'))    AS earliest_approved
          FROM competition.submissions s
         WHERE s.campaign_id = $1

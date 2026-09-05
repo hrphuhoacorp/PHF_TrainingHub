@@ -17,9 +17,16 @@ const review = require('./competition-review');
 const OWNER_EDITABLE = ['draft', 'needs_revision'];
 
 function ownerView(r) {
+  // V1.3 — effectiveScore is the CURRENT counted result: NULL effective_score
+  // means "never adjusted, use current_score" (every pre-V1.3 submission).
+  // current_score/current_level_order are NEVER rewritten by an adjustment —
+  // they stay the audit record of the original review decision.
+  const effectiveScore = r.effective_score != null ? Number(r.effective_score)
+    : (r.current_score == null ? null : Number(r.current_score));
   return {
     id: r.id, campaignId: r.campaign_id, status: r.status, payload: r.payload,
     currentLevelOrder: r.current_level_order, currentScore: r.current_score == null ? null : Number(r.current_score),
+    effectiveScore, adjusted: r.effective_score != null,
     lastReviewNote: r.last_review_note, submittedAt: r.submitted_at, approvedAt: r.approved_at,
     firstApprovedAt: r.first_approved_at, rejectedAt: r.rejected_at, finalizedAt: r.finalized_at,
     rowVersion: r.row_version, createdAt: r.created_at, updatedAt: r.updated_at,
@@ -293,6 +300,113 @@ async function adminOverride(config, actor, params) {
   });
 }
 
+// ---- V1.3 post-approval score adjustment (effective 0/2/5) -------------
+// Authorized to: Competition Admin, OR a reviewer at the campaign's TOP
+// configured level (the same "high reviewer" concept competition-review.js
+// ensureHighAssignment / competition-leaderboard.js isPrivileged already
+// use — reviewerMaxLevel >= max(level_order), i.e. "Reviewer 5đ" in the
+// current 2-level campaign, dynamic for any future level count). A plain
+// lower-level reviewer is REJECTED server-side even if the client somehow
+// sent the action (never trust a hidden-button-only gate).
+//
+// current_score/current_level_order are NEVER touched here — they remain
+// the audit record of the ORIGINAL review. Only effective_score changes;
+// every count/sum (progress/leaderboard/awards) reads
+// COALESCE(effective_score, current_score) as the current effective result.
+async function adjustScore(config, actor, params) {
+  const auth = await resolveAuthority(config, actor, params.campaignId);
+  const aa = auditActor(actor);
+  const reason = cleanText(params.reason);
+  if (!reason) throw cErr('COMPETITION_ADJUSTMENT_REASON_REQUIRED', 'Cần nhập lý do điều chỉnh.', 400);
+  const reviewerRecord = cleanText(params.reviewerRecord);
+
+  return writeTx(config, async (client) => {
+    const topR = await client.query('SELECT max(level_order) m FROM competition.approval_levels WHERE campaign_id = $1', [params.campaignId]);
+    const topLevel = topR.rows[0].m || 1;
+    const isAuthorized = auth.isCompetitionAdmin || (auth.reviewerMaxLevel != null && auth.reviewerMaxLevel >= topLevel);
+    if (!isAuthorized) {
+      throw cErr('COMPETITION_ADJUSTMENT_NOT_AUTHORIZED',
+        'Chỉ Reviewer ở mức cao nhất hoặc Competition Admin mới được điều chỉnh kết quả sau khi đã duyệt.', 403);
+    }
+
+    const cur = await client.query('SELECT * FROM competition.submissions WHERE id = $1 FOR UPDATE', [params.submissionId]);
+    if (!cur.rowCount) throw cErr('COMPETITION_SUBMISSION_NOT_FOUND', 'Không tìm thấy bài.', 404);
+    const row = cur.rows[0];
+    if (row.campaign_id !== params.campaignId) throw cErr('COMPETITION_CAMPAIGN_MISMATCH', 'Sai chương trình.', 400);
+    if (isSamePerson(actor, row.author_account_id, row.author_employee_code)) {
+      throw cErr('COMPETITION_SELF_REVIEW_BLOCKED', 'Không thể tự điều chỉnh kết quả bài của chính mình.', 403);
+    }
+    if (!['approved', 'finalized'].includes(row.status)) {
+      throw cErr('COMPETITION_ADJUSTMENT_NOT_APPROVED', 'Chỉ điều chỉnh được bài đã duyệt.', 409);
+    }
+
+    // targetLevelOrder: 0/null => "Không ghi nhận" (score 0, no level). Any
+    // other value must resolve to a REAL configured level's score — the
+    // effective score is never a number the campaign didn't actually define.
+    const targetLevelOrder = Number(params.targetLevelOrder || 0);
+    let newScore = 0;
+    if (targetLevelOrder > 0) {
+      const lv = await client.query(
+        'SELECT score FROM competition.approval_levels WHERE campaign_id = $1 AND level_order = $2', [params.campaignId, targetLevelOrder]);
+      if (!lv.rowCount) throw cErr('COMPETITION_LEVEL_NOT_FOUND', 'Mức duyệt không tồn tại.', 400);
+      newScore = Number(lv.rows[0].score);
+    }
+    const oldEffective = row.effective_score != null ? Number(row.effective_score)
+      : (row.current_score == null ? 0 : Number(row.current_score));
+
+    const r = await client.query(
+      `UPDATE competition.submissions SET
+         effective_score = $2,
+         last_review_note = COALESCE($3, last_review_note),
+         row_version = row_version + 1
+       WHERE id = $1 RETURNING *`,
+      [params.submissionId, newScore, reviewerRecord]);
+
+    await client.query(
+      `INSERT INTO competition.submission_history (submission_id, action, actor_account_id, actor_employee_code, actor_display_name, before, after, reason)
+       VALUES ($1,'score_adjust',$2,$3,$4,$5::jsonb,$6::jsonb,$7)`,
+      [params.submissionId, aa.account_id, aa.employee_code, aa.display_name,
+       JSON.stringify({ effectiveScore: oldEffective }),
+       JSON.stringify({ effectiveScore: newScore, targetLevelOrder: targetLevelOrder || null }), reason]);
+
+    return ownerView(r.rows[0]);
+  });
+}
+
+// List approved/finalized submissions eligible for adjustment — same
+// authorization + same anonymous shape as competition.review.queue (no
+// author identity). Bounded (50 most recent) so this stays a cheap read.
+async function listAdjustable(config, actor, params) {
+  const auth = await resolveAuthority(config, actor, params.campaignId);
+  return readTx(config, async (client) => {
+    const topR = await client.query('SELECT max(level_order) m FROM competition.approval_levels WHERE campaign_id = $1', [params.campaignId]);
+    const topLevel = topR.rows[0].m || 1;
+    const isAuthorized = auth.isCompetitionAdmin || (auth.reviewerMaxLevel != null && auth.reviewerMaxLevel >= topLevel);
+    if (!isAuthorized) {
+      throw cErr('COMPETITION_ADJUSTMENT_NOT_AUTHORIZED',
+        'Chỉ Reviewer ở mức cao nhất hoặc Competition Admin mới xem được danh sách điều chỉnh.', 403);
+    }
+    const r = await client.query(
+      `SELECT id AS submission_ref, payload, status, current_level_order, current_score, effective_score, submitted_at
+         FROM competition.submissions
+        WHERE campaign_id = $1 AND status IN ('approved','finalized')
+        ORDER BY updated_at DESC
+        LIMIT 50`,
+      [params.campaignId]);
+    return {
+      items: r.rows.map((x) => ({
+        submissionRef: x.submission_ref, payload: x.payload, status: x.status,
+        currentLevelOrder: x.current_level_order,
+        currentScore: x.current_score == null ? null : Number(x.current_score),
+        effectiveScore: x.effective_score != null ? Number(x.effective_score) : (x.current_score == null ? null : Number(x.current_score)),
+        adjusted: x.effective_score != null,
+        submittedAt: x.submitted_at,
+        // DELIBERATELY ABSENT: author name / code / department / branch / account
+      })),
+    };
+  });
+}
+
 // finalize every approved submission of a campaign (part of "chốt chương trình")
 async function finalizeCampaignSubmissions(config, actor, params) {
   const auth = await resolveAuthority(config, actor, params.campaignId);
@@ -323,5 +437,5 @@ async function finalizeCampaignSubmissions(config, actor, params) {
 
 module.exports = {
   ownerView, listMySubmissions, getMySubmission,
-  createDraft, editDraft, submit, reviewAction, adminOverride, finalizeCampaignSubmissions,
+  createDraft, editDraft, submit, reviewAction, adminOverride, adjustScore, listAdjustable, finalizeCampaignSubmissions,
 };

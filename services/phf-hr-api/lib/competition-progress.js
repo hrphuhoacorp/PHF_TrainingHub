@@ -34,6 +34,7 @@ async function myProgress(config, actor, params) {
         WHERE campaign_id = $1
           AND ( ($2 <> '' AND author_account_id = $2) OR ($3 <> '' AND author_employee_code = $3) )
           AND status IN ('approved','finalized')
+          AND COALESCE(effective_score, current_score, 0) > 0
           AND to_char(submitted_at, 'YYYY-MM') = $4`,
       [campaignId, actor.accountId || '', actor.employeeCode || '', period]);
     const valid = r.rows[0].valid;
@@ -62,6 +63,7 @@ async function companyProgress(config, actor, params) {
       `SELECT s.author_employee_code, max(s.author_display_name_snapshot) AS display_name,
               max(s.author_department_snapshot) AS department, max(s.author_branch_snapshot) AS branch,
               count(*) FILTER (WHERE s.status IN ('approved','finalized')
+                               AND COALESCE(s.effective_score, s.current_score, 0) > 0
                                AND to_char(s.submitted_at,'YYYY-MM') = $2)::int AS valid_count,
               count(*) FILTER (WHERE to_char(s.submitted_at,'YYYY-MM') = $2)::int AS submitted_count
          FROM competition.submissions s
