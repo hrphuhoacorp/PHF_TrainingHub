@@ -49,11 +49,6 @@
 .phf-comp-brand b{font-size:14px;letter-spacing:.02em;}
 .phf-comp-brand small{font-size:11px;color:var(--comp-ink-soft);letter-spacing:.06em;text-transform:uppercase;}
 .phf-comp-brand-rule{width:1px;height:26px;background:linear-gradient(var(--comp-gold),transparent);}
-.phf-comp-top-tag{
-  margin-left:auto;font-size:11.5px;color:var(--comp-green-deep);
-  border:1px solid var(--comp-gold);border-radius:999px;padding:4px 12px;
-  background:var(--comp-surface);letter-spacing:.03em;
-}
 
 .phf-comp-identity{
   display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;
@@ -72,18 +67,33 @@
 
 .phf-comp-body{display:grid;grid-template-columns:238px minmax(0,1fr);gap:clamp(16px,2.4vw,30px);margin-top:22px;}
 
-/* ---- module menu ---- */
-.phf-comp-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:14px;align-self:start;}
-.phf-comp-nav-group{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--comp-ink-soft);
-  padding:14px 12px 6px;}
+/* ---- module menu — each group (Tham gia / Xét duyệt / Quản trị) is its own
+   light, bordered surface: a stronger PHF-green group title clearly separated
+   from a softly-inset item list. Very light depth only — a hairline border, a
+   soft shadow and a faint inset seam, no glass/gloss/gradient. */
+.phf-comp-nav{display:flex;flex-direction:column;gap:10px;position:sticky;top:14px;align-self:start;}
+.phf-comp-nav-group-wrap{
+  border:1px solid var(--comp-border);border-radius:14px;background:var(--comp-surface);
+  padding:10px;box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 6px 16px -12px rgba(22,79,48,.22);
+}
+.phf-comp-nav-group{
+  display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--comp-green-deep);padding:2px 8px 8px;
+}
+.phf-comp-nav-group-items{
+  display:flex;flex-direction:column;gap:2px;
+  background:var(--comp-surface-cream);border-radius:10px;padding:4px;
+  box-shadow:inset 0 1px 3px rgba(22,79,48,.06);
+}
 .phf-comp-nav a{
-  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;
   font-size:13.5px;color:var(--comp-ink);border:1px solid transparent;
 }
 .phf-comp-nav a svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;opacity:.8;}
 .phf-comp-nav a:hover{background:var(--comp-surface);border-color:var(--comp-border);}
 .phf-comp-nav a.is-active{
   background:var(--comp-green-soft);border-color:#cfe3d6;color:var(--comp-green-deep);font-weight:700;
+  box-shadow:0 1px 2px rgba(22,79,48,.10);
 }
 .phf-comp-nav a.is-active svg{opacity:1;}
 /* light CTA treatment for "+ Gửi bài dự thi" — still a nav item, not a
@@ -119,11 +129,11 @@
 .phf-comp-section > h2 svg{width:18px;height:18px;stroke:var(--comp-gold);fill:none;stroke-width:1.6;}
 
 /* section header with a right-aligned CTA (e.g. "Bài của tôi" + "Gửi bài mới") */
-.phf-comp-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.phf-comp-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
 .phf-comp-section-head h2{margin:0;}
 
 /* quiet filter tabs — not status pills, not a full tab-bar chrome */
-.phf-comp-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.phf-comp-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
 .phf-comp-filter{
   font:inherit;font-size:12.5px;font-weight:600;color:var(--comp-ink-soft);
   border:1px solid transparent;background:none;border-radius:8px;padding:6px 10px;cursor:pointer;
@@ -275,13 +285,14 @@
 
 @media (max-width:1024px){
   .phf-comp-body{grid-template-columns:1fr;}
-  .phf-comp-nav{position:static;flex-flow:row wrap;gap:6px;}
-  .phf-comp-nav-group{width:100%;padding:6px 4px 2px;}
+  .phf-comp-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;}
+  .phf-comp-nav-group-wrap{flex:1 1 auto;padding:8px;}
+  .phf-comp-nav-group{padding:2px 4px 6px;}
+  .phf-comp-nav-group-items{flex-direction:row;flex-wrap:wrap;}
   .phf-comp-nav a{flex:1 1 auto;}
 }
 @media (max-width:768px){
   .phf-comp-shell{padding:16px 12px 44px;}
-  .phf-comp-top-tag{margin-left:0;order:3;width:100%;}
   .phf-comp-table thead{display:none;}
   .phf-comp-table,.phf-comp-table tbody,.phf-comp-table tr,.phf-comp-table td{display:block;width:100%;}
   .phf-comp-table tr{border:1px solid var(--comp-border);border-radius:10px;margin-bottom:10px;padding:6px 4px;}
@@ -314,13 +325,12 @@
 .phf-comp-body{grid-template-columns:256px minmax(0,1fr);gap:clamp(20px,2.4vw,34px);margin-top:24px;}
 .phf-comp{font-size:14px;}
 
-.phf-comp-nav-group{font-size:11px;padding:16px 12px 6px;}
+.phf-comp-nav-group{font-size:11.5px;}
 .phf-comp-nav a{font-size:14.5px;padding:10px 13px;}
 .phf-comp-nav a svg{width:18px;height:18px;}
 
 .phf-comp-top .phf-comp-brand b{font-size:15px;}
 .phf-comp-top .phf-comp-brand small{font-size:11.5px;}
-.phf-comp-top-tag{font-size:12px;}
 
 .phf-comp-hero{padding:clamp(22px,2.6vw,34px);}
 .phf-comp-hero .phf-comp-eyebrow{font-size:11.5px;}
@@ -331,8 +341,8 @@
 .phf-comp-section > h2{font-size:17px;margin-bottom:14px;}
 .phf-comp-section > h2 svg{width:19px;height:19px;}
 
-.phf-comp-card{padding:clamp(18px,2vw,28px);}
-.phf-comp-card + .phf-comp-card{margin-top:16px;}
+.phf-comp-card{padding:clamp(20px,2.2vw,30px);}
+.phf-comp-card + .phf-comp-card{margin-top:18px;}
 .phf-comp-grid{gap:16px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
 .phf-comp-fact{padding:15px 17px;}
 .phf-comp-fact b{font-size:12.5px;}
@@ -351,7 +361,7 @@
 .phf-comp-field .hint{font-size:12px;}
 
 .phf-comp-btn{font-size:14px;padding:11px 20px;}
-.phf-comp-review-item{padding:17px;}
+.phf-comp-review-item{padding:20px;}
 .phf-comp-review-item h3{font-size:15px;}
 .phf-comp-table{font-size:13.5px;}
 .phf-comp-table th,.phf-comp-table td{padding:11px 13px;}
@@ -378,7 +388,7 @@
 .phf-comp-prog-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--comp-green),var(--comp-gold));}
 
 /* ---- feed — social/recognition surface (warm gold accent) ---- */
-.phf-comp-feed{display:flex;flex-direction:column;gap:14px;}
+.phf-comp-feed{display:flex;flex-direction:column;gap:18px;}
 .phf-comp-post{
   border:1px solid var(--comp-border);border-left:3px solid var(--comp-border-strong);
   border-radius:var(--comp-radius);background:var(--comp-surface);
@@ -407,8 +417,8 @@
 .phf-comp-post-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--comp-border);}
 
 /* C4.3 — question + answer, always both, content stays visually dominant. */
-.phf-comp-qa{display:flex;flex-direction:column;gap:10px;}
-.phf-comp-qa-block+.phf-comp-qa-block{padding-top:10px;border-top:1px dashed var(--comp-border);}
+.phf-comp-qa{display:flex;flex-direction:column;gap:14px;}
+.phf-comp-qa-block+.phf-comp-qa-block{padding-top:14px;border-top:1px dashed var(--comp-border);}
 .phf-comp-qa-label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--comp-ink-soft);margin-bottom:3px;}
 .phf-comp-qa-text{margin:0;font-size:14px;color:var(--comp-ink);line-height:1.6;white-space:pre-wrap;}
 .phf-comp-qa-missing{font-style:italic;color:var(--comp-ink-soft);}

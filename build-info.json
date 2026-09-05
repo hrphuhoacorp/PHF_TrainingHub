@@ -1,6 +1,6 @@
 {
-  "version": "1.66.9",
-  "fingerprint": "1.66.9-competition-v1-go-live",
-  "builtAt": "2026-09-05T10:57:00+07:00",
-  "notes": "PHF HR Competition V1 (Chuong trinh thi dua) go-live: /admin|ql|hv/thi-dua wired into phf-url-router.js. Fingerprint bump is required here because assets/js/phf-url-router.js is served with Cache-Control: immutable, max-age=1y under a query string keyed to this fingerprint — without bumping it, browsers that cached the site before this deploy keep serving the pre-Competition router (no /thi-dua route match), which falls through to the router's default Home redirect. Task business data remains on Company PostgreSQL."
+  "version": "1.66.10",
+  "fingerprint": "1.66.10-competition-v1-final-ui-polish",
+  "builtAt": "2026-09-05T14:20:00+07:00",
+  "notes": "PHF HR Competition V1 final UI polish + Home activation (bugfix/visual only, no business logic change): removed the hardcoded DEV/phf_hr_e2e badge, grouped sidebar with light depth, added Vietnamese labels for campaign status (accepting/reviewing) and award status (proposed/confirmed/superseded/revoked) that were previously leaking raw enum values, light spacing increases in Bai cua toi/Bang tin/Cho duyet, and activated the Chuong trinh thi dua entry on PHF HR Home (nav + module card) under Thi dua & Thuong. assets/js/competition/phf-competition-app.js, assets/css/phf-competition.css and assets/js/phf-hr-home.js all use hand-written index.html ?v= tags (not this fingerprint) and were bumped individually — also added to scripts/phf-check-js.js MANUAL_VERSIONED_ASSETS so future edits to these three files are gated automatically."
 }

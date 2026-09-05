@@ -156,7 +156,7 @@ function hrNavModel(){
     {label:'Checklist',href:p+'/checklist',icon:'checklist'}
   ]});
   model.push({key:'thi-dua',label:'Thi đua & Thưởng',children:[
-    {label:'Chương trình thi đua',soon:true,icon:'trophy'},
+    {label:'Chương trình thi đua',href:p+'/thi-dua',icon:'trophy'},
     {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
   ]});
   return model;
@@ -278,7 +278,7 @@ function hrGroupsModel(){
       {tint:'purple',icon:'knl',title:'Khung năng lực',desc:'Bậc năng lực • Lộ trình phát triển',badge:'Phát triển',href:p+'/knl'}
     ]},
     {key:'c',icon:'award',title:'Thi đua & Thưởng hành động',sub:'Ghi nhận nỗ lực, lan tỏa hành động tích cực',cols:2,cards:[
-      {tint:'yellow',icon:'trophy',title:'Chương trình thi đua',desc:'Đóng góp • Xếp hạng • Vinh danh',soon:true},
+      {tint:'yellow',icon:'trophy',title:'Chương trình thi đua',desc:'Đóng góp • Xếp hạng • Vinh danh',badge:'Thi đua',href:p+'/thi-dua'},
       {tint:'peach',icon:'sparkles',title:'Thưởng Hành động V.2',desc:'Ghi nhận • Xét thưởng • Lan tỏa',soon:true}
     ]},
     {key:'d',icon:'chart',title:'Hệ thống & Báo cáo',sub:'Dữ liệu, báo cáo và cấu hình hệ thống',cols:2,cards:[
