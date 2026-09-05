@@ -159,7 +159,7 @@ function manualAssetTagChanged(assetHref){
   if(before===undefined||after===undefined)return true;
   return before!==after;
 }
-const MANUAL_VERSIONED_ASSETS=['assets/js/knl/phf-knl-app.js','assets/css/phf-knl.css','assets/js/phf-account-admin-safe.js','assets/js/ai/phf-ai-engine.js','assets/css/phf-ai-sandbox.css','assets/js/competition/phf-competition-app.js','assets/css/phf-competition.css','assets/js/phf-hr-home.js'];
+const MANUAL_VERSIONED_ASSETS=['assets/js/knl/phf-knl-app.js','assets/css/phf-knl.css','assets/js/phf-account-admin-safe.js','assets/js/ai/phf-ai-engine.js','assets/css/phf-ai-sandbox.css','assets/js/competition/phf-competition-app.js','assets/css/phf-competition.css','assets/js/phf-hr-home.js','assets/css/phf-hr-home.css'];
 MANUAL_VERSIONED_ASSETS.forEach(assetPath=>{
   if(releaseChangedFiles.includes(assetPath)){
     assert(manualAssetTagChanged(assetPath),`RELEASE GATE FAILED: đã sửa ${assetPath} nhưng thẻ ?v= tương ứng trong index.html chưa đổi giá trị so với HEAD — browser sẽ giữ mãi bản cache cũ (đúng sự cố đã xảy ra ở 1.50.3). Hãy bump ?v= của asset này trong index.html.`);

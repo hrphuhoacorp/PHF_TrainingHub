@@ -159,6 +159,17 @@ function hrNavModel(){
     {label:'Chương trình thi đua',href:p+'/thi-dua',icon:'trophy'},
     {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
   ]});
+  // Báo cáo / Quản trị — mirror the existing "Hệ thống & Báo cáo" body group
+  // 1:1 (same two entries, same real/soon status, same /admin/nhan-su route
+  // for Quản trị hệ thống) so the top nav offers the same reachable surface
+  // as the body cards, per the approved reference's top-nav composition.
+  // No new route/module — this only exposes what already exists.
+  model.push({key:'bao-cao',label:'Báo cáo',children:[
+    {label:'Báo cáo & Thống kê',soon:true,icon:'chart'}
+  ]});
+  model.push({key:'quan-tri',label:'Quản trị',children:[
+    {label:'Quản trị hệ thống',href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,note:'Dành cho quản trị viên',icon:'gear'}
+  ]});
   return model;
 }
 function hrNavHtml(model){
@@ -317,26 +328,7 @@ function hrGroupsHtml(){
 }
 /* ---- HOME V1 sidebar: 4 blocks. Clock = real client time; the other 3 are
    deliberate empty-state / current-calendar shells — NO production data, NO fake numbers. */
-var _hrClockTimer=null,_hrQuoteTimer=null;
-/* "Góc quản trị" — static local quote pool. No API, no backend, no network. */
-var HR_QUOTES=[
-  'Quản trị tốt bắt đầu từ dữ liệu đúng.',
-  'Đừng để việc gấp làm mất việc quan trọng.',
-  'Một quy trình tốt phải giúp người làm việc nhẹ hơn.',
-  'Minh bạch trước, tối ưu sau.',
-  'Vấn đề lặp lại nhiều lần là tín hiệu cần sửa hệ thống.',
-  'Giao việc rõ ràng là bước đầu của trách nhiệm rõ ràng.',
-  'Điều gì không được đo lường thì khó cải thiện.'
-];
-function startHrQuote(main){
-  if(_hrQuoteTimer){clearInterval(_hrQuoteTimer);_hrQuoteTimer=null;}
-  var el=main.querySelector('[data-hr-quote]');if(!el)return;
-  function pick(){
-    if(!document.body.contains(main)){if(_hrQuoteTimer){clearInterval(_hrQuoteTimer);_hrQuoteTimer=null;}return;}
-    el.textContent='“'+HR_QUOTES[Math.floor(Math.random()*HR_QUOTES.length)]+'”';
-  }
-  pick();_hrQuoteTimer=setInterval(pick,25000);
-}
+var _hrClockTimer=null;
 function hrWeekStripHtml(){
   var now=new Date();var day=(now.getDay()+6)%7;
   var mon=new Date(now);mon.setDate(now.getDate()-day);
@@ -352,8 +344,6 @@ function hrSidebarHtml(){
   return ''
   +'<section class="phf-hr-widget phf-hr-widget-clock"><div><span class="phf-hr-w-date" data-hr-clock-date>—</span>'
     +'<span class="phf-hr-w-time" data-hr-clock-time>--:--</span></div><span class="phf-hr-w-sprout" aria-hidden="true">'+icon('sprout')+'</span></section>'
-  +'<section class="phf-hr-widget phf-hr-quote"><span class="phf-hr-quote-ico" aria-hidden="true">'+icon('quote')+'</span>'
-    +'<span class="phf-hr-quote-body"><b>Góc quản trị</b><q data-hr-quote>—</q></span></section>'
   +'<section class="phf-hr-widget phf-hr-attn is-loading" data-hr-attn><div class="phf-hr-w-head"><h3>Công việc cần chú ý</h3></div>'
     +'<div class="phf-hr-attn-grid">'
       +'<div class="phf-hr-attn-cell is-overdue"><b data-hr-ov="overdue">·</b><span>Quá hạn</span></div>'
@@ -366,7 +356,59 @@ function hrSidebarHtml(){
     +'<p class="phf-hr-w-note">Sự kiện lịch hiển thị khi kết nối nguồn.</p></section>'
   +'<section class="phf-hr-widget"><div class="phf-hr-w-head"><h3>Số liệu nhanh</h3><span>'+esc(hrMonthLabel())+'</span></div>'
     +'<div class="phf-hr-mini-grid">'+hrMini('Nhân sự')+hrMini('Đang đào tạo')+hrMini('Bài thi đua')+hrMini('Checklist')+'</div>'
-    +'<p class="phf-hr-w-note">Dữ liệu sẽ hiển thị khi kết nối nguồn.</p></section>';
+    +'<p class="phf-hr-w-note">Dữ liệu sẽ hiển thị khi kết nối nguồn.</p></section>'
+  +'<section class="phf-hr-widget phf-hr-notices is-loading" data-hr-notices><div class="phf-hr-w-head"><h3>Thông báo mới</h3></div>'
+    +'<div class="phf-hr-notices-list" data-hr-notices-list></div></section>';
+}
+/* "Thông báo mới" — real data ONLY: the current session's own PHF Task
+ * in-app notifications (listMyTaskNotifications, already live and
+ * privacy-checked — see api/_lib/task-notifications.js). This is real
+ * activity for the signed-in user, not a fabricated company-announcement
+ * feed (no such module exists yet — Home does not invent one). Zero
+ * results -> honest empty state, never a fake list. */
+function hrTimeAgo(iso){
+  if(!iso)return '';
+  var d=new Date(iso);if(isNaN(d.getTime()))return '';
+  var mins=Math.max(0,Math.round((Date.now()-d.getTime())/60000));
+  if(mins<1)return 'Vừa xong';
+  if(mins<60)return mins+' phút trước';
+  var hrs=Math.round(mins/60);
+  if(hrs<24)return hrs+' giờ trước';
+  var days=Math.round(hrs/24);
+  if(days<7)return days+' ngày trước';
+  return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'});
+}
+var _hrNoticesSeq=0;
+function loadHrNotices(main){
+  var wrap=main.querySelector('[data-hr-notices]');if(!wrap)return;
+  var list=wrap.querySelector('[data-hr-notices-list]');
+  var seq=++_hrNoticesSeq;
+  fetch('/api/data',{method:'POST',credentials:'same-origin',cache:'no-store',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({action:'listMyTaskNotifications',limit:5})
+  }).then(function(res){
+    return res.json().catch(function(){return {};}).then(function(j){return {ok:res.ok&&j&&j.ok!==false,data:j};});
+  }).then(function(r){
+    if(seq!==_hrNoticesSeq||!document.body.contains(wrap))return;
+    wrap.classList.remove('is-loading');
+    var result=(r.data&&r.data.result)||r.data||{};
+    var rows=(r.ok&&Array.isArray(result.notifications))?result.notifications:null;
+    if(!rows||!rows.length){
+      list.innerHTML='<div class="phf-hr-w-empty">'+icon('bell')+'<p>Chưa có thông báo mới<span>Thông báo công việc sẽ hiển thị tại đây</span></p></div>';
+      return;
+    }
+    list.innerHTML=rows.slice(0,5).map(function(n){
+      return '<a class="phf-hr-notice'+(n.status==='unread'?' is-unread':'')+'" href="'+esc(n.targetPath||prefix()+'/task')+'" data-phf-hr-nav-link="'+esc(n.targetPath||prefix()+'/task')+'">'
+        +'<span class="phf-hr-notice-dot" aria-hidden="true"></span>'
+        +'<span class="phf-hr-notice-body"><b>'+esc(n.title||'Thông báo')+'</b><span>'+esc(hrTimeAgo(n.createdAt))+'</span></span>'
+      +'</a>';
+    }).join('');
+  }).catch(function(err){
+    if(seq!==_hrNoticesSeq||!document.body.contains(wrap))return;
+    wrap.classList.remove('is-loading');
+    list.innerHTML='<div class="phf-hr-w-empty">'+icon('bell')+'<p>Không tải được thông báo</p></div>';
+    try{console.warn('[PHF HR] listMyTaskNotifications lỗi:',err&&err.message||err);}catch(e){}
+  });
 }
 function startHrClock(main){
   if(_hrClockTimer){clearInterval(_hrClockTimer);_hrClockTimer=null;}
@@ -425,6 +467,13 @@ function wireHrCards(main){
   });
   var attnCta=main.querySelector('[data-hr-attn-cta]');
   if(attnCta)attnCta.addEventListener('click',function(){go(prefix()+'/task');});
+  var noticesList=main.querySelector('[data-hr-notices-list]');
+  if(noticesList)noticesList.addEventListener('click',function(e){
+    var link=e.target&&e.target.closest?e.target.closest('.phf-hr-notice'):null;
+    if(!link)return;
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;
+    e.preventDefault();go(link.getAttribute('href'));
+  });
 }
 window.phfRenderHrGateway=function(requestedPath){
   var actualPath=String((window.location&&window.location.pathname)||'/').split('?')[0].split('#')[0].replace(/\/{2,}/g,'/');
@@ -461,7 +510,7 @@ window.phfRenderHrGateway=function(requestedPath){
       <div class="phf-hr-layout">
       <main class="phf-hr-content">
       <section class="phf-hr-hero">
-        <div class="phf-hr-hero-copy"><span class="phf-hr-eyebrow">PHF HR</span><h1>Nền tảng phát triển nhân sự tại <span class="phf-hr-brand-name">PHUHOA FRESH</span></h1><p>Kết nối công việc, đào tạo, đánh giá, thi đua và quản trị trên cùng một hệ thống — dễ dùng, dễ mở rộng khi PHF HR có thêm module mới.</p><div class="phf-hr-hero-tags"><span>Một hệ thống nhân sự thống nhất</span><span>Công việc · Đào tạo · Đánh giá</span><span>Dữ liệu phục vụ vận hành</span></div></div>
+        <div class="phf-hr-hero-copy"><span class="phf-hr-eyebrow">PHF HR</span><h1>Nền tảng phát triển<br>nhân sự tại <span class="phf-hr-brand-name">PHUHOA FRESH</span></h1><p>Kết nối công việc – Đào tạo – Đánh giá – Thi đua – Quản trị trên một hệ thống, phục vụ người thật, dữ liệu thật, vận hành lâu dài.</p><div class="phf-hr-hero-tags"><span>${icon('chart')}Hiệu quả hơn</span><span>${icon('checklist')}Minh bạch hơn</span><span>${icon('people')}Phát triển cùng nhau</span></div></div>
       </section>
       ${hrGroupsHtml()}
       </main>
@@ -483,8 +532,8 @@ window.phfRenderHrGateway=function(requestedPath){
   wireHrNav(main);
   wireHrCards(main);
   startHrClock(main);
-  startHrQuote(main);
   loadHrOverview(main);
+  loadHrNotices(main);
   document.title='PHF HR · Hệ thống phát triển nhân sự';
   applyCapabilityChip(main);
   try{window.scrollTo({top:0,behavior:'instant'});}catch(e){window.scrollTo(0,0);}return true;

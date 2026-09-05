@@ -274,7 +274,8 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-content .phf-hr-hero-copy h1 .phf-hr-brand-name{white-space:nowrap}
 .phf-hr-content .phf-hr-hero-copy>p{font-size:16px;line-height:1.55;color:#60736a;margin:0;max-width:720px}
 .phf-hr-hero-tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
-.phf-hr-hero-tags span{background:#fff;border:1px solid #e2ece6;border-radius:999px;padding:9px 12px;font-size:13px;color:#3d5149;box-shadow:0 6px 16px rgba(18,53,42,.07)}
+.phf-hr-hero-tags span{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2ece6;border-radius:999px;padding:9px 14px 9px 10px;font-size:13px;font-weight:600;color:#3d5149;box-shadow:0 6px 16px rgba(18,53,42,.07)}
+.phf-hr-hero-tags span svg{width:16px;height:16px;flex:0 0 auto;stroke:#0f7a43;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* --- responsive -------------------------------------------------------- */
 @media (max-width:1200px){
@@ -386,14 +387,28 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-mini span{font-size:11px;color:#788780}
 .phf-hr-mini b{display:block;font-size:22px;font-weight:800;color:#273d34;margin-top:6px;line-height:1}
 
+/* ---- "Thông báo mới" — real PHF Task in-app notifications (listMyTaskNotifications) ---- */
+.phf-hr-notices-list{display:flex;flex-direction:column;gap:2px}
+.phf-hr-notice{display:flex;align-items:flex-start;gap:10px;padding:9px 6px;border-radius:10px;text-decoration:none;color:inherit;transition:background .13s ease}
+.phf-hr-notice:hover{background:#f6faf7}
+.phf-hr-notice-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#d7e0da;margin-top:6px}
+.phf-hr-notice.is-unread .phf-hr-notice-dot{background:#0f7a43}
+.phf-hr-notice-body{min-width:0;display:flex;flex-direction:column;gap:2px}
+.phf-hr-notice-body b{font-size:13px;font-weight:600;color:#233a30;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.phf-hr-notice.is-unread .phf-hr-notice-body b{font-weight:700}
+.phf-hr-notice-body>span{font-size:11px;color:#93a09a}
+
 /* ---- Phase 2A: "Công việc cần chú ý" (getTaskOverviewV2 — 3 authoritative signals) ---- */
 .phf-hr-attn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .phf-hr-attn-cell{border:1px solid #edf1ee;border-radius:14px;padding:12px 8px;background:#fbfdfb;text-align:center}
 .phf-hr-attn-cell b{display:block;font-size:24px;font-weight:800;line-height:1;color:#273d34}
 .phf-hr-attn-cell span{display:block;margin-top:6px;font-size:11px;color:#788780}
+.phf-hr-attn-cell.is-overdue{background:#fdf1f0;border-color:#f6dcda}
 .phf-hr-attn-cell.is-overdue b{color:#c0271f}
+.phf-hr-attn-cell.is-soon{background:#fdf6e8;border-color:#f3e6c4}
 .phf-hr-attn-cell.is-soon b{color:#a25c07}
-.phf-hr-attn-cell.is-attn b{color:#6a37bd}
+.phf-hr-attn-cell.is-attn{background:#eef8f1;border-color:#d9ecdf}
+.phf-hr-attn-cell.is-attn b{color:#0f7a43}
 .phf-hr-attn.is-loading .phf-hr-attn-cell b{color:#c4ccc8}
 .phf-hr-attn-cta{margin-top:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #dce8df;background:#f1f7f3;color:#0f7a43;font:700 12px Arial,Helvetica,system-ui,sans-serif;border-radius:10px;padding:9px 10px;cursor:pointer;transition:background .15s ease}
 .phf-hr-attn-cta:hover{background:#e7f2ec}
@@ -414,11 +429,3 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-mod.tint-peach .phf-hr-mod-ico{color:#b5566a;background:linear-gradient(145deg,#fff 5%,#f8e6df 95%)}
 /* nav breathing room after the longer "Phát triển con người" label */
 .phf-hr-nav{column-gap:2px}
-/* "Góc quản trị" quote card — compact, subtle green tint, no poster styling */
-.phf-hr-widget.phf-hr-quote{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:linear-gradient(145deg,#f3faf5,#eef7f0)}
-.phf-hr-quote-ico{flex:0 0 auto;width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:#e3f2e8;color:#0f7a43}
-.phf-hr-quote-ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.phf-hr-quote-body{display:flex;flex-direction:column;gap:3px;min-width:0}
-.phf-hr-quote-body b{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#3c8a58}
-.phf-hr-quote-body q{font-size:13px;line-height:1.5;color:#274b3b;quotes:none}
-.phf-hr-quote-body q::before,.phf-hr-quote-body q::after{content:none}
