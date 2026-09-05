@@ -20,13 +20,16 @@ const leaderboard = require('./competition-leaderboard');
 const awards = require('./competition-awards');
 const progress = require('./competition-progress');
 const { resolveAuthority } = require('./competition-permissions');
+const similarity = require('./competition-similarity-service');
 
 const READ_ACTIONS = new Set([
   'competition.bootstrap',
   'competition.campaign.list', 'competition.campaign.detail', 'competition.campaign.active',
   'competition.level.list',
   'competition.submission.listMine', 'competition.submission.getMine',
-  'competition.review.queue', 'competition.review.productivity',
+  'competition.submission.checkSimilarity',
+  'competition.review.queue', 'competition.review.productivity', 'competition.review.similar',
+  'competition.submission.occurrenceCount',
   'competition.feed.get',
   'competition.leaderboard.get',
   'competition.progress.mine', 'competition.progress.company',
@@ -97,8 +100,15 @@ const HANDLERS = {
   'competition.submission.submit': (c, a, p) => submissions.submit(c, a, p),
   'competition.submission.review': (c, a, p) => submissions.reviewAction(c, a, p),
   'competition.submission.adminOverride': (c, a, p) => submissions.adminOverride(c, a, p),
+  'competition.submission.checkSimilarity': (c, a, p) => similarity.checkSimilarityForSubmit(c, a, p),
+  'competition.submission.confirmOccurrence': (c, a, p) => similarity.confirmOccurrence(c, a, p),
+  'competition.submission.occurrenceCount': (c, a, p) => similarity.getOccurrenceCount(c, a, p),
 
-  'competition.review.queue': (c, a, p) => review.anonymousQueue(c, a, p),
+  'competition.review.queue': async (c, a, p) => {
+    const result = await review.anonymousQueue(c, a, p);
+    return similarity.attachQueueSimilarityFlags(c, result, p.campaignId);
+  },
+  'competition.review.similar': (c, a, p) => similarity.getSimilarForReview(c, a, p),
   'competition.review.productivity': (c, a, p) => review.reviewerProductivity(c, a, p),
   'competition.review.reassign': (c, a, p) => review.manualReassign(c, a, p),
   'competition.review.processOverdue': (c, a, p) => review.processOverdueAssignments(c, p),

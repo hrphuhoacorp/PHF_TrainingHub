@@ -283,6 +283,37 @@
   border:1px solid #e6d3b3;background:#fbf2e0;border-radius:999px;padding:3px 10px;}
 .phf-comp-freeze svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7;}
 
+/* ---- V1.1 — reviewer "Có nội dung tương tự" (quiet, expand-on-demand) ---- */
+.phf-comp-similar-disclosure{margin-top:12px;border-top:1px solid var(--comp-border);padding-top:10px;}
+.phf-comp-similar-disclosure summary{
+  cursor:pointer;font-size:12.5px;font-weight:700;color:#8a6a2c;list-style:none;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.phf-comp-similar-disclosure summary svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;}
+.phf-comp-similar-disclosure summary::-webkit-details-marker{display:none;}
+.phf-comp-similar-body{margin-top:10px;display:flex;flex-direction:column;gap:10px;}
+.phf-comp-similar-item{border:1px solid var(--comp-border);border-left:3px solid var(--comp-gold);
+  border-radius:10px;background:var(--comp-surface-cream);padding:12px 14px;}
+.phf-comp-similar-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--comp-ink-soft);}
+.phf-comp-similar-verdict{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+
+/* ---- V1.1 — sender pre-submit similarity warning (modal, never blocks) ---- */
+.phf-comp-simwarn-backdrop{
+  position:fixed;inset:0;background:rgba(36,48,39,.45);z-index:1000;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.phf-comp-simwarn{
+  width:100%;max-width:520px;max-height:85vh;overflow-y:auto;
+  background:var(--comp-surface);border:1px solid var(--comp-border);border-radius:var(--comp-radius);
+  box-shadow:0 20px 50px rgba(36,48,39,.28);padding:clamp(18px,2.4vw,26px);
+}
+.phf-comp-simwarn h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:16px;color:var(--comp-ink);}
+.phf-comp-simwarn h3 svg{width:18px;height:18px;stroke:#a5573b;fill:none;stroke-width:1.6;}
+.phf-comp-simwarn-list{display:flex;flex-direction:column;gap:10px;}
+.phf-comp-simwarn-cand{border:1px solid var(--comp-border);border-radius:10px;background:var(--comp-surface-cream);padding:12px 14px;}
+.phf-comp-simwarn-meta{display:block;font-size:11px;color:var(--comp-ink-soft);}
+.phf-comp-simwarn-q{margin:6px 0 10px;font-size:13.5px;color:var(--comp-ink);line-height:1.5;}
+
 @media (max-width:1024px){
   .phf-comp-body{grid-template-columns:1fr;}
   .phf-comp-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;}

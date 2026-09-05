@@ -36,7 +36,8 @@ const COMPETITION_ACTION_MANIFEST = Object.freeze([
   'competitionListMySubmissions', 'competitionGetMySubmission',
   'competitionCreateSubmissionDraft', 'competitionEditSubmissionDraft', 'competitionSubmitSubmission',
   'competitionReviewSubmission', 'competitionAdminOverrideSubmission',
-  'competitionGetReviewQueue', 'competitionGetReviewerProductivity',
+  'competitionCheckSimilarity', 'competitionConfirmOccurrence', 'competitionGetOccurrenceCount',
+  'competitionGetReviewQueue', 'competitionGetReviewerProductivity', 'competitionGetSimilarForReview',
   'competitionReassignReview', 'competitionProcessOverdueReviews',
   'competitionGetFeed', 'competitionSetReaction',
   'competitionGetLeaderboard',
@@ -157,8 +158,32 @@ const ACTION_MAP = {
       targetStatus: str(p.target_status), payload: p.payload, reason: str(p.reason),
     }),
   },
+  // V1.1 — NO-AI similarity suggestion (pre-submit sender check). Never a
+  // verdict: server returns a bounded top-3 list of candidate content, the
+  // client only ever shows it as a warning the sender can dismiss/act on.
+  competitionCheckSimilarity: {
+    remote: 'competition.submission.checkSimilarity',
+    params: (p) => ({
+      campaignId: str(p.campaign_id), question: str(p.question), answer: str(p.answer),
+      excludeSubmissionId: str(p.exclude_submission_id),
+    }),
+  },
+  // "Tôi cũng gặp tình huống này" — records a frequency signal only, never a
+  // new Competition submission (see competition-similarity-service.js).
+  competitionConfirmOccurrence: {
+    remote: 'competition.submission.confirmOccurrence',
+    params: (p) => ({ campaignId: str(p.campaign_id), sourceSubmissionId: str(p.source_submission_id) }),
+  },
+  competitionGetOccurrenceCount: {
+    remote: 'competition.submission.occurrenceCount',
+    params: (p) => ({ submissionId: str(p.submission_id) }),
+  },
 
   competitionGetReviewQueue: { remote: 'competition.review.queue', params: (p) => ({ campaignId: str(p.campaign_id) }) },
+  competitionGetSimilarForReview: {
+    remote: 'competition.review.similar',
+    params: (p) => ({ submissionId: str(p.submission_id) }),
+  },
   competitionGetReviewerProductivity: {
     remote: 'competition.review.productivity',
     params: (p) => ({ campaignId: str(p.campaign_id), all: bool(p.all) }),
