@@ -102,6 +102,40 @@ function placeholderHtml(title,lines){
     +'</section>';
 }
 
+/* ---------- authenticated user block (header, right) ----------
+ * Real current session only — reuses the shared PHF HR session helpers, no new
+ * auth model. Preferred source = the server-resolved QTTH viewer (People Master
+ * identity from qtth.bootstrap); falls back to the shared client helper. */
+function sessionUser(){
+  try{
+    var u=(window.phfGetAuthenticatedUser&&window.phfGetAuthenticatedUser())
+      ||(window.phfGetCurrentUser&&window.phfGetCurrentUser());
+    return u||null;
+  }catch(e){return null;}
+}
+function viewerName(boot){
+  var v=boot&&boot.viewer;
+  if(v&&v.displayName)return v.displayName;
+  var u=sessionUser();
+  return (u&&(u.fullName||u.name||u.displayName||u.email))||'Người dùng';
+}
+function viewerRoleLabel(boot){
+  var v=(boot&&boot.viewer)||{};
+  if(v.isAdmin)return 'Quản trị hệ thống · Control Tower';
+  if(boot&&boot.devOperator)return 'Người vận hành QTTH';
+  var r=String(v.systemRole||(sessionUser()&&sessionUser().role)||'').toLowerCase();
+  return r==='manager'?'Quản lý':(r==='learner'?'Nhân viên':'Người dùng');
+}
+function userBlockHtml(boot){
+  return '<span>Xin chào,</span>'
+    +'<strong>'+esc(viewerName(boot))+'</strong>'
+    +'<em>'+esc(viewerRoleLabel(boot))+'</em>';
+}
+function paintUserBlock(main,boot){
+  var el=main&&main.querySelector('[data-qtth-user]');
+  if(el)el.innerHTML=userBlockHtml(boot);
+}
+
 /* ---------- Phân quyền screen ---------- */
 var PQ_STATE={period:'',data:null,filter:'all',search:'',unit:'',group:'',kind:'',selected:{},drawerCode:'',boot:null};
 
@@ -417,8 +451,9 @@ window.phfRenderQtth=async function(requestedPath){
 
   main.innerHTML='<div class="phf-qtth">'
     +'<header class="phf-qtth-top">'
-      +'<img src="assets/logo/phf-logo-white.png" alt="PHUHOA FRESH — Tươi mới trọn vẹn từ tâm" class="phf-qtth-logo" width="169" height="40" decoding="async" onerror="this.style.display=\'none\'">'
+      +'<img src="assets/logo/phf-logo-white.png" alt="PHUHOA FRESH — Tươi mới trọn vẹn từ tâm" class="phf-qtth-logo" width="220" height="44" decoding="async" onerror="this.style.display=\'none\'">'
       +'<span class="phf-qtth-brand"><b>Quản trị tổng hợp</b><small>PHF HR</small></span>'
+      +'<div class="phf-qtth-user" data-qtth-user>'+userBlockHtml(null)+'</div>'
     +'</header>'
     +'<div class="phf-qtth-shell">'
     +'<div class="phf-qtth-layout">'
@@ -434,6 +469,8 @@ window.phfRenderQtth=async function(requestedPath){
     navSlot.querySelectorAll('[data-qtth-nav]').forEach(function(a){a.onclick=function(e){if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;e.preventDefault();go(a.getAttribute('data-qtth-nav'));};});
   }
 
+  paintUserBlock(main,null); // greeting from the shared client session helper until bootstrap resolves
+
   var boot;
   try{ boot=await call('qtthBootstrap',{}); }
   catch(err){
@@ -444,6 +481,7 @@ window.phfRenderQtth=async function(requestedPath){
   }
   var caps=boot.capabilities||{};
   PQ_STATE.boot=boot;
+  paintUserBlock(main,boot); // real server-resolved identity (People Master)
 
   // server-authoritative route guard — decided from caps, never the URL.
   var need={'qtth':'canViewQtth','van-hanh':'canViewOperations','phan-quyen':'canManagePermissions'};
@@ -485,5 +523,6 @@ window.phfRenderQtth=async function(requestedPath){
 };
 
 window.__phfQtthTestHooks={screenForPath:screenForPath,menuModel:menuModel,firstAllowed:firstAllowed,currentPeriod:currentPeriod,prevPeriod:prevPeriod,classifiedCell:classifiedCell,staffKindCell:staffKindCell,esc:esc,
-  renderRosterHtml:function(data,period){PQ_STATE.data=data;PQ_STATE.period=period||'2026-09';PQ_STATE.boot={viewer:{isAdmin:true}};return pqScreenHtml();}};
+  renderRosterHtml:function(data,period){PQ_STATE.data=data;PQ_STATE.period=period||'2026-09';PQ_STATE.boot={viewer:{isAdmin:true}};return pqScreenHtml();},
+  userBlockHtml:userBlockHtml,viewerRoleLabel:viewerRoleLabel,viewerName:viewerName};
 })();

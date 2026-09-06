@@ -66,6 +66,19 @@ ck('roster: hostile dictionary name is escaped in the chip', roster.includes('Kh
 ck('roster: no un-rendered "phf-qtth-unclassified" leftover class', !roster.includes('phf-qtth-unclassified'));
 ck('roster: no visible escaped span text (&lt;span class=)', !roster.includes('&lt;span class='));
 
+// 4c. authenticated user block — real session data, no hard-coded name, escaped
+ck('user block: Admin -> Control Tower label',
+  H.userBlockHtml({ viewer: { isAdmin: true, displayName: 'Trần Thu Thủy' } }).includes('<em>Quản trị hệ thống · Control Tower</em>') &&
+  H.userBlockHtml({ viewer: { isAdmin: true, displayName: 'X' } }).includes('Xin chào,'));
+ck('user block: allow-listed operator -> "Người vận hành QTTH"',
+  H.viewerRoleLabel({ viewer: { isAdmin: false, systemRole: 'manager' }, devOperator: true }) === 'Người vận hành QTTH');
+ck('user block: plain manager/learner labels',
+  H.viewerRoleLabel({ viewer: { systemRole: 'manager' } }) === 'Quản lý' &&
+  H.viewerRoleLabel({ viewer: { systemRole: 'learner' } }) === 'Nhân viên');
+ck('user block: name is escaped, never a hard-coded literal',
+  H.userBlockHtml({ viewer: { displayName: 'Lê <b>C</b>' } }).includes('Lê &lt;b&gt;C&lt;/b&gt;') &&
+  !/Nguyễn Văn A|hard.?cod/i.test(fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'qtth', 'phf-qtth-app.js'), 'utf8').replace(/for example|ví dụ/gi, '')));
+
 // 5. no source file path still funnels markup through esc()
 const badPattern = /esc\([^)]*['"`]\s*<[a-z]/i;
 ck('no esc(<markup>) pattern remains in phf-qtth-app.js', !badPattern.test(src),
@@ -76,13 +89,21 @@ const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'phf-qtt
 ck('CSS keeps strong orange #E1500A', css.includes('#E1500A'));
 ck('CSS: no blur/backdrop-filter', !/backdrop-filter|filter:\s*blur/i.test(css));
 ck('CSS: no hazy gradient background', !/linear-gradient|radial-gradient/i.test(css));
-ck('CSS: workspace widened (>=1800px shell)', /max-width:1840px/.test(css));
-ck('CSS: header = compact strong-orange bar, white logo, viewport-centered title (01C)',
-  /\.phf-qtth-top\{[^}]*height:76px/.test(css) &&
-  /\.phf-qtth-top\{[^}]*background:var\(--qt-orange\)/.test(css) &&
-  /\.phf-qtth-logo\{[^}]*height:40px/.test(css) &&
+// 01D — Checklist-style viewport-wide shell: NO global max-width / margin:auto
+ck('CSS: shell is viewport-wide (no global max-width / margin:auto centering)',
+  !/\.phf-qtth-shell\{[^}]*max-width/.test(css) && !/\.phf-qtth-shell\{[^}]*margin:0 auto/.test(css) &&
+  !/\.phf-qtth-layout\{[^}]*max-width/.test(css));
+ck('CSS: layout = fixed sidebar rail + fluid main (grid minmax(0,1fr))',
+  /\.phf-qtth-layout\{[^}]*grid-template-columns:\s*\d+px\s+minmax\(0,\s*1fr\)/.test(css) &&
+  /\.phf-qtth-layout\{[^}]*min-height:calc\(100vh - 76px\)/.test(css));
+ck('CSS: sidebar is a sticky full-height rail (Checklist pattern)',
+  /\.phf-qtth-nav\{[\s\S]*?position:sticky[\s\S]*?top:76px[\s\S]*?height:calc\(100vh - 76px\)[\s\S]*?overflow:auto/.test(css));
+ck('CSS: header = full-bleed sticky strong-orange bar, viewport-centered title',
+  /\.phf-qtth-top\{[\s\S]*?position:sticky[\s\S]*?height:76px[\s\S]*?background:var\(--qt-orange\)/.test(css) &&
   /\.phf-qtth-logo\{[^}]*object-fit:contain/.test(css) &&
   /\.phf-qtth-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css));
+ck('CSS: header has an authenticated user block on the right',
+  /\.phf-qtth-user\{/.test(css) && /\.phf-qtth-user strong\{/.test(css));
 ck('CSS: header has no gradient', !/\.phf-qtth-top\{[^}]*gradient/i.test(css));
 ck('CSS: rows are table cells, not cards (no card-ification of tr)', !/\.phf-qtth-table tr\{[^}]*border-radius/.test(css));
 
