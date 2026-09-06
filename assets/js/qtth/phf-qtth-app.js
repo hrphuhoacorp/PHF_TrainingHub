@@ -51,10 +51,11 @@ async function call(action,fields){
 }
 
 function screenForPath(path){
-  var m=String(path||'').replace(/\/+$/,'').match(/^\/(?:admin|ql|hv)\/qtth(?:\/([a-z-]+))?$/);
+  var m=String(path||'').replace(/\/+$/,'').match(/^\/(?:admin|ql|hv)\/qtth(?:\/([a-z-]+(?:\/[a-z-]+)?))?$/);
   if(!m)return '';
   return m[1]||'';
 }
+function screenTop(key){ return String(key||'').split('/')[0]; }
 
 /* ---------- shell ---------- */
 function menuModel(caps){
@@ -62,6 +63,7 @@ function menuModel(caps){
   var out=[];
   if(caps.canViewQtth) out.push({key:'qtth',label:'QTTH',href:p+'/qtth',icon:'grid'});
   if(caps.canViewOperations) out.push({key:'van-hanh',label:'Vận hành',href:p+'/van-hanh',icon:'flow'});
+  if(caps.canManagePermissions) out.push({key:'truth-data',label:'Truth Data',href:p+'/truth-data',icon:'data',sub:'Dữ liệu chuẩn quản trị'});
   if(caps.canManagePermissions) out.push({key:'phan-quyen',label:'Phân quyền',href:p+'/phan-quyen',icon:'shield'});
   return out;
 }
@@ -76,6 +78,7 @@ function svgIcon(t){
     grid:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     flow:'<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7l3 8M16 7l-3 8"/>',
     shield:'<path d="M12 3 5 6v6c0 4 3 6.7 7 8 4-1.3 7-4 7-8V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>',
+    data:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
     home:'<path d="M4 11 12 4l8 7"/><path d="M6 10v10h12V10"/>'
   };
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(p[t]||'')+'</svg>';
@@ -86,7 +89,7 @@ function navHtml(caps,activeKey){
   out+='<button type="button" class="phf-qtth-nav-back" data-qtth-home>'+svgIcon('home')+'<span>Về Trang chủ PHF HR</span></button>';
   out+='<div class="phf-qtth-nav-items">';
   items.forEach(function(it){
-    out+='<a href="'+esc(it.href)+'" data-qtth-nav="'+esc(it.href)+'"'+(it.key===activeKey?' class="is-active" aria-current="page"':'')+'>'+svgIcon(it.icon)+'<span>'+esc(it.label)+'</span></a>';
+    out+='<a href="'+esc(it.href)+'" data-qtth-nav="'+esc(it.href)+'"'+(it.key===screenTop(activeKey)?' class="is-active" aria-current="page"':'')+'>'+svgIcon(it.icon)+'<span>'+esc(it.label)+'</span></a>';
   });
   if(!items.length) out+='<p class="phf-qtth-nav-empty">Bạn chưa được cấp quyền vào khu vực nào của QTTH.</p>';
   out+='</div></nav>';
@@ -484,8 +487,8 @@ window.phfRenderQtth=async function(requestedPath){
   paintUserBlock(main,boot); // real server-resolved identity (People Master)
 
   // server-authoritative route guard — decided from caps, never the URL.
-  var need={'qtth':'canViewQtth','van-hanh':'canViewOperations','phan-quyen':'canManagePermissions'};
-  if(!key || !caps[need[key]]){
+  var need={'qtth':'canViewQtth','van-hanh':'canViewOperations','truth-data':'canManagePermissions','phan-quyen':'canManagePermissions'};
+  if(!key || !caps[need[screenTop(key)]]){
     var target=firstAllowed(caps);
     if(target && key!==target){
       var home=qbase()+'/'+target;
@@ -505,6 +508,9 @@ window.phfRenderQtth=async function(requestedPath){
 
   if(key==='phan-quyen'){
     await pqReload(slot,PQ_STATE.period||currentPeriod());
+  }else if(screenTop(key)==='truth-data'){
+    if(typeof window.phfQtthRenderTruthData!=='function'){ slot.innerHTML=accessDeniedHtml('Chưa tải được màn Truth Data.'); }
+    else { await window.phfQtthRenderTruthData(slot, boot, key); }
   }else if(key==='van-hanh'){
     slot.innerHTML=placeholderHtml('Vận hành',[
       'Khu vực này là VIEW/PROJECTION của dữ liệu QTTH được phép chia sẻ — không phải module nghiệp vụ Vận hành.',
@@ -522,6 +528,7 @@ window.phfRenderQtth=async function(requestedPath){
   return true;
 };
 
+window.__qtthShared={call:call,esc:esc,toast:toast,prefix:prefix,go:go,currentPeriod:currentPeriod,prevPeriod:prevPeriod};
 window.__phfQtthTestHooks={screenForPath:screenForPath,menuModel:menuModel,firstAllowed:firstAllowed,currentPeriod:currentPeriod,prevPeriod:prevPeriod,classifiedCell:classifiedCell,staffKindCell:staffKindCell,esc:esc,
   renderRosterHtml:function(data,period){PQ_STATE.data=data;PQ_STATE.period=period||'2026-09';PQ_STATE.boot={viewer:{isAdmin:true}};return pqScreenHtml();},
   userBlockHtml:userBlockHtml,viewerRoleLabel:viewerRoleLabel,viewerName:viewerName};

@@ -837,7 +837,9 @@ function createServer(config) {
         }
         let body;
         try {
-          body = await readJsonBody(req, 262144);
+          // Batch 02: payroll import (Truth Data) carries a base64 .xlsx — allow
+          // a 16MB body for /v1/qtth (LOCAL/DEV only). Other actions are tiny.
+          body = await readJsonBody(req, 16 * 1024 * 1024);
         } catch (err) {
           return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
         }
@@ -849,7 +851,7 @@ function createServer(config) {
           const data = await qtthService.dispatch(config, body.actor, action, body.params);
           return sendJson(res, 200, { ok: true, data });
         } catch (err) {
-          if (err instanceof QtthError || (err && err.isQtthError)) {
+          if (err instanceof QtthError || (err && err.isQtthError) || (err && err.isPayrollError) || (err && err.isXlsxLiteError) || (err && err.isPayrollStorageError)) {
             logger.warn('qtth_rejected', { path, action, code: err.code });
             return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
           }

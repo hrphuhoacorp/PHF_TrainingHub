@@ -489,6 +489,17 @@ const HANDLERS = {
   },
 };
 
+// QTTH Truth Data · Bảng lương (Batch 02). Payroll import actions run through
+// the SAME development-access lock + permission-manager gate as every other
+// QTTH management action — they are just delegated to qtth-payroll.js.
+const payrollService = require('./qtth-payroll');
+for (const act of payrollService.ACTIONS) {
+  HANDLERS[act] = async (config, actor, params) => {
+    await requirePermissionManager(config, actor); // Admin OR active permission_manager_grant OR dev-operator
+    return payrollService.dispatch(config, actor, act, params);
+  };
+}
+
 const ACTIONS = Object.freeze(Object.keys(HANDLERS));
 
 async function dispatch(config, rawActor, action, params) {
