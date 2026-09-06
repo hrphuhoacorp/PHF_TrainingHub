@@ -97,6 +97,33 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
   check('22 phf-hr-api server.js registers POST /v1/notice with NoticeError handling',
     /path === '\/v1\/notice'/.test(read('services/phf-hr-api/server.js')) && /instanceof NoticeError/.test(read('services/phf-hr-api/server.js')));
 
+  // ── UI SHELL (QTTH Batch 01D architecture) ──────────────────────────
+  const css = read('assets/css/phf-notice.css');
+  const js = read('assets/js/notice/phf-notice-app.js');
+  check('23 shell: NO max-width / margin:auto on .phf-notice, -shell or -layout (viewport-wide at every zoom)',
+    !/\.phf-notice(?:-shell|-layout)?\s*\{[^}]*(?:max-width|margin\s*:\s*0\s*auto)/.test(css));
+  check('24 shell: sticky full-bleed header, fixed 76px (logo never drives height)',
+    /\.phf-notice-top\{[^}]*position:sticky[^}]*height:76px[^}]*flex:0 0 76px/.test(css));
+  check('25 shell: layout = grid 220px + minmax(0,1fr) fluid main',
+    /\.phf-notice-layout\{display:grid;grid-template-columns:220px minmax\(0,1fr\)/.test(css));
+  check('26 shell: sticky sidebar rail below header (top:76px; height:calc(100vh - 76px))',
+    /\.phf-notice-nav\{[\s\S]*?position:sticky;top:76px;height:calc\(100vh - 76px\)/.test(css));
+  check('27 theme: PHF green primary, NOT QTTH orange',
+    /--nt-green:#1B7B45/.test(css) && !/--qt-orange|#E1500A/.test(css) && !/E1500A/i.test(js));
+  check('28 header: centered brand title "Thông báo Quản Trị" + subtitle "PHF HR" + real session user block',
+    /\.phf-notice-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css)
+    && /<b>Thông báo Quản Trị<\/b><small>PHF HR<\/small>/.test(js)
+    && /phfGetAuthenticatedUser|phfGetCurrentUser/.test(js));
+  check('29 sidebar nav = Thông báo (always) + Báo cáo tiếp nhận + Cài đặt quyền (manage-gated only)',
+    /key:'feed',label:'Thông báo'/.test(js) && /label:'Báo cáo tiếp nhận'/.test(js) && /label:'Cài đặt quyền'/.test(js)
+    && /if\(manage\)\{[\s\S]*?bao-cao[\s\S]*?quyen/.test(js));
+  check('30 "+ Đăng thông báo" is an ACTION in the feed head, never a sidebar nav item',
+    /phf-notice-head-actions[\s\S]{0,120}data-nt-create/.test(js) && !/label:'[^']*Đăng thông báo'/.test(js));
+  check('31 Báo cáo tiếp nhận + Cài đặt quyền render into the SAME work slot (setWork), not a custom layout',
+    /async function renderReportIndex\(ctx\)\{[\s\S]*?setWork\(ctx/.test(js) && /async function renderPermission\(ctx\)\{[\s\S]*?setWork\(ctx/.test(js));
+  check('32 NO zoom-specific CSS (no @media with min-resolution / zoom / device-pixel-ratio)',
+    !/@media[^{]*(zoom|resolution|device-pixel-ratio)/.test(css));
+
   console.log(`\n==== NOTICE Batch 01 OFFLINE checks: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);
 })();
