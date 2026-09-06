@@ -126,6 +126,20 @@ function pqFilteredRows(){
   });
 }
 
+// Render a classification cell. `name` is untrusted (People-Master / dictionary
+// text) -> esc(). The "unset" chip is a trusted constant. NEVER pass markup
+// through esc() (that was the Batch 01B literal-<span> bug).
+function classifiedCell(name){
+  return name
+    ? '<span class="phf-qtth-chip">'+esc(name)+'</span>'
+    : '<span class="phf-qtth-chip is-unset">Chưa phân loại</span>';
+}
+function staffKindCell(kind){
+  if(kind==='direct')  return '<span class="phf-qtth-chip is-kind">Trực tiếp</span>';
+  if(kind==='indirect')return '<span class="phf-qtth-chip is-kind is-alt">Gián tiếp</span>';
+  return '<span class="phf-qtth-chip is-unset">Chưa xác định</span>';
+}
+
 function pqScreenHtml(){
   var d=PQ_STATE.data;
   var w=d.warnings||{};
@@ -140,15 +154,15 @@ function pqScreenHtml(){
   var rows=pqFilteredRows();
   var body=rows.map(function(r){
     var sel=!!PQ_STATE.selected[r.employeeCode];
-    return '<tr'+(r.status==='inactive'?' class="is-inactive"':'')+' data-qtth-row="'+esc(r.employeeCode)+'">'
+    return '<tr class="'+(r.status==='inactive'?'is-inactive ':'')+(sel?'is-selected':'')+'" data-qtth-row="'+esc(r.employeeCode)+'">'
       +'<td class="c-sel"><input type="checkbox" data-qtth-select="'+esc(r.employeeCode)+'"'+(sel?' checked':'')+(r.status==='inactive'?' disabled':'')+' aria-label="Chọn '+esc(r.employeeCode)+'"></td>'
       +'<td class="c-code">'+esc(r.employeeCode)+'</td>'
-      +'<td>'+esc(r.fullName)+'</td>'
+      +'<td class="c-name">'+esc(r.fullName)+'</td>'
       +'<td>'+(r.status==='active'?'<span class="phf-qtth-pill is-on">Đang làm</span>':'<span class="phf-qtth-pill is-off">Đã nghỉ</span>')+'</td>'
-      +'<td>'+esc(r.sourceDepartment||'—')+(r.sourceDepartmentChanged?' <span class="phf-qtth-warndot" title="Phòng ban nguồn đã thay đổi so với lần phân loại gần nhất">Δ</span>':'')+'</td>'
-      +'<td>'+esc(nameById(units,r.unitId)||'<span class="phf-qtth-unclassified">Chưa phân loại</span>')+'</td>'
-      +'<td>'+esc(nameById(groups,r.groupId)||'')+(r.groupId?'':'<span class="phf-qtth-unclassified">Chưa phân loại</span>')+'</td>'
-      +'<td>'+(r.staffKind?kindLabel(r.staffKind):'<span class="phf-qtth-unclassified">Chưa xác định</span>')+'</td>'
+      +'<td class="c-dept">'+esc(r.sourceDepartment||'—')+(r.sourceDepartmentChanged?' <span class="phf-qtth-warndot" title="Phòng ban nguồn đã thay đổi so với lần phân loại gần nhất">Δ</span>':'')+'</td>'
+      +'<td>'+classifiedCell(nameById(units,r.unitId))+'</td>'
+      +'<td>'+classifiedCell(nameById(groups,r.groupId))+'</td>'
+      +'<td>'+staffKindCell(r.staffKind)+'</td>'
       +'<td class="c-perm"><button type="button" class="phf-qtth-toggle'+(r.canViewQtth?' is-on':'')+'" data-qtth-perm="can_view_qtth" data-code="'+esc(r.employeeCode)+'"'+(r.status==='inactive'?' disabled':'')+' aria-pressed="'+(r.canViewQtth?'true':'false')+'">'+(r.canViewQtth?'Có':'—')+'</button></td>'
       +'<td class="c-perm"><button type="button" class="phf-qtth-toggle'+(r.canViewOperations?' is-on':'')+'" data-qtth-perm="can_view_operations" data-code="'+esc(r.employeeCode)+'"'+(r.status==='inactive'?' disabled':'')+' aria-pressed="'+(r.canViewOperations?'true':'false')+'">'+(r.canViewOperations?'Có':'—')+'</button></td>'
       +'<td class="c-act"><button type="button" class="phf-qtth-link" data-qtth-drawer="'+esc(r.employeeCode)+'">Chi tiết</button></td>'
@@ -469,5 +483,6 @@ window.phfRenderQtth=async function(requestedPath){
   return true;
 };
 
-window.__phfQtthTestHooks={screenForPath:screenForPath,menuModel:menuModel,firstAllowed:firstAllowed,currentPeriod:currentPeriod,prevPeriod:prevPeriod};
+window.__phfQtthTestHooks={screenForPath:screenForPath,menuModel:menuModel,firstAllowed:firstAllowed,currentPeriod:currentPeriod,prevPeriod:prevPeriod,classifiedCell:classifiedCell,staffKindCell:staffKindCell,esc:esc,
+  renderRosterHtml:function(data,period){PQ_STATE.data=data;PQ_STATE.period=period||'2026-09';PQ_STATE.boot={viewer:{isAdmin:true}};return pqScreenHtml();}};
 })();
