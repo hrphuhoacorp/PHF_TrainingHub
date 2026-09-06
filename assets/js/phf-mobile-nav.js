@@ -24,7 +24,7 @@ async function logout(){try{if(typeof window.phfLogoutSession==='function')await
    module gán khi kích hoạt, không thêm cơ chế phát hiện route mới. */
 function isAppRouteActive(){
   var b=document.body.classList;
-  return b.contains('phf-hr-gateway-mode')||b.contains('phf-main-shell-mode')||b.contains('phf-classroom-mode')||b.contains('phf-checklist-mode')||b.contains('phf-knl-mode');
+  return b.contains('phf-hr-gateway-mode')||b.contains('phf-hr-mode')||b.contains('phf-main-shell-mode')||b.contains('phf-classroom-mode')||b.contains('phf-checklist-mode')||b.contains('phf-knl-mode')||b.contains('phf-task-mode');
 }
 
 var root=null,lastCaps=null,capsRequested=false;
@@ -119,11 +119,17 @@ function menuItemsFor(caps,r){
     if(isAdminRoute&&caps&&caps.canManageSystem)items.push({label:'Cài đặt',route:'/admin/checklist/cai-dat',icon:'⚙'});
     items.push({group:'PHF HR'});
   }else items.push({group:'PHF HR'});
+  /* Role gating dưới đây chỉ là UX (giống hrNavModel trong phf-hr-home.js) —
+     router role guard + server vẫn là chốt chặn thật cho mọi điều hướng. Không
+     hard-code menu theo chức danh: chỉ mục quản trị mới gate theo isAdminRoute. */
   items.push({label:'Trang chủ',route:p+'/home',icon:'⌂'});
+  items.push({label:'PHF Task',route:p+'/task',icon:'✔'});
   items.push({label:'Training Hub',route:p,icon:'▦'});
   items.push({label:'Classroom',route:p+'/classroom',icon:'▤'});
   if(!inChecklist)items.push({label:'Checklist',route:p+'/checklist',icon:'☰'});
   items.push({label:'Khung năng lực',route:p+'/knl',icon:'◆'});
+  items.push({label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'});
+  if(isAdminRoute)items.push({label:'Nhân sự & phân quyền',route:'/admin/nhan-su',icon:'♙'});
   return items;
 }
 var drawerRoot=null;
@@ -147,14 +153,28 @@ function ensureDrawer(){
   });
   return drawerRoot;
 }
+/* Route hiện tại: chọn item có route khớp dài nhất (prefix theo segment) để
+   tô sáng — không đụng router, chỉ đọc location.pathname. */
+function currentItemRoute(items){
+  var here=cleanPath(),best='',bestLen=-1;
+  items.forEach(function(it){
+    if(it.group||!it.route)return;
+    var base=String(it.route).split('?')[0].replace(/\/$/,'')||'/';
+    var hit=(here===base)||(base!=='/'&&(here===base||here.indexOf(base+'/')===0));
+    if(hit&&base.length>bestLen){best=it.route;bestLen=base.length;}
+  });
+  return best;
+}
 function renderDrawerContent(){
   var el=ensureDrawer(),r=sessionRole();
   el.querySelector('.phf-mnav-drawer-avatar').textContent=initials();
   el.querySelector('.phf-mnav-drawer-who strong').textContent=userName();
   el.querySelector('.phf-mnav-drawer-who small').textContent=roleLabel(r);
-  el.querySelector('.phf-mnav-drawer-items').innerHTML=menuItemsFor(lastCaps,r).map(function(it){
+  var items=menuItemsFor(lastCaps,r),cur=currentItemRoute(items);
+  el.querySelector('.phf-mnav-drawer-items').innerHTML=items.map(function(it){
     if(it.group)return '<div class="phf-mnav-drawer-group">'+esc(it.group)+'</div>';
-    return '<button type="button" class="phf-mnav-drawer-item" data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
+    var on=it.route===cur;
+    return '<button type="button" class="phf-mnav-drawer-item'+(on?' is-current':'')+'"'+(on?' aria-current="page"':'')+' data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
   }).join('');
 }
 /* SỬA LỖI (hotfix): openDrawer()/closeDrawer() trước đây gọi
