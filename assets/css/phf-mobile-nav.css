@@ -1,12 +1,19 @@
+/* PHF HR shared mobile nav — bottom bar + slide drawer + account pop.
+   Behaviour/markup owned by assets/js/phf-mobile-nav.js. Visuals aligned to the
+   PHF HR Home brand tokens (assets/css/phf-hr-home.css :root):
+   green #075d43 · dark #073f31 · text #163f31 · muted #64746d · line #dce8df.
+   White main surface, ivory/cream secondary, very-light-green active, muted
+   green-grey inactive. Thin borders, restrained shadow, moderate radius.
+   No blue/purple, no pastel, no decorative gradients. */
 .phf-mnav-bottom,.phf-mnav-drawer,.phf-mnav-account-pop{display:none}
 @media(max-width:760px){
-  .phf-mnav-bottom{display:flex!important;position:fixed;left:0;right:0;bottom:0;z-index:5000;align-items:stretch;justify-content:space-around;background:#fff;border-top:1px solid #e0ebe3;box-shadow:0 -6px 20px rgba(18,66,43,.08);padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px}
+  .phf-mnav-bottom{display:flex!important;position:fixed;left:0;right:0;bottom:0;z-index:5000;align-items:stretch;justify-content:space-around;background:#fff;border-top:1px solid #dce8df;box-shadow:0 -4px 16px rgba(7,63,49,.06);padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px}
   .phf-mnav-bottom[hidden]{display:none!important}
-  .phf-mnav-btn{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:#52675e;font:700 11px/1.2 "Segoe UI",Arial,system-ui,sans-serif;border-radius:14px;cursor:pointer}
-  .phf-mnav-btn:active{background:#f0f7f3}
+  .phf-mnav-btn{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:#64746d;font:700 11px/1.2 "Segoe UI",Arial,system-ui,sans-serif;border-radius:12px;cursor:pointer}
+  .phf-mnav-btn:active{background:#eef4f0}
   .phf-mnav-icon{font-size:20px;line-height:1}
-  .phf-mnav-btn.phf-mnav-main{color:#0b674b}
-  .phf-mnav-btn.phf-mnav-main.is-cta{background:linear-gradient(135deg,#08734e,#075c43);color:#fff}
+  .phf-mnav-btn.phf-mnav-main{color:#075d43}
+  .phf-mnav-btn.phf-mnav-main.is-cta{background:#075d43;color:#fff}
   .phf-mnav-btn.phf-mnav-main.is-cta .phf-mnav-icon{transform:scale(1.05)}
   body.phf-hr-gateway-mode,body.phf-hr-mode,body.phf-main-shell-mode,body.phf-classroom-mode,body.phf-checklist-mode,body.phf-knl-mode,body.phf-task-mode{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   /* Khi một hộp thoại quyết định của PHF Task / Chương trình thi đua đang mở,
@@ -21,27 +28,27 @@
   .phf-mnav-drawer[hidden]{display:none!important}
   .phf-mnav-drawer-backdrop{position:absolute;inset:0;background:rgba(7,45,32,.45);opacity:0;transition:opacity .2s ease}
   .phf-mnav-drawer.is-open .phf-mnav-drawer-backdrop{opacity:1}
-  .phf-mnav-drawer-panel{position:absolute;top:0;left:0;bottom:0;width:min(300px,84vw);background:#fff;box-shadow:8px 0 30px rgba(8,50,35,.18);transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);overflow-y:auto}
+  .phf-mnav-drawer-panel{position:absolute;top:0;left:0;bottom:0;width:min(300px,84vw);background:#fff;box-shadow:6px 0 24px rgba(7,63,49,.16);transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);overflow-y:auto}
   .phf-mnav-drawer.is-open .phf-mnav-drawer-panel{transform:translateX(0)}
-  .phf-mnav-drawer-head{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid #eef3f0}
-  .phf-mnav-drawer-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(145deg,#0d7656,#07523e);color:#fff;font-weight:900;display:grid;place-items:center;flex:0 0 auto}
+  .phf-mnav-drawer-head{display:flex;align-items:center;gap:12px;padding:20px 18px;border-bottom:1px solid #dce8df}
+  .phf-mnav-drawer-avatar{width:42px;height:42px;border-radius:50%;background:#075d43;color:#fff;font-weight:900;display:grid;place-items:center;flex:0 0 auto}
   .phf-mnav-drawer-who{flex:1 1 auto;min-width:0}
-  .phf-mnav-drawer-who strong{display:block;color:#163d30;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .phf-mnav-drawer-who small{display:block;color:#687870;font-size:12px}
-  .phf-mnav-drawer-close{flex:0 0 auto;width:34px;height:34px;border:0;border-radius:50%;background:#f1f7f3;color:#173f32;font-size:15px;cursor:pointer}
+  .phf-mnav-drawer-who strong{display:block;color:#163f31;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .phf-mnav-drawer-who small{display:block;color:#64746d;font-size:12px}
+  .phf-mnav-drawer-close{flex:0 0 auto;width:34px;height:34px;border:0;border-radius:50%;background:#eef4f0;color:#073f31;font-size:15px;cursor:pointer}
   .phf-mnav-drawer-items{display:flex;flex-direction:column;padding:10px 10px calc(18px + env(safe-area-inset-bottom))}
-  .phf-mnav-drawer-group{margin:8px 12px 4px;padding-top:8px;border-top:1px solid #e7efea;color:#73877e;font:800 10px/1.2 "Segoe UI",Arial,system-ui,sans-serif;letter-spacing:.1em}
+  .phf-mnav-drawer-group{margin:8px 12px 4px;padding-top:8px;border-top:1px solid #dce8df;color:#64746d;font:800 10px/1.2 "Segoe UI",Arial,system-ui,sans-serif;letter-spacing:.1em}
   .phf-mnav-drawer-group:first-child{margin-top:2px;padding-top:2px;border-top:0}
-  .phf-mnav-drawer-item{display:flex;align-items:center;gap:14px;border:0;background:transparent;text-align:left;padding:13px 12px;border-radius:12px;font:700 14px/1.3 "Segoe UI",Arial,system-ui,sans-serif;color:#1c4536;cursor:pointer}
-  .phf-mnav-drawer-item:active{background:#f0f7f3}
-  .phf-mnav-drawer-item.is-current{background:#eef7f2;color:#07533c;box-shadow:inset 3px 0 0 #08734e}
+  .phf-mnav-drawer-item{display:flex;align-items:center;gap:14px;border:0;background:transparent;text-align:left;padding:13px 12px;border-radius:10px;font:700 14px/1.3 "Segoe UI",Arial,system-ui,sans-serif;color:#163f31;cursor:pointer}
+  .phf-mnav-drawer-item:active{background:#eef4f0}
+  .phf-mnav-drawer-item.is-current{background:#e9f4ee;color:#075d43;box-shadow:inset 3px 0 0 #075d43}
   .phf-mnav-drawer-item span{font-size:17px;width:22px;text-align:center;flex:0 0 auto}
 
-  .phf-mnav-account-pop{display:block!important;position:fixed;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:6000;width:220px;background:#fff;border:1px solid #dce8df;border-radius:16px;box-shadow:0 18px 44px rgba(8,64,43,.18);padding:10px}
+  .phf-mnav-account-pop{display:block!important;position:fixed;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:6000;width:220px;background:#fff;border:1px solid #dce8df;border-radius:14px;box-shadow:0 14px 34px rgba(7,63,49,.14);padding:10px}
   .phf-mnav-account-pop[hidden]{display:none!important}
-  .phf-mnav-account-pop-head{padding:8px 10px 12px;border-bottom:1px solid #eef3f0;margin-bottom:6px}
+  .phf-mnav-account-pop-head{padding:8px 10px 12px;border-bottom:1px solid #dce8df;margin-bottom:6px}
   .phf-mnav-account-pop-head strong{display:block;color:#075d43;font-size:14px}
-  .phf-mnav-account-pop-head small{display:block;color:#738179;font-size:12px;margin-top:3px}
+  .phf-mnav-account-pop-head small{display:block;color:#64746d;font-size:12px;margin-top:3px}
   .phf-mnav-account-pop button.is-danger{width:100%;border:0;background:transparent;text-align:left;padding:11px 10px;border-radius:10px;font:700 14px Arial,Helvetica,system-ui,sans-serif;color:#b12d2d;cursor:pointer}
   .phf-mnav-account-pop button.is-danger:active{background:#fbeeee}
 }
