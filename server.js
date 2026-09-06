@@ -104,6 +104,8 @@ const {
 // ONLY, flag-gated). Mirrors api/data.js verbatim — see
 // api/_lib/competition-actions.js.
 const { dispatchCompetitionAction } = require('./api/_lib/competition-actions');
+// PHF HR — QTTH V1 · Batch 01 (LOCAL ONLY, flag-gated PHF_QTTH_BRIDGE_ENABLED).
+const { dispatchQtthAction } = require('./api/_lib/qtth-actions');
 // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview
 // (requireTaskAdmin-gated inside). Mirrors api/data.js.
 const {
@@ -1455,6 +1457,8 @@ const server = http.createServer(async (req, res) => {
         if (taskDispatch.handled) return sendJson(res, 200, {ok:true,result:taskDispatch.result});
         const competitionDispatch = await dispatchCompetitionAction(session, payload);
         if (competitionDispatch.handled) return sendJson(res, 200, {ok:true,result:competitionDispatch.result});
+        const qtthDispatch = await dispatchQtthAction(session, payload);
+        if (qtthDispatch.handled) return sendJson(res, 200, {ok:true,result:qtthDispatch.result});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

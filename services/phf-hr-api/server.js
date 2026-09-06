@@ -34,6 +34,11 @@ const {
 // touched. Do NOT enable on Production.
 const competitionService = require('./lib/competition-service');
 const { CompetitionError } = require('./lib/competition-common');
+// PHF HR — QUẢN TRỊ TỔNG HỢP (QTTH) V1 · Batch 01 (2026-09-06, LOCAL/DEV ONLY).
+// One route POST /v1/qtth dispatches a QTTH action against Company PostgreSQL
+// qtth.*. Same discipline as /v1/competition. Do NOT enable on Production.
+const qtthService = require('./lib/qtth-service');
+const { QtthError } = require('./lib/qtth-service');
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const {
@@ -812,6 +817,44 @@ function createServer(config) {
           }
           logger.error('competition_unexpected_error', { path, action, message: err && err.message });
           return sendJson(res, 500, { ok: false, code: 'COMPETITION_ERROR', message: 'Lỗi hệ thống khi xử lý Competition.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/qtth — QUẢN TRỊ TỔNG HỢP (QTTH) V1 · Batch 01. LOCAL/DEV ONLY
+      // (target phf_hr_e2e / throwaway). One route dispatches a QTTH action
+      // against Company PostgreSQL qtth.*. The verified `actor` is supplied by
+      // the Vercel identity layer across the service-token boundary — this
+      // service never resolves identity itself. Authorization is
+      // server-authoritative inside qtth-service (system Admin OR an active
+      // qtth.permission_manager_grant). No Task/Competition behaviour touched.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/qtth') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 262144);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const action = body && body.action;
+        if (!action || typeof action !== 'string') {
+          return sendJson(res, 400, { ok: false, code: 'QTTH_ACTION_REQUIRED', message: 'Thiếu action.' });
+        }
+        try {
+          const data = await qtthService.dispatch(config, body.actor, action, body.params);
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          if (err instanceof QtthError || (err && err.isQtthError)) {
+            logger.warn('qtth_rejected', { path, action, code: err.code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
+          }
+          logger.error('qtth_unexpected_error', { path, action, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'QTTH_ERROR', message: 'Lỗi hệ thống khi xử lý QTTH.' });
         }
       }
 
