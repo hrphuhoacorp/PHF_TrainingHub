@@ -440,7 +440,9 @@ window.phfRenderQtth=async function(requestedPath){
       key=target;
     }else if(!target){
       navSlot.innerHTML=navHtml(caps,'');wireNav();
-      slot.innerHTML=accessDeniedHtml('Bạn chưa được cấp quyền vào Quản trị tổng hợp. Cần quyền "Xem QTTH", "Xem Vận hành" hoặc "Quản lý phân quyền".');
+      slot.innerHTML=accessDeniedHtml(boot.devLocked
+        ?(boot.lockReason||'QTTH đang trong giai đoạn phát triển — chỉ Admin và người vận hành được chỉ định mới truy cập được.')
+        :'Bạn chưa được cấp quyền vào Quản trị tổng hợp. Cần quyền "Xem QTTH", "Xem Vận hành" hoặc "Quản lý phân quyền".');
       document.title='Quản trị tổng hợp · PHF HR';
       return true;
     }else{ key=target; }

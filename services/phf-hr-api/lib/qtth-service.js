@@ -68,6 +68,32 @@ function assertActor(actor) {
 }
 function isAdmin(actor) { return actor.systemRole === 'admin'; }
 
+// --- DEVELOPMENT ACCESS LOCK (Batch 01A) --------------------------------------
+// While QTTH is NOT final, the whole module is closed to everyone except the
+// system Admin (Control Tower) and an explicit allow-list of build/test
+// operators. The lock is ENTIRELY controlled by env — no code change and no
+// permission-data change at GO-LIVE:
+//   - QTTH_DEV_ACCESS_ALLOW set (non-empty)  -> lock ON. Value = comma list of
+//     employee codes and/or account ids allowed to build/test.
+//   - QTTH_DEV_ACCESS_ALLOW unset / empty    -> lock OFF (GO-LIVE): the normal
+//     capability rules (Admin / permission_manager_grant / can_view_*) apply.
+// The two module-permission checkboxes are still fully written / read / logged
+// while the lock is on — they just cannot OPEN the module for a non-allow-listed
+// user until GO-LIVE. Display names are never referenced; only stable ids.
+function devAccessAllowList() {
+  return String(process.env.QTTH_DEV_ACCESS_ALLOW || '')
+    .split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+}
+function evalDevAccess(actor) {
+  const list = devAccessAllowList();
+  if (!list.length) return { locked: false, allowed: true, operator: false };
+  if (isAdmin(actor)) return { locked: true, allowed: true, operator: false };
+  const acc = String(actor.accountId || '').toUpperCase();
+  const emp = String(actor.employeeCode || '').toUpperCase();
+  const allowed = (acc && list.indexOf(acc) >= 0) || (emp && list.indexOf(emp) >= 0);
+  return { locked: true, allowed: !!allowed, operator: !!allowed };
+}
+
 const PERIOD_RE = /^20[0-9]{2}-(0[1-9]|1[0-2])$/;
 function assertPeriod(p) {
   const v = text(p);
@@ -88,6 +114,7 @@ async function isActivePermissionManager(config, employeeCode) {
 }
 async function requirePermissionManager(config, actor) {
   if (isAdmin(actor)) return;
+  if (actor._devOperator) return; // allow-listed build/test operator (dev lock)
   if (await isActivePermissionManager(config, actor.employeeCode)) return;
   throw qErr('QTTH_MANAGE_DENIED', 'Bạn không có quyền quản lý phân quyền QTTH.', 403);
 }
@@ -99,8 +126,37 @@ function auditCols(actor) { return [actor.accountId, actor.displayName || actor.
 // --- handlers ------------------------------------------------------------
 const HANDLERS = {
   // Viewer capability snapshot for the module shell.
-  'qtth.bootstrap': async (config, actor) => {
+  'qtth.bootstrap': async (config, actor, params, devGate) => {
     const admin = isAdmin(actor);
+    const dg = devGate || evalDevAccess(actor);
+
+    // Development lock ON and the caller is NOT allow-listed -> module fully
+    // closed regardless of role / can_view_* / permission rows.
+    if (dg.locked && !dg.allowed) {
+      return {
+        viewer: {
+          accountId: actor.accountId, employeeCode: actor.employeeCode,
+          displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: admin,
+        },
+        capabilities: { canManagePermissions: false, canViewQtth: false, canViewOperations: false },
+        devLocked: true,
+        lockReason: 'QTTH đang trong giai đoạn phát triển — chỉ Admin và người vận hành được chỉ định mới truy cập được cho đến khi GO-LIVE.',
+      };
+    }
+    // Development lock ON and the caller IS an allow-listed build/test operator
+    // (non-Admin) -> full access for build/test, WITHOUT needing a
+    // permission_manager_grant row.
+    if (dg.locked && dg.operator && !admin) {
+      return {
+        viewer: {
+          accountId: actor.accountId, employeeCode: actor.employeeCode,
+          displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: false,
+        },
+        capabilities: { canManagePermissions: true, canViewQtth: true, canViewOperations: true },
+        devLocked: true, devOperator: true,
+      };
+    }
+
     let canManagePermissions = admin;
     let canViewQtth = admin;
     let canViewOperations = admin;
@@ -125,6 +181,7 @@ const HANDLERS = {
         displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: admin,
       },
       capabilities: { canManagePermissions, canViewQtth, canViewOperations },
+      devLocked: !!dg.locked,
     };
   },
 
@@ -438,7 +495,20 @@ async function dispatch(config, rawActor, action, params) {
   const handler = HANDLERS[action];
   if (!handler) throw qErr('QTTH_ACTION_UNKNOWN', 'Hành động QTTH không hợp lệ: ' + action, 400);
   const actor = assertActor(rawActor);
-  return handler(config, actor, params || {});
+
+  // DEVELOPMENT ACCESS LOCK — server-authoritative, ALL actions. When the lock
+  // is on and the caller is not Admin / not allow-listed, every action except
+  // qtth.bootstrap (which returns a clean "locked" snapshot for the shell) is
+  // refused here, before any handler or DB read.
+  const devGate = evalDevAccess(actor);
+  if (devGate.locked && !devGate.allowed && action !== 'qtth.bootstrap') {
+    throw qErr('QTTH_DEV_LOCKED', 'QTTH đang trong giai đoạn phát triển — bạn chưa được cấp quyền truy cập.', 403);
+  }
+  // An allow-listed non-Admin build/test operator gets manager-level access
+  // WITHOUT a permission_manager_grant row (Batch 01A requirement).
+  if (devGate.locked && devGate.operator && !isAdmin(actor)) actor._devOperator = true;
+
+  return handler(config, actor, params || {}, devGate);
 }
 
 module.exports = { dispatch, ACTIONS, HANDLERS, QtthError };

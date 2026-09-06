@@ -89,6 +89,13 @@ process.on('SIGTERM', () => stopAll(0));
       PHF_HR_DB_NAME: dbEnv.PHF_HR_DB_NAME, PHF_HR_DB_RUNTIME_USER: dbEnv.PHF_HR_DB_RUNTIME_USER,
       PHF_HR_DB_RUNTIME_PASSWORD: dbEnv.PHF_HR_DB_RUNTIME_PASSWORD,
       PHF_HR_ATTACHMENT_ROOT: ATTACH_ROOT,
+      // QTTH Batch 01A — DEVELOPMENT ACCESS LOCK. While QTTH is not FINAL the
+      // module is closed to everyone except the system Admin and this explicit
+      // allow-list (employee codes / account ids — never display names). Build/
+      // test operators only. GO-LIVE = drop this env var (no code / no
+      // permission-data change). Override with env QTTH_DEV_ACCESS_ALLOW.
+      QTTH_DEV_ACCESS_ALLOW: process.env.QTTH_DEV_ACCESS_ALLOW
+        || 'PHF012,acct-3a03c49e-5835-4d92-b89e-424836e79e24',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });

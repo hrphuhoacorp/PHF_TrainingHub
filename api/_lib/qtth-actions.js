@@ -49,8 +49,13 @@ function normPeriod(v) {
 async function ensureManageAuthority(actor) {
   const boot = await callQtthAction('qtth.bootstrap', actor, {});
   if (!boot || !boot.capabilities || boot.capabilities.canManagePermissions !== true) {
-    const e = new Error('Bạn không có quyền quản lý phân quyền QTTH.');
-    e.statusCode = 403; e.code = 'QTTH_MANAGE_DENIED';
+    const e = new Error(
+      boot && boot.devLocked
+        ? (boot.lockReason || 'QTTH đang trong giai đoạn phát triển — bạn chưa được cấp quyền truy cập.')
+        : 'Bạn không có quyền quản lý phân quyền QTTH.'
+    );
+    e.statusCode = 403;
+    e.code = boot && boot.devLocked ? 'QTTH_DEV_LOCKED' : 'QTTH_MANAGE_DENIED';
     throw e;
   }
   return boot;
