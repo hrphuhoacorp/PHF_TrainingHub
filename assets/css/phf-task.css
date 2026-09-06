@@ -1408,3 +1408,57 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
   .phft-rec-group-grid{grid-template-columns:1fr}
   .phft-rec-group-grid .phft-span-2{grid-column:span 1}
 }
+
+/* ==========================================================================
+   FINAL MOBILE RESPONSIVE (2026-09-06) — .phf-task-root scope, presentation only.
+   ROOT CAUSES fixed here:
+   1) `.phft-nav{width:max-content}` inside the 760px block made the in-module
+      nav wider than the viewport with no bounded scroll parent → whole PAGE
+      scrolled horizontally. The sidebar is now the horizontal scroll container
+      (Classroom parity, one-hand strip).
+   2) The main task list stayed a real <table min-width:1040px> inside an inner
+      scroll box on phones ("desktop table crammed in a phone"). ≤600px it now
+      renders as stacked cards — one row = one card — matching PHF Classroom.
+   No JS/API/permission/lifecycle/datastore/deep-link change. Desktop untouched
+   (all rules live inside mobile media queries).
+   ========================================================================== */
+@media(max-width:760px){
+  .phft-sidebar{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .phft-sidebar .phft-nav{width:max-content;max-width:none;flex-wrap:nowrap}
+  .phft-main{padding-left:12px;padding-right:12px}
+  .phft-page,.phft-list-page,.phft-detail-page,.phft-form-doc,.phft-quick-workspace,.phft-full-guidance{max-width:100%}
+}
+@media(max-width:600px){
+  /* main task list -> cards */
+  .phft-list-page .phft-table-scroll{overflow-x:visible}
+  .phft-list-table{min-width:0;width:100%;display:block;font-size:12px}
+  .phft-list-table colgroup,.phft-list-table thead{display:none}
+  .phft-list-table tbody{display:block}
+  .phft-list-table tr{display:block;
+    padding:12px 14px;border:1px solid var(--phft-line);border-radius:12px;
+    margin:0 0 10px;background:#fff}
+  .phft-list-table tr[data-task-list-row]{cursor:pointer}
+  .phft-list-table td{display:block;border:0;padding:0;font-size:12px;white-space:normal}
+  .phft-list-table td + td{margin-top:8px}
+  .phft-list-table td.phft-list-code{color:var(--phft-muted);font-size:10.5px;font-weight:700;margin-top:0}
+  .phft-list-table td.phft-list-title{font-weight:750;font-size:13.5px;line-height:1.35}
+  .phft-list-table td.phft-list-title .phft-list-title-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .phft-list-table td.phft-list-cat::before,
+  .phft-list-table td.phft-list-deadline::before,
+  .phft-list-table td.phft-list-prio::before,
+  .phft-list-table td.phft-list-status::before,
+  .phft-list-table td.phft-list-prog-cell::before{
+    display:block;font-size:9px;text-transform:uppercase;letter-spacing:.03em;
+    color:var(--phft-muted);font-weight:800;margin-bottom:3px}
+  .phft-list-table td.phft-list-cat::before{content:"Danh mục"}
+  .phft-list-table td.phft-list-deadline::before{content:"Deadline"}
+  .phft-list-table td.phft-list-prio::before{content:"Ưu tiên"}
+  .phft-list-table td.phft-list-status::before{content:"Trạng thái"}
+  .phft-list-table td.phft-list-prog-cell::before{content:"Tiến độ"}
+  .phft-list-table td.phft-list-statecell{grid-column:1/-1;text-align:center;padding:22px 6px;color:var(--phft-muted)}
+  .phft-list-table td.phft-list-statecell::before{display:none}
+  /* task detail: never 2 tiny columns on a phone */
+  .phft-detail-grid{grid-template-columns:1fr}
+  .phft-detail-links li{flex-direction:column;align-items:flex-start;gap:3px}
+  .phft-detail-links span{flex:0 0 auto}
+}

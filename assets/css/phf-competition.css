@@ -648,3 +648,28 @@
 .phf-comp-level-opt.is-selected{background:var(--comp-green-soft);color:var(--comp-green-deep);}
 .phf-comp-level-opt[disabled]{color:var(--comp-border-strong);cursor:not-allowed;background:var(--comp-surface-ivory);}
 .phf-comp-level-opt:focus-visible{outline:2px solid var(--comp-gold);outline-offset:-2px;}
+
+/* ==========================================================================
+   FINAL MOBILE RESPONSIVE (2026-09-06) — scoped to .phf-comp, presentation only.
+   ROOT CAUSE: BATCH A1 re-declared `.phf-comp-body{grid-template-columns:256px
+   minmax(0,1fr)}` UNCONDITIONALLY *after* the `@media(max-width:1024px)` single-
+   column rule, so equal-specificity source order kept the 2-column desktop grid
+   (256px sidebar + content) live on phones — content squeezed / clipped
+   ("bó cứng"). These later rules restore the intended collapse and bring the
+   in-module nav to a one-hand horizontal strip (Classroom parity). No colour,
+   token, route, capability, or business-logic change.
+   ========================================================================== */
+@media (max-width:1024px){
+  .phf-comp-body{grid-template-columns:1fr;gap:16px;}
+  .phf-comp-nav{position:static;flex-direction:row;flex-wrap:nowrap;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+  .phf-comp-nav-group-wrap{flex:0 0 auto;padding:8px;}
+  .phf-comp-nav-group-items{flex-direction:row;flex-wrap:nowrap;}
+  .phf-comp-nav a{flex:0 0 auto;white-space:nowrap;}
+}
+@media (max-width:412px){
+  .phf-comp-shell{padding-left:12px;padding-right:12px;}
+  .phf-comp-participation .phf-comp-prog{grid-template-columns:1fr;}
+  .phf-comp-grid,.phf-comp-rules-summary{grid-template-columns:1fr;}
+  .phf-comp-simwarn-backdrop{padding:10px;}
+  .phf-comp-simwarn{max-height:calc(100vh - 20px);overflow-y:auto;}
+}
