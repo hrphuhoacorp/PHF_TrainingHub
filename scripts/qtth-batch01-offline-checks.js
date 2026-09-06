@@ -66,6 +66,16 @@ ok('module app route + menu + guard logic', () => {
   assert.strictEqual(h.prevPeriod('2026-01'), '2025-12');
   assert.strictEqual(h.prevPeriod('2026-09'), '2026-08');
   assert.ok(/^20\d{2}-(0[1-9]|1[0-2])$/.test(h.currentPeriod()));
+
+  // Batch 01B — classification cells must render as text, never leak raw markup.
+  const unset = h.classifiedCell('');
+  assert.ok(unset.indexOf('<span class="phf-qtth-chip is-unset">Chưa phân loại</span>') === 0, 'unset chip must be real markup: ' + unset);
+  assert.ok(unset.indexOf('&lt;') < 0, 'unset chip must not be escaped');
+  const named = h.classifiedCell('Phú Lợi <x>');
+  assert.ok(named.indexOf('&lt;x&gt;') >= 0, 'dictionary name must be escaped inside the chip: ' + named);
+  assert.ok(named.indexOf('<span class="phf-qtth-chip">') === 0, 'named chip wrapper must be real markup');
+  assert.strictEqual(h.staffKindCell('direct'), '<span class="phf-qtth-chip is-kind">Trực tiếp</span>');
+  assert.ok(h.staffKindCell(null).indexOf('Chưa xác định') >= 0 && h.staffKindCell(null).indexOf('&lt;') < 0);
 });
 
 // 5. QTTH_ACTION_MANIFEST from qtth-actions matches what dispatch handles
