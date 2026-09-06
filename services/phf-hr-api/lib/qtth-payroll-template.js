@@ -91,12 +91,19 @@ add('kpi_team', 'kpi', { label: /^tap the$/, text: true });
 
 // actual worked pay lines
 add('pay_ft', 'pay', { label: /luong thuc te theo cong.*fulltime/ });
-add('pay_pt', 'pay', { label: /luong thuc te gio part-?time/ });
+add('pay_pt', 'pay', { label: /luong thuc te gio part.?time/ }); // norm() turns "part-time" -> "part time"
 add('pay_ot_normal', 'pay', { label: /luong tang cuong thuc te gio ngay thuong/ });
 add('pay_ot_holiday', 'pay', { label: /luong tang cuong thuc te gio ngay le.?tet/ });
 add('pay_leave', 'pay', { label: /nghi phep thuc te trong thang/ });
 add('pay_holiday_leave', 'pay', { label: /^nghi le tet$/, once: true, group: /luong le tet \(3\)/ });
 add('pay_holiday_work_x2', 'pay', { label: /^(lam le tet 2|phu troi le tet)$/ }); // D3
+// D4 applied to the parallel PAY columns: some Tết periods (T2/T3) split holiday-
+// work pay into two flat daily rates (800K / 500K) instead of normal/×2. Kept
+// verbatim as rate-detail in source_detail and summed into the common
+// pay_holiday_work concept (mirrors att_holiday_work_800k/500k_days -> _days).
+// Never fabricated where a period has only the common column.
+add('pay_holiday_work_800k', 'detail', { label: /^lam le tet 800k$/, group: /luong le tet \(3\)/ });
+add('pay_holiday_work_500k', 'detail', { label: /^lam le tet 500k$/, group: /luong le tet \(3\)/ });
 add('pay_holiday_work', 'pay', { label: /^lam le.?tet$/, once: true }); // D3
 add('pay_leave_settlement', 'pay', { label: /quyet toan phep/ });
 add('pay_seasonal_train', 'pay', { label: /train thoi vu/ });
@@ -109,7 +116,7 @@ add('act_com_5', 'comp_act', { label: /com \(thuc te trong thang\) \(5\)/ });
 add('act_nhao_6', 'comp_act', { label: /^nha o \(6\)$/, once: true });
 add('act_xang_7', 'comp_act', { label: /^xang xe \(7\)$/, once: true });
 add('act_dienthoai_8', 'comp_act', { label: /^dien thoai \(8\)$/, once: true });
-add('bonus_thuong_le_1_1', 'bonus', { label: /thuong le 1\.?1/ }); // D2 — distinct, matched BEFORE act_khac
+add('bonus_thuong_le_1_1', 'bonus', { label: /thuong le 1.?1/ }); // D2 — distinct, matched BEFORE act_khac ("1.1" norm -> "1 1")
 add('act_khac', 'comp_act', { label: /^khac$/, once: true });
 add('allowance_actual_total_2', 'recon', { group: /tong phu cap \(2\)/, labelEmpty: true });
 
@@ -125,7 +132,7 @@ add('grand_total_4', 'recon', { group: /tong luong ngay cong.*\(4\).*\(1\).*\(2\
 add('deduct_quy_tham_benh', 'deduct', { label: /quy tham benh/ });
 add('deduct_late', 'deduct', { label: /^di tre$/ });
 add('deduct_xu_ly_phat_sinh', 'deduct', { label: /xu (ky|ly) phat sinh/ }); // D1
-add('deduct_da_chi_1_1', 'deduct', { label: /da chi 1\.?1/ });             // D1 — distinct
+add('deduct_da_chi_1_1', 'deduct', { label: /da chi 1.?1/ });              // D1 — distinct ("1.1" norm -> "1 1")
 add('deduct_advance', 'deduct', { label: /^ung luong$/ });
 add('internal_deduct_total_5', 'recon', { group: /tong giam tru noi bo \(5\)/, labelEmpty: true });
 add('income_after_internal_5', 'recon', { group: /tong thu nhap \(4\).*\(5\)/, labelEmpty: true });
@@ -149,8 +156,8 @@ add('pay_amount_transfer', 'payment', { label: /^ck$/, once: true, group: /so ti
 add('bank_account', 'payment', { label: /^stk$/, text: true });
 add('bank_name', 'payment', { label: /^bank$/, text: true });
 add('payslip_mail_amount', 'payment', { group: /mail phieu luong/, labelEmpty: true });
-add('reconcile_adjust', 'payment', { label: /^doi soat$/ });
-add('t13_revenue_bonus', 'tax', { label: /thuong t13.*doanh thu/ }); // D6
+add('reconcile_adjust', 'payment', { group: /^doi soat$/, labelEmpty: true }); // "Đối soát" — label-less group header
+add('t13_revenue_bonus', 'tax', { group: /thuong t13.*doanh thu/, labelEmpty: true }); // D6 — label-less group header
 
 const CANONICAL_KEYS = F.map((f) => f.key);
 const FIELD_BY_KEY = new Map(F.map((f) => [f.key, f]));

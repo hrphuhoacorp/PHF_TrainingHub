@@ -82,9 +82,14 @@ function normalizeGrid(rows, columnMap, opts) {
       else sourceDetail[key] = val;
       if (fdef.kind === 'raw_only') { delete fields[key]; sourceDetail[key] = val; } // D8: never a Truth field
     }
-    // D4: fold rate-detail holiday-work days under one concept + keep detail
+    // D4: fold rate-detail holiday-work DAYS under one concept + keep detail
     if (sourceDetail.att_holiday_work_800k_days != null || sourceDetail.att_holiday_work_500k_days != null) {
       sourceDetail.att_holiday_work_days = sum(sourceDetail.att_holiday_work_days, sourceDetail.att_holiday_work_800k_days, sourceDetail.att_holiday_work_500k_days) || sourceDetail.att_holiday_work_days;
+    }
+    // D4 (parallel): fold rate-detail holiday-work PAY (800K/500K) into the common
+    // pay_holiday_work concept, keeping both tiers verbatim in source_detail.
+    if (sourceDetail.pay_holiday_work_800k != null || sourceDetail.pay_holiday_work_500k != null) {
+      sourceDetail.pay_holiday_work = sum(sourceDetail.pay_holiday_work, sourceDetail.pay_holiday_work_800k, sourceDetail.pay_holiday_work_500k) || sourceDetail.pay_holiday_work;
     }
 
     const merged = Object.assign({}, fields, sourceDetail);

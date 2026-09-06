@@ -1,0 +1,4 @@
+# PHF payroll corpus — pinned byte-for-byte (sha256 in docs/payroll-corpus/README.txt).
+# Never let autocrlf rewrite these or the checksum gate (scripts/qtth-payroll-corpus-gen.js) breaks.
+docs/payroll-corpus/*.tsv -text
+scripts/fixtures/payroll/*.tsv -text
