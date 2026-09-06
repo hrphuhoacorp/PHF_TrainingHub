@@ -9,6 +9,13 @@
   .phf-mnav-btn.phf-mnav-main.is-cta{background:linear-gradient(135deg,#08734e,#075c43);color:#fff}
   .phf-mnav-btn.phf-mnav-main.is-cta .phf-mnav-icon{transform:scale(1.05)}
   body.phf-hr-gateway-mode,body.phf-hr-mode,body.phf-main-shell-mode,body.phf-classroom-mode,body.phf-checklist-mode,body.phf-knl-mode,body.phf-task-mode{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  /* Khi một hộp thoại quyết định của PHF Task / Chương trình thi đua đang mở,
+     ẩn thanh điều hướng dưới cùng để nút hành động trong hộp thoại không bị
+     che và không thể chạm nhầm sang nav (backdrop Task = .phft-modal-backdrop,
+     mọi modal Thi đua = .phf-comp-simwarn-backdrop). Drawer trượt (z 6000) do
+     controller riêng tự đóng nên không cần xử lý ở đây. */
+  body:has(.phft-modal-backdrop) .phf-mnav-bottom,
+  body:has(.phf-comp-simwarn-backdrop) .phf-mnav-bottom{display:none!important}
 
   .phf-mnav-drawer{display:block!important;position:fixed;inset:0;z-index:6000}
   .phf-mnav-drawer[hidden]{display:none!important}
