@@ -14,6 +14,7 @@
 const PHF_HR_API_BASE_URL = String(process.env.PHF_HR_API_BASE_URL || '').trim().replace(/\/$/, '');
 const PHF_HR_API_SERVICE_TOKEN = String(process.env.PHF_HR_API_SERVICE_TOKEN || '').trim();
 const BRIDGE_TIMEOUT_MS = 8000;
+const BRIDGE_TIMEOUT_MS_PAYROLL = 25000; // payroll import (parse + normalize + persist) is heavier
 
 function isQtthBridgeEnabled() {
   return String(process.env.PHF_QTTH_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -41,7 +42,7 @@ async function callQtthAction(action, actor, params) {
   preflightCheck();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), /^payroll\./.test(action) ? BRIDGE_TIMEOUT_MS_PAYROLL : BRIDGE_TIMEOUT_MS);
   let response;
   try {
     response = await fetch(PHF_HR_API_BASE_URL + '/v1/qtth', {

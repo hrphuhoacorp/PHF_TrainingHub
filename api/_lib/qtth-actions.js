@@ -201,8 +201,43 @@ const ACTION_MAP = {
   },
 };
 
+const INACTIVE_TOKENS2 = INACTIVE_TOKENS;
+// QTTH Truth Data · Bảng lương (Batch 02). Payroll import runs through the same
+// verified-actor + phf-hr-api bridge. validatePreview also supplies the active
+// People Master employee codes so the importer can flag unknown codes without
+// this layer re-implementing identity.
+const PAYROLL_ACTION_MAP = {
+  qtthPayrollStatus: (p) => ({ remote: 'payroll.status', params: { periodMonth: str(p.period_month || p.period) } }),
+  qtthPayrollValidatePreview: (p) => ({ remote: 'payroll.validatePreview', params: {
+    periodMonth: str(p.period_month || p.period), fileName: str(p.file_name), fileBase64: str(p.file_base64),
+  }, withKnownCodes: true }),
+  qtthPayrollConfirm: (p) => ({ remote: 'payroll.confirm', params: { fileId: str(p.file_id) } }),
+  qtthPayrollListNormalized: (p) => ({ remote: 'payroll.listNormalized', params: { periodMonth: str(p.period_month || p.period) } }),
+  qtthPayrollEmployeeDetail: (p) => ({ remote: 'payroll.employeeDetail', params: { periodMonth: str(p.period_month || p.period), employeeCode: code(p.employee_code) } }),
+};
+
+async function dispatchPayroll(session, payload, action) {
+  const actor = await resolveQtthActor(session);
+  await ensureManageAuthority(actor);
+  const build = PAYROLL_ACTION_MAP[action](payload || {});
+  const params = build.params;
+  if (build.withKnownCodes) {
+    const rows = await loadOrgRows();
+    params.knownEmployeeCodes = rows.filter((r) => !INACTIVE_TOKENS2.some((t) => String(r.status || '').toLowerCase().includes(t)))
+      .map((r) => r.employeeCode);
+    // also pass ALL codes (active + inactive) so a payroll row for a since-left
+    // employee is still "known" — payroll is historical.
+    params.knownEmployeeCodes = Array.from(new Set(params.knownEmployeeCodes.concat(rows.map((r) => r.employeeCode))));
+  }
+  return callQtthAction(build.remote, actor, params);
+}
+
 async function dispatchQtthAction(session, payload) {
   const action = String((payload && payload.action) || '').trim();
+
+  if (PAYROLL_ACTION_MAP[action]) {
+    return { handled: true, result: await dispatchPayroll(session, payload || {}, action) };
+  }
 
   if (action === 'qtthListRoster') {
     return { handled: true, result: await listRoster(session, payload && payload.period) };
@@ -230,6 +265,8 @@ const QTTH_ACTION_MANIFEST = Object.freeze([
   'qtthSetPermission', 'qtthSetPermissionManager',
   'qtthSetClassification', 'qtthBulkSetClassification', 'qtthInheritMonth',
   'qtthPermissionHistory', 'qtthClassificationHistory',
+  'qtthPayrollStatus', 'qtthPayrollValidatePreview', 'qtthPayrollConfirm',
+  'qtthPayrollListNormalized', 'qtthPayrollEmployeeDetail',
 ]);
 
 module.exports = { dispatchQtthAction, QTTH_ACTION_MANIFEST };

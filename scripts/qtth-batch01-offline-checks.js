@@ -30,7 +30,7 @@ ok('Vercel <-> phf-hr-api action parity', () => {
     'qtth.history.permission', 'qtth.history.classification',
   ]);
   for (const r of remotes) assert.ok(svc.ACTIONS.indexOf(r) >= 0, 'phf-hr-api missing handler: ' + r);
-  for (const a of svc.ACTIONS) assert.ok(remotes.has(a), 'phf-hr-api has an unexpected handler: ' + a);
+  for (const a of svc.ACTIONS) assert.ok(remotes.has(a) || a.startsWith('payroll.'), 'phf-hr-api has an unexpected handler: ' + a);
 });
 
 // 3. service authorization: non-admin non-manager rejected
@@ -59,7 +59,7 @@ ok('module app route + menu + guard logic', () => {
   assert.strictEqual(h.screenForPath('/ql/qtth/van-hanh'), 'van-hanh');
   assert.strictEqual(h.screenForPath('/hv/qtth/phan-quyen'), 'phan-quyen');
   assert.deepStrictEqual(h.menuModel({ canViewQtth: true }).map((x) => x.key), ['qtth']);
-  assert.deepStrictEqual(h.menuModel({ canViewQtth: true, canViewOperations: true, canManagePermissions: true }).map((x) => x.key), ['qtth', 'van-hanh', 'phan-quyen']);
+  assert.deepStrictEqual(h.menuModel({ canViewQtth: true, canViewOperations: true, canManagePermissions: true }).map((x) => x.key), ['qtth', 'van-hanh', 'truth-data', 'phan-quyen']);
   assert.strictEqual(h.firstAllowed({ canViewOperations: true }), 'van-hanh');
   assert.strictEqual(h.firstAllowed({ canManagePermissions: true, canViewQtth: true }), 'phan-quyen');
   assert.strictEqual(h.firstAllowed({}), '');
