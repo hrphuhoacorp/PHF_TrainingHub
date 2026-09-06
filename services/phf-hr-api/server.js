@@ -836,7 +836,8 @@ function createServer(config) {
         }
         let body;
         try {
-          body = await readJsonBody(req, 4 * 1024 * 1024);
+          // base64 of a 4MB attachment (§19) is ~5.4MB; 8MB envelope covers it.
+          body = await readJsonBody(req, 8 * 1024 * 1024);
         } catch (err) {
           return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
         }

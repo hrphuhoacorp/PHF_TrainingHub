@@ -21,7 +21,7 @@ const remoteRefs = Array.from(actionsSrc.matchAll(/remote:\s*'([^']+)'/g)).map((
   .concat(Array.from(actionsSrc.matchAll(/callNoticeAction\('([^']+)'/g)).map((m) => m[1]));
 check('1  every Vercel-referenced remote action exists in notice-service ACTIONS',
   remoteRefs.every((a) => remoteActions.has(a)), remoteRefs.filter((a) => !remoteActions.has(a)).join(','));
-check('2  manifest lists 15 stable Vercel actions', NOTICE_ACTION_MANIFEST.length === 15, String(NOTICE_ACTION_MANIFEST.length));
+check('2  manifest lists 18 stable Vercel actions', NOTICE_ACTION_MANIFEST.length === 18, String(NOTICE_ACTION_MANIFEST.length));
 check('3  service exposes bootstrap + feed + detail + acknowledge (public read path)',
   ['notice.bootstrap', 'notice.feed', 'notice.detail', 'notice.acknowledge'].every((a) => remoteActions.has(a)));
 
@@ -54,9 +54,14 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
 
   // 9/10. service identity/authz discipline — inspect real `require(...)` + code, not comments
   const svcSrc = read('services/phf-hr-api/lib/notice-service.js');
-  const svcRequires = Array.from(svcSrc.matchAll(/require\('([^']+)'\)/g)).map((m) => m[1]);
-  check('9  notice-service only requires ./db (no supabase / People Master / other module)',
-    svcRequires.length === 1 && svcRequires[0] === './db', svcRequires.join(','));
+  const svcRequires = Array.from(new Set(Array.from(svcSrc.matchAll(/require\('([^']+)'\)/g)).map((m) => m[1])));
+  const storeSrc = read('services/phf-hr-api/lib/notice-attachment-store.js');
+  const stripC = (s) => s.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  check('9  notice-service requires only ./db + ./notice-attachment-store; the store reuses lib/attachment-storage; no supabase/People Master in code',
+    svcRequires.every((r) => r === './db' || r === './notice-attachment-store')
+    && /require\('\.\/attachment-storage'\)/.test(storeSrc)
+    && !/supabase|task-employee-scope|employee_profiles/i.test(stripC(svcSrc) + stripC(storeSrc)),
+    svcRequires.join(','));
   const svcCode = svcSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
   check('10 notice-service manage authority = Admin OR notice.notice_permissions only (never title/dept/other module)',
     /notice\.notice_permissions/.test(svcCode) && !/job_title|employee_profiles|competition|checklist|qtth|task_permission/i.test(svcCode));

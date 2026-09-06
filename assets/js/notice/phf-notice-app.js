@@ -257,10 +257,19 @@ async function renderDetail(ctx,id){
   else if(st==='upcoming')warn+='<div class="phf-notice-warn info">SẮP HIỆU LỰC — áp dụng từ '+fmtDate(n.effectiveFrom)+'.</div>';
   else if(n.supersededByNoticeId&&res.replacement)warn+='<div class="phf-notice-warn">Đã được thay thế bởi: <a href="#" data-nt-goto="'+esc(res.replacement.id)+'">'+esc(res.replacement.title)+'</a>.</div>';
 
-  var att=(n.attachments||[]).length?'<div class="phf-notice-attach"><h4>Tệp / liên kết đính kèm</h4>'
-    +n.attachments.map(function(a){return a.kind==='link'
+  var toc=(n.toc||[]).length?'<nav class="phf-notice-toc"><b>Mục lục</b><ul>'
+    +n.toc.map(function(h){return '<li class="lv'+h.level+'"><a href="#'+esc(h.id)+'" data-nt-toc="'+esc(h.id)+'">'+esc(h.text)+'</a></li>';}).join('')+'</ul></nav>':'';
+  var atts=(n.attachments||[]).filter(function(a){return true;});
+  var attList=atts.length?'<div class="phf-notice-attach"><h4>Tệp / liên kết đính kèm</h4>'
+    +atts.map(function(a){return '<span class="phf-notice-att-row">'+(a.kind==='link'
       ?'<a href="'+esc(a.linkUrl)+'" target="_blank" rel="noopener">'+ICON.link+' '+esc(a.linkUrl)+'</a>'
-      :'<a href="#" data-nt-att="'+esc(a.id)+'">'+ICON.file+' '+esc(a.fileName||'Tệp đính kèm')+'</a>';}).join('')+'</div>':'';
+      :'<a href="#" data-nt-att="'+esc(a.id)+'" data-nt-att-name="'+esc(a.fileName||'tep')+'">'+ICON.file+' '+esc(a.fileName||'Tệp đính kèm')+(a.byteSize?' <em>('+Math.max(1,Math.round(a.byteSize/1024))+' KB)</em>':'')+'</a>')
+      +(res.canManage?' <button type="button" class="phf-notice-att-rm" data-nt-att-rm="'+esc(a.id)+'" title="Xóa tệp">×</button>':'')+'</span>';}).join('')+'</div>':'';
+  var attManage=res.canManage?'<div class="phf-notice-attach phf-notice-att-manage"><h4>Quản lý tệp đính kèm</h4>'
+    +'<div class="phf-notice-att-add"><label class="phf-notice-btn is-small">'+ICON.file+' Tải tệp lên<input type="file" data-nt-att-file hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx"></label>'
+    +'<input type="text" data-nt-att-link placeholder="hoặc dán liên kết https://..."><button type="button" class="phf-notice-btn is-small" data-nt-att-addlink>Thêm liên kết</button></div>'
+    +'<p class="hint">Ảnh / PDF / Word / Excel ≤ 4 MB. Nội dung chính trên web vẫn bắt buộc — đính kèm chỉ là tài liệu tham chiếu. Mọi thêm/xóa/thay tệp đều được ghi vết.</p></div>':'';
+  var att=toc+attList+attManage;
 
   var ackNeedsNew=v.acknowledged&&!v.acknowledgedRevisionIsCurrent;
   var ackHtml='';
@@ -288,11 +297,32 @@ async function renderDetail(ctx,id){
       +'<span>Công bố: '+fmtDate(n.publishedAt)+'</span>'
       +(n.keywords.length?'<span>Từ khóa: '+esc(n.keywords.join(', '))+'</span>':'')+'</div>'
     +warn
-    +'<div class="phf-notice-body">'+(n.contentHtml||('<p>'+esc(n.contentText).replace(/\n/g,'<br>')+'</p>'))+'</div>'
+    +'<div class="phf-notice-body" data-nt-body>'+(n.contentHtml||('<p>'+esc(n.contentText).replace(/\n/g,'<br>')+'</p>'))+'</div>'
     +att+ackHtml+mgr+'</div>');
 
   i.querySelector('[data-nt-back]').onclick=function(){go(p+'/thong-bao');};
   i.querySelectorAll('[data-nt-goto]').forEach(function(a){a.onclick=function(e){e.preventDefault();go(p+'/thong-bao/n/'+encodeURIComponent(a.getAttribute('data-nt-goto')));};});
+  i.querySelectorAll('[data-nt-toc]').forEach(function(a){a.onclick=function(e){e.preventDefault();var t=i.querySelector('#'+CSS.escape(a.getAttribute('data-nt-toc')));if(t)t.scrollIntoView({behavior:'smooth',block:'start'});};});
+  if(FEED_FILTER.q){
+    var body=i.querySelector('[data-nt-body]'),term=FEED_FILTER.q.trim();
+    if(body&&term.length>=2){
+      try{
+        var rx=new RegExp('('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),first=null;
+        (function walk(node){for(var c=node.firstChild;c;c=c.nextSibling){if(c.nodeType===3&&rx.test(c.nodeValue)){var span=document.createElement('span');span.innerHTML=c.nodeValue.replace(rx,'<mark class="phf-notice-hit">$1</mark>');if(!first)first=span;node.replaceChild(span,c);}else if(c.nodeType===1&&c.tagName!=='MARK')walk(c);}})(body);
+        if(first)setTimeout(function(){first.scrollIntoView({behavior:'smooth',block:'center'});},120);
+      }catch(e){}
+    }
+  }
+  i.querySelectorAll('[data-nt-att]').forEach(function(a){a.onclick=async function(e){
+    e.preventDefault();a.style.opacity='.5';
+    try{
+      var r=await call('noticeAttachmentDownload',{notice_id:n.id,attachment_id:a.getAttribute('data-nt-att')});
+      if(r.kind==='link'){window.open(r.linkUrl,'_blank','noopener');return;}
+      var bin=atob(r.base64),arr=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)arr[k]=bin.charCodeAt(k);
+      var url=URL.createObjectURL(new Blob([arr]));var dl=document.createElement('a');dl.href=url;dl.download=r.fileName||a.getAttribute('data-nt-att-name')||'tep';document.body.appendChild(dl);dl.click();dl.remove();setTimeout(function(){URL.revokeObjectURL(url);},2000);
+    }catch(err){toast('error','Không tải được tệp',err.message);}
+    finally{a.style.opacity='';}
+  };});
   var ack=i.querySelector('[data-nt-ack]');
   if(ack)ack.onchange=async function(){
     if(!ack.checked)return;ack.disabled=true;
@@ -308,6 +338,30 @@ async function renderDetail(ctx,id){
       if(!confirm('Xóa thông báo này? Bản đã công bố sẽ ẩn khỏi feed nhưng dữ liệu + lịch sử vẫn được giữ (soft delete).'))return;
       try{var r=await call('noticeDelete',{id:n.id});toast('success','Đã xóa',r.mode==='hard'?'Đã xóa bản nháp.':'Đã ẩn khỏi feed.');go(p+'/thong-bao');}catch(err){toast('error','Lỗi',err.message);}
     };
+    function askReack(){return n.status==='published'?confirm('Yêu cầu người đọc xác nhận lại vì tệp đính kèm thay đổi? (OK = tạo phiên bản mới, người dùng phải xác nhận lại)'):false;}
+    var fileInp=i.querySelector('[data-nt-att-file]');
+    if(fileInp)fileInp.onchange=async function(){
+      var f=fileInp.files&&fileInp.files[0];if(!f)return;
+      if(f.size>4*1024*1024){toast('error','Tệp quá lớn','Tối đa 4 MB.');fileInp.value='';return;}
+      var rr=askReack();
+      var b64=await new Promise(function(rs,rj){var fr=new FileReader();fr.onload=function(){rs(String(fr.result).split(',')[1]);};fr.onerror=rj;fr.readAsDataURL(f);});
+      try{await call('noticeAttachmentAdd',{notice_id:n.id,kind:'file',file_name:f.name,mime_type:f.type,base64:b64,require_reacknowledgement:rr});toast('success','Đã thêm tệp','');renderDetail(ctx,id);}
+      catch(err){toast('error','Không thêm được tệp',err.message);}
+      finally{fileInp.value='';}
+    };
+    var addLink=i.querySelector('[data-nt-att-addlink]');
+    if(addLink)addLink.onclick=async function(){
+      var url=(i.querySelector('[data-nt-att-link]')||{}).value||'';if(!/^https?:\/\//i.test(url.trim())){toast('error','Liên kết không hợp lệ','Bắt đầu bằng http:// hoặc https://');return;}
+      var rr=askReack();
+      try{await call('noticeAttachmentAdd',{notice_id:n.id,kind:'link',link_url:url.trim(),require_reacknowledgement:rr});toast('success','Đã thêm liên kết','');renderDetail(ctx,id);}
+      catch(err){toast('error','Không thêm được',err.message);}
+    };
+    i.querySelectorAll('[data-nt-att-rm]').forEach(function(b){b.onclick=async function(){
+      if(!confirm('Xóa tệp đính kèm này? Thao tác được ghi vết.'))return;
+      var rr=askReack();
+      try{await call('noticeAttachmentRemove',{notice_id:n.id,attachment_id:b.getAttribute('data-nt-att-rm'),require_reacknowledgement:rr});toast('success','Đã xóa tệp','');renderDetail(ctx,id);}
+      catch(err){toast('error','Không xóa được',err.message);}
+    };});
   }
 }
 
@@ -347,7 +401,7 @@ function openWizard(p,existing){
     var body=ov.querySelector('[data-body]'),foot=ov.querySelector('[data-foot]');
     if(step===1){
       body.innerHTML='<div class="phf-notice-field"><label>Tiêu đề *</label><input type="text" data-f-title value="'+esc(model.title)+'" placeholder="VD: Cập nhật cách bấm bill khi khách sử dụng Voucher"></div>'
-        +'<div class="phf-notice-field"><label>Nội dung chính (hiển thị trên web) *</label><textarea data-f-content placeholder="Dán nguyên văn từ Zalo hoặc tài liệu cũ.">'+esc(model.contentText||model.contentHtml.replace(/<[^>]+>/g,''))+'</textarea><div class="hint">V1: nhập văn bản thuần; xuống dòng được giữ. Trình soạn thảo giàu định dạng + đính kèm bổ sung ở bản sau.</div></div>';
+        +'<div class="phf-notice-field"><label>Nội dung chính (hiển thị trên web) *</label><textarea data-f-content placeholder="Dán nguyên văn từ Zalo hoặc tài liệu cũ.&#10;&#10;Gõ &quot;## &quot; đầu dòng để tạo tiêu đề mục (tự sinh mục lục), &quot;### &quot; cho tiêu đề con.">'+esc(model.contentText||model.contentHtml.replace(/<[^>]+>/g,''))+'</textarea><div class="hint">Nội quy / chính sách dài: đưa TOÀN VĂN lên đây (tìm kiếm được từng đoạn). Dùng "## " / "### " đầu dòng cho tiêu đề — hệ thống tự tạo Mục lục. Tệp Word/PDF gốc chỉ là đính kèm tham chiếu, thêm ở màn chi tiết sau khi lưu.</div></div>';
     }else if(step===2){
       body.innerHTML='<div class="phf-notice-inline"><div class="phf-notice-field"><label>Loại *</label><select data-f-type>'+NT_TYPES.map(function(t){return '<option value="'+t[0]+'"'+(model.noticeType===t[0]?' selected':'')+'>'+esc(t[1])+'</option>';}).join('')+'</select></div>'
         +'<div class="phf-notice-field"><label>Áp dụng</label><select data-f-scopemode><option value="company"'+(model.scopeMode==='company'?' selected':'')+'>Toàn công ty</option><option value="custom"'+(model.scopeMode==='custom'?' selected':'')+'>Chọn phòng ban / chi nhánh</option></select></div></div>'

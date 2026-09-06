@@ -102,6 +102,7 @@ async function startApi(port, devAllow) {
   if (!(await tcpOpen(15432))) die('SSH tunnel 127.0.0.1:15432 chưa mở.');
   if (psql("select count(*) from information_schema.schemata where schema_name='notice'") !== '1') die('schema notice chưa có trên throwaway — apply migrations/phf_hr_notice_v1.sql trước.');
 
+  const svc = require(path.join(REPO, 'services/phf-hr-api/lib/notice-service'));
   const { createClient } = require('@supabase/supabase-js');
   const sb = createClient(envTest.SUPABASE_URL, envTest.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 
@@ -254,8 +255,97 @@ async function startApi(port, devAllow) {
 
   await expectThrow('B25 Direct API: viewer gọi noticeUpdate bài bất kỳ -> chặn', () => D(S_OUT, { action: 'noticeUpdate', id: cr.id, title: 'hack' }), 'NOTICE_MANAGE_DENIED');
 
+  // =====================================================================
+  // PHASE C — BATCH 02 · functional completion (AC12–AC19), gate still OFF
+  // =====================================================================
+  console.log('\n=== PHASE C · Batch 02 — attachments / long-form / replacement / delete / inactive ===\n');
+
+  // ---- AC15 attachments (file + link), revision-scoped, audited, secure ----
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='; // 1x1
+  const addF = await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: cr.id, kind: 'file', file_name: 'huong-dan-voucher.png', mime_type: 'image/png', base64: PNG });
+  check('C1  Manager thêm được tệp (image) — gắn revision hiện tại', !!addF.attachmentId, JSON.stringify(addF));
+  const attRev = psql(`select revision_id from notice.notice_attachments where id='${addF.attachmentId}'`);
+  const curRevC = psql(`select current_revision_id from notice.notices where id='${cr.id}'`);
+  check('C2  Tệp gắn đúng revision_id hiện tại', attRev === curRevC && !!attRev, `${attRev} vs ${curRevC}`);
+  const addL = await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: cr.id, kind: 'link', link_url: 'https://phuhoafresh.info.vn/pos-guide' });
+  check('C3  Manager thêm được liên kết', !!addL.attachmentId, '');
+  await expectThrow('C4  Link không http(s) bị từ chối', () => D(S_IN, { action: 'noticeAttachmentAdd', notice_id: cr.id, kind: 'link', link_url: 'ftp://x' }), 'NOTICE_ATTACH_LINK');
+  await expectThrow('C5  Đuôi tệp không hợp lệ bị từ chối', () => D(S_IN, { action: 'noticeAttachmentAdd', notice_id: cr.id, kind: 'file', file_name: 'x.exe', mime_type: 'application/x-msdownload', base64: PNG }), 'NOTICE_ATTACH_TYPE');
+  const dl = await D(S_OUT, { action: 'noticeAttachmentDownload', notice_id: cr.id, attachment_id: addF.attachmentId });
+  check('C6  Người thường (public read) tải được tệp qua kênh xác thực', dl.kind === 'file' && dl.base64 === PNG && dl.fileName === 'huong-dan-voucher.png', JSON.stringify({ k: dl.kind, n: dl.fileName }));
+  const detWithAtt = await D(S_IN, { action: 'noticeDetail', id: cr.id });
+  check('C7  Detail DTO liệt kê tệp KHÔNG lộ storage_key', detWithAtt.notice.attachments.length === 2 && detWithAtt.notice.attachments.every((a) => a.storageKey === undefined), JSON.stringify(detWithAtt.notice.attachments[0]));
+  const attAdd = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${cr.id}' and action_type='attachment_add'`));
+  check('C8  Thêm tệp -> audit attachment_add (x2)', attAdd === 2, 'count=' + attAdd);
+  // remove with re-ack -> new revision
+  const rm = await D(S_IN, { action: 'noticeAttachmentRemove', notice_id: cr.id, attachment_id: addL.attachmentId, require_reacknowledgement: true });
+  check('C9  Xóa tệp + Yêu cầu xác nhận lại -> tạo revision mới (AC12/AC15)', rm.removed === true && rm.revision && rm.revision.revisionNo > 2, JSON.stringify(rm));
+  const attRm = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${cr.id}' and action_type='attachment_remove'`));
+  const attStillRow = psql(`select count(*) from notice.notice_attachments where id='${addL.attachmentId}' and deleted_at is not null`);
+  check('C10 Xóa tệp = soft (deleted_at) + audit attachment_remove, hàng không mất', attRm === 1 && attStillRow === '1', `audit=${attRm} row=${attStillRow}`);
+  await expectThrow('C11 Tệp đã xóa không tải được nữa', () => D(S_OUT, { action: 'noticeAttachmentDownload', notice_id: cr.id, attachment_id: addL.attachmentId }), 'NOTICE_ATTACH_NOT_FOUND');
+  await expectThrow('C12 Viewer KHÔNG thêm được tệp', () => D(S_OUT, { action: 'noticeAttachmentAdd', notice_id: cr.id, kind: 'link', link_url: 'https://x.test' }), 'NOTICE_MANAGE_DENIED');
+
+  // ---- AC16 long-form: headings -> TOC + inner-clause search ----
+  const longBody = ['Quy định chung về sử dụng tài sản công ty.', '', '## Điều 1. Phạm vi áp dụng', 'Áp dụng cho toàn bộ nhân sự.', '', '## Điều 2. Voucher và chiết khấu', 'Khi khách dùng voucher, thu ngân vào Chiết khấu đơn (F6) và nhập mã. Không chọn voucher làm phương thức thanh toán.', '', '### Điều 2.1. Trường hợp mã hỏng', 'Nhập tay số tiền giảm đúng bằng giá trị voucher.'].join('\n');
+  const longN = await D(S_IN, { action: 'noticeCreate', title: 'Nội quy sử dụng tài sản & quy định thanh toán', content_text: longBody, notice_type: 'regulation', effective_from: '2026-09-01', keywords: [] });
+  await D(S_IN, { action: 'noticePublish', id: longN.id });
+  const longDet = await D(S_IN, { action: 'noticeDetail', id: longN.id });
+  check('C13 Long-form: HTML lưu có heading với id + auto-TOC (>=3 mục)', /<h2 id="/.test(longDet.notice.contentHtml) && longDet.notice.toc.length >= 3, JSON.stringify(longDet.notice.toc.map((t) => t.text)));
+  check('C14 Long-form: TOC có phân cấp h2/h3', longDet.notice.toc.some((t) => t.level === 2) && longDet.notice.toc.some((t) => t.level === 3), '');
+  const innerHit = await D(S_OUT, { action: 'noticeFeed', q: 'mã hỏng' });
+  check('C15 Search ra điều khoản nằm SÂU trong nội dung dài (AC16)', innerHit.notices.some((x) => x.id === longN.id), '');
+
+  // ---- AC14 replacement with a FUTURE effective_from ----
+  const oldPol = await D(S_IN, { action: 'noticeCreate', title: 'Chính sách phụ cấp điện thoại 2026', content_text: 'Phụ cấp 200k/tháng.', notice_type: 'policy', effective_from: '2026-01-01' });
+  await D(S_IN, { action: 'noticePublish', id: oldPol.id });
+  const tomorrow = new Date(Date.now() + 7 * 3600e3 + 86400e3).toISOString().slice(0, 10);
+  const newPol = await D(S_IN, { action: 'noticeCreate', title: 'Chính sách phụ cấp điện thoại 2026 (điều chỉnh)', content_text: 'Phụ cấp 300k/tháng.', notice_type: 'policy', effective_from: tomorrow, replaced_notice_id: oldPol.id });
+  const pubNew = await D(S_IN, { action: 'noticePublish', id: newPol.id });
+  check('C16 Publish bản thay thế hiệu lực TƯƠNG LAI -> chưa supersede bản cũ ngay', !pubNew.supersededOld, JSON.stringify(pubNew));
+  const oldStatusNow = psql(`select coalesce(superseded_by_notice_id::text,'none') from notice.notices where id='${oldPol.id}'`);
+  check('C17 Bản cũ vẫn đang hiệu lực khi bản mới chưa tới ngày', oldStatusNow === 'none', oldStatusNow);
+  // simulate arrival: back-date the new notice's effective_from to today, then a feed read triggers the lazy flip
+  psql(`update notice.notices set effective_from='2026-09-01' where id='${newPol.id}'`);
+  const feedAfterFlip = await D(S_IN, { action: 'noticeFeed', q: 'phụ cấp điện thoại' });
+  const oldCard = feedAfterFlip.notices.find((x) => x.id === oldPol.id);
+  const newCard2 = feedAfterFlip.notices.find((x) => x.id === newPol.id);
+  check('C18 Khi bản mới có hiệu lực -> bản cũ tự HẾT HIỆU LỰC (lazy flip, AC14)', oldCard && oldCard.effectiveStatus === 'expired' && oldCard.supersededByNoticeId === newPol.id, JSON.stringify(oldCard && { s: oldCard.effectiveStatus, by: oldCard.supersededByNoticeId }));
+  check('C19 Hai bài link qua lại + search ưu tiên bản mới trên bản cũ', newCard2 && newCard2.replacedNoticeId === oldPol.id
+    && feedAfterFlip.notices.findIndex((x) => x.id === newPol.id) < feedAfterFlip.notices.findIndex((x) => x.id === oldPol.id), '');
+  const flipAudit = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${oldPol.id}' and action_type='superseded'`));
+  check('C20 Lazy flip được ghi audit (superseded)', flipAudit >= 1, 'count=' + flipAudit);
+
+  // ---- AC13 draft delete + published soft-delete both leave the feed, keep history ----
+  const draftDel = await D(S_IN, { action: 'noticeCreate', title: 'Nháp sẽ xóa', content_text: 'tạm.', notice_type: 'guide', effective_from: '2026-09-01' });
+  const dRes = await D(S_IN, { action: 'noticeDelete', id: draftDel.id });
+  const draftGone = !(await D(S_IN, { action: 'noticeFeed', q: '', include_drafts: true })).notices.some((x) => x.id === draftDel.id);
+  const draftHistKept = psql(`select count(*) from notice.notices where id='${draftDel.id}' and deleted_at is not null`) === '1'
+    && Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${draftDel.id}' and action_type='delete_draft'`)) === 1;
+  check('C21 Draft xóa -> rời feed nhưng dữ liệu + audit vẫn còn (AC13)', dRes.deleted === true && dRes.wasDraft === true && draftGone && draftHistKept, JSON.stringify(dRes));
+
+  // ---- AC17 pin does not change effective status ----
+  const beforePinStatus = (await D(S_IN, { action: 'noticeFeed', q: 'tài sản' })).notices.find((x) => x.id === longN.id).effectiveStatus;
+  await D(S_IN, { action: 'noticeSetPin', id: longN.id, pinned: true });
+  const afterPin = (await D(S_IN, { action: 'noticeFeed', q: '' })).notices;
+  const pinnedCard = afterPin.find((x) => x.id === longN.id);
+  check('C22 Pin: lên đầu feed nhưng effective status KHÔNG đổi (AC17)', afterPin[0].id === longN.id && pinnedCard.effectiveStatus === beforePinStatus, `${afterPin[0].id} / ${pinnedCard.effectiveStatus} vs ${beforePinStatus}`);
+
+  // ---- AC19 inactive not in denominator, history kept ----
+  if (inactiveEmp) {
+    // an inactive employee that viewed/acked historically still must not inflate the denominator
+    psql(`insert into notice.notice_views(notice_id,viewer_key,employee_code) values ('${longN.id}','EMP:${inactiveEmp.employee_code}','${inactiveEmp.employee_code}') on conflict do nothing`);
+    const rep19 = await D(S_IN, { action: 'noticeReport', id: longN.id });
+    const inDenom = rep19.primary.filter((x) => x.active).length;
+    const histKept = rep19.primary.concat(rep19.others).some((x) => x.employeeCode === inactiveEmp.employee_code && x.viewedAt);
+    check('C23 Inactive account: KHÔNG tính vào denominator hiện tại, lịch sử view vẫn còn (AC19)', rep19.summary.denominator === inDenom && histKept, JSON.stringify({ d: rep19.summary.denominator, inDenom, histKept }));
+  } else { check('C23 (skipped — no inactive employee in DEV)', true); }
+
+  // ---- AC18 no comments — structural: no comment action exists ----
+  check('C24 AC18 no comments: service has no comment/Q&A action', !svc.ACTIONS.some((a) => /comment|reply|discuss|qa/i.test(a)), svc.ACTIONS.join(','));
+
   stopApi();
 
-  console.log(`\n==== NOTICE Batch 01 LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
+  console.log(`\n==== NOTICE Batch 01+02 LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);
 })().catch((e) => { stopApi(); console.error('E2E fatal: ' + (e && e.stack || e)); process.exit(1); });

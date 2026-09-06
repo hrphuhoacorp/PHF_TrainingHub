@@ -125,13 +125,24 @@ async function writeAudit(c, actor, noticeId, actionType, beforeJson, afterJson)
 
 // --- effective status (DERIVED, never stored) ------------------------------
 function todayISO() { const d = new Date(Date.now() + 7 * 3600 * 1000); return d.toISOString().slice(0, 10); }
+// node-pg returns a `date` column as a JS Date at LOCAL midnight — .toISOString()
+// then shifts the calendar day in any non-UTC timezone (the off-by-one that made
+// a future-dated replacement supersede its predecessor immediately). Format from
+// LOCAL components, or slice a plain 'YYYY-MM-DD' string as-is.
+function ymd(v) {
+  if (!v) return null;
+  if (v instanceof Date) {
+    return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0');
+  }
+  return String(v).slice(0, 10);
+}
 function effectiveStatus(row, today) {
   if (row.deleted_at) return 'deleted';
   if (row.status !== 'published') return 'draft';
   const t = today || todayISO();
-  const from = row.effective_from instanceof Date ? row.effective_from.toISOString().slice(0, 10) : String(row.effective_from).slice(0, 10);
-  const to = row.effective_to ? (row.effective_to instanceof Date ? row.effective_to.toISOString().slice(0, 10) : String(row.effective_to).slice(0, 10)) : null;
-  if (t < from) return 'upcoming';
+  const from = ymd(row.effective_from);
+  const to = ymd(row.effective_to);
+  if (from && t < from) return 'upcoming';
   if (to && t > to) return 'expired';
   return 'active';
 }
@@ -183,6 +194,48 @@ function excerpt(t, n) {
   const s = String(t || '').replace(/\s+/g, ' ').trim();
   return s.length > (n || 240) ? s.slice(0, n || 240) + '…' : s;
 }
+function escHtml(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+function slugify(s) {
+  return String(s).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 64) || 'muc';
+}
+// Long-form (§18): plain text -> structured HTML. Lines beginning "## " / "### "
+// / "#### " become headings with a stable id (for auto-TOC + anchor jump); the
+// rest is paragraph text with line breaks preserved. No Word importer.
+function htmlFromText(txt) {
+  const src = String(txt == null ? '' : txt).replace(/\r\n?/g, '\n');
+  const out = [];
+  const usedIds = {};
+  let para = [];
+  const flush = () => { if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
+  src.split('\n').forEach((line) => {
+    const h = line.match(/^(#{2,4})\s+(.*\S)\s*$/);
+    if (h) {
+      flush();
+      const level = h[1].length; // 2..4
+      let id = slugify(h[2]);
+      if (usedIds[id]) { usedIds[id]++; id = id + '-' + usedIds[id]; } else usedIds[id] = 1;
+      out.push('<h' + level + ' id="' + id + '">' + escHtml(h[2]) + '</h' + level + '>');
+    } else if (!line.trim()) {
+      flush();
+    } else {
+      para.push(escHtml(line));
+    }
+  });
+  flush();
+  return out.join('\n') || '<p></p>';
+}
+// Auto table-of-contents (§15/§18): pull h2/h3/h4 + their id out of the stored HTML.
+function tocFromHtml(html) {
+  const out = [];
+  const re = /<h([234])\s+id="([^"]+)"[^>]*>([\s\S]*?)<\/h[234]>/g;
+  let m;
+  while ((m = re.exec(String(html || '')))) {
+    out.push({ level: Number(m[1]), id: m[2], text: String(m[3]).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() });
+  }
+  return out;
+}
 
 async function loadFullNotice(c, id) {
   const nr = await c.query('SELECT * FROM notice.notices WHERE id = $1', [id]);
@@ -203,8 +256,8 @@ function shapeNotice(full, today) {
     contentHtml: r.content_html || '',
     contentText: r.content_text || '',
     noticeType: r.notice_type,
-    effectiveFrom: r.effective_from ? String(r.effective_from).slice(0, 10) : null,
-    effectiveTo: r.effective_to ? String(r.effective_to).slice(0, 10) : null,
+    effectiveFrom: ymd(r.effective_from),
+    effectiveTo: ymd(r.effective_to),
     requireAcknowledgement: r.require_acknowledgement === true,
     isPinned: r.is_pinned === true,
     status: r.status,
@@ -219,9 +272,10 @@ function shapeNotice(full, today) {
     updatedAt: r.updated_at,
     scopes: (full.scopes || []).map((s) => ({ scopeType: s.scope_type, scopeValue: s.scope_value })),
     keywords: full.keywords || [],
+    toc: tocFromHtml(r.content_html || ''),
     attachments: (full.attachments || []).map((a) => ({
       id: a.id, kind: a.kind, fileType: a.file_type, fileName: a.file_name,
-      storageKey: a.storage_key, linkUrl: a.link_url, byteSize: a.byte_size, createdAt: a.created_at,
+      linkUrl: a.link_url, byteSize: a.byte_size, createdAt: a.created_at,
     })),
     revisions: (full.revisions || []).map((v) => ({
       id: v.id, revisionNo: v.revision_no, requireReacknowledgement: v.require_reacknowledgement === true,
@@ -235,8 +289,8 @@ async function snapshotRevisionMeta(c, id) {
   const r = full.row;
   return {
     notice_type: r.notice_type,
-    effective_from: r.effective_from ? String(r.effective_from).slice(0, 10) : null,
-    effective_to: r.effective_to ? String(r.effective_to).slice(0, 10) : null,
+    effective_from: ymd(r.effective_from),
+    effective_to: ymd(r.effective_to),
     require_acknowledgement: r.require_acknowledgement === true,
     scopes: full.scopes.map((s) => ({ scopeType: s.scope_type, scopeValue: s.scope_value })),
     keywords: full.keywords,
@@ -260,6 +314,46 @@ async function createRevision(c, actor, id, requireReack, changeSummary) {
   const revId = ins.rows[0].id;
   await c.query('UPDATE notice.notices SET current_revision_id = $1 WHERE id = $2', [revId, id]);
   return { revisionId: revId, revisionNo };
+}
+
+// §13 replacement: a published notice B that replaces A takes effect on its own
+// effective_from. Batch 01 handled the "already effective at publish" case; this
+// lazily flips a replacement whose effective_from was in the FUTURE at publish
+// and has now arrived — run before every feed/detail read (idempotent, bounded:
+// only rows with replaced_notice_id, published, effective_from <= today, whose
+// target is not yet superseded). No scheduler needed.
+async function resolveDueReplacements(config, today) {
+  await writeTx(config, async (c) => {
+    const due = await c.query(
+      `SELECT b.id AS new_id, b.replaced_notice_id AS old_id, b.effective_from AS new_from
+         FROM notice.notices b
+         JOIN notice.notices a ON a.id = b.replaced_notice_id
+        WHERE b.status = 'published' AND b.deleted_at IS NULL
+          AND b.replaced_notice_id IS NOT NULL
+          AND b.effective_from <= $1::date
+          AND a.status = 'published' AND a.deleted_at IS NULL
+          AND a.superseded_by_notice_id IS NULL`,
+      [today]
+    );
+    for (const r of due.rows) {
+      const old = await c.query('SELECT effective_to FROM notice.notices WHERE id = $1 FOR UPDATE', [r.old_id]);
+      // old notice ends the day BEFORE the replacement takes effect (so on the
+      // replacement's effective day the old one is already EXPIRED — §13).
+      await c.query(
+        `UPDATE notice.notices
+            SET superseded_by_notice_id = $1,
+                effective_to = LEAST(COALESCE(effective_to, ($2::date - 1)), ($2::date - 1))
+          WHERE id = $3`,
+        [r.new_id, ymd(r.new_from), r.old_id]
+      );
+      await c.query(
+        `INSERT INTO notice.notice_audit_logs (notice_id, actor_account_id, actor_employee_code, actor_name, action_type, before_json, after_json)
+         VALUES ($1, NULL, NULL, 'Hệ thống', 'superseded', $2, $3)`,
+        [r.old_id, JSON.stringify({ effectiveTo: old.rows[0] && ymd(old.rows[0].effective_to) }), JSON.stringify({ supersededByNoticeId: r.new_id, trigger: 'replacement-effective' })]
+      );
+    }
+    return due.rowCount;
+  });
 }
 
 // =========================================================================
@@ -294,6 +388,7 @@ const HANDLERS = {
   'notice.feed': async (config, actor, params) => {
     const canManage = await isContentManager(config, actor);
     const today = todayISO();
+    await resolveDueReplacements(config, today);
     const q = text(params && params.q);
     const typeFilter = text(params && params.type);
     const statusFilter = text(params && params.status); // active | upcoming | expired
@@ -347,8 +442,8 @@ const HANDLERS = {
           title: r.title,
           excerpt: excerpt(r.content_text, 240),
           noticeType: r.notice_type,
-          effectiveFrom: r.effective_from ? String(r.effective_from).slice(0, 10) : null,
-          effectiveTo: r.effective_to ? String(r.effective_to).slice(0, 10) : null,
+          effectiveFrom: ymd(r.effective_from),
+          effectiveTo: ymd(r.effective_to),
           effectiveStatus: es,
           status: r.status,
           isPinned: r.is_pinned === true,
@@ -391,6 +486,7 @@ const HANDLERS = {
     const id = text(params && params.id);
     if (!id) throw nErr('NOTICE_ID_REQUIRED', 'Thiếu mã thông báo.', 400);
     const today = todayISO();
+    await resolveDueReplacements(config, today);
     return writeTx(config, async (c) => {
       const full = await loadFullNotice(c, id);
       if (full.row.deleted_at && !(await isContentManager(config, actor))) {
@@ -467,9 +563,15 @@ const HANDLERS = {
     await requireManage(config, actor);
     const title = text(params && params.title);
     if (!title) throw nErr('NOTICE_TITLE_REQUIRED', 'Tiêu đề là bắt buộc.', 400);
-    const contentHtml = params && params.contentHtml != null ? String(params.contentHtml) : '';
-    const contentText = text(params && params.contentText) || String(contentHtml).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!contentText) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
+    // Web body is mandatory (§14/§18). The plain text is canonical; the stored
+    // HTML is always DERIVED from it server-side (htmlFromText: "## " headings +
+    // paragraphs + stable ids for the auto-TOC / anchor jump). A client-sent
+    // contentHtml is only a fallback when no text is provided.
+    const rawText = text(params && params.contentText)
+      || (params && params.contentHtml != null ? String(params.contentHtml).replace(/<\/(h[234]|p|li|div)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim() : '');
+    if (!rawText) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
+    const contentText = rawText;
+    const contentHtml = htmlFromText(rawText);
     const noticeType = assertType(params && params.noticeType);
     const effectiveFrom = dateOnly(params && params.effectiveFrom) || todayISO();
     const effectiveTo = dateOnly(params && params.effectiveTo);
@@ -510,20 +612,20 @@ const HANDLERS = {
       const vals = [];
       const beforeJson = {};
       const afterJson = {};
-      const put = (col, val, key) => { vals.push(val); set.push(col + ' = $' + vals.length); beforeJson[key] = b[col] instanceof Date ? String(b[col]).slice(0, 10) : b[col]; afterJson[key] = val; };
+      const put = (col, val, key) => { vals.push(val); set.push(col + ' = $' + vals.length); beforeJson[key] = ymd(b[col]) || b[col]; afterJson[key] = val; };
 
       if (params && params.title != null) { const t = text(params.title); if (!t) throw nErr('NOTICE_TITLE_REQUIRED', 'Tiêu đề là bắt buộc.', 400); if (t !== b.title) put('title', t, 'title'); }
       if ((params && params.contentHtml != null) || (params && params.contentText != null)) {
-        const html = params.contentHtml != null ? String(params.contentHtml)
-          : (text(params.contentText) ? '<p>' + text(params.contentText).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>' : b.content_html);
-        const txt = text(params.contentText) || String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const txt = text(params.contentText)
+          || (params.contentHtml != null ? String(params.contentHtml).replace(/<\/(h[234]|p|li|div)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim() : b.content_text);
         if (!txt) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
+        const html = htmlFromText(txt); // stored HTML always derived server-side
         if (html !== b.content_html) put('content_html', html, 'contentHtml');
         if (txt !== b.content_text) put('content_text', txt, 'contentText');
       }
       if (params && params.noticeType != null) { const ty = assertType(params.noticeType); if (ty !== b.notice_type) put('notice_type', ty, 'noticeType'); }
-      let effFrom = b.effective_from ? String(b.effective_from).slice(0, 10) : null;
-      let effTo = b.effective_to ? String(b.effective_to).slice(0, 10) : null;
+      let effFrom = ymd(b.effective_from);
+      let effTo = ymd(b.effective_to);
       if (params && params.effectiveFrom != null) { const d = dateOnly(params.effectiveFrom); if (d && d !== effFrom) { put('effective_from', d, 'effectiveFrom'); effFrom = d; } }
       if (params && Object.prototype.hasOwnProperty.call(params, 'effectiveTo')) { const d = dateOnly(params.effectiveTo); if (d !== effTo) { put('effective_to', d, 'effectiveTo'); effTo = d; } }
       if (effTo && effFrom && effTo < effFrom) throw nErr('NOTICE_DATE_RANGE', 'Ngày hết hiệu lực phải sau ngày hiệu lực.', 400);
@@ -600,8 +702,14 @@ const HANDLERS = {
         if (es === 'active' || es === 'expired') {
           const old = await c.query('SELECT id, status, deleted_at, effective_to FROM notice.notices WHERE id = $1', [b.replaced_notice_id]);
           if (old.rowCount && old.rows[0].status === 'published' && !old.rows[0].deleted_at) {
-            await c.query('UPDATE notice.notices SET superseded_by_notice_id = $1, effective_to = LEAST(COALESCE(effective_to, $2::date), $2::date) WHERE id = $3', [id, today, b.replaced_notice_id]);
-            await writeAudit(c, actor, b.replaced_notice_id, 'superseded', { effectiveTo: old.rows[0].effective_to }, { supersededByNoticeId: id, effectiveTo: today });
+            await c.query(
+              `UPDATE notice.notices
+                  SET superseded_by_notice_id = $1,
+                      effective_to = LEAST(COALESCE(effective_to, ($2::date - 1)), ($2::date - 1))
+                WHERE id = $3`,
+              [id, ymd(b.effective_from), b.replaced_notice_id]
+            );
+            await writeAudit(c, actor, b.replaced_notice_id, 'superseded', { effectiveTo: ymd(old.rows[0].effective_to) }, { supersededByNoticeId: id });
             supersededOld = b.replaced_notice_id;
           }
         }
@@ -625,6 +733,88 @@ const HANDLERS = {
     });
   },
 
+  // ---- ATTACHMENTS (§19) — file/link, revision-scoped, audited -----------
+  'notice.attachment.add': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const noticeId = text(params && params.noticeId);
+    if (!noticeId) throw nErr('NOTICE_ID_REQUIRED', 'Thiếu mã thông báo.', 400);
+    const kind = text(params && params.kind) === 'link' ? 'link' : 'file';
+    const requireReack = boolish(params && params.requireReacknowledgement);
+    const [a, e, n] = auditActor(actor);
+    return writeTx(config, async (c) => {
+      const nr = await c.query('SELECT id, status, deleted_at, current_revision_id FROM notice.notices WHERE id = $1', [noticeId]);
+      if (!nr.rowCount || nr.rows[0].deleted_at) throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
+      const notice = nr.rows[0];
+      let row;
+      if (kind === 'link') {
+        const url = text(params && params.linkUrl);
+        if (!url || !/^https?:\/\//i.test(url)) throw nErr('NOTICE_ATTACH_LINK', 'Liên kết phải bắt đầu bằng http:// hoặc https://', 400);
+        row = (await c.query(
+          `INSERT INTO notice.notice_attachments (notice_id, revision_id, kind, link_url, created_by_account_id, created_by_name)
+           VALUES ($1,$2,'link',$3,$4,$5) RETURNING id`, [noticeId, notice.current_revision_id, url, a, n]
+        )).rows[0];
+        await writeAudit(c, actor, noticeId, 'attachment_add', null, { kind: 'link', linkUrl: url, attachmentId: row.id });
+      } else {
+        const store = require('./notice-attachment-store');
+        const fileName = text(params && params.fileName) || 'tep-dinh-kem';
+        const put = await store.putFile(config.PHF_HR_ATTACHMENT_ROOT, noticeId, fileName, params && params.mimeType, params && params.base64);
+        row = (await c.query(
+          `INSERT INTO notice.notice_attachments (id, notice_id, revision_id, kind, file_type, file_name, storage_key, byte_size, created_by_account_id, created_by_name)
+           VALUES ($1,$2,$3,'file',$4,$5,$6,$7,$8,$9) RETURNING id`,
+          [put.attachmentId, noticeId, notice.current_revision_id, put.fileType, fileName, 'notice/' + noticeId + '/' + put.attachmentId, put.byteSize, a, n]
+        )).rows[0];
+        await writeAudit(c, actor, noticeId, 'attachment_add', null, { kind: 'file', fileName, fileType: put.fileType, byteSize: put.byteSize, attachmentId: row.id });
+      }
+      let revision = null;
+      if (notice.status === 'published' && requireReack) {
+        revision = await createRevision(c, actor, noticeId, true, 'Thay đổi tệp đính kèm');
+        await writeAudit(c, actor, noticeId, 'require_reack', null, { revisionNo: revision.revisionNo, reason: 'attachment' });
+      }
+      return { attachmentId: row.id, kind, revision };
+    });
+  },
+  'notice.attachment.remove': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const noticeId = text(params && params.noticeId);
+    const attachmentId = text(params && params.attachmentId);
+    if (!noticeId || !attachmentId) throw nErr('NOTICE_ATTACH_KEY', 'Thiếu mã thông báo hoặc mã tệp.', 400);
+    const requireReack = boolish(params && params.requireReacknowledgement);
+    const [a, e, n] = auditActor(actor);
+    return writeTx(config, async (c) => {
+      const ar = await c.query('SELECT id, kind, file_name, link_url, deleted_at FROM notice.notice_attachments WHERE id = $1 AND notice_id = $2', [attachmentId, noticeId]);
+      if (!ar.rowCount) throw nErr('NOTICE_ATTACH_NOT_FOUND', 'Không tìm thấy tệp.', 404);
+      if (ar.rows[0].deleted_at) return { attachmentId, removed: true, already: true };
+      await c.query('UPDATE notice.notice_attachments SET deleted_at = now(), deleted_by_account_id = $2, deleted_by_name = $3 WHERE id = $1', [attachmentId, a, n]);
+      await writeAudit(c, actor, noticeId, 'attachment_remove', { kind: ar.rows[0].kind, fileName: ar.rows[0].file_name, linkUrl: ar.rows[0].link_url, attachmentId }, null);
+      let revision = null;
+      const ns = await c.query('SELECT status FROM notice.notices WHERE id = $1', [noticeId]);
+      if (ns.rowCount && ns.rows[0].status === 'published' && requireReack) {
+        revision = await createRevision(c, actor, noticeId, true, 'Thay đổi tệp đính kèm');
+        await writeAudit(c, actor, noticeId, 'require_reack', null, { revisionNo: revision.revisionNo, reason: 'attachment' });
+      }
+      return { attachmentId, removed: true, revision };
+    });
+  },
+  // Download — PUBLIC business read (any verified actor who can read the notice).
+  'notice.attachment.download': async (config, actor, params) => {
+    const noticeId = text(params && params.noticeId);
+    const attachmentId = text(params && params.attachmentId);
+    if (!noticeId || !attachmentId) throw nErr('NOTICE_ATTACH_KEY', 'Thiếu mã thông báo hoặc mã tệp.', 400);
+    const canManage = await isContentManager(config, actor);
+    const row = await readTx(config, async (c) => {
+      const nr = await c.query('SELECT status, deleted_at FROM notice.notices WHERE id = $1', [noticeId]);
+      if (!nr.rowCount) throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
+      if ((nr.rows[0].deleted_at || nr.rows[0].status !== 'published') && !canManage) throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
+      const ar = await c.query('SELECT id, kind, file_type, file_name, link_url FROM notice.notice_attachments WHERE id = $1 AND notice_id = $2 AND deleted_at IS NULL', [attachmentId, noticeId]);
+      if (!ar.rowCount) throw nErr('NOTICE_ATTACH_NOT_FOUND', 'Không tìm thấy tệp.', 404);
+      return ar.rows[0];
+    });
+    if (row.kind === 'link') return { kind: 'link', linkUrl: row.link_url };
+    const store = require('./notice-attachment-store');
+    const f = await store.getFile(config.PHF_HR_ATTACHMENT_ROOT, noticeId, attachmentId);
+    return { kind: 'file', fileName: row.file_name, fileType: row.file_type, byteSize: f.byteSize, base64: f.base64 };
+  },
+
   'notice.delete': async (config, actor, params) => {
     await requireManage(config, actor);
     const id = text(params && params.id);
@@ -633,21 +823,16 @@ const HANDLERS = {
       const cur = await c.query('SELECT id, status, deleted_at FROM notice.notices WHERE id = $1', [id]);
       if (!cur.rowCount) throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
       if (cur.rows[0].deleted_at) return { id, deleted: true, mode: 'already' };
-      if (cur.rows[0].status === 'draft') {
-        // draft with no revisions/acks -> hard delete allowed (§12.1)
-        const rev = await c.query('SELECT 1 FROM notice.notice_revisions WHERE notice_id = $1 LIMIT 1', [id]);
-        if (!rev.rowCount) {
-          await writeAudit(c, actor, id, 'delete_draft', { status: 'draft' }, null);
-          await c.query('DELETE FROM notice.notice_scopes WHERE notice_id = $1', [id]);
-          await c.query('DELETE FROM notice.notice_keywords WHERE notice_id = $1', [id]);
-          await c.query('DELETE FROM notice.notices WHERE id = $1', [id]);
-          return { id, deleted: true, mode: 'hard' };
-        }
-      }
+      // §12: published -> soft delete only. A draft "can be deleted" too — we
+      // soft-delete it as well (one consistent model; keeps audit + history
+      // intact, which the append-only audit design requires anyway). Either way
+      // the row leaves the feed/search (deleted_at IS NULL filter) and the
+      // manager can still reach its history.
+      const wasDraft = cur.rows[0].status === 'draft';
       const [a, n] = [actor.accountId || null, actor.displayName || actor.employeeCode || null];
       await c.query('UPDATE notice.notices SET deleted_at = now(), deleted_by_account_id = $2, deleted_by_name = $3 WHERE id = $1', [id, a, n]);
-      await writeAudit(c, actor, id, 'soft_delete', { status: cur.rows[0].status }, { deletedAt: 'now' });
-      return { id, deleted: true, mode: 'soft' };
+      await writeAudit(c, actor, id, wasDraft ? 'delete_draft' : 'soft_delete', { status: cur.rows[0].status }, { deletedAt: 'now' });
+      return { id, deleted: true, mode: 'soft', wasDraft };
     });
   },
 

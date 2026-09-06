@@ -75,6 +75,14 @@ const PASSTHROUGH = {
   noticeDelete:      { remote: 'notice.delete', params: (p) => ({ id: str(p.id) }) },
   noticeRevisions:   { remote: 'notice.revisions', params: (p) => ({ id: str(p.id) }) },
   noticeAuditLog:    { remote: 'notice.auditLog', params: (p) => ({ id: str(p.id) }) },
+  noticeAttachmentAdd: { remote: 'notice.attachment.add', params: (p) => ({
+    noticeId: str(p.notice_id), kind: str(p.kind), fileName: str(p.file_name), mimeType: str(p.mime_type),
+    base64: str(p.base64), linkUrl: str(p.link_url), requireReacknowledgement: bool(p.require_reacknowledgement),
+  }) },
+  noticeAttachmentRemove: { remote: 'notice.attachment.remove', params: (p) => ({
+    noticeId: str(p.notice_id), attachmentId: str(p.attachment_id), requireReacknowledgement: bool(p.require_reacknowledgement),
+  }) },
+  noticeAttachmentDownload: { remote: 'notice.attachment.download', params: (p) => ({ noticeId: str(p.notice_id), attachmentId: str(p.attachment_id) }) },
   noticeSetPermission: { remote: 'notice.permissions.set', params: (p) => ({ employeeCode: code(p.employee_code), canManage: bool(p.can_manage) }) },
   noticePermissionHistory: { remote: 'notice.permissions.history', params: (p) => ({ employeeCode: code(p.employee_code) }) },
 };
@@ -140,6 +148,7 @@ const NOTICE_ACTION_MANIFEST = Object.freeze([
   'noticeBootstrap', 'noticeFeed', 'noticeDetail', 'noticeAcknowledge',
   'noticeCreate', 'noticeUpdate', 'noticePublish', 'noticeSetPin', 'noticeDelete',
   'noticeRevisions', 'noticeAuditLog', 'noticeReport',
+  'noticeAttachmentAdd', 'noticeAttachmentRemove', 'noticeAttachmentDownload',
   'noticePermissionRoster', 'noticeSetPermission', 'noticePermissionHistory',
 ]);
 

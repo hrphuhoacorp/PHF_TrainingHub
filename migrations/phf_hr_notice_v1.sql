@@ -336,7 +336,9 @@ GRANT USAGE ON SCHEMA notice TO phf_hr_app;
 GRANT EXECUTE ON FUNCTION notice.vn_unaccent(text) TO phf_hr_app;
 GRANT EXECUTE ON FUNCTION notice.rebuild_notice_tsv(uuid) TO phf_hr_app;
 
-GRANT SELECT, INSERT, UPDATE ON notice.notices                     TO phf_hr_app;
+-- DELETE on notices: only a never-published draft (no revisions/acks) is ever
+-- hard-deleted (§12.1); published notices are soft-delete only (service-enforced).
+GRANT SELECT, INSERT, UPDATE, DELETE ON notice.notices             TO phf_hr_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON notice.notice_scopes       TO phf_hr_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON notice.notice_keywords     TO phf_hr_app;
 GRANT SELECT, INSERT                 ON notice.notice_revisions     TO phf_hr_app;
