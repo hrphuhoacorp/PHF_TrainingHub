@@ -100,7 +100,7 @@ async function validatePreview(config, actor, params) {
 
   const report = {
     periodMonth: pm, fileName, sha256: sha, byteSize: buffer.length, sheetName: grid.sheetName,
-    templateMatched, templateFingerprint: fp.fingerprint,
+    templateMatched, templateFingerprint: fp.fingerprint, columnMap: fp.columnMap,
     schemaDrift: drift && (drift.added.length || drift.removed.length || drift.moved.length) ? drift : null,
     missingColumns: fp.missingCore || [],
     totals: {
@@ -147,7 +147,7 @@ async function validatePreview(config, actor, params) {
 
     for (const rec of nm.records) {
       await c.query("INSERT INTO payroll.raw_row (file_id, source_row_index, employee_code, cells) VALUES ($1,$2,$3,$4)",
-        [file.id, rec.sourceRowIndex, rec.employeeCode, rec.rawCells]);
+        [file.id, rec.sourceRowIndex, rec.employeeCode, JSON.stringify(rec.rawCells || {})]);
       const f = rec.fields;
       await c.query(
         `INSERT INTO payroll.normalized
@@ -163,7 +163,7 @@ async function validatePreview(config, actor, params) {
          n(f.allowance_actual_total_2), n(f.bonus_total_3), n(f.grand_total_4), n(f.internal_deduct_total_5), n(f.income_after_internal_5),
          n(f.statutory_deduct_total_6), n(f.income_after_deduct_6), n(f.tax_taxable_income), n(f.tax_assessable_income), n(f.tax_dependents),
          n(f.tax_pit_amount), n(f.final_net_after_tax), n(f.t13_revenue_bonus), n(f.reconcile_adjust),
-         rec.sourceDetail, rec.reconciliation.length ? 'warn' : 'ok', rec.reconciliation]);
+         JSON.stringify(rec.sourceDetail || {}), rec.reconciliation.length ? 'warn' : 'ok', JSON.stringify(rec.reconciliation || [])]);
     }
     return { fileId: file.id, version: file.version, replayed: false, importId: imp.id, storageReplayed: st.replayed };
   });

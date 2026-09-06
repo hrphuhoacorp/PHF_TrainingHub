@@ -196,6 +196,55 @@
 .phf-qtth-toast.is-success{border-left-color:#1B7B45;}
 .phf-qtth-toast.is-out{opacity:0;transform:translateX(12px);}
 
+/* ── Truth Data · Bảng lương (Batch 02) ─────────────────────────────────── */
+.phf-qtth-td-sources{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:6px;}
+.phf-qtth-td-source{border:1px solid var(--qt-line-strong);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:#fff;}
+.phf-qtth-td-source.is-off{opacity:.6;background:#FAFAFB;}
+.phf-qtth-td-source-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.phf-qtth-td-source-head strong{font-size:14.5px;font-weight:800;}
+.phf-qtth-td-desc{font-size:12.5px;color:var(--qt-ink);line-height:1.55;margin:2px 0 8px;}
+
+.phf-qtth-td-effective{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 18px;border:1px solid var(--qt-line-strong);border-radius:8px;padding:12px 14px;margin-bottom:12px;background:#FCFCFD;}
+.phf-qtth-td-effective>div{display:flex;flex-direction:column;padding:4px 0;}
+.phf-qtth-td-effective b{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--qt-muted);font-weight:800;}
+.phf-qtth-td-effective span{font-size:13.5px;font-weight:700;color:var(--qt-ink);}
+
+.phf-qtth-td-vh{border:1px solid var(--qt-line);border-radius:8px;padding:4px 10px;margin-bottom:4px;}
+.phf-qtth-td-vh summary{cursor:pointer;font-size:12.5px;font-weight:800;color:var(--qt-orange-ink);padding:6px 2px;}
+.phf-qtth-td-vh .phf-qtth-tablewrap{margin:6px 0 10px;}
+
+.phf-qtth-table .c-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.phf-qtth-table .c-final{font-weight:800;}
+.phf-qtth-table tr.is-warn-row td{background:#FFF7F0;}
+.phf-qtth-table tr.is-warn-row:hover td{background:#FDECE0;}
+
+.phf-qtth-kv{width:100%;border-collapse:collapse;font-size:12.5px;margin:2px 0 4px;}
+.phf-qtth-kv td{padding:5px 8px;border-bottom:1px solid var(--qt-line);}
+.phf-qtth-kv td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;width:38%;}
+.phf-qtth-kv code{font-size:11.5px;color:var(--qt-muted);}
+
+.phf-qtth-recon{list-style:none;margin:4px 0 8px;padding:0;display:flex;flex-direction:column;gap:5px;}
+.phf-qtth-recon li{display:flex;flex-wrap:wrap;gap:2px 10px;border-left:3px solid var(--qt-orange-2);background:var(--qt-orange-wash);border-radius:5px;padding:7px 10px;font-size:12px;}
+.phf-qtth-recon li b{font-weight:800;color:var(--qt-orange-ink);}
+.phf-qtth-recon li span{color:var(--qt-ink);}
+
+/* wizard modal */
+.phf-qtth-modal-host{position:fixed;inset:0;z-index:950;}
+.phf-qtth-modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,96vw);max-height:92vh;background:#fff;border-top:3px solid var(--qt-orange);border-radius:8px;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(20,24,32,.24);}
+.phf-qtth-modal header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--qt-line);}
+.phf-qtth-modal header strong{font-size:15px;font-weight:800;}
+.phf-qtth-modal header button{background:none;border:0;font-size:22px;line-height:1;color:var(--qt-muted);cursor:pointer;}
+.phf-qtth-steps{display:flex;flex-wrap:wrap;gap:4px 6px;list-style:none;margin:0;padding:12px 18px;border-bottom:1px solid var(--qt-line);}
+.phf-qtth-steps li{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--qt-muted);padding:3px 8px;border-radius:20px;background:#F3F4F6;}
+.phf-qtth-steps li span{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;border-radius:50%;background:#CDD2DA;color:#fff;font-size:10.5px;font-weight:800;}
+.phf-qtth-steps li.is-now{background:var(--qt-orange-wash);color:var(--qt-orange-ink);}
+.phf-qtth-steps li.is-now span{background:var(--qt-orange);}
+.phf-qtth-steps li.is-done span{background:#1B7B45;}
+.phf-qtth-modal-body{padding:16px 18px;overflow-y:auto;font-size:13px;line-height:1.6;}
+.phf-qtth-modal-body h3{margin:12px 0 4px;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--qt-orange-ink);font-weight:800;}
+.phf-qtth-modal-body input[type=file]{border:1px dashed var(--qt-line-strong);border-radius:7px;padding:14px;width:100%;font-family:inherit;background:#FCFCFD;}
+.phf-qtth-modal-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;padding-top:12px;border-top:1px solid var(--qt-line);}
+
 @media (max-width:900px){
   .phf-qtth-top{height:64px;flex-basis:64px;padding:0 14px;}
   .phf-qtth-logo{height:34px;width:170px;}
