@@ -99,6 +99,13 @@ process.on('SIGTERM', () => stopAll(0));
       // SYSTEM V1 · Tình trạng hệ thống — deep health probe + heartbeat bridge,
       // same phf-hr-api child, same throwaway DB. LOCAL parity only.
       PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
+      // QTTH Batch 01A — DEVELOPMENT ACCESS LOCK. While QTTH is not FINAL the
+      // module is closed to everyone except the system Admin and this explicit
+      // allow-list (employee codes / account ids — never display names). Build/
+      // test operators only. GO-LIVE = drop this env var (no code / no
+      // permission-data change). Override with env QTTH_DEV_ACCESS_ALLOW.
+      QTTH_DEV_ACCESS_ALLOW: process.env.QTTH_DEV_ACCESS_ALLOW
+        || 'PHF012,acct-3a03c49e-5835-4d92-b89e-424836e79e24',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });
