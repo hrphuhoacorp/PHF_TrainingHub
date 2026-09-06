@@ -34,6 +34,11 @@ const {
 // touched. Do NOT enable on Production.
 const competitionService = require('./lib/competition-service');
 const { CompetitionError } = require('./lib/competition-common');
+// PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (LOCAL/DEV ONLY, target phf_hr_e2e).
+// One route POST /v1/notice dispatches a notice action against Company
+// PostgreSQL notice.*. Same discipline as /v1/competition. Do NOT enable on Production.
+const noticeService = require('./lib/notice-service');
+const { NoticeError } = noticeService;
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const {
@@ -812,6 +817,43 @@ function createServer(config) {
           }
           logger.error('competition_unexpected_error', { path, action, message: err && err.message });
           return sendJson(res, 500, { ok: false, code: 'COMPETITION_ERROR', message: 'Lỗi hệ thống khi xử lý Competition.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/notice — THÔNG BÁO QUẢN TRỊ V1 · Batch 01. LOCAL/DEV ONLY
+      // (target phf_hr_e2e / throwaway). The verified `actor` is supplied by
+      // the Vercel identity layer across the service-token boundary — this
+      // service never resolves identity itself. Authorization is
+      // server-authoritative inside notice-service (PUBLIC read for every
+      // verified actor; MANAGE = system Admin OR notice.notice_permissions).
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/notice') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 4 * 1024 * 1024);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const action = body && body.action;
+        if (!action || typeof action !== 'string') {
+          return sendJson(res, 400, { ok: false, code: 'NOTICE_ACTION_REQUIRED', message: 'Thiếu action.' });
+        }
+        try {
+          const data = await noticeService.dispatch(config, body.actor, action, body.params);
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          if (err instanceof NoticeError || (err && err.isNoticeError)) {
+            logger.warn('notice_rejected', { path, action, code: err.code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
+          }
+          logger.error('notice_unexpected_error', { path, action, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'NOTICE_ERROR', message: 'Lỗi hệ thống khi xử lý Thông báo.' });
         }
       }
 

@@ -1,0 +1,261 @@
+'use strict';
+/*
+ * PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 · LIVE LOCAL e2e (LOCAL ONLY).
+ *
+ * Full path exercised:
+ *   dispatchNoticeAction (Vercel layer) -> notice-identity (People Master =
+ *   Supabase PHF-HR-DEV, read) -> notice-bridge (flag ON) -> phf-hr-api child
+ *   -> throwaway Company PostgreSQL phf_hr_e2e / schema notice.* (SSH tunnel 15432).
+ *
+ * TWO phases so the DEVELOPMENT GATE and the BUSINESS PERMISSION model are
+ * proven SEPARATELY (brief §25 / §29):
+ *   Phase A — NOTICE_DEV_ACCESS_ALLOW set: dev-lock blocks an ordinary user;
+ *             Admin + allow-listed operator drive the full manage/feed flow.
+ *   Phase B — NOTICE_DEV_ACCESS_ALLOW unset (GO-LIVE sim): PUBLIC business read
+ *             works for every authenticated user; outside-"Áp dụng" ack works;
+ *             a viewer still cannot manage; report/permission stay manager-only.
+ *
+ * PREREQ: migrations/phf_hr_notice_v1.sql applied to throwaway; SSH tunnel up;
+ *   .env.test = PHF-HR-DEV keys ; e2e/phf-hr-e2e-db.env = throwaway PG.
+ * Run: node scripts/notice-batch01-live-local-e2e-dev.js
+ */
+const path = require('path');
+const fs = require('fs');
+const net = require('net');
+const os = require('os');
+const crypto = require('crypto');
+const { spawn, execFileSync } = require('child_process');
+
+const REPO = path.resolve(__dirname, '..');
+const DEV_HOST = 'pxkjvawdrixgoukhyvnk.supabase.co';
+const THROWAWAY_CONTAINER = process.env.PHF_HR_E2E_CONTAINER || 'phf-hr-e2e-throwaway-20260827T123257Z';
+
+function loadEnv(p) { const o = {}; if (!fs.existsSync(p)) return o; for (const l of fs.readFileSync(p, 'utf8').split(/\r?\n/)) { const s = l.trim(); if (!s || s[0] === '#') continue; const i = s.indexOf('='); if (i > 0) o[s.slice(0, i).trim()] = s.slice(i + 1).trim(); } return o; }
+function die(m) { console.error('E2E_ABORT: ' + m); process.exit(1); }
+const envTest = loadEnv(path.join(REPO, '.env.test'));
+if (!envTest.SUPABASE_URL || new URL(envTest.SUPABASE_URL).host !== DEV_HOST) die('.env.test không phải PHF-HR-DEV.');
+const dbEnv = loadEnv(path.join(REPO, 'e2e', 'phf-hr-e2e-db.env'));
+if (dbEnv.PHF_HR_DB_HOST !== '127.0.0.1' || !/_e2e$/.test(dbEnv.PHF_HR_DB_NAME || '')) die('e2e/phf-hr-e2e-db.env sai.');
+
+const SERVICE_TOKEN = crypto.randomBytes(32).toString('hex');
+
+function tcpOpen(port) { return new Promise((res) => { const s = net.connect(port, '127.0.0.1'); s.on('connect', () => { s.destroy(); res(true); }); s.on('error', () => res(false)); setTimeout(() => { s.destroy(); res(false); }, 1500); }); }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function waitHealth(u, ms) { const end = Date.now() + ms; while (Date.now() < end) { try { const r = await fetch(u); if (r.status === 200) return true; } catch (_) {} await sleep(200); } return false; }
+function psql(sql) { return execFileSync('ssh', ['claude-phf', `docker exec ${THROWAWAY_CONTAINER} psql -U postgres -d phf_hr_e2e -tAc "${sql.replace(/"/g, '\\"')}"`], { encoding: 'utf8' }).trim(); }
+
+let PASS = 0, FAIL = 0;
+function check(name, cond, extra) { if (cond) { PASS++; console.log('  PASS  ' + name); } else { FAIL++; console.error('  FAIL  ' + name + (extra ? '  -> ' + extra : '')); } }
+async function expectThrow(name, fn, codeWanted) {
+  try { await fn(); check(name, false, 'no error thrown'); }
+  catch (e) { check(name, !codeWanted || e.code === codeWanted, 'got code=' + e.code + ' msg=' + e.message); }
+}
+
+function resetNotice() {
+  psql(
+    'set session_replication_role=replica; '
+    + 'delete from notice.notice_acknowledgements; delete from notice.notice_views; delete from notice.notice_attachments; '
+    + 'delete from notice.notice_keywords; delete from notice.notice_scopes; delete from notice.notice_revisions; '
+    + 'delete from notice.notice_audit_logs; delete from notice.notice_permission_history; delete from notice.notice_permissions; '
+    + 'delete from notice.notices; reset session_replication_role'
+  );
+}
+
+// The Vercel bridge (api/_lib/notice-bridge.js) captures PHF_HR_API_BASE_URL
+// into a module-level const at require time — so BOTH phases must talk to the
+// SAME port. Phase B just restarts the child on that port with a different
+// NOTICE_DEV_ACCESS_ALLOW.
+const API_PORT = 18941;
+let apiChild = null;
+function stopApi() {
+  if (!apiChild) return Promise.resolve();
+  const c = apiChild; apiChild = null;
+  return new Promise((res) => { c.once('exit', () => res()); try { c.kill('SIGTERM'); } catch (_) { res(); } setTimeout(res, 4000); });
+}
+process.on('exit', () => { if (apiChild) { try { apiChild.kill('SIGTERM'); } catch (_) {} } });
+
+async function startApi(port, devAllow) {
+  const env = Object.assign({}, process.env, {
+    PORT: String(port), PHF_HR_API_BIND_HOST: '127.0.0.1',
+    PHF_HR_API_SERVICE_TOKEN: SERVICE_TOKEN,
+    SUPABASE_URL: envTest.SUPABASE_URL, SUPABASE_SECRET_KEY: envTest.SUPABASE_SECRET_KEY,
+    PHF_HR_DB_HOST: dbEnv.PHF_HR_DB_HOST, PHF_HR_DB_PORT: String(dbEnv.PHF_HR_DB_PORT),
+    PHF_HR_DB_NAME: dbEnv.PHF_HR_DB_NAME, PHF_HR_DB_RUNTIME_USER: dbEnv.PHF_HR_DB_RUNTIME_USER,
+    PHF_HR_DB_RUNTIME_PASSWORD: dbEnv.PHF_HR_DB_RUNTIME_PASSWORD,
+    PHF_HR_ATTACHMENT_ROOT: fs.mkdtempSync(os.tmpdir() + path.sep + 'notice-e2e-attach-'),
+    TASK_QUERY_DESCRIPTOR_SIGNING_SECRET: crypto.randomBytes(32).toString('hex'),
+  });
+  if (devAllow) env.NOTICE_DEV_ACCESS_ALLOW = devAllow; else delete env.NOTICE_DEV_ACCESS_ALLOW;
+  apiChild = spawn(process.execPath, [path.join(REPO, 'services', 'phf-hr-api', 'server.js')], {
+    cwd: path.join(REPO, 'services', 'phf-hr-api'), env, stdio: ['ignore', 'inherit', 'inherit'],
+  });
+  const base = 'http://127.0.0.1:' + port;
+  if (!(await waitHealth(base + '/healthz', 15000))) { stopApi(); die('phf-hr-api child not healthy on ' + port); }
+  process.env.PHF_HR_API_BASE_URL = base;
+  process.env.PHF_HR_API_SERVICE_TOKEN = SERVICE_TOKEN;
+  process.env.PHF_NOTICE_BRIDGE_ENABLED = 'true';
+  process.env.SUPABASE_URL = envTest.SUPABASE_URL;
+  process.env.SUPABASE_SECRET_KEY = envTest.SUPABASE_SECRET_KEY;
+}
+
+(async () => {
+  if (!(await tcpOpen(15432))) die('SSH tunnel 127.0.0.1:15432 chưa mở.');
+  if (psql("select count(*) from information_schema.schemata where schema_name='notice'") !== '1') die('schema notice chưa có trên throwaway — apply migrations/phf_hr_notice_v1.sql trước.');
+
+  const { createClient } = require('@supabase/supabase-js');
+  const sb = createClient(envTest.SUPABASE_URL, envTest.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
+
+  const adminAcc = (await sb.from('user_accounts').select('id,email,role,employee_code').eq('role', 'admin').eq('status', 'active').limit(1).maybeSingle()).data;
+  const opAcc = (await sb.from('user_accounts').select('id,email,role,employee_code').ilike('email', '%thanglv150917%').maybeSingle()).data;
+  const emps = (await sb.from('employee_profiles').select('employee_code,full_name,department,branch,employment_status').eq('employment_status', 'active')).data || [];
+  // two ordinary users in DIFFERENT departments, neither on the allow-list
+  const norm = (await sb.from('user_accounts').select('id,email,role,employee_code').eq('role', 'learner').eq('status', 'active').not('employee_code', 'is', null).neq('employee_code', '').limit(40)).data || [];
+  const empByCode = new Map(emps.map((e) => [String(e.employee_code).toUpperCase(), e]));
+  const normUsers = norm
+    .filter((a) => a.employee_code && String(a.employee_code).toUpperCase() !== String(opAcc && opAcc.employee_code || '').toUpperCase())
+    .map((a) => Object.assign({}, a, { emp: empByCode.get(String(a.employee_code).toUpperCase()) }))
+    .filter((a) => a.emp && a.emp.department);
+  const U_IN = normUsers[0];
+  const U_OUT = normUsers.find((u) => u.emp.department !== (U_IN && U_IN.emp.department)) || normUsers[1];
+  const inactiveEmp = (await sb.from('employee_profiles').select('employee_code,full_name,department').neq('employment_status', 'active').limit(1).maybeSingle()).data;
+  if (!adminAcc || !opAcc || !U_IN || !U_OUT) { stopApi(); die('không lấy đủ persona từ DEV'); }
+
+  const sess = (a) => ({ account: { id: a.id, employeeCode: a.employee_code || '', role: a.role, email: a.email, name: a.email }, role: a.role, sub: a.id });
+  const S_ADMIN = sess(adminAcc), S_OP = sess(opAcc), S_IN = sess(U_IN), S_OUT = sess(U_OUT);
+  const DEV_ALLOW = 'PHF012,' + (opAcc.employee_code || '') + ',' + opAcc.id;
+
+  const D = (session, payload) => require(path.join(REPO, 'api', '_lib', 'notice-actions')).dispatchNoticeAction(session, payload)
+    .then((r) => { if (!r.handled) throw Object.assign(new Error('unhandled ' + payload.action), { code: 'UNHANDLED' }); return r.result; });
+
+  console.log(`[e2e] admin=${adminAcc.email} operator=${opAcc.email}/${opAcc.employee_code} inScope=${U_IN.employee_code}(${U_IN.emp.department}) outScope=${U_OUT.employee_code}(${U_OUT.emp.department}) inactive=${inactiveEmp && inactiveEmp.employee_code}`);
+
+  // =====================================================================
+  // PHASE A — DEV GATE ON
+  // =====================================================================
+  console.log('\n=== PHASE A · NOTICE_DEV_ACCESS_ALLOW set (dev gate ON) ===\n');
+  resetNotice();
+  await startApi(API_PORT, DEV_ALLOW);
+
+  const bootAdmin = await D(S_ADMIN, { action: 'noticeBootstrap' });
+  check('A1  Admin vào module (canManage, devLocked)', bootAdmin.capabilities.canManage === true && bootAdmin.devLocked === true, JSON.stringify(bootAdmin.capabilities));
+  const bootOp = await D(S_OP, { action: 'noticeBootstrap' });
+  check('A2  Operator allow-listed vào module (canManage, devOperator)', bootOp.capabilities.canManage === true && bootOp.devOperator === true, JSON.stringify(bootOp));
+  const bootIn = await D(S_IN, { action: 'noticeBootstrap' });
+  check('A3  Người thường: bootstrap trả devLocked, canManage=false', bootIn.devLocked === true && bootIn.capabilities.canManage === false, JSON.stringify(bootIn));
+  await expectThrow('A4  Người thường bị chặn mọi action khác (NOTICE_DEV_LOCKED)', () => D(S_IN, { action: 'noticeFeed' }), 'NOTICE_DEV_LOCKED');
+
+  // operator creates + publishes the Voucher notice (scope = Bán hàng-ish: use U_IN dept)
+  const scopeDept = U_IN.emp.department;
+  const cr = await D(S_OP, { action: 'noticeCreate', title: 'Cập nhật cách bấm bill khi khách sử dụng Voucher',
+    content_text: 'Voucher được ghi nhận dưới hình thức giảm giá đơn hàng, không chọn "Voucher" làm phương thức thanh toán như cách cũ.\n\n1. Voucher có mã giảm giá: Vào Chiết khấu đơn (F6) rồi Mã giảm giá. Nhập hoặc quét mã in trên voucher. Phần tiền khách còn phải trả ghi nhận theo phương thức thực tế.\n2. Voucher cũ không có mã: vào Chiết khấu đơn (F6), nhập thủ công số tiền giảm bằng đúng giá trị voucher, ghi chú trên đơn.',
+    notice_type: 'guide', effective_from: new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10),
+    require_acknowledgement: true, scopes: [{ scope_type: 'department', scope_value: scopeDept }],
+    keywords: ['voucher', 'bấm bill', 'F6', 'chiết khấu', 'mã giảm giá', 'POS'] });
+  check('A5  Operator tạo được bản nháp', !!cr.id, JSON.stringify(cr));
+  const pub = await D(S_OP, { action: 'noticePublish', id: cr.id });
+  check('A6  Operator công bố được (revision #1)', pub.status === 'published' && pub.revision && pub.revision.revisionNo === 1, JSON.stringify(pub));
+
+  const feedOp = await D(S_OP, { action: 'noticeFeed', q: '' });
+  check('A7  Thông báo hiện trong feed', feedOp.notices.some((n) => n.id === cr.id), '');
+  const fF6 = await D(S_OP, { action: 'noticeFeed', q: 'F6' });
+  check('A8  Search "F6" ra bài (từ khóa trong body)', fF6.notices.some((n) => n.id === cr.id), JSON.stringify(fF6.notices.map((n) => n.title)));
+  const fVc = await D(S_OP, { action: 'noticeFeed', q: 'bam bill' });
+  check('A9  Search không dấu "bam bill" ra bài', fVc.notices.some((n) => n.id === cr.id), '');
+
+  // second api process to prove restart persistence
+  const det1 = await D(S_OP, { action: 'noticeDetail', id: cr.id });
+  check('A10 Mở chi tiết ghi nhận view (firstViewedAt)', det1.viewer.viewed === true && !!det1.viewer.firstViewedAt, JSON.stringify(det1.viewer));
+  const rev = det1.notice.currentRevisionId;
+
+  // edit -> audit + new revision + require re-ack
+  const upd = await D(S_OP, { action: 'noticeUpdate', id: cr.id, title: 'Cập nhật cách bấm bill khi khách sử dụng Voucher (v2)', require_reacknowledgement: true, change_summary: 'Bổ sung ví dụ' });
+  check('A11 Sửa bài -> revision mới + require re-ack', upd.changed && upd.revision && upd.revision.revisionNo === 2 && upd.requireReack === true, JSON.stringify(upd));
+  const auditCount = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${cr.id}'`));
+  check('A12 Audit log có bản ghi create/publish/edit/require_reack', auditCount >= 4, 'count=' + auditCount);
+
+  await stopApi();
+
+  // =====================================================================
+  // PHASE B — DEV GATE OFF  (GO-LIVE simulation: public business rules)
+  // =====================================================================
+  console.log('\n=== PHASE B · NOTICE_DEV_ACCESS_ALLOW unset (GO-LIVE sim: business permission) ===\n');
+  await sleep(1200);
+  await startApi(API_PORT, '');
+
+  const bootInB = await D(S_IN, { action: 'noticeBootstrap' });
+  check('B1  GO-LIVE: người thường vào module, canManage=false, devLocked=false', bootInB.devLocked === false && bootInB.capabilities.canManage === false, JSON.stringify(bootInB));
+  const feedIn = await D(S_IN, { action: 'noticeFeed', q: 'voucher' });
+  check('B2  Public read: người trong scope thấy bài', feedIn.notices.some((n) => n.id === cr.id), '');
+  const feedOut = await D(S_OUT, { action: 'noticeFeed', q: 'voucher' });
+  check('B3  Public read: người NGOÀI scope Bán hàng vẫn thấy bài (Áp dụng ≠ ACL)', feedOut.notices.some((n) => n.id === cr.id), '');
+  const detOut = await D(S_OUT, { action: 'noticeDetail', id: cr.id });
+  check('B4  Người ngoài scope mở được chi tiết + ghi view', detOut.viewer.viewed === true, '');
+  const ackOut = await D(S_OUT, { action: 'noticeAcknowledge', id: cr.id });
+  check('B5  Người ngoài scope xác nhận được (AC08)', ackOut.acknowledged === true, JSON.stringify(ackOut));
+  const ackOut2 = await D(S_OUT, { action: 'noticeAcknowledge', id: cr.id });
+  check('B6  Xác nhận lần 2 idempotent (alreadyAcknowledged), không có bỏ tick', ackOut2.alreadyAcknowledged === true, JSON.stringify(ackOut2));
+  const detOut2 = await D(S_OUT, { action: 'noticeDetail', id: cr.id });
+  check('B7  Reload: xác nhận vẫn còn (AC07)', detOut2.viewer.acknowledged === true && detOut2.viewer.acknowledgedRevisionIsCurrent === true, JSON.stringify(detOut2.viewer));
+
+  const ackDbRev = psql(`select revision_id from notice.notice_acknowledgements where employee_code='${U_OUT.employee_code}'`);
+  const curRev = psql(`select current_revision_id from notice.notices where id='${cr.id}'`);
+  check('B8  Ack gắn đúng REVISION hiện tại (AC12 nền)', ackDbRev === curRev && !!ackDbRev, ackDbRev + ' vs ' + curRev);
+
+  await expectThrow('B9  Viewer KHÔNG tạo được thông báo (NOTICE_MANAGE_DENIED)', () => D(S_IN, { action: 'noticeCreate', title: 'x', content_text: 'y', notice_type: 'guide', effective_from: '2026-09-01' }), 'NOTICE_MANAGE_DENIED');
+  await expectThrow('B10 Viewer KHÔNG mở được báo cáo (NOTICE_MANAGE_DENIED)', () => D(S_IN, { action: 'noticeReport', id: cr.id }), 'NOTICE_MANAGE_DENIED');
+  await expectThrow('B11 Viewer KHÔNG xem được roster quyền', () => D(S_IN, { action: 'noticePermissionRoster' }), 'NOTICE_MANAGE_DENIED');
+
+  // Admin grants U_IN manage; audit
+  const setPerm = await D(S_ADMIN, { action: 'noticeSetPermission', employee_code: U_IN.employee_code, can_manage: true });
+  check('B12 Admin cấp quyền quản trị nội dung cho U_IN', setPerm.changed === true && setPerm.canManage === true, JSON.stringify(setPerm));
+  const permHistCount = Number(psql(`select count(*) from notice.notice_permission_history where employee_code='${U_IN.employee_code}'`));
+  const permAudit = Number(psql(`select count(*) from notice.notice_audit_logs where action_type='permission_change'`));
+  check('B13 Đổi quyền -> permission_history + audit (AC20)', permHistCount === 1 && permAudit >= 1, `hist=${permHistCount} audit=${permAudit}`);
+  await expectThrow('B14 Non-admin content manager KHÔNG cấp quyền cho người khác (NOTICE_ADMIN_REQUIRED)', () => D(S_IN, { action: 'noticeSetPermission', employee_code: U_OUT.employee_code, can_manage: true }), 'NOTICE_ADMIN_REQUIRED');
+
+  // U_IN (now manager) opens report
+  const rep = await D(S_IN, { action: 'noticeReport', id: cr.id });
+  check('B15 Báo cáo: mẫu số = tài khoản đang hoạt động trong nhóm áp dụng', rep.summary.denominator > 0, JSON.stringify(rep.summary));
+  check('B16 Báo cáo: người ngoài scope đã ack nằm ở "others", không tính vào mẫu số', rep.others.some((o) => o.employeeCode === U_OUT.employee_code) && !rep.primary.some((p) => p.employeeCode === U_OUT.employee_code && p.acknowledgedAt), JSON.stringify({ others: rep.others.map((o) => o.employeeCode) }));
+
+  // re-ack semantics: U_IN acknowledges current, then manager edits with reack -> stale
+  await D(S_IN, { action: 'noticeDetail', id: cr.id });
+  await D(S_IN, { action: 'noticeAcknowledge', id: cr.id });
+  const upd2 = await D(S_IN, { action: 'noticeUpdate', id: cr.id, content_text: 'Nội dung đã thay đổi lần nữa — cần xác nhận lại.', require_reacknowledgement: true });
+  const detInAfter = await D(S_IN, { action: 'noticeDetail', id: cr.id });
+  check('B17 Sau khi bật re-ack: xác nhận cũ thành "phiên bản cũ", chưa đủ cho revision mới (AC12)', detInAfter.viewer.acknowledged === true && detInAfter.viewer.acknowledgedRevisionIsCurrent === false, JSON.stringify(detInAfter.viewer));
+  const ackHistCount = Number(psql(`select count(*) from notice.notice_acknowledgements where employee_code='${U_IN.employee_code}' and notice_id='${cr.id}'`));
+  check('B18 Xác nhận cũ KHÔNG bị xóa khỏi lịch sử', ackHistCount >= 1, 'count=' + ackHistCount);
+
+  // effective status: create an upcoming + an expired, prove derivation + search
+  const upNotice = await D(S_IN, { action: 'noticeCreate', title: 'Quy định nghỉ phép mới', content_text: 'Áp dụng quy trình xin nghỉ phép qua PHF HR.', notice_type: 'regulation', effective_from: new Date(Date.now() + 40 * 86400e3).toISOString().slice(0, 10) });
+  await D(S_IN, { action: 'noticePublish', id: upNotice.id });
+  const exp = await D(S_IN, { action: 'noticeCreate', title: 'Chính sách phụ cấp cũ 2025', content_text: 'Phụ cấp xăng xe theo mức 2025.', notice_type: 'policy', effective_from: '2025-01-01', effective_to: '2025-12-31' });
+  await D(S_IN, { action: 'noticePublish', id: exp.id });
+  const feedAll = await D(S_IN, { action: 'noticeFeed', q: '' });
+  const upCard = feedAll.notices.find((n) => n.id === upNotice.id);
+  const expCard = feedAll.notices.find((n) => n.id === exp.id);
+  check('B19 effective_from tương lai => "upcoming" (AC04)', upCard && upCard.effectiveStatus === 'upcoming', JSON.stringify(upCard && upCard.effectiveStatus));
+  check('B20 quá effective_to => "expired" (AC04)', expCard && expCard.effectiveStatus === 'expired', JSON.stringify(expCard && expCard.effectiveStatus));
+  const feedExp = await D(S_IN, { action: 'noticeFeed', q: 'phụ cấp', status: 'expired' });
+  check('B21 Hết hiệu lực vẫn search được (AC05)', feedExp.notices.some((n) => n.id === exp.id), '');
+
+  // pin
+  await D(S_IN, { action: 'noticeSetPin', id: exp.id, pinned: true });
+  const feedPin = await D(S_IN, { action: 'noticeFeed', q: '' });
+  check('B22 Ghim -> lên đầu feed (AC17)', feedPin.notices[0] && feedPin.notices[0].id === exp.id, feedPin.notices[0] && feedPin.notices[0].title);
+
+  // soft delete
+  await D(S_IN, { action: 'noticeDelete', id: exp.id });
+  const feedDel = await D(S_OUT, { action: 'noticeFeed', q: 'phụ cấp' });
+  check('B23 Soft delete -> ẩn khỏi feed người thường (AC13)', !feedDel.notices.some((n) => n.id === exp.id), '');
+  const stillInDb = psql(`select count(*) from notice.notices where id='${exp.id}' and deleted_at is not null`);
+  check('B24 Soft delete -> dữ liệu + audit vẫn còn', stillInDb === '1', stillInDb);
+
+  await expectThrow('B25 Direct API: viewer gọi noticeUpdate bài bất kỳ -> chặn', () => D(S_OUT, { action: 'noticeUpdate', id: cr.id, title: 'hack' }), 'NOTICE_MANAGE_DENIED');
+
+  stopApi();
+
+  console.log(`\n==== NOTICE Batch 01 LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
+  process.exit(FAIL ? 1 : 0);
+})().catch((e) => { stopApi(); console.error('E2E fatal: ' + (e && e.stack || e)); process.exit(1); });

@@ -147,7 +147,9 @@ function hrNavModel(){
     // không route (route /admin/quan-tri hiện có là khu Quản trị chung của Training
     // Hub, KHÔNG phải module QTTH của PHF HR Home).
     {label:'Quản trị tổng hợp',soon:true,icon:'gear'},
-    {label:'Thông báo',soon:true,icon:'notice'}
+    // Thông báo Quản trị V1 — real route /{p}/thong-bao (feed public cho mọi vai
+    // trò; quyền quản trị nội dung do module quyết định server-side).
+    {label:'Thông báo',href:p+'/thong-bao',icon:'notice'}
   ]});
   // Phát triển nhân sự — module-level people-development spaces.
   var ptns=[{label:'Training Hub',href:p,icon:'hub'},{label:'Classroom',href:p+'/classroom',icon:'classroom'},{label:'Khung năng lực',href:p+'/knl',icon:'knl'}];
@@ -288,7 +290,7 @@ function hrGroupsModel(){
       {tint:'blue',icon:'calendar',title:'Lịch làm việc & Chấm công',desc:'Ca làm • Lịch tuần • Chấm công',soon:true},
       // Quản trị tổng hợp — module CHƯA XÂY: placeholder cho mọi role, không route.
       {tint:'purple',icon:'gear',title:'Quản trị tổng hợp',desc:'Vận hành nội bộ • Quy trình • Biểu mẫu',soon:true},
-      {tint:'red',icon:'notice',title:'Thông báo',desc:'Tin tức • Quy định • Thông tin chung',soon:true}
+      {tint:'red',icon:'notice',title:'Thông báo',desc:'Quy định • Chính sách • Quy trình • Hướng dẫn',href:p+'/thong-bao'}
     ]},
     {key:'b',icon:'hub',title:'Đào tạo & Phát triển',sub:'Đào tạo, đánh giá và phát triển năng lực',cols:4,cards:[
       {tint:'green',icon:'hub',title:'Training Hub',desc:'Hội nhập • Lộ trình • Khóa học',badge:'Đào tạo',href:p},
