@@ -47,7 +47,7 @@ function taskListPath(relation){return taskHomePath()+(TASK_LIST_RELATION_PATHS[
 function taskCalendarPath(){return taskHomePath()+'/lich';}
 function taskTimelinePath(){return taskHomePath()+'/dong-thoi-gian';}
 function taskReportPath(){return taskHomePath()+'/bao-cao';}
-function navigateTask(path,replace){if(typeof window.phfNavigate==='function')return window.phfNavigate(path,replace===true);}
+function navigateTask(path,replace){taskUiState.mobileNavOpen=false;if(typeof window.phfNavigate==='function')return window.phfNavigate(path,replace===true);}
 function parseTaskRoute(routeKey){
   var url;try{url=new URL(String(routeKey||location.href),location.origin);}catch(e){url=new URL(location.href);}
   var path=String(url.pathname||'').replace(/\/$/,'');
@@ -920,12 +920,19 @@ function shellFrame(bodyHtml,opts){
     : NAV_ITEMS.filter(function(item){return (!item.adminOnly||isTaskAdminUi())&&(!item.managePermissionsOnly||taskManagePermissionsAvailable());}).map(function(item){return navItemHtml(item,activeNav);}).join('');
   return '' +
     '<header class="phft-topbar">' +
-      '<div class="phft-top-left"><button type="button" class="phft-back" data-task-back><span aria-hidden="true">←</span><span>PHF HR / Home</span></button></div>' +
+      '<div class="phft-top-left">' +
+        '<button type="button" class="phft-mobile-menu" data-task-mobile-menu aria-label="Mở menu PHF Task" aria-expanded="false"><span></span><span></span><span></span></button>' +
+        '<button type="button" class="phft-back" data-task-back><span aria-hidden="true">←</span><span>PHF HR / Home</span></button>' +
+      '</div>' +
       taskBrandLockupHtml() +
       '<div class="phft-top-actions">'+taskNotifWrapHtml()+'<span class="phft-user-avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="phft-user-copy"><b>'+esc(currentUserName())+'</b><small>'+esc(currentUserTitle())+'</small></span></div>' +
     '</header>' +
     '<div class="phft-layout">' +
-      '<aside class="phft-sidebar">'+taskSidebarHeadHtml()+'<nav class="phft-nav">'+navHtml+'</nav></aside>' +
+      '<button type="button" class="phft-mobile-backdrop" data-task-mobile-close aria-label="Đóng menu"></button>' +
+      '<aside class="phft-sidebar">' +
+        '<div class="phft-sidebar-mobile-head"><button type="button" class="phft-sidebar-hub-back" data-task-back><span aria-hidden="true">⌂</span><span><strong>PHF HR</strong><small>Về Trang chủ PHF HR</small></span></button><button type="button" class="phft-mobile-close" data-task-mobile-close aria-label="Đóng menu">×</button></div>' +
+        taskSidebarHeadHtml()+'<nav class="phft-nav">'+navHtml+'</nav>' +
+      '</aside>' +
       '<main class="phft-main">'+bodyHtml+'</main>' +
     '</div>';
 }
@@ -5124,7 +5131,7 @@ function renderTaskRoot(root){
 
   var gated=taskScreenGated();
   var body=gated?taskHydrationGateHtml():taskViewHtml();
-  root.innerHTML='<div class="phf-task-root-shell'+(gated?' is-hydrating':'')+'">'+shellFrame(body,{hydrating:gated})+'</div>';
+  root.innerHTML='<div class="phf-task-root-shell'+(gated?' is-hydrating':'')+(taskUiState.mobileNavOpen?' is-mobile-nav-open':'')+'">'+shellFrame(body,{hydrating:gated})+'</div>';
   bindShell(root);bindTaskNotif(root);loadTaskNotifications(root,false);
 
   phfTaskLastRenderKey=key;
@@ -5664,6 +5671,20 @@ function bindShell(root){
       navigateTask(taskDetailPath(rowTaskId));return;
     }
     var target=event.target.closest('button');if(!target)return;
+    // Mobile nav drawer (Classroom-style) — toggle/close only; navigateTask()
+    // already clears mobileNavOpen so any real navigation closes it.
+    if(target.matches('[data-task-mobile-menu]')){
+      taskUiState.mobileNavOpen=!taskUiState.mobileNavOpen;
+      var msh=root.querySelector('.phf-task-root-shell');
+      if(msh){msh.classList.toggle('is-mobile-nav-open',taskUiState.mobileNavOpen);target.setAttribute('aria-expanded',taskUiState.mobileNavOpen?'true':'false');}
+      return;
+    }
+    if(target.matches('[data-task-mobile-close]')){
+      taskUiState.mobileNavOpen=false;
+      var csh=root.querySelector('.phf-task-root-shell');
+      if(csh)csh.classList.remove('is-mobile-nav-open');
+      return;
+    }
     // IN-APP NOTIFICATION V1 — bell / panel.
     if(target.matches('[data-task-notif-toggle]')){
       event.stopPropagation();

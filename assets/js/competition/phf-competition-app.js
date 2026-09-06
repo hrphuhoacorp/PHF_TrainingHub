@@ -372,6 +372,7 @@ function navHtml(boot,activeKey){
     groups[byName[grp]].items.push(it);
   });
   var out='<nav class="phf-comp-nav" aria-label="Menu Chương trình thi đua">';
+  out+='<div class="phf-comp-nav-mobilehead"><button type="button" class="phf-comp-nav-hubback" data-comp-home><span aria-hidden="true">⌂</span><span><strong>PHF HR</strong><small>Về Trang chủ PHF HR</small></span></button><button type="button" class="phf-comp-nav-close" data-comp-mobile-close aria-label="Đóng menu">×</button></div>';
   groups.forEach(function(g){
     out+='<div class="phf-comp-nav-group-wrap"><span class="phf-comp-nav-group">'+esc(g.name)+'</span><div class="phf-comp-nav-group-items">';
     g.items.forEach(function(it){
@@ -2264,6 +2265,7 @@ window.phfRenderCompetition=async function(requestedPath){
    * (competitionBootstrap.capabilities) has actually resolved. */
   main.innerHTML='<div class="phf-comp"><div class="phf-comp-shell">'
     +'<header class="phf-comp-top">'
+      +'<button type="button" class="phf-comp-mobile-menu" data-comp-mobile-menu aria-label="Mở menu Chương trình thi đua" aria-expanded="false"><span></span><span></span><span></span></button>'
       +'<button type="button" class="phf-comp-home-btn" data-comp-home aria-label="Về trang chủ PHF HR">'+icon('home')+'<span>Trang chủ</span></button>'
       +'<img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH" class="phf-comp-logo" width="152" height="32" decoding="async">'
       +'<span class="phf-comp-brand-rule" aria-hidden="true"></span>'
@@ -2271,6 +2273,7 @@ window.phfRenderCompetition=async function(requestedPath){
       +'<div class="phf-comp-notif-wrap" data-comp-notif-wrap></div>'
     +'</header>'
     +'<div data-comp-identity-slot></div>'
+    +'<button type="button" class="phf-comp-mobile-backdrop" data-comp-mobile-close aria-label="Đóng menu"></button>'
     +'<div class="phf-comp-body" data-comp-nav-slot>'
       +navLoadingHtml()
       +'<div class="phf-comp-main" data-comp-slot>'+skeletonHtml([40,95,88,72,90,60])+'</div>'
@@ -2281,11 +2284,24 @@ window.phfRenderCompetition=async function(requestedPath){
   // session (reuses the router's own role->home mapping, same convention
   // Checklist's hubPath()/data-phfck-hub back button already uses — never
   // hardcodes /admin when the session is actually /ql or /hv).
-  var homeBtn=main.querySelector('[data-comp-home]');
-  if(homeBtn)homeBtn.addEventListener('click',function(e){
-    e.preventDefault();
-    var home=(typeof window.phfGetRoleHomePath==='function'&&window.phfGetRoleHomePath())||(prefix()+'/home');
-    go(home);
+  /* Home + mobile-drawer toggle — delegated so the in-drawer "PHF HR" back
+     button (a 2nd [data-comp-home], added by navHtml) works too. Drawer state
+     is a class on .phf-comp; navigation rebuilds the shell so it always closes. */
+  function compCloseMobileNav(){var c=main.querySelector('.phf-comp');if(c)c.classList.remove('is-mnav-open');}
+  main.addEventListener('click',function(e){
+    var t=e.target&&e.target.closest?e.target.closest('button'):null;
+    if(!t||!main.contains(t))return;
+    if(t.matches('[data-comp-mobile-menu]')){
+      var c=main.querySelector('.phf-comp');
+      if(c){var open=c.classList.toggle('is-mnav-open');t.setAttribute('aria-expanded',open?'true':'false');}
+      return;
+    }
+    if(t.matches('[data-comp-mobile-close]')){compCloseMobileNav();return;}
+    if(t.matches('[data-comp-home]')){
+      e.preventDefault();compCloseMobileNav();
+      var home=(typeof window.phfGetRoleHomePath==='function'&&window.phfGetRoleHomePath())||(prefix()+'/home');
+      go(home);
+    }
   });
 
   function wireNavLinks(){
