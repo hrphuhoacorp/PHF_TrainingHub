@@ -106,6 +106,8 @@ function menuItemsFor(caps,r){
   var inChecklist=isChecklistRoute();
   var isManagerWorkspace=!isAdminRoute&&caps&&caps.experience==='operator';
   var items=[];
+  /* Module-context section (chỉ trong Checklist) — giữ nguyên: sidebar quản lý
+     của Checklist không render trên mobile nên cần lối vào tương đương ở đây. */
   if(inChecklist){
     items.push({group:'CHECKLIST'});
     items.push({label:'Tổng quan',route:p+'/checklist',icon:'⌂'});
@@ -117,20 +119,42 @@ function menuItemsFor(caps,r){
     if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
     if(!isManagerWorkspace&&!isAdminRoute)items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
     if(isAdminRoute&&caps&&caps.canManageSystem)items.push({label:'Cài đặt',route:'/admin/checklist/cai-dat',icon:'⚙'});
-    items.push({group:'PHF HR'});
-  }else items.push({group:'PHF HR'});
-  /* Role gating dưới đây chỉ là UX (giống hrNavModel trong phf-hr-home.js) —
-     router role guard + server vẫn là chốt chặn thật cho mọi điều hướng. Không
-     hard-code menu theo chức danh: chỉ mục quản trị mới gate theo isAdminRoute. */
+  }
+  /* "Trang chủ" luôn đứng riêng ở trên (mục 3 của brief). */
   items.push({label:'Trang chủ',route:p+'/home',icon:'⌂'});
-  items.push({label:'PHF Task',route:p+'/task',icon:'✔'});
-  items.push({label:'Training Hub',route:p,icon:'▦'});
-  items.push({label:'Classroom',route:p+'/classroom',icon:'▤'});
-  if(!inChecklist)items.push({label:'Checklist',route:p+'/checklist',icon:'☰'});
-  items.push({label:'Khung năng lực',route:p+'/knl',icon:'◆'});
-  items.push({label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'});
-  if(isAdminRoute)items.push({label:'Nhân sự & phân quyền',route:'/admin/nhan-su',icon:'♙'});
+  /* Phần còn lại = CHIẾU (projection) của cây điều hướng web PHF HR sang dạng
+     accordion cha→con, KHÔNG duy trì taxonomy phẳng riêng. Nguồn sự thật =
+     window.phfHrNavModel() (hrNavModel trong phf-hr-home.js). Chỉ hiện con có
+     route thật + được phép; bỏ mục 'soon'/'disabled' (Thưởng Hành động V.2,
+     Lịch chấm công, QTTH, Báo cáo & Thống kê…) — không phơi làm đích đến. */
+  var model=null;
+  try{model=(typeof window.phfHrNavModel==='function')?window.phfHrNavModel():null;}catch(e){model=null;}
+  if(model&&model.length){
+    model.forEach(function(grp){
+      var kids=(grp.children||[]).filter(function(c){return c&&c.href&&!c.soon&&!c.disabled;})
+        .map(function(c){return {label:c.label,route:c.href,icon:NAV_ICON[c.icon]||'•'};});
+      if(kids.length)items.push({accordion:true,key:grp.key,label:grp.label,children:kids});
+    });
+  }else{
+    /* Fallback (phf-hr-home.js chưa nạp) — cây tối thiểu, cùng cấu trúc. */
+    items.push({accordion:true,key:'cong-viec',label:'Công việc',children:[{label:'PHF Task',route:p+'/task',icon:'✔'}]});
+    items.push({accordion:true,key:'phat-trien',label:'Đào tạo & Phát triển',children:[
+      {label:'Training Hub',route:p,icon:'▦'},{label:'Classroom',route:p+'/classroom',icon:'▤'},{label:'Khung năng lực',route:p+'/knl',icon:'◆'}]});
+    items.push({accordion:true,key:'danh-gia',label:'Đánh giá',children:[{label:'Checklist',route:p+'/checklist',icon:'☰'}]});
+    items.push({accordion:true,key:'thi-dua',label:'Thi đua & Thưởng',children:[{label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'}]});
+    if(isAdminRoute)items.push({accordion:true,key:'quan-tri',label:'Quản trị',children:[{label:'Quản trị hệ thống',route:'/admin/nhan-su',icon:'♙'}]});
+  }
   return items;
+}
+var NAV_ICON={tasks:'✔',calendar:'▦',gear:'⚙',notice:'✦',hub:'▦',classroom:'▤',knl:'◆',book:'▤',checklist:'☰',trophy:'♛',sparkles:'✦',chart:'▥'};
+/* Duyệt phẳng mọi route (kể cả con accordion) để chọn route khớp dài nhất. */
+function flattenRoutes(items){
+  var out=[];
+  items.forEach(function(it){
+    if(it.route)out.push(it);
+    if(it.children)it.children.forEach(function(c){out.push(c);});
+  });
+  return out;
 }
 var drawerRoot=null;
 function ensureDrawer(){
@@ -148,6 +172,13 @@ function ensureDrawer(){
   document.body.appendChild(drawerRoot);
   drawerRoot.addEventListener('click',function(ev){
     if(ev.target.closest('[data-phf-mnav-close]')){closeDrawer();return;}
+    var acc=ev.target.closest('[data-phf-mnav-acc]');
+    if(acc){
+      var body=acc.nextElementSibling,open=acc.getAttribute('aria-expanded')==='true';
+      acc.setAttribute('aria-expanded',open?'false':'true');
+      if(body)body.hidden=open;
+      return;
+    }
     var item=ev.target.closest('[data-phf-mnav-item]');
     if(item){var r=item.getAttribute('data-phf-mnav-item');closeDrawer();if(r)go(r);}
   });
@@ -155,26 +186,36 @@ function ensureDrawer(){
 }
 /* Route hiện tại: chọn item có route khớp dài nhất (prefix theo segment) để
    tô sáng — không đụng router, chỉ đọc location.pathname. */
-function currentItemRoute(items){
+function currentItemRoute(routes){
   var here=cleanPath(),best='',bestLen=-1;
-  items.forEach(function(it){
-    if(it.group||!it.route)return;
+  routes.forEach(function(it){
+    if(!it.route)return;
     var base=String(it.route).split('?')[0].replace(/\/$/,'')||'/';
-    var hit=(here===base)||(base!=='/'&&(here===base||here.indexOf(base+'/')===0));
+    var hit=(here===base)||(base!=='/'&&here.indexOf(base+'/')===0);
     if(hit&&base.length>bestLen){best=it.route;bestLen=base.length;}
   });
   return best;
+}
+function drawerItemHtml(it,cur){
+  var on=it.route===cur;
+  return '<button type="button" class="phf-mnav-drawer-item'+(on?' is-current':'')+'"'+(on?' aria-current="page"':'')+' data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon||'•')+'</span>'+esc(it.label)+'</button>';
 }
 function renderDrawerContent(){
   var el=ensureDrawer(),r=sessionRole();
   el.querySelector('.phf-mnav-drawer-avatar').textContent=initials();
   el.querySelector('.phf-mnav-drawer-who strong').textContent=userName();
   el.querySelector('.phf-mnav-drawer-who small').textContent=roleLabel(r);
-  var items=menuItemsFor(lastCaps,r),cur=currentItemRoute(items);
+  var items=menuItemsFor(lastCaps,r),cur=currentItemRoute(flattenRoutes(items));
   el.querySelector('.phf-mnav-drawer-items').innerHTML=items.map(function(it){
     if(it.group)return '<div class="phf-mnav-drawer-group">'+esc(it.group)+'</div>';
-    var on=it.route===cur;
-    return '<button type="button" class="phf-mnav-drawer-item'+(on?' is-current':'')+'"'+(on?' aria-current="page"':'')+' data-phf-mnav-item="'+esc(it.route)+'"><span aria-hidden="true">'+esc(it.icon)+'</span>'+esc(it.label)+'</button>';
+    if(it.accordion){
+      var hasCur=(it.children||[]).some(function(c){return c.route===cur;});
+      return '<div class="phf-mnav-acc'+(hasCur?' has-current':'')+'">'+
+        '<button type="button" class="phf-mnav-acc-toggle" data-phf-mnav-acc="'+esc(it.key||'')+'" aria-expanded="'+(hasCur?'true':'false')+'"><span>'+esc(it.label)+'</span><span class="phf-mnav-acc-chev" aria-hidden="true">▾</span></button>'+
+        '<div class="phf-mnav-acc-body"'+(hasCur?'':' hidden')+'>'+it.children.map(function(c){return drawerItemHtml(c,cur);}).join('')+'</div>'+
+      '</div>';
+    }
+    return drawerItemHtml(it,cur);
   }).join('');
 }
 /* SỬA LỖI (hotfix): openDrawer()/closeDrawer() trước đây gọi

@@ -673,3 +673,41 @@
   .phf-comp-simwarn-backdrop{padding:10px;}
   .phf-comp-simwarn{max-height:calc(100vh - 20px);overflow-y:auto;}
 }
+
+/* ==========================================================================
+   FINAL MOBILE NAV UX (2026-09-06) — Classroom-style Competition drawer.
+   Replaces the ≤1024px horizontal nav strip with a left slide-in drawer opened
+   by a hamburger in .phf-comp-top. Groups (Tham gia / Xét duyệt / Quản trị) and
+   every capability-gated item from menuModel() are unchanged — this is nav
+   presentation only. Desktop nav unchanged. No V1.6 business-logic change.
+   ========================================================================== */
+.phf-comp-mobile-menu,.phf-comp-mobile-backdrop,.phf-comp-nav-mobilehead{display:none;}
+@media (max-width:1024px){
+  .phf-comp-mobile-menu{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:40px;height:40px;min-width:40px;padding:0;border:1px solid var(--comp-border-strong);border-radius:11px;background:var(--comp-surface);cursor:pointer;order:-1;}
+  .phf-comp-mobile-menu span{display:block;width:17px;height:2px;border-radius:2px;background:var(--comp-ink);}
+
+  /* body no longer reserves a sidebar column; nav becomes the drawer */
+  .phf-comp-body{display:block;}
+  .phf-comp-nav{position:fixed;top:0;left:0;bottom:0;z-index:6200;width:min(86vw,320px);height:100dvh;
+    margin:0;flex-direction:column;flex-wrap:nowrap;gap:10px;overflow-x:hidden;overflow-y:auto;
+    padding:12px 12px 20px;background:var(--comp-surface);border-right:1px solid var(--comp-border-strong);
+    box-shadow:14px 0 40px rgba(36,48,39,.22);
+    transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility .2s ease;}
+  .phf-comp.is-mnav-open .phf-comp-nav{transform:none;visibility:visible;}
+  .phf-comp.is-mnav-open{overflow:hidden;}
+  .phf-comp-mobile-backdrop{display:block;position:fixed;inset:0;z-index:6100;width:100%;height:100%;padding:0;border:0;
+    background:rgba(20,30,24,.44);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease;}
+  .phf-comp.is-mnav-open .phf-comp-mobile-backdrop{opacity:1;visibility:visible;pointer-events:auto;}
+
+  .phf-comp-nav-mobilehead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--comp-border);}
+  .phf-comp-nav-hubback{display:flex;align-items:center;gap:10px;border:1px solid var(--comp-border-strong);background:var(--comp-surface-cream);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--comp-green-deep);text-align:left;}
+  .phf-comp-nav-hubback>span:first-child{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:var(--comp-green-soft);flex:0 0 auto;}
+  .phf-comp-nav-hubback strong{display:block;font-size:12px;}
+  .phf-comp-nav-hubback small{display:block;margin-top:2px;color:var(--comp-ink-soft);font-size:9.5px;}
+  .phf-comp-nav-close{width:36px;height:36px;min-width:36px;border:0;border-radius:50%;background:var(--comp-surface-cream);color:var(--comp-ink);font-size:19px;cursor:pointer;flex:0 0 auto;}
+
+  /* groups back to a clean vertical list inside the drawer */
+  .phf-comp-nav-group-wrap{flex:0 0 auto;padding:8px;}
+  .phf-comp-nav-group-items{flex-direction:column;flex-wrap:nowrap;}
+  .phf-comp-nav a{flex:0 0 auto;white-space:normal;}
+}

@@ -43,6 +43,15 @@
   .phf-mnav-drawer-item:active{background:#eef4f0}
   .phf-mnav-drawer-item.is-current{background:#e9f4ee;color:#075d43;box-shadow:inset 3px 0 0 #075d43}
   .phf-mnav-drawer-item span{font-size:17px;width:22px;text-align:center;flex:0 0 auto}
+  /* parent group (accordion) — Classroom-style collapsible section */
+  .phf-mnav-acc{border-radius:10px}
+  .phf-mnav-acc-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:transparent;text-align:left;padding:13px 12px;border-radius:10px;font:800 12px/1.2 "Segoe UI",Arial,system-ui,sans-serif;letter-spacing:.02em;color:#163f31;cursor:pointer}
+  .phf-mnav-acc-toggle:active{background:#eef4f0}
+  .phf-mnav-acc.has-current .phf-mnav-acc-toggle{color:#075d43}
+  .phf-mnav-acc-chev{font-size:11px;color:#64746d;transition:transform .18s ease}
+  .phf-mnav-acc-toggle[aria-expanded="true"] .phf-mnav-acc-chev{transform:rotate(180deg)}
+  .phf-mnav-acc-body{display:flex;flex-direction:column;padding:2px 0 6px 8px;margin-left:6px;border-left:1px solid #dce8df}
+  .phf-mnav-acc-body .phf-mnav-drawer-item{font-weight:700;font-size:13.5px;padding:11px 12px}
 
   .phf-mnav-account-pop{display:block!important;position:fixed;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:6000;width:220px;background:#fff;border:1px solid #dce8df;border-radius:14px;box-shadow:0 14px 34px rgba(7,63,49,.14);padding:10px}
   .phf-mnav-account-pop[hidden]{display:none!important}

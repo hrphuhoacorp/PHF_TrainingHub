@@ -174,6 +174,12 @@ function hrNavModel(){
   ]});
   return model;
 }
+/* Source-of-truth for the PHF HR web navigation hierarchy (parent → child).
+   Exported so the shared mobile drawer (assets/js/phf-mobile-nav.js) can render
+   the SAME hierarchy as a Classroom-style accordion — mobile is a projection of
+   this model, never a separately-maintained flat taxonomy. Role/soon/disabled
+   flags here are UX only; the router guard + server stay authoritative. */
+window.phfHrNavModel=hrNavModel;
 function hrNavHtml(model){
   var out='<nav class="phf-hr-nav" data-phf-hr-nav aria-label="Điều hướng PHF HR">';
   model.forEach(function(it){
