@@ -133,6 +133,7 @@ function diffVersions(prevRecords, nextRecords) {
     const pAll = Object.assign({}, prec.fields, prec.sourceDetail);
     const nAll = Object.assign({}, nrec.fields, nrec.sourceDetail);
     const keys = new Set([...Object.keys(pAll), ...Object.keys(nAll)]);
+    keys.delete('employee_code'); // the match key — never a business delta
     for (const k of keys) {
       const a = pAll[k], b = nAll[k];
       const same = (a == null && b == null) || (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) <= 0.005 : String(a) === String(b));

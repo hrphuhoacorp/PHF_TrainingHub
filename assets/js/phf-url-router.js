@@ -528,9 +528,9 @@
   // Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION, HR shell. Namespace
   // role guard + server/route capability guard (see the /qtth branch in
   // render()). 3 top-level sections: qtth / van-hanh / phan-quyen.
-  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/phan-quyen');
-  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/phan-quyen');
-  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/truth-data','/hv/qtth/truth-data/payroll','/hv/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/truth-data','/ql/qtth/truth-data/payroll','/ql/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/truth-data','/admin/qtth/truth-data/payroll','/admin/qtth/phan-quyen');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw

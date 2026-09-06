@@ -123,5 +123,15 @@ ck('C13 V2 changed field saved as before→after (PHF065 final +5000)',
 ck('C14 employee missing in V2 -> reported, never auto-deleted (PHF091 in missing[])',
   vd.missing.includes('PHF091') && vd.added.includes('PHF999'));
 
+// C21 diffVersions never reports the identity key as a business delta
+const prevRec = [{ employeeCode: 'PHF002', fields: { final_net_after_tax: 100 }, sourceDetail: {} }];
+const nextRec = [{ employeeCode: 'PHF002', fields: {}, sourceDetail: {} }]; // employee_code only in fresh normalize
+const vdId = NRM.diffVersions(prevRec, [{ employeeCode: 'PHF002', fields: { employee_code: 'PHF002', final_net_after_tax: 100 }, sourceDetail: {} }]);
+ck('C21 diffVersions bỏ qua khóa định danh employee_code (không tạo delta giả)',
+  !vdId.deltas.some((d) => d.field === 'employee_code'));
+// C22 report carries columnMap so confirm can register a real canonical column_map
+ck('C22 fingerprint().columnMap có mặt (được nhét vào report để đăng ký template chuẩn)',
+  fp7.columnMap && typeof fp7.columnMap === 'object' && fp7.columnMap.employee_code != null && fp7.columnMap.final_net_after_tax != null);
+
 console.log('\n' + P + '/' + (P + F) + ' offline checks passed' + (F ? '  — FAIL' : '  — ALL PASS'));
 process.exit(F ? 1 : 0);
