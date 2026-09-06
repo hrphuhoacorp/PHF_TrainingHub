@@ -107,6 +107,8 @@ const { dispatchCompetitionAction } = require('./api/_lib/competition-actions');
 // PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (2026-09-06, LOCAL ONLY, flag-gated
 // PHF_NOTICE_BRIDGE_ENABLED). See api/_lib/notice-actions.js.
 const { dispatchNoticeAction } = require('./api/_lib/notice-actions');
+// PHF HR — QTTH V1 · Batch 01 (LOCAL ONLY, flag-gated PHF_QTTH_BRIDGE_ENABLED).
+const { dispatchQtthAction } = require('./api/_lib/qtth-actions');
 // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview
 // (requireTaskAdmin-gated inside). Mirrors api/data.js.
 const {
@@ -1583,6 +1585,8 @@ const server = http.createServer(async (req, res) => {
         if (competitionDispatch.handled) return sendJson(res, 200, {ok:true,result:competitionDispatch.result});
         const noticeDispatch = await dispatchNoticeAction(session, payload);
         if (noticeDispatch.handled) return sendJson(res, 200, {ok:true,result:noticeDispatch.result});
+        const qtthDispatch = await dispatchQtthAction(session, payload);
+        if (qtthDispatch.handled) return sendJson(res, 200, {ok:true,result:qtthDispatch.result});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

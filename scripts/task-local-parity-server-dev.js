@@ -134,6 +134,10 @@ process.on('SIGTERM', () => stopAll(0));
       PHF_NOTICE_BRIDGE_ENABLED: 'true',
       // SYSTEM V1 · Tình trạng hệ thống — aggregator -> deep /v1/system:health.
       PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
+      // QTTH V1 Batch 01 — Quản trị tổng hợp bridge, same phf-hr-api child,
+      // same throwaway DB. Needs migrations/phf_hr_qtth_foundation_v1.sql applied
+      // to the throwaway (deployer). Does not affect Task/Competition behaviour.
+      PHF_QTTH_BRIDGE_ENABLED: 'true',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -154,6 +158,8 @@ process.on('SIGTERM', () => stopAll(0));
   console.log('COMPETITION_URL  = http://127.0.0.1:' + APP_PORT + '/admin/thi-dua  (or /hv/thi-dua, /ql/thi-dua)');
   console.log('NOTICE           = PHF_NOTICE_BRIDGE_ENABLED=true (same phf-hr-api child, same throwaway DB, process env only)');
   console.log('NOTICE_URL       = http://127.0.0.1:' + APP_PORT + '/admin/thong-bao  (or /hv/thong-bao, /ql/thong-bao)');
+  console.log('QTTH             = PHF_QTTH_BRIDGE_ENABLED=true (same phf-hr-api child, same throwaway DB, process env only)');
+  console.log('QTTH_URL         = http://127.0.0.1:' + APP_PORT + '/admin/qtth  (or /hv/qtth, /ql/qtth)');
   console.log('PROD DATA        = NOT touched (MAIN ' + MAIN_HOST + ' never written; live phf_hr never written)');
   console.log('===================================================================');
   console.log('Ctrl+C để dừng cả 2 tiến trình.');

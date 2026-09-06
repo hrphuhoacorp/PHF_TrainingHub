@@ -545,6 +545,12 @@
     var m=pf==='/hv'?'learner':(pf==='/ql'?'management':'admin');
     window.PHF_ROUTE_MAP[m].push(pf+'/thong-bao',pf+'/thong-bao/bao-cao',pf+'/thong-bao/danh-muc',pf+'/thong-bao/quyen');
   });
+  // Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION, HR shell. Namespace
+  // role guard + server/route capability guard (see the /qtth branch in
+  // render()). 3 top-level sections: qtth / van-hanh / phan-quyen.
+  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/phan-quyen');
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
@@ -1229,6 +1235,23 @@
         if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
         if(typeof window.phfRenderNotice!=='function')return renderRouteModuleError('notice',path,new Error('PHF_NOTICE_RENDERER_MISSING'));
         await Promise.resolve(window.phfRenderNotice(targetRouteKey));
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/qtth(?:\/|$)/.test(path)){
+        /* Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION. Renders inside
+           the HR shell (#phfHrRoot), same as /admin/nhan-su and /…/thi-dua.
+           Namespace role guard only here; the REAL QTTH permission contract
+           (system Admin Control Tower OR an active qtth.permission_manager_grant
+           for "quản lý phân quyền", plus can_view_qtth / can_view_operations
+           per person) is server-authoritative inside phf-hr-api against Company
+           PostgreSQL qtth.*. The QTTH shell itself also route-guards each screen
+           against the viewer's resolved capability — menu hiding is not the
+           only boundary. */
+        var qtthRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([qtthRole]))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderQtth!=='function')return renderRouteModuleError('qtth',path,new Error('PHF_QTTH_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderQtth(targetRouteKey));
         return true;
       }
       if(path==='/admin/nhan-su'){
