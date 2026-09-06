@@ -20,20 +20,27 @@
   background:#F4F5F7;
 }
 .phf-qtth *{box-sizing:border-box;}
-.phf-qtth-shell{max-width:1840px;margin:0 auto;padding:0 24px 32px;}
 
-/* top bar — full-bleed strong-orange application header. Compact: this is a
-   workspace, not a landing page. No hero, no banner, no gradient, no slogan text
-   of its own. Logo left · title centered in the viewport · nothing else. */
+/* ── APPLICATION SHELL ─────────────────────────────────────────────────────
+   Viewport-wide, Checklist-style. NO global max-width, NO margin:auto on the
+   shell: it fills the viewport at every zoom level so it never collapses into
+   a narrow "sheet" inside blank gutters. Fixed-width sidebar rail + fluid main
+   (minmax(0,1fr)). A width cap belongs on an inner card only, never here. */
+.phf-qtth{min-height:100vh;display:flex;flex-direction:column;background:#F4F5F7;}
+.phf-qtth-shell{flex:1 0 auto;display:flex;flex-direction:column;min-width:0;}
+
+/* full-bleed strong-orange header — sticky, fixed height (the logo never drives
+   header height). No hero, no banner, no gradient, no slogan of its own.
+   Logo left · title centered on the viewport · authenticated user block right. */
 .phf-qtth-top{
-  position:relative;display:flex;align-items:center;
-  height:76px;padding:0 24px;
-  background:var(--qt-orange);
+  position:sticky;top:0;z-index:20;
+  height:76px;flex:0 0 76px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:0 24px;background:var(--qt-orange);
 }
 .phf-qtth-logo{
-  height:40px;width:auto;max-width:44vw;
+  width:220px;height:44px;max-width:42vw;flex:0 0 auto;
   object-fit:contain;object-position:left center;display:block;
-  filter:brightness(0) invert(1); /* force pure white on the orange ground */
 }
 .phf-qtth-brand{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -42,10 +49,20 @@
 .phf-qtth-brand b{display:block;font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1.15;color:#fff;}
 .phf-qtth-brand small{display:block;font-size:10px;color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:1.4px;margin-top:2px;}
 
-/* layout: left vertical menu + white workspace — starts right under the header */
-.phf-qtth-layout{display:grid;grid-template-columns:196px minmax(0,1fr);gap:16px;padding-top:14px;align-items:start;}
+/* authenticated user / greeting block — real session data, right side */
+.phf-qtth-user{flex:0 0 auto;text-align:right;padding-left:14px;border-left:1px solid rgba(255,255,255,.28);max-width:34vw;min-height:1px;}
+.phf-qtth-user span{display:block;font-size:11px;color:rgba(255,255,255,.8);line-height:1.2;}
+.phf-qtth-user strong{display:block;font-size:13.5px;color:#fff;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phf-qtth-user em{display:block;font-size:10px;color:rgba(255,255,255,.82);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-.phf-qtth-nav{position:sticky;top:10px;background:var(--qt-surface);border:1px solid var(--qt-line);border-radius:8px;padding:8px;box-shadow:var(--qt-shadow);}
+/* body: fixed sidebar rail + fluid workspace, spanning the full viewport width */
+.phf-qtth-layout{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:calc(100vh - 76px);align-items:start;}
+
+.phf-qtth-nav{
+  position:sticky;top:76px;height:calc(100vh - 76px);overflow:auto;
+  background:var(--qt-surface);border:0;border-right:1px solid var(--qt-line-strong);border-radius:0;
+  padding:16px 12px;box-shadow:none;
+}
 .phf-qtth-nav-back{display:flex;align-items:center;gap:7px;width:100%;background:none;border:0;border-radius:6px;padding:7px 8px;color:var(--qt-muted);font-weight:700;font-size:11.5px;cursor:pointer;text-align:left;}
 .phf-qtth-nav-back:hover{background:#F4F5F7;color:var(--qt-ink);}
 .phf-qtth-nav-back svg{width:15px;height:15px;flex:0 0 auto;}
@@ -57,7 +74,7 @@
 .phf-qtth-nav-items a.is-active svg{color:var(--qt-orange);}
 .phf-qtth-nav-empty{font-size:12.5px;color:var(--qt-muted);padding:10px;margin:0;line-height:1.5;}
 
-.phf-qtth-work{min-width:0;}
+.phf-qtth-work{min-width:0;padding:18px 24px 44px;}
 
 /* cards */
 .phf-qtth-card{background:var(--qt-surface);border:1px solid var(--qt-line);border-radius:8px;padding:16px 18px;box-shadow:var(--qt-shadow);margin-bottom:14px;}
@@ -180,12 +197,16 @@
 .phf-qtth-toast.is-out{opacity:0;transform:translateX(12px);}
 
 @media (max-width:900px){
-  .phf-qtth-top{height:64px;padding:0 14px;}
-  .phf-qtth-logo{height:32px;}
+  .phf-qtth-top{height:64px;flex-basis:64px;padding:0 14px;}
+  .phf-qtth-logo{height:34px;width:170px;}
   .phf-qtth-brand b{font-size:14px;}
   .phf-qtth-brand small{font-size:9px;letter-spacing:1px;}
-  .phf-qtth-layout{grid-template-columns:1fr;}
-  .phf-qtth-nav{position:static;}
+  .phf-qtth-user{max-width:40vw;padding-left:10px;}
+  .phf-qtth-user span,.phf-qtth-user em{display:none;}
+  .phf-qtth-user strong{max-width:38vw;}
+  .phf-qtth-layout{display:block;min-height:0;}
+  .phf-qtth-nav{position:static;height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--qt-line-strong);}
+  .phf-qtth-work{padding:14px 14px 32px;}
   .phf-qtth-nav-items{flex-direction:row;flex-wrap:wrap;}
   .phf-qtth-nav-items a{flex:1;min-width:140px;justify-content:center;border-left:0;border-bottom:3px solid transparent;}
   .phf-qtth-nav-items a.is-active{border-left:0;border-bottom-color:var(--qt-orange);}
