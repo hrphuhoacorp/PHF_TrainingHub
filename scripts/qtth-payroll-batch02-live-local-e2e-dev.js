@@ -51,7 +51,9 @@ async function expectThrow(name, fn, codeWanted) {
   catch (e) { check(name, !codeWanted || e.code === codeWanted, 'got code=' + e.code + ' msg=' + e.message); }
 }
 
-function tsvGrid(name) { return fs.readFileSync(path.join(REPO, 'scripts/fixtures/payroll', name), 'utf8').split(/\r?\n/).map((l) => l.split('\t')); }
+function tsvGrid(name) { return fs.readFileSync(path.join(REPO, 'scripts/fixtures/payroll', name), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t')); }
+function empCol(grid) { return 2; }
+function phfCodes(grid) { return grid.map((r) => String(r[2] || '').toUpperCase()).filter((c) => /^PHF\d+$/.test(c)); }
 
 (async () => {
   if (!(await tcpOpen(15432))) die('SSH tunnel 127.0.0.1:15432 chưa mở. Chạy: ssh -f -N -T -L 15432:127.0.0.1:15432 claude-phf');
@@ -165,34 +167,39 @@ function tsvGrid(name) { return fs.readFileSync(path.join(REPO, 'scripts/fixture
   check('C19 re-status/listNormalized (persona khác) trả cùng dữ liệu',
     stRe.current.version === 1 && listRe.rows.length === list1.rows.length && listRe.version === 1);
 
-  // C12–C14 — V1 -> V2 delta
+  // C12–C14 — V1 -> V2 delta (index-independent: pick two real PHF codes)
   const T7v2 = T7.map((r) => r.slice());
   const finalCol = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-template')).fingerprint(T7).columnMap.final_net_after_tax;
-  // bump PHF065 final by 5000 (row 12, 0-based)
-  T7v2[12][finalCol] = String(Number(T7v2[12][finalCol]) + 5000);
-  T7v2.splice(16, 1); // drop PHF091 (row 16)
+  const codes = phfCodes(T7);
+  const BUMP = codes[Math.floor(codes.length / 2)];       // some mid-file employee
+  const DROP = codes[codes.length - 1];                    // last PHF employee
+  for (let i = T7v2.length - 1; i >= 0; i--) {
+    const c = String(T7v2[i][2] || '').toUpperCase();
+    if (c === BUMP) T7v2[i][finalCol] = String(Number(T7v2[i][finalCol]) + 5000);
+  }
+  for (let i = T7v2.length - 1; i >= 0; i--) if (String(T7v2[i][2] || '').toUpperCase() === DROP) { T7v2.splice(i, 1); break; }
   const xlsxV2 = gridToXlsx(T7v2).toString('base64');
   const prev2 = await D(S_OP, { action: 'qtthPayrollValidatePreview', period_month: PERIOD, file_name: 'bang-luong-T7-v2.xlsx', file_base64: xlsxV2 });
-  check('C13 preview V2: PHF065 nằm trong changed (before→after +5000)',
-    (prev2.versionDiff.changed || []).some((c) => c.employeeCode === 'PHF065' && c.changes.some((ch) => ch.field === 'final_net_after_tax' && Number(ch.after) - Number(ch.before) === 5000)),
+  check('C13 preview V2: ' + BUMP + ' nằm trong changed (before→after +5000)',
+    (prev2.versionDiff.changed || []).some((c) => c.employeeCode === BUMP && c.changes.some((ch) => ch.field === 'final_net_after_tax' && Number(ch.after) - Number(ch.before) === 5000)),
     JSON.stringify(prev2.versionDiff.changed));
-  check('C14 preview V2: PHF091 nằm trong missingFromNewVersion',
-    (prev2.versionDiff.missingFromNewVersion || []).includes('PHF091'));
+  check('C14 preview V2: ' + DROP + ' nằm trong missingFromNewVersion',
+    (prev2.versionDiff.missingFromNewVersion || []).includes(DROP));
   check('C12 preview V2: các dòng không đổi KHÔNG nằm trong changed',
-    (prev2.versionDiff.changed || []).every((c) => c.employeeCode === 'PHF065'));
+    (prev2.versionDiff.changed || []).every((c) => c.employeeCode === BUMP));
   const conf2 = await D(S_OP, { action: 'qtthPayrollConfirm', file_id: prev2.fileId });
   check('confirm V2: delta ghi nhận (changed>=1, removedMissing>=1)',
     conf2.deltaCounts.changed >= 1 && conf2.deltaCounts.removedMissing >= 1, JSON.stringify(conf2.deltaCounts));
   const stV2 = await D(S_OP, { action: 'qtthPayrollStatus', period_month: PERIOD });
   check('sau confirm V2: current = V2, V1 -> superseded',
     stV2.current.version === 2 && stV2.versions.find((v) => v.version === 1).status === 'superseded');
-  const det65 = await D(S_OP, { action: 'qtthPayrollEmployeeDetail', period_month: PERIOD, employee_code: 'PHF065' });
-  check('C18 delta traceable: lịch sử PHF065 có bản ghi changed final_net_after_tax',
-    (det65.history || []).some((h) => h.change_type === 'changed' && h.field === 'final_net_after_tax'));
-  const det91 = await D(S_OP, { action: 'qtthPayrollEmployeeDetail', period_month: PERIOD, employee_code: 'PHF091' }).catch((e) => ({ err: e.code }));
-  check('PHF091 vắng ở V2: không còn trong bản chuẩn hiệu lực (404), lịch sử vẫn giữ ở delta',
-    det91.err === 'PAYROLL_EMPLOYEE_NOT_IN_PERIOD' &&
-    psql("select count(*) from payroll.delta where employee_code='PHF091' and change_type='removed_missing'") === '1');
+  const detBump = await D(S_OP, { action: 'qtthPayrollEmployeeDetail', period_month: PERIOD, employee_code: BUMP });
+  check('C18 delta traceable: lịch sử ' + BUMP + ' có bản ghi changed final_net_after_tax',
+    (detBump.history || []).some((h) => h.change_type === 'changed' && h.field === 'final_net_after_tax'));
+  const detDrop = await D(S_OP, { action: 'qtthPayrollEmployeeDetail', period_month: PERIOD, employee_code: DROP }).catch((e) => ({ err: e.code }));
+  check(DROP + ' vắng ở V2: không còn trong bản chuẩn hiệu lực (404), lịch sử vẫn giữ ở delta',
+    detDrop.err === 'PAYROLL_EMPLOYEE_NOT_IN_PERIOD' &&
+    psql("select count(*) from payroll.delta where employee_code='" + DROP + "' and change_type='removed_missing'") === '1');
 
   // idempotent confirm
   const confAgain = await D(S_OP, { action: 'qtthPayrollConfirm', file_id: prev2.fileId });
