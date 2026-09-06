@@ -415,11 +415,12 @@ window.phfRenderQtth=async function(requestedPath){
 
   var key=screenForPath(requestedPath||actual);
 
-  main.innerHTML='<div class="phf-qtth"><div class="phf-qtth-shell">'
+  main.innerHTML='<div class="phf-qtth">'
     +'<header class="phf-qtth-top">'
-      +'<img src="assets/logo/phf-logo.png" alt="PHUHOA FRESH" class="phf-qtth-logo" width="140" height="30" decoding="async" onerror="this.style.display=\'none\'">'
+      +'<img src="assets/logo/phf-logo-white.png" alt="PHUHOA FRESH — Tươi mới trọn vẹn từ tâm" class="phf-qtth-logo" width="169" height="40" decoding="async" onerror="this.style.display=\'none\'">'
       +'<span class="phf-qtth-brand"><b>Quản trị tổng hợp</b><small>PHF HR</small></span>'
     +'</header>'
+    +'<div class="phf-qtth-shell">'
     +'<div class="phf-qtth-layout">'
       +'<div data-qtth-nav-slot><nav class="phf-qtth-nav"><p class="phf-qtth-nav-empty">Đang tải…</p></nav></div>'
       +'<main class="phf-qtth-work" data-qtth-slot><section class="phf-qtth-card"><p class="phf-qtth-muted">Đang tải quyền truy cập…</p></section></main>'

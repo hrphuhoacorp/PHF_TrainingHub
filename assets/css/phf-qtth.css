@@ -22,15 +22,28 @@
 .phf-qtth *{box-sizing:border-box;}
 .phf-qtth-shell{max-width:1840px;margin:0 auto;padding:0 24px 32px;}
 
-/* top bar — compact. This is a workspace, not a landing page: after entry the
-   data area gets the screen. No hero, no decorative banner. */
-.phf-qtth-top{display:flex;align-items:center;gap:10px;padding:8px 0 7px;border-bottom:2px solid var(--qt-orange);}
-.phf-qtth-logo{height:20px;width:auto;}
-.phf-qtth-brand b{display:block;font-size:13.5px;font-weight:800;letter-spacing:.2px;line-height:1.15;}
-.phf-qtth-brand small{display:block;font-size:9.5px;color:var(--qt-muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+/* top bar — full-bleed strong-orange application header. Compact: this is a
+   workspace, not a landing page. No hero, no banner, no gradient, no slogan text
+   of its own. Logo left · title centered in the viewport · nothing else. */
+.phf-qtth-top{
+  position:relative;display:flex;align-items:center;
+  height:76px;padding:0 24px;
+  background:var(--qt-orange);
+}
+.phf-qtth-logo{
+  height:40px;width:auto;max-width:44vw;
+  object-fit:contain;object-position:left center;display:block;
+  filter:brightness(0) invert(1); /* force pure white on the orange ground */
+}
+.phf-qtth-brand{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+}
+.phf-qtth-brand b{display:block;font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1.15;color:#fff;}
+.phf-qtth-brand small{display:block;font-size:10px;color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:1.4px;margin-top:2px;}
 
-/* layout: left vertical menu + white workspace */
-.phf-qtth-layout{display:grid;grid-template-columns:196px minmax(0,1fr);gap:16px;padding-top:12px;align-items:start;}
+/* layout: left vertical menu + white workspace — starts right under the header */
+.phf-qtth-layout{display:grid;grid-template-columns:196px minmax(0,1fr);gap:16px;padding-top:14px;align-items:start;}
 
 .phf-qtth-nav{position:sticky;top:10px;background:var(--qt-surface);border:1px solid var(--qt-line);border-radius:8px;padding:8px;box-shadow:var(--qt-shadow);}
 .phf-qtth-nav-back{display:flex;align-items:center;gap:7px;width:100%;background:none;border:0;border-radius:6px;padding:7px 8px;color:var(--qt-muted);font-weight:700;font-size:11.5px;cursor:pointer;text-align:left;}
@@ -167,6 +180,10 @@
 .phf-qtth-toast.is-out{opacity:0;transform:translateX(12px);}
 
 @media (max-width:900px){
+  .phf-qtth-top{height:64px;padding:0 14px;}
+  .phf-qtth-logo{height:32px;}
+  .phf-qtth-brand b{font-size:14px;}
+  .phf-qtth-brand small{font-size:9px;letter-spacing:1px;}
   .phf-qtth-layout{grid-template-columns:1fr;}
   .phf-qtth-nav{position:static;}
   .phf-qtth-nav-items{flex-direction:row;flex-wrap:wrap;}

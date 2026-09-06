@@ -77,7 +77,13 @@ ck('CSS keeps strong orange #E1500A', css.includes('#E1500A'));
 ck('CSS: no blur/backdrop-filter', !/backdrop-filter|filter:\s*blur/i.test(css));
 ck('CSS: no hazy gradient background', !/linear-gradient|radial-gradient/i.test(css));
 ck('CSS: workspace widened (>=1800px shell)', /max-width:1840px/.test(css));
-ck('CSS: header compacted (logo 20px, 2px rule)', /\.phf-qtth-logo\{height:20px/.test(css) && /border-bottom:2px solid var\(--qt-orange\)/.test(css));
+ck('CSS: header = compact strong-orange bar, white logo, viewport-centered title (01C)',
+  /\.phf-qtth-top\{[^}]*height:76px/.test(css) &&
+  /\.phf-qtth-top\{[^}]*background:var\(--qt-orange\)/.test(css) &&
+  /\.phf-qtth-logo\{[^}]*height:40px/.test(css) &&
+  /\.phf-qtth-logo\{[^}]*object-fit:contain/.test(css) &&
+  /\.phf-qtth-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css));
+ck('CSS: header has no gradient', !/\.phf-qtth-top\{[^}]*gradient/i.test(css));
 ck('CSS: rows are table cells, not cards (no card-ification of tr)', !/\.phf-qtth-table tr\{[^}]*border-radius/.test(css));
 
 console.log('\n' + P + '/' + (P + F) + ' render-check assertions passed' + (F ? '  — FAIL' : '  — ALL PASS'));
