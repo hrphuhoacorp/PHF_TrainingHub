@@ -58,10 +58,24 @@ console.log('\n== TOP NAV — HỆ THỐNG (System Module V1, business spec LOCK
     'old "Báo cáo" / "Quản trị" nav groups removed');
   check(/if\(isAdmin\)\{\s*model\.push\(\{key:'he-thong',label:'Hệ thống',children:\[/.test(src),
     '"Hệ thống" top-nav group is pushed ONLY for isAdmin (non-Admin never sees it)');
-  check(/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su',icon:'gear'\}/.test(src),
-    '"Quản trị tài khoản" reuses the EXACT existing /admin/nhan-su route');
+  check(/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su\/tai-khoan',icon:'gear'\}/.test(src),
+    '"Quản trị tài khoản" routes to the real account-management screen /admin/nhan-su/tai-khoan (NOT People Master)');
+  check(!/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su',icon/.test(src),
+    'it no longer points at /admin/nhan-su (People Master)');
   check(/\{label:'Nhật ký hệ thống',soon:true[^}]*\}/.test(src) && /\{label:'Tình trạng hệ thống',soon:true[^}]*\}/.test(src),
     '"Nhật ký hệ thống" + "Tình trạng hệ thống" are V1 placeholders (soon:true, no route)');
+}
+
+console.log('\n== HOME NOTICE CARD — small label/status fix (Home presentation only) ==');
+{
+  check(src.includes("title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn'"),
+    'Notice card renamed "Thông báo Quản trị", "Quy trình" removed from the subtitle');
+  check(/title:'Thông báo Quản trị'[^}]*badge:'Đang hoạt động'/.test(src),
+    'Notice card shows an "Đang hoạt động" status badge');
+  check(src.includes("label:'Thông báo Quản trị',href:p+'/thong-bao'"),
+    'top-nav label matches the card ("Thông báo Quản trị"), same /thong-bao route');
+  check(!/title:'Thông báo',desc:/.test(src) && !src.includes('• Quy trình • Hướng dẫn'),
+    'old "Thông báo" title and "Quy trình" wording fully gone');
 }
 
 console.log('\n== HOME BODY — HỆ THỐNG card group ==');

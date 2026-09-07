@@ -113,9 +113,48 @@ async function getEmployeeMasterDetail(session,input){
   return{summary,profile,privateProfile:privateResult.data||null,contracts:contractResult.data||[],compensation:compResult.data||[],history:historyResult.data||[],schemaReady:true};
 }
 
+// PHF SYSTEM V1 — "nghỉ việc = mất quyền truy cập PHF HR".
+// When an employee's People Master employment_status flips to 'inactive', the
+// linked login account(s) are set to status 'inactive' so the person can no
+// longer authenticate (auth.login rejects non-active accounts; auth.readSession
+// voids any live session on the next server request). This NEVER deletes the
+// account, the employee, history or the identity mapping. Reactivation is
+// deliberately NOT automatic — an Admin must re-enable the account from
+// Quản trị tài khoản. role='admin' / system_admin accounts are left untouched.
+async function lockAccountsForDepartedEmployee(session,profileRow){
+  const employeeId=text(profileRow&&profileRow.employee_id);
+  const employeeCode=code(profileRow&&profileRow.employee_code);
+  if(!employeeId&&!employeeCode)return{locked:0};
+  const filters=[];
+  if(employeeId)filters.push('employee_id.eq.'+employeeId);
+  if(employeeCode)filters.push('employee_code.eq.'+employeeCode);
+  const found=await db.from('user_accounts').select('id,role,status,metadata').or(filters.join(','));
+  if(found.error){if(missingSchema(found.error))return{locked:0};throw found.error;}
+  const targets=(found.data||[]).filter(row=>{
+    if(String(row.status||'').toLowerCase()!=='active')return false;
+    if(String(row.role||'').toLowerCase()==='admin')return false;
+    if(String((row.metadata&&row.metadata.accountType)||'').toLowerCase()==='system_admin')return false;
+    return true;
+  });
+  let locked=0;
+  for(const row of targets){
+    const upd=await db.from('user_accounts').update({status:'inactive',updated_at:new Date().toISOString()}).eq('id',row.id);
+    if(upd.error)throw upd.error;
+    locked++;
+    // Audit hook for the future System Audit module (not built now).
+    try{await history(session,profileRow.id,'account','auto_lock',{status:row.status},{status:'inactive'},'Tự động khóa tài khoản do nhân sự chuyển sang Nghỉ việc');}catch(_e){}
+  }
+  return{locked};
+}
+
 async function saveProfile(session,input){
   requireAdmin(session);requireDb();const existing=await ensureProfile(input),has=key=>Object.prototype.hasOwnProperty.call(input,key);let employmentStatus=existing.employment_status;if(has('employmentStatus')){employmentStatus=normalizeEmploymentStatus(input.employmentStatus);if(!employmentStatus)fail('Trạng thái làm việc chỉ nhận active hoặc inactive.',400,'EMPLOYMENT_STATUS_INVALID');}const patch={employee_id:text(input.employeeId)||existing.employee_id||null,employee_code:code(input.employeeCode)||existing.employee_code||'',full_name:text(input.fullName)||existing.full_name||'',employment_status:employmentStatus,avatar_url:has('avatarUrl')?text(input.avatarUrl):existing.avatar_url,birth_date:has('birthDate')?date(input.birthDate):existing.birth_date,gender:has('gender')?text(input.gender):existing.gender,phone:has('phone')?text(input.phone):existing.phone,work_email:has('workEmail')?text(input.workEmail):existing.work_email,personal_email:has('personalEmail')?text(input.personalEmail):existing.personal_email,hire_date:has('hireDate')?date(input.hireDate):existing.hire_date,official_date:has('officialDate')?date(input.officialDate):existing.official_date,note:has('note')?text(input.note):existing.note,department:has('department')?text(input.department):existing.department,title:has('title')?text(input.title):existing.title,position:has('position')?(text(input.position)||null):existing.position,branch:has('branch')?text(input.branch):existing.branch,manager_employee_code:has('managerEmployeeCode')?code(input.managerEmployeeCode):existing.manager_employee_code};
-  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');const result=await db.from('employee_profiles').update(patch).eq('id',existing.id).select('*').single();if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');invalidateTaskPeopleCache();return{profile:result.data};
+  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');const result=await db.from('employee_profiles').update(patch).eq('id',existing.id).select('*').single();if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');invalidateTaskPeopleCache();
+  let accountLock=null;
+  if(has('employmentStatus')&&employmentStatus==='inactive'&&normalizeEmploymentStatus(existing.employment_status)!=='inactive'){
+    accountLock=await lockAccountsForDepartedEmployee(session,result.data);
+  }
+  return{profile:result.data,accountLock};
 }
 
 async function savePrivateProfile(session,input){
@@ -130,4 +169,4 @@ async function saveCompensation(session,input){
   requireAdmin(session);requireDb();const profile=await ensureProfile(input),currentResult=await db.from('employee_compensation').select('*').eq('employee_profile_id',profile.id).is('effective_to',null).order('effective_from',{ascending:false}).limit(1).maybeSingle();if(currentResult.error)throw currentResult.error;const current=currentResult.data||null;let result;if(current)result=await db.from('employee_compensation').update({base_salary:money(input.baseSalary)}).eq('id',current.id).select('*').single();else result=await db.from('employee_compensation').insert({employee_profile_id:profile.id,base_salary:money(input.baseSalary),allowances:0,currency:'VND',effective_from:new Date().toISOString().slice(0,10),effective_to:null,note:''}).select('*').single();if(result.error)throw result.error;await history(session,profile.id,'compensation',current?'update':'create',current,result.data,input.reason||'Cập nhật mức lương hiện tại');return{compensation:result.data};
 }
 
-module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,resolveEmployeeContacts,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation};
+module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,resolveEmployeeContacts,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation,lockAccountsForDepartedEmployee};

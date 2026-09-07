@@ -581,10 +581,10 @@ async function dispatchTaskAction(session, payload) {
 /* TASK_API_WIRING_END */
 
 
+// PHF SYSTEM V1 — account management is SYSTEM ADMIN ONLY (see api/auth/accounts.js).
+// Manager + Trợ lý GD (TRO_LY_GD) no longer reach these endpoints.
 async function requireWebOperatorSession(req){
-  const session=await requireSession(req,['manager','admin']);
-  await requireChecklistWebOperator(session);
-  return session;
+  return requireSession(req,['admin']);
 }
 async function assertAccountMutationAllowed(session,input={},targetId=''){
   if(session.role==='admin')return;

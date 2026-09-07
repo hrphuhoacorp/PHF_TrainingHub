@@ -140,14 +140,21 @@ async function record(name, fn) {
 async function main() {
   console.log('=== Regression test: api/auth/accounts.js (mock, không đụng Supabase thật) ===\n');
 
-  await record('GET ?action=list -> dùng requireWebOperatorSession, trả đúng contract cũ', async () => {
+  await record('GET ?action=list -> SYSTEM ADMIN ONLY (requireSession(["admin"]), không qua web-operator)', async () => {
     currentSession = { role: 'admin', sub: 'admin-1' };
     const res = fakeRes();
     await accountsHandler(fakeReq('GET', { query: { action: 'list' } }), res);
     assert.strictEqual(res._status, 200);
     assert.deepStrictEqual(res._body, { ok: true, accounts: [{ id: 'a1', email: 'a1@test.local' }, { id: 'a2', email: 'a2@test.local' }] });
-    assert.ok(calls.some(c => c[0] === 'requireSession' && JSON.stringify(c[1]) === JSON.stringify(['manager', 'admin'])), 'Phải gọi requireSession(["manager","admin"]) giống requireWebOperatorSession.');
-    assert.ok(calls.some(c => c[0] === 'requireChecklistWebOperator'), 'list phải qua requireChecklistWebOperator.');
+    assert.ok(calls.some(c => c[0] === 'requireSession' && JSON.stringify(c[1]) === JSON.stringify(['admin'])), 'PHF SYSTEM V1: list phải gọi requireSession(["admin"]).');
+    assert.ok(!calls.some(c => c[0] === 'requireChecklistWebOperator'), 'list KHÔNG còn đi qua requireChecklistWebOperator.');
+  });
+
+  await record('GET ?action=list (Web Operator / manager) -> 403 (không còn quyền)', async () => {
+    currentSession = { role: 'manager', sub: 'mgr-1' };
+    const res = fakeRes();
+    await accountsHandler(fakeReq('GET', { query: { action: 'list' } }), res);
+    assert.strictEqual(res._status, 403);
   });
 
   await record('GET với action khác "list" -> 405', async () => {
@@ -165,12 +172,13 @@ async function main() {
     assert.ok(calls.some(c => c[0] === 'assertSameOrigin') && calls.some(c => c[0] === 'assertJsonContentType') && calls.some(c => c[0] === 'assertContentLength'), 'create phải chạy đủ 3 guard request-guard.');
   });
 
-  await record('POST action=create (Web Operator, không phải Admin) cố tạo role=admin -> 403 ADMIN_ACCOUNT_PROTECTED', async () => {
+  await record('POST action=create (Web Operator / manager) -> 403 FORBIDDEN ngay ở requireSession(["admin"])', async () => {
     currentSession = { role: 'manager', sub: 'mgr-1' };
     const res = fakeRes();
-    await accountsHandler(fakeReq('POST', { body: { action: 'create', account: { email: 'x@test.local', role: 'admin' } } }), res);
+    await accountsHandler(fakeReq('POST', { body: { action: 'create', account: { email: 'x@test.local', role: 'learner' } } }), res);
     assert.strictEqual(res._status, 403);
-    assert.strictEqual(res._body.code, 'ADMIN_ACCOUNT_PROTECTED');
+    assert.strictEqual(res._body.code, 'FORBIDDEN');
+    assert.ok(!calls.some(c => c[0] === 'createAccountByAdmin'), 'không được chạm tới createAccountByAdmin.');
   });
 
   await record('POST action=update (Admin) -> 200, đúng contract {ok,user,reauthRequired}', async () => {
@@ -182,20 +190,31 @@ async function main() {
     assert.strictEqual(res._body.reauthRequired, false);
   });
 
-  await record('POST action=update (Web Operator) nhắm vào tài khoản Admin -> 403 ADMIN_ACCOUNT_PROTECTED', async () => {
+  await record('POST action=update (Web Operator / manager) -> 403 FORBIDDEN (chặn trước cả assertAccountMutationAllowed)', async () => {
     currentSession = { role: 'manager', sub: 'mgr-1' };
     const res = fakeRes();
     await accountsHandler(fakeReq('POST', { body: { action: 'update', accountId: 'target-admin', account: {} } }), res);
     assert.strictEqual(res._status, 403);
-    assert.strictEqual(res._body.code, 'ADMIN_ACCOUNT_PROTECTED');
+    assert.strictEqual(res._body.code, 'FORBIDDEN');
+    assert.ok(!calls.some(c => c[0] === 'updateAccountByAdmin'), 'không được chạm tới updateAccountByAdmin.');
   });
 
-  await record('POST action=update (Web Operator) nhắm vào tài khoản Web Operator khác -> 403 ASSISTANT_ACCOUNT_PROTECTED', async () => {
+  await record('POST action=delete (Web Operator / manager) -> 403 FORBIDDEN', async () => {
     currentSession = { role: 'manager', sub: 'mgr-1' };
     const res = fakeRes();
-    await accountsHandler(fakeReq('POST', { body: { action: 'update', accountId: 'target-webop', account: {} } }), res);
+    await accountsHandler(fakeReq('POST', { body: { action: 'delete', accountId: 'a2' } }), res);
     assert.strictEqual(res._status, 403);
-    assert.strictEqual(res._body.code, 'ASSISTANT_ACCOUNT_PROTECTED');
+    assert.strictEqual(res._body.code, 'FORBIDDEN');
+    assert.ok(!calls.some(c => c[0] === 'deleteAccountByAdmin'), 'không được chạm tới deleteAccountByAdmin.');
+  });
+
+  await record('POST action=reset-password (Web Operator / manager) -> 403 FORBIDDEN', async () => {
+    currentSession = { role: 'manager', sub: 'mgr-1' };
+    const res = fakeRes();
+    await accountsHandler(fakeReq('POST', { body: { action: 'reset-password', accountId: 'a1' } }), res);
+    assert.strictEqual(res._status, 403);
+    assert.strictEqual(res._body.code, 'FORBIDDEN');
+    assert.ok(!calls.some(c => c[0] === 'resetPasswordByAdmin'), 'không được chạm tới resetPasswordByAdmin.');
   });
 
   await record('POST action=delete (Admin) -> 200, đúng contract {ok,user}', async () => {

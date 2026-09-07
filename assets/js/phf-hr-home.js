@@ -149,7 +149,7 @@ function hrNavModel(){
     {label:'Quản trị tổng hợp',soon:true,icon:'gear'},
     // Thông báo Quản trị V1 — real route /{p}/thong-bao (feed public cho mọi vai
     // trò; quyền quản trị nội dung do module quyết định server-side).
-    {label:'Thông báo',href:p+'/thong-bao',icon:'notice'}
+    {label:'Thông báo Quản trị',href:p+'/thong-bao',icon:'notice'}
   ]});
   // Phát triển nhân sự — module-level people-development spaces.
   var ptns=[{label:'Training Hub',href:p,icon:'hub'},{label:'Classroom',href:p+'/classroom',icon:'classroom'},{label:'Khung năng lực',href:p+'/knl',icon:'knl'}];
@@ -164,13 +164,15 @@ function hrNavModel(){
     {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
   ]});
   // HỆ THỐNG (System Module V1 — business spec LOCKED, ADMIN ONLY). Mirrors the
-  // body card group 1:1. "Quản trị tài khoản" reuses the existing employee-master
-  // route (/admin/nhan-su, Admin-only); "Nhật ký hệ thống" and "Tình trạng hệ
-  // thống" are V1 placeholders (no route yet — Sắp triển khai). No "Báo cáo"
-  // wording — reporting lives in QTTH, not here. Non-Admin: whole group hidden.
+  // body card group 1:1. "Quản trị tài khoản" routes to the real account-
+  // management screen (/admin/nhan-su/tai-khoan — user_accounts CRUD, Admin-only
+  // route + API), NOT People Master. A dedicated /admin/he-thong/tai-khoan alias
+  // was considered and deferred (touches 5 shell-detection regexes for no V1
+  // gain). "Nhật ký hệ thống" and "Tình trạng hệ thống" are V1 placeholders
+  // (no route — Sắp triển khai). No "Báo cáo" wording. Non-Admin: group hidden.
   if(isAdmin){
     model.push({key:'he-thong',label:'Hệ thống',children:[
-      {label:'Quản trị tài khoản',href:'/admin/nhan-su',icon:'gear'},
+      {label:'Quản trị tài khoản',href:'/admin/nhan-su/tai-khoan',icon:'gear'},
       {label:'Nhật ký hệ thống',soon:true,icon:'chart'},
       {label:'Tình trạng hệ thống',soon:true,icon:'gear'}
     ]});
@@ -291,7 +293,7 @@ function hrGroupsModel(){
       {tint:'blue',icon:'calendar',title:'Lịch làm việc & Chấm công',desc:'Ca làm • Lịch tuần • Chấm công',soon:true},
       // Quản trị tổng hợp — module CHƯA XÂY: placeholder cho mọi role, không route.
       {tint:'purple',icon:'gear',title:'Quản trị tổng hợp',desc:'Vận hành nội bộ • Quy trình • Biểu mẫu',soon:true},
-      {tint:'red',icon:'notice',title:'Thông báo',desc:'Quy định • Chính sách • Quy trình • Hướng dẫn',href:p+'/thong-bao'}
+      {tint:'red',icon:'notice',title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn',badge:'Đang hoạt động',href:p+'/thong-bao'}
     ]},
     {key:'b',icon:'hub',title:'Đào tạo & Phát triển',sub:'Đào tạo, đánh giá và phát triển năng lực',cols:4,cards:[
       {tint:'green',icon:'hub',title:'Training Hub',desc:'Hội nhập • Lộ trình • Khóa học',badge:'Đào tạo',href:p},
@@ -307,11 +309,12 @@ function hrGroupsModel(){
     // group is omitted for non-Admin (see below). No "Báo cáo" wording — that
     // belongs to QTTH. V1 = 3 functions: account access, audit/trace, health.
     // Deep business logic (access toggle, audit collection, health probes) is NOT
-    // built in this batch — only "Quản trị tài khoản" routes (existing
-    // employee-master, Admin-only); the other two are "Sắp triển khai" shells.
+    // built in this batch — only "Quản trị tài khoản" routes (to the real
+    // account-management screen /admin/nhan-su/tai-khoan — user_accounts CRUD,
+    // Admin-only route + API — NOT People Master); the other two are shells.
     {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
       {tint:'gray',icon:'gear',title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?',badge:'Admin',
-        href:'/admin/nhan-su'},
+        href:'/admin/nhan-su/tai-khoan'},
       {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?',soon:true},
       {tint:'green',icon:'gear',title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?',soon:true}
     ]}

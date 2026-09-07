@@ -25,10 +25,14 @@ const {
 const { requireChecklistWebOperator, isChecklistWebOperator } = require('../_lib/checklist-permissions');
 const { send, sendError, requestBody } = require('../_lib/api-response');
 
+// PHF SYSTEM V1 — "Quản trị tài khoản" is SYSTEM ADMIN ONLY. Every account
+// operation (list / create / update / lock-unlock / role / reset-password /
+// delete) now requires session.role === 'admin' at the API layer, matching the
+// Admin-only route guard. The previous manager + Trợ lý GD (TRO_LY_GD) path is
+// intentionally removed. Root-admin / last-admin / self-delete / anti-escalation
+// safeguards live in _lib/auth.js and are unchanged.
 async function requireWebOperatorSession(req) {
-  const session = await requireSession(req, ['manager', 'admin']);
-  await requireChecklistWebOperator(session);
-  return session;
+  return requireSession(req, ['admin']);
 }
 
 async function assertAccountMutationAllowed(session, input = {}, targetId = '') {
