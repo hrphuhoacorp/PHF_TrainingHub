@@ -72,4 +72,38 @@ assert(accountUi.includes('phfAcctRetryLoad'),'Empty-state message must offer a 
    through the router (window.phfNavigate) so the canonical route is pushed
    into history. */
 assert(ui.includes("window.phfNavigate)window.phfNavigate('/admin/nhan-su/tai-khoan')"),'"Quản lý tài khoản" must navigate to the canonical PHF HR Account Admin route through the router, not mount the screen without changing the URL.');
+/* PHF SYSTEM V1 — "nghỉ việc = mất quyền truy cập PHF HR".
+   saveProfile() must cascade an employment_status -> 'inactive' transition to
+   the linked user_accounts row(s), setting status 'inactive' so login/readSession
+   fail. It must NOT delete anything and must NOT auto-unlock on reactivation. */
+assert(service.includes('function lockAccountsForDepartedEmployee'),'System V1: saveProfile must have an inactive-employee account-lock cascade.');
+assert(/employmentStatus==='inactive'&&normalizeEmploymentStatus\(existing\.employment_status\)!=='inactive'/.test(service),'Cascade must fire only on the active->inactive transition, not on every save or on re-activation.');
+assert(service.includes("update({status:'inactive',updated_at:")&&service.includes("from('user_accounts')"),'Cascade must set the linked user_accounts row to status inactive.');
+assert(!/lockAccountsForDepartedEmployee[\s\S]{0,600}\.delete\(/.test(service),'Cascade must never delete the account, employee, profile or identity mapping.');
+assert(/if\(String\(row\.role\|\|''\)\.toLowerCase\(\)==='admin'\)return false/.test(service)&&/accountType\)\|\|''\)\.toLowerCase\(\)==='system_admin'\)return false/.test(service),'Cascade must skip role=admin / system_admin accounts.');
+assert(!/employment_status'\)==='active'[\s\S]{0,400}update\(\{status:'active'/.test(service),'Re-activation must NOT auto-unlock the account (Admin re-enables it explicitly).');
+assert(read('api/_lib/auth.js').includes('lastLoginAt:String(a.lastLoginAt || a.last_login_at'),'publicAccount() must expose lastLoginAt for the account screen (cheap — already selected).');
+
+/* PHF SYSTEM V1 — account management is SYSTEM ADMIN ONLY at the API layer too. */
+assert(read('api/auth/accounts.js').includes("return requireSession(req, ['admin']);"),'api/auth/accounts.js account ops must require session.role === admin.');
+assert(/async function requireWebOperatorSession\(req\)\{\s*return requireSession\(req,\['admin'\]\);\s*\}/.test(server),'server.js account endpoints must require admin only.');
+assert(!/function requireWebOperatorSession\(req\)\s*\{[\s\S]{0,140}requireChecklistWebOperator/.test(server)&&!/function requireWebOperatorSession\(req\)\s*\{[\s\S]{0,140}requireChecklistWebOperator/.test(read('api/auth/accounts.js')),'The manager + TRO_LY_GD web-operator path into account management is removed.');
+assert(accountUi.includes("if(role!=='admin'){")&&accountUi.includes('Khu vực Quản trị tài khoản chỉ dành cho Admin hệ thống.'),'Account screen UI guard must be admin-only.');
+
+/* Admin Control Center — scoped visual layer + cheap HUD counters. */
+assert(accountUi.includes("function ensureSystemControlCenterUi")&&accountUi.includes("phf-sysac-style"),'Account screen must inject a scoped control-center stylesheet.');
+assert(accountUi.includes("phf-acct-admin-v2 phf-sysac"),'Control-center styles must be scoped to the account screen container (.phf-sysac), not global.');
+assert(accountUi.includes("function accountHudStrip")&&accountUi.includes("Tổng tài khoản")&&accountUi.includes("Đang hoạt động")&&accountUi.includes("Khóa / Ngừng")&&/hud is-admin[\s\S]{0,40}Admin/.test(accountUi),'HUD strip must show Tổng / Đang hoạt động / Khóa-Ngừng / Admin, computed from the already-loaded list.');
+assert(accountUi.includes("lastLoginLabel(a.lastLoginAt)"),'Account row must surface last-login (from the now-exposed lastLoginAt).');
+
+/* HERO TITLE CONTRAST — root cause: phf-training-hub.css ships a global
+   `h1,h2,h3,h4{ ... color:var(--phf-deep)!important }` (dark green). A hero with
+   a dark background must give its title an explicit light color that also
+   carries !important, or the global !important wins and the title goes
+   dark-on-dark. Both PHF HR "nhân sự" heroes are dark green. */
+const hubCss = read('assets/css/phf-training-hub.css');
+assert(/h1,h2,h3,h4[,{][\s\S]{0,400}color:var\(--phf-deep\)!important/.test(hubCss),'Guard assumes the global dark-green heading !important still exists (root cause of the hero-title contrast bug).');
+assert(/\.phf-em-hero h1\{[^}]*color:#fff!important/.test(read('assets/css/phf-employee-master.css')),'People Master hero <h1> must set an explicit white !important title (beats the global dark-green heading !important).');
+assert(accountUi.includes(".phf-sysac .phf-acct-safe-hero h2{color:rgba(255,255,255,.96)!important}"),'Account Control Center dark hero <h2> must own its title colour with !important (same root cause).');
+
 console.log(`Employee Master tests: ${passed}/${passed} PASS`);

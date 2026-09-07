@@ -48,12 +48,56 @@ console.log('\n== HERO — approved FINAL FLAT ASSET (text baked into the image)
     'the old placeholder hero tags are gone');
 }
 
-console.log('\n== TOP NAV — Báo cáo / Quản trị groups mirror the existing body group ==');
+console.log('\n== TOP NAV — HỆ THỐNG (System Module V1, business spec LOCKED, ADMIN ONLY) ==');
 {
-  check(/key:'bao-cao',label:'Báo cáo',children:\[\s*\{label:'Báo cáo & Thống kê',soon:true,icon:'chart'\}/.test(src),
-    '"Báo cáo" top-nav group added with the SAME soon:true placeholder already used on the Home body card — no new module invented');
-  check(/key:'quan-tri',label:'Quản trị',children:\[\s*\{label:'Quản trị hệ thống',href:isAdmin\?'\/admin\/nhan-su':null,disabled:!isAdmin,note:'Dành cho quản trị viên',icon:'gear'\}/.test(src),
-    '"Quản trị" top-nav group added, reusing the EXACT existing /admin/nhan-su route + admin-only gate already used by the body card');
+  // Supersedes the old "Báo cáo" / "Quản trị" top-nav groups, per
+  // PHF_HR_DAC_TA_NGHIEP_VU_MODULE_HE_THONG_V1_2026-09-06.
+  check(!/label:'Báo cáo & Thống kê'/.test(src),
+    '"Báo cáo & Thống kê" is fully gone from Home (reporting belongs to QTTH, not Hệ thống V1)');
+  check(!/key:'bao-cao'/.test(src) && !/key:'quan-tri',label:'Quản trị'/.test(src),
+    'old "Báo cáo" / "Quản trị" nav groups removed');
+  check(/if\(isAdmin\)\{\s*model\.push\(\{key:'he-thong',label:'Hệ thống',children:\[/.test(src),
+    '"Hệ thống" top-nav group is pushed ONLY for isAdmin (non-Admin never sees it)');
+  check(/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su\/tai-khoan',icon:'gear'\}/.test(src),
+    '"Quản trị tài khoản" routes to the real account-management screen /admin/nhan-su/tai-khoan (NOT People Master)');
+  check(!/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su',icon/.test(src),
+    'it no longer points at /admin/nhan-su (People Master)');
+  check(/\{label:'Nhật ký hệ thống',href:'\/admin\/he-thong\/nhat-ky',icon:'chart'\}/.test(src),
+    '"Nhật ký hệ thống" routes to the real Admin-only audit screen (System V1 Audit Log active)');
+  check(/\{label:'Tình trạng hệ thống',href:'\/admin\/he-thong\/tinh-trang',icon:'gear'\}/.test(src),
+    '"Tình trạng hệ thống" routes to the real Admin-only System Health screen');
+}
+
+console.log('\n== HOME NOTICE CARD — small label/status fix (Home presentation only) ==');
+{
+  check(src.includes("title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn'"),
+    'Notice card renamed "Thông báo Quản trị", "Quy trình" removed from the subtitle');
+  check(/title:'Thông báo Quản trị'[^}]*badge:'Đang hoạt động'/.test(src),
+    'Notice card shows an "Đang hoạt động" status badge');
+  check(src.includes("label:'Thông báo Quản trị',href:p+'/thong-bao'"),
+    'top-nav label matches the card ("Thông báo Quản trị"), same /thong-bao route');
+  check(!/title:'Thông báo',desc:/.test(src) && !src.includes('• Quy trình • Hướng dẫn'),
+    'old "Thông báo" title and "Quy trình" wording fully gone');
+}
+
+console.log('\n== HOME BODY — HỆ THỐNG card group ==');
+{
+  check(/title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống'/.test(src),
+    'body group d renamed to "HỆ THỐNG" with the locked subtitle');
+  check(src.includes("title:'Quản trị tài khoản'")
+     && src.includes("title:'Nhật ký hệ thống'")
+     && src.includes("title:'Tình trạng hệ thống'"),
+    'the 3 V1 function cards carry the locked titles');
+  // Home copy cleanup (approved 2026-09-07): the explanatory subtitles are removed
+  // from the HỆ THỐNG group — cleaner Admin Control Center look.
+  check(!src.includes("desc:'Ai được phép sử dụng PHF HR?'")
+     && !src.includes("desc:'Ai đã làm gì trên hệ thống?'")
+     && !src.includes("desc:'Hệ thống hiện đang khỏe hay gặp lỗi?'"),
+    'the 3 HỆ THỐNG card subtitles are removed');
+  check(/\.filter\(function\(g\)\{return g\.key!=='d'\|\|isAdmin;\}\)/.test(src),
+    'the whole HỆ THỐNG card group is omitted for non-Admin');
+  check(!src.includes("title:'Hệ thống & Báo cáo'"),
+    'old "Hệ thống & Báo cáo" group title is gone');
 }
 
 console.log('\n== "CÔNG VIỆC CẦN CHÚ Ý" — same 3 real signals, now visually tinted ==');

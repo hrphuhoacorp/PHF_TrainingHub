@@ -149,7 +149,7 @@ function hrNavModel(){
     {label:'Quản trị tổng hợp',soon:true,icon:'gear'},
     // Thông báo Quản trị V1 — real route /{p}/thong-bao (feed public cho mọi vai
     // trò; quyền quản trị nội dung do module quyết định server-side).
-    {label:'Thông báo',href:p+'/thong-bao',icon:'notice'}
+    {label:'Thông báo Quản trị',href:p+'/thong-bao',icon:'notice'}
   ]});
   // Phát triển nhân sự — module-level people-development spaces.
   var ptns=[{label:'Training Hub',href:p,icon:'hub'},{label:'Classroom',href:p+'/classroom',icon:'classroom'},{label:'Khung năng lực',href:p+'/knl',icon:'knl'}];
@@ -163,17 +163,21 @@ function hrNavModel(){
     {label:'Chương trình thi đua',href:p+'/thi-dua',icon:'trophy'},
     {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
   ]});
-  // Báo cáo / Quản trị — mirror the existing "Hệ thống & Báo cáo" body group
-  // 1:1 (same two entries, same real/soon status, same /admin/nhan-su route
-  // for Quản trị hệ thống) so the top nav offers the same reachable surface
-  // as the body cards, per the approved reference's top-nav composition.
-  // No new route/module — this only exposes what already exists.
-  model.push({key:'bao-cao',label:'Báo cáo',children:[
-    {label:'Báo cáo & Thống kê',soon:true,icon:'chart'}
-  ]});
-  model.push({key:'quan-tri',label:'Quản trị',children:[
-    {label:'Quản trị hệ thống',href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,note:'Dành cho quản trị viên',icon:'gear'}
-  ]});
+  // HỆ THỐNG (System Module V1 — business spec LOCKED, ADMIN ONLY). Mirrors the
+  // body card group 1:1. "Quản trị tài khoản" routes to the real account-
+  // management screen (/admin/nhan-su/tai-khoan — user_accounts CRUD, Admin-only
+  // route + API), NOT People Master. A dedicated /admin/he-thong/tai-khoan alias
+  // was considered and deferred (touches 5 shell-detection regexes for no V1
+  // gain). "Nhật ký hệ thống" -> /admin/he-thong/nhat-ky (active). "Tình trạng
+  // hệ thống" is still a placeholder (no route — Sắp triển khai). No "Báo cáo"
+  // wording. Non-Admin: group hidden.
+  if(isAdmin){
+    model.push({key:'he-thong',label:'Hệ thống',children:[
+      {label:'Quản trị tài khoản',href:'/admin/nhan-su/tai-khoan',icon:'gear'},
+      {label:'Nhật ký hệ thống',href:'/admin/he-thong/nhat-ky',icon:'chart'},
+      {label:'Tình trạng hệ thống',href:'/admin/he-thong/tinh-trang',icon:'gear'}
+    ]});
+  }
   return model;
 }
 /* Source-of-truth for the PHF HR web navigation hierarchy (parent → child).
@@ -290,7 +294,7 @@ function hrGroupsModel(){
       {tint:'blue',icon:'calendar',title:'Lịch làm việc & Chấm công',desc:'Ca làm • Lịch tuần • Chấm công',soon:true},
       // Quản trị tổng hợp — module CHƯA XÂY: placeholder cho mọi role, không route.
       {tint:'purple',icon:'gear',title:'Quản trị tổng hợp',desc:'Vận hành nội bộ • Quy trình • Biểu mẫu',soon:true},
-      {tint:'red',icon:'notice',title:'Thông báo',desc:'Quy định • Chính sách • Quy trình • Hướng dẫn',href:p+'/thong-bao'}
+      {tint:'red',icon:'notice',title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn',badge:'Đang hoạt động',href:p+'/thong-bao'}
     ]},
     {key:'b',icon:'hub',title:'Đào tạo & Phát triển',sub:'Đào tạo, đánh giá và phát triển năng lực',cols:4,cards:[
       {tint:'green',icon:'hub',title:'Training Hub',desc:'Hội nhập • Lộ trình • Khóa học',badge:'Đào tạo',href:p},
@@ -302,16 +306,21 @@ function hrGroupsModel(){
       {tint:'yellow',icon:'trophy',title:'Chương trình thi đua',desc:'Đóng góp • Xếp hạng • Vinh danh',badge:'Thi đua',href:p+'/thi-dua'},
       {tint:'peach',icon:'sparkles',title:'Thưởng Hành động V.2',desc:'Ghi nhận • Xét thưởng • Lan tỏa',soon:true}
     ]},
-    {key:'d',icon:'chart',title:'Hệ thống & Báo cáo',sub:'Dữ liệu, báo cáo và cấu hình hệ thống',cols:2,cards:[
-      // Báo cáo & Thống kê — module định hướng, CHƯA triển khai trên Home V1: placeholder, không route.
-      {tint:'blue',icon:'chart',title:'Báo cáo & Thống kê',desc:'Nhân sự • Đào tạo • Thi đua • Tổng hợp',soon:true},
-      // Quản trị hệ thống — lối vào khu quản trị nhân sự hiện hữu của PHF HR
-      // (screen 'employee-master' — Tài khoản & Hồ sơ nhân sự; route thật, Admin-only
-      // theo ROUTE_TABLE assets/js/phf-url-router.js). KHÔNG phải /admin/quan-tri (QTTH).
-      {tint:'gray',icon:'gear',title:'Quản trị hệ thống',desc:'Tài khoản • Hồ sơ • Phân quyền',badge:'Admin',
-        href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,disabledNote:'Dành cho quản trị viên'}
+    // HỆ THỐNG — System Module V1 (business spec LOCKED). ADMIN ONLY: the whole
+    // group is omitted for non-Admin (see below). No "Báo cáo" wording — that
+    // belongs to QTTH. V1 = 3 functions: account access, audit/trace, health.
+    // "Quản trị tài khoản" -> /admin/nhan-su/tai-khoan (user_accounts CRUD,
+    // Admin-only route + API — NOT People Master). "Nhật ký hệ thống" ->
+    // /admin/he-thong/nhat-ky (central audit.entries, Admin-only, read-only).
+    // "Tình trạng hệ thống" -> /admin/he-thong/tinh-trang (bounded Admin-only
+    // operational status). All 3 System V1 screens are now active.
+    {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
+      {tint:'gray',icon:'gear',title:'Quản trị tài khoản',badge:'Admin',
+        href:'/admin/nhan-su/tai-khoan'},
+      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',badge:'Admin',href:'/admin/he-thong/nhat-ky'},
+      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',badge:'Admin',href:'/admin/he-thong/tinh-trang'}
     ]}
-  ];
+  ].filter(function(g){return g.key!=='d'||isAdmin;});
 }
 function hrCardHtml(c){
   var soon=!!c.soon,dis=!!c.disabled;
@@ -324,7 +333,7 @@ function hrCardHtml(c){
         : '<span class="phf-hr-mod-badge">'+esc(c.badge||'')+'</span><span class="phf-hr-mod-arrow" aria-hidden="true">'+icon('arrow')+'</span>');
   return '<article class="'+cls+'"'+attr+'>'
     +'<div class="phf-hr-mod-top"><span class="phf-hr-mod-ico">'+icon(c.icon||'grid')+'</span>'
-      +'<span class="phf-hr-mod-txt"><b>'+esc(c.title)+'</b><span>'+esc(c.desc||'')+'</span></span></div>'
+      +'<span class="phf-hr-mod-txt"><b>'+esc(c.title)+'</b>'+(c.desc?'<span>'+esc(c.desc)+'</span>':'')+'</span></span></div>'
     +'<div class="phf-hr-mod-foot">'+foot+'</div></article>';
 }
 function hrGroupsHtml(){

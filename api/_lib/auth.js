@@ -98,6 +98,7 @@ function publicAccount(a){
     defaultProgram:a.defaultProgram || '',
     hubAssignmentStatus:cleanHubAssignmentStatus(a.hubAssignmentStatus, a.trainingAudience),
     mustChangePassword:!!a.mustChangePassword,
+    lastLoginAt:String(a.lastLoginAt || a.last_login_at || ''),
     accountType:String((a.metadata && a.metadata.accountType) || a.accountType || 'employee')
   };
 }

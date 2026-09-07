@@ -24,11 +24,63 @@ const {
 } = require('../_lib/auth');
 const { requireChecklistWebOperator, isChecklistWebOperator } = require('../_lib/checklist-permissions');
 const { send, sendError, requestBody } = require('../_lib/api-response');
+const { auditEmit } = require('../_lib/audit-emit');
 
+// Safe projection of an account for the audit before/after JSON — identity +
+// lifecycle fields ONLY. NEVER the password / temp password / hash / salt.
+function acctSnap(a) {
+  if (!a) return null;
+  return {
+    id: a.id || '', email: a.email || '', name: a.name || '',
+    role: a.role || '', status: a.status || '',
+    employeeCode: a.employeeCode || '', accountType: a.accountType || '',
+  };
+}
+// Emit 0..N audit rows for one account mutation. Distinct semantics (role,
+// access lock/unlock) get their own row; remaining field changes get one
+// bounded ACCOUNT_UPDATE. Never throws (auditEmit is fail-open).
+async function emitAccountAudit(req, session, kind, before, after, extraMeta) {
+  const b = acctSnap(before), a = acctSnap(after);
+  const target = a || b || {};
+  const common = {
+    module: 'account', result: 'success', object_type: 'account',
+    object_id: target.id || null, object_label: target.email || target.name || target.id || null,
+  };
+  if (kind === 'create') {
+    return auditEmit(req, session, { ...common, action: 'ACCOUNT_CREATE', after: a, metadata: extraMeta || null });
+  }
+  if (kind === 'delete') {
+    return auditEmit(req, session, { ...common, action: 'ACCOUNT_DELETE', before: b, metadata: extraMeta || null });
+  }
+  if (kind === 'reset-password') {
+    return auditEmit(req, session, { ...common, action: 'ACCOUNT_PASSWORD_RESET', metadata: { note: 'temp password issued (value never logged)' } });
+  }
+  // update: derive specific events
+  const emits = [];
+  if (b && a && b.role !== a.role) {
+    emits.push(auditEmit(req, session, { ...common, action: 'ACCOUNT_ROLE_CHANGE', before: { role: b.role }, after: { role: a.role } }));
+  }
+  if (b && a && b.status !== a.status) {
+    const wasActive = b.status === 'active', nowActive = a.status === 'active';
+    if (wasActive && !nowActive) emits.push(auditEmit(req, session, { ...common, action: 'ACCOUNT_ACCESS_LOCK', before: { status: b.status }, after: { status: a.status } }));
+    else if (!wasActive && nowActive) emits.push(auditEmit(req, session, { ...common, action: 'ACCOUNT_ACCESS_UNLOCK', before: { status: b.status }, after: { status: a.status } }));
+    else emits.push(auditEmit(req, session, { ...common, action: 'ACCOUNT_UPDATE', before: { status: b.status }, after: { status: a.status } }));
+  }
+  const otherChanged = b && a && (b.email !== a.email || b.name !== a.name || b.employeeCode !== a.employeeCode);
+  if (otherChanged || !b) {
+    emits.push(auditEmit(req, session, { ...common, action: 'ACCOUNT_UPDATE', before: b, after: a }));
+  }
+  return Promise.all(emits);
+}
+
+// PHF SYSTEM V1 — "Quản trị tài khoản" is SYSTEM ADMIN ONLY. Every account
+// operation (list / create / update / lock-unlock / role / reset-password /
+// delete) now requires session.role === 'admin' at the API layer, matching the
+// Admin-only route guard. The previous manager + Trợ lý GD (TRO_LY_GD) path is
+// intentionally removed. Root-admin / last-admin / self-delete / anti-escalation
+// safeguards live in _lib/auth.js and are unchanged.
 async function requireWebOperatorSession(req) {
-  const session = await requireSession(req, ['manager', 'admin']);
-  await requireChecklistWebOperator(session);
-  return session;
+  return requireSession(req, ['admin']);
 }
 
 async function assertAccountMutationAllowed(session, input = {}, targetId = '') {
@@ -65,6 +117,7 @@ async function handleCreate(req, res, body) {
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, body.account || body);
   const result = await createAccountByAdmin(body.account || body);
+  await emitAccountAudit(req, session, 'create', null, result.account, { accountType: result.account && result.account.accountType });
   return send(res, 201, { ok: true, user: result.account, temporaryPassword: result.temporaryPassword });
 }
 
@@ -72,7 +125,9 @@ async function handleUpdate(req, res, body) {
   assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, body.account || body, body.accountId);
+  const before = await getAccountById(body.accountId);
   const user = await updateAccountByAdmin(body.accountId, body.account || body);
+  await emitAccountAudit(req, session, 'update', before, user);
   const reauthRequired = String(session.sub || '') === String(user.id || '') &&
     (session.email !== user.email || session.role !== user.role || user.status !== 'active');
   if (reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
@@ -84,6 +139,7 @@ async function handleDelete(req, res, body) {
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, {}, body.accountId);
   const user = await deleteAccountByAdmin(body.accountId, session);
+  await emitAccountAudit(req, session, 'delete', user, null);
   return send(res, 200, { ok: true, user });
 }
 
@@ -92,6 +148,7 @@ async function handleResetPassword(req, res, body) {
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, {}, body.accountId);
   const result = await resetPasswordByAdmin(body.accountId);
+  await emitAccountAudit(req, session, 'reset-password', null, result.account);
   return send(res, 200, { ok: true, user: result.account, temporaryPassword: result.temporaryPassword });
 }
 

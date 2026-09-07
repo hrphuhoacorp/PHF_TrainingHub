@@ -91,10 +91,15 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
 
   // 20. Home entry contract: reuse existing "Thông báo" card, wire to /thong-bao, add NO new card
   const home = read('assets/js/phf-hr-home.js');
-  const noticeLabelCount = (home.match(/'Thông báo',(?:href|icon)|title:'Thông báo'/g) || []).length;
-  const noticeWired = (home.match(/'Thông báo',href:p\+'\/thong-bao'/) ? 1 : 0) + (home.match(/title:'Thông báo',desc:[^}]*,href:p\+'\/thong-bao'/) ? 1 : 0);
-  check('20 Home: the 2 existing "Thông báo" cards (nav + grid) wired to /thong-bao, none added',
-    noticeLabelCount === 2 && noticeWired === 2, 'labels=' + noticeLabelCount + ' wired=' + noticeWired);
+  // PHF SYSTEM V1 (locked spec I): Home card + nav renamed "Thông báo Quản trị",
+  // subtitle drops "Quy trình", card carries an "Đang hoạt động" status badge.
+  // Route / permission / Notice module all unchanged — Home presentation only.
+  const noticeNavWired = home.includes("label:'Thông báo Quản trị',href:p+'/thong-bao'") ? 1 : 0;
+  const noticeCardWired = /title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn',badge:'Đang hoạt động',href:p\+'\/thong-bao'/.test(home) ? 1 : 0;
+  check('20 Home: "Thông báo Quản trị" card + nav wired to /thong-bao (renamed, badge added, none extra)',
+    noticeNavWired === 1 && noticeCardWired === 1
+      && !/title:'Thông báo',desc:/.test(home) && !home.includes('• Quy trình • Hướng dẫn'),
+    'nav=' + noticeNavWired + ' card=' + noticeCardWired);
 
   // 21. dispatch call in both data.js and server.js, before generic authorize
   check('21 data.js + server.js call dispatchNoticeAction before authorizePayload',

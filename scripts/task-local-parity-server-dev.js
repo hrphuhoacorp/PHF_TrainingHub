@@ -96,6 +96,9 @@ process.on('SIGTERM', () => stopAll(0));
       // change). Override with env NOTICE_DEV_ACCESS_ALLOW.
       NOTICE_DEV_ACCESS_ALLOW: process.env.NOTICE_DEV_ACCESS_ALLOW
         || ('PHF012,' + (envTest.PHF_HR_DEV_OPERATOR_ACCOUNT_ID || 'thanglv150917@gmail.com')),
+      // SYSTEM V1 · Tình trạng hệ thống — deep health probe + heartbeat bridge,
+      // same phf-hr-api child, same throwaway DB. LOCAL parity only.
+      PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -129,6 +132,8 @@ process.on('SIGTERM', () => stopAll(0));
       // phf-hr-api child, same throwaway DB. Needs migrations/phf_hr_notice_v1.sql
       // applied to the throwaway. Does not affect Task/Competition behaviour.
       PHF_NOTICE_BRIDGE_ENABLED: 'true',
+      // SYSTEM V1 · Tình trạng hệ thống — aggregator -> deep /v1/system:health.
+      PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });

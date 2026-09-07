@@ -892,6 +892,41 @@ module.exports = async function handler(req, res) {
         const key=String(req.query?.key||'').trim();
         return res.status(200).json({ok:true,...(key?await getEmployeeMasterDetail(session,{key}):await listEmployeeMaster(session))});
       }
+      // SYSTEM V1 · Nhật ký hệ thống — Admin-only, READ-ONLY. No write/detail-
+      // mutation path exists. Proxies to the phf-hr-api /v1/audit bridge.
+      if(String(req.query?.audit || '') === '1'){
+        if(String(session.role||'').toLowerCase()!=='admin'){
+          return res.status(403).json({ok:false,error:'Nhật ký hệ thống chỉ dành cho Admin hệ thống.',code:'AUDIT_ADMIN_REQUIRED'});
+        }
+        const {auditList,auditDetail}=require('./_lib/audit-emit');
+        try{
+          const detailId=String(req.query?.id||'').trim();
+          if(detailId) return res.status(200).json({ok:true,...await auditDetail(detailId)});
+          const q=req.query||{};
+          const data=await auditList({
+            from:q.from||'',to:q.to||'',module:q.module||'',action:q.action||'',
+            result:q.result||'',user:q.user||'',q:q.q||'',limit:q.limit||'',cursor:q.cursor||'',
+          });
+          return res.status(200).json({ok:true,...data});
+        }catch(e){
+          return res.status(e.statusCode||502).json({ok:false,error:e.message||'Không đọc được Nhật ký hệ thống.',code:e.code||'AUDIT_READ_FAILED'});
+        }
+      }
+      // SYSTEM V1 · Tình trạng hệ thống — Admin-only, READ-ONLY. Server-side
+      // aggregator; every probe is bounded + isolated. Browser only ever gets
+      // the reduced status enum + timestamps + small counters.
+      if(String(req.query?.systemHealth || '') === '1'){
+        if(String(session.role||'').toLowerCase()!=='admin'){
+          return res.status(403).json({ok:false,error:'Tình trạng hệ thống chỉ dành cho Admin hệ thống.',code:'SYSTEM_HEALTH_ADMIN_REQUIRED'});
+        }
+        try{
+          const {getSystemHealth}=require('./_lib/system-health');
+          const data=await getSystemHealth();
+          return res.status(200).json({ok:true,...data});
+        }catch(e){
+          return res.status(502).json({ok:false,error:'Không đọc được tình trạng hệ thống.',code:'SYSTEM_HEALTH_READ_FAILED'});
+        }
+      }
       if (checklistWorkspaceMode) {
         const [workspace, templateData, violationMode] = await Promise.all([
           getChecklistRoleWorkspace(session),
@@ -1072,7 +1107,19 @@ module.exports = async function handler(req, res) {
       const employeeMasterMode = String(req.query?.employeeMaster || '') === '1';
       if(employeeMasterMode){
         const action=String(payload.action||'').trim();
-        if(action==='saveProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterProfile(session,payload)});
+        if(action==='saveProfile'){
+          const out=await saveEmployeeMasterProfile(session,payload);
+          if(out&&out.accountLock&&out.accountLock.locked>0){
+            const {auditEmit}=require('./_lib/audit-emit');
+            for(const acc of (out.accountLock.accounts||[])){
+              await auditEmit(req,session,{module:'account',action:'EMPLOYEE_INACTIVE_AUTO_LOCK',result:'success',
+                object_type:'account',object_id:acc.id||null,object_label:acc.employee_code||acc.id||null,
+                before:{status:acc.previous_status},after:{status:'inactive'},
+                metadata:{trigger:'employment_status->inactive',employeeProfileId:out.profile&&out.profile.id}});
+            }
+          }
+          return res.status(200).json({ok:true,...out});
+        }
         if(action==='savePrivateProfile')return res.status(200).json({ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
         if(action==='saveContract')return res.status(200).json({ok:true,...await saveEmployeeMasterContract(session,payload)});
         if(action==='saveCompensation'){

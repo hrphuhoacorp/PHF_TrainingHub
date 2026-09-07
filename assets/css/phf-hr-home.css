@@ -321,6 +321,7 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 .phf-hr-grid{display:grid;gap:14px}
 .phf-hr-grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .phf-hr-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.phf-hr-grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* --- module card --- */
 .phf-hr-mod{
@@ -417,9 +418,10 @@ html.phf-hr-route body>div.app,body.phf-hr-gateway-mode>div.app{display:none!imp
 /* --- responsive (frame only) --- */
 @media (max-width:1200px){
   .phf-hr-grid.cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phf-hr-grid.cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:820px){
-  .phf-hr-grid.cols-4,.phf-hr-grid.cols-2{grid-template-columns:1fr}
+  .phf-hr-grid.cols-4,.phf-hr-grid.cols-2,.phf-hr-grid.cols-3{grid-template-columns:1fr}
   .phf-hr-sidebar{grid-template-columns:1fr}
 }
 
