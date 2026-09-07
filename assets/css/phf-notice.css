@@ -72,7 +72,7 @@
 .phf-notice-nav-items button.is-active svg{color:var(--nt-green);}
 
 .phf-notice-work{min-width:0;padding:20px 24px 48px;}
-.phf-notice-work-inner{max-width:1080px;}   /* readability cap on CONTENT only — never on the shell */
+.phf-notice-work-inner{max-width:none;}   /* NO workspace cap (Checklist standard). Reading width is capped on .phf-notice-detail ONLY. */
 
 /* ── HEAD ROW inside work area ─────────────────────────────────────────── */
 .phf-notice-head{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
@@ -108,6 +108,9 @@
 .phf-notice-card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
 .phf-notice-badge{font-size:11px;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:.02em;text-transform:uppercase;}
 .phf-notice-badge.type{background:#EEF1F4;color:#41505F;}
+.phf-notice-badge.prio-urgent{background:#FBE3E0;color:#B32218;}
+.phf-notice-badge.prio-important{background:#FBEFD6;color:#8A5B00;}
+.phf-notice-card.is-urgent{border-left:3px solid #D7382B;}
 .phf-notice-badge.st-active{background:var(--nt-green-wash);color:var(--nt-green-ink);}
 .phf-notice-badge.st-upcoming{background:var(--nt-amber-wash);color:var(--nt-amber);}
 .phf-notice-badge.st-expired{background:#EEF0F2;color:#6A7280;}
@@ -207,10 +210,11 @@ mark.phf-notice-hit{background:#fff2ac;color:inherit;padding:0 1px;border-radius
 .phf-notice-rlist small{color:var(--nt-muted);font-size:12px;margin-left:auto;white-space:nowrap;}
 
 /* ── TABLE (report + permission) ─────────────────────────────────────── */
-.phf-notice-tablewrap{overflow-x:auto;border:1px solid var(--nt-line-strong);border-radius:9px;}
+.phf-notice-tablewrap{border:1px solid var(--nt-line-strong);border-radius:9px;}  /* NO overflow: keeps th position:sticky page-anchored */
 .phf-notice-table{width:100%;border-collapse:collapse;font-size:12.5px;}
 .phf-notice-table th,.phf-notice-table td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--nt-line);}
-.phf-notice-table th{background:#F3F4F6;color:#48505C;font-weight:800;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;position:sticky;top:0;}
+.phf-notice-table th{background:#F3F4F6;color:#48505C;font-weight:800;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;position:sticky;top:76px;z-index:6;box-shadow:inset 0 -1px 0 var(--nt-line-strong);}
+.phf-notice-scroll .phf-notice-table th{top:0;}   /* own-scroll container (report/audit overlay) */
 .phf-notice-table tbody tr:hover{background:#F7FBF8;}
 .phf-notice-table .ok{color:var(--nt-green-ink);font-weight:700;}
 .phf-notice-table .no{color:#A5342A;font-weight:700;}
@@ -249,3 +253,19 @@ mark.phf-notice-hit{background:#fff2ac;color:inherit;padding:0 1px;border-radius
   .phf-notice-detail{padding:18px 16px;}
   .phf-notice-card-state{margin-left:0;width:100%;}
 }
+
+
+/* ── Final functional patch: priority / attachments-in-flow / dedup / categories ── */
+.phf-notice-att-pending{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.phf-notice-att-pend-row{display:flex;align-items:center;gap:8px;border:1px solid var(--nt-line);border-radius:8px;padding:7px 10px;font-size:13px;}
+.phf-notice-att-pend-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.phf-notice-att-pend-row em{color:var(--nt-muted);font-style:normal;}
+.phf-notice-att-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;flex:0 0 auto;}
+.phf-notice-dup{background:var(--nt-amber-wash);border:1px solid #E8CE9E;border-left:4px solid var(--nt-amber);border-radius:8px;padding:12px 14px;margin-top:6px;}
+.phf-notice-dup b{color:var(--nt-amber);display:block;margin-bottom:2px;}
+.phf-notice-dup a{display:block;font-size:13px;color:var(--nt-green-ink);text-decoration:none;padding:4px 0;}
+.phf-notice-dup a small{color:var(--nt-muted);}
+.phf-notice-preview-body{margin-top:12px;border:1px solid var(--nt-line);border-radius:9px;padding:14px 16px;background:#fff;max-height:340px;overflow:auto;}
+.phf-notice-preview-lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--nt-muted);margin-bottom:8px;}
+.phf-notice-cat-name{width:100%;min-width:160px;border:1px solid var(--nt-line-strong);border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit;}
+.phf-notice-table td .phf-notice-btn.is-small{padding:3px 8px;min-height:26px;}

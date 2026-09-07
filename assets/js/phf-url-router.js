@@ -532,7 +532,7 @@
   // renderer redirects an unauthorized viewer back to the feed.
   ['/hv','/ql','/admin'].forEach(function(pf){
     var m=pf==='/hv'?'learner':(pf==='/ql'?'management':'admin');
-    window.PHF_ROUTE_MAP[m].push(pf+'/thong-bao',pf+'/thong-bao/quyen');
+    window.PHF_ROUTE_MAP[m].push(pf+'/thong-bao',pf+'/thong-bao/bao-cao',pf+'/thong-bao/danh-muc',pf+'/thong-bao/quyen');
   });
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào

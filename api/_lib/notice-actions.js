@@ -51,7 +51,7 @@ const PASSTHROUGH = {
   noticeAcknowledge: { remote: 'notice.acknowledge', params: (p) => ({ id: str(p.id) }) },
   noticeCreate:      { remote: 'notice.create', params: (p) => ({
     title: str(p.title), contentHtml: str(p.content_html), contentText: str(p.content_text),
-    noticeType: str(p.notice_type), effectiveFrom: str(p.effective_from), effectiveTo: str(p.effective_to),
+    noticeType: str(p.notice_type), priority: str(p.priority), effectiveFrom: str(p.effective_from), effectiveTo: str(p.effective_to),
     requireAcknowledgement: bool(p.require_acknowledgement), scopes: scopesIn(p), keywords: keywordsIn(p),
     replacedNoticeId: str(p.replaced_notice_id),
   }) },
@@ -61,6 +61,7 @@ const PASSTHROUGH = {
     if (Object.prototype.hasOwnProperty.call(p, 'content_html')) out.contentHtml = str(p.content_html);
     if (Object.prototype.hasOwnProperty.call(p, 'content_text')) out.contentText = str(p.content_text);
     if (Object.prototype.hasOwnProperty.call(p, 'notice_type')) out.noticeType = str(p.notice_type);
+    if (Object.prototype.hasOwnProperty.call(p, 'priority')) out.priority = str(p.priority);
     if (Object.prototype.hasOwnProperty.call(p, 'effective_from')) out.effectiveFrom = str(p.effective_from);
     if (Object.prototype.hasOwnProperty.call(p, 'effective_to')) out.effectiveTo = str(p.effective_to);
     if (Object.prototype.hasOwnProperty.call(p, 'require_acknowledgement')) out.requireAcknowledgement = bool(p.require_acknowledgement);
@@ -83,6 +84,16 @@ const PASSTHROUGH = {
     noticeId: str(p.notice_id), attachmentId: str(p.attachment_id), requireReacknowledgement: bool(p.require_reacknowledgement),
   }) },
   noticeAttachmentDownload: { remote: 'notice.attachment.download', params: (p) => ({ noticeId: str(p.notice_id), attachmentId: str(p.attachment_id) }) },
+  noticeCategoriesList: { remote: 'notice.categories.list', params: () => ({}) },
+  noticeCategoriesUpsert: { remote: 'notice.categories.upsert', params: (p) => ({
+    slug: str(p.slug), name: str(p.name),
+    sortOrder: (p.sort_order == null || p.sort_order === '') ? undefined : Number(p.sort_order),
+    isActive: Object.prototype.hasOwnProperty.call(p, 'is_active') ? bool(p.is_active) : undefined,
+  }) },
+  noticeCategoriesReorder: { remote: 'notice.categories.reorder', params: (p) => ({ order: Array.isArray(p.order) ? p.order.map(str) : [] }) },
+  noticeSimilar: { remote: 'notice.similar', params: (p) => ({
+    title: str(p.title), contentText: str(p.content_text), keywords: keywordsIn(p), excludeId: str(p.exclude_id),
+  }) },
   noticeSetPermission: { remote: 'notice.permissions.set', params: (p) => ({ employeeCode: code(p.employee_code), canManage: bool(p.can_manage) }) },
   noticePermissionHistory: { remote: 'notice.permissions.history', params: (p) => ({ employeeCode: code(p.employee_code) }) },
 };
@@ -149,6 +160,7 @@ const NOTICE_ACTION_MANIFEST = Object.freeze([
   'noticeCreate', 'noticeUpdate', 'noticePublish', 'noticeSetPin', 'noticeDelete',
   'noticeRevisions', 'noticeAuditLog', 'noticeReport',
   'noticeAttachmentAdd', 'noticeAttachmentRemove', 'noticeAttachmentDownload',
+  'noticeCategoriesList', 'noticeCategoriesUpsert', 'noticeCategoriesReorder', 'noticeSimilar',
   'noticePermissionRoster', 'noticeSetPermission', 'noticePermissionHistory',
 ]);
 

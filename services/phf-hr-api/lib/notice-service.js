@@ -33,6 +33,8 @@
 
 const { withTaskReadTransaction, withTaskWriteTransaction } = require('./db');
 
+// The 4 seeded system categories (slugs). Categories are now a managed table
+// (notice.notice_categories) — this list is only the migration/default seed.
 const NOTICE_TYPES = ['regulation', 'policy', 'process', 'guide'];
 
 class NoticeError extends Error {
@@ -154,9 +156,27 @@ function dateOnly(v) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw nErr('NOTICE_DATE_INVALID', 'Ngày phải theo định dạng YYYY-MM-DD.', 400);
   return s;
 }
-function assertType(v) {
+const PRIORITIES = ['normal', 'important', 'urgent'];
+function assertPriority(v, dflt) {
   const s = text(v);
-  if (!s || NOTICE_TYPES.indexOf(s) < 0) throw nErr('NOTICE_TYPE_INVALID', 'Loại thông báo không hợp lệ.', 400);
+  if (!s) return dflt || 'normal';
+  if (PRIORITIES.indexOf(s) < 0) throw nErr('NOTICE_PRIORITY_INVALID', 'Mức ưu tiên không hợp lệ.', 400);
+  return s;
+}
+function slugifyCat(s) {
+  const base = String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  return base || null;
+}
+// Category slug must exist; for a create / a category change it must also be
+// active. `c` is an open transaction client.
+async function assertCategory(c, slug, mustBeActive) {
+  const s = text(slug);
+  if (!s) throw nErr('NOTICE_CATEGORY_REQUIRED', 'Danh mục là bắt buộc.', 400);
+  const r = await c.query('SELECT slug, is_active FROM notice.notice_categories WHERE slug = $1', [s]);
+  if (!r.rowCount) throw nErr('NOTICE_CATEGORY_INVALID', 'Danh mục không tồn tại.', 400);
+  if (mustBeActive && r.rows[0].is_active !== true) throw nErr('NOTICE_CATEGORY_INACTIVE', 'Danh mục đã ngừng sử dụng.', 400);
   return s;
 }
 function normScopes(raw) {
@@ -237,8 +257,28 @@ function tocFromHtml(html) {
   return out;
 }
 
+// An acknowledgement stays valid unless a revision AFTER the one the viewer
+// acked was published with require_reacknowledgement = true (§9 / AC12 default:
+// a plain edit does NOT invalidate the old acknowledgement).
+async function ackStillCurrent(c, noticeId, ackRevisionId) {
+  if (!ackRevisionId) return false;
+  const r = await c.query(
+    `SELECT
+       (SELECT revision_no FROM notice.notice_revisions WHERE id = $2) AS acked_no,
+       (SELECT COALESCE(MAX(revision_no), 0) FROM notice.notice_revisions
+          WHERE notice_id = $1 AND require_reacknowledgement = true) AS reack_no`,
+    [noticeId, ackRevisionId]
+  );
+  const row = r.rows[0] || {};
+  if (row.acked_no == null) return false;
+  return Number(row.acked_no) >= Number(row.reack_no || 0);
+}
+
 async function loadFullNotice(c, id) {
-  const nr = await c.query('SELECT * FROM notice.notices WHERE id = $1', [id]);
+  const nr = await c.query(
+    `SELECT n.*, cat.name AS category_name, cat.is_active AS category_active
+       FROM notice.notices n LEFT JOIN notice.notice_categories cat ON cat.slug = n.notice_type
+      WHERE n.id = $1`, [id]);
   if (!nr.rowCount) throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
   const [sc, kw, at, rv] = await Promise.all([
     c.query('SELECT scope_type, scope_value FROM notice.notice_scopes WHERE notice_id = $1 ORDER BY scope_type, scope_value', [id]),
@@ -256,12 +296,17 @@ function shapeNotice(full, today) {
     contentHtml: r.content_html || '',
     contentText: r.content_text || '',
     noticeType: r.notice_type,
+    categoryName: r.category_name || r.notice_type,
+    categoryActive: r.category_active !== false,
+    priority: r.priority || 'normal',
     effectiveFrom: ymd(r.effective_from),
     effectiveTo: ymd(r.effective_to),
     requireAcknowledgement: r.require_acknowledgement === true,
     isPinned: r.is_pinned === true,
     status: r.status,
     publishedAt: r.published_at,
+    lastUpdatedAt: r.updated_at,
+    edited: (full.revisions || []).length > 1,
     effectiveStatus: effectiveStatus(r, today),
     replacedNoticeId: r.replaced_notice_id || null,
     supersededByNoticeId: r.superseded_by_notice_id || null,
@@ -403,7 +448,9 @@ const HANDLERS = {
       } else {
         where.push("n.status = 'published'");
       }
-      if (typeFilter && NOTICE_TYPES.indexOf(typeFilter) >= 0) { vals.push(typeFilter); where.push('n.notice_type = $' + vals.length); }
+      // category filter — accepts any slug (custom categories included); a
+      // bad slug simply matches nothing.
+      if (typeFilter) { vals.push(typeFilter); where.push('n.notice_type = $' + vals.length); }
       let rankSql = '0';
       if (q) {
         vals.push(q);
@@ -415,7 +462,10 @@ const HANDLERS = {
         where.push(`EXISTS (SELECT 1 FROM notice.notice_scopes s WHERE s.notice_id = n.id AND (s.scope_type = 'company' OR s.scope_value = $${vals.length}))`);
       }
       const rows = (await c.query(
-        `SELECT n.*, ${rankSql} AS rank_score FROM notice.notices n WHERE ${where.join(' AND ')} LIMIT 500`, vals
+        `SELECT n.*, cat.name AS category_name, ${rankSql} AS rank_score,
+                (SELECT count(*)::int FROM notice.notice_revisions rv WHERE rv.notice_id = n.id) AS rev_count
+           FROM notice.notices n LEFT JOIN notice.notice_categories cat ON cat.slug = n.notice_type
+          WHERE ${where.join(' AND ')} LIMIT 500`, vals
       )).rows;
       if (!rows.length) return { today, notices: [], total: 0 };
 
@@ -425,23 +475,28 @@ const HANDLERS = {
         c.query('SELECT notice_id, scope_type, scope_value FROM notice.notice_scopes WHERE notice_id = ANY($1)', [ids]),
         c.query('SELECT notice_id, keyword FROM notice.notice_keywords WHERE notice_id = ANY($1)', [ids]),
         c.query('SELECT notice_id, first_viewed_at, last_viewed_at FROM notice.notice_views WHERE notice_id = ANY($1) AND viewer_key = $2', [ids, vkey]),
-        c.query('SELECT a.notice_id, a.revision_id FROM notice.notice_acknowledgements a WHERE a.notice_id = ANY($1) AND a.acker_key = $2', [ids, vkey]),
+        c.query(`SELECT a.notice_id, a.revision_id, rv.revision_no AS acked_no,
+                        (SELECT COALESCE(MAX(r2.revision_no),0) FROM notice.notice_revisions r2 WHERE r2.notice_id = a.notice_id AND r2.require_reacknowledgement = true) AS reack_no
+                   FROM notice.notice_acknowledgements a JOIN notice.notice_revisions rv ON rv.id = a.revision_id
+                  WHERE a.notice_id = ANY($1) AND a.acker_key = $2`, [ids, vkey]),
         c.query('SELECT notice_id, count(*)::int AS n FROM notice.notice_attachments WHERE notice_id = ANY($1) AND deleted_at IS NULL GROUP BY notice_id', [ids]),
       ]);
       const scopeBy = new Map(); scopeRows.rows.forEach((r) => { (scopeBy.get(r.notice_id) || scopeBy.set(r.notice_id, []).get(r.notice_id)).push({ scopeType: r.scope_type, scopeValue: r.scope_value }); });
       const kwBy = new Map(); kwRows.rows.forEach((r) => { (kwBy.get(r.notice_id) || kwBy.set(r.notice_id, []).get(r.notice_id)).push(r.keyword); });
       const viewBy = new Map(viewRows.rows.map((r) => [r.notice_id, r]));
-      const ackBy = new Map(ackRows.rows.map((r) => [r.notice_id, r.revision_id]));
+      const ackBy = new Map(ackRows.rows.map((r) => [r.notice_id, { revId: r.revision_id, valid: Number(r.acked_no) >= Number(r.reack_no || 0) }]));
       const attBy = new Map(attCount.rows.map((r) => [r.notice_id, r.n]));
 
       const list = rows.map((r) => {
         const es = effectiveStatus(r, today);
-        const ackRev = ackBy.get(r.id) || null;
+        const ackInfo = ackBy.get(r.id) || null;
         return {
           id: r.id,
           title: r.title,
           excerpt: excerpt(r.content_text, 240),
           noticeType: r.notice_type,
+          categoryName: r.category_name || r.notice_type,
+          priority: r.priority || 'normal',
           effectiveFrom: ymd(r.effective_from),
           effectiveTo: ymd(r.effective_to),
           effectiveStatus: es,
@@ -450,6 +505,7 @@ const HANDLERS = {
           requireAcknowledgement: r.require_acknowledgement === true,
           publishedAt: r.published_at,
           updatedAt: r.updated_at,
+          edited: Number(r.rev_count || 0) > 1,
           scopes: scopeBy.get(r.id) || [],
           keywords: kwBy.get(r.id) || [],
           attachmentCount: attBy.get(r.id) || 0,
@@ -458,15 +514,21 @@ const HANDLERS = {
           viewer: {
             viewed: viewBy.has(r.id),
             firstViewedAt: viewBy.has(r.id) ? viewBy.get(r.id).first_viewed_at : null,
-            acknowledged: !!ackRev,
-            acknowledgedRevisionIsCurrent: ackRev ? ackRev === r.current_revision_id : false,
+            acknowledged: !!ackInfo,
+            acknowledgedRevisionIsCurrent: ackInfo ? ackInfo.valid : false,
           },
           rankScore: Number(r.rank_score) || 0,
         };
       });
 
+      // Ordering: explicit pin first (unchanged, separate function) -> then an
+      // ACTIVE "Hỏa tốc" (urgent) advantage that an expired notice loses -> then
+      // status (active/upcoming/expired) -> search relevance -> recency.
+      const urgentActive = (n) => (n.priority === 'urgent' && n.effectiveStatus === 'active') ? 0 : 1;
       list.sort((x, y) => {
         if (x.isPinned !== y.isPinned) return x.isPinned ? -1 : 1;
+        const ua = urgentActive(x) - urgentActive(y);
+        if (ua !== 0) return ua;
         const sr = statusRank(x.effectiveStatus) - statusRank(y.effectiveStatus);
         if (sr !== 0) return sr;
         if (q && y.rankScore !== x.rankScore) return y.rankScore - x.rankScore;
@@ -514,7 +576,7 @@ const HANDLERS = {
           lastViewedAt: up.rows[0].last_viewed_at,
           acknowledged: ack.rowCount > 0,
           acknowledgedRevisionId: ack.rowCount ? ack.rows[0].revision_id : null,
-          acknowledgedRevisionIsCurrent: ack.rowCount ? ack.rows[0].revision_id === full.row.current_revision_id : false,
+          acknowledgedRevisionIsCurrent: ack.rowCount ? await ackStillCurrent(c, id, ack.rows[0].revision_id) : false,
         };
       }
       const shaped = shapeNotice(full, today);
@@ -572,27 +634,28 @@ const HANDLERS = {
     if (!rawText) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
     const contentText = rawText;
     const contentHtml = htmlFromText(rawText);
-    const noticeType = assertType(params && params.noticeType);
     const effectiveFrom = dateOnly(params && params.effectiveFrom) || todayISO();
     const effectiveTo = dateOnly(params && params.effectiveTo);
     if (effectiveTo && effectiveTo < effectiveFrom) throw nErr('NOTICE_DATE_RANGE', 'Ngày hết hiệu lực phải sau ngày hiệu lực.', 400);
     const requireAck = boolish(params && params.requireAcknowledgement);
+    const priority = assertPriority(params && params.priority);
     const scopes = normScopes(params && params.scopes);
     const keywords = normKeywords(params && params.keywords);
     const replacedNoticeId = text(params && params.replacedNoticeId);
 
     return writeTx(config, async (c) => {
+      const noticeType = await assertCategory(c, params && params.noticeType, true);
       const [a, e, n] = auditActor(actor);
       const ins = await c.query(
         `INSERT INTO notice.notices
-           (title, content_html, content_text, notice_type, effective_from, effective_to, require_acknowledgement, status, replaced_notice_id, created_by_account_id, created_by_employee_code, created_by_name, updated_by_account_id, updated_by_name)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9,$10,$11,$9,$11) RETURNING id`,
-        [title, contentHtml, contentText, noticeType, effectiveFrom, effectiveTo, requireAck, replacedNoticeId, a, e, n]
+           (title, content_html, content_text, notice_type, priority, effective_from, effective_to, require_acknowledgement, status, replaced_notice_id, created_by_account_id, created_by_employee_code, created_by_name, updated_by_account_id, updated_by_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft',$9,$10,$11,$12,$10,$12) RETURNING id`,
+        [title, contentHtml, contentText, noticeType, priority, effectiveFrom, effectiveTo, requireAck, replacedNoticeId, a, e, n]
       );
       const id = ins.rows[0].id;
       for (const s of scopes) await c.query('INSERT INTO notice.notice_scopes (notice_id, scope_type, scope_value) VALUES ($1,$2,$3)', [id, s.scopeType, s.scopeValue]);
       for (const k of keywords) await c.query('INSERT INTO notice.notice_keywords (notice_id, keyword) VALUES ($1,$2)', [id, k]);
-      await writeAudit(c, actor, id, 'create', null, { title, noticeType, effectiveFrom, effectiveTo, requireAck, scopes, keywords, replacedNoticeId: replacedNoticeId || null });
+      await writeAudit(c, actor, id, 'create', null, { title, noticeType, priority, effectiveFrom, effectiveTo, requireAck, scopes, keywords, replacedNoticeId: replacedNoticeId || null });
       return { id, status: 'draft' };
     });
   },
@@ -623,7 +686,12 @@ const HANDLERS = {
         if (html !== b.content_html) put('content_html', html, 'contentHtml');
         if (txt !== b.content_text) put('content_text', txt, 'contentText');
       }
-      if (params && params.noticeType != null) { const ty = assertType(params.noticeType); if (ty !== b.notice_type) put('notice_type', ty, 'noticeType'); }
+      if (params && params.noticeType != null) {
+        const raw = text(params.noticeType);
+        const ty = await assertCategory(c, raw, raw && raw !== b.notice_type); // active only required when actually switching
+        if (ty !== b.notice_type) put('notice_type', ty, 'noticeType');
+      }
+      if (params && params.priority != null) { const pr = assertPriority(params.priority); if (pr !== (b.priority || 'normal')) put('priority', pr, 'priority'); }
       let effFrom = ymd(b.effective_from);
       let effTo = ymd(b.effective_to);
       if (params && params.effectiveFrom != null) { const d = dateOnly(params.effectiveFrom); if (d && d !== effFrom) { put('effective_from', d, 'effectiveFrom'); effFrom = d; } }
@@ -852,6 +920,131 @@ const HANDLERS = {
     });
   },
 
+  // ---- CATEGORIES (§1) — content classification, not a visibility ACL ----
+  'notice.categories.list': async (config, actor, params) => {
+    // any verified actor may READ the active list (feed filter needs it);
+    // managers additionally see inactive ones + usage counts.
+    const canManage = await isContentManager(config, actor);
+    return readTx(config, async (c) => {
+      const r = await c.query(
+        `SELECT cat.slug, cat.name, cat.sort_order, cat.is_active, cat.is_system, cat.updated_by_name, cat.updated_at,
+                (SELECT count(*)::int FROM notice.notices n WHERE n.notice_type = cat.slug AND n.deleted_at IS NULL) AS use_count
+           FROM notice.notice_categories cat ORDER BY cat.sort_order, lower(cat.name)`);
+      const rows = r.rows
+        .filter((x) => canManage || x.is_active === true)
+        .map((x) => ({
+          slug: x.slug, name: x.name, sortOrder: x.sort_order, isActive: x.is_active === true, isSystem: x.is_system === true,
+          useCount: canManage ? x.use_count : undefined,
+          updatedByName: canManage ? (x.updated_by_name || '') : undefined, updatedAt: canManage ? x.updated_at : undefined,
+        }));
+      return { categories: rows, canManage: !!canManage };
+    });
+  },
+  'notice.categories.upsert': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const [a, , n] = auditActor(actor);
+    const slugIn = text(params && params.slug);
+    const name = text(params && params.name);
+    return writeTx(config, async (c) => {
+      if (!slugIn) {
+        // create
+        if (!name) throw nErr('NOTICE_CATEGORY_NAME', 'Tên danh mục là bắt buộc.', 400);
+        let slug = slugifyCat(name);
+        if (!slug) throw nErr('NOTICE_CATEGORY_NAME', 'Tên danh mục không hợp lệ.', 400);
+        // de-collide the slug
+        const exists = await c.query('SELECT 1 FROM notice.notice_categories WHERE slug LIKE $1', [slug + '%']);
+        if (exists.rowCount) slug = slug + '-' + (exists.rowCount + 1);
+        const so = Number.isFinite(Number(params && params.sortOrder)) ? Math.trunc(Number(params.sortOrder))
+          : ((await c.query('SELECT COALESCE(MAX(sort_order),0)+10 AS s FROM notice.notice_categories')).rows[0].s);
+        try {
+          await c.query(
+            `INSERT INTO notice.notice_categories (slug, name, sort_order, created_by_account_id, created_by_name, updated_by_account_id, updated_by_name)
+             VALUES ($1,$2,$3,$4,$5,$4,$5)`, [slug, name, so, a, n]);
+        } catch (e) {
+          if (String(e && e.code) === '23505') throw nErr('NOTICE_CATEGORY_DUP', 'Đã có danh mục cùng tên.', 409);
+          throw e;
+        }
+        await writeAudit(c, actor, null, 'category_create', null, { slug, name, sortOrder: so });
+        return { slug, created: true };
+      }
+      // update
+      const cur = await c.query('SELECT slug, name, sort_order, is_active, is_system FROM notice.notice_categories WHERE slug = $1 FOR UPDATE', [slugIn]);
+      if (!cur.rowCount) throw nErr('NOTICE_CATEGORY_INVALID', 'Danh mục không tồn tại.', 404);
+      const b = cur.rows[0];
+      const sets = []; const v = []; const changes = [];
+      if (name != null && name !== b.name) { v.push(name); sets.push('name = $' + v.length); changes.push(['category_rename', { slug: slugIn, from: b.name, to: name }]); }
+      if (params && Object.prototype.hasOwnProperty.call(params, 'sortOrder')) {
+        const so = Math.trunc(Number(params.sortOrder));
+        if (Number.isFinite(so) && so !== b.sort_order) { v.push(so); sets.push('sort_order = $' + v.length); changes.push(['category_reorder', { slug: slugIn, from: b.sort_order, to: so }]); }
+      }
+      if (params && Object.prototype.hasOwnProperty.call(params, 'isActive')) {
+        const ia = params.isActive === true || params.isActive === 'true';
+        if (ia !== (b.is_active === true)) {
+          v.push(ia); sets.push('is_active = $' + v.length);
+          changes.push([ia ? 'category_enable' : 'category_disable', { slug: slugIn }]);
+        }
+      }
+      if (!sets.length) return { slug: slugIn, changed: false };
+      v.push(a); sets.push('updated_by_account_id = $' + v.length);
+      v.push(n); sets.push('updated_by_name = $' + v.length);
+      v.push(slugIn);
+      await c.query(`UPDATE notice.notice_categories SET ${sets.join(', ')} WHERE slug = $${v.length}`, v);
+      for (const [act, payload] of changes) await writeAudit(c, actor, null, act, null, payload);
+      return { slug: slugIn, changed: true };
+    });
+  },
+  'notice.categories.reorder': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const order = Array.isArray(params && params.order) ? params.order.map(text).filter(Boolean) : [];
+    if (!order.length) throw nErr('NOTICE_CATEGORY_ORDER', 'Thiếu thứ tự danh mục.', 400);
+    return writeTx(config, async (c) => {
+      let i = 10;
+      for (const slug of order) {
+        await c.query('UPDATE notice.notice_categories SET sort_order = $1, updated_by_name = $3 WHERE slug = $2', [i, slug, actor.displayName || actor.employeeCode || null]);
+        i += 10;
+      }
+      await writeAudit(c, actor, null, 'category_reorder', null, { order });
+      return { reordered: order.length };
+    });
+  },
+
+  // ---- DUPLICATE WARNING while composing (§5) — read-only, non-blocking ----
+  'notice.similar': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const title = text(params && params.title) || '';
+    const body = text(params && params.contentText) || '';
+    const kws = (Array.isArray(params && params.keywords) ? params.keywords : []).map(text).filter(Boolean).join(' ');
+    const excludeId = text(params && params.excludeId);
+    const probe = (title + ' ' + kws + ' ' + body).replace(/\s+/g, ' ').trim().split(' ').slice(0, 40).join(' ');
+    if (probe.length < 3) return { candidates: [] };
+    const today = todayISO();
+    return readTx(config, async (c) => {
+      // OR the distinct significant terms — websearch_to_tsquery ANDs, which
+      // almost never matches a *different* notice. Build a `t1 | t2 | ...` query.
+      const terms = Array.from(new Set(
+        probe.split(/[^\p{L}\p{N}]+/u).map((w) => w.trim().toLowerCase()).filter((w) => w.length >= 2)
+      )).slice(0, 14);
+      if (!terms.length) return { candidates: [] };
+      const orQuery = terms.join(' | ');
+      const r = await c.query(
+        `SELECT n.id, n.title, n.notice_type, n.effective_from, n.effective_to, n.status, cat.name AS category_name,
+                ts_rank(n.search_tsv, to_tsquery('simple', notice.vn_unaccent($1))) AS score
+           FROM notice.notices n LEFT JOIN notice.notice_categories cat ON cat.slug = n.notice_type
+          WHERE n.deleted_at IS NULL AND n.status = 'published'
+            AND ($2 = '' OR n.id <> $2::uuid)
+            AND n.search_tsv @@ to_tsquery('simple', notice.vn_unaccent($1))
+          ORDER BY score DESC LIMIT 6`,
+        [orQuery, excludeId || '']
+      );
+      return {
+        candidates: r.rows.map((x) => ({
+          id: x.id, title: x.title, categoryName: x.category_name || x.notice_type,
+          effectiveStatus: effectiveStatus(x, today), score: Number(x.score) || 0,
+        })).filter((x) => x.score > 0.01),
+      };
+    });
+  },
+
   'notice.auditLog': async (config, actor, params) => {
     await requireManage(config, actor);
     const id = text(params && params.id);
@@ -1014,4 +1207,4 @@ async function dispatch(config, rawActor, action, params) {
   return handler(config, actor, params || {}, devGate);
 }
 
-module.exports = { dispatch, ACTIONS, HANDLERS, NoticeError, NOTICE_TYPES };
+module.exports = { dispatch, ACTIONS, HANDLERS, NoticeError, NOTICE_TYPES, PRIORITIES };

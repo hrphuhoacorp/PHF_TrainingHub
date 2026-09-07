@@ -57,7 +57,15 @@ function resetNotice() {
     + 'delete from notice.notice_acknowledgements; delete from notice.notice_views; delete from notice.notice_attachments; '
     + 'delete from notice.notice_keywords; delete from notice.notice_scopes; delete from notice.notice_revisions; '
     + 'delete from notice.notice_audit_logs; delete from notice.notice_permission_history; delete from notice.notice_permissions; '
-    + 'delete from notice.notices; reset session_replication_role'
+    + 'delete from notice.notices; '
+    // categories: drop test-created ones + re-sync the 4 system seeds to defaults
+    + "delete from notice.notice_categories where is_system = false; "
+    + "update notice.notice_categories set is_active = true; "
+    + "update notice.notice_categories set name='Quy định', sort_order=10 where slug='regulation'; "
+    + "update notice.notice_categories set name='Chính sách', sort_order=20 where slug='policy'; "
+    + "update notice.notice_categories set name='Quy trình', sort_order=30 where slug='process'; "
+    + "update notice.notice_categories set name='Hướng dẫn', sort_order=40 where slug='guide'; "
+    + 'reset session_replication_role'
   );
 }
 
@@ -344,8 +352,103 @@ async function startApi(port, devAllow) {
   // ---- AC18 no comments — structural: no comment action exists ----
   check('C24 AC18 no comments: service has no comment/Q&A action', !svc.ACTIONS.some((a) => /comment|reply|discuss|qa/i.test(a)), svc.ACTIONS.join(','));
 
+  // =====================================================================
+  // PHASE D — FINAL FUNCTIONAL PATCH (categories / priority / keywords / dedup / create-flow / updated-label)
+  // =====================================================================
+  console.log('\n=== PHASE D · categories + priority + additional keywords + duplicate warning + updated label ===\n');
+  if (psql("select count(*) from information_schema.tables where table_schema='notice' and table_name='notice_categories'") !== '1') { console.error('  FAIL  D0 phf_hr_notice_v1_2 migration not applied to throwaway'); FAIL++; }
+
+  // ---- categories default migration + CRUD (§1, mandatory tests) ----
+  const catList0 = await D(S_IN, { action: 'noticeCategoriesList' });
+  const seeded = catList0.categories.map((c) => c.slug).sort().join(',');
+  check('D1  4 default categories seeded (regulation/policy/process/guide)', seeded === 'guide,policy,process,regulation', seeded);
+  check('D2  default categories are system + active + ordered', catList0.categories.every((c) => c.isSystem && c.isActive) && catList0.categories[0].sortOrder < catList0.categories[3].sortOrder, '');
+  const catNew = await D(S_IN, { action: 'noticeCategoriesUpsert', name: 'Thông báo nội bộ khẩn' });
+  check('D3  add category', !!catNew.slug && /^[a-z0-9-]+$/.test(catNew.slug), JSON.stringify(catNew));
+  await D(S_IN, { action: 'noticeCategoriesUpsert', slug: catNew.slug, name: 'Thông báo nội bộ' });
+  check('D4  rename category', (await D(S_IN, { action: 'noticeCategoriesList' })).categories.find((c) => c.slug === catNew.slug).name === 'Thông báo nội bộ', '');
+  const beforeOrder = (await D(S_IN, { action: 'noticeCategoriesList' })).categories.map((c) => c.slug);
+  const revOrder = beforeOrder.slice().reverse();
+  await D(S_IN, { action: 'noticeCategoriesReorder', order: revOrder });
+  check('D5  reorder category', (await D(S_IN, { action: 'noticeCategoriesList' })).categories.map((c) => c.slug).join(',') === revOrder.join(','), '');
+  await D(S_IN, { action: 'noticeCategoriesUpsert', slug: catNew.slug, is_active: false });
+  const afterDisable = (await D(S_IN, { action: 'noticeCategoriesList' })).categories.find((c) => c.slug === catNew.slug);
+  check('D6  disable category (is_active=false, row kept)', afterDisable && afterDisable.isActive === false, JSON.stringify(afterDisable));
+  await expectThrow('D7  cannot create notice with a DISABLED category', () => D(S_IN, { action: 'noticeCreate', title: 't', content_text: 'x', notice_type: catNew.slug, effective_from: '2026-09-01' }), 'NOTICE_CATEGORY_INACTIVE');
+  await D(S_IN, { action: 'noticeCategoriesUpsert', slug: catNew.slug, is_active: true });
+  // one category per notice + used category cannot be hard-deleted (no delete action exists)
+  const catNotice = await D(S_IN, { action: 'noticeCreate', title: 'Bài dùng danh mục mới', content_text: 'nội dung.', notice_type: catNew.slug, effective_from: '2026-09-01' });
+  await D(S_IN, { action: 'noticePublish', id: catNotice.id });
+  check('D8  each notice has exactly one category (notice_type = the chosen slug)', psql(`select notice_type from notice.notices where id='${catNotice.id}'`) === catNew.slug, '');
+  check('D9  used category cannot be hard-deleted (no delete action + no DELETE grant)', !svc.ACTIONS.some((a) => /categor.*delete|delete.*categor/i.test(a))
+    && psql("select privilege_type from information_schema.role_table_grants where table_schema='notice' and table_name='notice_categories' and grantee='phf_hr_app' and privilege_type='DELETE'") === '', '');
+  const catUseCount = (await D(S_IN, { action: 'noticeCategoriesList' })).categories.find((c) => c.slug === catNew.slug).useCount;
+  check('D10 category use-count reflects published notices', catUseCount === 1, 'count=' + catUseCount);
+  const catAudit = Number(psql("select count(*) from notice.notice_audit_logs where action_type in ('category_create','category_rename','category_reorder','category_disable','category_enable')"));
+  check('D11 category admin -> audit (create/rename/reorder/disable/enable)', catAudit >= 5, 'count=' + catAudit);
+  await expectThrow('D12 viewer cannot manage categories', () => D(S_OUT, { action: 'noticeCategoriesUpsert', name: 'hack' }), 'NOTICE_MANAGE_DENIED');
+  // filter by category still works (search is automatic regardless)
+  const feedByCat = await D(S_IN, { action: 'noticeFeed', type: catNew.slug });
+  check('D13 feed filter by category returns only that category, search unaffected', feedByCat.notices.length >= 1 && feedByCat.notices.every((x) => x.noticeType === catNew.slug), JSON.stringify(feedByCat.notices.map((x) => x.noticeType)));
+
+  // ---- priority (§3) ----
+  const pN = await D(S_IN, { action: 'noticeCreate', title: 'Giá xăng cập nhật (thường)', content_text: 'nội dung thường.', notice_type: 'policy', priority: 'normal', effective_from: '2026-09-01' });
+  const pI = await D(S_IN, { action: 'noticeCreate', title: 'Nhắc quy trình đóng ca (quan trọng)', content_text: 'quan trọng.', notice_type: 'process', priority: 'important', effective_from: '2026-09-01' });
+  const pU = await D(S_IN, { action: 'noticeCreate', title: 'CẢNH BÁO gian lận voucher (hỏa tốc)', content_text: 'hỏa tốc, xử lý ngay.', notice_type: 'guide', priority: 'urgent', effective_from: '2026-09-01', require_acknowledgement: false });
+  for (const x of [pN, pI, pU]) await D(S_IN, { action: 'noticePublish', id: x.id });
+  const feedP = await D(S_OUT, { action: 'noticeFeed', q: '' });
+  const cN = feedP.notices.find((n) => n.id === pN.id), cI = feedP.notices.find((n) => n.id === pI.id), cU = feedP.notices.find((n) => n.id === pU.id);
+  check('D14 priority normal/important/urgent stored + returned', cN.priority === 'normal' && cI.priority === 'important' && cU.priority === 'urgent', '');
+  check('D15 active Hỏa tốc ranks ahead of an active normal (not pinned)', feedP.notices.findIndex((n) => n.id === pU.id) < feedP.notices.findIndex((n) => n.id === pN.id), '');
+  check('D16 Hỏa tốc does NOT force acknowledgement', cU.requireAcknowledgement === false, '');
+  // expire the urgent -> loses the priority advantage
+  psql(`update notice.notices set effective_from='2025-01-01', effective_to='2025-02-01' where id='${pU.id}'`);
+  const feedPx = await D(S_OUT, { action: 'noticeFeed', q: '' });
+  check('D17 expired Hỏa tốc loses the active-priority advantage', feedPx.notices.findIndex((n) => n.id === pU.id) > feedPx.notices.findIndex((n) => n.id === pN.id), '');
+  check('D18 explicit Ghim still a separate function (pin outranks urgent)', await (async () => { await D(S_IN, { action: 'noticeSetPin', id: pN.id, pinned: true }); const f = await D(S_OUT, { action: 'noticeFeed', q: '' }); await D(S_IN, { action: 'noticeSetPin', id: pN.id, pinned: false }); return f.notices[0].id === pN.id; })(), '');
+
+  // ---- automatic search preserved + additional keywords (§4) ----
+  const kNo = await D(S_IN, { action: 'noticeCreate', title: 'Hướng dẫn xử lý đơn trả hàng', content_text: 'Khi khách trả hàng, lập phiếu hoàn tiền và nhập kho.', notice_type: 'guide', effective_from: '2026-09-01', keywords: [] });
+  await D(S_IN, { action: 'noticePublish', id: kNo.id });
+  check('D19 automatic search works with NO additional keywords (body term)', (await D(S_OUT, { action: 'noticeFeed', q: 'hoàn tiền' })).notices.some((n) => n.id === kNo.id), '');
+  const kYes = await D(S_IN, { action: 'noticeUpdate', id: kNo.id, keywords: ['bùng đơn', 'ship COD', 'khách boom'] });
+  check('D20 additional-keyword search finds a term NOT in the body', (await D(S_OUT, { action: 'noticeFeed', q: 'khách boom' })).notices.some((n) => n.id === kNo.id), '');
+  const kwAudit = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${kNo.id}' and action_type='edit'`));
+  check('D21 keyword change captured in the edit audit (before/after keywords)', kwAudit >= 1, 'count=' + kwAudit);
+
+  // ---- duplicate warning (§5) — non-blocking ----
+  const dup = await D(S_IN, { action: 'noticeSimilar', title: 'Cập nhật cách bấm bill khi khách dùng voucher F6', content_text: 'chiết khấu đơn mã giảm giá', keywords: ['voucher'] });
+  check('D22 duplicate warning returns related published notices', Array.isArray(dup.candidates) && dup.candidates.length >= 1 && dup.candidates.every((c) => c.id && c.title && c.categoryName), JSON.stringify(dup.candidates.map((c) => c.title)));
+  const stillPublishes = await D(S_IN, { action: 'noticeCreate', title: 'Cập nhật cách bấm bill khi khách dùng voucher F6', content_text: 'nội dung mới về voucher.', notice_type: 'guide', effective_from: '2026-09-01' });
+  const pubDup = await D(S_IN, { action: 'noticePublish', id: stillPublishes.id });
+  check('D23 duplicate warning does NOT block publishing', pubDup.status === 'published', JSON.stringify(pubDup));
+  check('D24 noticeSimilar is read-only (no audit rows for it)', Number(psql("select count(*) from notice.notice_audit_logs where action_type like '%similar%'")) === 0, '');
+
+  // ---- edit without re-ack keeps old ack; updated label ----
+  await D(S_OUT, { action: 'noticeDetail', id: kNo.id });
+  await D(S_OUT, { action: 'noticeAcknowledge', id: kNo.id });
+  await new Promise((r) => setTimeout(r, 1200));
+  await D(S_IN, { action: 'noticeUpdate', id: kNo.id, title: 'Hướng dẫn xử lý đơn trả hàng (bổ sung)' });
+  const detNoReack = await D(S_OUT, { action: 'noticeDetail', id: kNo.id });
+  check('D25 edit WITHOUT re-ack -> old acknowledgement still counts (Đã xác nhận, current)', detNoReack.viewer.acknowledged === true && detNoReack.viewer.acknowledgedRevisionIsCurrent === true, JSON.stringify(detNoReack.viewer));
+  const feedUpd = await D(S_OUT, { action: 'noticeFeed', q: 'đơn trả hàng' });
+  const upCardD = feedUpd.notices.find((n) => n.id === kNo.id);
+  check('D26 feed card shows "Đã cập nhật" (edited flag + lastUpdatedAt)', upCardD && upCardD.edited === true && !!upCardD.updatedAt, JSON.stringify({ edited: upCardD && upCardD.edited }));
+  // edit WITH re-ack
+  await new Promise((r) => setTimeout(r, 1100));
+  await D(S_IN, { action: 'noticeUpdate', id: kNo.id, content_text: 'Nội dung thay đổi quan trọng — mọi người xác nhận lại.', require_reacknowledgement: true });
+  const detReack = await D(S_OUT, { action: 'noticeDetail', id: kNo.id });
+  check('D27 edit WITH re-ack -> viewer status becomes "cần xác nhận lại" (old ack historical)', detReack.viewer.acknowledged === true && detReack.viewer.acknowledgedRevisionIsCurrent === false, JSON.stringify(detReack.viewer));
+  check('D28 old acknowledgement history remains', Number(psql(`select count(*) from notice.notice_acknowledgements where notice_id='${kNo.id}' and employee_code='${U_OUT.employee_code}'`)) >= 1, '');
+
+  // ---- effective status still derived (regression) ----
+  const upcD = await D(S_IN, { action: 'noticeCreate', title: 'Chính sách năm sau', content_text: 'áp dụng năm sau.', notice_type: 'policy', effective_from: '2027-01-01' });
+  await D(S_IN, { action: 'noticePublish', id: upcD.id });
+  check('D29 upcoming/active/expired still derived automatically (no manual switch)', (await D(S_IN, { action: 'noticeFeed', q: 'năm sau' })).notices.find((n) => n.id === upcD.id).effectiveStatus === 'upcoming'
+    && !svc.ACTIONS.some((a) => /setStatus|setEffective|forceExpire/i.test(a)), '');
+
   stopApi();
 
-  console.log(`\n==== NOTICE Batch 01+02 LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
+  console.log(`\n==== NOTICE Batch 01+02+FinalPatch LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);
 })().catch((e) => { stopApi(); console.error('E2E fatal: ' + (e && e.stack || e)); process.exit(1); });
