@@ -39,6 +39,11 @@ const { CompetitionError } = require('./lib/competition-common');
 // PostgreSQL notice.*. Same discipline as /v1/competition. Do NOT enable on Production.
 const noticeService = require('./lib/notice-service');
 const { NoticeError } = noticeService;
+const auditService = require('./lib/audit-service');
+// SYSTEM V1 Nhật ký hệ thống — bridge OFF by default. When off, /v1/audit
+// returns 503 and the Vercel emit helper silently no-ops (fail-open: a login
+// or account action is NEVER failed because audit storage is unavailable).
+const AUDIT_BRIDGE_ENABLED = String(process.env.PHF_AUDIT_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const { executeResolvedTaskTimelineQuery } = require('./lib/task-timeline-query-executor');
@@ -856,6 +861,50 @@ function createServer(config) {
           }
           logger.error('notice_unexpected_error', { path, action, message: err && err.message });
           return sendJson(res, 500, { ok: false, code: 'NOTICE_ERROR', message: 'Lỗi hệ thống khi xử lý Thông báo.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/audit:<verb> — SYSTEM V1 Nhật ký hệ thống FOUNDATION V1.
+      //   :emit   { entry }              — append one audit row (Vercel emit helper)
+      //   :list   { filters }            — keyset-paginated read (Admin proxy)
+      //   :detail { id }                 — one row incl. bounded before/after
+      // Bearer service token required. Identity/ip/ua/request-id are already
+      // resolved server-side by the Vercel layer and passed in `entry`; this
+      // service NEVER trusts a browser. There is NO update/delete verb.
+      // OFF by default (PHF_AUDIT_BRIDGE_ENABLED) — returns 503 when disabled.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && (path === '/v1/audit:emit' || path === '/v1/audit:list' || path === '/v1/audit:detail')) {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!AUDIT_BRIDGE_ENABLED) {
+          return sendJson(res, 503, { ok: false, code: 'AUDIT_BRIDGE_DISABLED', message: 'PHF_AUDIT_BRIDGE_ENABLED is off.' });
+        }
+        let body;
+        try { body = await readJsonBody(req, 256 * 1024); }
+        catch (err) { return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' }); }
+        try {
+          if (path === '/v1/audit:emit') {
+            const out = await auditService.emitAudit(config, body && body.entry);
+            return sendJson(res, 200, { ok: true, data: out });
+          }
+          if (path === '/v1/audit:list') {
+            const out = await auditService.listAudit(config, (body && body.filters) || {});
+            return sendJson(res, 200, { ok: true, data: out });
+          }
+          const out = await auditService.getAuditDetail(config, body && body.id);
+          return sendJson(res, 200, { ok: true, data: out });
+        } catch (err) {
+          const code = err && err.code;
+          if (code && /^AUDIT_/.test(code)) {
+            logger.warn('audit_rejected', { path, code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code, message: err.message });
+          }
+          logger.error('audit_unexpected_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'AUDIT_ERROR', message: 'Lỗi hệ thống khi ghi/đọc Nhật ký.' });
         }
       }
 

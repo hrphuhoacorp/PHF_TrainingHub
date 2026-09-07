@@ -136,15 +136,17 @@ async function lockAccountsForDepartedEmployee(session,profileRow){
     if(String((row.metadata&&row.metadata.accountType)||'').toLowerCase()==='system_admin')return false;
     return true;
   });
-  let locked=0;
+  let locked=0;const accounts=[];
   for(const row of targets){
     const upd=await db.from('user_accounts').update({status:'inactive',updated_at:new Date().toISOString()}).eq('id',row.id);
     if(upd.error)throw upd.error;
-    locked++;
-    // Audit hook for the future System Audit module (not built now).
+    locked++;accounts.push({id:String(row.id||''),employee_code:employeeCode||'',previous_status:row.status||'active'});
+    // Employee Master module-history trail (Supabase MAIN). The System V1
+    // central audit row (EMPLOYEE_INACTIVE_AUTO_LOCK) is emitted by the caller
+    // in api/data.js where the request context (ip/ua/request-id) is available.
     try{await history(session,profileRow.id,'account','auto_lock',{status:row.status},{status:'inactive'},'Tự động khóa tài khoản do nhân sự chuyển sang Nghỉ việc');}catch(_e){}
   }
-  return{locked};
+  return{locked,accounts};
 }
 
 async function saveProfile(session,input){
