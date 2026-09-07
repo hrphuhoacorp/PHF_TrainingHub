@@ -167,8 +167,11 @@
     var st=document.createElement('style');st.id='phf-sysac-style';
     st.textContent=[
       '.phf-sysac .phf-acct-safe-hero{background:linear-gradient(135deg,#10241d 0%,#183a2e 55%,#0c1c17 100%);border:1px solid #22463a;border-radius:18px;box-shadow:0 0 0 1px rgba(31,122,90,.12),0 18px 40px -18px rgba(4,32,22,.55),inset 0 1px 0 rgba(120,200,170,.08);color:#eaf5ef}',
-      '.phf-sysac .phf-acct-safe-hero h2{color:#f2fbf7}',
-      '.phf-sysac .phf-acct-safe-hero p{color:#a9c9bd}',
+      // Root cause: phf-training-hub.css has a global `h1,h2,h3,h4{color:var(--phf-deep)!important}`
+      // (dark green). On a dark hero the title needs its own !important to win —
+      // no specificity alone can beat that global !important.
+      '.phf-sysac .phf-acct-safe-hero h2{color:rgba(255,255,255,.96)!important}',
+      '.phf-sysac .phf-acct-safe-hero p{color:rgba(255,255,255,.78)}',
       '.phf-sysac .phf-acct-safe-kicker{color:#5fd0a6;letter-spacing:.14em}',
       '.phf-sysac .phf-acct-safe-note-top{background:rgba(10,26,21,.5);border:1px solid #2b5245;color:#cfe7dd}',
       '.phf-sysac .phf-acct-safe-note-top small{color:#8fb6a8}',

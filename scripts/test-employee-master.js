@@ -96,4 +96,14 @@ assert(accountUi.includes("phf-acct-admin-v2 phf-sysac"),'Control-center styles 
 assert(accountUi.includes("function accountHudStrip")&&accountUi.includes("Tổng tài khoản")&&accountUi.includes("Đang hoạt động")&&accountUi.includes("Khóa / Ngừng")&&/hud is-admin[\s\S]{0,40}Admin/.test(accountUi),'HUD strip must show Tổng / Đang hoạt động / Khóa-Ngừng / Admin, computed from the already-loaded list.');
 assert(accountUi.includes("lastLoginLabel(a.lastLoginAt)"),'Account row must surface last-login (from the now-exposed lastLoginAt).');
 
+/* HERO TITLE CONTRAST — root cause: phf-training-hub.css ships a global
+   `h1,h2,h3,h4{ ... color:var(--phf-deep)!important }` (dark green). A hero with
+   a dark background must give its title an explicit light color that also
+   carries !important, or the global !important wins and the title goes
+   dark-on-dark. Both PHF HR "nhân sự" heroes are dark green. */
+const hubCss = read('assets/css/phf-training-hub.css');
+assert(/h1,h2,h3,h4[,{][\s\S]{0,400}color:var\(--phf-deep\)!important/.test(hubCss),'Guard assumes the global dark-green heading !important still exists (root cause of the hero-title contrast bug).');
+assert(/\.phf-em-hero h1\{[^}]*color:#fff!important/.test(read('assets/css/phf-employee-master.css')),'People Master hero <h1> must set an explicit white !important title (beats the global dark-green heading !important).');
+assert(accountUi.includes(".phf-sysac .phf-acct-safe-hero h2{color:rgba(255,255,255,.96)!important}"),'Account Control Center dark hero <h2> must own its title colour with !important (same root cause).');
+
 console.log(`Employee Master tests: ${passed}/${passed} PASS`);
