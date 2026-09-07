@@ -182,10 +182,11 @@ function continueSync() {
       const home = rd('assets/js/phf-hr-home.js');
       // Operator visual smoke PASSED (2026-09-07) — Home card now routes to the
       // real Admin-only audit screen; "Tình trạng hệ thống" stays a placeholder.
-      ok(/title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống\?',badge:'Admin',href:'\/admin\/he-thong\/nhat-ky'/.test(home), 'Home card "Nhật ký hệ thống" active -> /admin/he-thong/nhat-ky');
+      ok(/title:'Nhật ký hệ thống',badge:'Admin',href:'\/admin\/he-thong\/nhat-ky'/.test(home), 'Home card "Nhật ký hệ thống" active -> /admin/he-thong/nhat-ky');
       ok(/\{label:'Nhật ký hệ thống',href:'\/admin\/he-thong\/nhat-ky',icon:'chart'\}/.test(home), 'System nav menu entry routes to the audit screen');
-      ok(/title:'Tình trạng hệ thống',desc:'[^']*\?',soon:true/.test(home), '"Tình trạng hệ thống" still a placeholder (soon:true)');
       ok(!/title:'Nhật ký hệ thống'[^}]*soon:true/.test(home), 'audit card no longer marked soon:true');
+      // Home copy cleanup (2026-09-07): the 3 System card subtitles removed.
+      ok(!/desc:'Ai đã làm gì trên hệ thống/.test(home) && !/desc:'Ai được phép sử dụng PHF HR/.test(home), 'System Home card subtitles removed');
     }
   }
 

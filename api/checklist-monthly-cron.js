@@ -24,6 +24,21 @@ const { syncMonthlyCycle } = require('./_lib/checklist-monthly');
 const { runTaskRecurrence } = require('./_lib/task-recurrence-actions');
 const { runMailDrain } = require('./_lib/task-mail-drain');
 const { runWeeklyReport } = require('./_lib/task-weekly-report');
+// SYSTEM V1 · Tình trạng hệ thống — fail-open last-run heartbeat. A heartbeat
+// write failure (or the bridge being off) NEVER changes the cron outcome.
+const { emitCronHeartbeat } = require('./_lib/system-health');
+
+// Pull only small non-sensitive counters out of a job summary for the heartbeat.
+function hbSummary(s) {
+  if (!s || typeof s !== 'object') return null;
+  const src = s.summary && typeof s.summary === 'object' ? s.summary : s;
+  const pick = ['claimed', 'sent', 'skipped', 'failed', 'pending', 'generated', 'alreadyClaimed',
+    'rulesScanned', 'occurrences', 'enabled', 'bridgeEnabled', 'providerConfigured',
+    'recipients', 'enqueued'];
+  const out = {};
+  for (const k of pick) if (src[k] !== undefined) out[k] = src[k];
+  return Object.keys(out).length ? out : null;
+}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -77,9 +92,11 @@ async function handleTaskWeeklyReportCron(req, res) {
   if (!expected || provided !== expected) return send(res, 401, { ok: false, message: 'Cron secret khong hop le.' });
   try {
     const summary = await runWeeklyReport({});
+    await emitCronHeartbeat('task-weekly-report', true, hbSummary(summary));
     return send(res, 200, { ok: true, summary });
   } catch (error) {
     console.error('[PHF Task weekly report cron]', (error && error.code) || '', (error && error.message) || error);
+    await emitCronHeartbeat('task-weekly-report', false, { code: String((error && error.code) || 'ERROR').slice(0, 40) });
     return send(res, 500, { ok: false, code: (error && error.code) || undefined, message: (error && error.message) || 'Weekly report loi.' });
   }
 }
@@ -95,9 +112,11 @@ async function handleTaskMailCron(req, res) {
   if (!expected || provided !== expected) return send(res, 401, { ok: false, message: 'Cron secret không hợp lệ.' });
   try {
     const summary = await runMailDrain({});
+    await emitCronHeartbeat('task-mail', true, hbSummary(summary));
     return send(res, 200, { ok: true, summary });
   } catch (error) {
     console.error('[PHF Task mail cron]', (error && error.code) || '', (error && error.message) || error);
+    await emitCronHeartbeat('task-mail', false, { code: String((error && error.code) || 'ERROR').slice(0, 40) });
     return send(res, 500, { ok: false, code: (error && error.code) || undefined, message: (error && error.message) || 'Mail drain lỗi.' });
   }
 }
@@ -139,9 +158,11 @@ async function handleTaskRecurrenceCron(req, res) {
       }
     };
     const result = await runTaskRecurrence(session, {});
+    await emitCronHeartbeat('task-recurrence', true, hbSummary(result && result.result ? result.result : result));
     return send(res, 200, { ok: true, result });
   } catch (error) {
     console.error('[PHF Task recurrence cron]', (error && error.code) || '', (error && error.message) || error);
+    await emitCronHeartbeat('task-recurrence', false, { code: String((error && error.code) || 'ERROR').slice(0, 40) });
     const status = Number.isInteger(error && error.statusCode)
       ? error.statusCode
       : (Number.isInteger(error && error.status) ? error.status : 500);

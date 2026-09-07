@@ -44,6 +44,10 @@ const auditService = require('./lib/audit-service');
 // returns 503 and the Vercel emit helper silently no-ops (fail-open: a login
 // or account action is NEVER failed because audit storage is unavailable).
 const AUDIT_BRIDGE_ENABLED = String(process.env.PHF_AUDIT_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
+const systemHealthService = require('./lib/system-health-service');
+// SYSTEM V1 Tình trạng hệ thống — bridge OFF by default. When off, /v1/system:*
+// returns 503 (fail-closed). Bounded read + heartbeat upsert only; no secrets.
+const SYSTEM_HEALTH_BRIDGE_ENABLED = String(process.env.PHF_SYSTEM_HEALTH_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const { executeResolvedTaskTimelineQuery } = require('./lib/task-timeline-query-executor');
@@ -905,6 +909,63 @@ function createServer(config) {
           }
           logger.error('audit_unexpected_error', { path, message: err && err.message });
           return sendJson(res, 500, { ok: false, code: 'AUDIT_ERROR', message: 'Lỗi hệ thống khi ghi/đọc Nhật ký.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // SYSTEM V1 · Tình trạng hệ thống (System Health).
+      //   GET  /v1/system:health     — bounded operational snapshot for the
+      //        Admin screen (process ok + Company-PG deep SELECT 1 + heartbeat
+      //        rows + bounded mail-outbox aggregate). READ ONLY. No secrets.
+      //   POST /v1/system:heartbeat  { job, ok, summary } — the existing cron
+      //        entrypoints call this fail-open after a run. UPSERT one row.
+      // Bearer service token required. Flag-gated (PHF_SYSTEM_HEALTH_BRIDGE_
+      // ENABLED) — 503 when off (fail-closed). No update/delete/query verb.
+      // ---------------------------------------------------------------
+      if (req.method === 'GET' && path === '/v1/system:health') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!SYSTEM_HEALTH_BRIDGE_ENABLED) {
+          return sendJson(res, 503, { ok: false, code: 'SYSTEM_HEALTH_BRIDGE_DISABLED', message: 'PHF_SYSTEM_HEALTH_BRIDGE_ENABLED is off.' });
+        }
+        try {
+          const data = await systemHealthService.getServiceHealth(config, {
+            uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+            startedAt: new Date(startedAt).toISOString(),
+          });
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          logger.error('system_health_unexpected_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'SYSTEM_HEALTH_ERROR', message: 'Lỗi khi đọc tình trạng hệ thống.' });
+        }
+      }
+      if (req.method === 'POST' && path === '/v1/system:heartbeat') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!SYSTEM_HEALTH_BRIDGE_ENABLED) {
+          return sendJson(res, 503, { ok: false, code: 'SYSTEM_HEALTH_BRIDGE_DISABLED', message: 'PHF_SYSTEM_HEALTH_BRIDGE_ENABLED is off.' });
+        }
+        let body;
+        try { body = await readJsonBody(req, 32 * 1024); }
+        catch (err) { return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' }); }
+        try {
+          const out = await systemHealthService.writeHeartbeat(
+            config, body && body.job, !!(body && body.ok), body && body.summary
+          );
+          return sendJson(res, 200, { ok: true, data: out });
+        } catch (err) {
+          const code = err && err.code;
+          if (code === 'SYSTEM_HEALTH_JOB_INVALID') {
+            return sendJson(res, 400, { ok: false, code, message: err.message });
+          }
+          logger.error('system_health_heartbeat_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'SYSTEM_HEALTH_ERROR', message: 'Lỗi khi ghi nhịp tác vụ nền.' });
         }
       }
 

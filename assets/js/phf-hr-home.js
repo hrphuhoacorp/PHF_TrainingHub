@@ -315,10 +315,10 @@ function hrGroupsModel(){
     // active from System V1 Audit Log FOUNDATION. "Tình trạng hệ thống" is still
     // a shell (Sắp triển khai).
     {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
-      {tint:'gray',icon:'gear',title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?',badge:'Admin',
+      {tint:'gray',icon:'gear',title:'Quản trị tài khoản',badge:'Admin',
         href:'/admin/nhan-su/tai-khoan'},
-      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?',badge:'Admin',href:'/admin/he-thong/nhat-ky'},
-      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?',soon:true}
+      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',badge:'Admin',href:'/admin/he-thong/nhat-ky'},
+      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',soon:true}
     ]}
   ].filter(function(g){return g.key!=='d'||isAdmin;});
 }
@@ -333,7 +333,7 @@ function hrCardHtml(c){
         : '<span class="phf-hr-mod-badge">'+esc(c.badge||'')+'</span><span class="phf-hr-mod-arrow" aria-hidden="true">'+icon('arrow')+'</span>');
   return '<article class="'+cls+'"'+attr+'>'
     +'<div class="phf-hr-mod-top"><span class="phf-hr-mod-ico">'+icon(c.icon||'grid')+'</span>'
-      +'<span class="phf-hr-mod-txt"><b>'+esc(c.title)+'</b><span>'+esc(c.desc||'')+'</span></span></div>'
+      +'<span class="phf-hr-mod-txt"><b>'+esc(c.title)+'</b>'+(c.desc?'<span>'+esc(c.desc)+'</span>':'')+'</span></span></div>'
     +'<div class="phf-hr-mod-foot">'+foot+'</div></article>';
 }
 function hrGroupsHtml(){

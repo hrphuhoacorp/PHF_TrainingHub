@@ -912,6 +912,21 @@ module.exports = async function handler(req, res) {
           return res.status(e.statusCode||502).json({ok:false,error:e.message||'Không đọc được Nhật ký hệ thống.',code:e.code||'AUDIT_READ_FAILED'});
         }
       }
+      // SYSTEM V1 · Tình trạng hệ thống — Admin-only, READ-ONLY. Server-side
+      // aggregator; every probe is bounded + isolated. Browser only ever gets
+      // the reduced status enum + timestamps + small counters.
+      if(String(req.query?.systemHealth || '') === '1'){
+        if(String(session.role||'').toLowerCase()!=='admin'){
+          return res.status(403).json({ok:false,error:'Tình trạng hệ thống chỉ dành cho Admin hệ thống.',code:'SYSTEM_HEALTH_ADMIN_REQUIRED'});
+        }
+        try{
+          const {getSystemHealth}=require('./_lib/system-health');
+          const data=await getSystemHealth();
+          return res.status(200).json({ok:true,...data});
+        }catch(e){
+          return res.status(502).json({ok:false,error:'Không đọc được tình trạng hệ thống.',code:'SYSTEM_HEALTH_READ_FAILED'});
+        }
+      }
       if (checklistWorkspaceMode) {
         const [workspace, templateData, violationMode] = await Promise.all([
           getChecklistRoleWorkspace(session),

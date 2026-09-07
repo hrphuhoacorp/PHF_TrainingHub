@@ -84,10 +84,16 @@ console.log('\n== HOME BODY — HỆ THỐNG card group ==');
 {
   check(/title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống'/.test(src),
     'body group d renamed to "HỆ THỐNG" with the locked subtitle');
-  check(src.includes("title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?'")
-     && src.includes("title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?'")
-     && src.includes("title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?'"),
-    'the 3 V1 function cards carry the locked titles + subtitles');
+  check(src.includes("title:'Quản trị tài khoản'")
+     && src.includes("title:'Nhật ký hệ thống'")
+     && src.includes("title:'Tình trạng hệ thống'"),
+    'the 3 V1 function cards carry the locked titles');
+  // Home copy cleanup (approved 2026-09-07): the explanatory subtitles are removed
+  // from the HỆ THỐNG group — cleaner Admin Control Center look.
+  check(!src.includes("desc:'Ai được phép sử dụng PHF HR?'")
+     && !src.includes("desc:'Ai đã làm gì trên hệ thống?'")
+     && !src.includes("desc:'Hệ thống hiện đang khỏe hay gặp lỗi?'"),
+    'the 3 HỆ THỐNG card subtitles are removed');
   check(/\.filter\(function\(g\)\{return g\.key!=='d'\|\|isAdmin;\}\)/.test(src),
     'the whole HỆ THỐNG card group is omitted for non-Admin');
   check(!src.includes("title:'Hệ thống & Báo cáo'"),
