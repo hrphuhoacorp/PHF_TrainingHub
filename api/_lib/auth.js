@@ -280,6 +280,34 @@ async function getEmployeeCodesByAccountIds(ids){
   return map;
 }
 
+// Read-only: the UPPERCASE employee_code set for every ACTIVE system-Admin
+// account. Used by modules (e.g. Thông báo Quản trị) whose permission screens
+// must show that a system Admin already holds full authority by default and is
+// not gated by the module's own grant toggle. No writes, no link repair.
+async function listAdminEmployeeCodes(){
+  const out = new Set();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('user_accounts').select('employee_code,role,status')
+      .eq('role', 'admin');
+    if (error) throw error;
+    (data || []).forEach(row => {
+      if (String(row.status || 'active').toLowerCase() !== 'active') return;
+      const c = String(row.employee_code || '').trim().toUpperCase();
+      if (c) out.add(c);
+    });
+    return out;
+  }
+  const store = readFileStore();
+  (store.accounts || []).map(normalizeAccount).forEach(a => {
+    if (cleanRole(a.role) !== 'admin') return;
+    if (cleanStatus(a.status) !== 'active') return;
+    const c = String(a.employeeCode || '').trim().toUpperCase();
+    if (c) out.add(c);
+  });
+  return out;
+}
+
 async function resolveUniqueEmployeeIdByPhone(phone){
   const normalizedPhone = cleanPhone(phone);
   if (normalizedPhone.length < 8) return '';
@@ -1317,6 +1345,7 @@ module.exports = {
   publicAccount,
   getAccountById,
   getEmployeeCodesByAccountIds,
+  listAdminEmployeeCodes,
   cleanPhone,
   cleanEmail,
   hashPassword,

@@ -20,6 +20,7 @@
 const { resolveNoticeActor } = require('./notice-identity');
 const { callNoticeAction } = require('./notice-bridge');
 const { loadOrgRows } = require('./task-employee-scope');
+const { listAdminEmployeeCodes } = require('./auth');
 
 function str(v) { return v == null ? undefined : String(v); }
 function code(v) { const s = v == null ? '' : String(v).trim().toUpperCase(); return s || undefined; }
@@ -46,6 +47,7 @@ const PASSTHROUGH = {
   noticeFeed:        { remote: 'notice.feed', params: (p) => ({
     q: str(p.q), type: str(p.type), status: str(p.status), scope: str(p.scope),
     includeDrafts: bool(p.include_drafts),
+    mode: (str(p.mode) === 'inbox' || str(p.mode) === 'bell') ? str(p.mode) : undefined,
   }) },
   noticeDetail:      { remote: 'notice.detail', params: (p) => ({ id: str(p.id) }) },
   noticeAcknowledge: { remote: 'notice.acknowledge', params: (p) => ({ id: str(p.id) }) },
@@ -53,6 +55,7 @@ const PASSTHROUGH = {
     title: str(p.title), contentHtml: str(p.content_html), contentText: str(p.content_text),
     noticeType: str(p.notice_type), priority: str(p.priority), effectiveFrom: str(p.effective_from), effectiveTo: str(p.effective_to),
     requireAcknowledgement: bool(p.require_acknowledgement), scopes: scopesIn(p), keywords: keywordsIn(p),
+    pinned: bool(p.pinned),
     replacedNoticeId: str(p.replaced_notice_id),
   }) },
   noticeUpdate:      { remote: 'notice.update', params: (p) => {
@@ -65,6 +68,7 @@ const PASSTHROUGH = {
     if (Object.prototype.hasOwnProperty.call(p, 'effective_from')) out.effectiveFrom = str(p.effective_from);
     if (Object.prototype.hasOwnProperty.call(p, 'effective_to')) out.effectiveTo = str(p.effective_to);
     if (Object.prototype.hasOwnProperty.call(p, 'require_acknowledgement')) out.requireAcknowledgement = bool(p.require_acknowledgement);
+    if (Object.prototype.hasOwnProperty.call(p, 'pinned')) out.pinned = bool(p.pinned);
     if (Array.isArray(p.scopes)) out.scopes = scopesIn(p);
     if (Array.isArray(p.keywords)) out.keywords = keywordsIn(p);
     out.requireReacknowledgement = bool(p.require_reacknowledgement);
@@ -114,27 +118,61 @@ async function report(session, payload) {
 // notice.notice_permissions merged (like qtth listRoster).
 async function permissionRoster(session) {
   const actor = await resolveNoticeActor(session);
-  const [rows, perms] = await Promise.all([
+  // "Cài đặt quyền" is system-Admin ONLY (§C/§D). Fail here before touching the
+  // People Master roster; phf-hr-api's notice.permissions.list also enforces it.
+  if (String(actor.systemRole || '') !== 'admin') {
+    const e = new Error('Chỉ Admin hệ thống được mở Cài đặt quyền.');
+    e.code = 'NOTICE_ADMIN_REQUIRED'; e.statusCode = 403;
+    throw e;
+  }
+  const [rows, perms, adminCodes] = await Promise.all([
     loadOrgRows(),
     callNoticeAction('notice.permissions.list', actor, {}),
+    listAdminEmployeeCodes().catch(() => new Set()),
   ]);
   const permByCode = new Map((perms.permissions || []).map((p) => [p.employeeCode, p]));
   let noManage = 0;
   const roster = rows.map((r) => {
     const active = isActiveStatus(r.status);
     const p = permByCode.get(r.employeeCode) || null;
-    const canManage = !!(p && p.canManage);
+    const grant = !!(p && p.canManage);
+    // A system Admin ALWAYS has full Thông báo authority (server-authoritative
+    // in phf-hr-api: isAdmin(actor) short-circuits every manage check). The
+    // module grant toggle is only for NON-admins — so the row must read
+    // "Toàn quyền (Admin hệ thống)", never an OFF toggle that misleads.
+    const isSystemAdmin = adminCodes.has(String(r.employeeCode || '').toUpperCase());
+    const canManage = grant || isSystemAdmin;
     if (active && !canManage) noManage++;
     return {
       employeeCode: r.employeeCode, fullName: r.fullName,
       status: active ? 'active' : 'inactive',
       department: r.department || '', branch: r.branch || '', title: r.title || r.position || '',
-      canManage,
+      canManage, grant, isSystemAdmin,
       permissionUpdatedByName: p ? p.updatedByName || '' : '',
       permissionUpdatedAt: p ? p.updatedAt : null,
     };
   });
   return { roster, warnings: { activeWithoutManage: noManage } };
+}
+
+// "Áp dụng" picker options — distinct active department / branch labels from the
+// People Master (the existing loadOrgRows source; no schema, no new datastore).
+// Values are the same strings a notice.scope stores, so semantics are unchanged:
+// "Áp dụng" stays a label + report denominator, NOT a visibility ACL.
+async function orgScopes(session) {
+  const actor = await resolveNoticeActor(session);
+  if (String(actor.systemRole || '') !== 'admin' && !actor.employeeCode) {
+    const e = new Error('Chưa xác định danh tính.'); e.code = 'NOTICE_IDENTITY_REQUIRED'; e.statusCode = 401; throw e;
+  }
+  const rows = await loadOrgRows();
+  const dep = new Set(), br = new Set();
+  for (const r of rows) {
+    if (!isActiveStatus(r.status)) continue;
+    const d = str(r.department); if (d) dep.add(d.trim());
+    const b = str(r.branch); if (b) br.add(b.trim());
+  }
+  const vi = (a, z) => a.localeCompare(z, 'vi');
+  return { departments: Array.from(dep).sort(vi), branches: Array.from(br).sort(vi) };
 }
 
 async function dispatchNoticeAction(session, payload) {
@@ -145,6 +183,9 @@ async function dispatchNoticeAction(session, payload) {
   }
   if (action === 'noticePermissionRoster') {
     return { handled: true, result: await permissionRoster(session) };
+  }
+  if (action === 'noticeOrgScopes') {
+    return { handled: true, result: await orgScopes(session) };
   }
 
   const entry = PASSTHROUGH[action];
@@ -162,6 +203,7 @@ const NOTICE_ACTION_MANIFEST = Object.freeze([
   'noticeAttachmentAdd', 'noticeAttachmentRemove', 'noticeAttachmentDownload',
   'noticeCategoriesList', 'noticeCategoriesUpsert', 'noticeCategoriesReorder', 'noticeSimilar',
   'noticePermissionRoster', 'noticeSetPermission', 'noticePermissionHistory',
+  'noticeOrgScopes',
 ]);
 
 module.exports = { dispatchNoticeAction, NOTICE_ACTION_MANIFEST };

@@ -21,7 +21,7 @@ const remoteRefs = Array.from(actionsSrc.matchAll(/remote:\s*'([^']+)'/g)).map((
   .concat(Array.from(actionsSrc.matchAll(/callNoticeAction\('([^']+)'/g)).map((m) => m[1]));
 check('1  every Vercel-referenced remote action exists in notice-service ACTIONS',
   remoteRefs.every((a) => remoteActions.has(a)), remoteRefs.filter((a) => !remoteActions.has(a)).join(','));
-check('2  manifest lists 22 stable Vercel actions', NOTICE_ACTION_MANIFEST.length === 22, String(NOTICE_ACTION_MANIFEST.length));
+check('2  manifest lists 23 stable Vercel actions (+ noticeOrgScopes)', NOTICE_ACTION_MANIFEST.length === 23 && NOTICE_ACTION_MANIFEST.indexOf('noticeOrgScopes') >= 0, String(NOTICE_ACTION_MANIFEST.length));
 check('3  service exposes bootstrap + feed + detail + acknowledge (public read path)',
   ['notice.bootstrap', 'notice.feed', 'notice.detail', 'notice.acknowledge'].every((a) => remoteActions.has(a)));
 
@@ -119,9 +119,12 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     /\.phf-notice-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css)
     && /<b>Thông báo Quản Trị<\/b><small>PHF HR<\/small>/.test(js)
     && /phfGetAuthenticatedUser|phfGetCurrentUser/.test(js));
-  check('29 sidebar nav = Thông báo (always) + Báo cáo tiếp nhận + Cài đặt quyền (manage-gated only)',
-    /key:'feed',label:'Thông báo'/.test(js) && /label:'Báo cáo tiếp nhận'/.test(js) && /label:'Cài đặt quyền'/.test(js)
-    && /if\(manage\)\{[\s\S]*?bao-cao[\s\S]*?quyen/.test(js));
+  check('29 sidebar 3 groups; QUẢN TRỊ split: "Quản lý danh mục" = canManage, "Cài đặt quyền" = Admin only (canManagePermissions)',
+    /title:'Thông báo'/.test(js) && /key:'feed',label:'Tất cả thông báo'/.test(js)
+    && /if\(manage\)\{[\s\S]*?title:'Theo dõi'[\s\S]*?label:'Báo cáo tiếp nhận'/.test(js)
+    && /if\(manage\)admin\.push\(\{key:'danh-muc',label:'Quản lý danh mục'/.test(js)
+    && /if\(canPerm\)admin\.push\(\{key:'quyen',label:'Cài đặt quyền'/.test(js)
+    && /var canPerm=!!\(caps\.canManagePermissions\|\|\(boot&&boot\.viewer&&boot\.viewer\.isAdmin\)\)/.test(js));
   check('30 "+ Đăng thông báo" is an ACTION in the feed head, never a sidebar nav item',
     /phf-notice-head-actions[\s\S]{0,120}data-nt-create/.test(js) && !/label:'[^']*Đăng thông báo'/.test(js));
   check('31 Báo cáo tiếp nhận + Cài đặt quyền render into the SAME work slot (setWork), not a custom layout',
@@ -154,13 +157,17 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     !svc2.ACTIONS.some((a) => /setStatus|setEffectiveStatus|forceExpire|forceActive/i.test(a)));
 
   const js2 = read('assets/js/notice/phf-notice-app.js');
-  check('41 sidebar: "Danh mục" is a manager nav item (inside the if(manage) block, before Báo cáo tiếp nhận)',
-    /if\(manage\)\{\s*\n\s*items\.push\(\{key:'danh-muc',label:'Danh mục'/.test(js2));
-  check('42 wizard field order: Tiêu đề -> Danh mục -> Mức ưu tiên -> Áp dụng -> Nội dung -> Từ khóa bổ sung',
+  check('41 sidebar: category config is "Quản lý danh mục" in the QUẢN TRỊ group; reader category items are nav (route /thong-bao/loai/<slug>), not the config screen',
+    /label:'Quản lý danh mục',icon:ICON\.tag,href:p\+'\/thong-bao\/danh-muc'/.test(js2)
+    && /key:'cat:'\+c\.slug[\s\S]*?href:p\+'\/thong-bao\/loai\/'\+encodeURIComponent\(c\.slug\)/.test(js2)
+    && /cats=\(STATE\.categories\|\|\[\]\)\.filter\(function\(c\)\{return c\.isActive!==false;\}\)/.test(js2));
+  check('42 wizard field order: Tiêu đề -> Danh mục -> Mức ưu tiên -> Ghim -> Áp dụng -> Nội dung (rich editor); Từ khóa on the "Tệp & liên kết" step (§7)',
     js2.indexOf('Tiêu đề *') < js2.indexOf('Danh mục *')
     && js2.indexOf('Danh mục *') < js2.indexOf('Mức ưu tiên')
-    && js2.indexOf('Mức ưu tiên') < js2.indexOf('data-f-content')
-    && js2.indexOf('data-f-content') < js2.indexOf('Từ khóa bổ sung (tùy chọn)'));
+    && js2.indexOf('Mức ưu tiên') < js2.indexOf('data-f-pin')
+    && js2.indexOf('data-f-pin') < js2.indexOf('data-rte-mount')
+    && js2.indexOf('data-rte-mount') < js2.indexOf('data-f-kw')
+    && /step===ATT_STEP[\s\S]*?data-f-kw/.test(js2));
   check('43 attachments collected in the create flow (pendingAtts) + uploaded before publish, fail -> stays draft',
     /model\.pendingAtts/.test(js2) && /for\(var k=0;k<model\.pendingAtts\.length/.test(js2) && /Bài đã lưu ở dạng NHÁP/.test(js2));
   check('44 duplicate warning is non-blocking (runDupCheck renders a panel, publish path never gated on it)',
@@ -180,14 +187,233 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     && !/\.phf-notice-layout\{[^}]*max-width/.test(css2) && !/\.phf-notice-shell\{[^}]*max-width/.test(css2));
   check('49 notice: only .phf-notice-detail keeps a reading max-width',
     /\.phf-notice-detail\{[^}]*max-width:900px/.test(css2));
-  check('50 permission sticky header: opaque bg + z-index + sticks BELOW the 76px module header; in-shell wrapper not a scroll container',
-    /\.phf-notice-table th\{[^}]*background:#F3F4F6[^}]*position:sticky;top:76px;z-index:6/.test(css2)
+  check('50 permission sticky header: opaque th bg + high z-index + sticks BELOW the 76px module header; opaque rows so data never bleeds through; in-shell wrapper not a scroll container',
+    /\.phf-notice-table td\{background:#fff;\}/.test(css2)
+    && /\.phf-notice-table th\{background:#[0-9A-Fa-f]{6}[^}]*position:sticky;top:76px;z-index:20/.test(css2)
     && /\.phf-notice-scroll \.phf-notice-table th\{top:0;\}/.test(css2)
     && !/\.phf-notice-tablewrap\{[^}]*overflow/.test(css2));
   check('51 still NO zoom-specific CSS (no @media min-resolution / zoom / device-pixel-ratio)',
     !/@media[^{]*(zoom|resolution|device-pixel-ratio)/.test(css2));
   check('52 permission screen renders the table in a non-scroll wrapper (page scroll + sticky th)',
     /data-nt-ptable/.test(js2) && /phf-notice-tablewrap" data-nt-ptable/.test(js2) && !/phf-notice-scroll" data-nt-ptable/.test(js2));
+
+  // ── Operator UI/UX + performance batch ────────────────────────────
+  const actionsSrc2 = read('api/_lib/notice-actions.js');
+  const svc3 = read('services/phf-hr-api/lib/notice-service.js');
+  const authSrc = read('api/_lib/auth.js');
+  check('53 PERF: SPA caches STATE.boot + STATE.categories across navigations (no forced re-fetch per nav)',
+    /boot=STATE\.boot\|\|\(STATE\.boot=await call\('noticeBootstrap'/.test(js2)
+    && /await loadCategories\(\);/.test(js2)
+    && /if\(STATE\.categories&&!force\)return STATE\.categories/.test(js2));
+  check('54 PERF: notice.detail resolves isContentManager ONCE; resolveDueReplacements throttled (no writeTx per read)',
+    /resolve manage authority ONCE[\s\S]*?const canManage = await isContentManager/.test(svc3)
+    && !/canManage: await isContentManager\(config, actor\) \}/.test(svc3)
+    && /const anyDue = await readTx\(config,[\s\S]*?DUE_REPLACEMENT_PROBE[\s\S]*?if \(!anyDue\) return;/.test(svc3));
+  check('55 PERF: instrument script exists + counts browser POST + bridge round-trips for the SPA flow',
+    fs.existsSync(path.join(REPO, 'scripts/notice-perf-instrument-dev.js'))
+    && /counters\.bridgeCalls\+\+/.test(read('scripts/notice-perf-instrument-dev.js'))
+    && /transcribed from (?:assets\/js\/notice\/)?phf-notice-app\.js/.test(read('scripts/notice-perf-instrument-dev.js')));
+  check('56 ATTACHMENT DISPLAY: feed card compact counts; detail "Tệp & liên kết đính kèm" section only when non-empty; backend splits file/link counts',
+    /attachmentFileCount\?'<span class="dot"><\/span><span class="phf-notice-att-chip">📎 '/.test(js2)
+    && /attachmentLinkCount\?'<span class="dot"><\/span><span class="phf-notice-att-chip">🔗 '/.test(js2)
+    && /Tệp & liên kết đính kèm/.test(js2)
+    && /var attList=atts\.length\?/.test(js2)
+    && /count\(\*\) FILTER \(WHERE kind = 'file'\)::int AS files/.test(svc3));
+  check('57 STATUS FILTER: primary feed tabs are effective-status only (no category chips), default "active", still derived',
+    /var FEED_FILTER=\{q:'',type:'',status:'active'/.test(js2)
+    && /\['active','Đang hiệu lực'\],\['upcoming','Sắp hiệu lực'\],\['expired','Hết hiệu lực'\],\['','Tất cả'\]/.test(js2)
+    && !/function typeChips\(\)/.test(js2)
+    && !svc2.ACTIONS.some((a) => /setStatus|setEffective|forceExpire/i.test(a)));
+  check('58 CẦN TIẾP NHẬN: bootstrap returns inbox.pendingCount; feed mode:"inbox" filters outstanding (re)acks; no ack deletion',
+    /inbox: \{ pendingCount: boot\.inboxPending \}/.test(svc3)
+    && /const inboxMode = mode === 'inbox'/.test(svc3)
+    && /if \(inboxMode\) \{\s*\n\s*filtered = filtered\.filter\(\(n\) => n\.requireAcknowledgement/.test(svc3)
+    && /\/thong-bao\/can-tiep-nhan/.test(js2)
+    && !/DELETE FROM notice\.notice_acknowledgements/i.test(svc3));
+  check('59 ADMIN DEFAULT ACCESS: roster flags isSystemAdmin; UI renders a locked pill + banner, never an OFF toggle for admins',
+    /listAdminEmployeeCodes/.test(actionsSrc2)
+    && /const isSystemAdmin = adminCodes\.has\(String\(r\.employeeCode/.test(actionsSrc2)
+    && /canManage = grant \|\| isSystemAdmin/.test(actionsSrc2)
+    && /Toàn quyền \(Admin hệ thống\)/.test(js2)
+    && /Admin hệ thống <b>luôn có toàn quyền/.test(js2));
+  check('60 ADMIN OVERRIDE server-authoritative; dev-allow confers NO business role (§F)',
+    /function isAdmin\(actor\) \{ return actor\.systemRole === 'admin'; \}/.test(svc3)
+    && /if \(isAdmin\(actor\)\) return true;\n  if \(!actor\.employeeCode\) return false;/.test(svc3)
+    && /let canManage = admin;/.test(svc3)
+    && !/actor\._devOperator = true/.test(svc3)
+    && !/actor\._devOperator\) return true/.test(svc3));
+  const adminFnBody = (authSrc.match(/async function listAdminEmployeeCodes\(\)\s*\{([\s\S]*?)\n\}/) || [, ''])[1];
+  check('61 listAdminEmployeeCodes is read-only (no writes / no link repair)',
+    /\.eq\('role', 'admin'\)/.test(adminFnBody)
+    && !/\.insert\(|\.update\(|\.upsert\(|\.delete\(|ensureLearnerEmployeeLink\(/i.test(adminFnBody));
+
+  // ── Operator final patch: sidebar collapse · attachment-in-wizard · rich text · preview · bell · pin ──
+  const svc4 = svc3;
+  const cssF = read('assets/css/phf-notice.css');
+  check('62 SIDEBAR §1: "Thông báo" is a collapsible parent (chevron, default open); THEO DÕI / QUẢN TRỊ stay flat',
+    /title:'Thông báo',key:'thong-bao',collapsible:true/.test(js2)
+    && /var NAV_GROUP_OPEN=\{'thong-bao':true\}/.test(js2)
+    && /data-nt-group="'\+esc\(g\.key\)/.test(js2)
+    && /phf-notice-nav-chev/.test(js2)
+    && /function wireNavGroups\(slot\)/.test(js2)
+    && !/title:'Theo dõi'[^}]*collapsible/.test(js2));
+  check('63 ATTACHMENT §2: collected IN the wizard ("Tệp & liên kết" step in BOTH create+edit), staged for create / live for edit; detail has NO upload control',
+    /var STEPS=\['Nội dung','Tệp & liên kết','Thiết lập','Xem trước'\]/.test(js2)
+    && /step===ATT_STEP/.test(js2)
+    && /model\.existingAtts/.test(js2)
+    && /noticeAttachmentAdd',\{notice_id:d\.id/.test(js2)
+    && !/data-nt-att-file/.test(js2) && !/data-nt-att-addlink/.test(js2)
+    && /Detail is READ-ONLY for attachments/.test(js2));
+  check('64 RICH TEXT §3: controlled WYSIWYG (B/I/U/H2/H3/lists/align/link/undo/redo/clear) — NO font-family / free size / colour; paste sanitised; server allowlist-sanitises',
+    /function noticeRichEditor\(/.test(js2)
+    && /data-cmd="bold"[\s\S]*data-cmd="italic"[\s\S]*data-cmd="underline"[\s\S]*data-block="h2"[\s\S]*data-block="h3"[\s\S]*insertUnorderedList[\s\S]*insertOrderedList[\s\S]*justifyLeft[\s\S]*justifyCenter[\s\S]*justifyRight[\s\S]*data-link[\s\S]*data-cmd="undo"[\s\S]*data-cmd="redo"[\s\S]*data-clear/.test(js2)
+    && !/fontName|fontSize|foreColor|font-family/i.test(js2)
+    && /addEventListener\('paste'/.test(js2)
+    && /function sanitizeNoticeHtml\(/.test(svc4)
+    && /RT_DROP_WHOLE = \{ script: 1, style: 1/.test(svc4)
+    && /function resolveNoticeBody\(/.test(svc4));
+  check('65 RICH TEXT: server sanitizer strips script/style/on*/img/iframe/span/font; keeps only p,h2,h3,ul,ol,li,strong,em,u,s,a + text-align; a href scheme-checked; headings get ids',
+    /const RT_BLOCK = \{ p: 1, h2: 1, h3: 1, ul: 1, ol: 1, li: 1, blockquote: 1 \}/.test(svc4)
+    && /const RT_INLINE = \{ strong: 1, em: 1, u: 1, s: 1, a: 1, br: 1 \}/.test(svc4)
+    && /function rtHref\(raw\)/.test(svc4) && /https\?:/.test(svc4)
+    && /assign stable ids to headings/.test(svc4));
+  check('66 SEARCH not regressed: content_text still feeds FTS — DERIVED from the sanitised HTML when rich, or the "## " text path otherwise; TOC still from h2/h3',
+    /function noticeHtmlToText\(html\)/.test(svc4)
+    && /return \{ html, text: textFromHtml \}/.test(svc4)
+    && /return \{ html: htmlFromText\(text\), text \}/.test(svc4)
+    && /tocFromHtml/.test(svc4));
+  check('67 PREVIEW §4: wizard "Xem trước" shows title/category/priority/pin/scope/rich body/attachments; does NOT create a published notice',
+    /Xem trước — gần đúng bản nhân viên/.test(js2)
+    && /model\.contentHtml\|\|'<p class="hint">\(chưa có nội dung\)/.test(js2)
+    && /<dt>Ghim<\/dt>/.test(js2)
+    && /Xem trước KHÔNG tạo bài đã công bố/.test(js2));
+  check('68 BELL §5: header bell LEFT of the user block; badge from bootstrap (no polling); panel = bounded noticeFeed mode:"bell"; click -> detail; no new identity',
+    /phf-notice-top-right[\s\S]*?data-nt-bell[\s\S]*?data-nt-user/.test(js2)
+    && /function openBellPanel\(ctx\)/.test(js2)
+    && /call\('noticeFeed',\{mode:'bell'\}\)/.test(js2)
+    && /bell: \{ unreadCount: boot\.bellUnread/.test(svc4)
+    && /const bellMode = mode === 'bell'/.test(svc4)
+    && !/setInterval/.test(js2));
+  check('69 BELL semantics: badge = viewer\'s "chưa đọc"; panel flags Cần xác nhận / Cần xác nhận lại / Chưa xem; Hỏa tốc via the normal prio badge, no blinking/animation',
+    /STATE\.boot&&STATE\.boot\.bell&&STATE\.boot\.bell\.unreadCount/.test(js2)
+    && /Cần xác nhận lại<\/span>/.test(js2) && /phf-notice-bell-tag new">Chưa xem/.test(js2)
+    && !/blink|@keyframes[^{]*bell|animation:[^;]*bell/i.test(cssF));
+  check('70 PIN §6: "📌 Ghim" toggle in CREATE + EDIT near "Mức ưu tiên"; create sends pinned; update accepts pinned; pin-only edit cuts NO revision',
+    /data-f-pin[\s\S]{0,160}Ghim thông báo lên đầu bảng tin/.test(js2)
+    && /pinned:!!model\.pinned/.test(js2)
+    && /pinned: bool\(p\.pinned\)/.test(read('api/_lib/notice-actions.js'))
+    && /const pinnedOnCreate = boolish\(params && params\.pinned\)/.test(svc4)
+    && /A pin-only change is NOT a content edit/.test(svc4)
+    && /const reackOnly = !contentChanged && requireReack && b\.status === 'published'/.test(svc4));
+  check('71 PIN: urgent does NOT auto-pin and pin does NOT auto-raise priority (no cross-write in the service)',
+    /Ghim KHÔNG tự thành "Hỏa tốc"/.test(js2)
+    && !/priority[^;\n]*=[^;\n]*pinned/i.test(svc4) && !/is_pinned[^;\n]*=[^;\n]*priority/i.test(svc4));
+  check('72 ZOOM §8: structural breakpoints (1200 / 900 / 640) like Checklist/QTTH; no zoom-specific hacks; shell stays fluid',
+    /@media \(max-width:1200px\)\{[\s\S]*?\.phf-notice-layout\{grid-template-columns:200px/.test(cssF)
+    && /@media \(max-width:640px\)/.test(cssF)
+    && !/@media[^{]*(zoom|resolution|device-pixel-ratio)/.test(cssF));
+
+  // ── Final functional correction batch (permission model · wizard visibility · image) ──
+  check('73 PERMISSION §D: "Cài đặt quyền" (roster read + set + history) is system-Admin ONLY at the service layer',
+    /'notice\.permissions\.list': async \(config, actor\) => \{\s*\n\s*requireAdmin\(actor\);/.test(svc4)
+    && /'notice\.permissions\.history': async \(config, actor, params\) => \{\s*\n\s*requireAdmin\(actor\);/.test(svc4)
+    && /'notice\.permissions\.set': async \(config, actor, params\) => \{\s*\n\s*requireAdmin\(actor\);/.test(svc4));
+  check('74 PERMISSION: the Vercel roster composite also fails fast for non-Admin (NOTICE_ADMIN_REQUIRED before touching People Master)',
+    /async function permissionRoster\(session\) \{[\s\S]{0,320}?if \(String\(actor\.systemRole \|\| ''\) !== 'admin'\)[\s\S]{0,120}?NOTICE_ADMIN_REQUIRED/.test(actionsSrc2));
+  check('75 PERMISSION §E: bootstrap exposes capabilities.canManagePermissions (= Admin); FE sidebar shows "Cài đặt quyền" only if canPerm; route + screen both guard it',
+    /canManagePermissions: admin/.test(svc4)
+    && /if\(canPerm\)admin\.push\(\{key:'quyen'/.test(js2)
+    && /scr\.key==='quyen'\)\{ if\(!\(boot\.capabilities\.canManagePermissions\|\|\(boot\.viewer&&boot\.viewer\.isAdmin\)\)\)/.test(js2)
+    && /async function renderPermission\(ctx\)\{\s*\n\s*if\(!\(ctx\.boot\.capabilities\.canManagePermissions/.test(js2));
+  check('76 MENU PROJECTION §E: Admin = 5 items incl Cài đặt quyền; content-manager = 4 (no Cài đặt quyền); viewer = inbox + feed + categories only',
+    /var admin=\[\];\s*\n\s*if\(manage\)admin\.push\(\{key:'danh-muc'/.test(js2)
+    && /if\(admin\.length\)groups\.push\(\{title:'Quản trị',items:admin\}\)/.test(js2)
+    && /if\(canPerm\)admin\.push\(\{key:'quyen',label:'Cài đặt quyền'/.test(js2)
+    && (js2.match(/label:'Cài đặt quyền'/g) || []).length === 1);
+  check('77 WIZARD VISIBILITY §B: a visible numbered stepper (① Nội dung ▸ ② Tệp & liên kết ▸ ③ Thiết lập ▸ ④ Xem trước), "Bước n/4", completed steps click back',
+    /class="phf-notice-step /.test(js2)
+    && /data-step="'\+n\+'"/.test(js2)
+    && /Bước '\+step\+'\/'\+STEPS\.length/.test(js2)
+    && /ov\.querySelectorAll\('\[data-step\]'\)\.forEach/.test(js2)
+    && !/\.phf-notice-steps span\{flex:1;height:4px/.test(cssF));
+  check('78 WIZARD §B: modal is a flex column with a STICKY footer (body scrolls, [Quay lại]/[Tiếp tục] always visible)',
+    /\.phf-notice-ov-panel\{[^}]*display:flex;flex-direction:column;max-height:88vh/.test(cssF)
+    && /\.phf-notice-ov-body\{[^}]*flex:1 1 auto;min-height:0/.test(cssF)
+    && /\.phf-notice-ov-foot\{[^}]*flex:0 0 auto/.test(cssF)
+    && /\.phf-notice-steps\{[^}]*flex:0 0 auto/.test(cssF));
+  check('79 IMAGE §G: rich-text inline <img> is DROPPED by both client + server sanitizer; a paste containing an image toasts the user toward the "Tệp & liên kết" step; NO base64 image in canonical HTML',
+    !/RTE_OK_TAGS[^;]*IMG/.test(js2)
+    && !/'img'|RT_BLOCK[^;]*img|RT_INLINE[^;]*img/i.test(svc4)
+    && /<img\[ >\]\/i\.test\(html\)/.test(js2)
+    && /bước "Tệp & liên kết" để đính kèm ảnh/.test(js2));
+  check('80 DEV vs BUSINESS §F: bootstrap devOperator flag kept (label only) but no longer implies canManage; dispatch no longer sets actor._devOperator',
+    /devOperator: !!\(dg\.locked && dg\.operator && !admin\)/.test(svc4)
+    && /dev-allow only lets the caller PAST the lock/.test(svc4)
+    && /let canManage = admin;/.test(svc4));
+
+  // ── FINAL UI/UX PASS ──────────────────────────────────────────────
+  check('81 DESIGN TOKENS §B: PHF font stack (Arial/Helvetica Neue), workspace = very light cool grey (not pure white), card white, modal surface = cream/ivory',
+    /font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;/.test(cssF)
+    && /--nt-workspace:#F3F4F6/.test(cssF) && /--nt-cream:#FBFAF6/.test(cssF)
+    && /\.phf-notice\{[\s\S]*?background:var\(--nt-workspace\)/.test(cssF)
+    && /\.phf-notice-ov-panel\{background:var\(--nt-cream/.test(cssF)
+    && /\.phf-notice-ov\{[\s\S]{0,400}--nt-cream:#FBFAF6/.test(cssF)
+    && /\.phf-notice-card\{background:var\(--nt-surface\)/.test(cssF));
+  check('82 CATEGORY IDENTITY §H: deterministic per-slug colour (4 seeded pinned + hash fallback) carried sidebar dot -> feed chip -> detail chip; distinct from status hues',
+    /var CAT_PALETTE=\[/.test(js2) && /var CAT_NAMED=\{guide:1,process:2,policy:3,regulation:4\}/.test(js2)
+    && /function catMeta\(slug\)/.test(js2) && /function catHash\(v\)/.test(js2)
+    && /function typeBadge\(slug,name\)/.test(js2)
+    && (js2.match(/\+typeBadge\(n\.noticeType,n\.categoryName\)/g) || []).length >= 2
+    && /\+typeBadge\(n\.noticeType,n\.categoryName\)\+stBadge\(st\)/.test(js2)
+    && /phf-notice-nav-dot/.test(js2) && /phf-notice-nav-dot/.test(cssF));
+  check('83 EFFECTIVE STATUS §I: glyphs ● / ◷ / ○ on the status badge + the primary status tabs; consistent feed/detail/filter; green / amber / neutral',
+    /function stGlyph\(st\)\{return st==='active'\?'●':st==='upcoming'\?'◷':st==='expired'\?'○'/.test(js2)
+    && /function stBadge\(st,extra\)/.test(js2)
+    && /\['active','Đang hiệu lực'\],\['upcoming','Sắp hiệu lực'\],\['expired','Hết hiệu lực'\],\['','Tất cả'\]/.test(js2)
+    && /phf-notice-st-glyph/.test(cssF)
+    && /\.phf-notice-badge\.st-active \.phf-notice-st-glyph\{color:var\(--nt-green\)/.test(cssF));
+  check('84 SIDEBAR HIERARCHY §G: category items nested under "Tất cả thông báo" (is-child indent + connector), "Tất cả thông báo" reads as parent (is-parent), collapse chevron intact',
+    /thongBao\.push\(\{key:'cat:'\+c\.slug,label:c\.name,child:true,dot:catMeta\(c\.slug\)\.color/.test(js2)
+    && /it\.child\?'is-child ':''/.test(js2) && /it\.key==='feed'\?'is-parent ':''/.test(js2)
+    && /\.phf-notice-nav-items button\.is-child\{[\s\S]*?padding-left:30px/.test(cssF)
+    && /\.phf-notice-nav-items button\.is-child::after\{/.test(cssF)
+    && /button\.phf-notice-nav-title\.is-collapsible/.test(cssF));
+  check('85 HOME CHIP §L: "Về Trang chủ PHF HR" is a bordered navigation chip (semibold, PHF green accent, hover), not plain text',
+    /phf-notice-nav-back phf-notice-home-chip/.test(js2)
+    && /\.phf-notice-home-chip\{border:1px solid var\(--nt-line-strong\)!important;background:#fff!important/.test(cssF)
+    && /\.phf-notice-home-chip:hover\{/.test(cssF));
+  check('86 DETAIL ACTION HIERARCHY §K: Chỉnh sửa = primary, Ghim = secondary, "⋯ Thêm" menu for Báo cáo / Lịch sử / Xóa; Xóa is-danger, not equal weight to Chỉnh sửa',
+    /class="phf-notice-btn is-primary is-small" data-nt-edit/.test(js2)
+    && /data-nt-more-menu/.test(js2)
+    && /<button class="is-danger" data-nt-del>Xóa thông báo<\/button>/.test(js2)
+    && /\.phf-notice-more-menu button\.is-danger\{color:#A5342A/.test(cssF)
+    && /moreMenu\.hidden=!moreMenu\.hidden/.test(js2));
+  check('87 CATEGORY MODAL §H/§D: "+ Thêm danh mục" opens a styled modal (cream surface, white input, sticky footer, error inline) — NOT window.prompt()',
+    !/prompt\('Tên danh mục mới/.test(js2)
+    && /phf-notice-cat-modal/.test(js2)
+    && /call\('noticeCategoriesUpsert',\{name:v\}\)/.test(js2));
+  check('88 SCOPE PICKER §M: "Áp dụng" uses a checkbox picker of distinct dept/branch from People Master (noticeOrgScopes, read-only, same loadOrgRows source); free-text is only a fallback; semantics unchanged (label + denominator, not an ACL)',
+    /async function orgScopes\(session\)/.test(actionsSrc2)
+    && /const rows = await loadOrgRows\(\);/.test(actionsSrc2)
+    && /if \(action === 'noticeOrgScopes'\)/.test(actionsSrc2)
+    && /function scopePickerHtml\(\)/.test(js2)
+    && /call\('noticeOrgScopes',\{\}\)/.test(js2)
+    && /data-scope-opt=/.test(js2)
+    && /o\.failed\|\|/.test(js2)
+    && /phf-notice-scope-picker/.test(cssF));
+
+  check('89 MODAL OPAQUE — ROOT CAUSE §D: .phf-notice-ov (body-appended, outside .phf-notice) re-declares the full --nt-* token set + font so every var() inside the overlay resolves; panel/head/body/steps/foot all get an opaque cream background WITH a literal fallback; scrim opacity untouched (.44)',
+    /\.phf-notice-ov\{[\s\S]{0,600}--nt-green:#1B7B45;[\s\S]{0,500}--nt-cream:#FBFAF6;[\s\S]{0,300}font-family:Arial/.test(cssF)
+    && /\.phf-notice-ov-panel\{background:var\(--nt-cream,#FBFAF6\)/.test(cssF)
+    && /\.phf-notice-ov-head\{[^}]*background:var\(--nt-cream,#FBFAF6\)/.test(cssF)
+    && /\.phf-notice-ov-body\{[^}]*background:var\(--nt-cream,#FBFAF6\)/.test(cssF)
+    && /\.phf-notice-ov-foot\{[^}]*background:var\(--nt-cream,#FBFAF6\)/.test(cssF)
+    && /\.phf-notice-steps\{[^}]*background:var\(--nt-cream,#FBFAF6\)/.test(cssF)
+    && /background:rgba\(20,26,34,\.44\)/.test(cssF)
+    && /\.phf-notice-ov-body \.phf-notice-scroll\{max-height:none/.test(cssF));
+  check('90 MODAL SUB-SURFACES stay white on the cream body (summary / preview / rich editor / report KPI / scroll / tablewrap = background:#fff inside .phf-notice-ov-body)',
+    /\.phf-notice-ov-body \.phf-notice-summary,\.phf-notice-ov-body \.phf-notice-preview-body,\.phf-notice-ov-body \.phf-notice-rte\{background:#fff;\}/.test(cssF)
+    && /\.phf-notice-ov-body \.phf-notice-kpi,\.phf-notice-ov-body \.phf-notice-scroll,\.phf-notice-ov-body \.phf-notice-tablewrap\{background:#fff;\}/.test(cssF));
 
   console.log(`\n==== NOTICE Batch 01 OFFLINE checks: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);

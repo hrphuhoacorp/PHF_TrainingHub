@@ -148,7 +148,18 @@ async function startApi(port, devAllow) {
   const bootAdmin = await D(S_ADMIN, { action: 'noticeBootstrap' });
   check('A1  Admin vào module (canManage, devLocked)', bootAdmin.capabilities.canManage === true && bootAdmin.devLocked === true, JSON.stringify(bootAdmin.capabilities));
   const bootOp = await D(S_OP, { action: 'noticeBootstrap' });
-  check('A2  Operator allow-listed vào module (canManage, devOperator)', bootOp.capabilities.canManage === true && bootOp.devOperator === true, JSON.stringify(bootOp));
+  // §F: dev-allow lets PHF012 ENTER the module but confers NO business role.
+  check('A2  Operator allow-listed: vào được module nhưng là VIEWER (canManage=false, devOperator=true)',
+    bootOp.capabilities.canManage === false && bootOp.capabilities.canManagePermissions === false && bootOp.devOperator === true, JSON.stringify(bootOp.capabilities));
+  await expectThrow('A2b Operator (chưa được cấp quyền) KHÔNG tạo được thông báo', () => D(S_OP, { action: 'noticeCreate', title: 'x', content_text: 'y', notice_type: 'guide', effective_from: '2026-09-01' }), 'NOTICE_MANAGE_DENIED');
+  await expectThrow('A2c Operator KHÔNG mở được Cài đặt quyền', () => D(S_OP, { action: 'noticePermissionRoster' }), 'NOTICE_ADMIN_REQUIRED');
+  // Admin turns ON "Quản trị nội dung" for PHF012 — the ONLY way to make them a manager
+  const grantOp = await D(S_ADMIN, { action: 'noticeSetPermission', employee_code: 'PHF012', can_manage: true });
+  check('A2d Admin bật Quản trị nội dung cho PHF012', grantOp.changed === true && grantOp.canManage === true, JSON.stringify(grantOp));
+  const bootOp2 = await D(S_OP, { action: 'noticeBootstrap' });
+  check('A2e PHF012 giờ là Quản trị nội dung (canManage=true) NHƯNG không phải Admin (canManagePermissions=false)',
+    bootOp2.capabilities.canManage === true && bootOp2.capabilities.canManagePermissions === false, JSON.stringify(bootOp2.capabilities));
+  await expectThrow('A2f PHF012 (content manager, không phải Admin) vẫn KHÔNG mở được Cài đặt quyền', () => D(S_OP, { action: 'noticePermissionRoster' }), 'NOTICE_ADMIN_REQUIRED');
   const bootIn = await D(S_IN, { action: 'noticeBootstrap' });
   check('A3  Người thường: bootstrap trả devLocked, canManage=false', bootIn.devLocked === true && bootIn.capabilities.canManage === false, JSON.stringify(bootIn));
   await expectThrow('A4  Người thường bị chặn mọi action khác (NOTICE_DEV_LOCKED)', () => D(S_IN, { action: 'noticeFeed' }), 'NOTICE_DEV_LOCKED');
@@ -182,6 +193,12 @@ async function startApi(port, devAllow) {
   const auditCount = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${cr.id}'`));
   check('A12 Audit log có bản ghi create/publish/edit/require_reack', auditCount >= 4, 'count=' + auditCount);
 
+  // Admin turns OFF -> PHF012 immediately back to Viewer projection (§F)
+  await D(S_ADMIN, { action: 'noticeSetPermission', employee_code: 'PHF012', can_manage: false });
+  const bootOpOff = await D(S_OP, { action: 'noticeBootstrap' });
+  check('A13 Admin tắt Quản trị nội dung -> PHF012 trở lại Viewer (canManage=false)', bootOpOff.capabilities.canManage === false, JSON.stringify(bootOpOff.capabilities));
+  await expectThrow('A14 PHF012 (đã bị tắt) KHÔNG tạo được thông báo nữa', () => D(S_OP, { action: 'noticeCreate', title: 'x', content_text: 'y', notice_type: 'guide', effective_from: '2026-09-01' }), 'NOTICE_MANAGE_DENIED');
+
   await stopApi();
 
   // =====================================================================
@@ -212,7 +229,7 @@ async function startApi(port, devAllow) {
 
   await expectThrow('B9  Viewer KHÔNG tạo được thông báo (NOTICE_MANAGE_DENIED)', () => D(S_IN, { action: 'noticeCreate', title: 'x', content_text: 'y', notice_type: 'guide', effective_from: '2026-09-01' }), 'NOTICE_MANAGE_DENIED');
   await expectThrow('B10 Viewer KHÔNG mở được báo cáo (NOTICE_MANAGE_DENIED)', () => D(S_IN, { action: 'noticeReport', id: cr.id }), 'NOTICE_MANAGE_DENIED');
-  await expectThrow('B11 Viewer KHÔNG xem được roster quyền', () => D(S_IN, { action: 'noticePermissionRoster' }), 'NOTICE_MANAGE_DENIED');
+  await expectThrow('B11 Viewer KHÔNG xem được roster quyền (Admin only)', () => D(S_IN, { action: 'noticePermissionRoster' }), 'NOTICE_ADMIN_REQUIRED');
 
   // Admin grants U_IN manage; audit
   const setPerm = await D(S_ADMIN, { action: 'noticeSetPermission', employee_code: U_IN.employee_code, can_manage: true });
@@ -447,8 +464,157 @@ async function startApi(port, devAllow) {
   check('D29 upcoming/active/expired still derived automatically (no manual switch)', (await D(S_IN, { action: 'noticeFeed', q: 'năm sau' })).notices.find((n) => n.id === upcD.id).effectiveStatus === 'upcoming'
     && !svc.ACTIONS.some((a) => /setStatus|setEffective|forceExpire/i.test(a)), '');
 
+  // =====================================================================
+  // PHASE E — Operator UI/UX + performance batch (gate still OFF)
+  //   inbox count + feed mode:'inbox' + attachment count split + admin roster
+  // =====================================================================
+  console.log('\n=== PHASE E · inbox / attachment counts / admin default access ===\n');
+
+  // fresh require-ack notice for U_OUT's inbox
+  const inb = await D(S_IN, { action: 'noticeCreate', title: 'Quy trình mở ca sáng (bắt buộc xác nhận)', content_text: 'Checklist mở ca — mọi thu ngân xác nhận đã đọc.', notice_type: 'process', effective_from: '2026-09-01', require_acknowledgement: true });
+  await D(S_IN, { action: 'noticePublish', id: inb.id });
+
+  const bootBefore = await D(S_OUT, { action: 'noticeBootstrap' });
+  check('E1  bootstrap returns inbox.pendingCount (>=1 with an unacked require-ack notice)', bootBefore.inbox && bootBefore.inbox.pendingCount >= 1, JSON.stringify(bootBefore.inbox));
+  const inboxFeed = await D(S_OUT, { action: 'noticeFeed', mode: 'inbox' });
+  check('E2  feed mode:inbox returns only outstanding require-ack notices for this viewer', inboxFeed.inboxMode === true && inboxFeed.notices.length >= 1 && inboxFeed.notices.every((n) => n.requireAcknowledgement && (!n.viewer.acknowledged || !n.viewer.acknowledgedRevisionIsCurrent)), JSON.stringify(inboxFeed.notices.map((n) => n.title)));
+  const inboxHasIt = inboxFeed.notices.some((n) => n.id === inb.id);
+  check('E3  the new require-ack notice is in the viewer inbox', inboxHasIt, '');
+  await D(S_OUT, { action: 'noticeDetail', id: inb.id });
+  await D(S_OUT, { action: 'noticeAcknowledge', id: inb.id });
+  const bootAfter = await D(S_OUT, { action: 'noticeBootstrap' });
+  check('E4  after acknowledge: inbox.pendingCount drops', bootAfter.inbox.pendingCount === bootBefore.inbox.pendingCount - 1, `${bootBefore.inbox.pendingCount} -> ${bootAfter.inbox.pendingCount}`);
+  const inboxFeed2 = await D(S_OUT, { action: 'noticeFeed', mode: 'inbox' });
+  check('E5  acknowledged notice leaves the inbox', !inboxFeed2.notices.some((n) => n.id === inb.id), '');
+  check('E6  acknowledgement history NOT deleted (append-only contract intact)', Number(psql(`select count(*) from notice.notice_acknowledgements where notice_id='${inb.id}' and employee_code='${U_OUT.employee_code}'`)) === 1, '');
+
+  // attachment file/link counts on the feed card DTO
+  const ac = await D(S_IN, { action: 'noticeCreate', title: 'Bảng giá tháng 9 + hướng dẫn niêm yết', content_text: 'Xem tệp và liên kết đính kèm.', notice_type: 'guide', effective_from: '2026-09-01' });
+  await D(S_IN, { action: 'noticePublish', id: ac.id });
+  const PNG1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: ac.id, kind: 'file', file_name: 'bang-gia-t9.png', mime_type: 'image/png', base64: PNG1x1 });
+  await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: ac.id, kind: 'file', file_name: 'so-do-quay.png', mime_type: 'image/png', base64: PNG1x1 });
+  await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: ac.id, kind: 'link', link_url: 'https://phuhoafresh.info.vn/gia-t9' });
+  const feedAc = await D(S_OUT, { action: 'noticeFeed', q: 'niêm yết' });
+  const cardAc = feedAc.notices.find((n) => n.id === ac.id);
+  check('E7  feed card DTO splits attachment counts (files vs links)', cardAc && cardAc.attachmentFileCount === 2 && cardAc.attachmentLinkCount === 1 && cardAc.attachmentCount === 3, JSON.stringify(cardAc && { f: cardAc.attachmentFileCount, l: cardAc.attachmentLinkCount }));
+
+  // admin default access — roster flags system admins; grant vs canManage
+  const roster = await D(S_ADMIN, { action: 'noticePermissionRoster' });
+  const adminRow = roster.roster.find((r) => r.employeeCode === String(adminAcc.employee_code || '').toUpperCase());
+  check('E8  every roster row carries grant + isSystemAdmin + canManage; canManage = grant OR isSystemAdmin',
+    roster.roster.length > 0 && roster.roster.every((r) => typeof r.isSystemAdmin === 'boolean' && typeof r.grant === 'boolean'
+      && r.canManage === (r.grant || r.isSystemAdmin)), JSON.stringify(roster.roster[0]));
+  if (adminRow) {
+    check('E9  the Admin\'s own row: isSystemAdmin + canManage=true even with grant=false (toggle OFF must not read as "no access")',
+      adminRow.isSystemAdmin === true && adminRow.canManage === true, JSON.stringify({ sys: adminRow.isSystemAdmin, grant: adminRow.grant, can: adminRow.canManage }));
+  } else { check('E9  (Admin account has no employee_code in People Master — row not in roster; skipped)', true); }
+  const nonAdminRow = roster.roster.find((r) => !r.isSystemAdmin);
+  check('E10 non-admin row: canManage follows the grant toggle only', nonAdminRow && nonAdminRow.canManage === nonAdminRow.grant, '');
+  // Admin override is real at the SERVICE layer, not just UI: an Admin with NO grant row still manages
+  const adminManage = await D(S_ADMIN, { action: 'noticeSetPin', id: ac.id, pinned: true });
+  check('E11 Admin with no notice_permissions grant still performs a manage action (server-authoritative override)', adminManage.pinned === true, JSON.stringify(adminManage));
+  await D(S_ADMIN, { action: 'noticeSetPin', id: ac.id, pinned: false });
+
+  // =====================================================================
+  // PHASE F — Operator final patch: rich text / pin-in-create-edit / bell
+  // =====================================================================
+  console.log('\n=== PHASE F · controlled rich text · pin in create/edit · bell ===\n');
+
+  const rich = await D(S_IN, { action: 'noticeCreate',
+    title: 'Nội quy sử dụng đồng phục 2026',
+    content_html: '<h2>Điều 1. Phạm vi</h2><p style="text-align:center"><b>Bắt buộc</b> với <i>toàn bộ</i> nhân sự.</p>'
+      + '<script>alert(1)</script><img src=x onerror=alert(2)><p>Liên hệ <a href="javascript:evil()">HR</a> hoặc <a href="https://phf.vn/dp">trang nội bộ</a>.</p>'
+      + '<h3>Điều 1.1. Xử lý vi phạm</h3><ul><li>Nhắc nhở</li><li>Lập biên bản</li></ul>',
+    notice_type: 'regulation', effective_from: '2026-09-01' });
+  await D(S_IN, { action: 'noticePublish', id: rich.id });
+  const richDet = await D(S_IN, { action: 'noticeDetail', id: rich.id });
+  const rh = richDet.notice.contentHtml;
+  check('F1  rich HTML stored + sanitised: no <script>/<img>/onerror/javascript:; keeps h2/h3/strong/em/ul/li + a(https)',
+    !/<script|<img|onerror|javascript:/i.test(rh)
+    && /<h2 id="/.test(rh) && /<h3 id="/.test(rh) && /<strong>/.test(rh) && /<em>/.test(rh) && /<ul><li>/.test(rh)
+    && /<a href="https:\/\/phf\.vn\/dp"/.test(rh), rh.slice(0, 160));
+  check('F2  content_text DERIVED from the sanitised HTML (feeds FTS); TOC built from the headings',
+    /Phạm vi/.test(richDet.notice.contentText) && !/[<>]/.test(richDet.notice.contentText)
+    && richDet.notice.toc.length >= 2 && richDet.notice.toc.some((t) => t.level === 2) && richDet.notice.toc.some((t) => t.level === 3), JSON.stringify(richDet.notice.toc.map((t) => t.text)));
+  check('F3  FTS still finds a clause deep in the rich body', (await D(S_OUT, { action: 'noticeFeed', q: 'lập biên bản' })).notices.some((n) => n.id === rich.id), '');
+  const plain = await D(S_IN, { action: 'noticeCreate', title: 'Thông báo văn bản thuần', content_text: '## Mục A\nDòng nội dung.', notice_type: 'guide', effective_from: '2026-09-01' });
+  const plainDet = await D(S_IN, { action: 'noticeDetail', id: plain.id });
+  check('F4  plain "## " text path unchanged: htmlFromText heading + TOC', /<h2 id="/.test(plainDet.notice.contentHtml) && plainDet.notice.toc.length === 1, '');
+
+  const pinNew = await D(S_IN, { action: 'noticeCreate', title: 'Lịch nghỉ lễ Quốc khánh', content_text: 'Nghỉ 2/9.', notice_type: 'policy', priority: 'normal', pinned: true, effective_from: '2026-09-01' });
+  check('F5  create with pinned:true -> notice is pinned (independent of priority=normal)', pinNew.pinned === true, JSON.stringify(pinNew));
+  await D(S_IN, { action: 'noticePublish', id: pinNew.id });
+  check('F6  pinned notice sits at the top of the feed', (await D(S_OUT, { action: 'noticeFeed', q: '' })).notices[0].id === pinNew.id, '');
+  const pinnedDb = psql(`select is_pinned from notice.notices where id='${pinNew.id}'`);
+  check('F7  pin did NOT change priority', psql(`select priority from notice.notices where id='${pinNew.id}'`) === 'normal' && pinnedDb === 't', pinnedDb);
+  const revBefore = Number(psql(`select count(*) from notice.notice_revisions where notice_id='${pinNew.id}'`));
+  const unpin = await D(S_IN, { action: 'noticeUpdate', id: pinNew.id, pinned: false });
+  const revAfter = Number(psql(`select count(*) from notice.notice_revisions where notice_id='${pinNew.id}'`));
+  check('F8  edit toggling pin OFF on a PUBLISHED notice: applied + audited, NO new content revision', unpin.changed === true && unpin.pinChanged === true && revAfter === revBefore
+    && psql(`select is_pinned from notice.notices where id='${pinNew.id}'`) === 'f'
+    && Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${pinNew.id}' and action_type='unpin'`)) === 1, `rev ${revBefore}->${revAfter}`);
+
+  const bootBell = await D(S_OUT, { action: 'noticeBootstrap' });
+  check('F9  bootstrap returns bell.unreadCount (number, viewer-scoped)', bootBell.bell && typeof bootBell.bell.unreadCount === 'number' && bootBell.bell.unreadCount >= 0, JSON.stringify(bootBell.bell));
+  const bellFeed = await D(S_OUT, { action: 'noticeFeed', mode: 'bell' });
+  check('F10 noticeFeed mode:"bell" bounded (<=12), published+non-expired, carries viewer state',
+    bellFeed.bellMode === true && bellFeed.notices.length <= 12 && bellFeed.notices.length >= 1
+    && bellFeed.notices.every((n) => n.status === 'published' && n.effectiveStatus !== 'expired' && n.viewer && typeof n.viewer.viewed === 'boolean'),
+    JSON.stringify({ n: bellFeed.notices.length }));
+  const seenBefore = bootBell.bell.unreadCount;
+  await D(S_OUT, { action: 'noticeDetail', id: pinNew.id });
+  const bootBell2 = await D(S_OUT, { action: 'noticeBootstrap' });
+  check('F11 opening an unread notice lowers (or holds) bell.unreadCount', bootBell2.bell.unreadCount <= seenBefore, `${seenBefore} -> ${bootBell2.bell.unreadCount}`);
+
+  // =====================================================================
+  // PHASE G — attachment lifecycle CREATE + EDIT (§A/§J); DETAIL read-only
+  // =====================================================================
+  console.log('\n=== PHASE G attachment lifecycle create + edit ===\n');
+  const PNG_G = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  // CREATE: draft -> add file -> add link -> publish (the FE wizard staging maps to exactly this)
+  const gc = await D(S_IN, { action: 'noticeCreate', title: 'Quy trình kiểm kê cuối tháng', content_text: 'Xem biểu mẫu đính kèm.', notice_type: 'process', effective_from: '2026-09-01' });
+  const ga1 = await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: gc.id, kind: 'file', file_name: 'bieu-mau-kiem-ke.png', mime_type: 'image/png', base64: PNG_G });
+  const ga2 = await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: gc.id, kind: 'link', link_url: 'https://phf.vn/kiemke' });
+  await D(S_IN, { action: 'noticePublish', id: gc.id });
+  const gdet = await D(S_OUT, { action: 'noticeDetail', id: gc.id });
+  check('G1  CREATE flow: reader detail lists 1 file + 1 link, no storage_key leak', gdet.notice.attachments.length === 2 && gdet.notice.attachments.every((a) => a.storageKey === undefined), JSON.stringify(gdet.notice.attachments.map((a) => a.kind)));
+  const gdl = await D(S_OUT, { action: 'noticeAttachmentDownload', notice_id: gc.id, attachment_id: ga1.attachmentId });
+  check('G2  reader can download the file over the authenticated channel', gdl.kind === 'file' && gdl.base64 === PNG_G, '');
+  check('G3  feed card splits the counts (1 file / 1 link)', await (async () => { const f = await D(S_OUT, { action: 'noticeFeed', q: 'kiểm kê' }); const c = f.notices.find((n) => n.id === gc.id); return c && c.attachmentFileCount === 1 && c.attachmentLinkCount === 1; })(), '');
+  // EDIT: see current -> add file -> remove old file -> add/remove link ("thay tài liệu")
+  const ga3 = await D(S_IN, { action: 'noticeAttachmentAdd', notice_id: gc.id, kind: 'file', file_name: 'bieu-mau-kiem-ke-v2.png', mime_type: 'image/png', base64: PNG_G });
+  const grm = await D(S_IN, { action: 'noticeAttachmentRemove', notice_id: gc.id, attachment_id: ga1.attachmentId });
+  check('G4  EDIT: replace document = remove old + add new (soft remove, row kept)', grm.removed === true
+    && psql(`select count(*) from notice.notice_attachments where id='${ga1.attachmentId}' and deleted_at is not null`) === '1', '');
+  const gdet2 = await D(S_OUT, { action: 'noticeDetail', id: gc.id });
+  check('G5  detail now shows the NEW file + the link (old file gone)', gdet2.notice.attachments.length === 2
+    && gdet2.notice.attachments.some((a) => a.id === ga3.attachmentId) && !gdet2.notice.attachments.some((a) => a.id === ga1.attachmentId), '');
+  const gAudit = Number(psql(`select count(*) from notice.notice_audit_logs where notice_id='${gc.id}' and action_type in ('attachment_add','attachment_remove')`));
+  check('G6  every add/remove audited', gAudit === 4, 'count=' + gAudit);
+  // §A: an explicit re-ack after only attachment changes -> one re-ack revision
+  const gRevB = Number(psql(`select count(*) from notice.notice_revisions where notice_id='${gc.id}'`));
+  const gReack = await D(S_IN, { action: 'noticeUpdate', id: gc.id, require_reacknowledgement: true });
+  const gRevA = Number(psql(`select count(*) from notice.notice_revisions where notice_id='${gc.id}'`));
+  check('G7  Content Manager ticks re-ack after changing tài liệu -> exactly ONE new re-ack revision', gReack.changed === true && gReack.requireReack === true && gRevA === gRevB + 1, `rev ${gRevB}->${gRevA}`);
+  // DETAIL read-only for a viewer: no attachment mutation actions succeed
+  await expectThrow('G8  reader CANNOT add an attachment', () => D(S_OUT, { action: 'noticeAttachmentAdd', notice_id: gc.id, kind: 'link', link_url: 'https://x.test' }), 'NOTICE_MANAGE_DENIED');
+  await expectThrow('G9  reader CANNOT remove an attachment', () => D(S_OUT, { action: 'noticeAttachmentRemove', notice_id: gc.id, attachment_id: ga3.attachmentId }), 'NOTICE_MANAGE_DENIED');
+
+  // ---- §M scope picker: noticeOrgScopes + a notice created with picked values ----
+  const org = await D(S_IN, { action: 'noticeOrgScopes' });
+  check('G10 noticeOrgScopes returns distinct dept + branch lists from People Master', Array.isArray(org.departments) && Array.isArray(org.branches) && org.departments.length >= 1, JSON.stringify({ d: org.departments.length, b: org.branches.length }));
+  const pickDept = org.departments[0];
+  const scoped = await D(S_IN, { action: 'noticeCreate', title: 'Thong bao ap dung theo phong ban', content_text: 'noi dung.', notice_type: 'guide', effective_from: '2026-09-01', scopes: [{ scope_type: 'department', scope_value: pickDept }] });
+  await D(S_IN, { action: 'noticePublish', id: scoped.id });
+  const scDet = await D(S_IN, { action: 'noticeDetail', id: scoped.id });
+  check('G11 notice scope stores the picked dept string; Ap dung semantics unchanged (visible/ack-able to everyone)', scDet.notice.scopes.some((x) => x.scopeType === 'department' && x.scopeValue === pickDept)
+    && (await D(S_OUT, { action: 'noticeFeed', q: 'ap dung theo phong ban' })).notices.length >= 0
+    && (await D(S_OUT, { action: 'noticeDetail', id: scoped.id })).viewer.viewed === true, '');
+
+
   stopApi();
 
-  console.log(`\n==== NOTICE Batch 01+02+FinalPatch LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
+  console.log(`\n==== NOTICE Batch 01+02+FinalPatch+UIUX LIVE LOCAL e2e: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);
 })().catch((e) => { stopApi(); console.error('E2E fatal: ' + (e && e.stack || e)); process.exit(1); });

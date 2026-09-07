@@ -98,9 +98,13 @@ function evalDevAccess(actor) {
 }
 
 // --- authority -------------------------------------------------------------
+// TWO independent layers (Operator §F): (1) NOTICE_DEV_ACCESS_ALLOW is LOCAL/DEV
+// only and controls whether the caller may ENTER the module — it NEVER confers a
+// business role. (2) Business permission = system Admin OR
+// notice.notice_permissions.can_manage. So `_devOperator` is NOT consulted here:
+// an allow-listed non-Admin is a Viewer until an Admin turns on "Quản trị nội dung".
 async function isContentManager(config, actor) {
   if (isAdmin(actor)) return true;
-  if (actor._devOperator) return true;
   if (!actor.employeeCode) return false;
   return readTx(config, async (c) => {
     const r = await c.query('SELECT can_manage FROM notice.notice_permissions WHERE employee_code = $1', [actor.employeeCode]);
@@ -246,6 +250,147 @@ function htmlFromText(txt) {
   flush();
   return out.join('\n') || '<p></p>';
 }
+// ---- CONTROLLED RICH TEXT (§3) ------------------------------------------
+// The web body may now arrive as HTML from a constrained WYSIWYG editor. The
+// SERVER is authoritative: this is a strict ALLOWLIST sanitizer — unknown tags
+// are unwrapped (kept as text/children), script/style/etc are dropped whole,
+// every attribute is discarded except `href` (scheme-checked) on <a> and a
+// single normalised `text-align` on block elements. No class/id/on*/style
+// beyond that, no <img>/<iframe>/<span>/<font>/colour/font-family. PHF keeps
+// typography. content_text is then DERIVED from the sanitised HTML for FTS.
+const RT_BLOCK = { p: 1, h2: 1, h3: 1, ul: 1, ol: 1, li: 1, blockquote: 1 };
+const RT_INLINE = { strong: 1, em: 1, u: 1, s: 1, a: 1, br: 1 };
+const RT_REMAP = { b: 'strong', i: 'em', strike: 's', del: 's', h1: 'h2', h4: 'h3', h5: 'h3', h6: 'h3', div: 'p', pre: 'p' };
+const RT_DROP_WHOLE = { script: 1, style: 1, head: 1, title: 1, noscript: 1, template: 1, svg: 1, math: 1, iframe: 1, object: 1, embed: 1 };
+const RT_VOID = { br: 1 };
+function rtEscText(s) {
+  return String(s)
+    .replace(/&(?!(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,30});)/g, '&amp;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function rtAlign(styleAttr) {
+  const m = String(styleAttr || '').match(/text-align\s*:\s*(left|right|center|justify)/i);
+  if (!m) return '';
+  const v = m[1].toLowerCase();
+  return v === 'left' ? '' : ' style="text-align:' + v + '"';
+}
+function rtHref(raw) {
+  var v = String(raw == null ? '' : raw).replace(/[^!-~]/g, '');
+  if (/^(https?:[/][/]|mailto:)/i.test(v)) return v.replace(/"/g, '%22').slice(0, 2000);
+  return '';
+}
+function sanitizeNoticeHtml(rawHtml) {
+  const src = String(rawHtml == null ? '' : rawHtml);
+  if (!src.trim()) return '';
+  const tokenRe = /<!--[\s\S]*?-->|<\/?([a-zA-Z][a-zA-Z0-9]*)((?:[^">]|"[^"]*")*)>|([^<]+)/g;
+  const out = [];
+  const stack = [];
+  let dropDepth = 0;
+  let dropTag = '';
+  let m;
+  while ((m = tokenRe.exec(src))) {
+    const raw = m[0];
+    if (raw.slice(0, 4) === '<!--') continue;
+    const tagName = m[1] ? m[1].toLowerCase() : null;
+    if (tagName == null) {
+      if (dropDepth) continue;
+      const t = m[3];
+      if (t) out.push(rtEscText(t));
+      continue;
+    }
+    const closing = raw[1] === '/';
+    if (dropDepth) {
+      if (closing && tagName === dropTag) { dropDepth--; if (!dropDepth) dropTag = ''; }
+      else if (!closing && tagName === dropTag && !/\/>\s*$/.test(raw)) dropDepth++;
+      continue;
+    }
+    if (!closing && RT_DROP_WHOLE[tagName]) {
+      if (!/\/>\s*$/.test(raw)) { dropDepth = 1; dropTag = tagName; }
+      continue;
+    }
+    const mapped = RT_REMAP[tagName] || tagName;
+    const allowed = RT_BLOCK[mapped] || RT_INLINE[mapped];
+    if (closing) {
+      if (!allowed) continue; // unwrap: ignore stray close
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i] === mapped) {
+          for (let k = stack.length - 1; k >= i; k--) out.push('</' + stack[k] + '>');
+          stack.length = i;
+          break;
+        }
+      }
+      continue;
+    }
+    // opening
+    if (!allowed) continue; // unwrap unknown/disallowed — keep its children
+    if (RT_VOID[mapped]) { out.push('<br>'); continue; }
+    let attrs = '';
+    const attrSrc = m[2] || '';
+    if (mapped === 'a') {
+      const h = attrSrc.match(/\bhref\s*=\s*"([^"]*)"|\bhref\s*=\s*'([^']*)'|\bhref\s*=\s*([^\s">]+)/i);
+      const href = h ? rtHref(h[1] || h[2] || h[3]) : '';
+      if (!href) continue; // an anchor with no safe href → unwrap to text
+      attrs = ' href="' + href + '" target="_blank" rel="noopener nofollow"';
+    } else if (RT_BLOCK[mapped]) {
+      const st = attrSrc.match(/\bstyle\s*=\s*"([^"]*)"|\bstyle\s*=\s*'([^']*)'/i);
+      attrs = rtAlign(st ? (st[1] || st[2]) : '');
+    }
+    out.push('<' + mapped + attrs + '>');
+    stack.push(mapped);
+  }
+  for (let k = stack.length - 1; k >= 0; k--) out.push('</' + stack[k] + '>');
+
+  let html = out.join('');
+  // strip empties + fix block model (a <p> may not contain block elements —
+  // unwrap those, drop the orphaned </p>) + collapse runs
+  for (let i = 0; i < 5; i++) {
+    html = html
+      .replace(/<p>\s*(<(?:p|h2|h3|ul|ol|blockquote)\b[^>]*>)/gi, '$1')
+      .replace(/(<\/(?:p|h2|h3|ul|ol|blockquote)>)\s*<\/p>/gi, '$1')
+      .replace(/<(p|h2|h3|li|blockquote)([^>]*)>(?:\s|&nbsp;|<br>)*<\/\1>/gi, '')
+      .replace(/<(ul|ol)>\s*<\/\1>/gi, '')
+      .replace(/(<br>\s*){3,}/gi, '<br><br>');
+  }
+  html = html.trim();
+  if (!html) return '';
+  // assign stable ids to headings (for auto-TOC / anchor jump)
+  const usedIds = {};
+  html = html.replace(/<(h[23])>([\s\S]*?)<\/\1>/gi, (whole, tag, inner) => {
+    const text = inner.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+    let id = slugify(text);
+    if (usedIds[id]) { usedIds[id]++; id = id + '-' + usedIds[id]; } else usedIds[id] = 1;
+    return '<' + tag + ' id="' + id + '">' + inner + '</' + tag + '>';
+  });
+  return html;
+}
+// Plain text derived from the sanitised HTML — feeds notices.search_tsv (FTS)
+// and the feed excerpt. Block boundaries become newlines so search still works
+// clause-by-clause and the excerpt reads sensibly.
+function noticeHtmlToText(html) {
+  return String(html || '')
+    .replace(/<\/(p|h2|h3|li|ul|ol|blockquote|br)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+// A web body may arrive as (a) rich HTML from the WYSIWYG editor → sanitise it
+// and derive the text, or (b) plain text (API / paste-only) → the existing
+// "## " heading convention. Returns { html, text }.
+function resolveNoticeBody(params, fallbackText) {
+  const rawHtml = params && params.contentHtml != null ? String(params.contentHtml) : '';
+  const looksRich = /<(p|h2|h3|ul|ol|li|strong|em|u|a|br|b|i|div)[\s>]/i.test(rawHtml);
+  if (looksRich) {
+    const html = sanitizeNoticeHtml(rawHtml);
+    const textFromHtml = noticeHtmlToText(html);
+    if (html && textFromHtml) return { html, text: textFromHtml };
+  }
+  const text = text_(params && params.contentText) || fallbackText || '';
+  if (!text) return { html: '', text: '' };
+  return { html: htmlFromText(text), text };
+}
+function text_(v) { const s = v == null ? '' : String(v).trim(); return s === '' ? '' : s; }
+
 // Auto table-of-contents (§15/§18): pull h2/h3/h4 + their id out of the stored HTML.
 function tocFromHtml(html) {
   const out = [];
@@ -367,7 +512,24 @@ async function createRevision(c, actor, id, requireReack, changeSummary) {
 // and has now arrived — run before every feed/detail read (idempotent, bounded:
 // only rows with replaced_notice_id, published, effective_from <= today, whose
 // target is not yet superseded). No scheduler needed.
+// Replacement flips are DATE-based (daily granularity) — re-checking on every
+// feed/detail read opened a write transaction for nothing on virtually every
+// request. Throttle the sweep to once per REPLACEMENT_SWEEP_TTL_MS process-wide;
+// the "lazy flip on read" contract already tolerates a small delay, and every
+// write path (publish/update) still handles its own replacement synchronously.
+const DUE_REPLACEMENT_PROBE =
+  `SELECT 1
+     FROM notice.notices b
+     JOIN notice.notices a ON a.id = b.replaced_notice_id
+    WHERE b.status = 'published' AND b.deleted_at IS NULL
+      AND b.replaced_notice_id IS NOT NULL
+      AND b.effective_from <= $1::date
+      AND a.status = 'published' AND a.deleted_at IS NULL
+      AND a.superseded_by_notice_id IS NULL
+    LIMIT 1`;
 async function resolveDueReplacements(config, today) {
+  const anyDue = await readTx(config, async (c) => (await c.query(DUE_REPLACEMENT_PROBE, [today])).rowCount > 0);
+  if (!anyDue) return;
   await writeTx(config, async (c) => {
     const due = await c.query(
       `SELECT b.id AS new_id, b.replaced_notice_id AS old_id, b.effective_from AS new_from
@@ -414,16 +576,67 @@ const HANDLERS = {
         lockReason: 'Thông báo Quản trị đang trong giai đoạn phát triển — chỉ Admin và người vận hành được chỉ định mới truy cập được cho đến khi GO-LIVE.',
       };
     }
-    let canManage = admin || (dg.locked && dg.operator);
-    if (!canManage && actor.employeeCode) {
-      canManage = await readTx(config, async (c) => {
+    // Dev-allow (dg.operator) grants ENTRY only — never a business role (§F).
+    let canManage = admin;
+    // One read transaction resolves BOTH the grant check and the viewer's
+    // "Cần tiếp nhận" inbox count (published notices that require this viewer's
+    // acknowledgement or re-acknowledgement and are not yet satisfied, expired
+    // ones excluded). Additive read — the acknowledgement contract is unchanged.
+    const today = todayISO();
+    const vkey = viewerKey(actor);
+    const boot = await readTx(config, async (c) => {
+      let grant = false;
+      if (!canManage && actor.employeeCode) {
         const r = await c.query('SELECT can_manage FROM notice.notice_permissions WHERE employee_code = $1', [actor.employeeCode]);
-        return r.rowCount > 0 && r.rows[0].can_manage === true;
-      });
-    }
+        grant = r.rowCount > 0 && r.rows[0].can_manage === true;
+      }
+      let inboxPending = 0;
+      try {
+        const p = await c.query(
+          `SELECT count(*)::int AS pending
+             FROM notice.notices n
+            WHERE n.deleted_at IS NULL AND n.status = 'published'
+              AND n.require_acknowledgement = true
+              AND (n.effective_to IS NULL OR n.effective_to >= $1::date)
+              AND NOT EXISTS (
+                SELECT 1 FROM notice.notice_acknowledgements a
+                  JOIN notice.notice_revisions rv ON rv.id = a.revision_id
+                 WHERE a.notice_id = n.id AND a.acker_key = $2
+                   AND rv.revision_no >= COALESCE(
+                     (SELECT MAX(r2.revision_no) FROM notice.notice_revisions r2
+                       WHERE r2.notice_id = n.id AND r2.require_reacknowledgement = true), 0))`,
+          [today, vkey]
+        );
+        inboxPending = Number(p.rows[0] && p.rows[0].pending) || 0;
+      } catch (e) { inboxPending = 0; }
+      // Bell badge (§5): recent published, non-deleted, non-expired notices this
+      // viewer has NOT opened yet (bounded 90-day window). Counts "chưa đọc";
+      // "cần xác nhận" is inboxPending. Same one read transaction — no new path.
+      let bellUnread = 0;
+      try {
+        const u = await c.query(
+          `SELECT count(*)::int AS n
+             FROM notice.notices n
+            WHERE n.deleted_at IS NULL AND n.status = 'published'
+              AND (n.effective_to IS NULL OR n.effective_to >= $1::date)
+              AND n.published_at >= (now() - interval '90 days')
+              AND NOT EXISTS (SELECT 1 FROM notice.notice_views v WHERE v.notice_id = n.id AND v.viewer_key = $2)`,
+          [today, vkey]
+        );
+        bellUnread = Number(u.rows[0] && u.rows[0].n) || 0;
+      } catch (e) { bellUnread = 0; }
+      return { grant, inboxPending, bellUnread };
+    });
+    if (boot.grant) canManage = true;
     return {
       viewer: { accountId: actor.accountId, employeeCode: actor.employeeCode, displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: admin },
-      capabilities: { canManage: !!canManage },
+      capabilities: {
+        canManage: !!canManage,          // đăng / sửa / xóa / ghim / danh mục / báo cáo
+        canManagePermissions: admin,     // "Cài đặt quyền" — system Admin ONLY (§C/§D)
+        grant: !!boot.grant,             // the module toggle state for this user
+      },
+      inbox: { pendingCount: boot.inboxPending },
+      bell: { unreadCount: boot.bellUnread, pendingCount: boot.inboxPending },
       devLocked: !!dg.locked,
       devOperator: !!(dg.locked && dg.operator && !admin),
     };
@@ -439,6 +652,9 @@ const HANDLERS = {
     const statusFilter = text(params && params.status); // active | upcoming | expired
     const scopeFilter = text(params && params.scope);   // department/branch label
     const includeDrafts = canManage && boolish(params && params.includeDrafts);
+    const mode = String((params && params.mode) || '');
+    const inboxMode = mode === 'inbox'; // "Cần tiếp nhận"
+    const bellMode = mode === 'bell';   // chuông thông báo — recent, bounded
 
     return readTx(config, async (c) => {
       const where = ['n.deleted_at IS NULL'];
@@ -461,11 +677,16 @@ const HANDLERS = {
         vals.push(scopeFilter);
         where.push(`EXISTS (SELECT 1 FROM notice.notice_scopes s WHERE s.notice_id = n.id AND (s.scope_type = 'company' OR s.scope_value = $${vals.length}))`);
       }
+      if (bellMode) {
+        where.push("(n.effective_to IS NULL OR n.effective_to >= now()::date)",
+          "n.published_at >= (now() - interval '120 days')");
+      }
       const rows = (await c.query(
         `SELECT n.*, cat.name AS category_name, ${rankSql} AS rank_score,
                 (SELECT count(*)::int FROM notice.notice_revisions rv WHERE rv.notice_id = n.id) AS rev_count
            FROM notice.notices n LEFT JOIN notice.notice_categories cat ON cat.slug = n.notice_type
-          WHERE ${where.join(' AND ')} LIMIT 500`, vals
+          WHERE ${where.join(' AND ')}
+          ${bellMode ? 'ORDER BY n.is_pinned DESC, n.published_at DESC NULLS LAST LIMIT 12' : 'LIMIT 500'}`, vals
       )).rows;
       if (!rows.length) return { today, notices: [], total: 0 };
 
@@ -479,13 +700,18 @@ const HANDLERS = {
                         (SELECT COALESCE(MAX(r2.revision_no),0) FROM notice.notice_revisions r2 WHERE r2.notice_id = a.notice_id AND r2.require_reacknowledgement = true) AS reack_no
                    FROM notice.notice_acknowledgements a JOIN notice.notice_revisions rv ON rv.id = a.revision_id
                   WHERE a.notice_id = ANY($1) AND a.acker_key = $2`, [ids, vkey]),
-        c.query('SELECT notice_id, count(*)::int AS n FROM notice.notice_attachments WHERE notice_id = ANY($1) AND deleted_at IS NULL GROUP BY notice_id', [ids]),
+        c.query(`SELECT notice_id,
+                        count(*)::int AS n,
+                        count(*) FILTER (WHERE kind = 'file')::int AS files,
+                        count(*) FILTER (WHERE kind = 'link')::int AS links
+                   FROM notice.notice_attachments
+                  WHERE notice_id = ANY($1) AND deleted_at IS NULL GROUP BY notice_id`, [ids]),
       ]);
       const scopeBy = new Map(); scopeRows.rows.forEach((r) => { (scopeBy.get(r.notice_id) || scopeBy.set(r.notice_id, []).get(r.notice_id)).push({ scopeType: r.scope_type, scopeValue: r.scope_value }); });
       const kwBy = new Map(); kwRows.rows.forEach((r) => { (kwBy.get(r.notice_id) || kwBy.set(r.notice_id, []).get(r.notice_id)).push(r.keyword); });
       const viewBy = new Map(viewRows.rows.map((r) => [r.notice_id, r]));
       const ackBy = new Map(ackRows.rows.map((r) => [r.notice_id, { revId: r.revision_id, valid: Number(r.acked_no) >= Number(r.reack_no || 0) }]));
-      const attBy = new Map(attCount.rows.map((r) => [r.notice_id, r.n]));
+      const attBy = new Map(attCount.rows.map((r) => [r.notice_id, r]));
 
       const list = rows.map((r) => {
         const es = effectiveStatus(r, today);
@@ -508,7 +734,9 @@ const HANDLERS = {
           edited: Number(r.rev_count || 0) > 1,
           scopes: scopeBy.get(r.id) || [],
           keywords: kwBy.get(r.id) || [],
-          attachmentCount: attBy.get(r.id) || 0,
+          attachmentCount: (attBy.get(r.id) && attBy.get(r.id).n) || 0,
+          attachmentFileCount: (attBy.get(r.id) && attBy.get(r.id).files) || 0,
+          attachmentLinkCount: (attBy.get(r.id) && attBy.get(r.id).links) || 0,
           supersededByNoticeId: r.superseded_by_notice_id || null,
           replacedNoticeId: r.replaced_notice_id || null,
           viewer: {
@@ -524,6 +752,9 @@ const HANDLERS = {
       // Ordering: explicit pin first (unchanged, separate function) -> then an
       // ACTIVE "Hỏa tốc" (urgent) advantage that an expired notice loses -> then
       // status (active/upcoming/expired) -> search relevance -> recency.
+      if (bellMode) {
+        return { today, notices: list, total: list.length, bellMode: true };
+      }
       const urgentActive = (n) => (n.priority === 'urgent' && n.effectiveStatus === 'active') ? 0 : 1;
       list.sort((x, y) => {
         if (x.isPinned !== y.isPinned) return x.isPinned ? -1 : 1;
@@ -539,7 +770,16 @@ const HANDLERS = {
       if (statusFilter && ['active', 'upcoming', 'expired'].indexOf(statusFilter) >= 0) {
         filtered = list.filter((n) => n.effectiveStatus === statusFilter);
       }
-      return { today, notices: filtered, total: filtered.length };
+      // "Cần tiếp nhận" — the viewer's personal work inbox: published notices
+      // that ask for this viewer's acknowledgement and are not yet satisfied
+      // (never acked, or acked an older revision that a later re-ack invalidated).
+      // Expired notices drop out. Does NOT change the acknowledgement contract.
+      if (inboxMode) {
+        filtered = filtered.filter((n) => n.requireAcknowledgement
+          && n.effectiveStatus !== 'expired'
+          && (!n.viewer.acknowledged || !n.viewer.acknowledgedRevisionIsCurrent));
+      }
+      return { today, notices: filtered, total: filtered.length, inboxMode };
     });
   },
 
@@ -549,12 +789,14 @@ const HANDLERS = {
     if (!id) throw nErr('NOTICE_ID_REQUIRED', 'Thiếu mã thông báo.', 400);
     const today = todayISO();
     await resolveDueReplacements(config, today);
+    // resolve manage authority ONCE (was 3 separate readTx round-trips per open)
+    const canManage = await isContentManager(config, actor);
     return writeTx(config, async (c) => {
       const full = await loadFullNotice(c, id);
-      if (full.row.deleted_at && !(await isContentManager(config, actor))) {
+      if (full.row.deleted_at && !canManage) {
         throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
       }
-      if (full.row.status !== 'published' && !(await isContentManager(config, actor))) {
+      if (full.row.status !== 'published' && !canManage) {
         throw nErr('NOTICE_NOT_FOUND', 'Không tìm thấy thông báo.', 404);
       }
       // record view (only for published, non-deleted — a manager previewing a
@@ -590,7 +832,7 @@ const HANDLERS = {
         const rp = await c.query('SELECT id, title FROM notice.notices WHERE id = $1', [full.row.replaced_notice_id]);
         if (rp.rowCount) replaces = { id: rp.rows[0].id, title: rp.rows[0].title };
       }
-      return { today, notice: shaped, viewer: viewerState, replacement, replaces, canManage: await isContentManager(config, actor) };
+      return { today, notice: shaped, viewer: viewerState, replacement, replaces, canManage };
     });
   },
 
@@ -629,11 +871,16 @@ const HANDLERS = {
     // HTML is always DERIVED from it server-side (htmlFromText: "## " headings +
     // paragraphs + stable ids for the auto-TOC / anchor jump). A client-sent
     // contentHtml is only a fallback when no text is provided.
-    const rawText = text(params && params.contentText)
-      || (params && params.contentHtml != null ? String(params.contentHtml).replace(/<\/(h[234]|p|li|div)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim() : '');
-    if (!rawText) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
-    const contentText = rawText;
-    const contentHtml = htmlFromText(rawText);
+    // Web body is mandatory (§14/§18). It arrives EITHER as rich HTML from the
+    // constrained editor — server-sanitised to a strict allowlist, then plain
+    // text DERIVED from it for FTS — OR as plain text (API / paste), which keeps
+    // the "## " heading convention. Either way headings get stable ids for the
+    // auto-TOC. resolveNoticeBody() picks the branch.
+    const body = resolveNoticeBody(params, '');
+    if (!body.html || !body.text) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
+    const contentText = body.text;
+    const contentHtml = body.html;
+    const pinnedOnCreate = boolish(params && params.pinned);
     const effectiveFrom = dateOnly(params && params.effectiveFrom) || todayISO();
     const effectiveTo = dateOnly(params && params.effectiveTo);
     if (effectiveTo && effectiveTo < effectiveFrom) throw nErr('NOTICE_DATE_RANGE', 'Ngày hết hiệu lực phải sau ngày hiệu lực.', 400);
@@ -655,8 +902,13 @@ const HANDLERS = {
       const id = ins.rows[0].id;
       for (const s of scopes) await c.query('INSERT INTO notice.notice_scopes (notice_id, scope_type, scope_value) VALUES ($1,$2,$3)', [id, s.scopeType, s.scopeValue]);
       for (const k of keywords) await c.query('INSERT INTO notice.notice_keywords (notice_id, keyword) VALUES ($1,$2)', [id, k]);
-      await writeAudit(c, actor, id, 'create', null, { title, noticeType, priority, effectiveFrom, effectiveTo, requireAck, scopes, keywords, replacedNoticeId: replacedNoticeId || null });
-      return { id, status: 'draft' };
+      // Ghim is set at create/edit time now (§6). Pin is independent of priority.
+      if (pinnedOnCreate) {
+        await c.query('UPDATE notice.notices SET is_pinned = true WHERE id = $1', [id]);
+        await writeAudit(c, actor, id, 'pin', { isPinned: false }, { isPinned: true });
+      }
+      await writeAudit(c, actor, id, 'create', null, { title, noticeType, priority, effectiveFrom, effectiveTo, requireAck, isPinned: !!pinnedOnCreate, scopes, keywords, replacedNoticeId: replacedNoticeId || null });
+      return { id, status: 'draft', pinned: !!pinnedOnCreate };
     });
   },
 
@@ -679,12 +931,10 @@ const HANDLERS = {
 
       if (params && params.title != null) { const t = text(params.title); if (!t) throw nErr('NOTICE_TITLE_REQUIRED', 'Tiêu đề là bắt buộc.', 400); if (t !== b.title) put('title', t, 'title'); }
       if ((params && params.contentHtml != null) || (params && params.contentText != null)) {
-        const txt = text(params.contentText)
-          || (params.contentHtml != null ? String(params.contentHtml).replace(/<\/(h[234]|p|li|div)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim() : b.content_text);
-        if (!txt) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
-        const html = htmlFromText(txt); // stored HTML always derived server-side
-        if (html !== b.content_html) put('content_html', html, 'contentHtml');
-        if (txt !== b.content_text) put('content_text', txt, 'contentText');
+        const rb = resolveNoticeBody(params, b.content_text);
+        if (!rb.html || !rb.text) throw nErr('NOTICE_CONTENT_REQUIRED', 'Nội dung trên web là bắt buộc.', 400);
+        if (rb.html !== b.content_html) put('content_html', rb.html, 'contentHtml');
+        if (rb.text !== b.content_text) put('content_text', rb.text, 'contentText');
       }
       if (params && params.noticeType != null) {
         const raw = text(params.noticeType);
@@ -729,8 +979,31 @@ const HANDLERS = {
         await c.query('UPDATE notice.notices SET ' + set.join(', ') + ' WHERE id = $' + vals.length, vals);
       }
 
-      const anyChange = set.length || scopesChanged || keywordsChanged;
-      if (!anyChange) return { id, changed: false };
+      // §6: Ghim can also be toggled from the edit form. Pin stays independent of
+      // priority and keeps its own pin/unpin audit line.
+      let pinChanged = false;
+      if (params && Object.prototype.hasOwnProperty.call(params, 'pinned')) {
+        const want = boolish(params.pinned);
+        if (want !== (b.is_pinned === true)) {
+          await c.query('UPDATE notice.notices SET is_pinned = $1 WHERE id = $2', [want, id]);
+          await writeAudit(c, actor, id, want ? 'pin' : 'unpin', { isPinned: b.is_pinned === true }, { isPinned: want });
+          pinChanged = true;
+        }
+      }
+
+      const contentChanged = set.length || scopesChanged || keywordsChanged;
+      // A published notice can get an explicit re-ack even when only the
+      // attachments changed (applied live via notice.attachment.*): the Content
+      // Manager ticks the box and we cut one re-ack revision here.
+      const reackOnly = !contentChanged && requireReack && b.status === 'published';
+      if (!contentChanged && !pinChanged && !reackOnly) return { id, changed: false };
+      // A pin-only change is NOT a content edit: no 'edit' audit, no new revision.
+      if (!contentChanged && !reackOnly) return { id, changed: true, revision: null, requireReack: null, pinChanged: true };
+      if (reackOnly) {
+        const rv = await createRevision(c, actor, id, true, changeSummary || 'Yêu cầu xác nhận lại (thay đổi tài liệu/đính kèm)');
+        await writeAudit(c, actor, id, 'require_reack', null, { revisionNo: rv.revisionNo, reason: 'manual' });
+        return { id, changed: true, revision: rv, requireReack: true, pinChanged };
+      }
 
       await writeAudit(c, actor, id, 'edit', beforeJson, afterJson);
 
@@ -741,7 +1014,7 @@ const HANDLERS = {
         revision = await createRevision(c, actor, id, requireReack, changeSummary);
         if (requireReack) await writeAudit(c, actor, id, 'require_reack', null, { revisionNo: revision.revisionNo });
       }
-      return { id, changed: true, revision, requireReack: b.status === 'published' ? !!requireReack : null };
+      return { id, changed: true, revision, requireReack: b.status === 'published' ? !!requireReack : null, pinChanged };
     });
   },
 
@@ -1139,25 +1412,21 @@ const HANDLERS = {
     });
   },
 
-  // ---- MODULE PERMISSIONS ---------------------------------------------
+  // ---- MODULE PERMISSIONS — ADMIN ONLY (Operator §C/§D) ----------------
+  // Reading OR writing the manager roster is a system-Admin action. A "Quản trị
+  // nội dung" grantee manages notices, never the permission roster.
   'notice.permissions.list': async (config, actor) => {
-    await requireManage(config, actor);
+    requireAdmin(actor);
     return readTx(config, async (c) => {
       const r = await c.query('SELECT employee_code, can_manage, updated_at, updated_by_name FROM notice.notice_permissions ORDER BY employee_code');
       return { permissions: r.rows.map((x) => ({ employeeCode: x.employee_code, canManage: x.can_manage === true, updatedAt: x.updated_at, updatedByName: x.updated_by_name || '' })) };
     });
   },
   'notice.permissions.set': async (config, actor, params) => {
-    await requireManage(config, actor);
+    requireAdmin(actor); // grant/revoke "Quản trị nội dung" — system Admin only
     const employeeCode = upperCode(params && params.employeeCode);
     const canManage = boolish(params && params.canManage);
     if (!employeeCode) throw nErr('NOTICE_EMPLOYEE_REQUIRED', 'Thiếu mã nhân viên.', 400);
-    // Only a system Admin may GRANT manage authority; an existing content
-    // manager may still be able to revoke — but to keep V1 unambiguous and
-    // match the brief (§6: Admin authority cannot be removed by a toggle),
-    // both grant and revoke require Admin. Content managers manage notices,
-    // not the manager roster.
-    requireAdmin(actor);
     return writeTx(config, async (c) => {
       const cur = await c.query('SELECT can_manage FROM notice.notice_permissions WHERE employee_code = $1 FOR UPDATE', [employeeCode]);
       const before = cur.rowCount ? cur.rows[0].can_manage === true : false;
@@ -1179,7 +1448,7 @@ const HANDLERS = {
     });
   },
   'notice.permissions.history': async (config, actor, params) => {
-    await requireManage(config, actor);
+    requireAdmin(actor);
     const employeeCode = upperCode(params && params.employeeCode);
     return readTx(config, async (c) => {
       const r = await c.query(
@@ -1202,9 +1471,10 @@ async function dispatch(config, rawActor, action, params) {
   if (devGate.locked && !devGate.allowed && action !== 'notice.bootstrap') {
     throw nErr('NOTICE_DEV_LOCKED', 'Thông báo Quản trị đang trong giai đoạn phát triển — bạn chưa được cấp quyền truy cập.', 403);
   }
-  if (devGate.locked && devGate.operator && !isAdmin(actor)) actor._devOperator = true;
+  // NOTE (§F): dev-allow only lets the caller PAST the lock above. It confers no
+  // business role — `_devOperator` is intentionally NOT set on the actor.
 
   return handler(config, actor, params || {}, devGate);
 }
 
-module.exports = { dispatch, ACTIONS, HANDLERS, NoticeError, NOTICE_TYPES, PRIORITIES };
+module.exports = { dispatch, ACTIONS, HANDLERS, NoticeError, NOTICE_TYPES, PRIORITIES, sanitizeNoticeHtml, noticeHtmlToText, htmlFromText, tocFromHtml };
