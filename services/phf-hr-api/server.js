@@ -40,14 +40,15 @@ const { CompetitionError } = require('./lib/competition-common');
 const noticeService = require('./lib/notice-service');
 const { NoticeError } = noticeService;
 const auditService = require('./lib/audit-service');
-// SYSTEM V1 Nhật ký hệ thống — bridge OFF by default. When off, /v1/audit
-// returns 503 and the Vercel emit helper silently no-ops (fail-open: a login
-// or account action is NEVER failed because audit storage is unavailable).
-const AUDIT_BRIDGE_ENABLED = String(process.env.PHF_AUDIT_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
 const systemHealthService = require('./lib/system-health-service');
-// SYSTEM V1 Tình trạng hệ thống — bridge OFF by default. When off, /v1/system:*
-// returns 503 (fail-closed). Bounded read + heartbeat upsert only; no secrets.
-const SYSTEM_HEALTH_BRIDGE_ENABLED = String(process.env.PHF_SYSTEM_HEALTH_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
+// SYSTEM V1 · Nhật ký hệ thống + Tình trạng hệ thống bridges. Same discipline
+// as /v1/notice, /v1/competition, /v1/task/*: the service Bearer token IS the
+// gate — a caller holding it is an authorised server-to-server peer. The
+// feature on/off switch lives on the Vercel side (PHF_AUDIT_BRIDGE_ENABLED /
+// PHF_SYSTEM_HEALTH_BRIDGE_ENABLED in api/_lib/audit-emit.js + system-health.js):
+// when off, the Vercel emit helper no-ops (fail-open) and the Admin read helper
+// surfaces "chưa bật" — this service is simply never called. No phf-hr-api-side
+// env flag (avoids a silent config-drift 503 after the Vercel switch flips on).
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
 const { executeResolvedTaskTimelineQuery } = require('./lib/task-timeline-query-executor');
@@ -876,16 +877,14 @@ function createServer(config) {
       // Bearer service token required. Identity/ip/ua/request-id are already
       // resolved server-side by the Vercel layer and passed in `entry`; this
       // service NEVER trusts a browser. There is NO update/delete verb.
-      // OFF by default (PHF_AUDIT_BRIDGE_ENABLED) — returns 503 when disabled.
+      // Bearer-gated only (same as /v1/notice); the on/off switch is the
+      // Vercel-side flag.
       // ---------------------------------------------------------------
       if (req.method === 'POST' && (path === '/v1/audit:emit' || path === '/v1/audit:list' || path === '/v1/audit:detail')) {
         const auth = authCheck(req);
         if (!auth.authorized) {
           logger.warn('auth_denied', { path, reason: auth.reason });
           return sendJson(res, 401, { error: auth.reason });
-        }
-        if (!AUDIT_BRIDGE_ENABLED) {
-          return sendJson(res, 503, { ok: false, code: 'AUDIT_BRIDGE_DISABLED', message: 'PHF_AUDIT_BRIDGE_ENABLED is off.' });
         }
         let body;
         try { body = await readJsonBody(req, 256 * 1024); }
@@ -919,17 +918,14 @@ function createServer(config) {
       //        rows + bounded mail-outbox aggregate). READ ONLY. No secrets.
       //   POST /v1/system:heartbeat  { job, ok, summary } — the existing cron
       //        entrypoints call this fail-open after a run. UPSERT one row.
-      // Bearer service token required. Flag-gated (PHF_SYSTEM_HEALTH_BRIDGE_
-      // ENABLED) — 503 when off (fail-closed). No update/delete/query verb.
+      // Bearer service token required (same as /v1/notice); the on/off switch
+      // is the Vercel-side flag. No update/delete/query verb.
       // ---------------------------------------------------------------
       if (req.method === 'GET' && path === '/v1/system:health') {
         const auth = authCheck(req);
         if (!auth.authorized) {
           logger.warn('auth_denied', { path, reason: auth.reason });
           return sendJson(res, 401, { error: auth.reason });
-        }
-        if (!SYSTEM_HEALTH_BRIDGE_ENABLED) {
-          return sendJson(res, 503, { ok: false, code: 'SYSTEM_HEALTH_BRIDGE_DISABLED', message: 'PHF_SYSTEM_HEALTH_BRIDGE_ENABLED is off.' });
         }
         try {
           const data = await systemHealthService.getServiceHealth(config, {
@@ -947,9 +943,6 @@ function createServer(config) {
         if (!auth.authorized) {
           logger.warn('auth_denied', { path, reason: auth.reason });
           return sendJson(res, 401, { error: auth.reason });
-        }
-        if (!SYSTEM_HEALTH_BRIDGE_ENABLED) {
-          return sendJson(res, 503, { ok: false, code: 'SYSTEM_HEALTH_BRIDGE_DISABLED', message: 'PHF_SYSTEM_HEALTH_BRIDGE_ENABLED is off.' });
         }
         let body;
         try { body = await readJsonBody(req, 32 * 1024); }

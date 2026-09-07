@@ -157,13 +157,12 @@ function post(base, pathname, body, token) {
   const off = await A3.emitCronHeartbeat('task-mail', true, { sent: 1 });
   check('C5  flag OFF: emit no-ops {ok:false,skipped:true}', off.ok === false && off.skipped === true, JSON.stringify(off));
 
-  await stopApi();
-  await sleep(700);
-  const base2 = await startApi(API_PORT, false);
-  const disabled = await get(base2, '/v1/system:health');
-  check('C6  bridge flag OFF -> 503 SYSTEM_HEALTH_BRIDGE_DISABLED', disabled.status === 503 && /SYSTEM_HEALTH_BRIDGE_DISABLED/.test(JSON.stringify(disabled.json)), JSON.stringify(disabled.json));
-  const disabledW = await post(base2, '/v1/system:heartbeat', { job: 'task-mail', ok: true });
-  check('C7  heartbeat flag OFF -> 503', disabledW.status === 503, JSON.stringify(disabledW.json));
+  // bridge route fail-closed = Bearer only (same as /v1/notice). The on/off
+  // switch is the Vercel-side flag exercised in C5 above.
+  const nb1 = await get(base, '/v1/system:health', null);
+  const nb2 = await post(base, '/v1/system:heartbeat', { job: 'task-mail', ok: true }, null);
+  check('C6  :health without Bearer -> 401 (fail-closed)', nb1.status === 401, JSON.stringify(nb1));
+  check('C7  :heartbeat without Bearer -> 401 (fail-closed)', nb2.status === 401, JSON.stringify(nb2));
   await stopApi();
 
   console.log(`\n=== RESULT: ${PASS} PASS / ${FAIL} FAIL ===`);

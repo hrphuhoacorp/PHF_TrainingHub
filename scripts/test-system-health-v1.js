@@ -46,14 +46,17 @@ console.log('\n== phf-hr-api service — bounded, no secrets ==');
 }
 
 // ---------------------------------------------------------------------------
-console.log('\n== phf-hr-api route — flag-gated, Bearer, no query verb ==');
+console.log('\n== phf-hr-api route — Bearer-gated, no query verb ==');
 {
   const server = rd('services/phf-hr-api/server.js');
-  ok(/PHF_SYSTEM_HEALTH_BRIDGE_ENABLED/.test(server) && /SYSTEM_HEALTH_BRIDGE_ENABLED\s*=/.test(server), 'flag gated (default OFF)');
+  // Bearer-gated only (same as /v1/notice); the on/off switch is the Vercel-
+  // side flag (api/_lib/system-health.js HEALTH_ENABLED).
+  ok(!/const SYSTEM_HEALTH_BRIDGE_ENABLED =/.test(server) && !/if \(!SYSTEM_HEALTH_BRIDGE_ENABLED\)/.test(server), 'no phf-hr-api-side SYSTEM_HEALTH_BRIDGE_ENABLED gate (Vercel flag is the switch)');
+  ok(/HEALTH_ENABLED = String\(process\.env\.PHF_SYSTEM_HEALTH_BRIDGE_ENABLED/.test(rd('api/_lib/system-health.js')), 'Vercel aggregator keeps the PHF_SYSTEM_HEALTH_BRIDGE_ENABLED switch');
   ok(/path === '\/v1\/system:health'/.test(server) && /path === '\/v1\/system:heartbeat'/.test(server), 'exactly two verbs: :health (GET) + :heartbeat (POST)');
   ok(!/\/v1\/system:(query|list|delete|update|exec)/.test(server), 'no unrestricted query/list/delete/update verb');
-  ok(/if \(!SYSTEM_HEALTH_BRIDGE_ENABLED\) \{\s*return sendJson\(res, 503, \{ ok: false, code: 'SYSTEM_HEALTH_BRIDGE_DISABLED'/.test(server), 'fail-closed 503 when flag off');
   ok(/path === '\/v1\/system:health'\)\s*\{\s*const auth = authCheck\(req\);/.test(server), ':health requires the service Bearer token');
+  ok(/path === '\/v1\/system:heartbeat'\)\s*\{\s*const auth = authCheck\(req\);/.test(server), ':heartbeat requires the service Bearer token');
 }
 
 // ---------------------------------------------------------------------------

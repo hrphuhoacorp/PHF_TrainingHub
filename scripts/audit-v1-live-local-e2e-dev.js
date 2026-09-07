@@ -230,13 +230,11 @@ function fakeReq(over) {
   try { await offMod.auditList({ limit: 1 }); } catch (e) { offReadThrew = true; offErr = e; }
   check('F5  flag OFF: read path throws AUDIT_BRIDGE_DISABLED (honest to Admin)', offReadThrew && offErr && offErr.code === 'AUDIT_BRIDGE_DISABLED', offErr && offErr.code);
 
-  // bridge itself returns 503 when disabled
+  // bridge route fail-closed = Bearer only (same as /v1/notice). The on/off
+  // switch is the Vercel-side flag exercised in F4/F5 above.
   process.env.PHF_AUDIT_BRIDGE_ENABLED = 'true';
-  await stopApi();
-  await sleep(800);
-  const base2 = await startApi(API_PORT, false);
-  const disabled = await rawPost(base2, 'emit', { entry: { module: 'auth', action: 'AUTH_LOGOUT' } });
-  check('F6  bridge with flag off -> 503 AUDIT_BRIDGE_DISABLED', disabled.status === 503 && /AUDIT_BRIDGE_DISABLED/.test(JSON.stringify(disabled.json)), JSON.stringify(disabled.json));
+  const noBearer = await rawPost(base, 'emit', { entry: { module: 'auth', action: 'AUTH_LOGOUT' } }, null);
+  check('F6  bridge route without Bearer -> 401 (fail-closed)', noBearer.status === 401, JSON.stringify(noBearer));
   await stopApi();
 
   // ==================================================================

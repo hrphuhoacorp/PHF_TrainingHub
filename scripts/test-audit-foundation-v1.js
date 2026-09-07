@@ -152,7 +152,12 @@ function continueSync() {
     const server = rd('services/phf-hr-api/server.js');
     ok(/\/v1\/audit:emit['" ]|\/v1\/audit:list|\/v1\/audit:detail/.test(server), 'bridge exposes emit / list / detail only');
     ok(!/\/v1\/audit:(update|delete|edit|truncate)/.test(server), 'bridge exposes NO update/delete/edit/truncate verb');
-    ok(/AUDIT_BRIDGE_ENABLED/.test(server) && /PHF_AUDIT_BRIDGE_ENABLED/.test(server), 'bridge is flag-gated (default OFF -> 503)');
+    // Bearer-gated only (same as /v1/notice); the on/off switch is the Vercel-
+    // side flag (api/_lib/audit-emit.js AUDIT_ENABLED). No phf-hr-api-side env
+    // flag -> no silent config-drift 503 after the Vercel switch flips on.
+    ok(/path === '\/v1\/audit:emit'[\s\S]{0,120}authCheck\(req\)/.test(server), 'bridge route is Bearer-gated (authCheck)');
+    ok(!/const AUDIT_BRIDGE_ENABLED =/.test(server) && !/if \(!AUDIT_BRIDGE_ENABLED\)/.test(server), 'no phf-hr-api-side AUDIT_BRIDGE_ENABLED gate (Vercel flag is the switch)');
+    ok(/const ENABLED = String\(process\.env\.PHF_AUDIT_BRIDGE_ENABLED/.test(rd('api/_lib/audit-emit.js')), 'the Vercel emit helper keeps the PHF_AUDIT_BRIDGE_ENABLED switch');
     ok(/authCheck\(req\)[\s\S]{0,200}\/v1\/audit/.test(server) || /path === '\/v1\/audit:emit'[\s\S]{0,200}authCheck/.test(server), 'bridge requires the service Bearer token');
     const svcFile = rd('services/phf-hr-api/lib/audit-service.js');
     ok(!/(UPDATE|DELETE\s+FROM|TRUNCATE)\s+audit\./i.test(svcFile) && !/client\.query\(\s*[`'"]\s*(UPDATE|DELETE|TRUNCATE)\b/i.test(svcFile), 'audit-service.js issues no UPDATE/DELETE/TRUNCATE SQL against the log');
