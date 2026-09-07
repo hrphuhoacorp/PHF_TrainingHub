@@ -48,12 +48,34 @@ console.log('\n== HERO — approved FINAL FLAT ASSET (text baked into the image)
     'the old placeholder hero tags are gone');
 }
 
-console.log('\n== TOP NAV — Báo cáo / Quản trị groups mirror the existing body group ==');
+console.log('\n== TOP NAV — HỆ THỐNG (System Module V1, business spec LOCKED, ADMIN ONLY) ==');
 {
-  check(/key:'bao-cao',label:'Báo cáo',children:\[\s*\{label:'Báo cáo & Thống kê',soon:true,icon:'chart'\}/.test(src),
-    '"Báo cáo" top-nav group added with the SAME soon:true placeholder already used on the Home body card — no new module invented');
-  check(/key:'quan-tri',label:'Quản trị',children:\[\s*\{label:'Quản trị hệ thống',href:isAdmin\?'\/admin\/nhan-su':null,disabled:!isAdmin,note:'Dành cho quản trị viên',icon:'gear'\}/.test(src),
-    '"Quản trị" top-nav group added, reusing the EXACT existing /admin/nhan-su route + admin-only gate already used by the body card');
+  // Supersedes the old "Báo cáo" / "Quản trị" top-nav groups, per
+  // PHF_HR_DAC_TA_NGHIEP_VU_MODULE_HE_THONG_V1_2026-09-06.
+  check(!/label:'Báo cáo & Thống kê'/.test(src),
+    '"Báo cáo & Thống kê" is fully gone from Home (reporting belongs to QTTH, not Hệ thống V1)');
+  check(!/key:'bao-cao'/.test(src) && !/key:'quan-tri',label:'Quản trị'/.test(src),
+    'old "Báo cáo" / "Quản trị" nav groups removed');
+  check(/if\(isAdmin\)\{\s*model\.push\(\{key:'he-thong',label:'Hệ thống',children:\[/.test(src),
+    '"Hệ thống" top-nav group is pushed ONLY for isAdmin (non-Admin never sees it)');
+  check(/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su',icon:'gear'\}/.test(src),
+    '"Quản trị tài khoản" reuses the EXACT existing /admin/nhan-su route');
+  check(/\{label:'Nhật ký hệ thống',soon:true[^}]*\}/.test(src) && /\{label:'Tình trạng hệ thống',soon:true[^}]*\}/.test(src),
+    '"Nhật ký hệ thống" + "Tình trạng hệ thống" are V1 placeholders (soon:true, no route)');
+}
+
+console.log('\n== HOME BODY — HỆ THỐNG card group ==');
+{
+  check(/title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống'/.test(src),
+    'body group d renamed to "HỆ THỐNG" with the locked subtitle');
+  check(src.includes("title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?'")
+     && src.includes("title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?'")
+     && src.includes("title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?'"),
+    'the 3 V1 function cards carry the locked titles + subtitles');
+  check(/\.filter\(function\(g\)\{return g\.key!=='d'\|\|isAdmin;\}\)/.test(src),
+    'the whole HỆ THỐNG card group is omitted for non-Admin');
+  check(!src.includes("title:'Hệ thống & Báo cáo'"),
+    'old "Hệ thống & Báo cáo" group title is gone');
 }
 
 console.log('\n== "CÔNG VIỆC CẦN CHÚ Ý" — same 3 real signals, now visually tinted ==');

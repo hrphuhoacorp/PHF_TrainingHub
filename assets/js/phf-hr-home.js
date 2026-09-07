@@ -163,17 +163,18 @@ function hrNavModel(){
     {label:'Chương trình thi đua',href:p+'/thi-dua',icon:'trophy'},
     {label:'Thưởng Hành động V.2',soon:true,icon:'sparkles'}
   ]});
-  // Báo cáo / Quản trị — mirror the existing "Hệ thống & Báo cáo" body group
-  // 1:1 (same two entries, same real/soon status, same /admin/nhan-su route
-  // for Quản trị hệ thống) so the top nav offers the same reachable surface
-  // as the body cards, per the approved reference's top-nav composition.
-  // No new route/module — this only exposes what already exists.
-  model.push({key:'bao-cao',label:'Báo cáo',children:[
-    {label:'Báo cáo & Thống kê',soon:true,icon:'chart'}
-  ]});
-  model.push({key:'quan-tri',label:'Quản trị',children:[
-    {label:'Quản trị hệ thống',href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,note:'Dành cho quản trị viên',icon:'gear'}
-  ]});
+  // HỆ THỐNG (System Module V1 — business spec LOCKED, ADMIN ONLY). Mirrors the
+  // body card group 1:1. "Quản trị tài khoản" reuses the existing employee-master
+  // route (/admin/nhan-su, Admin-only); "Nhật ký hệ thống" and "Tình trạng hệ
+  // thống" are V1 placeholders (no route yet — Sắp triển khai). No "Báo cáo"
+  // wording — reporting lives in QTTH, not here. Non-Admin: whole group hidden.
+  if(isAdmin){
+    model.push({key:'he-thong',label:'Hệ thống',children:[
+      {label:'Quản trị tài khoản',href:'/admin/nhan-su',icon:'gear'},
+      {label:'Nhật ký hệ thống',soon:true,icon:'chart'},
+      {label:'Tình trạng hệ thống',soon:true,icon:'gear'}
+    ]});
+  }
   return model;
 }
 /* Source-of-truth for the PHF HR web navigation hierarchy (parent → child).
@@ -302,16 +303,19 @@ function hrGroupsModel(){
       {tint:'yellow',icon:'trophy',title:'Chương trình thi đua',desc:'Đóng góp • Xếp hạng • Vinh danh',badge:'Thi đua',href:p+'/thi-dua'},
       {tint:'peach',icon:'sparkles',title:'Thưởng Hành động V.2',desc:'Ghi nhận • Xét thưởng • Lan tỏa',soon:true}
     ]},
-    {key:'d',icon:'chart',title:'Hệ thống & Báo cáo',sub:'Dữ liệu, báo cáo và cấu hình hệ thống',cols:2,cards:[
-      // Báo cáo & Thống kê — module định hướng, CHƯA triển khai trên Home V1: placeholder, không route.
-      {tint:'blue',icon:'chart',title:'Báo cáo & Thống kê',desc:'Nhân sự • Đào tạo • Thi đua • Tổng hợp',soon:true},
-      // Quản trị hệ thống — lối vào khu quản trị nhân sự hiện hữu của PHF HR
-      // (screen 'employee-master' — Tài khoản & Hồ sơ nhân sự; route thật, Admin-only
-      // theo ROUTE_TABLE assets/js/phf-url-router.js). KHÔNG phải /admin/quan-tri (QTTH).
-      {tint:'gray',icon:'gear',title:'Quản trị hệ thống',desc:'Tài khoản • Hồ sơ • Phân quyền',badge:'Admin',
-        href:isAdmin?'/admin/nhan-su':null,disabled:!isAdmin,disabledNote:'Dành cho quản trị viên'}
+    // HỆ THỐNG — System Module V1 (business spec LOCKED). ADMIN ONLY: the whole
+    // group is omitted for non-Admin (see below). No "Báo cáo" wording — that
+    // belongs to QTTH. V1 = 3 functions: account access, audit/trace, health.
+    // Deep business logic (access toggle, audit collection, health probes) is NOT
+    // built in this batch — only "Quản trị tài khoản" routes (existing
+    // employee-master, Admin-only); the other two are "Sắp triển khai" shells.
+    {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
+      {tint:'gray',icon:'gear',title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?',badge:'Admin',
+        href:'/admin/nhan-su'},
+      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?',soon:true},
+      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?',soon:true}
     ]}
-  ];
+  ].filter(function(g){return g.key!=='d'||isAdmin;});
 }
 function hrCardHtml(c){
   var soon=!!c.soon,dis=!!c.disabled;

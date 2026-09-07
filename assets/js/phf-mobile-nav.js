@@ -126,7 +126,7 @@ function menuItemsFor(caps,r){
      accordion cha→con, KHÔNG duy trì taxonomy phẳng riêng. Nguồn sự thật =
      window.phfHrNavModel() (hrNavModel trong phf-hr-home.js). Chỉ hiện con có
      route thật + được phép; bỏ mục 'soon'/'disabled' (Thưởng Hành động V.2,
-     Lịch chấm công, QTTH, Báo cáo & Thống kê…) — không phơi làm đích đến. */
+     Lịch chấm công, QTTH, Nhật ký/Tình trạng hệ thống…) — không phơi làm đích đến. */
   var model=null;
   try{model=(typeof window.phfHrNavModel==='function')?window.phfHrNavModel():null;}catch(e){model=null;}
   if(model&&model.length){
@@ -142,7 +142,7 @@ function menuItemsFor(caps,r){
       {label:'Training Hub',route:p,icon:'▦'},{label:'Classroom',route:p+'/classroom',icon:'▤'},{label:'Khung năng lực',route:p+'/knl',icon:'◆'}]});
     items.push({accordion:true,key:'danh-gia',label:'Đánh giá',children:[{label:'Checklist',route:p+'/checklist',icon:'☰'}]});
     items.push({accordion:true,key:'thi-dua',label:'Thi đua & Thưởng',children:[{label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'}]});
-    if(isAdminRoute)items.push({accordion:true,key:'quan-tri',label:'Quản trị',children:[{label:'Quản trị hệ thống',route:'/admin/nhan-su',icon:'♙'}]});
+    if(isAdminRoute)items.push({accordion:true,key:'he-thong',label:'Hệ thống',children:[{label:'Quản trị tài khoản',route:'/admin/nhan-su',icon:'♙'}]});
   }
   return items;
 }
