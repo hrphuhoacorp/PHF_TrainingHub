@@ -1854,13 +1854,22 @@ function demoSourceForRelation(relation){
   }
   return fixtures[relation]||[];
 }
+var taskListLoadToken=0;
 async function loadTaskList(root){
   // Pagination foundation (mục 11): server-side offset/limit qua listTasks(),
   // KHÔNG fetch hết rồi paginate client-side. Đổi tab/scope/search luôn reset
   // về trang đầu (offset=0) — chỉ "Xem thêm" mới tăng offset và NỐI tiếp danh
   // sách hiện có (append), không thay filter đang chọn.
   var list=taskUiState.list;
-  list.loading=true;list.error='';list.offset=0;
+  /* SEARCH / FILTER RACE GUARD (2026-09-07) — listTasks() fires on tab switch,
+     scope/status filter and the 400 ms search debounce. Without a guard a
+     slower earlier response can land after a newer one and repaint the list
+     with stale rows. Each load takes the next token; a response whose token is
+     no longer current is dropped (no state write, no render). loadMoreTaskList
+     shares the counter so a filter change mid-"Xem thêm" also invalidates the
+     in-flight page. */
+  var loadToken=++taskListLoadToken;
+  list.loading=true;list.error='';list.offset=0;list.loadingMore=false;
   renderTaskRoot(root);
   if(isTaskDemoModeOn()){
     // PHF_TASK_UI_DEMO_V1 — KHÔNG gọi taskApi()/API thật ở đây, chỉ đọc
@@ -1878,6 +1887,7 @@ async function loadTaskList(root){
     var wireRelation=list.relation==='managed'?'received':list.relation;
     var wireScope=list.relation==='managed'?(list.scope==='cross_department'?'cross_department':'managed'):(list.scope||undefined);
     var response=await taskApi({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:0});
+    if(loadToken!==taskListLoadToken)return; // a newer tab/filter/search load started — drop this stale response
     var result=taskResult(response)||{};
     list.tasks=Array.isArray(result.tasks)?result.tasks:[];
     list.viewScopeType=result.viewScopeType||'self';
@@ -1901,9 +1911,11 @@ async function loadTaskList(root){
     taskUiState.canManageTaskPermissions=result.canManageTaskPermissions===true;
     taskUiState.managedScopeHydrated=true;
   }catch(error){
+    if(loadToken!==taskListLoadToken)return; // superseded — drop the stale error too
     list.error=taskApiErrorMessage(error);
     list.tasks=[];list.hasMore=false;
   }
+  if(loadToken!==taskListLoadToken)return;
   list.loading=false;list.loadedOnce=true;
   if(taskUiState.view==='list')renderTaskRoot(root);
 }
@@ -1911,6 +1923,7 @@ async function loadMoreTaskList(root){
   if(isTaskDemoModeOn())return; // demo luôn hasMore=false, không có trang tiếp theo để tải
   var list=taskUiState.list;
   if(list.loadingMore||!list.hasMore)return;
+  var loadToken=++taskListLoadToken; // shares the counter with loadTaskList — a filter/search change mid-page drops this
   list.loadingMore=true;
   renderTaskRoot(root);
   try{
@@ -1918,14 +1931,17 @@ async function loadMoreTaskList(root){
     var wireRelation=list.relation==='managed'?'received':list.relation;
     var wireScope=list.relation==='managed'?(list.scope==='cross_department'?'cross_department':'managed'):(list.scope||undefined);
     var response=await taskApi({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:nextOffset});
+    if(loadToken!==taskListLoadToken)return; // superseded by a fresh page-0 load — do not append a stale page
     var result=taskResult(response)||{};
     var nextRows=Array.isArray(result.tasks)?result.tasks:[];
     list.tasks=list.tasks.concat(nextRows);
     list.offset=nextOffset;
     list.hasMore=result.hasMore===true;
   }catch(error){
+    if(loadToken!==taskListLoadToken)return;
     list.error=taskApiErrorMessage(error);
   }
+  if(loadToken!==taskListLoadToken)return;
   list.loadingMore=false;
   if(taskUiState.view==='list')renderTaskRoot(root);
 }
@@ -5122,19 +5138,60 @@ function taskViewHtml(){
   if(taskUiState.view==='list')return taskListHtml();
   return taskOverviewV2Html();
 }
+/* STRUCTURAL SHELL SIGNATURE (2026-09-07) — everything shellFrame() bakes into
+   the header/sidebar/nav that is NOT the <main> body. When this is unchanged
+   between two renders of the same screen, the shell DOM can be left in place
+   and only <main> re-rendered (see renderTaskRoot partial path). */
+var phfTaskLastShellSig='';
+function phfTaskShellSig(){
+  var l=taskUiState&&taskUiState.list;
+  return [
+    (taskUiState&&taskUiState.view)||'',
+    (taskUiState&&taskUiState.view==='list'&&l)?(l.relation||''):'',
+    taskScreenGated()?'1':'0',
+    taskManagerScopeAvailable()?'1':'0',
+    (typeof taskManagePermissionsAvailable==='function'&&taskManagePermissionsAvailable())?'1':'0',
+    (typeof isTaskAdminUi==='function'&&isTaskAdminUi())?'1':'0',
+    (typeof isTaskDemoModeOn==='function'&&isTaskDemoModeOn())?'1':'0'
+  ].join('|');
+}
 function renderTaskRoot(root){
   var key=phfTaskRenderKey();
   var sameContext=(key===phfTaskLastRenderKey);
+  var gated=taskScreenGated();
+  var body=gated?taskHydrationGateHtml():taskViewHtml();
+  var shellSig=phfTaskShellSig();
+
+  /* STRUCTURAL PARTIAL UPDATE (2026-09-07) — the overwhelmingly common
+     re-render is a data refresh of the SAME screen (list load-more / search /
+     filter, detail reload after a lifecycle action, the late managed-scope
+     probe, a notification-driven refresh). Rebuilding the whole Task subtree
+     with root.innerHTML tears out the header + sidebar that sit ABOVE the
+     viewport, so the browser collapses page height and clamps window scrollY
+     toward 0 — that is the "jump to top" the reader sees. When the shell would
+     render byte-identical (same view / list relation / hydration gate / nav
+     capabilities) and this is NOT an intentional navigation, swap ONLY the
+     <main> content. The shell DOM stays mounted and the scroll position is
+     never touched — no snapshot, no restore, no retry loop. */
+  var shell=(root&&typeof root.querySelector==='function')?root.querySelector('.phf-task-root-shell'):null;
+  var main=shell?shell.querySelector('.phft-main'):null;
+  if(main && sameContext && !phfTaskNavigating && shellSig===phfTaskLastShellSig){
+    main.innerHTML=body;
+    shell.classList.toggle('is-mobile-nav-open',!!(taskUiState&&taskUiState.mobileNavOpen));
+    phfTaskLastRenderKey=key;
+    bindTaskNotif(root);loadTaskNotifications(root,false);
+    return;
+  }
+
   var beforeY=0;
   try{ beforeY=(typeof window!=='undefined')?(window.pageYOffset||window.scrollY||0):0; }catch(e){}
   var wantY=(!phfTaskNavigating && sameContext) ? Math.max(beforeY, phfTaskPendingScrollRestore) : 0;
 
-  var gated=taskScreenGated();
-  var body=gated?taskHydrationGateHtml():taskViewHtml();
   root.innerHTML='<div class="phf-task-root-shell'+(gated?' is-hydrating':'')+(taskUiState.mobileNavOpen?' is-mobile-nav-open':'')+'">'+shellFrame(body,{hydrating:gated})+'</div>';
   bindShell(root);bindTaskNotif(root);loadTaskNotifications(root,false);
 
   phfTaskLastRenderKey=key;
+  phfTaskLastShellSig=shellSig;
   if(wantY>0){
     var maxY=0;
     try{

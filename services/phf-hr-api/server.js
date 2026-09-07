@@ -41,6 +41,7 @@ const noticeService = require('./lib/notice-service');
 const { NoticeError } = noticeService;
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
+const { executeResolvedTaskTimelineQuery } = require('./lib/task-timeline-query-executor');
 const {
   updateTaskProgress, completeTask, reopenTask, cancelTask, changeTaskDeadline,
   createDraftTask, publishTask,
@@ -985,6 +986,53 @@ function createServer(config) {
         } catch (err) {
           logger.warn('overview_descriptor_rejected_or_query_failed', { path, code: err.code, message: err.message });
           return sendJson(res, err.statusCode || 400, { error: err.code || 'TASK_OVERVIEW_QUERY_FAILED', message: err.message });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/task/events — Timeline (Dòng thời gian) activity read.
+      // Sibling of "POST /v1/task/tasks" — SAME 2-layer auth (Bearer service
+      // token + HMAC-signed RESOLVED_TASK_QUERY_DESCRIPTOR_V1: the SAME
+      // descriptor shape the Task List path signs), SAME fail-closed contract.
+      // Body: { descriptor, eventLimit? }. Replaces the read-bridge Timeline
+      // fan-out (1 listTasks + up to 60 full detail reads) with one authorised
+      // list resolution + one bounded task.events query — see
+      // lib/task-timeline-query-executor.js. No new index, no schema change.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/task/events') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!config.DESCRIPTOR_SIGNING_SECRET) {
+          logger.error('descriptor_signing_secret_missing', { path });
+          return sendJson(res, 500, { error: 'DESCRIPTOR_SIGNING_SECRET_NOT_CONFIGURED' });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 65536);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const descriptor = body && body.descriptor;
+        if (!descriptor || typeof descriptor !== 'object') {
+          return sendJson(res, 400, { error: 'DESCRIPTOR_MISSING' });
+        }
+        try {
+          const result = await executeResolvedTaskTimelineQuery(
+            config, descriptor, config.DESCRIPTOR_SIGNING_SECRET, { eventLimit: body && body.eventLimit }
+          );
+          return sendJson(res, 200, {
+            data: result.events,
+            relation: result.relation,
+            scope: result.scope,
+            viewScopeType: result.viewScopeType,
+            requesterActorType: result.requesterActorType,
+          });
+        } catch (err) {
+          logger.warn('timeline_descriptor_rejected_or_query_failed', { path, code: err.code, message: err.message });
+          return sendJson(res, err.statusCode || 400, { error: err.code || 'TASK_TIMELINE_QUERY_FAILED', message: err.message });
         }
       }
 
