@@ -33,7 +33,7 @@ var REASON_TEXT={
   DB_TIMEOUT:'Truy vấn quá thời gian',DB_UNAVAILABLE:'Không kết nối được CSDL',DB_ERROR:'Lỗi CSDL',DB_DEGRADED:'CSDL công ty đang lỗi',
   SUPABASE_UNAVAILABLE:'Không kết nối được Supabase',ENV_NOT_CONFIGURED:'Chưa cấu hình',
   TIMEOUT:'Quá thời gian phản hồi',UNREACHABLE:'Không phản hồi',HEALTH_PROBE_FAILED:'Kiểm tra thất bại',
-  CHECKLIST_NOT_READY:'Checklist chưa sẵn sàng',CHECKLIST_HEALTH_RPC_MISSING:'Thiếu hàm kiểm tra Checklist'
+  CHECKLIST_NOT_READY:'Một kiểm tra phụ chưa xác minh',CHECKLIST_HEALTH_RPC_MISSING:'Một kiểm tra phụ chưa xác minh'
 };
 function reasonText(c){return c?(REASON_TEXT[c]||String(c)):'';}
 
