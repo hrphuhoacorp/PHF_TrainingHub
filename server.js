@@ -781,11 +781,18 @@ const server = http.createServer(async (req, res) => {
     const pathname = String(req.url || '/').split('?')[0];
 
     if (pathname === '/api/health' && req.method === 'GET') {
+      // PUBLIC — keep minimal (no full build-info dump, no accountCount). The
+      // fuller (still bounded, Admin-only) view is /admin/he-thong/tinh-trang.
       const health = await checkSupabaseHealth({timeoutMs:4000});
+      const b = readBuildInfoFresh() || {};
       return sendJson(res, health.ok ? 200 : 503, {
-        ...health,
+        ok: health.ok,
         service: 'PHF Training Hub',
-        build: readBuildInfoFresh(),
+        version: b.version ? String(b.version) : null,
+        builtAt: b.builtAt ? String(b.builtAt) : null,
+        storage: health.storage || null,
+        checklist: health.checklist || null,
+        code: health.ok ? undefined : (health.code || 'UNAVAILABLE'),
         time: new Date().toISOString()
       });
     }
@@ -942,6 +949,19 @@ const server = http.createServer(async (req, res) => {
         if(employeeMasterMode){
           const key=String(requestUrl.searchParams.get('key')||'').trim();
           return sendJson(res,200,{ok:true,...(key?await getEmployeeMasterDetail(session,{key}):await listEmployeeMaster(session))});
+        }
+        // SYSTEM V1 · Tình trạng hệ thống — Admin-only, READ-ONLY. Mirrors
+        // api/data.js verbatim (local dev server re-implements /api/data routing).
+        if(requestUrl.searchParams.get('systemHealth') === '1'){
+          if(String(session.role||'').toLowerCase()!=='admin'){
+            return sendJson(res,403,{ok:false,error:'Tình trạng hệ thống chỉ dành cho Admin hệ thống.',code:'SYSTEM_HEALTH_ADMIN_REQUIRED'});
+          }
+          try{
+            const {getSystemHealth}=require('./api/_lib/system-health');
+            return sendJson(res,200,{ok:true,...await getSystemHealth()});
+          }catch(e){
+            return sendJson(res,502,{ok:false,error:'Không đọc được tình trạng hệ thống.',code:'SYSTEM_HEALTH_READ_FAILED'});
+          }
         }
         if (checklistWorkspaceMode) {
           const [workspace, templateData, violationMode] = await Promise.all([

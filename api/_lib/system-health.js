@@ -108,12 +108,14 @@ async function getSystemHealth() {
   let dbMain;
   if (supaR.status === 'fulfilled') {
     const h = supaR.value;
+    // `accounts === 'ready'` means Supabase MAIN is reachable AND user_accounts
+    // is readable — that IS DB connectivity, even if a downstream RPC (checklist
+    // production-health) is missing. Only a real connectivity failure is ERROR.
+    const connOk = h.accounts === 'ready' || h.storage === 'supabase';
     web = h.ok ? { status: S.HEALTHY } : { status: S.WARNING, reason: h.code || 'CHECKLIST_NOT_READY' };
-    dbMain = h.ok
-      ? { status: S.HEALTHY }
-      : (h.code === 'ENV_NOT_CONFIGURED'
-        ? { status: S.UNKNOWN, reason: h.code }
-        : { status: S.ERROR, reason: h.code || 'SUPABASE_UNAVAILABLE' });
+    if (h.code === 'ENV_NOT_CONFIGURED') dbMain = { status: S.UNKNOWN, reason: h.code };
+    else if (h.ok || connOk) dbMain = { status: S.HEALTHY };
+    else dbMain = { status: S.ERROR, reason: h.code || 'SUPABASE_UNAVAILABLE' };
   } else {
     web = { status: S.ERROR, reason: 'HEALTH_PROBE_FAILED' };
     dbMain = { status: S.ERROR, reason: 'SUPABASE_UNAVAILABLE' };

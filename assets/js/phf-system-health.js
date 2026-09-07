@@ -1,5 +1,5 @@
 /* PHF HR — SYSTEM V1 · Tình trạng hệ thống (System Health).
-   Admin-only, READ-ONLY. Answers "Hệ thống hiện đang hoạt động thế nào?".
+   Admin-only, READ-ONLY. The Admin's operational status board.
    Data: GET /api/data?systemHealth=1 (Admin-gated) -> server-side aggregator.
    The "Kiểm tra lại" button only re-runs bounded read probes — no service
    restart, no test mail, no write. There is NO mutation control anywhere. */
@@ -20,6 +20,7 @@ function ago(sec){
 
 var STATUS_TEXT={HEALTHY:'Hoạt động bình thường',WARNING:'Cần chú ý',ERROR:'Đang có lỗi',UNKNOWN:'Chưa xác minh'};
 var REASON_TEXT={
+  CHECKING:'Đang kiểm tra…',READ_FAILED:'Không đọc được dữ liệu',
   NO_HEARTBEAT:'Chưa có tín hiệu',NO_HEARTBEAT_SOURCE:'Chưa có nguồn tín hiệu',
   NO_AUTOMATED_SIGNAL:'Không có tín hiệu tự động — kiểm tra thủ công trên máy chủ',
   DEEP_PROBE_DISABLED:'Chưa bật kiểm tra sâu',DEEP_PROBE_UNAVAILABLE:'Không kết nối được kiểm tra sâu',
@@ -36,7 +37,7 @@ var REASON_TEXT={
 };
 function reasonText(c){return c?(REASON_TEXT[c]||String(c)):'';}
 
-var state={loading:false,data:null,error:null};
+var state={loading:false,data:null,error:null,reqSeq:0};
 
 function ensureStyle(){
   if(document.getElementById('phf-syshealth-style'))return;
@@ -76,8 +77,12 @@ function ensureStyle(){
 function pill(s){return '<span class="phf-sh-pill '+esc(s||'UNKNOWN')+'">'+esc(STATUS_TEXT[s]||STATUS_TEXT.UNKNOWN)+'</span>';}
 
 function lineSub(key,l){
-  if(!l)return '';
+  if(!l)return reasonText('CHECKING');
   var bits=[];
+  // Bare status line (no per-probe detail yet) — just say why, honestly.
+  if(l.status==='UNKNOWN'&&l.reason&&!l.supabaseMain&&!l.companyPostgres&&!l.recurrence&&l.pending==null&&key!=='backup'){
+    return reasonText(l.reason);
+  }
   if(key==='database'){
     if(l.supabaseMain)bits.push('Supabase chính: '+(STATUS_TEXT[l.supabaseMain.status]||'—')+(l.supabaseMain.reason?' ('+reasonText(l.supabaseMain.reason)+')':''));
     if(l.companyPostgres){
@@ -126,34 +131,48 @@ function cardHtml(key,l){
   +'</article>';
 }
 
+// The 6 structural cards ALWAYS render — order + fallback title are fixed here,
+// so a missing/partial DTO (or an aggregator error) degrades each card to an
+// honest UNKNOWN "Chưa xác minh" instead of collapsing the whole grid.
+var LINES=[
+  ['web','Hệ thống PHF HR'],
+  ['api','API công ty'],
+  ['database','Cơ sở dữ liệu'],
+  ['jobs','Tác vụ nền'],
+  ['mail','Email hệ thống'],
+  ['backup','Sao lưu']
+];
+
 function render(){
   ensureStyle();
   try{if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});}catch(e){}
   document.title='PHF HR · Tình trạng hệ thống';
   var d=state.data;
+  var linesMap=(d&&d.lines&&typeof d.lines==='object')?d.lines:{};
   var overall=(d&&d.overall)||{status:'UNKNOWN',label:STATUS_TEXT.UNKNOWN};
-  var order=['web','api','database','jobs','mail','backup'];
-  var cards;
-  if(state.loading&&!d){cards='<article class="phf-sh-card UNKNOWN"><div class="sub">Đang kiểm tra…</div></article>';}
-  else if(state.error){cards='<article class="phf-sh-card ERROR"><div class="top"><b>Không đọc được tình trạng hệ thống</b></div><div class="sub">'+esc(state.error)+'</div></article>';}
-  else{
-    var lines=(d&&d.lines)||{};
-    cards=order.map(function(k){return lines[k]?cardHtml(k,lines[k]):'';}).join('');
-  }
+  // 6 cards, always. A line the DTO did not carry -> honest UNKNOWN card.
+  var cards=LINES.map(function(pair){
+    var key=pair[0];
+    var l=linesMap[key];
+    if(!l||typeof l!=='object'){l={status:'UNKNOWN',title:pair[1],reason:state.error?'READ_FAILED':(state.loading&&!d?'CHECKING':'')};}
+    else if(!l.title){l.title=pair[1];}
+    return cardHtml(key,l);
+  }).join('');
+  var note='Các chỉ số được kiểm tra khi bạn mở trang này, không theo dõi liên tục.';
+  if(state.error)note='Không đọc được dữ liệu tình trạng ('+esc(state.error)+') — các mục hiển thị "Chưa xác minh".';
   main().innerHTML='<section class="phf-sh">'
-    +'<div class="phf-sh-hero"><span class="k">HỆ THỐNG · TÌNH TRẠNG</span><h2>Tình trạng hệ thống</h2>'
-      +'<p>Hệ thống hiện đang hoạt động thế nào?</p></div>'
+    +'<div class="phf-sh-hero"><span class="k">HỆ THỐNG · TÌNH TRẠNG</span><h2>Tình trạng hệ thống</h2></div>'
     +'<div class="phf-sh-overall">'
       +'<span class="phf-sh-dot '+esc(overall.status)+'"></span>'
       +'<b>'+esc(overall.label||STATUS_TEXT[overall.status]||'—')+'</b>'
       +'<button type="button" class="phf-sh-btn" id="phfShRecheck"'+(state.loading?' disabled':'')+'>'+(state.loading?'Đang kiểm tra…':'Kiểm tra lại')+'</button>'
       +'<span class="meta">'
-        +(d&&d.checkedAt?('Kiểm tra lúc '+esc(fmtTime(d.checkedAt))):'')
+        +(state.loading?'Đang kiểm tra…':(d&&d.checkedAt?('Kiểm tra lúc '+esc(fmtTime(d.checkedAt))):'Chưa kiểm tra'))
         +(d&&d.version?('<br>Phiên bản '+esc(d.version)):'')
       +'</span>'
     +'</div>'
     +'<div class="phf-sh-grid">'+cards+'</div>'
-    +'<div class="phf-sh-foot">Các chỉ số được kiểm tra khi bạn mở trang này, không theo dõi liên tục.</div>'
+    +'<div class="phf-sh-foot">'+note+'</div>'
   +'</section>';
   var b=document.getElementById('phfShRecheck');
   if(b)b.addEventListener('click',function(){load();});
@@ -161,19 +180,25 @@ function render(){
 
 async function load(){
   if(state.loading)return;
-  state.loading=true;state.error=null;render();
+  var seq=++state.reqSeq;              // stale-response guard
+  state.loading=true;render();
+  var nextData=state.data,nextErr=null;
   try{
     var res=await fetch('/api/data?systemHealth=1',{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
     var j=await res.json().catch(function(){return {};});
-    if(!res.ok||j.ok===false){state.error=j.error||('Không đọc được tình trạng hệ thống (HTTP '+res.status+').');state.data=null;}
-    else{state.data=j;state.error=null;}
-  }catch(e){state.error='Lỗi kết nối khi đọc tình trạng hệ thống.';state.data=null;}
-  finally{state.loading=false;render();}
+    if(!res.ok||j.ok===false||!j.lines){
+      nextErr=(j&&j.error)||('HTTP '+res.status);
+      // keep the last good snapshot if we had one; the note explains the failure
+    }else{nextData=j;nextErr=null;}
+  }catch(e){nextErr='Lỗi kết nối';}
+  if(seq!==state.reqSeq)return;        // a newer refresh already superseded this one
+  state.data=nextData;state.error=nextErr;state.loading=false;
+  render();
 }
 
 window.phfRenderSystemHealth=function(){
   if(role()!=='admin'){if(window.phfNavigate)return window.phfNavigate('/admin/home',true);return false;}
-  state.data=null;state.error=null;
+  state.data=null;state.error=null;state.reqSeq=0;
   render();load();
   return true;
 };

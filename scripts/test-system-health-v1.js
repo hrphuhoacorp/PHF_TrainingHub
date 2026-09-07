@@ -142,6 +142,35 @@ console.log('\n== Route + renderer — Admin-only, read-only ==');
   ok(/Kiểm tra lại/.test(ui) && /không theo dõi liên tục/.test(ui), '"Kiểm tra lại" + honest "not continuous" footer');
   ok(!/Sự cố.*gần đây|incident/i.test(ui), 'no "recent incidents" section in V1');
   ok(/index\.html/ && /phf-system-health\.js/.test(rd('index.html')), 'renderer script tag in index.html');
+
+  // 6 structural cards ALWAYS render — fixed LINES list, missing line -> UNKNOWN
+  ok(/var LINES=\[[\s\S]{0,260}\['backup','Sao lưu'\]/.test(ui), 'renderer has a fixed 6-line LINES list');
+  ok(/LINES\.map\(function\(pair\)\{[\s\S]{0,400}l=\{status:'UNKNOWN'/.test(ui), 'a DTO line the response did not carry falls back to an UNKNOWN card');
+  ok(!/if\(state\.error\)\{cards=/.test(ui) && !/state\.loading&&!d\)\{cards=/.test(ui), 'no code path that collapses the grid to a single card');
+  ok(/<h2>Tình trạng hệ thống<\/h2><\/div>'/.test(ui), 'hero renders only the title (subtitle <p> removed)');
+  ok(!/phf-sh-hero"[^]*?<p>/.test(ui.slice(ui.indexOf('phf-sh-hero'), ui.indexOf('phf-sh-hero') + 200)), 'no <p> subtitle inside the hero markup');
+  ok(/state\.reqSeq/.test(ui) && /var seq=\+\+state\.reqSeq/.test(ui) && /if\(seq!==state\.reqSeq\)return/.test(ui), 'refresh has a stale-response (reqSeq) guard');
+  ok(!/location\.reload|window\.location/.test(ui), 'refresh does not reload the page');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n== Aggregator composition — Supabase-reachable is DB-healthy ==');
+{
+  const agg = rd('api/_lib/system-health.js');
+  ok(/connOk\s*=\s*h\.accounts === 'ready' \|\| h\.storage === 'supabase'/.test(agg), 'Supabase MAIN "accounts ready" => DB connectivity proven');
+  ok(/if \(h\.ok \|\| connOk\) dbMain = \{ status: S\.HEALTHY \}/.test(agg), 'checklist-RPC-missing does NOT read as a DB connectivity ERROR');
+  ok(/else dbMain = \{ status: S\.ERROR/.test(agg), 'a genuine Supabase outage still => ERROR');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n== Local dev-server parity ==');
+{
+  const server = rd('server.js');
+  ok(/searchParams\.get\('systemHealth'\) === '1'/.test(server), 'local server.js mirrors the ?systemHealth=1 branch');
+  ok(/SYSTEM_HEALTH_ADMIN_REQUIRED/.test(server), 'local branch is admin-only too');
+  ok(!/build: readBuildInfoFresh\(\),/.test(server), 'local /api/health no longer dumps full build-info');
+  ok(!/accountCount/.test(rd('api/health.js')), 'no accountCount in api/health.js response');
+  ok(!/health\.ok \? 200 : 503, \{\s*\.\.\.health,/.test(server), 'local /api/health does not spread the raw health object (accountCount/checklist internals)');
 }
 
 // ---------------------------------------------------------------------------
