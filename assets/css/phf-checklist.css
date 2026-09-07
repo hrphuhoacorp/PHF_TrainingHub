@@ -5160,3 +5160,42 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-report-range-filters{grid-template-columns:repeat(5,minmax(130px,1fr)) auto}
 @media(max-width:1180px){.phfck-report-range-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.phfck-report-range-filters>button{grid-column:span 3}}
 @media(max-width:720px){.phfck-report-range-filters{grid-template-columns:1fr}.phfck-report-range-filters>button{grid-column:auto}}
+
+/* ===== IA V1 (B1–B3) — nav cụm, foot phạm vi, màn Thẩm định, Tổng quan kỳ ===== */
+.phfck-nav-group{display:flex;align-items:center;margin:14px 14px 4px;padding:0}
+.phfck-nav-group:first-child{margin-top:2px}
+.phfck-nav-group span{font-size:10px;font-weight:800;letter-spacing:.09em;color:rgba(255,255,255,.5);text-transform:uppercase}
+.phfck-manager-sidebar .phfck-nav>button+.phfck-nav-group{margin-top:16px}
+.phfck-scope-line{display:block;margin-top:6px;font-size:11px;line-height:1.4;color:rgba(255,255,255,.68)}
+.phfck-scope-period{margin-top:4px;color:rgba(255,255,255,.82);font-weight:600}
+.phfck-manager-people-status.is-overdue{background:#fdecec;color:#b42318}
+
+/* Màn Thẩm định — bộ lọc kỳ/trạng thái/tìm kiếm (dùng lại ngôn ngữ toolbar hiện có) */
+.phfck-reviews-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:0 0 16px}
+.phfck-reviews-filter{display:flex;flex-direction:column;gap:5px;min-width:180px}
+.phfck-reviews-filter span{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--phfck-muted)}
+.phfck-reviews-filter select{height:40px;border:1px solid var(--phfck-line);border-radius:11px;padding:0 12px;background:#fff;color:var(--phfck-ink);font:inherit;font-size:13px}
+.phfck-reviews-search{flex:1 1 220px;display:flex;align-items:center;gap:8px;height:40px;border:1px solid var(--phfck-line);border-radius:11px;padding:0 12px;background:#fff}
+.phfck-reviews-search span{color:var(--phfck-muted)}
+.phfck-reviews-search input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:var(--phfck-ink)}
+@media(max-width:680px){.phfck-reviews-filter,.phfck-reviews-search{min-width:0;width:100%;flex-basis:auto}}
+
+/* Tổng quan — panel "Kỳ đang thực hiện" */
+.phfck-period-control{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.phfck-period-control .phfck-panel-head h3{margin:4px 0 4px;font-size:22px;color:#123f32}
+.phfck-period-control .phfck-panel-head p{margin:0;color:var(--phfck-muted);font-size:13px}
+.phfck-period-buckets{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0 4px}
+.phfck-period-buckets>div{border:1px solid var(--phfck-line);border-radius:13px;padding:12px 12px 11px;background:var(--phfck-cream,#fbfaf5)}
+.phfck-period-buckets span{display:block;font-size:11px;font-weight:600;color:var(--phfck-muted);line-height:1.3}
+.phfck-period-buckets strong{display:block;margin-top:6px;font-size:22px;color:#123f32}
+.phfck-period-buckets .is-attn{border-color:#f6c96b;background:#fff8e9}
+.phfck-period-buckets .is-overdue{border-color:#f1b0a8;background:#fdecec}
+.phfck-period-buckets .is-overdue strong{color:#b42318}
+.phfck-period-buckets .is-done{border-color:#a9d9c5;background:#eef7f1}
+.phfck-period-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+.phfck-period-actions button{flex:1 1 240px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--phfck-line);border-radius:13px;padding:13px 15px;background:var(--phfck-green-soft);color:var(--phfck-ink);cursor:pointer;font:inherit;text-align:left;transition:.16s ease}
+.phfck-period-actions button:hover{transform:translateY(-1px);box-shadow:var(--phfck-shadow)}
+.phfck-period-actions button b{font-size:14px}
+.phfck-period-actions button i{font-style:normal;font-weight:700;color:var(--phfck-green-2);white-space:nowrap}
+@media(max-width:900px){.phfck-period-buckets{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.phfck-period-buckets{grid-template-columns:1fr 1fr}}
