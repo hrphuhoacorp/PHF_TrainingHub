@@ -525,6 +525,15 @@
   window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua/da-duyet');
   window.PHF_ROUTE_MAP.management.push('/ql/thi-dua','/ql/thi-dua/bang-tin','/ql/thi-dua/bai-cua-toi','/ql/thi-dua/gui','/ql/thi-dua/ket-qua','/ql/thi-dua/cho-duyet','/ql/thi-dua/da-duyet');
   window.PHF_ROUTE_MAP.admin.push('/admin/thi-dua','/admin/thi-dua/bang-tin','/admin/thi-dua/bai-cua-toi','/admin/thi-dua/gui','/admin/thi-dua/ket-qua','/admin/thi-dua/cho-duyet','/admin/thi-dua/da-duyet','/admin/thi-dua/quan-ly','/admin/thi-dua/xet-duyet','/admin/thi-dua/chot');
+  // Thông báo Quản trị (Notice) V1 — PUBLIC-READ module, HR shell (#phfHrRoot).
+  // Every authenticated role reaches /{p}/thong-bao (feed) + /{p}/thong-bao/n/:id
+  // (detail). /{p}/thong-bao/quyen (permission screen) is admitted for all roles
+  // at the URL level; the module itself server-guards it (canManage) and the
+  // renderer redirects an unauthorized viewer back to the feed.
+  ['/hv','/ql','/admin'].forEach(function(pf){
+    var m=pf==='/hv'?'learner':(pf==='/ql'?'management':'admin');
+    window.PHF_ROUTE_MAP[m].push(pf+'/thong-bao',pf+'/thong-bao/bao-cao',pf+'/thong-bao/danh-muc',pf+'/thong-bao/quyen');
+  });
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
@@ -1197,6 +1206,18 @@
         if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
         if(typeof window.phfRenderCompetition!=='function')return renderRouteModuleError('competition',path,new Error('PHF_COMPETITION_RENDERER_MISSING'));
         await Promise.resolve(window.phfRenderCompetition(targetRouteKey));
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/thong-bao(?:\/|$)/.test(path)){
+        /* Thông báo Quản trị — V1 feed. HR shell (#phfHrRoot). PUBLIC-READ:
+           namespace role guard only (every authenticated role may read). The
+           module server-guards MANAGE actions + the /quyen screen; the renderer
+           redirects an unauthorized viewer back to the feed. */
+        var ntRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([ntRole]))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderNotice!=='function')return renderRouteModuleError('notice',path,new Error('PHF_NOTICE_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderNotice(targetRouteKey));
         return true;
       }
       if(path==='/admin/nhan-su'){
