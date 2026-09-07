@@ -168,12 +168,13 @@ function hrNavModel(){
   // management screen (/admin/nhan-su/tai-khoan — user_accounts CRUD, Admin-only
   // route + API), NOT People Master. A dedicated /admin/he-thong/tai-khoan alias
   // was considered and deferred (touches 5 shell-detection regexes for no V1
-  // gain). "Nhật ký hệ thống" and "Tình trạng hệ thống" are V1 placeholders
-  // (no route — Sắp triển khai). No "Báo cáo" wording. Non-Admin: group hidden.
+  // gain). "Nhật ký hệ thống" -> /admin/he-thong/nhat-ky (active). "Tình trạng
+  // hệ thống" is still a placeholder (no route — Sắp triển khai). No "Báo cáo"
+  // wording. Non-Admin: group hidden.
   if(isAdmin){
     model.push({key:'he-thong',label:'Hệ thống',children:[
       {label:'Quản trị tài khoản',href:'/admin/nhan-su/tai-khoan',icon:'gear'},
-      {label:'Nhật ký hệ thống',soon:true,icon:'chart'},
+      {label:'Nhật ký hệ thống',href:'/admin/he-thong/nhat-ky',icon:'chart'},
       {label:'Tình trạng hệ thống',soon:true,icon:'gear'}
     ]});
   }
@@ -308,14 +309,15 @@ function hrGroupsModel(){
     // HỆ THỐNG — System Module V1 (business spec LOCKED). ADMIN ONLY: the whole
     // group is omitted for non-Admin (see below). No "Báo cáo" wording — that
     // belongs to QTTH. V1 = 3 functions: account access, audit/trace, health.
-    // Deep business logic (access toggle, audit collection, health probes) is NOT
-    // built in this batch — only "Quản trị tài khoản" routes (to the real
-    // account-management screen /admin/nhan-su/tai-khoan — user_accounts CRUD,
-    // Admin-only route + API — NOT People Master); the other two are shells.
+    // "Quản trị tài khoản" -> /admin/nhan-su/tai-khoan (user_accounts CRUD,
+    // Admin-only route + API — NOT People Master). "Nhật ký hệ thống" ->
+    // /admin/he-thong/nhat-ky (central audit.entries, Admin-only, read-only) —
+    // active from System V1 Audit Log FOUNDATION. "Tình trạng hệ thống" is still
+    // a shell (Sắp triển khai).
     {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
       {tint:'gray',icon:'gear',title:'Quản trị tài khoản',desc:'Ai được phép sử dụng PHF HR?',badge:'Admin',
         href:'/admin/nhan-su/tai-khoan'},
-      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?',soon:true},
+      {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',desc:'Ai đã làm gì trên hệ thống?',badge:'Admin',href:'/admin/he-thong/nhat-ky'},
       {tint:'green',icon:'gear',title:'Tình trạng hệ thống',desc:'Hệ thống hiện đang khỏe hay gặp lỗi?',soon:true}
     ]}
   ].filter(function(g){return g.key!=='d'||isAdmin;});

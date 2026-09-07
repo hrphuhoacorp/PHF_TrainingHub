@@ -62,8 +62,10 @@ console.log('\n== TOP NAV — HỆ THỐNG (System Module V1, business spec LOCK
     '"Quản trị tài khoản" routes to the real account-management screen /admin/nhan-su/tai-khoan (NOT People Master)');
   check(!/\{label:'Quản trị tài khoản',href:'\/admin\/nhan-su',icon/.test(src),
     'it no longer points at /admin/nhan-su (People Master)');
-  check(/\{label:'Nhật ký hệ thống',soon:true[^}]*\}/.test(src) && /\{label:'Tình trạng hệ thống',soon:true[^}]*\}/.test(src),
-    '"Nhật ký hệ thống" + "Tình trạng hệ thống" are V1 placeholders (soon:true, no route)');
+  check(/\{label:'Nhật ký hệ thống',href:'\/admin\/he-thong\/nhat-ky',icon:'chart'\}/.test(src),
+    '"Nhật ký hệ thống" routes to the real Admin-only audit screen (System V1 Audit Log active)');
+  check(/\{label:'Tình trạng hệ thống',soon:true[^}]*\}/.test(src),
+    '"Tình trạng hệ thống" is still a V1 placeholder (soon:true, no route)');
 }
 
 console.log('\n== HOME NOTICE CARD — small label/status fix (Home presentation only) ==');
