@@ -211,6 +211,64 @@ async function bridgeListTasks(session, params) {
   };
 }
 
+// bridgeListTaskEvents — POST /v1/task/events. Timeline (Dòng thời gian) read.
+// Builds the SAME signed descriptor bridgeListTasks() builds (relation/scope/
+// statusFilter='all', limit=TIMELINE_TASK_FANOUT, offset=0) so the authorised
+// task set is IDENTICAL to the Task List path, then phf-hr-api resolves that
+// list ONCE and runs one bounded task.events query — replacing the old
+// 1 + up-to-60 bridgeGetTaskDetail fan-out. Own flag
+// (PHF_TASK_EVENTS_BRIDGE_ENABLED) — 1 flag / 1 risk; when OFF the caller keeps
+// the existing detail fan-out unchanged. actor display name is NOT resolved
+// here (main app enriches it from org data, same as bridgeListTasks()).
+const TIMELINE_TASK_FANOUT = 60;
+
+function isTaskEventsBridgeEnabled() {
+  return String(process.env.PHF_TASK_EVENTS_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
+}
+
+async function bridgeListTaskEvents(session, params, eventLimit) {
+  if (!PHF_HR_API_BASE_URL || !PHF_HR_API_SERVICE_TOKEN || !TASK_QUERY_DESCRIPTOR_SIGNING_SECRET) {
+    bridgeFail('PHF_TASK_EVENTS_BRIDGE_ENABLED=true nhưng thiếu PHF_HR_API_BASE_URL/PHF_HR_API_SERVICE_TOKEN/TASK_QUERY_DESCRIPTOR_SIGNING_SECRET trong env.', 500, 'TASK_READ_BRIDGE_MISCONFIGURED');
+  }
+
+  const p = params || {};
+  const { hasManagedPeople, canManageTaskPermissions, ...descriptor } = await buildResolvedTaskQueryDescriptor(
+    session,
+    { relation: p.relation, scope: p.scope, statusFilter: 'all', limit: TIMELINE_TASK_FANOUT, offset: 0 },
+    { signingSecret: TASK_QUERY_DESCRIPTOR_SIGNING_SECRET }
+  );
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
+      body: JSON.stringify({ descriptor, eventLimit: eventLimit || undefined }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi đọc dòng thời gian (timeout).', 504, 'TASK_READ_BRIDGE_TIMEOUT');
+    bridgeFail('Không kết nối được phf-hr-api khi đọc dòng thời gian: ' + err.message, 502, 'TASK_READ_BRIDGE_UNREACHABLE');
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    bridgeFail('phf-hr-api trả lỗi khi đọc dòng thời gian (HTTP ' + response.status + ').', 502, 'TASK_READ_BRIDGE_UPSTREAM_ERROR');
+  }
+
+  const body = await response.json();
+  return {
+    events: Array.isArray(body.data) ? body.data : [],
+    relation: body.relation,
+    scope: body.scope,
+    viewScopeType: body.viewScopeType,
+    requesterActorType: body.requesterActorType,
+  };
+}
+
 // bridgeGetTaskDetail — GET /v1/task/tasks/:id (route DÙNG CHUNG với
 // bridgeGetTaskById() bên task-write-bridge.js — cùng 1 endpoint phf-hr-api,
 // KHÔNG phải 2 route khác nhau). Định nghĩa RIÊNG ở đây (không import từ
@@ -329,6 +387,8 @@ module.exports = {
   bridgeListTaskCategories,
   isListTasksBridgeEnabled,
   bridgeListTasks,
+  isTaskEventsBridgeEnabled,
+  bridgeListTaskEvents,
   isGetTaskDetailBridgeEnabled,
   bridgeGetTaskDetail,
   isNotificationBridgeEnabled,

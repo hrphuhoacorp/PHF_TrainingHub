@@ -63,6 +63,10 @@ function setup(overrides = {}) {
   require.cache[readBridgePath] = {
     id: readBridgePath, filename: readBridgePath, loaded: true,
     exports: {
+      // Timeline bounded-query bridge (2026-09-07) — this suite exercises the
+      // legacy detail fan-out path, so keep the flag OFF.
+      isTaskEventsBridgeEnabled: () => false,
+      bridgeListTaskEvents: async () => { throw new Error('bridgeListTaskEvents must not be called with the flag OFF'); },
       bridgeGetTaskDetail: async (taskId) => {
         calls.bridgeGetTaskDetail.push(taskId);
         if (overrides.bridgeGetTaskDetailThrows) throw overrides.bridgeGetTaskDetailThrows;
