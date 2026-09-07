@@ -175,7 +175,7 @@ function hrNavModel(){
     model.push({key:'he-thong',label:'Hệ thống',children:[
       {label:'Quản trị tài khoản',href:'/admin/nhan-su/tai-khoan',icon:'gear'},
       {label:'Nhật ký hệ thống',href:'/admin/he-thong/nhat-ky',icon:'chart'},
-      {label:'Tình trạng hệ thống',soon:true,icon:'gear'}
+      {label:'Tình trạng hệ thống',href:'/admin/he-thong/tinh-trang',icon:'gear'}
     ]});
   }
   return model;
@@ -311,14 +311,14 @@ function hrGroupsModel(){
     // belongs to QTTH. V1 = 3 functions: account access, audit/trace, health.
     // "Quản trị tài khoản" -> /admin/nhan-su/tai-khoan (user_accounts CRUD,
     // Admin-only route + API — NOT People Master). "Nhật ký hệ thống" ->
-    // /admin/he-thong/nhat-ky (central audit.entries, Admin-only, read-only) —
-    // active from System V1 Audit Log FOUNDATION. "Tình trạng hệ thống" is still
-    // a shell (Sắp triển khai).
+    // /admin/he-thong/nhat-ky (central audit.entries, Admin-only, read-only).
+    // "Tình trạng hệ thống" -> /admin/he-thong/tinh-trang (bounded Admin-only
+    // operational status). All 3 System V1 screens are now active.
     {key:'d',icon:'gear',title:'HỆ THỐNG',sub:'Quản trị tài khoản, vận hành và an toàn hệ thống',cols:3,cards:[
       {tint:'gray',icon:'gear',title:'Quản trị tài khoản',badge:'Admin',
         href:'/admin/nhan-su/tai-khoan'},
       {tint:'blue',icon:'chart',title:'Nhật ký hệ thống',badge:'Admin',href:'/admin/he-thong/nhat-ky'},
-      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',soon:true}
+      {tint:'green',icon:'gear',title:'Tình trạng hệ thống',badge:'Admin',href:'/admin/he-thong/tinh-trang'}
     ]}
   ].filter(function(g){return g.key!=='d'||isAdmin;});
 }

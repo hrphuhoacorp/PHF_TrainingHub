@@ -180,8 +180,8 @@ function continueSync() {
     ok(/Thời gian[\s\S]{0,120}Người dùng[\s\S]{0,120}Module[\s\S]{0,120}Hành động[\s\S]{0,120}Đối tượng[\s\S]{0,120}Kết quả[\s\S]{0,120}IP/.test(ui), 'locked column set present');
     {
       const home = rd('assets/js/phf-hr-home.js');
-      // Operator visual smoke PASSED (2026-09-07) — Home card now routes to the
-      // real Admin-only audit screen; "Tình trạng hệ thống" stays a placeholder.
+      // Operator visual smoke PASSED (2026-09-07) — Home card routes to the
+      // real Admin-only audit screen.
       ok(/title:'Nhật ký hệ thống',badge:'Admin',href:'\/admin\/he-thong\/nhat-ky'/.test(home), 'Home card "Nhật ký hệ thống" active -> /admin/he-thong/nhat-ky');
       ok(/\{label:'Nhật ký hệ thống',href:'\/admin\/he-thong\/nhat-ky',icon:'chart'\}/.test(home), 'System nav menu entry routes to the audit screen');
       ok(!/title:'Nhật ký hệ thống'[^}]*soon:true/.test(home), 'audit card no longer marked soon:true');

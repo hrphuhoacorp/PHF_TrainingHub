@@ -64,8 +64,8 @@ console.log('\n== TOP NAV — HỆ THỐNG (System Module V1, business spec LOCK
     'it no longer points at /admin/nhan-su (People Master)');
   check(/\{label:'Nhật ký hệ thống',href:'\/admin\/he-thong\/nhat-ky',icon:'chart'\}/.test(src),
     '"Nhật ký hệ thống" routes to the real Admin-only audit screen (System V1 Audit Log active)');
-  check(/\{label:'Tình trạng hệ thống',soon:true[^}]*\}/.test(src),
-    '"Tình trạng hệ thống" is still a V1 placeholder (soon:true, no route)');
+  check(/\{label:'Tình trạng hệ thống',href:'\/admin\/he-thong\/tinh-trang',icon:'gear'\}/.test(src),
+    '"Tình trạng hệ thống" routes to the real Admin-only System Health screen');
 }
 
 console.log('\n== HOME NOTICE CARD — small label/status fix (Home presentation only) ==');

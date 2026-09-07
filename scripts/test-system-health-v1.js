@@ -181,7 +181,9 @@ console.log('\n== Home copy cleanup ==');
   ok(!/desc:'Ai đã làm gì trên hệ thống\?'/.test(home), 'removed "Ai đã làm gì trên hệ thống?"');
   ok(!/desc:'Hệ thống hiện đang khỏe hay gặp lỗi\?'/.test(home), 'removed "Hệ thống hiện đang khỏe hay gặp lỗi?"');
   ok(/title:'Quản trị tài khoản',badge:'Admin'/.test(home) && /title:'Nhật ký hệ thống',badge:'Admin',href:'\/admin\/he-thong\/nhat-ky'/.test(home), 'card titles + routes + badges unchanged');
-  ok(/title:'Tình trạng hệ thống',soon:true/.test(home), 'Tình trạng hệ thống stays "Sắp triển khai" until local gates pass');
+  ok(/title:'Tình trạng hệ thống',badge:'Admin',href:'\/admin\/he-thong\/tinh-trang'/.test(home), 'Home card "Tình trạng hệ thống" active -> /admin/he-thong/tinh-trang');
+  ok(!/title:'Tình trạng hệ thống'[^}]*soon:true/.test(home), 'Tình trạng hệ thống no longer marked soon:true');
+  ok(/\{label:'Tình trạng hệ thống',href:'\/admin\/he-thong\/tinh-trang',icon:'gear'\}/.test(home), 'System nav menu entry routes to the health screen');
 }
 
 console.log('\nSYSTEM V1 SYSTEM HEALTH offline checks: ' + PASS + ' PASS');
