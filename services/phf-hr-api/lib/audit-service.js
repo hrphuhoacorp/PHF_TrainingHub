@@ -179,7 +179,10 @@ async function listAudit(config, filters) {
       const last = rows[rows.length - 1];
       nextCursor = new Date(last.occurred_at).getTime() + '|' + last.id;
     }
-    return { entries: rows.map(mapRow), nextCursor };
+    // NB: pass a 1-arg arrow — `rows.map(mapRow)` would hand mapRow the array
+    // index as its 2nd arg (`withDetail`), leaking the detail projection shape
+    // for every row after the first.
+    return { entries: rows.map((r) => mapRow(r)), nextCursor };
   });
 }
 

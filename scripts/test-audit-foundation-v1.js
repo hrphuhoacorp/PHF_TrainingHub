@@ -158,6 +158,10 @@ function continueSync() {
     ok(!/(UPDATE|DELETE\s+FROM|TRUNCATE)\s+audit\./i.test(svcFile) && !/client\.query\(\s*[`'"]\s*(UPDATE|DELETE|TRUNCATE)\b/i.test(svcFile), 'audit-service.js issues no UPDATE/DELETE/TRUNCATE SQL against the log');
     ok(/withTaskReadTransaction/.test(svcFile) && /BEGIN READ ONLY/.test(rd('services/phf-hr-api/lib/db.js')), 'reads run in a READ ONLY transaction');
     ok(/f\.cursor && \/\^\\d\+\\\|\\d\+\$\//.test(svcFile) && /ORDER BY occurred_at DESC, id DESC LIMIT/.test(svcFile), 'keyset pagination by (occurred_at, id), bounded LIMIT');
+    // list must NOT hand mapRow the array index (2nd map arg) — that turns into
+    // withDetail=truthy for every row after the first and leaks the detail shape.
+    ok(/entries: rows\.map\(\(r\) => mapRow\(r\)\)/.test(svcFile), 'listAudit calls mapRow with a single arg (no index-as-withDetail leak)');
+    ok(!/\b(request_id|ip|user_agent|before_json|after_json|metadata_json)\b/.test(svcFile.slice(svcFile.indexOf('LIST_COLS'), svcFile.indexOf('LIST_COLS') + 200)), 'LIST_COLS selects no request_id/ip/ua/before/after/metadata');
   }
 
   console.log('\n== UI — route + renderer, Admin-only, no edit/delete controls ==');
