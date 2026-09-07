@@ -45,7 +45,7 @@ const {
 } = require('./task-core');
 const { resolveActorContext, loadOrgRows } = require('./task-employee-scope');
 const { canAssignTaskTo, canAddTaskRelated, resolveTaskViewerAuthority, canProposeTo, listProposalRecipientEmployees } = require('./task-permissions');
-const { bridgeGetTaskDetail, bridgeListTaskCategories, bridgeListTasks } = require('./task-read-bridge');
+const { bridgeGetTaskDetail, bridgeListTaskCategories, bridgeListTasks, isTaskEventsBridgeEnabled, bridgeListTaskEvents } = require('./task-read-bridge');
 const {
   bridgeCreateDraftTask,
   bridgeGetTaskById,
@@ -561,7 +561,55 @@ async function getTaskDetailViaServer(session, taskId) {
 // =============================================================================
 const TIMELINE_TASK_FANOUT = 60;
 
+// Router — PHF_TASK_EVENTS_BRIDGE_ENABLED=true → one bounded server-side event
+// query (listTaskEventsViaBoundedQuery); OFF → the original detail fan-out
+// (listTaskEventsViaDetailFanout), byte-for-byte unchanged. Same DTO either way.
 async function listTaskEventsViaServer(session, params) {
+  if (typeof isTaskEventsBridgeEnabled === 'function' && isTaskEventsBridgeEnabled()) {
+    return listTaskEventsViaBoundedQuery(session, params);
+  }
+  return listTaskEventsViaDetailFanout(session, params);
+}
+
+// NEW (2026-09-07) — 1 authorised list resolution + 1 bounded task.events query
+// on phf-hr-api (POST /v1/task/events). Same authorised task set as the Task
+// List path (the bridge builds the SAME signed descriptor). actor.full_name is
+// enriched here from org data — identical to the fan-out version below.
+async function listTaskEventsViaBoundedQuery(session, params) {
+  const input = params || {};
+  const eventLimit = Math.min(200, Math.max(1, Number(input.limit) || 100));
+
+  const bridged = await bridgeListTaskEvents(session, { relation: input.relation, scope: input.scope }, eventLimit);
+  const base = {
+    relation: bridged.relation, scope: bridged.scope,
+    viewScopeType: bridged.viewScopeType, requesterActorType: bridged.requesterActorType,
+  };
+  const raw = Array.isArray(bridged.events) ? bridged.events : [];
+  if (!raw.length) return Object.assign({ events: [] }, base);
+
+  const orgRows = await loadOrgRows();
+  const peopleByCode = new Map((orgRows || []).map(p => [String(p.employeeCode || '').toUpperCase(), p]));
+  const actorInfo = (ec) => {
+    const key = String(ec || '').toUpperCase();
+    const p = peopleByCode.get(key);
+    return { employee_code: key, full_name: p ? p.fullName : '' };
+  };
+
+  const events = raw.map((e) => ({
+    id: e.id,
+    task_id: e.taskId,
+    task_code: e.taskCode || '',
+    task_title: e.taskTitle || '',
+    event_type: e.eventType,
+    actor: actorInfo(e.actorEmployeeCode),
+    payload: e.payload || {},
+    reason: e.reason || null,
+    occurred_at: e.occurredAt,
+  }));
+  return Object.assign({ events }, base);
+}
+
+async function listTaskEventsViaDetailFanout(session, params) {
   const input = params || {};
   const eventLimit = Math.min(200, Math.max(1, Number(input.limit) || 100));
 
