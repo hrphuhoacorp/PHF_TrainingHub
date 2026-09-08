@@ -52,10 +52,10 @@ function check(condition, message) {
 }
 
 // ================================================================
-// A. Cover "Phiếu của tôi" - source-scan
+// A. Cover màn "Tự đánh giá" (IA V1: was "Phiếu của tôi") - source-scan
 // ================================================================
-check(app.indexOf("managerSectionHeading('PHF CHECKLIST · CÁ NHÂN','Phiếu của tôi','Tự đánh giá, theo dõi kết quả và các nội dung liên quan đến phiếu đánh giá của bạn.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))") >= 0,
-  'A1. my-work header dùng đúng breadcrumb "PHF CHECKLIST · CÁ NHÂN" + title "Phiếu của tôi" + description đã chốt, cùng tinh thần breadcrumb->title->description như màn Báo cáo');
+check(app.indexOf("managerSectionHeading('PHF CHECKLIST · PHIẾU THÁNG','Tự đánh giá','Phiếu tháng của bạn: nhập điểm tự đánh giá, theo dõi kết quả thẩm định và các nội dung liên quan.',marketingKpiButtonHtml(marketingKpiPeriodValue(),data))") >= 0,
+  'A1. my-work header IA V1 dùng breadcrumb "PHF CHECKLIST · PHIẾU THÁNG" + title "Tự đánh giá" + description đã chốt, cùng tinh thần breadcrumb->title->description như màn Báo cáo');
 check(app.indexOf("marketingKpiButtonHtml(marketingKpiPeriodValue(),data)") >= 0,
   'A2. Action button "Cập nhật tiêu chí tháng" (marketingKpiButtonHtml) vẫn được truyền vào header - không bị gỡ');
 check(app.indexOf("+roleMonthlyHtml()+employeeTaskInboxHtml()+'<section class=\"phfck-panel phfck-role-own\">") >= 0,
