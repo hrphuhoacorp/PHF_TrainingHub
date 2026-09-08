@@ -79,6 +79,7 @@
     period: '',
     status: null,
     normalized: null,
+    cost: null, // cost-truth read model for the current version
     wizard: null, // { step, file:{name,base64,size}, report }
   };
   var MAX_UPLOAD_BYTES = 1024 * 1024; // client guard; payroll sheets are tens of KB
@@ -91,6 +92,11 @@
       PS.normalized = (PS.status && PS.status.current)
         ? await call('qtthPayrollListNormalized', { period_month: PS.period })
         : { rows: [], version: null };
+      PS.cost = null;
+      if (PS.status && PS.status.current) {
+        try { PS.cost = await call('qtthPayrollCostTruth', { period_month: PS.period }); }
+        catch (e) { PS.cost = { _error: (e && e.message) || 'Không tính được chi phí lương.' }; }
+      }
       paintPayroll(slot);
     } catch (err) {
       slot.innerHTML = '<section class="phf-qtth-card phf-qtth-denied"><h2>Không tải được Bảng lương</h2>'
@@ -118,6 +124,7 @@
       + effectiveVersionHtml(st, cur)
       + versionHistoryHtml(st)
       + '</section>'
+      + costTruthHtml(PS.cost)
       + normalizedTableHtml(rows)
       + '<div class="phf-qtth-drawer-host" data-drawer-host hidden></div>'
       + '<div class="phf-qtth-modal-host" data-wizard-host hidden></div>';
@@ -173,6 +180,75 @@
           + '</tr>';
       }).join('')
       + '</tbody></table></div></details>';
+  }
+
+  /* -------- COST TRUTH (Chi phí lương theo bảng lương) ------------------ */
+  function costTruthHtml(cost) {
+    if (!cost) return '';
+    if (cost._error) {
+      return '<section class="phf-qtth-card"><h2>Chi phí lương theo bảng lương</h2>'
+        + '<p class="phf-qtth-warn-inline">⚠ ' + esc(cost._error) + '</p></section>';
+    }
+    if (!cost.hasCost) {
+      return '<section class="phf-qtth-card"><h2>Chi phí lương theo bảng lương</h2>'
+        + '<p class="phf-qtth-empty">Kỳ này chưa có phiên bản hiệu lực để tính chi phí.</p></section>';
+    }
+    var st = cost.reconciled
+      ? '<span class="phf-qtth-pill is-on">Đã đối chiếu (±' + esc(cost.tolerance) + ' đ)</span>'
+      : '<span class="phf-qtth-pill is-off">Lệch ' + fmtN(cost.costReconciliationDelta) + ' đ — cần rà soát</span>';
+    var groups = [
+      ['Lương theo công', cost.salaryCost],
+      ['Chi phí Lễ/Tết', cost.holidayCost],
+      ['Phụ cấp', cost.allowanceCost],
+      ['Phụ cấp khác', cost.otherAllowanceCost],
+      ['Thưởng hiệu quả / hành động', cost.performanceRewardCost]
+    ];
+    var rc = cost.reconciliationOnly || {};
+    var ex = cost.excludedCost || {};
+    var src = cost.sourceReconciliation || {};
+    return '<section class="phf-qtth-card">'
+      + '<div class="phf-qtth-head"><div>'
+      + '<h2>Chi phí lương theo bảng lương</h2>'
+      + '<p class="phf-qtth-muted">Kỳ ' + esc(cost.periodMonth) + ' · V' + esc(cost.version)
+      + (cost.isCurrent ? ' (hiệu lực)' : ' (' + esc(cost.status) + ')')
+      + ' · mô hình ' + esc(cost.costModelVersion)
+      + ' · <b>chưa gồm BHXH phần doanh nghiệp</b></p>'
+      + '</div><div>' + st + '</div></div>'
+
+      + '<div class="phf-qtth-td-effective">'
+      + '<div><b>Chi phí lương theo bảng lương</b><span class="c-final">' + fmtN(cost.payrollCost) + ' đ</span></div>'
+      + '<div><b>Số nhân sự</b><span>' + esc(cost.rowCount) + '</span></div>'
+      + '<div><b>BHXH doanh nghiệp</b><span>Chưa có dữ liệu nguồn</span></div>'
+      + '</div>'
+
+      + '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table" style="min-width:520px"><tbody>'
+      + groups.map(function (g) {
+        return '<tr><td>' + esc(g[0]) + '</td><td class="c-num">' + fmtN(g[1]) + '</td></tr>';
+      }).join('')
+      + '<tr class="is-selected"><td><b>= Chi phí lương theo bảng lương</b></td><td class="c-num"><b>' + fmtN(cost.payrollCost) + '</b></td></tr>'
+      + '<tr><td>BHXH doanh nghiệp (D-COST-06)</td><td class="c-num">Chưa có dữ liệu nguồn</td></tr>'
+      + '</tbody></table></div>'
+
+      + '<h3>Khoản KHÔNG tính vào chi phí</h3>'
+      + '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table" style="min-width:520px"><tbody>'
+      + '<tr><td>Giảm trừ của người lao động (BHXH NLĐ, đi trễ, ứng lương…)</td><td class="c-num">' + fmtN(rc.employeeDeductions) + '</td></tr>'
+      + '<tr><td>Thuế TNCN</td><td class="c-num">' + fmtN(rc.employeeTax) + '</td></tr>'
+      + '<tr><td>Lớp thanh toán / đối soát (TM, CK, Đã chi 1.1, Đối soát…)</td><td class="c-num">' + fmtN(rc.paymentLayer) + '</td></tr>'
+      + '<tr><td>Loại trừ — Thưởng lễ 1.1 (Tháng 13)</td><td class="c-num">' + fmtN(ex.thuongLe11) + '</td></tr>'
+      + '<tr><td>Loại trừ — Thưởng T13 / doanh thu (ngoài kỳ, D6)</td><td class="c-num">' + fmtN(ex.t13RevenueBonus) + '</td></tr>'
+      + '</tbody></table></div>'
+
+      + '<h3>Đối chiếu nguồn</h3>'
+      + '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table" style="min-width:520px"><tbody>'
+      + '<tr><td>Tổng (4) theo bảng lương</td><td class="c-num">' + fmtN(src.grandTotal4) + '</td></tr>'
+      + '<tr><td>− Thưởng lễ 1.1 nằm trong (4)</td><td class="c-num">' + fmtN(src.thuongLe11InGrand4) + '</td></tr>'
+      + '<tr><td>= Chi phí kỳ vọng</td><td class="c-num">' + fmtN(src.expectedCost) + '</td></tr>'
+      + '<tr><td>Chi phí tính từ mô hình</td><td class="c-num">' + fmtN(cost.payrollCost) + '</td></tr>'
+      + '<tr' + (cost.reconciled ? '' : ' class="is-warn-row"') + '><td><b>Lệch</b></td><td class="c-num"><b>' + fmtN(cost.costReconciliationDelta) + '</b></td></tr>'
+      + '</tbody></table></div>'
+      + '<p class="phf-qtth-muted phf-qtth-count">“Chi phí lương theo bảng lương” = Σ chi phí thực chi theo bảng lương (lương công + Lễ/Tết + phụ cấp + thưởng hiệu quả). '
+      + 'KHÔNG phải “Thực nhận”, KHÔNG trừ lại giảm trừ, KHÔNG gồm T13, KHÔNG gồm BHXH phần doanh nghiệp (chưa có cột nguồn).</p>'
+      + '</section>';
   }
 
   function normalizedTableHtml(rows) {
@@ -270,6 +346,7 @@
             + '</b> · Tính ra: ' + fmtN(w.calculated) + ' · Lệch: ' + fmtN(w.difference) + '</span></li>';
         }).join('') + '</ul>'
         : '<p class="phf-qtth-muted">Không có cảnh báo số học.</p>')
+      + costBreakdownHtml(d.costBreakdown)
       + '<h3>Thành phần chi tiết (source_detail)</h3>'
       + kvGrid(sd)
       + '<h3>Ô nguồn từ file (raw)</h3>'
@@ -285,6 +362,26 @@
         : '<p class="phf-qtth-muted">Chưa có thay đổi qua các phiên bản.</p>')
       + '</div>';
     host.querySelectorAll('[data-close]').forEach(function (b) { b.onclick = function () { host.hidden = true; host.innerHTML = ''; }; });
+  }
+  function costBreakdownHtml(cb) {
+    if (!cb || !cb.byGroup) return '';
+    var GL = cb.groupLabels || {};
+    var rows = Object.keys(cb.byGroup).map(function (g) {
+      return '<tr><td>' + esc(GL[g] || g) + '</td><td class="c-num">' + fmtN(cb.byGroup[g]) + '</td></tr>';
+    });
+    return '<h3>Phân nhóm chi phí (nhân sự này)</h3>'
+      + '<table class="phf-qtth-kv"><tbody>'
+      + rows.join('')
+      + '<tr class="is-selected"><td><b>Chi phí lương theo bảng lương</b></td><td class="c-num"><b>' + fmtN(cb.totalPersonnelCost) + '</b></td></tr>'
+      + '<tr><td>Loại trừ (T13)</td><td class="c-num">' + fmtN(cb.excludedT13) + '</td></tr>'
+      + '<tr><td>Giảm trừ NLĐ</td><td class="c-num">' + fmtN(cb.employeeDeductions) + '</td></tr>'
+      + '<tr><td>Thuế TNCN</td><td class="c-num">' + fmtN(cb.employeeTax) + '</td></tr>'
+      + '<tr><td>Lớp thanh toán / đối soát</td><td class="c-num">' + fmtN(cb.paymentLayer) + '</td></tr>'
+      + (cb.reconDeltaVsSource != null
+        ? '<tr><td>Lệch vs (4) − T13</td><td class="c-num">' + fmtN(cb.reconDeltaVsSource) + '</td></tr>' : '')
+      + '</tbody></table>'
+      + '<p class="phf-qtth-muted">Nhóm chi phí truy về source_detail / raw bên dưới (D-COST-01…06). '
+      + '“Chi phí lương theo bảng lương” chưa gồm BHXH phần doanh nghiệp.</p>';
   }
   function kvGrid(obj) {
     var keys = Object.keys(obj || {});
@@ -546,4 +643,7 @@
     if (sub === 'payroll') { await renderPayroll(slot); return; }
     renderLanding(slot);
   };
+
+  // offline render-check hooks (pure HTML builders — no DOM, no network)
+  window.__qtthPayrollTestHooks = { costTruthHtml: costTruthHtml, costBreakdownHtml: costBreakdownHtml, esc: esc, fmtN: fmtN };
 })();

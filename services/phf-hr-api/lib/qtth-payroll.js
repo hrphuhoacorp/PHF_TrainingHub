@@ -17,6 +17,7 @@ const { readWorkbook } = require('./xlsx-lite');
 const TPL = require('./qtth-payroll-template');
 const { normalizeGrid, diffVersions } = require('./qtth-payroll-normalize');
 const storage = require('./qtth-payroll-storage');
+const costModel = require('./qtth-payroll-cost-model');
 
 class PayrollError extends Error {
   constructor(code, message, statusCode) { super(message || code); this.code = code; this.statusCode = statusCode || 400; this.isPayrollError = true; }
@@ -309,10 +310,90 @@ async function employeeDetail(config, actor, params) {
     const raw = (await c.query("SELECT source_row_index, cells FROM payroll.raw_row WHERE file_id = $1 AND employee_code = $2", [active.fileId, code])).rows[0];
     const history = (await c.query(
       "SELECT from_version, to_version, change_type, field, before_value, after_value, detected_at FROM payroll.delta WHERE import_id = (SELECT import_id FROM payroll.import_file WHERE id = $1) AND employee_code = $2 ORDER BY to_version DESC, id DESC", [active.fileId, code])).rows;
-    return { periodMonth: pm, version: active.version, employeeCode: code, normalized: nr, sourceDetail: nr.source_detail, rawCells: raw ? raw.cells : null, validationNotes: nr.validation_notes, history };
+    return { periodMonth: pm, version: active.version, employeeCode: code, normalized: nr, sourceDetail: nr.source_detail, rawCells: raw ? raw.cells : null, validationNotes: nr.validation_notes, history,
+      costBreakdown: costModel.computePersonnelCost(toRec(nr)) };
   });
 }
 function numOut(v) { return v == null ? null : Number(v); }
+
+// ---- COST TRUTH (read model — downstream of normalized data) -----------
+// Runs the shipped semantic cost-model over the normalized rows of a period's
+// chosen version (default = current confirmed). NO Excel re-parse, NO
+// normalization, NO write. Version-aware: pass params.version to inspect a
+// superseded/previewed version. Returns the §7 cost-truth contract.
+function round2(x) { return Math.round(x * 100) / 100; }
+async function costTruth(config, actor, params) {
+  const pm = period(params && params.periodMonth);
+  const wantVersion = params && params.version != null && params.version !== ''
+    ? Number(params.version) : null;
+  return readTx(config, async (c) => {
+    const imp = (await c.query("SELECT * FROM payroll.import WHERE period_month = $1", [pm])).rows[0];
+    if (!imp) return { periodMonth: pm, exists: false, hasCost: false };
+    let file;
+    if (wantVersion != null && Number.isFinite(wantVersion)) {
+      file = (await c.query("SELECT * FROM payroll.import_file WHERE import_id = $1 AND version = $2", [imp.id, wantVersion])).rows[0];
+      if (!file) throw pErr('PAYROLL_VERSION_NOT_FOUND', 'Không tìm thấy phiên bản V' + wantVersion + ' của kỳ này.', 404);
+    } else {
+      file = imp.current_file_id
+        ? (await c.query("SELECT * FROM payroll.import_file WHERE id = $1", [imp.current_file_id])).rows[0]
+        : null;
+    }
+    if (!file) return { periodMonth: pm, exists: true, hasCost: false, importStatus: imp.status };
+
+    const rows = (await c.query("SELECT * FROM payroll.normalized WHERE file_id = $1", [file.id])).rows;
+    const records = rows.map(toRec);
+    const agg = costModel.aggregatePeriodCost(records);
+
+    let g4 = 0, t13in4 = 0, t13rev = 0;
+    for (const r of records) {
+      const m = Object.assign({}, r.fields, r.sourceDetail);
+      if (Number.isFinite(m.grand_total_4)) g4 += m.grand_total_4;
+      if (Number.isFinite(m.bonus_thuong_le_1_1)) t13in4 += m.bonus_thuong_le_1_1;
+      if (Number.isFinite(m.t13_revenue_bonus)) t13rev += m.t13_revenue_bonus;
+    }
+    const expected = round2(g4 - t13in4);
+    const delta = round2(agg.totalPersonnelCost - expected);
+    const tolerance = Math.max(5, records.length * 0.5); // corpus/source sub-VND artifacts
+    const bg = agg.byGroup || {};
+
+    return {
+      periodMonth: pm, exists: true, hasCost: true,
+      importId: imp.id, version: file.version, status: file.status,
+      isCurrent: file.id === imp.current_file_id, rowCount: records.length,
+      costModelVersion: costModel.MODEL_VERSION,
+
+      // "Chi phí lương theo bảng lương" — NOT total personnel cost (no employer BHXH)
+      payrollCost: agg.totalPersonnelCost,
+      salaryCost: round2(bg.SALARY_COST || 0),
+      holidayCost: round2(bg.HOLIDAY_COST || 0),
+      allowanceCost: round2(bg.ALLOWANCE || 0),
+      otherAllowanceCost: round2(bg.OTHER_ALLOWANCE || 0),
+      performanceRewardCost: round2(bg.PERFORMANCE_REWARD || 0),
+
+      employerBhxhCost: null,
+      employerBhxhStatus: 'NOT_AVAILABLE',
+
+      excludedCost: {
+        thuongLe11: round2(t13in4),
+        t13RevenueBonus: round2(t13rev),
+        total: round2(agg.excludedT13),
+      },
+      reconciliationOnly: {
+        employeeDeductions: agg.employeeDeductions,
+        employeeTax: agg.employeeTax,
+        paymentLayer: agg.paymentLayer,
+      },
+      sourceReconciliation: {
+        grandTotal4: round2(g4),
+        thuongLe11InGrand4: round2(t13in4),
+        expectedCost: expected,
+      },
+      costReconciliationDelta: delta,
+      reconciled: Math.abs(delta) <= tolerance,
+      tolerance,
+    };
+  });
+}
 
 // ---- helpers -----------------------------------------------------------
 function diffColumnMaps(a, b) {
@@ -338,6 +419,7 @@ const HANDLERS = {
   'payroll.status': status,
   'payroll.listNormalized': listNormalized,
   'payroll.employeeDetail': employeeDetail,
+  'payroll.costTruth': costTruth,
 };
 const ACTIONS = Object.freeze(Object.keys(HANDLERS));
 async function dispatch(config, actor, action, params) {

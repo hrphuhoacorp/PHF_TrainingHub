@@ -139,6 +139,10 @@ const GROUP_LABEL = {
   RAW_ONLY: 'Chỉ lưu vết nguồn',
 };
 
+// bump when the NATURE map or the cost formula changes — surfaced in the
+// read model so a stored/displayed cost figure is always traceable to a model.
+const MODEL_VERSION = 'cost-model-v1';
+
 function natureOf(key) { return NATURE[key] || 'UNKNOWN'; }
 function isInPersonnelCost(key) { return IN_PERSONNEL_COST.has(natureOf(key)); }
 
@@ -221,6 +225,7 @@ function aggregatePeriodCost(records) {
 function round2(x) { return Math.round(x * 100) / 100; }
 
 module.exports = {
+  MODEL_VERSION,
   NATURE, IN_PERSONNEL_COST, GROUP_LABEL,
   natureOf, isInPersonnelCost,
   computePersonnelCost, aggregatePeriodCost,
