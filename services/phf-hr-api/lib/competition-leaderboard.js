@@ -19,6 +19,48 @@
 const { readTx, cErr } = require('./competition-common');
 const { resolveAuthority } = require('./competition-permissions');
 
+// ---- leaderboard aggregate cache (no schema, in-process) -----------------
+//
+// getLeaderboard() ran the full campaign-wide GROUP BY aggregate (computeRows)
+// on every open. This memoises that result per campaign, guarded by a cheap
+// change-signature so it is NEVER stale: any submission insert or update bumps
+// count(*) / max(row_version) / max(updated_at) (competition.submissions has a
+// BEFORE UPDATE `submissions_touch` trigger maintaining updated_at), and a
+// campaign publish/finalize is caught by status + publication_state in the
+// same signature. A 30s TTL is only a belt-and-braces upper bound. The cache
+// holds the raw computeRows() output; the per-actor identity-mode projection
+// still runs every call. awards.js keeps calling computeRows() directly and is
+// deliberately NOT cached.
+const LEADERBOARD_CACHE_TTL_MS = 30000;
+const _leaderboardCache = new Map(); // campaignId -> { sig, rows, at }
+
+async function leaderboardSignature(client, campaignId) {
+  const r = await client.query(
+    `SELECT c.status, c.publication_state,
+            count(s.*) AS n,
+            COALESCE(max(s.row_version), 0) AS v,
+            COALESCE(extract(epoch FROM max(s.updated_at)), 0) AS u
+       FROM competition.campaigns c
+       LEFT JOIN competition.submissions s ON s.campaign_id = c.id
+      WHERE c.id = $1
+      GROUP BY c.status, c.publication_state`,
+    [campaignId]);
+  if (!r.rowCount) return null;
+  const x = r.rows[0];
+  return `${x.status}|${x.publication_state}|${x.n}|${x.v}|${x.u}`;
+}
+
+async function cachedComputeRows(client, campaignId) {
+  const sig = await leaderboardSignature(client, campaignId);
+  const hit = _leaderboardCache.get(campaignId);
+  if (hit && hit.sig === sig && (Date.now() - hit.at) < LEADERBOARD_CACHE_TTL_MS) {
+    return hit.rows;
+  }
+  const rows = await computeRows(client, campaignId);
+  _leaderboardCache.set(campaignId, { sig, rows, at: Date.now() });
+  return rows;
+}
+
 async function computeRows(client, campaignId) {
   const r = await client.query(
     `WITH totals AS (
@@ -56,7 +98,7 @@ async function getLeaderboard(config, actor, params) {
     if (!c.rowCount) throw cErr('COMPETITION_CAMPAIGN_NOT_FOUND', 'Không tìm thấy chương trình.', 404);
     const published = c.rows[0].publication_state === 'published' && c.rows[0].status === 'finalized';
 
-    const rows = await computeRows(client, campaignId);
+    const rows = await cachedComputeRows(client, campaignId);
 
     // highest-level reviewer for this campaign => privileged identity view
     const maxLevelR = await client.query('SELECT max(level_order) m FROM competition.approval_levels WHERE campaign_id = $1', [campaignId]);
@@ -93,4 +135,4 @@ async function getLeaderboard(config, actor, params) {
   });
 }
 
-module.exports = { getLeaderboard, computeRows };
+module.exports = { getLeaderboard, computeRows, leaderboardSignature, _leaderboardCache };

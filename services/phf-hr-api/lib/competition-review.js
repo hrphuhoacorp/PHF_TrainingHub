@@ -470,9 +470,34 @@ async function reviewerProductivity(config, actor, params) {
 // their WHERE-clause outcome.
 const BASE_LEVEL_ORDER = 1;
 
+// Bounded, keyset-paginated queue. Order is unchanged (oldest submitted_at
+// first) — the only addition is a stable id tie-break + an opaque cursor so a
+// reviewer can page a long backlog without the server ever building the whole
+// actionable set in one response.
+const QUEUE_PAGE_DEFAULT = 20;
+const QUEUE_PAGE_MAX = 50;
+
+function encodeQueueCursor(ts, id) {
+  if (!ts || !id) return null;
+  const iso = (ts instanceof Date) ? ts.toISOString() : String(ts);
+  return Buffer.from(JSON.stringify({ t: iso, i: String(id) }), 'utf8').toString('base64url');
+}
+function decodeQueueCursor(raw) {
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(Buffer.from(String(raw), 'base64url').toString('utf8'));
+    if (!o || !o.t || !o.i) return null;
+    return { t: String(o.t), i: String(o.i) };
+  } catch (e) {
+    throw cErr('COMPETITION_QUEUE_CURSOR_INVALID', 'Con trỏ hàng chờ không hợp lệ.', 400);
+  }
+}
+
 async function anonymousQueue(config, actor, params) {
   const auth = await resolveAuthority(config, actor, params.campaignId);
   if (!auth.canReview) throw cErr('COMPETITION_NOT_A_REVIEWER', 'Bạn không có quyền duyệt.', 403);
+  const limit = Math.min(QUEUE_PAGE_MAX, Math.max(1, Math.floor(Number(params.limit) || QUEUE_PAGE_DEFAULT)));
+  const cursor = decodeQueueCursor(params.cursor);
   // Reviewer 5 (or higher) tier authority: max level above the base/L1 level.
   // Per the locked contract "Reviewer 5 max-level authority includes
   // Reviewer 2 authority", such a reviewer must see the FULL actionable pool
@@ -490,6 +515,7 @@ async function anonymousQueue(config, actor, params) {
     const r = await client.query(
       `SELECT s.id AS submission_ref, s.campaign_id, c.title AS campaign_title,
               s.payload, s.status AS review_status, s.current_level_order, s.submitted_at,
+              s.submitted_at::text AS submitted_at_cursor,
               s.last_review_note,
               ra.id AS assignment_id, ra.tier, ra.due_at
          FROM competition.submissions s
@@ -515,17 +541,27 @@ async function anonymousQueue(config, actor, params) {
           AND NOT ( ($2 <> '' AND s.author_account_id = $2) OR ($3 <> '' AND s.author_employee_code = $3) )
           AND ( $4::boolean = true OR ra.id IS NOT NULL
                 OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) + 1 <= $5::int ) )
-        ORDER BY s.submitted_at ASC NULLS LAST`,
+          -- keyset: submitted rows always carry submitted_at (submit() sets
+          -- it), so a (submitted_at, id) tuple compare is exact for this set.
+          AND ( $7::timestamptz IS NULL
+                OR ( s.submitted_at, s.id ) > ( $7::timestamptz, $8::uuid ) )
+        ORDER BY s.submitted_at ASC NULLS LAST, s.id ASC
+        LIMIT $9`,
       [params.campaignId, actor.accountId || '', actor.employeeCode || '', auth.isCompetitionAdmin,
-       auth.reviewerMaxLevel, isHighTierReviewer]);
+       auth.reviewerMaxLevel, isHighTierReviewer,
+       cursor ? cursor.t : null, cursor ? cursor.i : null, limit + 1]);
     const levels = await client.query(
       'SELECT level_order, name, score FROM competition.approval_levels WHERE campaign_id = $1 ORDER BY level_order', [params.campaignId]);
     const eligible = levels.rows
       .filter((l) => auth.isCompetitionAdmin || l.level_order <= auth.reviewerMaxLevel)
       .map((l) => ({ levelOrder: l.level_order, name: l.name, score: Number(l.score) }));
+    const hasMore = r.rows.length > limit;
+    const pageRows = hasMore ? r.rows.slice(0, limit) : r.rows;
+    const lastRow = pageRows.length ? pageRows[pageRows.length - 1] : null;
     return {
       eligibleLevels: eligible,
-      items: r.rows.map((x) => ({
+      nextCursor: hasMore && lastRow ? encodeQueueCursor(lastRow.submitted_at_cursor, lastRow.submission_ref) : null,
+      items: pageRows.map((x) => ({
         submissionRef: x.submission_ref,          // opaque to the reviewer UI
         campaignId: x.campaign_id, campaignTitle: x.campaign_title,
         payload: x.payload,                       // content only

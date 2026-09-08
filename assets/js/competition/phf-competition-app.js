@@ -537,16 +537,39 @@ async function screenFeed(slot,boot){
     +'<section class="phf-comp-section"><h2>'+icon('feed')+'Bảng tin</h2>'
     +'<div class="phf-comp-note">'+icon('lock')+'<span>Trong thời gian chương trình đang chạy, bảng tin không hiển thị danh tính tác giả. Danh tính chỉ mở sau khi chương trình được chốt và bật công bố.</span></div>'
     +'<div class="phf-comp-feed" data-comp-feed style="margin-top:18px">'+loadingState('Đang tải bảng tin…')+'</div>'
+    +'<div data-comp-feed-more style="margin-top:14px;text-align:center"></div>'
   +'</section>';
   var feedBox=slot.querySelector('[data-comp-feed]');
-  try{
-    var feed=await call('competitionGetFeed',{campaign_id:campaign.id});
-    if(!feed.posts||!feed.posts.length){
-      feedBox.innerHTML=emptyState('feed','Bảng tin chưa có hoạt động.','Khi có nội dung đủ điều kiện (đã duyệt), các đóng góp sẽ xuất hiện tại đây kèm lượt thả tim.');
-      return;
-    }
-    feedBox.innerHTML=feed.posts.map(feedPostHtml).join('');
-  }catch(e){feedBox.innerHTML=errorState(e);wireRetrySingle(feedBox,function(){return screenFeed(slot,boot);});}
+  var moreBox=slot.querySelector('[data-comp-feed-more]');
+  // Keyset pagination — the feed is never fetched whole. `cursor` is the
+  // opaque server token; each "Xem thêm" appends the next page in place
+  // (no root remount, scroll position preserved).
+  var cursor=null,loading=false,firstPage=true;
+  async function loadPage(){
+    if(loading)return;
+    loading=true;
+    moreBox.innerHTML=firstPage?'':loadingState('Đang tải thêm…');
+    try{
+      var feed=await call('competitionGetFeed',{campaign_id:campaign.id,cursor:cursor||undefined});
+      if(firstPage&&(!feed.posts||!feed.posts.length)){
+        feedBox.innerHTML=emptyState('feed','Bảng tin chưa có hoạt động.','Khi có nội dung đủ điều kiện (đã duyệt), các đóng góp sẽ xuất hiện tại đây kèm lượt thả tim.');
+        moreBox.innerHTML='';return;
+      }
+      var html=(feed.posts||[]).map(feedPostHtml).join('');
+      if(firstPage)feedBox.innerHTML=html;else feedBox.insertAdjacentHTML('beforeend',html);
+      firstPage=false;
+      cursor=feed.nextCursor||null;
+      moreBox.innerHTML=cursor
+        ?'<button type="button" class="phf-comp-btn is-ghost" data-comp-feed-more-btn>Xem thêm</button>'
+        :'';
+      var btn=moreBox.querySelector('[data-comp-feed-more-btn]');
+      if(btn)btn.addEventListener('click',loadPage);
+    }catch(e){
+      if(firstPage){feedBox.innerHTML=errorState(e);wireRetrySingle(feedBox,function(){return screenFeed(slot,boot);});}
+      else{moreBox.innerHTML='<button type="button" class="phf-comp-btn is-ghost" data-comp-feed-more-btn>Thử lại</button>';var rb=moreBox.querySelector('[data-comp-feed-more-btn]');if(rb)rb.addEventListener('click',loadPage);}
+    }finally{loading=false;}
+  }
+  await loadPage();
 }
 function feedPostHtml(post){
   var token=post.authorName?esc(post.authorName):('<span class="phf-comp-post-token-alias">'+icon('sparkle')+esc(post.anonAlias)+'</span>');
@@ -1100,7 +1123,7 @@ async function screenLeaderboard(slot,boot){
  */
 function similarDisclosureHtml(submissionRef){
   return '<details class="phf-comp-similar-disclosure" data-comp-similar="'+esc(submissionRef)+'">'
-    +'<summary>'+icon('info')+'Có nội dung tương tự</summary>'
+    +'<summary>'+icon('info')+'Kiểm tra nội dung tương tự</summary>'
     +'<div class="phf-comp-similar-body" data-comp-similar-body>'+loadingState('Đang tải…')+'</div>'
   +'</details>';
 }
@@ -1137,7 +1160,7 @@ function wireSimilarDisclosures(container){
         var res=await call('competitionGetSimilarForReview',{submission_id:det.getAttribute('data-comp-similar')});
         bodyEl.innerHTML=(res.candidates||[]).length
           ?res.candidates.map(similarCandidateHtml).join('')
-          :'<p class="phf-comp-em-sub">Không còn nội dung tương tự.</p>';
+          :'<p class="phf-comp-em-sub">Không tìm thấy nội dung tương tự.</p>';
       }catch(e){bodyEl.innerHTML='<p class="phf-comp-em-sub">Không tải được nội dung tương tự.</p>';loaded=false;}
     });
   });
@@ -1295,7 +1318,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
     body.innerHTML=emptyState('review','Hiện chưa có bài chờ duyệt.','Hàng đợi xét duyệt ẩn danh sẽ hiển thị khi có bài mới.');
     return;
   }
-  body.innerHTML=queue.items.map(function(it){
+  var renderItem=function(it){
     var levels=queue.eligibleLevels||[];
     // Plain business language, not "Mức N · tên · N điểm". A single eligible
     // level (Reviewer 2) shows a static line instead of a useless 1-item
@@ -1344,7 +1367,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
     return '<div class="phf-comp-review-item" data-comp-review-item data-submission-id="'+esc(it.submissionRef)+'" style="margin-top:12px">'
       +'<span class="rq-ref">'+esc(stateLabel)+' · Mã bài: '+esc(String(it.submissionRef).slice(0,8))+respTag+'</span>'
       +qaFieldsHtml(it.payload,undefined,{showEvidence:true})
-      +(it.hasSimilar?similarDisclosureHtml(it.submissionRef):'')
+      +similarDisclosureHtml(it.submissionRef)
       +reviewerRecordHtml(it.lastReviewNote)
       +'<div class="phf-comp-review-controls">'
         +levelControlHtml
@@ -1353,9 +1376,14 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
         +'<button type="button" class="phf-comp-btn is-ghost" data-comp-review-act="reject">Từ chối</button>'
       +'</div>'
     +'</div>';
-  }).join('');
-  wireSimilarDisclosures(body);
-  body.querySelectorAll('[data-comp-level-switch]').forEach(function(grp){
+  };
+  body.innerHTML='<div data-comp-queue-list>'+queue.items.map(renderItem).join('')
+    +'</div><div data-comp-queue-more style="margin-top:14px;text-align:center"></div>';
+  var listEl=body.querySelector('[data-comp-queue-list]');
+  var moreEl=body.querySelector('[data-comp-queue-more]');
+  function wireItems(scope){
+  wireSimilarDisclosures(scope);
+  scope.querySelectorAll('[data-comp-level-switch]').forEach(function(grp){
     grp.querySelectorAll('[data-comp-level-opt]').forEach(function(btn){
       btn.addEventListener('click',function(){
         if(btn.disabled)return;
@@ -1364,7 +1392,7 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       });
     });
   });
-  body.querySelectorAll('[data-comp-review-act]').forEach(function(btn){
+  scope.querySelectorAll('[data-comp-review-act]').forEach(function(btn){
     btn.addEventListener('click',async function(){
       var item=btn.closest('[data-comp-review-item]');
       var submissionId=item.getAttribute('data-submission-id');
@@ -1415,6 +1443,36 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
       }catch(e){toast('error','Không xử lý được',e.message);item.querySelectorAll('button').forEach(function(b){b.disabled=false;});}
     });
   });
+  }
+  wireItems(listEl);
+
+  // Keyset pagination — the queue is bounded per request. "Xem thêm" fetches
+  // the next page by cursor and appends it in place (new items are wired in
+  // isolation, existing cards keep their state, scroll position preserved).
+  var qCursor=queue.nextCursor||null,qLoading=false;
+  function renderMore(){
+    moreEl.innerHTML=qCursor
+      ?'<button type="button" class="phf-comp-btn is-ghost" data-comp-queue-more-btn>Xem thêm</button>':'';
+    var b=moreEl.querySelector('[data-comp-queue-more-btn]');
+    if(b)b.addEventListener('click',loadMoreQueue);
+  }
+  async function loadMoreQueue(){
+    if(qLoading||!qCursor)return;
+    qLoading=true;moreEl.innerHTML=loadingState('Đang tải thêm…');
+    try{
+      var next=await call('competitionGetReviewQueue',{campaign_id:campaign.id,cursor:qCursor});
+      var wrap=document.createElement('div');
+      wrap.innerHTML=(next.items||[]).map(renderItem).join('');
+      wireItems(wrap);
+      while(wrap.firstChild)listEl.appendChild(wrap.firstChild);
+      qCursor=next.nextCursor||null;
+      renderMore();
+    }catch(e){
+      moreEl.innerHTML='<button type="button" class="phf-comp-btn is-ghost" data-comp-queue-more-btn>Thử lại</button>';
+      var rb=moreEl.querySelector('[data-comp-queue-more-btn]');if(rb)rb.addEventListener('click',loadMoreQueue);
+    }finally{qLoading=false;}
+  }
+  renderMore();
 }
 
 /* ================================================================== *

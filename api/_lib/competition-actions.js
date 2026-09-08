@@ -240,7 +240,10 @@ const ACTION_MAP = {
     params: (p) => ({ submissionId: str(p.submission_id) }),
   },
 
-  competitionGetReviewQueue: { remote: 'competition.review.queue', params: (p) => ({ campaignId: str(p.campaign_id) }) },
+  competitionGetReviewQueue: {
+    remote: 'competition.review.queue',
+    params: (p) => ({ campaignId: str(p.campaign_id), limit: num(p.limit), cursor: str(p.cursor) }),
+  },
   competitionGetSimilarForReview: {
     remote: 'competition.review.similar',
     params: (p) => ({ submissionId: str(p.submission_id) }),
@@ -265,7 +268,10 @@ const ACTION_MAP = {
   },
   competitionProcessOverdueReviews: { remote: 'competition.review.processOverdue', params: (p) => ({ campaignId: str(p.campaign_id) }) },
 
-  competitionGetFeed: { remote: 'competition.feed.get', params: (p) => ({ campaignId: str(p.campaign_id) }) },
+  competitionGetFeed: {
+    remote: 'competition.feed.get',
+    params: (p) => ({ campaignId: str(p.campaign_id), limit: num(p.limit), cursor: str(p.cursor) }),
+  },
   competitionSetReaction: {
     remote: 'competition.feed.react',
     params: (p) => ({ submissionId: str(p.submission_id), on: p.on === false ? false : true }),

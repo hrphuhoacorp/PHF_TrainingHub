@@ -114,10 +114,13 @@ const HANDLERS = {
   'competition.submission.confirmOccurrence': (c, a, p) => similarity.confirmOccurrence(c, a, p),
   'competition.submission.occurrenceCount': (c, a, p) => similarity.getOccurrenceCount(c, a, p),
 
-  'competition.review.queue': async (c, a, p) => {
-    const result = await review.anonymousQueue(c, a, p);
-    return similarity.attachQueueSimilarityFlags(c, result, p.campaignId);
-  },
+  // Queue load returns review items only. Similarity is computed lazily —
+  // per item, on demand — via competition.review.similar when a reviewer
+  // actually expands "Nội dung tương tự" on a card. The old eager
+  // attachQueueSimilarityFlags scored every visible queue item against the
+  // (up to) 300-candidate pool on every queue open; that cost is removed
+  // from the initial render entirely.
+  'competition.review.queue': (c, a, p) => review.anonymousQueue(c, a, p),
   'competition.review.similar': (c, a, p) => similarity.getSimilarForReview(c, a, p),
   'competition.review.productivity': (c, a, p) => review.reviewerProductivity(c, a, p),
   'competition.review.myReviewed': (c, a, p) => review.myReviewedHistory(c, a, p),
