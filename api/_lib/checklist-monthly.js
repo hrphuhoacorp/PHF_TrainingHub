@@ -177,20 +177,67 @@ async function syncMonthlyCycle(session,input={}){
    else throw err;
   }
  }
- if(now>Date.parse(effectiveWindow.lockAt)&&existing&&existing.status!=='locked'){
-  const pending=await db.from('checklist_monthly_forms').select('id',{count:'exact',head:true}).eq('period_month',period).in('status',['waiting_self','waiting_review']);if(pending.error)throw pending.error;
-  if(Number(pending.count||0)===0){try{await lockMonthly(session,{month:period,reason:'Hệ thống tự khóa kỳ theo lịch cấu hình.',force:false});locked=true;}catch(_){lockBlocked=true;}}
-  else lockBlocked=true;
- }
+ /* B4: KHÔNG tự khóa kỳ theo lịch. "Khóa kỳ / Chốt kỳ" là thao tác thủ công CHỈ Admin
+    thực hiện (lock_checklist_monthly_period qua action lockChecklistMonthly). Quá
+    scheduled_lock_at chỉ là mốc tham chiếu để hiển thị, không sinh hành động. */
+ const scheduledLockPassed=now>Date.parse(effectiveWindow.lockAt)&&existing&&existing.status!=='locked';
  const missingReviewerForms=(createdResult.forms||[]).filter(x=>!t(x.reviewer_code)&&!t(x.reviewer_id)).map(x=>({code:'MISSING_REVIEWER',employeeCode:t(x.employee_code).toUpperCase(),employeeName:t(x.employee_name),message:'Chưa có người thẩm định.'}));
  missingReviewerForms.forEach(item=>{if(!warnings.some(w=>w.code==='MISSING_REVIEWER'&&w.employeeCode===item.employeeCode))warnings.push(item);});
- return {synced:true,reconciled,opened,locked,lockBlocked,warnings,warningCount:warnings.length,window:effectiveWindow,policy:effectivePolicy,created:Number(createdResult.created||0),skippedExisting:Number(createdResult.skippedExisting||0),reviewerUpdated:Number(reviewerReconcile.updated||0),reviewerChanges:reviewerReconcile.changed||[],forms:createdResult.forms||[],period:existing||createdResult.period};
+ return {synced:true,reconciled,opened,locked:false,lockBlocked:false,scheduledLockPassed:Boolean(scheduledLockPassed),warnings,warningCount:warnings.length,window:effectiveWindow,policy:effectivePolicy,created:Number(createdResult.created||0),skippedExisting:Number(createdResult.skippedExisting||0),reviewerUpdated:Number(reviewerReconcile.updated||0),reviewerChanges:reviewerReconcile.changed||[],forms:createdResult.forms||[],period:existing||createdResult.period};
 }
 function previousPeriod(period){const [y,m]=month(period).split('-').map(Number),d=new Date(Date.UTC(y,m-2,1));return d.toISOString().slice(0,7);}
-function reviewWindowState(window,form){const now=Date.now(),start=Date.parse(window.reviewOpenAt),end=Date.parse(window.reviewDueAt),selfSubmitted=Boolean(form.self_submitted_at)||['waiting_review','reviewed','locked'].includes(form.status);let state='not_open',canReview=false,label='Chưa đến thời gian thẩm định';if(now>=start&&now<=end){state=selfSubmitted?'ready':'waiting_self';canReview=selfSubmitted&&form.status==='waiting_review';label=selfSubmitted?'Đang trong thời gian thẩm định':'Đang mở · chờ nhân viên gửi tự đánh giá';}else if(now>end){state=form.status==='reviewed'||form.status==='locked'?'completed':'overdue';label=state==='completed'?'Đã hoàn tất':'Đã hết thời gian thẩm định';}return {state,canReview,label,...window};}
+/* B4 — deadline chỉ dùng đo đúng hạn/trễ, KHÔNG tự khóa thao tác.
+   lateDelta: trễ bao nhiêu ngày dương lịch giữa mốc hạn (dueIso) và thời điểm thực (actualIso|now). */
+function lateDelta(dueIso,actualIso){
+ const due=Date.parse(t(dueIso)),actual=actualIso?Date.parse(t(actualIso)):Date.now();
+ if(!Number.isFinite(due)||!Number.isFinite(actual)||actual<=due)return {late:false,lateDays:0,dueAt:t(dueIso)||null,actualAt:actualIso?t(actualIso):null};
+ return {late:true,lateDays:Math.max(1,Math.ceil((actual-due)/86400000)),dueAt:t(dueIso),actualAt:actualIso?t(actualIso):new Date().toISOString()};
+}
+function isPeriodLocked(periodStatusLike){return t(typeof periodStatusLike==='object'&&periodStatusLike?periodStatusLike.status:periodStatusLike).toLowerCase()==='locked';}
+/* Cửa sổ thẩm định. periodStatus: trạng thái kỳ ('open'|'locked'|'draft'). B4: quá hạn
+   KHÔNG chặn thao tác — canReview vẫn true nếu NV đã gửi tự đánh giá, phiếu còn ở bước
+   thẩm định và kỳ CHƯA bị Admin khóa. late/lateDays chỉ để hiển thị và ghi vết. */
+function reviewWindowState(window,form,periodStatus){
+ const now=Date.now(),start=Date.parse(window.reviewOpenAt),end=Date.parse(window.reviewDueAt),
+  selfSubmitted=Boolean(form.self_submitted_at)||['waiting_review','reviewed','locked'].includes(form.status),
+  periodLocked=isPeriodLocked(periodStatus),isReviewed=form.status==='reviewed'||form.status==='locked',
+  over=Number.isFinite(end)&&now>end;
+ let state='not_open',canReview=false,label='Chưa đến thời gian thẩm định',late=false,lateDays=0;
+ if(isReviewed){
+  state='completed';label='Đã hoàn tất';
+  const d=lateDelta(window.reviewDueAt,form.review_submitted_at);late=d.late;lateDays=d.lateDays;
+  if(late)label='Đã hoàn tất · thẩm định trễ '+lateDays+' ngày';
+ }else if(now<start){
+  state='not_open';label='Chưa đến thời gian thẩm định';
+ }else{
+  late=over;lateDays=over?lateDelta(window.reviewDueAt).lateDays:0;
+  state=!selfSubmitted?'waiting_self':(over?'overdue':'ready');
+  canReview=selfSubmitted&&form.status==='waiting_review'&&!periodLocked;
+  label=!selfSubmitted?'Đang mở · chờ nhân viên gửi tự đánh giá'
+   :(over?('Quá hạn thẩm định '+lateDays+' ngày · vẫn xử lý được khi kỳ chưa khóa')
+   :'Đang trong thời gian thẩm định');
+  if(periodLocked&&selfSubmitted&&form.status==='waiting_review')label='Kỳ đã khóa · không thể thẩm định';
+ }
+ return {state,canReview,late,lateDays,periodLocked,label,...window};
+}
+/* Cửa sổ thẩm định HIỆU LỰC của một kỳ: ưu tiên snapshot đã "chụp" trên
+   checklist_monthly_periods (review_open_at/review_due_at/scheduled_lock_at) — giống
+   selfEditWindow đã làm cho self — rồi mới fallback về policy/override hiện hành.
+   Không hard-code ngày. */
+async function effectiveReviewWindow(periodMonth,periodRow){
+ const base=await resolveMonthlyCycleWindow(periodMonth),p=periodRow||{};
+ return {...base,
+  reviewOpenAt:t(p.review_open_at)||base.reviewOpenAt,
+  reviewDueAt:t(p.review_due_at)||base.reviewDueAt,
+  lockAt:t(p.scheduled_lock_at)||base.lockAt};
+}
 async function selfEditWindow(form,periodArg){
- const period=periodArg||{},resolved=await resolveMonthlyCycleWindow(form.period_month),openAt=period.self_open_at||resolved.selfOpenAt,dueAt=period.self_due_at||resolved.selfDueAt,now=Date.now(),open=Date.parse(openAt),due=Date.parse(dueAt),statusAllowed=['waiting_self','waiting_review'].includes(form.status);
- return {openAt,dueAt,isOpen:Number.isFinite(open)&&now>=open,isExpired:Number.isFinite(due)&&now>due,canEdit:statusAllowed&&Number.isFinite(due)&&now<=due};
+ const period=periodArg||{},resolved=await resolveMonthlyCycleWindow(form.period_month),openAt=period.self_open_at||resolved.selfOpenAt,dueAt=period.self_due_at||resolved.selfDueAt,now=Date.now(),open=Date.parse(openAt),due=Date.parse(dueAt),statusAllowed=['waiting_self','waiting_review'].includes(form.status),periodLocked=isPeriodLocked(period);
+ const isExpired=Number.isFinite(due)&&now>due;
+ const d=isExpired?lateDelta(dueAt):{late:false,lateDays:0};
+ /* B4: canEdit KHÔNG phụ thuộc now<=due nữa. Chỉ chặn khi phiếu không còn ở bước tự
+    đánh giá hoặc kỳ đã bị Admin khóa. isExpired/late chỉ để hiển thị + ghi vết. */
+ return {openAt,dueAt,isOpen:Number.isFinite(open)&&now>=open,isExpired,periodLocked,late:d.late,lateDays:d.lateDays,canEdit:statusAllowed&&!periodLocked};
 }
 
 function scoreWeight(value,fallback){const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n*100)/100)):fallback;}
@@ -541,7 +588,13 @@ async function myMonthlyForm(session,input={}){
  const [periodResult,histories,refreshed,pendingLate]=await Promise.all([periodPromise,historyPromise,refreshPromise,pendingLatePromise]);
  if(periodResult.error)throw periodResult.error;
  const periodData=periodResult.data||null,selfWindow=refreshed?await selfEditWindow(refreshed,periodData):null;
- return {form:refreshed?withScoreSummary({...refreshed,history:histories.get(refreshed.id)||[],self_edit_window:selfWindow,pending_late_events:pendingLate}):null,period:periodData};
+ const selfLate=refreshed&&refreshed.self_submitted_at&&selfWindow?lateDelta(selfWindow.dueAt,refreshed.self_submitted_at):{late:false,lateDays:0};
+ let reviewLate={late:false,lateDays:0};
+ if(refreshed&&refreshed.review_submitted_at){
+  const reviewDueSnap=t(periodData&&periodData.review_due_at)||(await effectiveReviewWindow(refreshed.period_month,periodData||{})).reviewDueAt;
+  reviewLate=lateDelta(reviewDueSnap,refreshed.review_submitted_at);
+ }
+ return {form:refreshed?withScoreSummary({...refreshed,history:histories.get(refreshed.id)||[],self_edit_window:selfWindow,self_late:selfLate.late,self_late_days:selfLate.lateDays,review_late:reviewLate.late,review_late_days:reviewLate.lateDays,pending_late_events:pendingLate}):null,period:periodData};
 }
 function rowSourceType(r){
  /* Field tường minh (đối tượng nguồn {type:...}) — chỉ có ở totalRows tạo/lưu sau
@@ -575,7 +628,13 @@ function withScoreSummary(form){
 async function saveMyMonthly(session,input={}){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');const a=actor(session),id=t(input.formId);if(!id)fail('Thiếu mã phiếu đánh giá.');
  let q=db.from('checklist_monthly_forms').select('*').eq('id',id);q=a.employeeCode?q.eq('employee_code',a.employeeCode):q.eq('employee_id',a.employeeId||'__none__');const got=await q.maybeSingle();if(got.error)throw got.error;let form=got.data;if(!form)fail('Bạn không có quyền cập nhật phiếu này.',403,'CHECKLIST_MONTHLY_FORM_FORBIDDEN');assertFresh(form,input.expectedUpdatedAt,'CHECKLIST_MONTHLY_SELF_STALE');if(!['waiting_self','waiting_review'].includes(form.status))fail('Phiếu không còn ở bước tự đánh giá.',409,'CHECKLIST_MONTHLY_NOT_WAITING_SELF');
- const periodCheck=await db.from('checklist_monthly_periods').select('status,self_open_at,self_due_at').eq('id',form.period_id).maybeSingle();if(periodCheck.error)throw periodCheck.error;if(!form.pilot_opened_at&&!(periodCheck.data&&['open','locked'].includes(periodCheck.data.status)))fail('Phiếu chưa được mở cho tài khoản này.',403,'CHECKLIST_MONTHLY_NOT_OPEN');const selfWindow=await selfEditWindow(form,periodCheck.data||{});if(selfWindow.isExpired)fail('Đã hết thời gian tự đánh giá. Hạn: '+selfWindow.dueAt+'.',409,'CHECKLIST_MONTHLY_SELF_WINDOW_CLOSED');const breakdown=await checklistBreakdown(form.employee_code,form.period_month);form={...form,checklist_score:breakdown.score,checklist_breakdown:breakdown};const allRows=monthlyRows(form),automaticOver=allRows.find(r=>isAutomaticSource(r.source,r.name)&&breakdown.score>numeric(r.target));if(automaticOver)fail('Điểm tự động vượt Mục tiêu cấu hình tại '+automaticOver.code+'.',409,'CHECKLIST_MONTHLY_AUTOMATIC_OVER_TARGET');const rows=allRows.filter(r=>!isAutomaticSource(r.source,r.name)),allowed=new Set(rows.map(r=>r.code)),answers=input.answers&&typeof input.answers==='object'&&!Array.isArray(input.answers)?input.answers:{},clean={};
+ const periodCheck=await db.from('checklist_monthly_periods').select('status,self_open_at,self_due_at').eq('id',form.period_id).maybeSingle();if(periodCheck.error)throw periodCheck.error;
+ const periodStatus=t(periodCheck.data&&periodCheck.data.status);
+ if(periodStatus==='locked')fail('Kỳ đánh giá đã được khóa. Không thể chỉnh sửa nội dung của kỳ.',409,'CHECKLIST_MONTHLY_PERIOD_LOCKED');
+ if(!form.pilot_opened_at&&periodStatus!=='open')fail('Phiếu chưa được mở cho tài khoản này.',403,'CHECKLIST_MONTHLY_NOT_OPEN');
+ const selfWindow=await selfEditWindow(form,periodCheck.data||{});
+ /* B4: quá hạn KHÔNG chặn — vẫn cho Tự đánh giá khi kỳ chưa khóa; chỉ ghi nhận nộp trễ. */
+ const breakdown=await checklistBreakdown(form.employee_code,form.period_month);form={...form,checklist_score:breakdown.score,checklist_breakdown:breakdown};const allRows=monthlyRows(form),automaticOver=allRows.find(r=>isAutomaticSource(r.source,r.name)&&breakdown.score>numeric(r.target));if(automaticOver)fail('Điểm tự động vượt Mục tiêu cấu hình tại '+automaticOver.code+'.',409,'CHECKLIST_MONTHLY_AUTOMATIC_OVER_TARGET');const rows=allRows.filter(r=>!isAutomaticSource(r.source,r.name)),allowed=new Set(rows.map(r=>r.code)),answers=input.answers&&typeof input.answers==='object'&&!Array.isArray(input.answers)?input.answers:{},clean={};
  Object.keys(answers).slice(0,200).forEach(k=>{if(!allowed.has(t(k)))return;const x=answers[k]||{},v=t(x.value);clean[t(k).slice(0,80)]={value:v.slice(0,100),note:t(x.note).slice(0,1000)};});
  const submit=input.submit===true,missing=rows.filter(r=>!t(clean[r.code]?.value)),invalid=rows.filter(r=>{const n=Number(clean[r.code]?.value);return t(clean[r.code]?.value)&&(!Number.isFinite(n)||n<0);}),over=rows.filter(r=>t(clean[r.code]?.value)&&Number(clean[r.code].value)>numeric(r.target));
  if(invalid.length)fail('Điểm tự đánh giá không hợp lệ tại '+invalid[0].code+' – '+invalid[0].name+'.',409,'CHECKLIST_MONTHLY_SELF_INVALID');if(over.length)fail(over[0].code+' – '+over[0].name+' tối đa '+numeric(over[0].target)+' theo Mục tiêu.',409,'CHECKLIST_MONTHLY_SELF_OVER_TARGET');if(submit&&missing.length)fail('Còn '+missing.length+' chỉ tiêu chưa nhập điểm. Thiếu: '+missing[0].code+' – '+missing[0].name+'.',409,'CHECKLIST_MONTHLY_SELF_INCOMPLETE');
@@ -588,8 +647,12 @@ async function saveMyMonthly(session,input={}){
   let update=db.from('checklist_monthly_forms').update(patch).eq('id',form.id).eq('status','waiting_review').eq('updated_at',form.updated_at);const fallback=await update.select('*').maybeSingle();if(fallback.error)throw fallback.error;if(!fallback.data)fail('Phiếu đã được cập nhật ở tab hoặc máy khác. Vui lòng tải lại.',409,'CHECKLIST_MONTHLY_SELF_STALE');result={ok:true,form:fallback.data};
  }
  if(result.ok!==true)fail(t(result.message)||'Không thể lưu phiếu.',409,t(result.code)||'CHECKLIST_MONTHLY_SELF_BLOCKED');
- if(submit||wasSubmitted){const action=wasSubmitted?(submit?'resubmit_self_review':'update_self_review'):'submit_self_review',history=await db.from('checklist_monthly_form_history').insert({form_id:form.id,period_month:form.period_month,employee_code:form.employee_code,action,before_data:{status:form.status,selfAnswers:form.self_answers||{},selfSubmittedAt:form.self_submitted_at||null,selfTotalScore:form.self_total_score==null?null:Number(form.self_total_score),updatedAt:form.updated_at},after_data:{status:result.form.status,selfAnswers:result.form.self_answers||{},selfSubmittedAt:result.form.self_submitted_at||null,selfTotalScore:Number(result.form.self_total_score||0),formulaVersion:SCORE_FORMULA_VERSION,updatedAt:result.form.updated_at},reason:action==='update_self_review'?'Nhân viên cập nhật tự đánh giá trong thời hạn.':'Nhân viên gửi tự đánh giá trong thời hạn.',changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name,changed_at:now});if(history.error)throw history.error;}
- return {saved:true,submitted:submit,form:withScoreSummary({...result.form,checklist_breakdown:breakdown,self_edit_window:{...selfWindow,canEdit:true}})};
+ const selfLate=(submit||wasSubmitted)?lateDelta(selfWindow.dueAt,now):{late:false,lateDays:0};
+ if(submit||wasSubmitted){const action=wasSubmitted?(submit?'resubmit_self_review':'update_self_review'):'submit_self_review';
+  const onTimeReason=action==='update_self_review'?'Nhân viên cập nhật tự đánh giá trong thời hạn.':'Nhân viên gửi tự đánh giá trong thời hạn.';
+  const lateReason=(action==='update_self_review'?'Nhân viên cập nhật tự đánh giá':'Nhân viên gửi tự đánh giá')+' TRỄ '+selfLate.lateDays+' ngày (hạn '+t(selfWindow.dueAt).slice(0,10)+').';
+  const history=await db.from('checklist_monthly_form_history').insert({form_id:form.id,period_month:form.period_month,employee_code:form.employee_code,action,before_data:{status:form.status,selfAnswers:form.self_answers||{},selfSubmittedAt:form.self_submitted_at||null,selfTotalScore:form.self_total_score==null?null:Number(form.self_total_score),updatedAt:form.updated_at},after_data:{status:result.form.status,selfAnswers:result.form.self_answers||{},selfSubmittedAt:result.form.self_submitted_at||null,selfTotalScore:Number(result.form.self_total_score||0),formulaVersion:SCORE_FORMULA_VERSION,updatedAt:result.form.updated_at,late:selfLate.late,lateDays:selfLate.lateDays,expectedDueAt:selfWindow.dueAt||null,submittedAt:now},reason:selfLate.late?lateReason:onTimeReason,changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name,changed_at:now});if(history.error)throw history.error;}
+ return {saved:true,submitted:submit,selfLate,form:withScoreSummary({...result.form,checklist_breakdown:breakdown,self_edit_window:{...selfWindow,canEdit:true},self_late:selfLate.late,self_late_days:selfLate.lateDays})};
 }
 async function monthlyReviewAccessContext(session){
  const a=actor(session);if(!a.employeeCode&&!a.employeeId)fail('Tài khoản chưa liên kết mã nhân viên.',403,'CHECKLIST_MONTHLY_IDENTITY_REQUIRED');
@@ -648,7 +711,10 @@ async function myMonthlyReviewSummaries(session,input={}){
  /* Cấu hình chu kỳ và toàn bộ ngoại lệ tháng được đọc theo lô, song song.
     Trước đây mỗi tháng phát sinh hai lượt Supabase nối tiếp. */
  const windows=await monthlyReviewWindows(rawForms.map(form=>form.period_month));
- const forms=rawForms.map(form=>{const window=windows.get(month(form.period_month))||resolveMonthlyCycleWindowSync(form.period_month,defaultMonthlyCyclePolicy(),null);return {...form,view_only_current_manager:false,review_window:reviewWindowState(window,form),is_summary:true};});
+ const periodMonths=[...new Set(rawForms.map(form=>month(form.period_month)).filter(Boolean))];
+ const periodRowByMonth=new Map();
+ if(periodMonths.length){const pr=await db.from('checklist_monthly_periods').select('period_month,status,review_open_at,review_due_at,scheduled_lock_at').in('period_month',periodMonths);if(pr.error)throw pr.error;(pr.data||[]).forEach(row=>periodRowByMonth.set(month(row.period_month),row));}
+ const forms=rawForms.map(form=>{const m=month(form.period_month),base=windows.get(m)||resolveMonthlyCycleWindowSync(form.period_month,defaultMonthlyCyclePolicy(),null),prow=periodRowByMonth.get(m)||{};const window={...base,reviewOpenAt:t(prow.review_open_at)||base.reviewOpenAt,reviewDueAt:t(prow.review_due_at)||base.reviewDueAt,lockAt:t(prow.scheduled_lock_at)||base.lockAt};return {...form,view_only_current_manager:false,review_window:reviewWindowState(window,form,t(prow.status)),is_summary:true};});
  return {forms,summaryMode:true};
 }
 async function myMonthlyReviewDetail(session,input={}){
@@ -656,8 +722,10 @@ async function myMonthlyReviewDetail(session,input={}){
  const context=await monthlyReviewAccessContext(session);if(session?.role!=='admin'&&!context.access.canReview)fail('Không có quyền xem phiếu thẩm định.',403,'CHECKLIST_MONTHLY_REVIEW_FORBIDDEN');
  const got=await db.from('checklist_monthly_forms').select('*').eq('id',id).maybeSingle();if(got.error)throw got.error;if(!got.data)fail('Không tìm thấy phiếu cần xem.',404,'CHECKLIST_MONTHLY_REVIEW_NOT_FOUND');
  if(!monthlyReviewVisible(session,context,got.data))fail('Phiếu không còn thuộc phạm vi được cấp.',403,'CHECKLIST_MONTHLY_REVIEW_SCOPE_REVOKED');
- const refreshed=await refreshUnlockedChecklistScore(got.data),histories=await formHistories([id]),window=await resolveMonthlyCycleWindow(refreshed.period_month);
- return {form:withScoreSummary({...refreshed,history:histories.get(id)||[],view_only_current_manager:false,review_window:reviewWindowState(window,refreshed),is_summary:false})};
+ const refreshed=await refreshUnlockedChecklistScore(got.data),histories=await formHistories([id]);
+ const pr=await db.from('checklist_monthly_periods').select('status,review_open_at,review_due_at,scheduled_lock_at').eq('id',refreshed.period_id).maybeSingle();if(pr.error)throw pr.error;
+ const window=await effectiveReviewWindow(refreshed.period_month,pr.data||{});
+ return {form:withScoreSummary({...refreshed,history:histories.get(id)||[],view_only_current_manager:false,review_window:reviewWindowState(window,refreshed,pr.data&&pr.data.status),is_summary:false})};
 }
 async function myMonthlyReviews(session,input={}){return input&&input.summary===true?myMonthlyReviewSummaries(session,input):myMonthlyReviewSummaries(session,input);}
 async function saveMonthlyReview(session,input={}){
@@ -672,7 +740,14 @@ async function saveMonthlyReview(session,input={}){
   if(!access.canReview||!allowed)fail('Quyền thẩm định đã thay đổi hoặc nhân viên không còn thuộc phạm vi Admin cấp.',403,'CHECKLIST_MONTHLY_REVIEW_SCOPE_REVOKED');
  }
  if(adminOverride&&overrideReason.length<10)fail('Admin thẩm định thay cần ghi lý do tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_ADMIN_REVIEW_REASON_REQUIRED');
- if(form.status!=='waiting_review')fail('Phiếu không còn ở bước chờ thẩm định.',409,'CHECKLIST_MONTHLY_NOT_WAITING_REVIEW');const reviewWindow=reviewWindowState(await resolveMonthlyCycleWindow(form.period_month),form);if(!reviewWindow.canReview)fail(reviewWindow.label+'. Thời gian: '+reviewWindow.reviewOpenAt+' đến '+reviewWindow.reviewDueAt+'.',409,'CHECKLIST_MONTHLY_REVIEW_WINDOW_CLOSED');
+ if(form.status!=='waiting_review')fail('Phiếu không còn ở bước chờ thẩm định.',409,'CHECKLIST_MONTHLY_NOT_WAITING_REVIEW');
+ const rvPeriod=await db.from('checklist_monthly_periods').select('status,review_open_at,review_due_at,scheduled_lock_at').eq('id',form.period_id).maybeSingle();if(rvPeriod.error)throw rvPeriod.error;
+ const reviewWindow=reviewWindowState(await effectiveReviewWindow(form.period_month,rvPeriod.data||{}),form,rvPeriod.data&&rvPeriod.data.status);
+ /* B4: quá hạn KHÔNG chặn thẩm định. Chỉ chặn khi: kỳ đã khóa · chưa tới giờ mở · NV chưa gửi tự đánh giá. */
+ if(reviewWindow.periodLocked)fail('Kỳ đánh giá đã được khóa. Không thể thẩm định nội dung của kỳ.',409,'CHECKLIST_MONTHLY_PERIOD_LOCKED');
+ if(reviewWindow.state==='not_open')fail('Chưa đến thời gian thẩm định. Mở từ: '+reviewWindow.reviewOpenAt+'.',409,'CHECKLIST_MONTHLY_REVIEW_NOT_OPEN');
+ if(reviewWindow.state==='waiting_self')fail('Nhân viên chưa gửi tự đánh giá nên chưa thể thẩm định.',409,'CHECKLIST_MONTHLY_REVIEW_SELF_PENDING');
+ const reviewLate=lateDelta(reviewWindow.reviewDueAt,new Date().toISOString());
  const breakdown=await checklistBreakdown(form.employee_code,form.period_month);form={...form,checklist_score:breakdown.score,checklist_breakdown:breakdown};const rows=monthlyRows(form),allowed=new Set(rows.map(r=>r.code)),answers=input.answers&&typeof input.answers==='object'&&!Array.isArray(input.answers)?input.answers:{},clean={};
  Object.keys(answers).slice(0,200).forEach(k=>{if(!allowed.has(t(k)))return;const x=answers[k]||{},v=t(x.value);clean[t(k).slice(0,80)]={value:v.slice(0,100),note:t(x.note).slice(0,1000)};});
  const checklistScore=Number(input.checklistScore),reason=t(input.checklistReason).slice(0,2000),submit=input.submit===true;if(!Number.isFinite(checklistScore)||checklistScore<0||checklistScore>100)fail('Điểm Checklist thẩm định phải từ 0 đến 100.',409,'CHECKLIST_MONTHLY_REVIEW_SCORE_INVALID');const automaticOver=rows.find(r=>isAutomaticSource(r.source,r.name)&&checklistScore>numeric(r.target));if(automaticOver)fail('Điểm Checklist thẩm định vượt Mục tiêu tại '+automaticOver.code+'.',409,'CHECKLIST_MONTHLY_REVIEW_OVER_TARGET');if(Math.abs(checklistScore-Number(form.checklist_score||0))>0.001&&reason.length<10)fail('Khi điều chỉnh điểm Checklist, lý do cần tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_REVIEW_REASON_REQUIRED');
@@ -682,7 +757,7 @@ async function saveMonthlyReview(session,input={}){
  const saved=await db.rpc('phf_save_checklist_monthly_review',{p_form_id:form.id,p_patch:patch,p_expected_updated_at:form.updated_at,p_expected_checklist_score:Number(form.checklist_score||0)});
  if(saved.error){const message=String(saved.error.message||'');if(/CHECKLIST_MONTHLY_REVIEW_STALE/i.test(message))fail('Phiếu đã được cập nhật ở tab hoặc máy khác. Vui lòng tải lại.',409,'CHECKLIST_MONTHLY_REVIEW_STALE');if(/CHECKLIST_MONTHLY_REVIEW_SCORE_CHANGED/i.test(message))fail('Điểm Checklist vừa thay đổi do có ghi nhận lỗi khác. Vui lòng tải lại phiếu trước khi hoàn tất thẩm định.',409,'CHECKLIST_MONTHLY_REVIEW_SCORE_CHANGED');if(/phf_save_checklist_monthly_review/i.test(message))fail('Chưa chạy SQL ổn định Production cho thẩm định phiếu tháng.',503,'CHECKLIST_MONTHLY_STABILITY_SQL_MISSING');throw saved.error;}
  const result=saved.data||{};if(result.ok!==true)fail(t(result.message)||'Không thể lưu thẩm định.',409,t(result.code)||'CHECKLIST_MONTHLY_REVIEW_BLOCKED');
- return {saved:true,submitted:submit,adminOverride,form:withScoreSummary({...result.form,checklist_breakdown:form.checklist_breakdown})};
+ return {saved:true,submitted:submit,adminOverride,reviewLate:submit?reviewLate:{late:false,lateDays:0},form:withScoreSummary({...result.form,checklist_breakdown:form.checklist_breakdown,review_late:submit&&reviewLate.late,review_late_days:submit?reviewLate.lateDays:0})};
 }
 async function changeMonthlyReviewer(session,input={}){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
@@ -1059,4 +1134,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState};

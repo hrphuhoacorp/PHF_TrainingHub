@@ -62,7 +62,8 @@ const store = {
   ],
   checklist_monthly_periods: [
     { id: 'p1', period_month: PERIOD, status: 'open' },
-    { id: 'p-expired', period_month: PERIOD, status: 'open', self_due_at: '2020-01-01T00:00:00.000Z' }
+    { id: 'p-expired', period_month: PERIOD, status: 'open', self_due_at: '2020-01-01T00:00:00.000Z', review_due_at: '2020-01-01T00:00:00.000Z' },
+    { id: 'p-locked', period_month: PERIOD, status: 'locked', self_due_at: '2020-01-01T00:00:00.000Z', review_due_at: '2020-01-01T00:00:00.000Z' }
   ],
   checklist_monthly_form_history: [],
   checklist_violation_records: [],
@@ -207,12 +208,41 @@ async function main() {
     assert.strictEqual(store.checklist_monthly_form_history.slice(-1)[0].action, 'resubmit_self_review');
   });
 
-  await record('1c) waiting_self và waiting_review quá self_due_at: backend chặn mọi lưu/gửi', async () => {
-    const expiredSelf = { id: 'f-expired-self', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV009', employee_id: 'id-nv009', employee_name: 'NV 9', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, updated_at: NOW_ISO };
-    const expiredReview = { id: 'f-expired-review', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV010', employee_id: 'id-nv010', employee_name: 'NV 10', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, updated_at: NOW_ISO };
-    store.checklist_monthly_forms.push(expiredSelf, expiredReview);
-    await expectFail(monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV009', employeeId: 'id-nv009' }, { formId: expiredSelf.id, expectedUpdatedAt: expiredSelf.updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: false }), 'CHECKLIST_MONTHLY_SELF_WINDOW_CLOSED');
-    await expectFail(monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV010', employeeId: 'id-nv010' }, { formId: expiredReview.id, expectedUpdatedAt: expiredReview.updated_at, answers: { 'MAN-C1': { value: '9' } }, submit: true }), 'CHECKLIST_MONTHLY_SELF_WINDOW_CLOSED');
+  await record('1c) B4: quá self_due_at nhưng kỳ CHƯA khóa -> vẫn tự đánh giá được, ghi nhận nộp TRỄ', async () => {
+    const expiredSelf = { id: 'f-expired-self', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV009', employee_id: 'id-nv009', employee_name: 'NV 9', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(expiredSelf);
+    const res = await monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV009', employeeId: 'id-nv009' }, { formId: expiredSelf.id, expectedUpdatedAt: expiredSelf.updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: true });
+    assert.strictEqual(res.saved, true);
+    assert.strictEqual(res.submitted, true);
+    assert.strictEqual(formById('f-expired-self').status, 'waiting_review');
+    assert.strictEqual(res.selfLate.late, true, 'phải đánh dấu nộp trễ');
+    assert.ok(res.selfLate.lateDays >= 1, 'lateDays >= 1');
+    const h = store.checklist_monthly_form_history.slice(-1)[0];
+    assert.strictEqual(h.after_data.late, true);
+    assert.ok(h.after_data.lateDays >= 1 && h.after_data.expectedDueAt);
+    assert.ok(String(h.reason).includes('TRỄ'), 'reason phải nêu rõ trễ: ' + h.reason);
+  });
+
+  await record('1c-2) B4: kỳ ĐÃ KHÓA -> chặn tự đánh giá (CHECKLIST_MONTHLY_PERIOD_LOCKED)', async () => {
+    const lockedForm = { id: 'f-in-locked-period', period_id: 'p-locked', period_month: PERIOD, status: 'waiting_self', employee_code: 'NV009B', employee_id: 'id-nv009b', employee_name: 'NV 9B', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: {}, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(lockedForm);
+    await expectFail(monthlyLib.saveMyMonthly({ role: 'learner', employeeCode: 'NV009B', employeeId: 'id-nv009b' }, { formId: lockedForm.id, expectedUpdatedAt: lockedForm.updated_at, answers: { 'MAN-C1': { value: '8' } }, submit: false }), 'CHECKLIST_MONTHLY_PERIOD_LOCKED');
+  });
+
+  await record('1c-3) B4: quá review_due_at nhưng kỳ CHƯA khóa -> vẫn thẩm định được, ghi nhận TRỄ', async () => {
+    const expiredReview = { id: 'f-expired-review', period_id: 'p-expired', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV010', employee_id: 'id-nv010', employee_name: 'NV 10', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(expiredReview);
+    const res = await monthlyLib.saveMonthlyReview(ADMIN_SESSION, { formId: expiredReview.id, expectedUpdatedAt: expiredReview.updated_at, answers: { 'MAN-C1': { value: '9' } }, checklistScore: 100, submit: true });
+    assert.strictEqual(res.saved, true);
+    assert.strictEqual(formById('f-expired-review').status, 'reviewed');
+    assert.strictEqual(res.reviewLate.late, true);
+    assert.ok(res.reviewLate.lateDays >= 1);
+  });
+
+  await record('1c-4) B4: kỳ ĐÃ KHÓA -> chặn thẩm định (CHECKLIST_MONTHLY_PERIOD_LOCKED)', async () => {
+    const lockedReview = { id: 'f-review-in-locked', period_id: 'p-locked', period_month: PERIOD, status: 'waiting_review', employee_code: 'NV010B', employee_id: 'id-nv010b', employee_name: 'NV 10B', reviewer_id: 'ADM1-ID', reviewer_code: 'ADM1', reviewer_name: 'Admin Test', template_snapshot: baseSnapshot(), checklist_score: 100, self_answers: { 'MAN-C1': { value: '8' } }, self_submitted_at: NOW_ISO, review_answers: {}, updated_at: NOW_ISO };
+    store.checklist_monthly_forms.push(lockedReview);
+    await expectFail(monthlyLib.saveMonthlyReview(ADMIN_SESSION, { formId: lockedReview.id, expectedUpdatedAt: lockedReview.updated_at, answers: { 'MAN-C1': { value: '9' } }, checklistScore: 100, submit: true }), 'CHECKLIST_MONTHLY_PERIOD_LOCKED');
   });
 
   await record('2) Actual vượt Target -> bị backend chặn CHECKLIST_MONTHLY_SELF_OVER_TARGET', async () => {

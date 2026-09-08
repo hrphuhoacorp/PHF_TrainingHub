@@ -5202,3 +5202,11 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 
 /* IA V1 — nhãn nhẹ cho phiếu kỳ lịch sử của reviewer khi nhân sự đã ra ngoài phạm vi hiện tại */
 .phfck-legacy-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.02em;background:var(--phfck-green-soft,#edf7e9);color:var(--phfck-green-2,#087153);vertical-align:middle}
+
+/* B4 — quá hạn ≠ khóa: nhấn nhẹ trạng thái trễ, và làm rõ Điểm Checklist là điểm hệ thống */
+.phfck-notice.is-late{border-color:#f6c96b;background:#fff8e9}
+.phfck-notice.is-late b{color:#9a6b00}
+.phfck-auto-score.is-system-locked{opacity:1}
+.phfck-auto-score.is-system-locked small{color:var(--phfck-muted);font-weight:600}
+.phfck-context-hint{display:block;margin-top:3px;font-size:10.5px;font-style:normal;color:var(--phfck-muted)}
+.phfck-manager-people-action.is-late{border-color:#f6c96b;background:#fff8e9;color:#9a6b00}
