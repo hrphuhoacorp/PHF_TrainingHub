@@ -148,7 +148,7 @@
   // Hard rule (§1): a screen that asks for an upload-by-template MUST offer the
   // template on the same screen. Static clean .xlsx generated from canonical T07
   // (scripts/qtth-payroll-generate-canonical-template.js) — no real data.
-  var PAYROLL_TEMPLATE_HREF = 'assets/templates/PHF_Payroll_Canonical_V1.xlsx?v=1';
+  var PAYROLL_TEMPLATE_HREF = 'assets/templates/PHF_Payroll_Canonical_V1.xlsx?v=2';
   function templateCardHtml() {
     return '<div class="phf-qtth-td-template">'
       + '<div><b>Mẫu bảng lương chuẩn</b>'
