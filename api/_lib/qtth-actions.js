@@ -214,6 +214,10 @@ const PAYROLL_ACTION_MAP = {
   qtthPayrollConfirm: (p) => ({ remote: 'payroll.confirm', params: { fileId: str(p.file_id) } }),
   qtthPayrollListNormalized: (p) => ({ remote: 'payroll.listNormalized', params: { periodMonth: str(p.period_month || p.period) } }),
   qtthPayrollEmployeeDetail: (p) => ({ remote: 'payroll.employeeDetail', params: { periodMonth: str(p.period_month || p.period), employeeCode: code(p.employee_code) } }),
+  qtthPayrollCostTruth: (p) => ({ remote: 'payroll.costTruth', params: {
+    periodMonth: str(p.period_month || p.period),
+    version: (p.version === 0 || p.version) ? Number(p.version) : undefined,
+  } }),
 };
 
 async function dispatchPayroll(session, payload, action) {
@@ -266,7 +270,7 @@ const QTTH_ACTION_MANIFEST = Object.freeze([
   'qtthSetClassification', 'qtthBulkSetClassification', 'qtthInheritMonth',
   'qtthPermissionHistory', 'qtthClassificationHistory',
   'qtthPayrollStatus', 'qtthPayrollValidatePreview', 'qtthPayrollConfirm',
-  'qtthPayrollListNormalized', 'qtthPayrollEmployeeDetail',
+  'qtthPayrollListNormalized', 'qtthPayrollEmployeeDetail', 'qtthPayrollCostTruth',
 ]);
 
 module.exports = { dispatchQtthAction, QTTH_ACTION_MANIFEST };
