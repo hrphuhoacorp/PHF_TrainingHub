@@ -106,6 +106,9 @@ const {
 const { dispatchCompetitionAction } = require('./api/_lib/competition-actions');
 // PHF HR — QTTH V1 · Batch 01 (LOCAL ONLY, flag-gated PHF_QTTH_BRIDGE_ENABLED).
 const { dispatchQtthAction } = require('./api/_lib/qtth-actions');
+// PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (2026-09-06, LOCAL ONLY, flag-gated
+// PHF_NOTICE_BRIDGE_ENABLED). See api/_lib/notice-actions.js.
+const { dispatchNoticeAction } = require('./api/_lib/notice-actions');
 // MAIL V1 Increment 2 — Admin Mail Settings + Weekly Report preview
 // (requireTaskAdmin-gated inside). Mirrors api/data.js.
 const {
@@ -580,10 +583,10 @@ async function dispatchTaskAction(session, payload) {
 /* TASK_API_WIRING_END */
 
 
+// PHF SYSTEM V1 — account management is SYSTEM ADMIN ONLY (see api/auth/accounts.js).
+// Manager + Trợ lý GD (TRO_LY_GD) no longer reach these endpoints.
 async function requireWebOperatorSession(req){
-  const session=await requireSession(req,['manager','admin']);
-  await requireChecklistWebOperator(session);
-  return session;
+  return requireSession(req,['admin']);
 }
 async function assertAccountMutationAllowed(session,input={},targetId=''){
   if(session.role==='admin')return;
@@ -780,11 +783,18 @@ const server = http.createServer(async (req, res) => {
     const pathname = String(req.url || '/').split('?')[0];
 
     if (pathname === '/api/health' && req.method === 'GET') {
+      // PUBLIC — keep minimal (no full build-info dump, no accountCount). The
+      // fuller (still bounded, Admin-only) view is /admin/he-thong/tinh-trang.
       const health = await checkSupabaseHealth({timeoutMs:4000});
+      const b = readBuildInfoFresh() || {};
       return sendJson(res, health.ok ? 200 : 503, {
-        ...health,
+        ok: health.ok,
         service: 'PHF Training Hub',
-        build: readBuildInfoFresh(),
+        version: b.version ? String(b.version) : null,
+        builtAt: b.builtAt ? String(b.builtAt) : null,
+        storage: health.storage || null,
+        checklist: health.checklist || null,
+        code: health.ok ? undefined : (health.code || 'UNAVAILABLE'),
         time: new Date().toISOString()
       });
     }
@@ -941,6 +951,19 @@ const server = http.createServer(async (req, res) => {
         if(employeeMasterMode){
           const key=String(requestUrl.searchParams.get('key')||'').trim();
           return sendJson(res,200,{ok:true,...(key?await getEmployeeMasterDetail(session,{key}):await listEmployeeMaster(session))});
+        }
+        // SYSTEM V1 · Tình trạng hệ thống — Admin-only, READ-ONLY. Mirrors
+        // api/data.js verbatim (local dev server re-implements /api/data routing).
+        if(requestUrl.searchParams.get('systemHealth') === '1'){
+          if(String(session.role||'').toLowerCase()!=='admin'){
+            return sendJson(res,403,{ok:false,error:'Tình trạng hệ thống chỉ dành cho Admin hệ thống.',code:'SYSTEM_HEALTH_ADMIN_REQUIRED'});
+          }
+          try{
+            const {getSystemHealth}=require('./api/_lib/system-health');
+            return sendJson(res,200,{ok:true,...await getSystemHealth()});
+          }catch(e){
+            return sendJson(res,502,{ok:false,error:'Không đọc được tình trạng hệ thống.',code:'SYSTEM_HEALTH_READ_FAILED'});
+          }
         }
         if (checklistWorkspaceMode) {
           const [workspace, templateData, violationMode] = await Promise.all([
@@ -1459,6 +1482,8 @@ const server = http.createServer(async (req, res) => {
         if (competitionDispatch.handled) return sendJson(res, 200, {ok:true,result:competitionDispatch.result});
         const qtthDispatch = await dispatchQtthAction(session, payload);
         if (qtthDispatch.handled) return sendJson(res, 200, {ok:true,result:qtthDispatch.result});
+        const noticeDispatch = await dispatchNoticeAction(session, payload);
+        if (noticeDispatch.handled) return sendJson(res, 200, {ok:true,result:noticeDispatch.result});
         payload = authorizePayload(session, payload);
         payload.actorName = session.account?.name || session.account?.email || '';
         payload.actorRole = session.role;

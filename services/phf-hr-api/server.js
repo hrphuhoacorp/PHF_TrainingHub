@@ -39,8 +39,24 @@ const { CompetitionError } = require('./lib/competition-common');
 // qtth.*. Same discipline as /v1/competition. Do NOT enable on Production.
 const qtthService = require('./lib/qtth-service');
 const { QtthError } = require('./lib/qtth-service');
+// PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (LOCAL/DEV ONLY, target phf_hr_e2e).
+// One route POST /v1/notice dispatches a notice action against Company
+// PostgreSQL notice.*. Same discipline as /v1/competition. Do NOT enable on Production.
+const noticeService = require('./lib/notice-service');
+const { NoticeError } = noticeService;
+const auditService = require('./lib/audit-service');
+const systemHealthService = require('./lib/system-health-service');
+// SYSTEM V1 · Nhật ký hệ thống + Tình trạng hệ thống bridges. Same discipline
+// as /v1/notice, /v1/competition, /v1/task/*: the service Bearer token IS the
+// gate — a caller holding it is an authorised server-to-server peer. The
+// feature on/off switch lives on the Vercel side (PHF_AUDIT_BRIDGE_ENABLED /
+// PHF_SYSTEM_HEALTH_BRIDGE_ENABLED in api/_lib/audit-emit.js + system-health.js):
+// when off, the Vercel emit helper no-ops (fail-open) and the Admin read helper
+// surfaces "chưa bật" — this service is simply never called. No phf-hr-api-side
+// env flag (avoids a silent config-drift 503 after the Vercel switch flips on).
 const { executeResolvedTaskQuery } = require('./lib/task-query-executor');
 const { executeResolvedTaskOverviewQuery } = require('./lib/task-overview-query-executor');
+const { executeResolvedTaskTimelineQuery } = require('./lib/task-timeline-query-executor');
 const {
   updateTaskProgress, completeTask, reopenTask, cancelTask, changeTaskDeadline,
   createDraftTask, publishTask,
@@ -821,13 +837,13 @@ function createServer(config) {
       }
 
       // ---------------------------------------------------------------
-      // POST /v1/qtth — QUẢN TRỊ TỔNG HỢP (QTTH) V1 · Batch 01. LOCAL/DEV ONLY
+      // ---------------------------------------------------------------
+      // POST /v1/qtth - QUAN TRI TONG HOP (QTTH) V1 - Batch 01. LOCAL/DEV ONLY
       // (target phf_hr_e2e / throwaway). One route dispatches a QTTH action
-      // against Company PostgreSQL qtth.*. The verified `actor` is supplied by
-      // the Vercel identity layer across the service-token boundary — this
-      // service never resolves identity itself. Authorization is
+      // against Company PostgreSQL qtth.*. The verified actor is supplied by the
+      // Vercel identity layer across the service-token boundary. Authorization is
       // server-authoritative inside qtth-service (system Admin OR an active
-      // qtth.permission_manager_grant). No Task/Competition behaviour touched.
+      // qtth.permission_manager_grant). No Task/Competition/Notice behaviour touched.
       // ---------------------------------------------------------------
       if (req.method === 'POST' && path === '/v1/qtth') {
         const auth = authCheck(req);
@@ -837,7 +853,7 @@ function createServer(config) {
         }
         let body;
         try {
-          // Batch 02: payroll import (Truth Data) carries a base64 .xlsx — allow
+          // Batch 02: payroll import (Truth Data) carries a base64 .xlsx - allow
           // a 16MB body for /v1/qtth (LOCAL/DEV only). Other actions are tiny.
           body = await readJsonBody(req, 16 * 1024 * 1024);
         } catch (err) {
@@ -845,7 +861,7 @@ function createServer(config) {
         }
         const action = body && body.action;
         if (!action || typeof action !== 'string') {
-          return sendJson(res, 400, { ok: false, code: 'QTTH_ACTION_REQUIRED', message: 'Thiếu action.' });
+          return sendJson(res, 400, { ok: false, code: 'QTTH_ACTION_REQUIRED', message: 'Thieu action.' });
         }
         try {
           const data = await qtthService.dispatch(config, body.actor, action, body.params);
@@ -856,7 +872,136 @@ function createServer(config) {
             return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
           }
           logger.error('qtth_unexpected_error', { path, action, message: err && err.message });
-          return sendJson(res, 500, { ok: false, code: 'QTTH_ERROR', message: 'Lỗi hệ thống khi xử lý QTTH.' });
+          return sendJson(res, 500, { ok: false, code: 'QTTH_ERROR', message: 'Loi he thong khi xu ly QTTH.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/notice - THONG BAO QUAN TRI V1 - Batch 01. LOCAL/DEV ONLY
+      // (target phf_hr_e2e / throwaway). Authorization server-authoritative
+      // inside notice-service (PUBLIC read for every verified actor; MANAGE =
+      // system Admin OR notice.notice_permissions).
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/notice') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try {
+          // base64 of a 4MB attachment is ~5.4MB; 8MB envelope covers it.
+          body = await readJsonBody(req, 8 * 1024 * 1024);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const action = body && body.action;
+        if (!action || typeof action !== 'string') {
+          return sendJson(res, 400, { ok: false, code: 'NOTICE_ACTION_REQUIRED', message: 'Thieu action.' });
+        }
+        try {
+          const data = await noticeService.dispatch(config, body.actor, action, body.params);
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          if (err instanceof NoticeError || (err && err.isNoticeError)) {
+            logger.warn('notice_rejected', { path, action, code: err.code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
+          }
+          logger.error('notice_unexpected_error', { path, action, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'NOTICE_ERROR', message: 'Loi he thong khi xu ly Thong bao.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/audit:<verb> — SYSTEM V1 Nhật ký hệ thống FOUNDATION V1.
+      //   :emit   { entry }              — append one audit row (Vercel emit helper)
+      //   :list   { filters }            — keyset-paginated read (Admin proxy)
+      //   :detail { id }                 — one row incl. bounded before/after
+      // Bearer service token required. Identity/ip/ua/request-id are already
+      // resolved server-side by the Vercel layer and passed in `entry`; this
+      // service NEVER trusts a browser. There is NO update/delete verb.
+      // Bearer-gated only (same as /v1/notice); the on/off switch is the
+      // Vercel-side flag.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && (path === '/v1/audit:emit' || path === '/v1/audit:list' || path === '/v1/audit:detail')) {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try { body = await readJsonBody(req, 256 * 1024); }
+        catch (err) { return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' }); }
+        try {
+          if (path === '/v1/audit:emit') {
+            const out = await auditService.emitAudit(config, body && body.entry);
+            return sendJson(res, 200, { ok: true, data: out });
+          }
+          if (path === '/v1/audit:list') {
+            const out = await auditService.listAudit(config, (body && body.filters) || {});
+            return sendJson(res, 200, { ok: true, data: out });
+          }
+          const out = await auditService.getAuditDetail(config, body && body.id);
+          return sendJson(res, 200, { ok: true, data: out });
+        } catch (err) {
+          const code = err && err.code;
+          if (code && /^AUDIT_/.test(code)) {
+            logger.warn('audit_rejected', { path, code });
+            return sendJson(res, err.statusCode || 400, { ok: false, code, message: err.message });
+          }
+          logger.error('audit_unexpected_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'AUDIT_ERROR', message: 'Lỗi hệ thống khi ghi/đọc Nhật ký.' });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // SYSTEM V1 · Tình trạng hệ thống (System Health).
+      //   GET  /v1/system:health     — bounded operational snapshot for the
+      //        Admin screen (process ok + Company-PG deep SELECT 1 + heartbeat
+      //        rows + bounded mail-outbox aggregate). READ ONLY. No secrets.
+      //   POST /v1/system:heartbeat  { job, ok, summary } — the existing cron
+      //        entrypoints call this fail-open after a run. UPSERT one row.
+      // Bearer service token required (same as /v1/notice); the on/off switch
+      // is the Vercel-side flag. No update/delete/query verb.
+      // ---------------------------------------------------------------
+      if (req.method === 'GET' && path === '/v1/system:health') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        try {
+          const data = await systemHealthService.getServiceHealth(config, {
+            uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+            startedAt: new Date(startedAt).toISOString(),
+          });
+          return sendJson(res, 200, { ok: true, data });
+        } catch (err) {
+          logger.error('system_health_unexpected_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'SYSTEM_HEALTH_ERROR', message: 'Lỗi khi đọc tình trạng hệ thống.' });
+        }
+      }
+      if (req.method === 'POST' && path === '/v1/system:heartbeat') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        let body;
+        try { body = await readJsonBody(req, 32 * 1024); }
+        catch (err) { return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' }); }
+        try {
+          const out = await systemHealthService.writeHeartbeat(
+            config, body && body.job, !!(body && body.ok), body && body.summary
+          );
+          return sendJson(res, 200, { ok: true, data: out });
+        } catch (err) {
+          const code = err && err.code;
+          if (code === 'SYSTEM_HEALTH_JOB_INVALID') {
+            return sendJson(res, 400, { ok: false, code, message: err.message });
+          }
+          logger.error('system_health_heartbeat_error', { path, message: err && err.message });
+          return sendJson(res, 500, { ok: false, code: 'SYSTEM_HEALTH_ERROR', message: 'Lỗi khi ghi nhịp tác vụ nền.' });
         }
       }
 
@@ -987,6 +1132,53 @@ function createServer(config) {
         } catch (err) {
           logger.warn('overview_descriptor_rejected_or_query_failed', { path, code: err.code, message: err.message });
           return sendJson(res, err.statusCode || 400, { error: err.code || 'TASK_OVERVIEW_QUERY_FAILED', message: err.message });
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // POST /v1/task/events — Timeline (Dòng thời gian) activity read.
+      // Sibling of "POST /v1/task/tasks" — SAME 2-layer auth (Bearer service
+      // token + HMAC-signed RESOLVED_TASK_QUERY_DESCRIPTOR_V1: the SAME
+      // descriptor shape the Task List path signs), SAME fail-closed contract.
+      // Body: { descriptor, eventLimit? }. Replaces the read-bridge Timeline
+      // fan-out (1 listTasks + up to 60 full detail reads) with one authorised
+      // list resolution + one bounded task.events query — see
+      // lib/task-timeline-query-executor.js. No new index, no schema change.
+      // ---------------------------------------------------------------
+      if (req.method === 'POST' && path === '/v1/task/events') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        if (!config.DESCRIPTOR_SIGNING_SECRET) {
+          logger.error('descriptor_signing_secret_missing', { path });
+          return sendJson(res, 500, { error: 'DESCRIPTOR_SIGNING_SECRET_NOT_CONFIGURED' });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 65536);
+        } catch (err) {
+          return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
+        }
+        const descriptor = body && body.descriptor;
+        if (!descriptor || typeof descriptor !== 'object') {
+          return sendJson(res, 400, { error: 'DESCRIPTOR_MISSING' });
+        }
+        try {
+          const result = await executeResolvedTaskTimelineQuery(
+            config, descriptor, config.DESCRIPTOR_SIGNING_SECRET, { eventLimit: body && body.eventLimit }
+          );
+          return sendJson(res, 200, {
+            data: result.events,
+            relation: result.relation,
+            scope: result.scope,
+            viewScopeType: result.viewScopeType,
+            requesterActorType: result.requesterActorType,
+          });
+        } catch (err) {
+          logger.warn('timeline_descriptor_rejected_or_query_failed', { path, code: err.code, message: err.message });
+          return sendJson(res, err.statusCode || 400, { error: err.code || 'TASK_TIMELINE_QUERY_FAILED', message: err.message });
         }
       }
 

@@ -13,15 +13,59 @@
 
 const { readTx, writeTx, cErr, auditActor } = require('./competition-common');
 
+// Server-side keyset pagination. The feed's business ordering is unchanged
+// (newest approved/finalized first, by COALESCE(approved_at, submitted_at));
+// the only addition is a stable id tie-break so a cursor can page through it
+// without gaps/duplicates even when two posts share the same timestamp.
+const FEED_PAGE_DEFAULT = 20;
+const FEED_PAGE_MAX = 50;
+
+function clampLimit(v, def, max) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return def;
+  return Math.min(max, Math.floor(n));
+}
+
+// Opaque cursor: { t: <ISO order-timestamp>, i: <submission uuid> }. Base64url
+// so the client only ever echoes it back verbatim.
+function encodeCursor(orderTs, id) {
+  if (!orderTs || !id) return null;
+  const ts = (orderTs instanceof Date) ? orderTs.toISOString() : String(orderTs);
+  return Buffer.from(JSON.stringify({ t: ts, i: String(id) }), 'utf8').toString('base64url');
+}
+function decodeCursor(raw) {
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(Buffer.from(String(raw), 'base64url').toString('utf8'));
+    if (!o || !o.t || !o.i) return null;
+    return { t: String(o.t), i: String(o.i) };
+  } catch (e) {
+    throw cErr('COMPETITION_FEED_CURSOR_INVALID', 'Con trỏ bảng tin không hợp lệ.', 400);
+  }
+}
+
 async function getFeed(config, actor, params) {
   const campaignId = params.campaignId;
+  const limit = clampLimit(params.limit, FEED_PAGE_DEFAULT, FEED_PAGE_MAX);
+  const cursor = decodeCursor(params.cursor);
   return readTx(config, async (client) => {
     const c = await client.query('SELECT status, publication_state FROM competition.campaigns WHERE id = $1', [campaignId]);
     if (!c.rowCount) throw cErr('COMPETITION_CAMPAIGN_NOT_FOUND', 'Không tìm thấy chương trình.', 404);
     const published = c.rows[0].publication_state === 'published';
 
+    // Payload projection: the feed card only renders customer_question /
+    // answer / actual_result (see qaFieldsHtml — evidence_reference is NOT
+    // shown on a feed post). Returning only those keys keeps the row small
+    // and future-proof against larger form schemas, without changing any
+    // visible content.
     const rows = await client.query(
-      `SELECT s.id, s.payload, s.current_level_order, s.current_score, s.submitted_at, s.status,
+      `SELECT s.id, s.current_level_order, s.current_score, s.submitted_at, s.status,
+              jsonb_strip_nulls(jsonb_build_object(
+                'customer_question', s.payload->'customer_question',
+                'answer',            s.payload->'answer',
+                'actual_result',     s.payload->'actual_result'
+              )) AS payload,
+              COALESCE(s.approved_at, s.submitted_at)::text AS order_ts_cursor,
               al.name AS level_name,
               pa.alias,
               CASE WHEN $2::boolean THEN s.author_display_name_snapshot ELSE NULL END AS revealed_name,
@@ -34,13 +78,22 @@ async function getFeed(config, actor, params) {
          LEFT JOIN competition.participant_aliases pa ON pa.campaign_id = s.campaign_id
                AND pa.account_id = s.author_account_id
         WHERE s.campaign_id = $1 AND s.status IN ('approved','finalized')
-        ORDER BY COALESCE(s.approved_at, s.submitted_at) DESC`,
-      [campaignId, published, actor.accountId || '', actor.employeeCode || '']);
+          AND ( $5::timestamptz IS NULL
+                OR ( COALESCE(s.approved_at, s.submitted_at), s.id ) < ( $5::timestamptz, $6::uuid ) )
+        ORDER BY COALESCE(s.approved_at, s.submitted_at) DESC, s.id DESC
+        LIMIT $7`,
+      [campaignId, published, actor.accountId || '', actor.employeeCode || '',
+       cursor ? cursor.t : null, cursor ? cursor.i : null, limit + 1]);
+
+    const hasMore = rows.rows.length > limit;
+    const page = hasMore ? rows.rows.slice(0, limit) : rows.rows;
+    const last = page.length ? page[page.length - 1] : null;
 
     return {
       campaignStatus: c.rows[0].status,
       published,
-      posts: rows.rows.map((x) => ({
+      nextCursor: hasMore && last ? encodeCursor(last.order_ts_cursor, last.id) : null,
+      posts: page.map((x) => ({
         submissionId: x.id,
         anonAlias: x.alias || 'Người tham gia',
         authorName: x.revealed_name || null,     // null unless published

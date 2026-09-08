@@ -98,6 +98,7 @@ function publicAccount(a){
     defaultProgram:a.defaultProgram || '',
     hubAssignmentStatus:cleanHubAssignmentStatus(a.hubAssignmentStatus, a.trainingAudience),
     mustChangePassword:!!a.mustChangePassword,
+    lastLoginAt:String(a.lastLoginAt || a.last_login_at || ''),
     accountType:String((a.metadata && a.metadata.accountType) || a.accountType || 'employee')
   };
 }
@@ -278,6 +279,34 @@ async function getEmployeeCodesByAccountIds(ids){
     if (list.includes(String(a.id || '')) && a.employeeCode) map[String(a.id)] = String(a.employeeCode);
   });
   return map;
+}
+
+// Read-only: the UPPERCASE employee_code set for every ACTIVE system-Admin
+// account. Used by modules (e.g. Thông báo Quản trị) whose permission screens
+// must show that a system Admin already holds full authority by default and is
+// not gated by the module's own grant toggle. No writes, no link repair.
+async function listAdminEmployeeCodes(){
+  const out = new Set();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('user_accounts').select('employee_code,role,status')
+      .eq('role', 'admin');
+    if (error) throw error;
+    (data || []).forEach(row => {
+      if (String(row.status || 'active').toLowerCase() !== 'active') return;
+      const c = String(row.employee_code || '').trim().toUpperCase();
+      if (c) out.add(c);
+    });
+    return out;
+  }
+  const store = readFileStore();
+  (store.accounts || []).map(normalizeAccount).forEach(a => {
+    if (cleanRole(a.role) !== 'admin') return;
+    if (cleanStatus(a.status) !== 'active') return;
+    const c = String(a.employeeCode || '').trim().toUpperCase();
+    if (c) out.add(c);
+  });
+  return out;
 }
 
 async function resolveUniqueEmployeeIdByPhone(phone){
@@ -1317,6 +1346,7 @@ module.exports = {
   publicAccount,
   getAccountById,
   getEmployeeCodesByAccountIds,
+  listAdminEmployeeCodes,
   cleanPhone,
   cleanEmail,
   hashPassword,

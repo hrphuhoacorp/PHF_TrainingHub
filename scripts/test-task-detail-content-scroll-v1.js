@@ -37,13 +37,18 @@ function newWindow() {
 }
 
 // A window whose window scroll is fully observable (jsdom has no layout).
-// The root's innerHTML setter is hooked to simulate the real browser behaviour:
-// tearing down the subtree collapses page height and clamps window scrollY
-// toward 0 — which is exactly the jump renderTaskRoot() must undo.
+// Real-browser model of the "jump": replacing the WHOLE Task subtree
+// (root.innerHTML) tears out the header+sidebar that sit ABOVE the viewport, so
+// page height collapses and the browser clamps window scrollY toward 0. The
+// 2026-09-07 structural fix instead swaps ONLY <main> on a same-screen refresh
+// — the shell stays mounted, height is preserved, and scrollY never moves.
+// So: hooking root.innerHTML zeroes y (collapse); hooking .phft-main.innerHTML
+// does NOT (shell above holds the height).
 function scrollableWindow() {
   const w = newWindow();
   let y = 0, sh = 100000; // tall page by default
   const calls = [];
+  const rootSets = []; const mainSets = [];
   Object.defineProperty(w, 'pageYOffset', { get: () => y, configurable: true });
   Object.defineProperty(w, 'scrollY', { get: () => y, configurable: true });
   Object.defineProperty(w, 'innerHeight', { get: () => 800, configurable: true });
@@ -59,13 +64,27 @@ function scrollableWindow() {
   Object.defineProperty(root, 'innerHTML', {
     configurable: true,
     get() { return desc.get.call(this); },
-    set(v) { y = 0; desc.set.call(this, v); }, // browser clamps scrollY to ~0 while the old subtree is gone
+    set(v) { rootSets.push(1); y = 0; desc.set.call(this, v); }, // full subtree gone -> clamp to ~0
   });
+  // Every time renderTaskRoot() does a FULL mount it creates a fresh <main>;
+  // re-hook it so a partial swap of its innerHTML is observable but height-safe.
+  function hookMain() {
+    const m = root.querySelector('.phft-main');
+    if (!m || m.__phfHooked) return;
+    m.__phfHooked = true;
+    Object.defineProperty(m, 'innerHTML', {
+      configurable: true,
+      get() { return desc.get.call(this); },
+      set(v) { mainSets.push(1); desc.set.call(this, v); }, // shell above stays -> no clamp
+    });
+  }
   return {
-    w, calls, root,
+    w, calls, root, hookMain,
     setScroll: (n) => { y = n; },
     setPageHeight: (n) => { sh = n; },
     get y() { return y; },
+    get rootSets() { return rootSets.length; },
+    get mainSets() { return mainSets.length; },
   };
 }
 
@@ -126,7 +145,10 @@ const DETAIL = {
   pass(html.indexOf('Kiểm kê kho cuối tháng') >= 0, 'A5b: title semantics unchanged (still the page/hero heading)');
 })();
 
-/* ================= Part B — scroll stability ================= */
+/* ================= Part B — scroll stability (STRUCTURAL, 2026-09-07) =======
+   The fix is now structural: a same-screen re-render swaps ONLY <main>, leaving
+   the shell mounted, so window scroll is never disturbed and no snapshot /
+   restore / retry is involved. These tests assert that contract. */
 (function () {
   const h = scrollableWindow();
   const T = h.w.__PHF_TASK_TEST__;
@@ -135,44 +157,72 @@ const DETAIL = {
 
   st.view = 'detail'; st.taskId = 't1'; st.detail = DETAIL; st.detailLoading = false; st.detailError = ''; st.partialErrors = [];
 
-  // establish the baseline render (first render of this context -> no restore)
+  // baseline: first render of this context -> a FULL shell mount
   T.renderTaskRoot(root);
+  h.hookMain();
+  pass(h.rootSets === 1, 'B(6): first render performs one full shell mount');
+  const rootSetsAfterFirst = h.rootSets;
   const callsAfterFirst = h.calls.length;
 
-  // 6 + 7 + 8 — user scrolls down, then a late async re-render of the SAME task
+  // 7 + 8 — user scrolls deep, then a late async re-render of the SAME task
   h.setScroll(820);
   T.renderTaskRoot(root);
-  pass(h.calls.length > callsAfterFirst, 'B(7): same-task re-render issued a scroll restore');
-  pass(Math.abs(h.y - 820) <= 2, 'B(8): scroll position preserved within tolerance after hydration re-render (got ' + h.y + ')');
+  pass(h.rootSets === rootSetsAfterFirst, 'B(7): same-task re-render does NOT rebuild the whole shell (no root.innerHTML swap)');
+  pass(h.mainSets >= 1, 'B(7b): same-task re-render updates only <main>');
+  pass(h.calls.length === callsAfterFirst, 'B(7c): no scrollTo() needed — the scroll was never disturbed');
+  pass(h.y === 820, 'B(8): scroll position is exactly preserved after the refresh (got ' + h.y + ')');
 
-  // 9 — several more late loads must not progressively drift the scroll
+  // 9 — repeated late loads never move the scroll and never rebuild the shell
   T.renderTaskRoot(root);
   T.renderTaskRoot(root);
   T.renderTaskRoot(root);
-  pass(Math.abs(h.y - 820) <= 2, 'B(9): repeated late re-renders do not move the scroll (got ' + h.y + ')');
+  pass(h.y === 820, 'B(9): repeated late re-renders do not move the scroll (got ' + h.y + ')');
+  pass(h.rootSets === rootSetsAfterFirst, 'B(9b): repeated late re-renders never rebuild the shell');
 
-  // 8b — content momentarily shorter than the scroll (cold-load card): keep the
-  // intent and finish the restore on the next tall render, no drift.
-  h.setScroll(820);
-  h.setPageHeight(300);           // page now shorter than 820 + viewport
+  // 9c — a short page: with a structural swap the browser keeps whatever scroll
+  // is still valid; nothing in the app fights it or drifts it.
+  h.setScroll(250); h.setPageHeight(300);
   T.renderTaskRoot(root);
-  pass(h.y <= 300, 'B(8b): short page clamps the restore to its own max (got ' + h.y + ')');
-  h.setPageHeight(100000);        // content is tall again
-  T.renderTaskRoot(root);
-  pass(Math.abs(h.y - 820) <= 2, 'B(8b2): once content is tall again the original position is restored (got ' + h.y + ')');
+  pass(h.y === 250 && h.rootSets === rootSetsAfterFirst, 'B(9c): short page — no forced scroll, no shell rebuild (got ' + h.y + ')');
+  h.setPageHeight(100000);
 
-  // 10 — navigating to a DIFFERENT task is not forced back to the old position
-  h.setScroll(0);                 // (real nav scrolls to top before content settles)
+  // 10 — navigating to a DIFFERENT task: full shell mount, and the previous
+  // task's position is NOT reimposed (real nav has already scrolled to top).
+  h.setScroll(0);
   st.taskId = 't2'; st.detail = Object.assign({}, DETAIL, { task: Object.assign({}, DETAIL.task, { id: 't2', task_code: 'CV-2609-0043' }) });
   const callsBeforeNavRender = h.calls.length;
   T.renderTaskRoot(root);
-  pass(h.y === 0, 'B(10): different-task render does NOT restore the previous task\'s scroll (stays where nav put it)');
-  pass(h.calls.length === callsBeforeNavRender, 'B(10b): no scroll-restore call fired on the context switch');
+  h.hookMain();
+  pass(h.rootSets === rootSetsAfterFirst + 1, 'B(10): different-task render performs a full shell mount');
+  pass(h.y === 0, 'B(10b): different-task render does NOT restore the previous task\'s scroll');
+  pass(h.calls.length === callsBeforeNavRender, 'B(10c): no scroll-restore call fired on the context switch');
 
-  // and a later same-task(t2) re-render starts a fresh baseline (no stale 820)
+  // 10d — a later same-task(t2) refresh is back on the structural fast path
   h.setScroll(150);
+  const rootSetsBeforeT2Refresh = h.rootSets;
   T.renderTaskRoot(root);
-  pass(Math.abs(h.y - 150) <= 2, 'B(10c): new task gets its own fresh scroll baseline');
+  pass(h.y === 150 && h.rootSets === rootSetsBeforeT2Refresh, 'B(10d): new task also gets the partial-swap fast path (got ' + h.y + ')');
+})();
+
+/* ================= Part B — shell-signature change forces a full mount ===== */
+(function () {
+  const h = scrollableWindow();
+  const T = h.w.__PHF_TASK_TEST__;
+  const st = T.getState();
+  const root = h.w.document.getElementById('phfTaskRoot');
+  st.view = 'list'; st.taskId = ''; st.list = Object.assign(st.list || {}, { relation: 'received', loadedOnce: true, error: '', tasks: [] });
+  st.managedScopeHydrated = true;
+
+  T.renderTaskRoot(root); h.hookMain();
+  const baseRootSets = h.rootSets;
+  h.setScroll(400);
+  // same relation -> partial swap
+  T.renderTaskRoot(root);
+  pass(h.rootSets === baseRootSets, 'B(13): list refresh with an unchanged shell takes the partial path');
+  // relation switch changes the sidebar highlight -> must rebuild the shell
+  st.list.relation = 'assigned';
+  T.renderTaskRoot(root);
+  pass(h.rootSets === baseRootSets + 1, 'B(13b): switching Tôi nhận -> Tôi giao rebuilds the shell (nav highlight is a shell input)');
 })();
 
 /* ================= Part B — contract / regression guards ================= */
@@ -185,6 +235,8 @@ const DETAIL = {
     'B(11c): intentional navigation still scrolls to top (Back/Forward + route change contract unchanged)');
   pass(/if\(!taskUiState\.detail\)taskUiState\.detailLoading=true;/.test(SRC),
     'B(12): reloadTaskDetail keeps current content on a refresh (loading screen only on cold load)');
+  pass(/STRUCTURAL PARTIAL UPDATE/.test(SRC) && /main\.innerHTML\s*=\s*body/.test(SRC),
+    'B(12b): renderTaskRoot has the structural partial-update path (swap <main>, keep the shell)');
 })();
 
 console.log('PHF Task Detail content card + scroll stability V1: ' + passed + '/' + passed + ' PASS');

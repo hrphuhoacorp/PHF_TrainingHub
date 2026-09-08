@@ -185,7 +185,7 @@ if (learnerTabHandlerMatch) {
   check(/window\.phfNavigate\(learnerTabTarget\)/.test(learnerTabHandlerMatch[1]),
     'D. Tab click handler uses window.phfNavigate() (the real router), not a local pushState+render shortcut');
 }
-check(/item\('assessment-profile','🗎','Hồ sơ đánh giá','Tiêu chuẩn, điểm và lịch sử theo kỳ',grant\.capabilities&&grant\.capabilities\.view_monthly===true\)/.test(app),
+check(/canViewMonthly=grant\.capabilities&&grant\.capabilities\.view_monthly===true/.test(app) && /item\('assessment-profile','🗎','Hồ sơ đánh giá','[^']*',canViewMonthly\)/.test(app),
   'E. managerSidebarHtml() renders the "Hồ sơ đánh giá" item gated on grant.capabilities.view_monthly (backend still re-checks)');
 // Caught during this hotfix's own QA pass: naively simplifying title() to a single
 // isChecklistPersonalExperience branch silently dropped the "Hồ sơ đánh giá · Quản lý"

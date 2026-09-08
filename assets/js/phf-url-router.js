@@ -431,6 +431,8 @@
     '/admin/ai-sandbox':Object.freeze({area:'admin',screen:'ai-sandbox',roles:['admin']}),
     '/admin/nhan-su':Object.freeze({area:'admin',screen:'employee-master',roles:['admin']}),
     '/admin/nhan-su/tai-khoan':Object.freeze({area:'admin',screen:'accounts',roles:['admin']}),
+    '/admin/he-thong/nhat-ky':Object.freeze({area:'admin',screen:'audit-log',roles:['admin']}),
+    '/admin/he-thong/tinh-trang':Object.freeze({area:'admin',screen:'system-health',roles:['admin']}),
     '/admin/quan-tri':Object.freeze({area:'admin',screen:'workspace',roles:['admin']}),
     '/admin/quan-tri/danh-muc':Object.freeze({area:'admin',screen:'catalogs',roles:['admin']}),
     '/admin/quan-tri/kiem-tra':Object.freeze({area:'admin',screen:'tests',roles:['admin']}),
@@ -497,6 +499,7 @@
     management:['/ql','/ql/home','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/knl/khao-sat','/ql/knl/ket-qua-khao-sat','/ql/quan-ly','/ql/hoc-vien','/ql/noi-dung','/ql/bao-cao','/ql/de-xuat-dao-tao','/ql/checklist','/ql/checklist/bao-cao','/ql/checklist/phan-quyen','/ql/checklist/ho-so-danh-gia','/ql/classroom','/ql/classroom/lop','/ql/classroom/lich','/ql/classroom/tai-lieu','/ql/classroom/hoc-vien','/ql/classroom/nguoi-phu-trach','/ql/classroom/diem-danh','/ql/classroom/bai-kiem-tra','/ql/classroom/ket-qua','/ql/classroom/de-xuat','/ql/classroom/bao-cao','/ql/classroom/thong-bao'],
     admin:['/admin','/admin/home','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/knl/khao-sat','/admin/knl/ket-qua-khao-sat','/admin/ai-sandbox','/admin/checklist','/admin/checklist/nhan-su','/admin/checklist/mau','/admin/checklist/ghi-nhan-loi','/admin/checklist/viec-can-xu-ly','/admin/checklist/phieu-danh-gia-thang','/admin/checklist/bao-cao','/admin/checklist/lich-su','/admin/checklist/cai-dat','/admin/quan-tri','/admin/quan-tri/danh-muc','/admin/quan-tri/kiem-tra','/admin/quan-tri/cau-hinh','/admin/hoc-vien','/admin/noi-dung','/admin/bao-cao','/admin/classroom','/admin/classroom/lop','/admin/classroom/lich','/admin/classroom/tai-lieu','/admin/classroom/hoc-vien','/admin/classroom/nguoi-phu-trach','/admin/classroom/diem-danh','/admin/classroom/bai-kiem-tra','/admin/classroom/ket-qua','/admin/classroom/de-xuat','/admin/classroom/bao-cao','/admin/classroom/thong-bao','/admin/classroom/cau-hinh'],
     employeeMaster:['/admin/nhan-su','/admin/nhan-su/tai-khoan'],
+    system:['/admin/he-thong/nhat-ky','/admin/he-thong/tinh-trang'],
     classroom:['/hv/classroom','/ql/classroom','/admin/classroom'],
     knl:['/hv/knl','/hv/knl/nhan-su','/hv/knl/khao-sat','/hv/knl/ket-qua-khao-sat','/ql/knl','/ql/knl/nhan-su','/ql/knl/phan-quyen','/ql/knl/khao-sat','/ql/knl/ket-qua-khao-sat','/admin/knl','/admin/knl/bo-knl','/admin/knl/gan-ap-dung','/admin/knl/nhan-su','/admin/knl/phan-quyen','/admin/knl/khao-sat','/admin/knl/ket-qua-khao-sat'],
     hr:['/hv/home','/ql/home','/admin/home'],
@@ -508,6 +511,7 @@
   // Object.freeze is shallow; these arrays remain intentionally append-only.
   window.PHF_ROUTE_MAP.learner.push('/hv/knl/co-cau-thu-nhap','/hv/knl/de-xuat-nang-bac');
   window.PHF_ROUTE_MAP.management.push('/ql/knl/co-cau-thu-nhap','/ql/knl/de-xuat-nang-bac','/ql/knl/dashboard');
+  window.PHF_ROUTE_MAP.admin.push('/admin/he-thong/nhat-ky','/admin/he-thong/tinh-trang');
   window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac','/admin/knl/dashboard');
   window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
   // PHF Task registers only screens backed by a real renderer.
@@ -531,6 +535,15 @@
   window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/truth-data','/hv/qtth/truth-data/payroll','/hv/qtth/phan-quyen');
   window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/truth-data','/ql/qtth/truth-data/payroll','/ql/qtth/phan-quyen');
   window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/truth-data','/admin/qtth/truth-data/payroll','/admin/qtth/phan-quyen');
+  // Thông báo Quản trị (Notice) V1 — PUBLIC-READ module, HR shell (#phfHrRoot).
+  // Every authenticated role reaches /{p}/thong-bao (feed) + /{p}/thong-bao/n/:id
+  // (detail). /{p}/thong-bao/quyen (permission screen) is admitted for all roles
+  // at the URL level; the module itself server-guards it (canManage) and the
+  // renderer redirects an unauthorized viewer back to the feed.
+  ['/hv','/ql','/admin'].forEach(function(pf){
+    var m=pf==='/hv'?'learner':(pf==='/ql'?'management':'admin');
+    window.PHF_ROUTE_MAP[m].push(pf+'/thong-bao',pf+'/thong-bao/bao-cao',pf+'/thong-bao/danh-muc',pf+'/thong-bao/quyen');
+  });
   // KHÔNG gán window.PHF_ROUTE_MAP.task=[...] ở đây — PHF_ROUTE_MAP đã bị
   // Object.freeze() (dòng ~433, shallow freeze) nên thêm PROPERTY MỚI vào
   // chính object đó (khác với push vào 1 array con đã có sẵn) sẽ throw
@@ -1222,11 +1235,43 @@
         await Promise.resolve(window.phfRenderQtth(targetRouteKey));
         return true;
       }
+      if(/^\/(?:admin|ql|hv)\/thong-bao(?:\/|$)/.test(path)){
+        /* Thông báo Quản trị — V1 feed. HR shell (#phfHrRoot). PUBLIC-READ:
+           namespace role guard only (every authenticated role may read). The
+           module server-guards MANAGE actions + the /quyen screen; the renderer
+           redirects an unauthorized viewer back to the feed. */
+        var ntRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([ntRole]))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderNotice!=='function')return renderRouteModuleError('notice',path,new Error('PHF_NOTICE_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderNotice(targetRouteKey));
+        return true;
+      }
       if(path==='/admin/nhan-su'){
         if(!requireRoles(['admin']))return false;
         if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
         if(typeof window.phfRenderEmployeeMaster!=='function')throw new Error('PHF_EMPLOYEE_MASTER_RENDERER_MISSING');
         await Promise.resolve(window.phfRenderEmployeeMaster());
+        return true;
+      }
+      if(path==='/admin/he-thong/nhat-ky'){
+        /* SYSTEM V1 · Nhật ký hệ thống — Admin-only, read-only. HR shell.
+           Data comes from api/data.js?audit=1 (Admin-gated) → phf-hr-api
+           /v1/audit bridge. No write/edit/delete UI. */
+        if(!requireRoles(['admin']))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderAuditLog!=='function')throw new Error('PHF_AUDIT_LOG_RENDERER_MISSING');
+        await Promise.resolve(window.phfRenderAuditLog());
+        return true;
+      }
+      if(path==='/admin/he-thong/tinh-trang'){
+        /* SYSTEM V1 · Tình trạng hệ thống — Admin-only, read-only. HR shell.
+           Data: api/data.js?systemHealth=1 (Admin-gated) → server-side
+           aggregator. No mutation / restart / test-mail controls. */
+        if(!requireRoles(['admin']))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderSystemHealth!=='function')throw new Error('PHF_SYSTEM_HEALTH_RENDERER_MISSING');
+        await Promise.resolve(window.phfRenderSystemHealth());
         return true;
       }
       if(path==='/admin/nhan-su/tai-khoan'){

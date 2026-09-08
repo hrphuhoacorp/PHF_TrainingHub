@@ -96,6 +96,16 @@ process.on('SIGTERM', () => stopAll(0));
       // permission-data change). Override with env QTTH_DEV_ACCESS_ALLOW.
       QTTH_DEV_ACCESS_ALLOW: process.env.QTTH_DEV_ACCESS_ALLOW
         || 'PHF012,acct-3a03c49e-5835-4d92-b89e-424836e79e24',
+      // THÔNG BÁO QUẢN TRỊ V1 · Batch 01 — DEVELOPMENT ACCESS LOCK. While the
+      // module is not FINAL it is closed to everyone except the system Admin and
+      // this explicit allow-list (employee codes / account ids — never display
+      // names). GO-LIVE = drop this env var (no code / no permission-data
+      // change). Override with env NOTICE_DEV_ACCESS_ALLOW.
+      NOTICE_DEV_ACCESS_ALLOW: process.env.NOTICE_DEV_ACCESS_ALLOW
+        || ('PHF012,' + (envTest.PHF_HR_DEV_OPERATOR_ACCOUNT_ID || 'thanglv150917@gmail.com')),
+      // SYSTEM V1 · Tình trạng hệ thống — deep health probe + heartbeat bridge,
+      // same phf-hr-api child, same throwaway DB. LOCAL parity only.
+      PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -129,6 +139,12 @@ process.on('SIGTERM', () => stopAll(0));
       // same throwaway DB. Needs migrations/phf_hr_qtth_foundation_v1.sql applied
       // to the throwaway (deployer). Does not affect Task/Competition behaviour.
       PHF_QTTH_BRIDGE_ENABLED: 'true',
+      // THÔNG BÁO QUẢN TRỊ V1 · Batch 01 — Thông báo Quản trị bridge, same
+      // phf-hr-api child, same throwaway DB. Needs migrations/phf_hr_notice_v1.sql
+      // applied to the throwaway. Does not affect Task/Competition behaviour.
+      PHF_NOTICE_BRIDGE_ENABLED: 'true',
+      // SYSTEM V1 · Tình trạng hệ thống — aggregator -> deep /v1/system:health.
+      PHF_SYSTEM_HEALTH_BRIDGE_ENABLED: 'true',
     }),
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -147,6 +163,8 @@ process.on('SIGTERM', () => stopAll(0));
   console.log('TASK FLAGS       = SERVER_WRITE + WRITE_BRIDGE + READ(categories/getTaskDetail/listTasks) = ON (process env only)');
   console.log('COMPETITION      = PHF_COMPETITION_BRIDGE_ENABLED=true (same phf-hr-api child, same throwaway DB, process env only)');
   console.log('COMPETITION_URL  = http://127.0.0.1:' + APP_PORT + '/admin/thi-dua  (or /hv/thi-dua, /ql/thi-dua)');
+  console.log('NOTICE           = PHF_NOTICE_BRIDGE_ENABLED=true (same phf-hr-api child, same throwaway DB, process env only)');
+  console.log('NOTICE_URL       = http://127.0.0.1:' + APP_PORT + '/admin/thong-bao  (or /hv/thong-bao, /ql/thong-bao)');
   console.log('PROD DATA        = NOT touched (MAIN ' + MAIN_HOST + ' never written; live phf_hr never written)');
   console.log('===================================================================');
   console.log('Ctrl+C để dừng cả 2 tiến trình.');

@@ -109,14 +109,15 @@ function menuItemsFor(caps,r){
   /* Module-context section (chỉ trong Checklist) — giữ nguyên: sidebar quản lý
      của Checklist không render trên mobile nên cần lối vào tương đương ở đây. */
   if(inChecklist){
+    /* IA V1 — thứ tự theo 4 cụm: Tổng quan & kết quả · Phiếu tháng · Ghi nhận lỗi · Nhân sự & phân công. */
     items.push({group:'CHECKLIST'});
     items.push({label:'Tổng quan',route:p+'/checklist',icon:'⌂'});
-    if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
-    if(isAdminRoute&&caps&&caps.canManageUsers)items.push({label:'Nhân sự & phân công',route:'/admin/checklist/nhan-su',icon:'♙'});
-    if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
     if(caps&&caps.canViewReport)items.push({label:'Báo cáo',route:reportRoute,icon:'▥'});
-    if(isManagerWorkspace)items.push({label:'Nhân sự',route:'/ql/checklist?section=people',icon:'♙'});
-    if(isManagerWorkspace)items.push({label:'Phiếu của tôi',route:'/ql/checklist?section=my-work',icon:'▧'});
+    if(isManagerWorkspace)items.push({label:'Tự đánh giá',route:'/ql/checklist?section=my-work',icon:'▧'});
+    if(caps&&caps.canReview)items.push({label:'Thẩm định',route:reviewRoute,icon:'✓'});
+    if(caps&&caps.canRecordViolation)items.push({label:'Ghi nhận lỗi',route:violationsRoute,icon:'!'});
+    if(isManagerWorkspace)items.push({label:'Nhân sự & phân công',route:'/ql/checklist?section=people',icon:'♙'});
+    if(isAdminRoute&&caps&&caps.canManageUsers)items.push({label:'Nhân sự & phân công',route:'/admin/checklist/nhan-su',icon:'♙'});
     if(!isManagerWorkspace&&!isAdminRoute)items.push({label:'Checklist của tôi',route:p+'/checklist',icon:'☰'});
     if(isAdminRoute&&caps&&caps.canManageSystem)items.push({label:'Cài đặt',route:'/admin/checklist/cai-dat',icon:'⚙'});
   }
@@ -126,7 +127,7 @@ function menuItemsFor(caps,r){
      accordion cha→con, KHÔNG duy trì taxonomy phẳng riêng. Nguồn sự thật =
      window.phfHrNavModel() (hrNavModel trong phf-hr-home.js). Chỉ hiện con có
      route thật + được phép; bỏ mục 'soon'/'disabled' (Thưởng Hành động V.2,
-     Lịch chấm công, QTTH, Báo cáo & Thống kê…) — không phơi làm đích đến. */
+     Lịch chấm công, QTTH, Nhật ký/Tình trạng hệ thống…) — không phơi làm đích đến. */
   var model=null;
   try{model=(typeof window.phfHrNavModel==='function')?window.phfHrNavModel():null;}catch(e){model=null;}
   if(model&&model.length){
@@ -142,7 +143,7 @@ function menuItemsFor(caps,r){
       {label:'Training Hub',route:p,icon:'▦'},{label:'Classroom',route:p+'/classroom',icon:'▤'},{label:'Khung năng lực',route:p+'/knl',icon:'◆'}]});
     items.push({accordion:true,key:'danh-gia',label:'Đánh giá',children:[{label:'Checklist',route:p+'/checklist',icon:'☰'}]});
     items.push({accordion:true,key:'thi-dua',label:'Thi đua & Thưởng',children:[{label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'}]});
-    if(isAdminRoute)items.push({accordion:true,key:'quan-tri',label:'Quản trị',children:[{label:'Quản trị hệ thống',route:'/admin/nhan-su',icon:'♙'}]});
+    if(isAdminRoute)items.push({accordion:true,key:'he-thong',label:'Hệ thống',children:[{label:'Quản trị tài khoản',route:'/admin/nhan-su',icon:'♙'}]});
   }
   return items;
 }
