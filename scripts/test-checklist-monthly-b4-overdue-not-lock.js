@@ -60,7 +60,7 @@ ok(/function lock_checklist_monthly_period|lockMonthly/.test(lib), '5c. Hàm kh�
 // ---------- 6. Điểm Checklist = giá trị hệ thống, nhân viên không nhập/sửa ----------
 ok(/const rows=allRows\.filter\(r=>!isAutomaticSource\(r\.source,r\.name\)\),allowed=new Set\(rows\.map\(r=>r\.code\)\)/.test(lib), '6. saveMyMonthly chỉ nhận đáp án của tiêu chí KHÔNG tự động (loại bỏ mã Checklist tự động)');
 ok(/patch=\{self_answers:clean,self_note[\s\S]{0,120}checklist_score:breakdown\.score/.test(lib), '6b. checklist_score luôn = breakdown.score (server tính), không lấy từ client');
-ok(/is-system-locked/.test(app) && /Điểm hệ thống · nhân viên không nhập\/sửa/.test(app), '6c. UI: ô Điểm Checklist ở Tự đánh giá hiển thị rõ là điểm hệ thống, không có input');
+ok(/is-system-locked/.test(app) && /🔒 Điểm hệ thống/.test(app) && /Tự động từ lỗi Checklist/.test(app), '6c. UI: ô Điểm Checklist ở Tự đánh giá hiển thị rõ là điểm hệ thống (primary value + "Điểm hệ thống" + "Tự động từ lỗi Checklist"), không có input');
 ok(/data-phfck-self-value/.test(app) && !/automatic\?'<input[^>]*data-phfck-self-value/.test(app), '6d. UI: tiêu chí tự động KHÔNG render input cho nhân viên');
 
 // ---------- 7. Công thức điểm không đổi ----------
