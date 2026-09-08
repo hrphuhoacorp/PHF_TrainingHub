@@ -563,9 +563,18 @@ async function openMonthlyPilot(session,input={}){if(!db)fail('Supabase chưa đ
 async function myMonthlyForm(session,input={}){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');
  const a=actor(session);if(!a.employeeCode&&!a.employeeId)fail('Tài khoản chưa liên kết mã nhân viên.',403,'CHECKLIST_MONTHLY_IDENTITY_REQUIRED');
+ /* Danh sách kỳ nhân viên THỰC SỰ có phiếu — nguồn cho selector "Kỳ đánh giá" ở Tự đánh giá.
+    Độc lập bộ lọc input.month để khi chọn kỳ lịch sử vẫn thấy đủ các kỳ khác. Không dựng kỳ giả:
+    chỉ lấy từ chính checklist_monthly_forms của tài khoản này. */
+ const idCol=a.employeeCode?'employee_code':'employee_id',idVal=a.employeeCode||a.employeeId;
+ const periodListRes=await db.from('checklist_monthly_forms').select('period_month,status').eq(idCol,idVal).in('status',['waiting_self','waiting_review','reviewed','locked']).order('period_month',{ascending:false}).limit(24);
+ if(periodListRes.error)throw periodListRes.error;
+ const availablePeriods=[],seenPeriods=new Set();
+ (periodListRes.data||[]).forEach(r=>{const m=month(t(r.period_month));if(!m||seenPeriods.has(m))return;seenPeriods.add(m);availablePeriods.push({month:m,formStatus:t(r.status)});});
+ const selectedMonth=input.month?month(input.month):'';
  let q=db.from('checklist_monthly_forms').select('*').in('status',['waiting_self','waiting_review','reviewed','locked']).order('period_month',{ascending:false}).limit(12);
  q=a.employeeCode?q.eq('employee_code',a.employeeCode):q.eq('employee_id',a.employeeId);if(input.month)q=q.eq('period_month',month(input.month));
- const found=await q;if(found.error)throw found.error;const forms=found.data||[];if(!forms.length)return {form:null,period:null};
+ const found=await q;if(found.error)throw found.error;const forms=found.data||[];if(!forms.length)return {form:null,period:null,availablePeriods,selectedMonth};
  /* Phiếu đã gửi/đã thẩm định/đã khóa hoặc pilot có thể chọn ngay, không cần
     chờ đọc toàn bộ danh sách kỳ. Đây là nhánh phổ biến sau khi hệ thống vận hành. */
  let form=forms.find(f=>['waiting_review','reviewed','locked'].includes(f.status)||f.pilot_opened_at)||null,period=null;
@@ -576,7 +585,7 @@ async function myMonthlyForm(session,input={}){
   form=forms.find(f=>{const p=periods.find(x=>x.id===f.period_id);return p&&['open','locked'].includes(p.status);})||null;
   period=form?periods.find(x=>x.id===form.period_id)||null:null;
  }
- if(!form)return {form:null,period:null};
+ if(!form)return {form:null,period:null,availablePeriods,selectedMonth};
  /* Ba nguồn sau độc lập: kỳ, lịch sử và refresh điểm Checklist. Chạy song song
     để tránh cộng tuần tự độ trễ Supabase. */
  const periodPromise=period?Promise.resolve({data:period,error:null}):db.from('checklist_monthly_periods').select('*').eq('id',form.period_id).maybeSingle();
@@ -594,7 +603,7 @@ async function myMonthlyForm(session,input={}){
   const reviewDueSnap=t(periodData&&periodData.review_due_at)||(await effectiveReviewWindow(refreshed.period_month,periodData||{})).reviewDueAt;
   reviewLate=lateDelta(reviewDueSnap,refreshed.review_submitted_at);
  }
- return {form:refreshed?withScoreSummary({...refreshed,history:histories.get(refreshed.id)||[],self_edit_window:selfWindow,self_late:selfLate.late,self_late_days:selfLate.lateDays,review_late:reviewLate.late,review_late_days:reviewLate.lateDays,pending_late_events:pendingLate}):null,period:periodData};
+ return {form:refreshed?withScoreSummary({...refreshed,history:histories.get(refreshed.id)||[],self_edit_window:selfWindow,self_late:selfLate.late,self_late_days:selfLate.lateDays,review_late:reviewLate.late,review_late_days:reviewLate.lateDays,pending_late_events:pendingLate}):null,period:periodData,availablePeriods,selectedMonth:selectedMonth||(refreshed&&refreshed.period_month)||''};
 }
 function rowSourceType(r){
  /* Field tường minh (đối tượng nguồn {type:...}) — chỉ có ở totalRows tạo/lưu sau
