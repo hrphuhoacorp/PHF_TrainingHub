@@ -51,9 +51,9 @@ ok(/loadRoleMonthlyPeriod[\s\S]{0,400}monthlyLoading\|\|roleWorkspaceState\.savi
 const selfBody = app.split("'<div class=\"phfck-self-table\"")[1].split('function roleMonthlyChecklistBreakdownHtml')[0] || app;
 ok(/var automatic=monthlyAutomaticSource\(r\.source,r\.name,r\.sourceType\)\|\|r\.source==='Checklist'/.test(app),
   "B1. Tự đánh giá: dòng có source='Checklist' (khớp tên 'Tuân thủ tiêu chuẩn công việc') luôn coi là tự động");
-ok(/is-system-locked[\s\S]{0,120}Điểm hệ thống · nhân viên không nhập\/sửa/.test(app),
-  'B2. Dòng tự động render giá trị chỉ đọc + nhãn "Điểm hệ thống · nhân viên không nhập/sửa"');
-ok(/Tự động từ lỗi Checklist/.test(app), 'B3. UI nêu rõ nguồn "Tự động từ lỗi Checklist"');
+ok(/phfck-auto-score is-system-locked"><b>'\+esc\(value\)\+'<\/b><small>🔒 Điểm hệ thống<\/small>/.test(app),
+  'B2. Dòng tự động: primary = giá trị điểm, secondary gọn = "🔒 Điểm hệ thống" (không câu dài chen chỗ)');
+ok(/phfck-auto-note">Tự động từ lỗi Checklist · '/.test(app), 'B3. Text phụ trợ "Tự động từ lỗi Checklist" nằm ở ô ghi chú, ngoài ô điểm');
 ok(!/automatic\?'<input[^']*data-phfck-self-value/.test(app),
   'B4. Dòng tự động KHÔNG có <input data-phfck-self-value> (không spinner/không focus edit)');
 
