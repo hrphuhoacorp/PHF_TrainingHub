@@ -8,22 +8,46 @@
  * blur, no glass, no purple/blue AI gradients, no hero, no floating shadows. */
 
 .phf-notice{
-  --nt-green:#1B7B45;          /* strong PHF green */
-  --nt-green-ink:#125C33;
+  --nt-green:#1B7B45;          /* interactive / accent PHF green */
+  --nt-green-ink:#0F5230;
   --nt-green-2:#6FBF8E;
-  --nt-green-wash:#E8F4EC;     /* very light tint — active state only */
-  --nt-ink:#1E2430;
-  --nt-muted:#5C6672;
-  --nt-line:#E3E6EB;
-  --nt-line-strong:#CDD2DA;
+  --nt-green-wash:#E6F2EA;     /* pale green — selected / success */
+  --nt-green-deep:#0B3F24;     /* deep PHF green — header + sidebar-active + on-dark */
+  --nt-green-header:#0D4E2C;   /* header bar */
+  --nt-ink:#1C232B;
+  --nt-ink-2:#374350;
+  --nt-muted:#68727E;
+  --nt-line:#E5E8EC;
+  --nt-line-strong:#D2D7DE;
   --nt-surface:#FFFFFF;
   --nt-bg:#F4F5F7;
-  --nt-amber:#B26B00;
-  --nt-amber-wash:#FBF0DC;
+  --nt-amber:#9A5B00;
+  --nt-amber-wash:#FAEFD8;
+  --nt-red:#B3241E;
+  --nt-red-wash:#FBE7E5;
+  --nt-blue:#1F5FA8;
+  --nt-blue-wash:#E7EFF9;
   --nt-shadow:0 1px 0 rgba(30,36,48,.04);
-  --nt-workspace:#F3F4F6;--nt-card:#FFFFFF;--nt-cream:#FBFAF6;--nt-cream-line:#ECE8DE;--nt-title-ink:#8A2B20;--nt-gold:#B08833;--nt-gold-wash:#F7F1E3;
+  --nt-workspace:#EEF0F2;--nt-card:#FFFFFF;--nt-cream:#FBFAF6;--nt-cream-line:#ECE8DE;--nt-title-ink:#0F5230;--nt-gold:#B08833;--nt-gold-wash:#F7F1E3;
   font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
   color:var(--nt-ink);
+  /* ── SHARED DESIGN TOKENS (one scale for the whole module — no screen overrides) ── */
+  --nt-fs-hero:22px;      /* screen H1 */
+  --nt-fs-h1:23px;        /* detail article title */
+  --nt-fs-h2:16px;        /* section / card heading */
+  --nt-fs-h3:14px;        /* sub-heading */
+  --nt-fs-base:14px;      /* body copy */
+  --nt-fs-sm:12.5px;      /* meta / secondary */
+  --nt-fs-xs:11px;        /* labels / eyebrows */
+  --nt-lh:1.65;
+  --nt-radius:10px;
+  --nt-radius-sm:8px;
+  --nt-radius-xs:6px;
+  --nt-pad-card:16px 18px;
+  --nt-shadow-card:0 1px 2px rgba(20,24,32,.06);
+  --nt-shadow-pop:0 14px 38px rgba(15,20,28,.18);
+  --nt-shadow-sticky:0 6px 12px -6px rgba(15,20,28,.24);
+  --nt-nav-w:236px;
   background:var(--nt-workspace);
   min-height:100vh;display:flex;flex-direction:column;
 }
@@ -36,25 +60,30 @@
   position:sticky;top:0;z-index:20;
   height:76px;flex:0 0 76px;
   display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:0 24px;background:var(--nt-green);
+  padding:0 24px;background:var(--nt-green-header);
+  background-image:linear-gradient(180deg,#12613A 0%,#0D4E2C 55%,#0A4225 100%);
+  box-shadow:0 1px 0 rgba(0,0,0,.15), 0 4px 16px -8px rgba(11,63,36,.55);
+  border-bottom:1px solid rgba(0,0,0,.18);
 }
 .phf-notice-logo{
-  width:220px;height:44px;max-width:42vw;flex:0 0 auto;
+  width:150px;height:40px;max-width:34vw;flex:0 0 auto;
   object-fit:contain;object-position:left center;display:block;
 }
+/* Module identity sits LEFT, next to the logo, with a confident divider — not floating. */
 .phf-notice-brand{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  text-align:center;pointer-events:none;
+  display:flex;flex-direction:column;justify-content:center;
+  padding-left:16px;margin-left:2px;border-left:1px solid rgba(255,255,255,.30);
+  flex:1 1 auto;min-width:0;
 }
-.phf-notice-brand b{display:block;font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1.15;color:#fff;}
-.phf-notice-brand small{display:block;font-size:10px;color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:1.4px;margin-top:2px;}
+.phf-notice-brand b{display:block;font-size:16.5px;font-weight:800;letter-spacing:.2px;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phf-notice-brand small{display:block;font-size:10px;color:rgba(255,255,255,.78);font-weight:700;text-transform:uppercase;letter-spacing:1.6px;margin-top:3px;}
 
-.phf-notice-user{flex:0 0 auto;text-align:right;padding-left:14px;border-left:1px solid rgba(255,255,255,.28);max-width:34vw;}
-.phf-notice-user span{display:block;font-size:11px;color:rgba(255,255,255,.8);line-height:1.2;}
+.phf-notice-user{flex:0 0 auto;text-align:right;padding-left:16px;border-left:1px solid rgba(255,255,255,.30);max-width:34vw;}
+.phf-notice-user span{display:block;font-size:10.5px;color:rgba(255,255,255,.72);line-height:1.2;font-weight:600;}
 .phf-notice-user strong{display:block;font-size:13.5px;color:#fff;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.phf-notice-user em{display:block;font-size:10px;color:rgba(255,255,255,.82);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phf-notice-user em{display:block;font-size:10px;color:rgba(255,255,255,.72);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-.phf-notice-layout{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:calc(100vh - 76px);align-items:start;}
+.phf-notice-layout{display:grid;grid-template-columns:var(--nt-nav-w) minmax(0,1fr);min-height:calc(100vh - 76px);align-items:start;}
 
 .phf-notice-nav{
   position:sticky;top:76px;height:calc(100vh - 76px);overflow:auto;
@@ -178,6 +207,9 @@ mark.phf-notice-hit{background:#fff2ac;color:inherit;padding:0 1px;border-radius
   --nt-workspace:#F3F4F6;--nt-card:#FFFFFF;--nt-cream:#FBFAF6;--nt-cream-line:#ECE8DE;
   --nt-title-ink:#8A2B20;--nt-gold:#B08833;--nt-gold-wash:#F7F1E3;
   font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;color:var(--nt-ink);
+  --nt-fs-hero:21px;--nt-fs-h1:22px;--nt-fs-h2:17px;--nt-fs-h3:15px;--nt-fs-base:14px;--nt-fs-sm:12.5px;--nt-fs-xs:11px;--nt-lh:1.65;
+  --nt-radius:10px;--nt-radius-sm:8px;--nt-radius-xs:6px;--nt-pad-card:16px 18px;
+  --nt-shadow-card:0 1px 2px rgba(20,24,32,.05);--nt-shadow-pop:0 12px 32px rgba(20,24,32,.16);--nt-shadow-sticky:0 4px 10px -4px rgba(20,24,32,.18);
   position:fixed;inset:0;background:rgba(20,26,34,.44);z-index:2400;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:auto;
 }
 .phf-notice-ov *{box-sizing:border-box;}
@@ -441,4 +473,830 @@ button.phf-notice-nav-title.is-open .phf-notice-nav-chev{color:var(--nt-green);}
 .phf-notice-btn,.phf-notice-chip{transition:background .12s,border-color .12s,color .12s;}
 .phf-notice-card{transition:border-color .12s,box-shadow .12s;}
 .phf-notice-card:hover{box-shadow:0 2px 10px rgba(20,24,32,.05);}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UI/UX REFACTOR — one design language across all 6 screens.
+   Nghiệp vụ / quyền / schema KHÔNG đổi. Chỉ trình bày.
+   Uses the shared --nt-fs-* / --nt-radius* / --nt-shadow-* tokens above so no
+   screen carries its own ad-hoc sizes.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── Typography: one scale, every screen ─────────────────────────────────── */
+.phf-notice,.phf-notice-ov{font-size:var(--nt-fs-base);line-height:var(--nt-lh);}
+.phf-notice-head h1{font-size:var(--nt-fs-hero);line-height:1.25;}
+.phf-notice-head p{font-size:var(--nt-fs-sm);line-height:1.5;max-width:64ch;}
+.phf-notice-subhead{font-size:var(--nt-fs-sm);}
+.phf-notice-eyebrow{display:block;font-size:var(--nt-fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--nt-muted);margin-bottom:6px;}
+
+/* ── DETAIL — clear hierarchy, uses horizontal space, less "raw text" ────── */
+.phf-notice-detail{max-width:940px;padding:0;overflow:hidden;border-radius:var(--nt-radius);}
+.phf-notice-detail.has-rail{max-width:1200px;}
+.phf-notice-detail>.back{margin:18px 24px 0;}
+.phf-notice-detail-hd{padding:12px 30px 18px;border-bottom:1px solid var(--nt-line);background:linear-gradient(180deg,#FbFcFb,#fff);}
+.phf-notice-detail-hd .phf-notice-card-top{margin-bottom:10px;}
+.phf-notice-detail-hd h1{font-size:var(--nt-fs-h1);line-height:1.3;margin:0 0 4px;font-weight:800;letter-spacing:-.01em;color:var(--nt-ink);}
+/* Người đăng / người cập nhật — hiện rõ, tách 2 dòng (§2, dùng audit field sẵn có) */
+.phf-notice-detail-people{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:12px;}
+.phf-notice-who{display:flex;flex-direction:column;gap:1px;font-size:var(--nt-fs-sm);}
+.phf-notice-who .lbl{font-size:var(--nt-fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--nt-muted);}
+.phf-notice-who .val{color:var(--nt-ink);}
+.phf-notice-who .val b{font-weight:800;}
+.phf-notice-who .val time{color:var(--nt-muted);}
+
+.phf-notice-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:0;align-items:start;}
+.phf-notice-detail-main{min-width:0;padding:22px 30px 26px;}
+.phf-notice-detail-main .phf-notice-body{max-width:70ch;}
+.phf-notice-detail-main .phf-notice-body>p:first-of-type{font-size:15.5px;color:#20303a;}
+.phf-notice-detail-main .phf-notice-body h2{padding-bottom:5px;border-bottom:1px solid var(--nt-line);}
+.phf-notice-detail-rail{position:sticky;top:92px;align-self:start;border-left:1px solid var(--nt-line);background:#FaFbFa;padding:20px 22px;min-height:100%;font-size:var(--nt-fs-sm);}
+.phf-notice-detail-rail .phf-notice-toc{background:transparent;border:0;border-left:2px solid var(--nt-green-2);border-radius:0;padding:2px 0 2px 12px;margin:0 0 18px;}
+.phf-notice-detail-facts{margin:0;display:grid;grid-template-columns:1fr;gap:12px;}
+.phf-notice-detail-facts>div{display:flex;flex-direction:column;gap:2px;}
+.phf-notice-detail-facts dt{font-size:var(--nt-fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--nt-muted);}
+.phf-notice-detail-facts dd{margin:0;color:var(--nt-ink);font-weight:600;}
+.phf-notice-detail .phf-notice-warn{margin:16px 30px 0;}
+.phf-notice-detail .phf-notice-ackbar,.phf-notice-detail .phf-notice-detail-actions{margin-left:30px;margin-right:30px;}
+.phf-notice-detail .phf-notice-detail-actions{margin-bottom:22px;}
+@media (max-width:1200px){  /* P1-03: canonical Detail collapse breakpoint (was 980) */
+  .phf-notice-detail.has-rail{max-width:940px;}
+  .phf-notice-detail-grid{grid-template-columns:1fr;}
+  .phf-notice-detail-rail{position:static;border-left:0;border-top:1px solid var(--nt-line);}
+  .phf-notice-detail-hd,.phf-notice-detail-main{padding-left:20px;padding-right:20px;}
+  .phf-notice-detail .phf-notice-warn,.phf-notice-detail .phf-notice-ackbar,.phf-notice-detail .phf-notice-detail-actions{margin-left:20px;margin-right:20px;}
+}
+
+/* ── ATTACHMENT — icon · name · type/size · explicit download CTA (§3) ───── */
+.phf-notice-attach h4{font-size:var(--nt-fs-xs);}
+.phf-notice-att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+.phf-notice-att-card{display:flex;flex-direction:column;border:1px solid var(--nt-line);border-radius:var(--nt-radius-sm);background:#fff;overflow:hidden;transition:border-color .12s,box-shadow .12s;}
+.phf-notice-att-card:hover{border-color:var(--nt-line-strong);box-shadow:var(--nt-shadow-card);}
+.phf-notice-att-card-top{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;}
+.phf-notice-att-ficon{flex:0 0 auto;width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:.02em;color:#fff;text-transform:uppercase;}
+.phf-notice-att-ficon svg{width:18px;height:18px;}
+.phf-notice-att-ficon.f-pdf{background:#B3261E;}
+.phf-notice-att-ficon.f-doc{background:#1F5FA8;}
+.phf-notice-att-ficon.f-xls{background:#1E7E45;}
+.phf-notice-att-ficon.f-img{background:#7A5AA8;}
+.phf-notice-att-ficon.f-link{background:#0F766E;}
+.phf-notice-att-ficon.f-other{background:#5C6672;}
+.phf-notice-att-card-body{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;}
+.phf-notice-att-card-body b{font-size:var(--nt-fs-sm);font-weight:700;color:var(--nt-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.phf-notice-att-card-body small{font-size:var(--nt-fs-xs);color:var(--nt-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.phf-notice-att-thumb-band{height:120px;background:#F1F3F5 center/cover no-repeat;border-top:1px solid var(--nt-line);border-bottom:1px solid var(--nt-line);}
+.phf-notice-att-card .phf-notice-att-cta{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin:0;padding:8px 10px;border:0;border-top:1px solid var(--nt-line);background:#F6F8F7;color:var(--nt-green-ink);font:inherit;font-size:var(--nt-fs-sm);font-weight:800;cursor:pointer;text-decoration:none;}
+.phf-notice-att-card .phf-notice-att-cta:hover{background:var(--nt-green-wash);}
+.phf-notice-att-card .phf-notice-att-cta svg{width:15px;height:15px;}
+@media (max-width:640px){.phf-notice-att-grid{grid-template-columns:1fr;}}
+
+/* ── REPORT INDEX — scales to 100+: toolbar + table + drill-down (§4) ────── */
+.phf-notice-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 14px;}
+.phf-notice-toolbar .phf-notice-search{flex:1;min-width:220px;margin:0;}
+.phf-notice-toolbar .phf-notice-search input{padding-top:10px;padding-bottom:10px;font-size:var(--nt-fs-base);}
+.phf-notice-toolbar select{border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-xs);padding:9px 12px;font:inherit;font-size:var(--nt-fs-sm);font-weight:700;color:var(--nt-ink);background:#fff;}
+.phf-notice-rcount{font-size:var(--nt-fs-sm);color:var(--nt-muted);font-weight:600;margin-bottom:8px;}
+.phf-notice-table.is-clickable tbody tr{cursor:pointer;}
+.phf-notice-table td .phf-notice-cellwrap{display:flex;flex-direction:column;gap:2px;}
+.phf-notice-table td .phf-notice-cellwrap b{font-weight:700;color:var(--nt-ink);}
+.phf-notice-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.phf-notice-table .phf-notice-linkish{color:var(--nt-green-ink);font-weight:800;white-space:nowrap;}
+
+/* ── REPORT / AUDIT MODAL — sticky header never covers a row; groups split (§5) ── */
+.phf-notice-ov-body .phf-notice-rgroup{margin-top:18px;border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);overflow:hidden;}
+.phf-notice-ov-body .phf-notice-rgroup:first-of-type{margin-top:6px;}
+.phf-notice-ov-body .phf-notice-rgroup-head{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:9px 14px;background:#EEF1F0;border-bottom:1px solid var(--nt-line-strong);font-size:var(--nt-fs-sm);font-weight:800;color:var(--nt-ink);box-shadow:var(--nt-shadow-sticky);}
+.phf-notice-ov-body .phf-notice-rgroup-head .n{color:var(--nt-muted);font-weight:700;}
+/* table lives directly in the group — its own thead sticks just BELOW the group bar */
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table{border-collapse:separate;border-spacing:0;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table th{position:sticky;top:36px;z-index:20;background:#F5F6F7;box-shadow:0 1px 0 var(--nt-line-strong);}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table td{background:#fff;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table tbody tr:last-child td{border-bottom:0;}
+.phf-notice-ov-body .phf-notice-tablewrap{border:0;}
+
+/* ── EMPTY STATE — one component, every screen ──────────────────────────── */
+.phf-notice-empty{border:1px dashed var(--nt-line-strong);border-radius:var(--nt-radius);background:#FafBfa;}
+.phf-notice-empty p{font-size:var(--nt-fs-sm);margin:0;}
+.phf-notice-empty.is-tight{padding:26px 18px;}
+
+/* ── remove ad-hoc per-screen inline styles (wizard preview / modals) ───── */
+.phf-notice-preview-title{font-size:20px;font-weight:800;margin:0 0 10px;letter-spacing:-.01em;}
+.phf-notice-ov-panel.is-narrow{max-width:440px;}
+.phf-notice-note-inline{margin:0 0 12px;}
+.phf-notice-field-spaced{margin-top:18px;}
+.phf-notice-reack-flag{color:#A5342A;}
+.phf-notice-warn.is-flush{margin:0 0 14px;}
+.phf-notice-hint-pad{padding:8px 10px;}
+/* empty state used as plain text (no icon) inside modals */
+.phf-notice-empty.is-tight{padding:26px 18px;font-size:var(--nt-fs-sm);}
+/* keep the feed/detail badge + button scale identical everywhere */
+.phf-notice-badge{font-size:var(--nt-fs-xs);}
+.phf-notice-card h3{font-size:var(--nt-fs-h2);}
+.phf-notice-detail-main .phf-notice-body{font-size:var(--nt-fs-base);line-height:var(--nt-lh);}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STRONG UI/UX REFACTOR V2 — visual baseline reset.
+   Enterprise internal-communication product. One shell / type / colour / spacing
+   system across all 6 screens. Business, permissions, schema, workflow: UNCHANGED.
+   This section deliberately overrides the earlier presentation layer.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* every control inherits the module font — no browser-default fallback */
+.phf-notice input,.phf-notice select,.phf-notice button,.phf-notice textarea,
+.phf-notice-ov input,.phf-notice-ov select,.phf-notice-ov button,.phf-notice-ov textarea,
+.phf-notice table,.phf-notice th,.phf-notice td,.phf-notice-ov table,.phf-notice-ov th,.phf-notice-ov td{
+  font-family:inherit;
+}
+.phf-notice{background:var(--nt-workspace);}
+.phf-notice-work{padding:24px 28px 60px;}
+
+/* ── SIDEBAR — one width, strong active state, clear groups ─────────────── */
+.phf-notice-nav{padding:14px 12px 24px;background:#fff;border-right:1px solid var(--nt-line-strong);}
+.phf-notice-nav .phf-notice-nav-title,
+.phf-notice-nav button.phf-notice-nav-title{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8B95A0;padding:14px 12px 6px;text-transform:uppercase;}
+.phf-notice-nav .phf-notice-nav-title:first-of-type{padding-top:6px;}
+.phf-notice-nav-items{gap:1px;border-top:0;margin-top:0;padding-top:0;}
+.phf-notice-nav-items button{padding:9px 11px;border-radius:8px;border-left:0;font-size:13.5px;font-weight:700;color:var(--nt-ink-2);gap:10px;}
+.phf-notice-nav-items button svg{width:16px;height:16px;color:#94A0AB;}
+.phf-notice-nav-items button:hover{background:#F1F3F5;color:var(--nt-ink);}
+.phf-notice-nav-items button.is-active{background:var(--nt-green-deep);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.phf-notice-nav-items button.is-active svg{color:#fff;}
+.phf-notice-nav-items button.is-child{padding-left:30px;font-size:12.5px;font-weight:600;}
+.phf-notice-nav-items button.is-child.is-active{background:var(--nt-green-wash);color:var(--nt-green-ink);}
+.phf-notice-nav-items button.is-child.is-active .phf-notice-nav-dot{box-shadow:0 0 0 2px rgba(11,63,36,.28);}
+.phf-notice-nav-badge{background:var(--nt-red);color:#fff;}
+.phf-notice-nav-items button.is-active .phf-notice-nav-badge{background:#fff;color:var(--nt-green-deep);}
+.phf-notice-home-chip{border-color:var(--nt-line-strong)!important;color:var(--nt-ink-2)!important;font-weight:700!important;margin-bottom:10px;}
+.phf-notice-home-chip svg{color:var(--nt-green)!important;}
+
+/* ── SCREEN HEAD — one pattern for all six ─────────────────────────────── */
+.phf-notice-head{margin-bottom:18px;gap:14px 18px;}
+.phf-notice-head h1{font-size:var(--nt-fs-hero);font-weight:800;letter-spacing:-.01em;color:var(--nt-ink);}
+.phf-notice-head p{color:var(--nt-muted);font-size:var(--nt-fs-sm);max-width:62ch;}
+.phf-notice-head-actions .phf-notice-btn.is-primary{box-shadow:0 1px 2px rgba(11,63,36,.25);}
+
+/* ── BUTTONS — one primary, one secondary, one ghost ──────────────────── */
+.phf-notice-btn{border-radius:8px;font-weight:700;border-color:var(--nt-line-strong);}
+.phf-notice-btn.is-primary{background:var(--nt-green);border-color:var(--nt-green);}
+.phf-notice-btn.is-primary:hover{background:var(--nt-green-ink);border-color:var(--nt-green-ink);}
+
+/* ── SEARCH + FILTER — one compact toolbar everywhere ─────────────────── */
+.phf-notice-toolbar{gap:8px;align-items:stretch;margin:2px 0 16px;padding:8px;background:#fff;border:1px solid var(--nt-line);border-radius:var(--nt-radius);box-shadow:var(--nt-shadow-card);flex-wrap:wrap;}
+.phf-notice-toolbar .phf-notice-search{flex:2 1 240px;margin:0;}
+.phf-notice-toolbar .phf-notice-search input{border-radius:var(--nt-radius-sm);padding:9px 12px 9px 40px;font-size:var(--nt-fs-base);}
+.phf-notice-toolbar .phf-notice-search svg{left:13px;width:16px;height:16px;}
+.phf-notice-toolbar select{flex:1 1 130px;min-width:120px;border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);padding:9px 10px;font-size:var(--nt-fs-sm);font-weight:700;color:var(--nt-ink-2);background:#fff;}
+.phf-notice-toolbar select:focus{outline:2px solid var(--nt-green-2);outline-offset:1px;border-color:var(--nt-green);}
+.phf-notice-search input{border-radius:var(--nt-radius-sm);}
+
+/* ── FEED — enterprise internal-news list, not a ticket queue ──────────── */
+.phf-notice-feed{gap:0;border:1px solid var(--nt-line);border-radius:var(--nt-radius);overflow:hidden;background:#fff;box-shadow:var(--nt-shadow-card);}
+.phf-notice-card{border:0;border-bottom:1px solid var(--nt-line);border-radius:0;padding:16px 18px 15px 20px;position:relative;background:#fff;box-shadow:none;}
+.phf-notice-card:last-child{border-bottom:0;}
+.phf-notice-card:hover{background:#F8FAF9;box-shadow:none;border-color:var(--nt-line);}
+.phf-notice-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;}
+.phf-notice-card.is-urgent{border-left:0;}
+.phf-notice-card.is-urgent::before{background:var(--nt-red);}
+.phf-notice-card.is-important::before{background:var(--nt-amber);}
+.phf-notice-card.is-pinned{background:#FCFBF5;}
+.phf-notice-card.is-pinned:hover{background:#F8F6EC;}
+.phf-notice-card-top{gap:7px;margin-bottom:5px;align-items:center;}
+.phf-notice-card h3{font-size:15.5px;font-weight:800;line-height:1.32;margin:1px 0 4px;letter-spacing:-.005em;color:var(--nt-ink);}
+.phf-notice-card .excerpt{font-size:var(--nt-fs-sm);color:var(--nt-muted);-webkit-line-clamp:2;margin:0 0 9px;line-height:1.5;}
+.phf-notice-card-meta{font-size:var(--nt-fs-xs);color:#7A828C;gap:7px 10px;}
+.phf-notice-card-meta .phf-notice-sender{font-weight:700;color:var(--nt-ink-2);}
+.phf-notice-scope{font-weight:600;color:#6B7480;}
+.phf-notice-scope::before{content:"· Áp dụng ";color:#9AA2AC;font-weight:600;}
+.phf-notice-card-state{margin-left:auto;}
+.phf-notice-card-state .phf-notice-tick{color:var(--nt-green-ink);font-weight:800;}
+.phf-notice-card-state .phf-notice-need-ack{color:var(--nt-amber);}
+/* de-noise: category reads soft, status reads as a dot, priority only when high */
+.phf-notice-badge.type{background:transparent;color:#6B7480;padding:2px 0;font-weight:800;letter-spacing:.02em;text-transform:none;font-size:11px;}
+.phf-notice-badge.type::before{content:"";display:inline-block;width:7px;height:7px;border-radius:2px;background:currentColor;margin-right:6px;vertical-align:1px;opacity:.9;}
+.phf-notice-badge.st-active,.phf-notice-badge.st-upcoming,.phf-notice-badge.st-expired,.phf-notice-badge.st-draft{background:transparent;padding:2px 0;font-weight:700;text-transform:none;font-size:11px;letter-spacing:0;}
+.phf-notice-badge.st-active{color:var(--nt-green-ink);}
+.phf-notice-badge.st-upcoming{color:var(--nt-amber);}
+.phf-notice-badge.st-expired{color:#8A929C;}
+.phf-notice-badge.prio-urgent{background:var(--nt-red-wash);color:var(--nt-red);}
+.phf-notice-badge.prio-important{background:var(--nt-amber-wash);color:var(--nt-amber);}
+.phf-notice-badge.pin{background:var(--nt-gold-wash);color:#7A5A12;}
+.phf-notice-att-chip{color:#7A828C;font-weight:700;}
+/* subtle divider dots inherited; feed list has no outer gaps now */
+.phf-notice-feed .phf-notice-skel{margin:12px 18px;}
+
+/* ── CẦN TIẾP NHẬN — actionable inbox ─────────────────────────────────── */
+.phf-notice-inbox-summary{display:flex;align-items:center;gap:12px;background:var(--nt-green-wash);border:1px solid #CDE6D6;border-radius:var(--nt-radius);padding:12px 16px;margin-bottom:14px;font-weight:700;color:var(--nt-green-ink);}
+.phf-notice-inbox-summary b{font-size:20px;font-weight:800;}
+.phf-notice-inbox-summary span{font-weight:600;color:var(--nt-ink-2);}
+.phf-notice-feed.is-inbox .phf-notice-card{padding-left:20px;}
+.phf-notice-feed.is-inbox .phf-notice-card::before{background:var(--nt-amber);}
+.phf-notice-feed.is-inbox .phf-notice-card.is-urgent::before{background:var(--nt-red);}
+.phf-notice-inbox-why{display:block;font-size:var(--nt-fs-xs);color:var(--nt-amber);font-weight:800;margin:2px 0 6px;text-transform:uppercase;letter-spacing:.04em;}
+.phf-notice-inbox-cta{margin-top:2px;}
+
+/* ── DETAIL — approved direction: identity band + 70/30 + contextual rail ─ */
+/* Desktop: the detail canvas uses (nearly) all the usable width left of the
+   sidebar and is centred — no ~900–1160px card jammed left with a large grey
+   gutter on the right. Reading measure stays capped on .phf-notice-body only. */
+.phf-notice-detail{max-width:980px;margin-inline:auto;padding:0;border:1px solid var(--nt-line);border-radius:var(--nt-radius);overflow:hidden;box-shadow:var(--nt-shadow-card);}
+.phf-notice-detail.has-rail{max-width:min(100%,1520px);}
+.phf-notice-detail>.back{margin:16px 24px 4px;}
+.phf-notice-detail-hd{padding:16px 32px 20px;border-bottom:1px solid var(--nt-line);background:linear-gradient(180deg,#F3F8F5,#fff 70%);}
+/* header bar: badges left, manager action group right — deliberate, not a
+   stray row at the end of the article. */
+.phf-notice-detail-hd-bar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:12px;}
+.phf-notice-detail-hd-bar .phf-notice-card-top{gap:8px;margin-bottom:0;}
+.phf-notice-detail-hd .phf-notice-badge.type{background:#fff;border:1px solid var(--nt-line-strong);color:#5A6470;padding:3px 9px;border-radius:999px;font-size:11px;}
+.phf-notice-detail-hd .phf-notice-badge.type::before{width:7px;height:7px;}
+.phf-notice-detail-hd h1{font-size:var(--nt-fs-h1);line-height:1.26;font-weight:800;margin:0 0 14px;color:var(--nt-ink);letter-spacing:-.012em;}
+/* identity band — one clear tier for WHO posted it + WHEN, a quiet secondary
+   line for the rest. No new decoration/gradient. */
+.phf-notice-detail-identity{display:flex;flex-direction:column;gap:10px;padding-top:13px;border-top:1px solid rgba(15,82,48,.14);}
+.phf-notice-idblock{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.phf-notice-idblock .k{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7C8791;}
+.phf-notice-idblock .v{font-size:var(--nt-fs-sm);color:var(--nt-ink);font-weight:700;}
+.phf-notice-idblock .v small{font-weight:600;color:var(--nt-muted);}
+.phf-notice-idblock.is-lead .k{color:#5A6470;}
+.phf-notice-idblock.is-lead .v{font-size:14px;font-weight:800;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.35;}
+.phf-notice-idblock.is-lead .v small{font-size:12px;font-weight:600;}
+.phf-notice-idblock.is-lead .v small::before{content:"·";margin-right:8px;color:var(--nt-line-strong);}
+.phf-notice-idmeta{display:flex;flex-wrap:wrap;gap:6px 26px;}
+.phf-notice-idmeta .phf-notice-idblock .k{font-size:9.5px;color:#8B95A0;}
+.phf-notice-idmeta .phf-notice-idblock .v{font-size:12px;font-weight:600;color:#495562;}
+.phf-notice-detail-grid{display:grid;grid-template-columns:minmax(0,70fr) minmax(320px,30fr);gap:0;align-items:start;}
+.phf-notice-detail-main{padding:28px 36px 34px;min-width:0;}
+.phf-notice-detail-main .phf-notice-body{max-width:76ch;font-size:14.5px;line-height:1.75;color:#232C34;}
+.phf-notice-detail-main .phf-notice-body>p:first-of-type{font-size:15px;color:#1E2830;}
+.phf-notice-detail-main .phf-notice-body p{margin:0 0 13px;}
+.phf-notice-detail-main .phf-notice-body h2{font-size:16px;margin:22px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--nt-line);}
+.phf-notice-detail-main .phf-notice-body h3{font-size:14.5px;margin:16px 0 6px;}
+.phf-notice-detail-main .phf-notice-body ul,.phf-notice-detail-main .phf-notice-body ol{margin:0 0 13px 20px;}
+.phf-notice-detail-main .phf-notice-body table{font-size:13px;}
+/* right rail — contextual cards, one component language; softer borders +
+   roomier padding + clearer headings so it reads less like an admin form. */
+.phf-notice-detail-rail{position:sticky;top:92px;align-self:start;border-left:1px solid var(--nt-line);background:#FAFBFB;padding:26px 24px;display:flex;flex-direction:column;gap:14px;min-height:100%;}
+.phf-notice-railcard,.phf-notice-rail-ack{background:#fff;border:1px solid rgba(23,32,42,.09);border-radius:var(--nt-radius-sm);padding:15px 16px;}
+.phf-notice-railcard>h4,.phf-notice-rail-ack h4{margin:0 0 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#54606C;}
+.phf-notice-railcard .phf-notice-detail-facts{gap:11px;}
+.phf-notice-detail-facts dt{font-size:10px;letter-spacing:.05em;}
+.phf-notice-detail-facts dd{font-size:var(--nt-fs-sm);font-weight:600;}
+.phf-notice-rail-ack.done{background:var(--nt-green-wash);border-color:#CDE6D6;}
+.phf-notice-rail-ack label{display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:700;cursor:pointer;line-height:1.4;}
+.phf-notice-rail-ack input{width:17px;height:17px;margin-top:1px;accent-color:var(--nt-green);flex:0 0 auto;}
+.phf-notice-rail-ack .ack-note{display:block;font-size:11px;color:var(--nt-muted);font-weight:500;margin-top:6px;}
+.phf-notice-rail-ack .phf-notice-viewstat{font-size:12px;font-weight:700;color:var(--nt-green-ink);}
+.phf-notice-detail .phf-notice-warn{margin:14px 32px 0;}
+.phf-notice-detail .phf-notice-toc{margin:0;background:transparent;border:0;border-left:2px solid var(--nt-green-2);border-radius:0;padding:2px 0 2px 12px;}
+.phf-notice-detail .phf-notice-toc b{font-size:10px;}
+/* manager action group — inline in the header bar, top-right; never a bottom
+   strip, never competing with the title. */
+.phf-notice-detail-hd-bar .phf-notice-detail-actions{margin:0;padding:0;border:0;flex:0 0 auto;align-items:flex-start;}
+@media (max-width:1200px){  /* P1-03: canonical Detail collapse breakpoint (was 1040) */
+  .phf-notice-detail,.phf-notice-detail.has-rail{max-width:940px;}
+  .phf-notice-detail-grid{grid-template-columns:1fr;}
+  .phf-notice-detail-rail{position:static;border-left:0;border-top:1px solid var(--nt-line);flex-direction:column;}
+  .phf-notice-detail-hd,.phf-notice-detail-main{padding-left:20px;padding-right:20px;}
+  .phf-notice-detail .phf-notice-warn{margin-left:20px;margin-right:20px;}
+}
+
+/* ── ATTACHMENT — one compact file card, Detail + Editor ──────────────── */
+.phf-notice-att-grid{grid-template-columns:1fr;gap:8px;}
+.phf-notice-detail-main .phf-notice-att-grid,.phf-notice-ov-body .phf-notice-att-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
+.phf-notice-detail-rail .phf-notice-att-grid{grid-template-columns:1fr;}
+.phf-notice-att-card{border-radius:var(--nt-radius-sm);}
+.phf-notice-att-card-top{padding:10px 12px;gap:10px;align-items:center;}
+.phf-notice-att-ficon{width:32px;height:32px;border-radius:7px;font-size:9.5px;}
+.phf-notice-att-card-body b{font-size:12.5px;}
+.phf-notice-att-card-body small{font-size:10.5px;}
+.phf-notice-att-thumb-band{height:110px;background-size:cover;background-position:center;}
+.phf-notice-att-cta{padding:7px 10px;font-size:12px;font-weight:800;}
+.phf-notice-attach h4{font-size:10.5px;letter-spacing:.07em;}
+.phf-notice-detail-rail .phf-notice-attach{margin:0;padding:0;border:0;}
+.phf-notice-detail-rail .phf-notice-attach h4{display:none;}
+
+/* ── REPORT INDEX — summary cards + toolbar + progress table ──────────── */
+.phf-notice-report-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+.phf-notice-report-card{background:#fff;border:1px solid var(--nt-line);border-radius:var(--nt-radius);padding:14px 16px;box-shadow:var(--nt-shadow-card);}
+.phf-notice-report-card b{display:block;font-size:24px;font-weight:800;line-height:1.1;color:var(--nt-ink);}
+.phf-notice-report-card span{display:block;font-size:11.5px;color:var(--nt-muted);font-weight:600;margin-top:3px;}
+.phf-notice-report-card.is-warn b{color:var(--nt-amber);}
+.phf-notice-report-card.is-good b{color:var(--nt-green-ink);}
+.phf-notice-rcount{font-size:var(--nt-fs-sm);color:var(--nt-muted);font-weight:600;margin:2px 0 8px;}
+.phf-notice-progress{display:flex;align-items:center;gap:8px;min-width:120px;}
+.phf-notice-progress-bar{flex:1;height:7px;border-radius:4px;background:#E7EAEE;overflow:hidden;min-width:56px;}
+.phf-notice-progress-bar i{display:block;height:100%;background:var(--nt-green);border-radius:4px;}
+.phf-notice-progress.is-low .phf-notice-progress-bar i{background:var(--nt-amber);}
+.phf-notice-progress.is-crit .phf-notice-progress-bar i{background:var(--nt-red);}
+.phf-notice-progress span{font-size:11.5px;font-weight:700;color:var(--nt-ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.phf-notice-table.is-clickable tbody tr{cursor:pointer;}
+.phf-notice-table.is-clickable tbody tr:hover td{background:#F4FAF6;}
+.phf-notice-table td .phf-notice-cellwrap b{font-weight:800;color:var(--nt-ink);}
+.phf-notice-table td .phf-notice-cellwrap small{color:var(--nt-muted);font-size:11px;}
+.phf-notice-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+.phf-notice-linkish{color:var(--nt-green-ink);font-weight:800;white-space:nowrap;font-size:11.5px;}
+.phf-notice-quickfilters{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 12px;}
+
+/* ── REPORT / AUDIT MODAL — group rows separate, sticky head never covers ─ */
+.phf-notice-ov-body .phf-notice-rgroup{margin-top:16px;border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);overflow:hidden;}
+.phf-notice-ov-body .phf-notice-rgroup:first-of-type{margin-top:8px;}
+.phf-notice-ov-body .phf-notice-rgroup-head{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#ECF0F2;border-bottom:1px solid var(--nt-line-strong);font-size:12.5px;font-weight:800;color:var(--nt-ink);box-shadow:var(--nt-shadow-sticky);}
+.phf-notice-ov-body .phf-notice-rgroup-head .n{color:var(--nt-muted);font-weight:700;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-tablewrap{border:0;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table{border-collapse:separate;border-spacing:0;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table th{position:sticky;top:38px;z-index:20;background:#F5F6F7;box-shadow:0 1px 0 var(--nt-line-strong);}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table td{background:#fff;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table tbody tr:last-child td{border-bottom:0;}
+
+/* ── CATEGORY SCREEN — admin-simple, same components ──────────────────── */
+.phf-notice-cattable-wrap{background:#fff;border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);overflow:hidden;}
+
+/* ── EDITOR RESKIN — same product language ────────────────────────────── */
+.phf-notice-ov-panel{border-top:3px solid var(--nt-green);border-radius:12px;box-shadow:var(--nt-shadow-pop);}
+.phf-notice-ov-head h2{color:var(--nt-green-ink);font-size:15.5px;font-weight:800;}
+.phf-notice-steps{background:#fff;}
+.phf-notice-step.is-current i{background:var(--nt-green);}
+.phf-notice-step.is-done i{background:var(--nt-green-2);}
+.phf-notice-field label{font-size:12px;font-weight:800;color:#4A5560;letter-spacing:.01em;}
+.phf-notice-preview-title{font-size:20px;font-weight:800;}
+.phf-notice-summary dl{grid-template-columns:132px 1fr;}
+.phf-notice-summary dt{font-weight:700;}
+
+/* ── EMPTY STATE — one component ─────────────────────────────────────── */
+.phf-notice-empty{border:1px dashed var(--nt-line-strong);border-radius:var(--nt-radius);background:#FAFBFA;padding:44px 20px;}
+.phf-notice-empty svg{width:30px;height:30px;opacity:.35;}
+.phf-notice-empty p{font-size:var(--nt-fs-sm);color:var(--nt-muted);margin:6px 0 0;}
+.phf-notice-feed>.phf-notice-empty{border:0;background:#fff;}
+
+/* ── RESPONSIVE — coherent ───────────────────────────────────────────── */
+@media (max-width:1200px){
+  .phf-notice-layout{grid-template-columns:210px minmax(0,1fr);}
+}
+@media (max-width:980px){
+  .phf-notice-work{padding:18px 16px 44px;}
+  .phf-notice-toolbar{padding:8px;}
+  .phf-notice-report-cards{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:760px){
+  .phf-notice-brand small{display:none;}
+  .phf-notice-report-cards{grid-template-columns:1fr 1fr;}
+  .phf-notice-detail-main .phf-notice-att-grid{grid-template-columns:1fr;}
+  .phf-notice-tablewrap.is-scroll{overflow-x:auto;}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   VISUAL POLISH V3 — warmth + composition, NOT more colour.
+   CSS-only + presentation markup. Business / permission / workflow / ack /
+   audience / visibility / lifecycle / schema / API: UNCHANGED. Overrides the
+   earlier presentation layer for 4 areas: sidebar · filter+chips · feed ·
+   detail+rail. Font stack unchanged (Arial,"Helvetica Neue",Helvetica,…).
+   ════════════════════════════════════════════════════════════════════════════ */
+.phf-notice{
+  --nt-workspace:#F2F1EC;        /* page ground — warm neutral, not cold grey */
+  --nt-ivory:#FCFBF7;
+  --nt-ivory-line:#ECE7DB;
+  --nt-green-pale:#F1F7F2;       /* very light PHF green surface */
+  --nt-green-pale-line:#DCE9DF;
+}
+.phf-notice{background:var(--nt-workspace);}
+
+/* ── A · SIDEBAR — ivory ground, real hierarchy, calm category identity ───── */
+.phf-notice-nav{background:var(--nt-ivory);border-right:1px solid var(--nt-ivory-line);padding:14px 12px 22px;}
+.phf-notice-nav .phf-notice-nav-title,
+.phf-notice-nav button.phf-notice-nav-title{font-size:10px;font-weight:800;letter-spacing:.13em;color:#8A8578;padding:15px 12px 6px;}
+.phf-notice-nav button.phf-notice-nav-title:hover{color:#4A5560;}
+.phf-notice-nav button.phf-notice-nav-title.is-open .phf-notice-nav-chev{color:var(--nt-green);}
+.phf-notice-nav-items{gap:2px;}
+.phf-notice-nav-items button{padding:9px 11px;border-radius:8px;border-left:0;gap:10px;font-size:13.5px;font-weight:700;color:#3E4750;transition:background .12s,color .12s;}
+.phf-notice-nav-items button svg{width:16px;height:16px;color:#A29B8A;}
+.phf-notice-nav-items button:hover{background:#F0EDE3;color:var(--nt-ink);}
+.phf-notice-nav-items button:hover svg{color:#7C8791;}
+.phf-notice-nav-items button.is-active{background:var(--nt-green-deep);color:#fff;box-shadow:0 1px 2px rgba(11,63,36,.28);}
+.phf-notice-nav-items button.is-active svg{color:#fff;}
+.phf-notice-nav-items button.is-parent{font-weight:800;color:var(--nt-ink);}
+.phf-notice-nav-items button.is-child{padding-left:32px;font-size:12.5px;font-weight:600;color:#565F68;}
+.phf-notice-nav-items button.is-child::before,
+.phf-notice-nav-items button.is-child::after{background:var(--nt-ivory-line);}
+.phf-notice-nav-dot{width:9px;height:9px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.05) inset;}
+.phf-notice-nav-items button.is-child:hover{background:#F0EDE3;color:var(--nt-ink);}
+.phf-notice-nav-items button.is-child.is-active{background:var(--nt-green-pale);color:var(--nt-green-ink);font-weight:700;box-shadow:inset 2px 0 0 var(--nt-green);}
+.phf-notice-nav-items button.is-child.is-active .phf-notice-nav-dot{box-shadow:0 0 0 2px rgba(27,123,69,.30);}
+.phf-notice-nav-badge{background:var(--nt-red);color:#fff;font-weight:800;}
+.phf-notice-nav-items button.is-active .phf-notice-nav-badge{background:#fff;color:var(--nt-green-deep);}
+.phf-notice-home-chip{border:1px solid var(--nt-ivory-line)!important;background:#fff!important;color:var(--nt-ink-2)!important;font-weight:700!important;margin-bottom:12px;}
+.phf-notice-home-chip:hover{background:var(--nt-green-pale)!important;border-color:var(--nt-green-pale-line)!important;}
+
+/* ── B · FILTER + CONTROL LANGUAGE — one height / border / radius / focus ─── */
+.phf-notice-toolbar{gap:8px;align-items:center;margin:2px 0 16px;padding:8px;background:#fff;border:1px solid var(--nt-line);border-radius:var(--nt-radius);box-shadow:var(--nt-shadow-card);flex-wrap:wrap;}
+.phf-notice-toolbar .phf-notice-search{flex:2 1 240px;margin:0;}
+.phf-notice-toolbar .phf-notice-search input,
+.phf-notice-toolbar select,
+.phf-notice-scopefilter,
+.phf-notice-toolbar .phf-notice-check{height:38px;border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);background:#fff;font-family:inherit;font-size:var(--nt-fs-sm);color:var(--nt-ink);}
+.phf-notice-toolbar .phf-notice-search input{padding:0 12px 0 38px;font-size:var(--nt-fs-base);width:100%;}
+.phf-notice-toolbar .phf-notice-search svg{left:13px;width:16px;height:16px;color:var(--nt-muted);}
+.phf-notice-toolbar select{flex:1 1 132px;min-width:120px;padding:0 34px 0 12px;font-weight:700;color:var(--nt-ink-2);appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2368727E' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center;}
+.phf-notice-scopefilter{display:inline-flex;align-items:center;gap:7px;flex:1 1 190px;min-width:170px;padding:0 12px;}
+.phf-notice-scopefilter svg{width:14px;height:14px;color:var(--nt-muted);flex:0 0 auto;}
+.phf-notice-scopefilter input{border:0;outline:0;background:transparent;font:inherit;font-size:var(--nt-fs-sm);color:var(--nt-ink);width:100%;height:100%;padding:0;}
+.phf-notice-scopefilter input::placeholder{color:#9AA2AC;}
+.phf-notice-toolbar .phf-notice-check{display:inline-flex;align-items:center;gap:8px;padding:0 12px;font-weight:700;color:var(--nt-ink-2);white-space:nowrap;cursor:pointer;}
+.phf-notice-toolbar .phf-notice-check input{width:15px;height:15px;accent-color:var(--nt-green);}
+.phf-notice-toolbar .phf-notice-search input:focus,
+.phf-notice-toolbar select:focus,
+.phf-notice-scopefilter:focus-within{outline:2px solid var(--nt-green-2);outline-offset:1px;border-color:var(--nt-green);}
+.phf-notice-quickfilters{display:flex;gap:6px;flex-wrap:wrap;margin:0;align-items:center;}
+
+/* ── B · CHIP / BADGE DESIGN SYSTEM — one radius, one dot/icon rhythm ─────── */
+.phf-notice-badge{display:inline-flex;align-items:center;gap:5px;border-radius:var(--nt-radius-xs);padding:3px 9px;font-size:11px;font-weight:800;letter-spacing:.01em;text-transform:none;line-height:1.5;}
+.phf-notice-card .phf-notice-badge.type,
+.phf-notice-detail-hd .phf-notice-badge.type{padding:3px 9px 3px 8px;border-radius:var(--nt-radius-xs);font-weight:800;text-transform:none;font-size:11px;}
+.phf-notice-card .phf-notice-badge.type::before,
+.phf-notice-detail-hd .phf-notice-badge.type::before{content:"";display:inline-block;width:6px;height:6px;border-radius:2px;background:currentColor;margin-right:2px;opacity:.85;vertical-align:1px;}
+.phf-notice-card .phf-notice-badge.st-active,
+.phf-notice-detail-hd .phf-notice-badge.st-active{background:var(--nt-green-wash);color:var(--nt-green-ink);padding:3px 9px;font-size:11px;font-weight:800;}
+.phf-notice-card .phf-notice-badge.st-upcoming,
+.phf-notice-detail-hd .phf-notice-badge.st-upcoming{background:var(--nt-amber-wash);color:var(--nt-amber);padding:3px 9px;font-size:11px;font-weight:800;}
+.phf-notice-card .phf-notice-badge.st-expired,
+.phf-notice-detail-hd .phf-notice-badge.st-expired{background:#EEECE7;color:#7A7365;padding:3px 9px;font-size:11px;font-weight:800;}
+.phf-notice-card .phf-notice-badge.st-draft,
+.phf-notice-detail-hd .phf-notice-badge.st-draft{background:#ECEFF2;color:#5B6673;padding:3px 9px;font-size:11px;font-weight:800;}
+.phf-notice-badge.prio-urgent{background:var(--nt-red-wash);color:var(--nt-red);}
+.phf-notice-badge.prio-important{background:var(--nt-amber-wash);color:var(--nt-amber);}
+.phf-notice-badge.pin{background:var(--nt-gold-wash);color:#7A5A12;}
+.phf-notice-st-glyph{font-size:8px;margin-right:1px;}
+.phf-notice-chip{border:1px solid var(--nt-line-strong);border-radius:var(--nt-radius-sm);padding:0 12px;height:34px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--nt-muted);background:#fff;}
+.phf-notice-chip.is-on{background:var(--nt-green);border-color:var(--nt-green);color:#fff;}
+.phf-notice-chip.st-chip-active:not(.is-on){border-color:#BFE0CC;color:var(--nt-green-ink);}
+.phf-notice-chip.st-chip-upcoming:not(.is-on){border-color:#E8CE9E;color:var(--nt-amber);}
+
+/* ── C · FEED — internal-news list, warmer, stronger scan order ──────────── */
+.phf-notice-feed{border:1px solid var(--nt-line);border-radius:var(--nt-radius);overflow:hidden;background:#fff;box-shadow:var(--nt-shadow-card);}
+.phf-notice-card{padding:15px 18px 14px 20px;border-bottom:1px solid #EFEEE9;}
+.phf-notice-card:hover{background:var(--nt-green-pale);}
+.phf-notice-card.is-pinned{background:var(--nt-ivory);}
+.phf-notice-card.is-pinned:hover{background:#F6F2E6;}
+.phf-notice-card::before{width:3px;}
+.phf-notice-card.is-urgent::before{background:var(--nt-red);}
+.phf-notice-card.is-important::before{background:var(--nt-amber);}
+.phf-notice-card-top{gap:6px;margin-bottom:6px;align-items:center;}
+.phf-notice-card h3{font-size:15.5px;font-weight:800;line-height:1.34;margin:2px 0 4px;color:var(--nt-ink);letter-spacing:-.005em;}
+.phf-notice-card .excerpt{font-size:var(--nt-fs-sm);color:#77808A;line-height:1.55;-webkit-line-clamp:2;margin:0 0 9px;}
+.phf-notice-card-meta{font-size:var(--nt-fs-xs);color:#7C8791;gap:6px 9px;align-items:center;}
+.phf-notice-card-meta .phf-notice-sender{font-weight:800;color:var(--nt-ink-2);}
+.phf-notice-card-meta .dot{width:3px;height:3px;border-radius:50%;background:#C7CDD3;}
+.phf-notice-scope{font-weight:600;color:#6B7480;}
+.phf-notice-scope::before{content:"Áp dụng ";color:#9AA2AC;font-weight:600;}
+.phf-notice-att-chip{color:#6B7480;font-weight:700;}
+.phf-notice-card-state{margin-left:auto;}
+.phf-notice-tick{color:var(--nt-green-ink);font-weight:800;}
+.phf-notice-need-ack{color:var(--nt-amber);font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:10.5px;}
+.phf-notice-seen{color:#94A0AB;}
+.phf-notice-inbox-summary{background:var(--nt-green-pale);border-color:var(--nt-green-pale-line);}
+
+/* ── D · DETAIL — document header + publication reading + contextual rail ─── */
+.phf-notice-detail{border:1px solid var(--nt-ivory-line);border-top:3px solid var(--nt-green);box-shadow:0 1px 3px rgba(20,24,32,.07);}
+.phf-notice-detail-hd{background:var(--nt-green-pale);border-bottom:1px solid var(--nt-green-pale-line);padding:18px 32px 20px;}
+.phf-notice-detail-hd-bar{margin-bottom:14px;}
+.phf-notice-detail-hd h1{font-size:var(--nt-fs-h1);line-height:1.25;font-weight:800;margin:2px 0 14px;color:var(--nt-ink);letter-spacing:-.014em;}
+.phf-notice-detail-hd-bar .phf-notice-detail-actions .phf-notice-btn{box-shadow:none;}
+.phf-notice-detail-hd-bar .phf-notice-detail-actions .phf-notice-btn.is-primary{background:var(--nt-green);border-color:var(--nt-green);}
+.phf-notice-detail-identity{border-top:1px solid var(--nt-green-pale-line);padding-top:13px;gap:12px 28px;flex-direction:row;flex-wrap:wrap;}
+.phf-notice-idblock.is-lead .k{color:#5A6470;}
+.phf-notice-idblock.is-lead .v{font-size:14px;font-weight:800;color:var(--nt-ink);}
+.phf-notice-idblock.is-lead .v small{font-size:12px;font-weight:600;color:var(--nt-muted);}
+.phf-notice-idblock.is-upd .k{font-size:9.5px;color:#8B95A0;}
+.phf-notice-idblock.is-upd .v{font-size:12px;font-weight:600;color:#4A5560;}
+.phf-notice-idblock.is-upd .v small{font-weight:600;}
+.phf-notice-detail-main{padding:30px 40px 36px;}
+.phf-notice-detail-main .phf-notice-body{max-width:76ch;font-size:14.5px;line-height:1.78;color:#242C34;}
+.phf-notice-detail-main .phf-notice-body>p:first-of-type{font-size:15px;color:#1E2830;}
+.phf-notice-detail-main .phf-notice-body h2{font-size:16.5px;font-weight:800;margin:26px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--nt-line);color:var(--nt-ink);}
+.phf-notice-detail-main .phf-notice-body h3{font-size:14.5px;font-weight:800;margin:18px 0 6px;color:var(--nt-ink-2);}
+.phf-notice-detail-main .phf-notice-body ul,
+.phf-notice-detail-main .phf-notice-body ol{margin:0 0 14px 22px;}
+.phf-notice-detail-main .phf-notice-body li{margin:0 0 5px;}
+.phf-notice-detail-main .phf-notice-body blockquote{margin:14px 0;padding:8px 14px;border-left:3px solid var(--nt-green-2);background:var(--nt-green-pale);color:var(--nt-ink-2);border-radius:0 6px 6px 0;}
+.phf-notice-detail-main .phf-notice-body table{border-collapse:collapse;margin:12px 0;font-size:13px;}
+.phf-notice-detail-main .phf-notice-body td,
+.phf-notice-detail-main .phf-notice-body th{border:1px solid var(--nt-line);padding:6px 10px;}
+.phf-notice-detail-main .phf-notice-body th{background:var(--nt-green-pale);font-weight:800;}
+
+/* ── D · RIGHT RAIL — contextual information rail, not a stack of form boxes ─ */
+.phf-notice-detail-rail{background:var(--nt-ivory);border-left:1px solid var(--nt-ivory-line);padding:24px 22px;gap:16px;}
+.phf-notice-railcard,.phf-notice-rail-ack{background:#fff;border:1px solid var(--nt-ivory-line);border-radius:var(--nt-radius-sm);padding:14px 16px;box-shadow:0 1px 2px rgba(20,24,32,.04);}
+.phf-notice-railcard>h4,.phf-notice-rail-ack h4{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.05em;color:#54606C;text-transform:uppercase;}
+.phf-notice-detail-facts{display:block;margin:0;}
+.phf-notice-detail-facts>div{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #F0EEE9;}
+.phf-notice-detail-facts>div:last-child{border-bottom:0;padding-bottom:2px;}
+.phf-notice-detail-facts>div:first-child{padding-top:8px;}
+.phf-notice-detail-facts dt{display:flex;align-items:center;gap:7px;flex:0 0 auto;min-width:104px;font-size:11px;font-weight:700;color:var(--nt-muted);text-transform:none;letter-spacing:0;}
+.phf-notice-detail-facts dt svg{width:13px;height:13px;color:#9AA2AC;flex:0 0 auto;}
+.phf-notice-detail-facts dd{margin:0;flex:1;text-align:right;font-size:var(--nt-fs-sm);font-weight:700;color:var(--nt-ink);word-break:break-word;}
+.phf-notice-rail-ack{border-left:3px solid var(--nt-green-2);}
+.phf-notice-rail-ack.done{background:var(--nt-green-wash);border-color:#CDE6D6;border-left-color:var(--nt-green);}
+.phf-notice-rail-ack label{display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:700;line-height:1.4;cursor:pointer;}
+.phf-notice-rail-ack input{width:18px;height:18px;margin-top:1px;accent-color:var(--nt-green);flex:0 0 auto;}
+.phf-notice-rail-ack .ack-note{display:block;font-size:11px;color:var(--nt-muted);font-weight:500;margin-top:6px;}
+.phf-notice-rail-ack .phf-notice-viewstat{font-size:12px;font-weight:700;color:var(--nt-green-ink);}
+.phf-notice-detail-rail .phf-notice-toc{border-left:2px solid var(--nt-green-2);padding-left:12px;}
+.phf-notice-detail-rail .phf-notice-linkish{color:var(--nt-green-ink);font-weight:800;text-decoration:none;}
+.phf-notice-detail-rail .phf-notice-linkish:hover{text-decoration:underline;}
+
+@media (max-width:1200px){  /* P1-03: canonical Detail collapse breakpoint (was 1040) */
+  .phf-notice-detail-rail{border-left:0;border-top:1px solid var(--nt-ivory-line);}
+  .phf-notice-detail-main{padding-left:20px;padding-right:20px;}
+  .phf-notice-detail-hd{padding-left:20px;padding-right:20px;}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BATCH A — P1 FIXES (from Independent Visual QA triage). CSS-only + presentation.
+   Business / permission / workflow / ack / audience / visibility / lifecycle /
+   schema / API: UNCHANGED. No other module. Overrides earlier layers where needed.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* P1-01 — PHF AI mascot (position:fixed;z-index:99000, admin-only, body-level)
+   must not sit over Notice functional content. */
+body:has(.phf-notice-ov) .phf-ai-floating{display:none!important;}
+@media (min-width:761px){
+  .phf-notice-work{padding-bottom:92px;}
+  .phf-notice-detail-rail{padding-bottom:84px;}
+}
+
+/* P1-05 — sidebar clipping: never hard-cap the nav box; let it grow to content
+   up to the viewport and scroll INSIDE with a visible affordance. No font/menu
+   shrink. (position:sticky;top:76px stays from the base rule.) */
+.phf-notice-nav{
+  height:auto;
+  max-height:calc(100vh - 76px);
+  overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  scrollbar-width:thin;scrollbar-color:#D9D3C4 transparent;
+  padding-bottom:20px;
+}
+.phf-notice-nav::-webkit-scrollbar{width:9px;}
+.phf-notice-nav::-webkit-scrollbar-track{background:transparent;}
+.phf-notice-nav::-webkit-scrollbar-thumb{background:#D9D3C4;border-radius:5px;border:2px solid var(--nt-ivory);}
+.phf-notice-nav::-webkit-scrollbar-thumb:hover{background:#C3BAA6;}
+
+/* P1-08 — report drill-down sticky regression: `.phf-notice-rgroup{overflow:hidden}`
+   (declared twice at :564 and :798) turned the <section> into a scroll-context,
+   so the sticky group-head (top:0) and <thead> (top:38px) anchored to the rgroup
+   box instead of the scrolling .phf-notice-ov-body. Release that clip. */
+.phf-notice-ov-body .phf-notice-rgroup{overflow:visible;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-rgroup-head{
+  border-radius:var(--nt-radius-sm) var(--nt-radius-sm) 0 0;
+}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-table th{position:sticky;top:38px;z-index:20;}
+.phf-notice-ov-body .phf-notice-rgroup .phf-notice-rgroup-head{z-index:30;}
+/* deeper backdrop so the modal reads as a layer, not a tint */
+.phf-notice-ov{background:rgba(17,21,29,.55);}
+
+/* P1-04 — chip / badge design system: ONE geometry, THREE intentional tiers.
+   priority (loudest) > category (identity) > status (quiet, still a chip). */
+.phf-notice-card .phf-notice-badge,
+.phf-notice-detail-hd .phf-notice-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  height:21px;padding:0 9px;border-radius:6px;
+  font-size:11px;font-weight:700;letter-spacing:.01em;line-height:1;
+  text-transform:none;vertical-align:middle;
+}
+/* PRIORITY — solid / bordered, uppercase, a touch larger */
+.phf-notice-card .phf-notice-badge.prio-urgent,
+.phf-notice-detail-hd .phf-notice-badge.prio-urgent{
+  background:var(--nt-red);color:#fff;font-weight:800;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em;padding:0 10px;
+}
+.phf-notice-card .phf-notice-badge.prio-important,
+.phf-notice-detail-hd .phf-notice-badge.prio-important{
+  background:var(--nt-amber-wash);color:var(--nt-amber);font-weight:800;
+  text-transform:uppercase;letter-spacing:.03em;box-shadow:inset 0 0 0 1px #E6C892;
+}
+/* CATEGORY — soft identity wash (inline colour from catMeta) + square dot */
+.phf-notice-card .phf-notice-badge.type,
+.phf-notice-detail-hd .phf-notice-badge.type{font-weight:700;}
+.phf-notice-card .phf-notice-badge.type::before,
+.phf-notice-detail-hd .phf-notice-badge.type::before{
+  content:"";width:6px;height:6px;border-radius:2px;background:currentColor;opacity:.9;
+}
+/* STATUS — the lightest chip: warm-grey ground, semantic text, small glyph */
+.phf-notice-card .phf-notice-badge.st-active,.phf-notice-detail-hd .phf-notice-badge.st-active,
+.phf-notice-card .phf-notice-badge.st-upcoming,.phf-notice-detail-hd .phf-notice-badge.st-upcoming,
+.phf-notice-card .phf-notice-badge.st-expired,.phf-notice-detail-hd .phf-notice-badge.st-expired,
+.phf-notice-card .phf-notice-badge.st-draft,.phf-notice-detail-hd .phf-notice-badge.st-draft{
+  background:#EFEEE9;font-weight:700;font-size:10.5px;padding:0 8px;height:20px;
+}
+.phf-notice-card .phf-notice-badge.st-active,.phf-notice-detail-hd .phf-notice-badge.st-active{color:var(--nt-green-ink);}
+.phf-notice-card .phf-notice-badge.st-upcoming,.phf-notice-detail-hd .phf-notice-badge.st-upcoming{color:var(--nt-amber);}
+.phf-notice-card .phf-notice-badge.st-expired,.phf-notice-detail-hd .phf-notice-badge.st-expired{color:#7A828C;}
+.phf-notice-card .phf-notice-badge.st-draft,.phf-notice-detail-hd .phf-notice-badge.st-draft{color:#5B6673;}
+.phf-notice-st-glyph{font-size:8px;margin-right:1px;}
+.phf-notice-card .phf-notice-badge.pin,.phf-notice-detail-hd .phf-notice-badge.pin{
+  background:var(--nt-gold-wash);color:#7A5A12;font-weight:800;
+}
+.phf-notice-card-top{gap:6px;align-items:center;}
+
+/* P1-09b — Detail reading: ONE source of truth for body type + list/heading
+   rhythm (was 3 conflicting rules at :172 / :593 / V3). */
+.phf-notice-detail-main .phf-notice-body{font-size:14.5px;line-height:1.75;color:#242C34;}
+.phf-notice-detail-main .phf-notice-body>p:first-of-type{font-size:15px;color:#1E2830;}
+.phf-notice-detail-main .phf-notice-body p{margin:0 0 13px;}
+.phf-notice-detail-main .phf-notice-body h2{font-size:16.5px;font-weight:800;margin:26px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--nt-line);color:var(--nt-ink);}
+.phf-notice-detail-main .phf-notice-body h3{font-size:14.5px;font-weight:800;margin:18px 0 7px;color:var(--nt-ink-2);}
+.phf-notice-detail-main .phf-notice-body ul,
+.phf-notice-detail-main .phf-notice-body ol,
+.phf-notice-detail-main .phf-notice-body .phf-notice-body-list{margin:2px 0 14px;padding-left:22px;}
+.phf-notice-detail-main .phf-notice-body li{margin:0 0 6px;padding-left:2px;line-height:1.6;}
+.phf-notice-detail-main .phf-notice-body .phf-notice-body-list{list-style-position:outside;}
+
+/* P1 A.1 — FONT CONSISTENCY: guarantee every node in the module (incl. the
+   body-mounted bell panel, which lives inside .phf-notice-top) resolves to the
+   ONE PHF system stack. No new typeface, no webfont. */
+.phf-notice,.phf-notice *,
+.phf-notice-ov,.phf-notice-ov *{
+  font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif;
+}
+
+/* MICRO-FIX 1 — audience/scope filter: the WRAPPER owns the single border +
+   focus ring (:focus-within). The inner <input> carries none — ever. */
+.phf-notice-scopefilter>input,
+.phf-notice-scopefilter>input:focus,
+.phf-notice-scopefilter>input:focus-visible{
+  border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;
+}
+.phf-notice-scopefilter:focus-within{outline:2px solid var(--nt-green-2);outline-offset:1px;border-color:var(--nt-green);}
+
+/* MICRO-FIX 2 — active parent (deep PHF green) forces #fff on EVERYTHING inside
+   it: label text, icons, ::before/::after, and any secondary/count text. The
+   pale-green selected CHILD keeps its own dark-on-pale treatment (excluded). */
+.phf-notice-nav-items button.is-active:not(.is-child),
+.phf-notice-nav-items button.is-active:not(.is-child) *,
+.phf-notice-nav-items button.is-active:not(.is-child) svg{
+  color:#fff!important;
+}
+.phf-notice-nav-items button.is-active:not(.is-child) svg{stroke:#fff!important;}
+.phf-notice-nav-items button.is-active:not(.is-child)::before,
+.phf-notice-nav-items button.is-active:not(.is-child)::after{background:rgba(255,255,255,.45)!important;}
+.phf-notice-nav-items button.is-active:not(.is-child) .phf-notice-nav-dot{
+  background:#fff!important;box-shadow:0 0 0 2px rgba(255,255,255,.35)!important;
+}
+.phf-notice-nav-items button.is-active:not(.is-child) .phf-notice-nav-badge{
+  background:#fff!important;color:var(--nt-green-deep)!important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMMERCIAL UI FIX (from Claude Chrome QA, overall 6.8 / reading 7.5).
+   Targeted visual defects only. CSS-only + tiny presentation markup already made.
+   Business / permission / workflow / ack-logic / audience / visibility /
+   lifecycle / schema / API: UNCHANGED. No other module. No font redesign.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* P1-01 — ONE focus language for every Notice control: normal border + a single
+   subtle PHF-green glow. NEVER border + outline together (no concentric rings). */
+.phf-notice-toolbar .phf-notice-search input,
+.phf-notice-toolbar select,
+.phf-notice-scopefilter,
+.phf-notice-toolbar .phf-notice-check{
+  transition:border-color .12s, box-shadow .12s;
+}
+.phf-notice-toolbar .phf-notice-search input:focus,
+.phf-notice-toolbar .phf-notice-search input:focus-visible,
+.phf-notice-toolbar select:focus,
+.phf-notice-toolbar select:focus-visible,
+.phf-notice-scopefilter:focus-within{
+  outline:none!important;
+  border-color:var(--nt-green)!important;
+  box-shadow:0 0 0 3px rgba(27,123,69,.18)!important;
+}
+.phf-notice-scopefilter>input,
+.phf-notice-scopefilter>input:focus,
+.phf-notice-scopefilter>input:focus-visible{
+  border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;
+}
+/* same language for the in-page search bar outside the toolbar (feed head) */
+.phf-notice-search input:focus,.phf-notice-search input:focus-visible{
+  outline:none!important;border-color:var(--nt-green)!important;box-shadow:0 0 0 3px rgba(27,123,69,.18)!important;
+}
+
+/* P1-02 — PRIORITY > CATEGORY > STATUS chip system, context-independent.
+   Defined once here at high specificity so Feed / Detail / Inbox / Bell / Editor
+   preview all render the SAME chip. One geometry; three intentional weights. */
+.phf-notice-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  height:20px;padding:0 8px;border-radius:6px;
+  font-size:11px;font-weight:700;line-height:1;letter-spacing:.01em;text-transform:none;
+  vertical-align:middle;white-space:nowrap;
+}
+/* PRIORITY — the loudest: solid urgent / bordered important, uppercase */
+.phf-notice-badge.prio-urgent{
+  background:var(--nt-red)!important;color:#fff!important;font-weight:800;
+  text-transform:uppercase;letter-spacing:.04em;padding:0 9px;height:20px;
+}
+.phf-notice-badge.prio-important{
+  background:var(--nt-amber-wash)!important;color:var(--nt-amber)!important;font-weight:800;
+  text-transform:uppercase;letter-spacing:.03em;box-shadow:inset 0 0 0 1px #E6C892;padding:0 9px;height:20px;
+}
+/* CATEGORY — soft identity: wash (inline colour from catMeta) + square dot */
+.phf-notice-badge.type{font-weight:700;padding:0 9px 0 8px;height:20px;text-transform:none;}
+.phf-notice-badge.type::before{
+  content:"";width:6px;height:6px;border-radius:2px;background:currentColor;opacity:.9;flex:0 0 auto;
+}
+/* STATUS — the quietest: light warm-grey chip + semantic text + tiny glyph */
+.phf-notice-badge.st-active,
+.phf-notice-badge.st-upcoming,
+.phf-notice-badge.st-expired,
+.phf-notice-badge.st-draft{
+  background:#EFEEE9!important;font-weight:700;font-size:10.5px;height:19px;padding:0 8px;
+}
+.phf-notice-badge.st-active{color:var(--nt-green-ink)!important;}
+.phf-notice-badge.st-upcoming{color:var(--nt-amber)!important;}
+.phf-notice-badge.st-expired{color:#7A828C!important;}
+.phf-notice-badge.st-draft{color:#5B6673!important;}
+.phf-notice-badge.pin{background:var(--nt-gold-wash)!important;color:#7A5A12!important;font-weight:800;height:20px;padding:0 8px;}
+.phf-notice-st-glyph{font-size:8px;margin-right:1px;flex:0 0 auto;}
+.phf-notice-card-top{gap:6px;align-items:center;}
+.phf-notice-detail-hd .phf-notice-card-top{gap:7px;}
+/* bell panel picks up the exact same chip via .phf-notice-badge — its own tag
+   pills (.phf-notice-bell-tag) stay a separate, quieter class by design. */
+
+/* P1-03 — canonical Detail responsive: side-by-side above the collapse point,
+   ONE clean column at/below it. (All three legacy @media blocks now read 1200.) */
+@media (min-width:1201px){
+  .phf-notice-detail-grid{grid-template-columns:minmax(0,70fr) minmax(320px,30fr);}
+}
+
+/* P1-04 — predictable safe-area so the fixed PHF AI launcher (60px btn at
+   right:24/bottom:24, ~84px reach) never sits over a bottom-right button, link
+   or table action on any Notice screen. Modal case already hides it. */
+@media (min-width:761px){
+  .phf-notice-work{padding-bottom:120px;}
+  .phf-notice-detail-rail{padding-bottom:96px;}
+}
+body:has(.phf-notice-ov) .phf-ai-floating{display:none!important;}
+
+/* P1-05 — Report Index table: fixed column rhythm + scan hierarchy
+   (Thông báo -> Tiếp nhận -> Chưa XN -> Danh mục -> Áp dụng -> Hiệu lực ->
+   Cập nhật -> Chi tiết). Status never wraps to 3 lines; "Áp dụng" is capped;
+   the pending count never overpowers the title. */
+.phf-notice-rindex{table-layout:fixed;width:100%;}
+.phf-notice-rindex th,.phf-notice-rindex td{overflow:hidden;text-overflow:ellipsis;vertical-align:top;}
+.phf-notice-rindex .c-title{width:auto;white-space:normal;}
+.phf-notice-rindex .c-title b{font-weight:800;color:var(--nt-ink);display:block;line-height:1.35;white-space:normal;overflow-wrap:anywhere;}
+.phf-notice-rindex .c-title small{display:block;margin-top:2px;color:var(--nt-muted);font-size:11px;}
+.phf-notice-rindex .c-prog{width:132px;}
+.phf-notice-rindex .c-prog .phf-notice-progress{min-width:0;}
+.phf-notice-rindex .c-pend{width:84px;text-align:right;}
+.phf-notice-rindex .c-cat{width:118px;white-space:nowrap;}
+.phf-notice-rindex .c-scope{width:150px;white-space:nowrap;color:#5A6470;font-weight:600;}
+.phf-notice-rindex .c-eff{width:116px;white-space:nowrap;}
+.phf-notice-rindex .c-upd{width:92px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--nt-muted);}
+.phf-notice-rindex .c-act{width:78px;white-space:nowrap;text-align:right;}
+.phf-notice-pend{font-weight:700;font-size:12px;color:var(--nt-red);font-variant-numeric:tabular-nums;}
+.phf-notice-pend.is-zero{color:#9AA2AC;font-weight:600;}
+.phf-notice-rindex .c-eff .phf-notice-badge{white-space:nowrap;}
+@media (max-width:900px){
+  .phf-notice-rindex .c-cat,.phf-notice-rindex .c-scope{display:none;}
+}
+
+/* P1-06 — acknowledgement panel: ONE action block. checkbox aligned to the
+   primary sentence; explanatory copy sits directly beneath it, smaller/muted. */
+.phf-notice-rail-ack label{display:flex;align-items:flex-start;gap:10px;cursor:pointer;}
+.phf-notice-rail-ack input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--nt-green);flex:0 0 auto;}
+.phf-notice-rail-ack .ack-copy{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.phf-notice-rail-ack .ack-primary{font-size:13px;font-weight:700;line-height:1.35;color:var(--nt-ink);}
+.phf-notice-rail-ack.done .ack-primary{color:var(--nt-green-ink);}
+.phf-notice-rail-ack .ack-note{display:block;margin:0;font-size:11px;font-weight:400;line-height:1.5;color:var(--nt-muted);}
+
+/* P2-2 — Notice toast: pin under the sticky header, centred, above any modal, so
+   it can never be clipped by the viewport edge or cover a modal footer CTA. */
+.phf-notice-toast{
+  position:fixed!important;top:88px!important;bottom:auto!important;
+  left:50%!important;transform:translateX(-50%)!important;
+  z-index:2600!important;max-width:calc(100vw - 32px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NOTICE_DETAIL_BADGE_ROW_FINAL — the Detail header badge row only.
+   One clean wrapping flex row · no clipping · even spacing · balanced with the
+   title. No negative margin / translate / clipping overflow. No colour / design
+   -system / hierarchy change. Nothing else touched.
+   ════════════════════════════════════════════════════════════════════════════ */
+.phf-notice-detail-hd-bar{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:10px 16px;margin-bottom:16px;
+}
+.phf-notice-detail-hd-bar>.phf-notice-card-top{flex:1 1 auto;min-width:0;}
+.phf-notice-detail-hd-bar>.phf-notice-detail-actions{flex:0 0 auto;}
+.phf-notice-detail-hd .phf-notice-card-top{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;
+}
+.phf-notice-detail-hd .phf-notice-card-top>*{margin:0;}          /* no stray/negative margin */
+.phf-notice-detail-hd .phf-notice-card-top .phf-notice-badge{
+  flex:0 0 auto;                                                  /* never shrink → never overlapped */
+}
+/* the pinned chip carries an emoji — give it room + a line-box tall enough that
+   "📌 Ghim" is never vertically clipped (fix carried to the feed chip too). */
+.phf-notice-detail-hd .phf-notice-badge.pin,
+.phf-notice-card .phf-notice-badge.pin{
+  min-height:20px;height:auto;line-height:1.35;padding:2px 9px;white-space:nowrap;
+}
+.phf-notice-detail-hd h1{margin:0 0 14px;}                        /* title → metadata rhythm unchanged */
 

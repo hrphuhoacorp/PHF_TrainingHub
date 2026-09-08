@@ -114,6 +114,20 @@ async function report(session, payload) {
   return callNoticeAction('notice.report', actor, { id: str(payload && payload.id), roster });
 }
 
+// Composite: report INDEX — People Master roster joined to per-notice view/ack
+// aggregates so "Báo cáo tiếp nhận" scales to 100+ notices in one round trip.
+// Read-only aggregate; same manage gate as noticeReport.
+async function reportIndex(session) {
+  const actor = await resolveNoticeActor(session);
+  const rows = await loadOrgRows();
+  const roster = rows.map((r) => ({
+    employeeCode: r.employeeCode,
+    department: r.department || '', branch: r.branch || '',
+    active: isActiveStatus(r.status),
+  }));
+  return callNoticeAction('notice.report.index', actor, { roster });
+}
+
 // Composite: the permission screen roster — People Master active list + current
 // notice.notice_permissions merged (like qtth listRoster).
 async function permissionRoster(session) {
@@ -181,6 +195,9 @@ async function dispatchNoticeAction(session, payload) {
   if (action === 'noticeReport') {
     return { handled: true, result: await report(session, payload || {}) };
   }
+  if (action === 'noticeReportIndex') {
+    return { handled: true, result: await reportIndex(session) };
+  }
   if (action === 'noticePermissionRoster') {
     return { handled: true, result: await permissionRoster(session) };
   }
@@ -199,7 +216,7 @@ async function dispatchNoticeAction(session, payload) {
 const NOTICE_ACTION_MANIFEST = Object.freeze([
   'noticeBootstrap', 'noticeFeed', 'noticeDetail', 'noticeAcknowledge',
   'noticeCreate', 'noticeUpdate', 'noticePublish', 'noticeSetPin', 'noticeDelete',
-  'noticeRevisions', 'noticeAuditLog', 'noticeReport',
+  'noticeRevisions', 'noticeAuditLog', 'noticeReport', 'noticeReportIndex',
   'noticeAttachmentAdd', 'noticeAttachmentRemove', 'noticeAttachmentDownload',
   'noticeCategoriesList', 'noticeCategoriesUpsert', 'noticeCategoriesReorder', 'noticeSimilar',
   'noticePermissionRoster', 'noticeSetPermission', 'noticePermissionHistory',

@@ -458,6 +458,7 @@ function shapeNotice(full, today) {
     currentRevisionId: r.current_revision_id || null,
     deletedAt: r.deleted_at || null,
     createdByName: r.created_by_name || '',
+    updatedByName: r.updated_by_name || '',
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     scopes: (full.scopes || []).map((s) => ({ scopeType: s.scope_type, scopeValue: s.scope_value })),
@@ -722,6 +723,7 @@ const HANDLERS = {
           excerpt: excerpt(r.content_text, 240),
           noticeType: r.notice_type,
           categoryName: r.category_name || r.notice_type,
+          createdByName: r.created_by_name || '',
           priority: r.priority || 'normal',
           effectiveFrom: ymd(r.effective_from),
           effectiveTo: ymd(r.effective_to),
@@ -1409,6 +1411,82 @@ const HANDLERS = {
         primary: primary.sort((x, y) => x.fullName.localeCompare(y.fullName, 'vi')),
         others: others.sort((x, y) => x.fullName.localeCompare(y.fullName, 'vi')),
       };
+    });
+  },
+
+  // ---- REPORT INDEX (UI/UX V2 §7) — per-notice acceptance aggregate for the
+  // "Báo cáo tiếp nhận" table, so it scales to 100+ notices in ONE round trip.
+  // READ-ONLY aggregate over EXISTING notice_views / notice_acknowledgements /
+  // notice_scopes rows. No schema, no persistence, no business/permission change
+  // (requireManage gate identical to notice.report). The roster (People Master
+  // active list) is supplied by the Vercel composite, same as notice.report.
+  'notice.report.index': async (config, actor, params) => {
+    await requireManage(config, actor);
+    const roster = Array.isArray(params && params.roster) ? params.roster : [];
+    return readTx(config, async (c) => {
+      const nRows = (await c.query(
+        `SELECT id, current_revision_id, require_acknowledgement, published_at, updated_at
+           FROM notice.notices WHERE deleted_at IS NULL AND status = 'published'`)).rows;
+      if (!nRows.length) return { notices: [] };
+      const ids = nRows.map((r) => r.id);
+      const [scopeRows, viewRows, ackRows] = await Promise.all([
+        c.query('SELECT notice_id, scope_type, scope_value FROM notice.notice_scopes WHERE notice_id = ANY($1)', [ids]),
+        c.query('SELECT notice_id, employee_code FROM notice.notice_views WHERE notice_id = ANY($1) AND employee_code IS NOT NULL', [ids]),
+        c.query('SELECT notice_id, employee_code, revision_id, acknowledged_at FROM notice.notice_acknowledgements WHERE notice_id = ANY($1) AND employee_code IS NOT NULL', [ids]),
+      ]);
+      const scopeByNotice = new Map();
+      scopeRows.rows.forEach((s) => {
+        const e = scopeByNotice.get(s.notice_id) || { company: false, vals: new Set() };
+        if (s.scope_type === 'company') e.company = true;
+        else if (s.scope_value) e.vals.add(String(s.scope_value).toLowerCase());
+        scopeByNotice.set(s.notice_id, e);
+      });
+      const viewByNotice = new Map();
+      viewRows.rows.forEach((v) => {
+        const set = viewByNotice.get(v.notice_id) || new Set();
+        set.add(String(v.employee_code).toUpperCase()); viewByNotice.set(v.notice_id, set);
+      });
+      const ackByNotice = new Map(); // notice_id -> Map(empCode -> latest ack row)
+      ackRows.rows.forEach((a) => {
+        const m = ackByNotice.get(a.notice_id) || new Map();
+        const code = String(a.employee_code).toUpperCase();
+        const cur = m.get(code);
+        if (!cur || new Date(a.acknowledged_at) > new Date(cur.acknowledged_at)) m.set(code, a);
+        ackByNotice.set(a.notice_id, m);
+      });
+      const activeRoster = roster.filter((p) => p.active !== false && p.employeeCode);
+      const notices = nRows.map((n) => {
+        const sc = scopeByNotice.get(n.id) || { company: false, vals: new Set() };
+        const inScope = (p) => sc.company
+          || sc.vals.has(String(p.department || '').toLowerCase())
+          || sc.vals.has(String(p.branch || '').toLowerCase());
+        const targets = activeRoster.filter(inScope);
+        const views = viewByNotice.get(n.id) || new Set();
+        const acks = ackByNotice.get(n.id) || new Map();
+        let viewed = 0, acknowledged = 0, acknowledgedCurrent = 0, reackPending = 0;
+        for (const p of targets) {
+          const code = String(p.employeeCode).toUpperCase();
+          if (views.has(code) || acks.has(code)) viewed++;
+          const a = acks.get(code);
+          if (a) {
+            acknowledged++;
+            if (a.revision_id === n.current_revision_id) acknowledgedCurrent++;
+            else reackPending++;
+          }
+        }
+        return {
+          id: n.id,
+          denominator: targets.length,
+          viewed,
+          acknowledged,
+          acknowledgedCurrent,
+          reackPending,
+          requireAcknowledgement: n.require_acknowledgement === true,
+          publishedAt: n.published_at,
+          updatedAt: n.updated_at,
+        };
+      });
+      return { notices };
     });
   },
 
