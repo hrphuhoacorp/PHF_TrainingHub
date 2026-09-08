@@ -121,6 +121,7 @@
       + '<button type="button" class="phf-qtth-btn" data-import>Nhập bảng lương</button>'
       + '</div>'
       + '</div>'
+      + templateCardHtml()
       + effectiveVersionHtml(st, cur)
       + versionHistoryHtml(st)
       + '</section>'
@@ -144,6 +145,26 @@
     });
   }
 
+  // Hard rule (§1): a screen that asks for an upload-by-template MUST offer the
+  // template on the same screen. Static clean .xlsx generated from canonical T07
+  // (scripts/qtth-payroll-generate-canonical-template.js) — no real data.
+  var PAYROLL_TEMPLATE_HREF = 'assets/templates/PHF_Payroll_Canonical_V1.xlsx?v=1';
+  function templateCardHtml() {
+    return '<div class="phf-qtth-td-template">'
+      + '<div><b>Mẫu bảng lương chuẩn</b>'
+      + '<span class="phf-qtth-muted">Dùng mẫu này để lập bảng lương các kỳ mới. '
+      + 'Phiên bản: <b>PHF Payroll Canonical V1</b>. Mẫu không chứa dữ liệu nhân viên.</span></div>'
+      + '<a class="phf-qtth-btn" href="' + PAYROLL_TEMPLATE_HREF + '" download="PHF_Payroll_Canonical_V1.xlsx">Tải mẫu Excel chuẩn</a>'
+      + '</div>';
+  }
+
+  // §7 — 3 trạng thái kiểm tra mẫu khi upload (không đổi normalizer core)
+  function schemaStateLabel(r) {
+    if (r && r.templateMatched) return 'Đúng mẫu chuẩn V1';
+    if (r && r.schemaDrift) return 'Khác mẫu chuẩn — cần rà mapping';
+    return 'Tương thích mẫu V1';
+  }
+
   function effectiveVersionHtml(st, cur) {
     if (!st.exists || !cur) {
       return '<div class="phf-qtth-warn"><span>⚠ Kỳ ' + esc(st.periodMonth || PS.period)
@@ -155,7 +176,7 @@
       + '<div><b>Thời điểm xác nhận</b><span>' + esc(fmtDT(cur.confirmedAt || cur.uploadedAt)) + '</span></div>'
       + '<div><b>Số nhân sự</b><span>' + esc(cur.rowCount) + '</span></div>'
       + '<div><b>Cảnh báo</b><span>' + esc(cur.warningCount || 0) + '</span></div>'
-      + '<div><b>Khớp mẫu chuẩn</b><span>' + (cur.templateMatched ? 'Có' : 'Có sai khác') + '</span></div>'
+      + '<div><b>Khớp mẫu chuẩn</b><span>' + (cur.templateMatched ? 'Đúng mẫu chuẩn V1' : 'Có sai khác cấu trúc') + '</span></div>'
       + '</div>';
   }
 
@@ -576,7 +597,7 @@
     var t = r.totals || {};
     var bad = (t.unknownEmployeeCodes || []).length || (t.duplicateInFile || []).length || (r.missingColumns || []).length;
     return '<div class="phf-qtth-td-effective">'
-      + '<div><b>Mẫu chuẩn</b><span>' + (r.templateMatched ? 'Khớp hoàn toàn' : (r.schemaDrift ? 'Có sai khác cấu trúc' : 'Khớp (chưa đăng ký chuẩn)')) + '</span></div>'
+      + '<div><b>Mẫu chuẩn</b><span>' + esc(schemaStateLabel(r)) + '</span></div>'
       + '<div><b>Fingerprint</b><span><code>' + esc((r.templateFingerprint || '').slice(0, 12)) + '</code></span></div>'
       + '<div><b>Số dòng nhân sự</b><span>' + esc(t.rows || 0) + '</span></div>'
       + '<div><b>Khớp People Master</b><span>' + esc(t.matchedEmployeeCodes || 0) + '</span></div>'
@@ -645,5 +666,5 @@
   };
 
   // offline render-check hooks (pure HTML builders — no DOM, no network)
-  window.__qtthPayrollTestHooks = { costTruthHtml: costTruthHtml, costBreakdownHtml: costBreakdownHtml, esc: esc, fmtN: fmtN };
+  window.__qtthPayrollTestHooks = { costTruthHtml: costTruthHtml, costBreakdownHtml: costBreakdownHtml, templateCardHtml: templateCardHtml, schemaStateLabel: schemaStateLabel, esc: esc, fmtN: fmtN };
 })();

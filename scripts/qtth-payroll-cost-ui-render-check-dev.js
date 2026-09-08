@@ -83,5 +83,16 @@ ck('drawer breakdown renders', dh.indexOf('Phân nhóm chi phí') >= 0 && dh.ind
 ck('drawer breakdown has total row', dh.indexOf('Chi phí lương theo bảng lương') >= 0);
 ck('drawer breakdown null -> empty', H.costBreakdownHtml(null) === '');
 
+// --- template download card + schema-state label (§1, §5, §7) ---
+const tc = H.templateCardHtml();
+ck('template card renders "Mẫu bảng lương chuẩn"', tc.indexOf('Mẫu bảng lương chuẩn') >= 0);
+ck('template card has download link to canonical .xlsx', /href="assets\/templates\/PHF_Payroll_Canonical_V1\.xlsx/.test(tc) && tc.indexOf('download="PHF_Payroll_Canonical_V1.xlsx"') >= 0);
+ck('template card shows "PHF Payroll Canonical V1"', tc.indexOf('PHF Payroll Canonical V1') >= 0);
+ck('template card button text "Tải mẫu Excel chuẩn"', tc.indexOf('Tải mẫu Excel chuẩn') >= 0);
+ck('template card no [object Object]', tc.indexOf('[object Object]') < 0);
+ck('schemaStateLabel: exact -> "Đúng mẫu chuẩn V1"', H.schemaStateLabel({ templateMatched: true }) === 'Đúng mẫu chuẩn V1');
+ck('schemaStateLabel: drift -> "Khác mẫu chuẩn — cần rà mapping"', H.schemaStateLabel({ templateMatched: false, schemaDrift: { added: ['x'] } }) === 'Khác mẫu chuẩn — cần rà mapping');
+ck('schemaStateLabel: compatible -> "Tương thích mẫu V1"', H.schemaStateLabel({ templateMatched: false }) === 'Tương thích mẫu V1');
+
 console.log('\n' + P + '/' + (P + F) + ' render-check assertions passed' + (F ? '  — ' + F + ' FAILED' : '  — ALL PASS'));
 process.exit(F ? 1 : 0);
