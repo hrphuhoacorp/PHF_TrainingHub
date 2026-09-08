@@ -87,8 +87,8 @@ const lib = fs.readFileSync(path.resolve(__dirname, '..', 'api/_lib/checklist-mo
 // 8. saveMonthlyReview keeps its own current-scope check + window-closed guard (NOT relaxed here / B4 untouched).
 check(/if\(!access\.canReview\|\|!allowed\)fail\('Quyền thẩm định đã thay đổi/.test(lib),
   '8. saveMonthlyReview vẫn kiểm tra phạm vi thẩm định HIỆN TẠI (access.people) — không đổi');
-check(/CHECKLIST_MONTHLY_REVIEW_WINDOW_CLOSED/.test(lib) && /reviewWindow\.canReview/.test(lib),
-  '8b. saveMonthlyReview vẫn chặn quá hạn (CHECKLIST_MONTHLY_REVIEW_WINDOW_CLOSED) — B4 chưa làm');
+check(/CHECKLIST_MONTHLY_PERIOD_LOCKED/.test(lib) && /reviewWindow\.periodLocked/.test(lib),
+  '8b. saveMonthlyReview chặn khi kỳ đã Admin khóa (CHECKLIST_MONTHLY_PERIOD_LOCKED) — B4');
 check(!/reviewer_code.*===.*a\.employeeCode/.test(lib.slice(lib.indexOf('async function saveMonthlyReview'))) || /const assigned=/.test(lib),
   '8c. saveMonthlyReview không thêm nhánh bỏ qua phạm vi dựa trên reviewer snapshot');
 
