@@ -21,7 +21,7 @@ const remoteRefs = Array.from(actionsSrc.matchAll(/remote:\s*'([^']+)'/g)).map((
   .concat(Array.from(actionsSrc.matchAll(/callNoticeAction\('([^']+)'/g)).map((m) => m[1]));
 check('1  every Vercel-referenced remote action exists in notice-service ACTIONS',
   remoteRefs.every((a) => remoteActions.has(a)), remoteRefs.filter((a) => !remoteActions.has(a)).join(','));
-check('2  manifest lists 23 stable Vercel actions (+ noticeOrgScopes)', NOTICE_ACTION_MANIFEST.length === 23 && NOTICE_ACTION_MANIFEST.indexOf('noticeOrgScopes') >= 0, String(NOTICE_ACTION_MANIFEST.length));
+check('2  manifest lists 24 stable Vercel actions (+ noticeOrgScopes + noticeReportIndex)', NOTICE_ACTION_MANIFEST.length === 24 && NOTICE_ACTION_MANIFEST.indexOf('noticeOrgScopes') >= 0 && NOTICE_ACTION_MANIFEST.indexOf('noticeReportIndex') >= 0, String(NOTICE_ACTION_MANIFEST.length));
 check('3  service exposes bootstrap + feed + detail + acknowledge (public read path)',
   ['notice.bootstrap', 'notice.feed', 'notice.detail', 'notice.acknowledge'].every((a) => remoteActions.has(a)));
 
@@ -114,14 +114,17 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     !/\.phf-notice(?:-shell|-layout)?\s*\{[^}]*(?:max-width|margin\s*:\s*0\s*auto)/.test(css));
   check('24 shell: sticky full-bleed header, fixed 76px (logo never drives height)',
     /\.phf-notice-top\{[^}]*position:sticky[^}]*height:76px[^}]*flex:0 0 76px/.test(css));
-  check('25 shell: layout = grid 220px + minmax(0,1fr) fluid main',
-    /\.phf-notice-layout\{display:grid;grid-template-columns:220px minmax\(0,1fr\)/.test(css));
+  check('25 shell: layout = grid (one consistent nav width var) + minmax(0,1fr) fluid main',
+    /\.phf-notice-layout\{display:grid;grid-template-columns:var\(--nt-nav-w\) minmax\(0,1fr\)/.test(css)
+    && /--nt-nav-w:\s*\d+px/.test(css));
   check('26 shell: sticky sidebar rail below header (top:76px; height:calc(100vh - 76px))',
     /\.phf-notice-nav\{[\s\S]*?position:sticky;top:76px;height:calc\(100vh - 76px\)/.test(css));
   check('27 theme: PHF green primary, NOT QTTH orange',
     /--nt-green:#1B7B45/.test(css) && !/--qt-orange|#E1500A/.test(css) && !/E1500A/i.test(js));
-  check('28 header: centered brand title "Thông báo Quản Trị" + subtitle "PHF HR" + real session user block',
-    /\.phf-notice-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css)
+  check('28 header (V2): deep-green bar, module identity LEFT next to the logo with a divider (not floating/centered), subtitle "PHF HR" + real session user block',
+    /\.phf-notice-top\{[\s\S]{0,220}background:var\(--nt-green-header\)/.test(css)
+    && /\.phf-notice-brand\{[\s\S]{0,180}border-left:1px solid rgba\(255,255,255/.test(css)
+    && !/\.phf-notice-brand\{[^}]*transform:translate\(-50%,-50%\)/.test(css)
     && /<b>Thông báo Quản Trị<\/b><small>PHF HR<\/small>/.test(js)
     && /phfGetAuthenticatedUser|phfGetCurrentUser/.test(js));
   check('29 sidebar 3 groups; QUẢN TRỊ split: "Quản lý danh mục" = canManage, "Cài đặt quyền" = Admin only (canManagePermissions)',
@@ -179,8 +182,8 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     /function runDupCheck\(\)/.test(js2) && /Có thể trùng nội dung/.test(js2) && !/if\([^)]*dup[^)]*\)\s*return;/i.test(js2));
   check('45 edit re-ack checkbox uses the locked wording; default unchecked',
     /Nội dung thay đổi quan trọng — yêu cầu mọi người xác nhận lại/.test(js2));
-  check('46 feed card shows "Đã cập nhật" when edited; detail shows "Cập nhật lần cuối"',
-    /Đã cập nhật '\+fmtDate\(n\.updatedAt\)/.test(js2) && /Cập nhật lần cuối: '\+fmtDateTime\(n\.lastUpdatedAt\)/.test(js2));
+  check('46 feed card shows "Đã cập nhật" when edited; detail identity band shows the last-updater name + time (V2 §4 SENDER)',
+    /Đã cập nhật '\+fmtDate\(n\.updatedAt\)/.test(js2) && /Cập nhật gần nhất<\/span><span class="v">'\+esc\(updName\)[\s\S]{0,60}fmtDateTime\(n\.lastUpdatedAt\)/.test(js2));
 
   // ── ZOOM / STICKY-HEADER (Checklist standard) ──────────────────────
   const css2 = read('assets/css/phf-notice.css');
@@ -365,7 +368,8 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
     && /\.phf-notice-ov\{[\s\S]{0,400}--nt-cream:#FBFAF6/.test(cssF)
     && /\.phf-notice-card\{background:var\(--nt-surface\)/.test(cssF));
   check('82 CATEGORY IDENTITY §H: deterministic per-slug colour (4 seeded pinned + hash fallback) carried sidebar dot -> feed chip -> detail chip; distinct from status hues',
-    /var CAT_PALETTE=\[/.test(js2) && /var CAT_NAMED=\{guide:1,process:2,policy:3,regulation:4\}/.test(js2)
+    /var CAT_PALETTE=\[/.test(js2) && /var CAT_NAMED=\{guide:0,process:1,policy:2,regulation:3\}/.test(js2)
+    && /var CAT_HASH_BASE=4;/.test(js2)
     && /function catMeta\(slug\)/.test(js2) && /function catHash\(v\)/.test(js2)
     && /function typeBadge\(slug,name\)/.test(js2)
     && (js2.match(/\+typeBadge\(n\.noticeType,n\.categoryName\)/g) || []).length >= 2
@@ -419,6 +423,158 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
   check('90 MODAL SUB-SURFACES stay white on the cream body (summary / preview / rich editor / report KPI / scroll / tablewrap = background:#fff inside .phf-notice-ov-body)',
     /\.phf-notice-ov-body \.phf-notice-summary,\.phf-notice-ov-body \.phf-notice-preview-body,\.phf-notice-ov-body \.phf-notice-rte\{background:#fff;\}/.test(cssF)
     && /\.phf-notice-ov-body \.phf-notice-kpi,\.phf-notice-ov-body \.phf-notice-scroll,\.phf-notice-ov-body \.phf-notice-tablewrap\{background:#fff;\}/.test(cssF));
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UI/UX REFACTOR (1.70.4_notice_uiux_refactor) — one design language, 6 screens.
+  // Nghiệp vụ / quyền / schema KHÔNG đổi.
+  // ─────────────────────────────────────────────────────────────────────────
+  check('91 REFACTOR shared token scale: --nt-fs-hero/h1/h2/h3/base/sm/xs + --nt-lh + --nt-radius(/sm/xs) + --nt-shadow-card/pop/sticky declared on BOTH .phf-notice and .phf-notice-ov (modals resolve them)',
+    /\.phf-notice\{[\s\S]{0,1200}--nt-fs-hero:[\s\S]{0,600}--nt-shadow-sticky:/.test(cssF)
+    && /\.phf-notice-ov\{[\s\S]{0,700}--nt-fs-hero:[\s\S]{0,600}--nt-shadow-sticky:/.test(cssF)
+    && /\.phf-notice,\.phf-notice-ov\{font-size:var\(--nt-fs-base\);line-height:var\(--nt-lh\)/.test(cssF));
+  check('92 REFACTOR detail hierarchy §1: header band + two-column grid (reading column + sticky rail with Mục lục + facts); collapses <980px',
+    /class="phf-notice-detail has-rail"/.test(js2)
+    && /<header class="phf-notice-detail-hd">/.test(js2)
+    && /<div class="phf-notice-detail-grid">[\s\S]{0,400}phf-notice-detail-main[\s\S]{0,400}phf-notice-detail-rail/.test(js2)
+    && /\.phf-notice-detail-rail\{position:sticky/.test(cssF)
+    && /\.phf-notice-detail-main \.phf-notice-body\{max-width:70ch/.test(cssF)
+    && /@media \(max-width:1200px\)\{[\s\S]{0,300}\.phf-notice-detail-grid\{grid-template-columns:1fr/.test(cssF));
+  check('93 REFACTOR §4 SENDER identity — người đăng vs người cập nhật, EXISTING audit fields only (createdByName / updatedByName || latest revision), no schema; shown in the detail identity band',
+    /var updName=n\.updatedByName\|\|\(\(n\.revisions&&n\.revisions\[0\]&&n\.revisions\[0\]\.createdByName\)\)\|\|''/.test(js2)
+    && /phf-notice-detail-identity[\s\S]{0,160}Người đăng<\/span>[\s\S]{0,120}esc\(n\.createdByName/.test(js2)
+    && /var showUpd=n\.edited&&updName&&updName!==n\.createdByName/.test(js2)
+    && /updatedByName: r\.updated_by_name \|\| ''/.test(read('services/phf-hr-api/lib/notice-service.js'))
+    && /createdByName: r\.created_by_name \|\| '',[\r\n\s]*priority:/.test(read('services/phf-hr-api/lib/notice-service.js')));
+  check('94 REFACTOR §3 attachment card component: coloured file-type icon + name + type·size + explicit "Tải xuống" CTA (link = "Mở liên kết"); NOT the old full-width .phf-notice-att-item bar',
+    /function attCardsHtml\(atts\)\{/.test(js2)
+    && /phf-notice-att-grid/.test(js2) && /phf-notice-att-card/.test(js2)
+    && /ICON\.download\+' Tải xuống<\/a>/.test(js2)
+    && /phf-notice-att-cta" href="'\+esc\(a\.linkUrl\)[\s\S]{0,90}Mở liên kết/.test(js2)
+    && /\.phf-notice-att-grid\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(230px,1fr\)\)/.test(cssF)
+    && /\.phf-notice-att-ficon\.f-pdf\{background:#B3261E/.test(cssF));
+  check('95 REFACTOR §4 Báo cáo tiếp nhận index scales to 100+: toolbar (search + Danh mục + Hiệu lực) + result count + real .phf-notice-table with clickable rows -> per-notice report modal (not a one-line list)',
+    /async function renderReportIndex\(ctx\)\{[\s\S]*?setWork\(ctx/.test(js2)
+    && /data-nt-rq[\s\S]{0,400}data-nt-rcat[\s\S]{0,200}data-nt-rstatus/.test(js2)
+    && /class="phf-notice-table is-clickable phf-notice-rindex">/.test(js2)
+    && /host\.querySelectorAll\('\[data-nt-r\]'\)\.forEach\(function\(tr\)\{tr\.onclick=function\(\)\{openReport/.test(js2)
+    && !/phf-notice-rlist">[\s\S]{0,80}<button type="button" data-nt-r/.test(js2)
+    && /\.phf-notice-table\.is-clickable tbody tr\{cursor:pointer/.test(cssF));
+  check('96 REFACTOR §7 report/audit modal: each group is a bordered .phf-notice-rgroup with a STICKY head; table thead sticks BELOW it so the sticky row never covers a data row; groups stay separate; drill-down quick-filters',
+    /function reportGroup\(title,rows\)\{/.test(js2)
+    && /\+reportGroup\('Nhóm áp dụng chính',prim\)/.test(js2)
+    && /class="phf-notice-rgroup"><div class="phf-notice-rgroup-head">/.test(js2)
+    && /QF=\[\['all','Tất cả'\],\['notviewed','Chưa xem'\],\['viewednack','Đã xem, chưa xác nhận'\],\['acked','Đã xác nhận'\]\]/.test(js2)
+    && /class="phf-notice-quickfilters" data-nt-qf>'\+QF\.map/.test(js2)
+    && /\.phf-notice-ov-body \.phf-notice-rgroup-head\{position:sticky;top:0;z-index:30/.test(cssF)
+    && /\.phf-notice-ov-body \.phf-notice-rgroup \.phf-notice-table th\{position:sticky;top:3[68]px;z-index:20/.test(cssF));
+  check('97 REFACTOR §6 typography: font stack unchanged (Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system); screen H1 + card title + body all keyed to tokens, no per-screen px',
+    /\.phf-notice\{[\s\S]{0,1000}font-family:Arial,"Helvetica Neue",Helvetica,system-ui,-apple-system,sans-serif/.test(cssF)
+    && /\.phf-notice-head h1\{font-size:var\(--nt-fs-hero\)/.test(cssF)
+    && /\.phf-notice-card h3\{font-size:var\(--nt-fs-h2\)/.test(cssF));
+  check('98 REFACTOR: ad-hoc per-screen inline styles removed — wizard preview title / cat-modal width / permission banner+hint / step-2 hints now use utility classes',
+    /class="phf-notice-preview-title"/.test(js2)
+    && /phf-notice-cat-modal is-narrow/.test(js2)
+    && /class="phf-notice-warn info is-flush"/.test(js2)
+    && !/style="max-width:440px"/.test(js2)
+    && !/<h1 style="font-size:20px/.test(js2));
+  check('99 REFACTOR: business / permission / schema / workflow UNCHANGED — no new action, no writeTx added, no migration file, dispatch/permission model identical',
+    !svc2.ACTIONS.some((a) => /setStatus|forceExpire|delete.*all|purge/i.test(a))
+    && !fs.existsSync(path.join(REPO, 'migrations/phf_hr_notice_v1_3_uiux.sql'))
+    && /requireAdmin/.test(svcSrc) && /notice\.permissions\.set/.test(svcSrc));
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STRONG UI/UX REFACTOR V2 — visual baseline reset. Business/perm/schema UNCHANGED.
+  // ─────────────────────────────────────────────────────────────────────────
+  check('100 V2 header: deep PHF green bar (--nt-green-header / gradient), confident module identity, high white contrast',
+    /--nt-green-deep:#0B3F24/.test(cssF) && /--nt-green-header:#0D4E2C/.test(cssF)
+    && /\.phf-notice-top\{[\s\S]{0,260}background-image:linear-gradient\(180deg,#12613A/.test(cssF));
+  check('101 V2 sidebar: one width var, strong active state (deep-green fill, white text), same in Admin/Manager/Viewer',
+    /\.phf-notice-nav-items button\.is-active\{background:var\(--nt-green-deep\);color:#fff/.test(cssF)
+    && /--nt-nav-w:236px/.test(cssF));
+  check('102 V2 feed: enterprise news list (single bordered list, priority strip, de-noised badges, sender shown) — not a ticket grid',
+    /\.phf-notice-feed\{[\s\S]{0,140}border:1px solid var\(--nt-line\);border-radius:var\(--nt-radius\);overflow:hidden/.test(cssF)
+    && /\.phf-notice-card::before\{content:"";position:absolute;left:0/.test(cssF)
+    && /\.phf-notice-card\.is-urgent::before\{background:var\(--nt-red\)/.test(cssF)
+    && /\.phf-notice-badge\.type\{background:transparent/.test(cssF)
+    && /var sender=n\.createdByName\?'<span class="phf-notice-sender">'\+esc\(n\.createdByName\)/.test(js2)
+    && /createdByName: r\.created_by_name \|\| '',/.test(read('services/phf-hr-api/lib/notice-service.js')));
+  check('103 V2 Cần tiếp nhận: actionable inbox — compact "N thông báo cần bạn tiếp nhận" summary + why-line + "Đọc & xác nhận" CTA',
+    /class="phf-notice-inbox-summary"><b data-nt-pending>'\+pending\+'<\/b><span>thông báo cần bạn tiếp nhận/.test(js2)
+    && /phf-notice-inbox-why">'\+\(reackNeeded\?'Nội dung đã đổi/.test(js2)
+    && /Đọc &amp; xác nhận →/.test(js2)
+    && /\.phf-notice-feed\.is-inbox \.phf-notice-card::before\{background:var\(--nt-amber\)/.test(cssF));
+  check('104 V2 detail: identity band (title + sender/updated/effective/scope) over a ~71/29 grid; rail = cards (Thông tin liên quan / Tệp đính kèm / Trạng thái tiếp nhận); NO default TOC for short notices',
+    /class="phf-notice-detail-hd">[\s\S]{0,700}<h1>'\+esc\(n\.title\)\+'<\/h1>'[\s\S]{0,40}\+identity/.test(js2)
+    && /var identity='<div class="phf-notice-detail-identity">'/.test(js2)
+    && /\.phf-notice-detail-grid\{display:grid;grid-template-columns:minmax\(0,70fr\) minmax\(320px,30fr\)/.test(cssF)
+    && /\.phf-notice-detail\.has-rail\{max-width:min\(100%,1520px\)/.test(cssF)
+    && /var showToc=\(n\.toc\|\|\[\]\)\.length>=3&&String\(n\.contentText\|\|''\)\.length>1500/.test(js2)
+    && /phf-notice-railcard"><h4>Thông tin liên quan<\/h4>/.test(js2)
+    && /phf-notice-railcard"><h4>Tệp đính kèm<\/h4>/.test(js2)
+    && /phf-notice-rail-ack[\s\S]{0,60}Trạng thái tiếp nhận của bạn/.test(js2)
+    && /@media \(max-width:1200px\)\{[\s\S]{0,400}\.phf-notice-detail-grid\{grid-template-columns:1fr/.test(cssF));
+  check('105 V2 report index: summary cards (Tổng / Đang yêu cầu XN / Chưa hoàn tất / Tỷ lệ) + toolbar w/ sort + progress-bar acceptance table + "Chưa xác nhận" + row drill-down; counts from ONE bulk read-only aggregate',
+    /phf-notice-report-cards" data-nt-rcards/.test(js2)
+    && /Đang yêu cầu xác nhận<\/span>/.test(js2) && /Chưa hoàn tất tiếp nhận<\/span>/.test(js2) && /Tỷ lệ hoàn tất/.test(js2)
+    && /data-nt-rsort/.test(js2) && /Tiếp nhận thấp nhất/.test(js2)
+    && /function progressCell\(acked,total\)\{/.test(js2)
+    && /<th class="c-prog">Tiếp nhận<\/th><th class="c-pend num">Chưa XN<\/th>/.test(js2)
+    && /var ix=await call\('noticeReportIndex',\{\}\)/.test(js2)
+    && /'notice\.report\.index': async \(config, actor, params\) => \{/.test(read('services/phf-hr-api/lib/notice-service.js'))
+    && /READ-ONLY aggregate over EXISTING notice_views/.test(read('services/phf-hr-api/lib/notice-service.js'))
+    && /async function reportIndex\(session\)/.test(read('api/_lib/notice-actions.js')));
+  check('106 V2 attachment: one compact file card component reused in Detail + Editor (icon / name / type·size / CTA); no full-width bar',
+    /function attCardsHtml\(atts\)\{/.test(js2)
+    && /\.phf-notice-att-card\{border-radius:var\(--nt-radius-sm\)/.test(cssF)
+    && /\.phf-notice-detail-rail \.phf-notice-att-grid\{grid-template-columns:1fr/.test(cssF)
+    && !/phf-notice-att-item/.test(js2));
+  check('107 V2 business / permission / schema / workflow UNCHANGED — dispatch model identical, no migration file, notice.report.index is manage-gated read-only',
+    !svc2.ACTIONS.some((a) => /setStatus|forceExpire|purge|deleteAll/i.test(a))
+    && !fs.existsSync(path.join(REPO, 'migrations/phf_hr_notice_v1_3_uiux.sql'))
+    && !fs.existsSync(path.join(REPO, 'migrations/phf_hr_notice_v2.sql'))
+    && /'notice\.report\.index': async \(config, actor, params\) => \{[\r\n\s]*await requireManage\(config, actor\);/.test(read('services/phf-hr-api/lib/notice-service.js')));
+
+  check('108 V3 polish: unified filter/control language + warm palette tokens + audience filter is a styled control (not a raw input)',
+    /class="phf-notice-scopefilter">'\+ICON\.tag\+'<input type="text" data-nt-scope/.test(js2)
+    && /--nt-workspace:#F2F1EC/.test(cssF) && /--nt-green-pale:#F1F7F2/.test(cssF)
+    && /\.phf-notice-scopefilter\{display:inline-flex[\s\S]{0,120}\}/.test(cssF)
+    && /\.phf-notice-toolbar \.phf-notice-search input,\s*\.phf-notice-toolbar select,\s*\.phf-notice-scopefilter,\s*\.phf-notice-toolbar \.phf-notice-check\{height:38px/.test(cssF));
+  check('109 V3 polish: sidebar ivory + detail document-header (pale-green surface + PHF-green top accent) + rail facts as icon·label·value divider rows',
+    /\.phf-notice-nav\{background:var\(--nt-ivory\)/.test(cssF)
+    && /\.phf-notice-detail\{border:1px solid var\(--nt-ivory-line\);border-top:3px solid var\(--nt-green\)/.test(cssF)
+    && /\.phf-notice-detail-hd\{background:var\(--nt-green-pale\)/.test(cssF)
+    && /var factRow=function\(icon,k,v\)\{return '<div><dt>'\+ICON\[icon\]\+'<span>'\+k\+'<\/span><\/dt><dd>'\+v\+'<\/dd><\/div>';\}/.test(js2)
+    && /\.phf-notice-detail-facts>div\{display:flex[\s\S]{0,120}border-bottom:1px solid #F0EEE9/.test(cssF)
+    && /function cleanExcerpt\(s\)\{/.test(js2));
+
+  check('110 Batch A: AI-mascot not over Notice modals + sidebar not hard-capped + report rgroup sticky clip released',
+    /body:has\(\.phf-notice-ov\) \.phf-ai-floating\{display:none/.test(cssF)
+    && /\.phf-notice-nav\{[\s\S]{0,40}height:auto;[\s\S]{0,40}max-height:calc\(100vh - 76px\);[\s\S]{0,60}overflow-y:auto/.test(cssF)
+    && /\.phf-notice-ov-body \.phf-notice-rgroup\{overflow:visible;\}/.test(cssF)
+    && /\.phf-notice-ov-body \.phf-notice-rgroup \.phf-notice-table th\{position:sticky;top:38px/.test(cssF));
+  check('111 Batch A: excerpt marker strip is position-agnostic + Detail list recovery + deterministic category palette (system slugs reserved)',
+    /\.replace\(\/#\{1,6\}\\s\+\/g,''\)/.test(js2)
+    && /function enhanceBodyLists\(body\)\{/.test(js2)
+    && /enhanceBodyLists\(i\.querySelector\('\[data-nt-body\]'\)\)/.test(js2)
+    && /var CAT_NAMED=\{guide:0,process:1,policy:2,regulation:3\};\s*var CAT_HASH_BASE=4;/.test(js2)
+    && /CAT_HASH_BASE\+\(catHash\(slug\)%\(CAT_PALETTE\.length-CAT_HASH_BASE\)\)/.test(js2)
+    && (js2.match(/var CAT_PALETTE=\[([\s\S]*?)\];/)[1].match(/\['#/g) || []).length >= 10);
+
+  check('112 Commercial fix: single focus language (no double ring) + canonical Detail breakpoint 1200 + AI safe-area + ack panel column composition + toast repositioned',
+    /\.phf-notice-scopefilter:focus-within\{[\s\S]{0,120}outline:none!important;[\s\S]{0,120}box-shadow:0 0 0 3px rgba\(27,123,69,\.18\)!important/.test(cssF)
+    && /@media \(min-width:1201px\)\{\s*\.phf-notice-detail-grid\{grid-template-columns:minmax\(0,70fr\) minmax\(320px,30fr\);\}/.test(cssF)
+    && !/@media \(max-width:1040px\)\{/.test(cssF) && !/@media \(max-width:980px\)\{[\s\S]{0,200}phf-notice-detail-grid/.test(cssF)
+    && /@media \(min-width:761px\)\{[\s\S]{0,80}\.phf-notice-work\{padding-bottom:120px;\}/.test(cssF)
+    && /<span class="ack-copy"><span class="ack-primary">Tôi đã đọc và nắm thông tin<\/span><span class="ack-note">/.test(js2)
+    && /\.phf-notice-rail-ack \.ack-copy\{display:flex;flex-direction:column/.test(cssF)
+    && /el\.className='phf-notice-toast';el\.style\.cssText='position:fixed;top:88px/.test(js2));
+  check('113 Commercial fix: priority chip is context-independent (one .phf-notice-badge.prio-* definition wins everywhere) + Report Index fixed column rhythm',
+    /\.phf-notice-badge\.prio-urgent\{\s*background:var\(--nt-red\)!important;color:#fff!important/.test(cssF)
+    && /\.phf-notice-badge\.st-active,\s*\.phf-notice-badge\.st-upcoming,[\s\S]{0,80}background:#EFEEE9!important/.test(cssF)
+    && /\.phf-notice-rindex\{table-layout:fixed/.test(cssF)
+    && /\.phf-notice-rindex \.c-eff\{width:116px;white-space:nowrap;\}/.test(cssF)
+    && /<th class="c-title">Thông báo<\/th><th class="c-prog">Tiếp nhận<\/th><th class="c-pend num">Chưa XN<\/th><th class="c-cat">Danh mục<\/th><th class="c-scope">Áp dụng<\/th><th class="c-eff">Hiệu lực<\/th>/.test(js2)
+    && /class="phf-notice-pend"/.test(js2));
 
   console.log(`\n==== NOTICE Batch 01 OFFLINE checks: ${PASS} PASS / ${FAIL} FAIL ====`);
   process.exit(FAIL ? 1 : 0);
