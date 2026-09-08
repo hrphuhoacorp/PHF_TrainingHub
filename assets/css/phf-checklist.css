@@ -1743,8 +1743,8 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-role-loading.is-compact{min-height:150px;border:0}
 .phfck-self-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
 .phfck-self-context>div{border:1px solid #dfeae5;border-radius:11px;background:#f9fcfa;padding:10px 12px}.phfck-self-context small{display:block;color:#82938c;font-size:9px;text-transform:uppercase}.phfck-self-context b{display:block;margin-top:4px;color:#255344;font-size:11px}
-.phfck-self-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px}
-.phfck-self-row{display:grid;grid-template-columns:minmax(250px,1.5fr) 100px 80px 120px minmax(180px,1fr);gap:9px;align-items:center;min-width:850px;padding:9px 11px;border-bottom:1px solid #e8efeb}
+.phfck-self-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px;background:#fff}
+.phfck-self-row{display:grid;grid-template-columns:minmax(250px,1.5fr) 100px 80px 120px minmax(180px,1fr);gap:9px;align-items:center;min-width:850px;padding:9px 11px;border-bottom:1px solid #e8efeb;background:#fff}
 .phfck-self-row:last-child{border-bottom:0}.phfck-self-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:700;text-transform:uppercase}
 .phfck-self-row div small{display:block;color:#83948d;font-size:8.8px}.phfck-self-row div b{display:block;margin-top:3px;color:#264f41;font-size:10.8px}.phfck-self-row>span{color:#526e64;font-size:10px}
 .phfck-self-row input{width:100%;height:38px;border:1px solid #d6e4dd;border-radius:9px;background:#fff;color:#264f41;padding:0 9px;font:inherit;font-size:10.5px}.phfck-self-row input:disabled{background:#f1f5f3;color:#74877f}
@@ -1800,14 +1800,33 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-review-list i{font-style:normal}
 .phfck-review-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
 .phfck-review-context>div{border:1px solid #dfeae5;border-radius:11px;background:#f9fcfa;padding:10px 12px}.phfck-review-context small{display:block;color:#82938c;font-size:9px;text-transform:uppercase}.phfck-review-context b{display:block;margin-top:4px;color:#255344;font-size:11px}
-.phfck-review-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px}
-.phfck-review-row{display:grid;grid-template-columns:minmax(260px,1.45fr) 100px 130px minmax(210px,1fr);gap:10px;align-items:center;min-width:850px;padding:10px 11px;border-bottom:1px solid #e8efeb}
+.phfck-review-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px;background:#fff}
+.phfck-review-row{display:grid;grid-template-columns:minmax(260px,1.45fr) 100px 130px minmax(210px,1fr);gap:10px;align-items:center;min-width:850px;padding:10px 11px;border-bottom:1px solid #e8efeb;background:#fff}
 .phfck-review-row:last-child{border-bottom:0}.phfck-review-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:700;text-transform:uppercase}
 .phfck-review-row.is-automatic{background:#f7fcf8}
 .phfck-review-row>div small,.phfck-review-row>div b,.phfck-review-row>div span{display:block}.phfck-review-row>div small{color:#82938c;font-size:8.8px}.phfck-review-row>div b{margin-top:3px;color:#244f40;font-size:10.8px}.phfck-review-row>div span{margin-top:3px;color:#7b8e86;font-size:9px}
 .phfck-review-row>strong{color:#245743;font-size:11px}
 .phfck-review-row input,.phfck-review-row textarea{width:100%;box-sizing:border-box;border:1px solid #d5e3dc;border-radius:9px;background:#fff;color:#264f41;padding:8px 9px;font:inherit;font-size:10.5px}.phfck-review-row input{height:39px}.phfck-review-row textarea{resize:vertical}.phfck-review-row input:disabled,.phfck-review-row textarea:disabled{background:#f1f4f2;color:#73857e}
 .phfck-review-warning{margin-top:10px;border:1px solid #e7ca8c;border-radius:11px;background:#fff8e9;padding:10px 12px}.phfck-review-warning b{display:block;color:#855f15;font-size:10.8px}.phfck-review-warning p{margin:3px 0 0;color:#887342;font-size:9.8px}
+
+/* 1.70.3 — Phiếu tháng (Tự đánh giá / Thẩm định / Kết quả): khi kéo ngang trên mobile
+   giữ ĐÚNG layout header và ghim cột "Chỉ tiêu" để luôn thấy CT-01/CT-02/CT-03.
+   .phfck-*-table là vùng cuộn (overflow:auto); mỗi dòng là CSS grid rộng min-width.
+   Ô đầu MỌI dòng (kể cả .is-head) = sticky left cùng nhau nên header luôn thẳng cột
+   với thân khi kéo ngang. Nền ô sticky phải ĐỤC — kế thừa nền dòng (mọi biến thể dòng
+   set background shorthand). Không đổi grid-template-columns / gap / min-width. */
+.phfck-self-row>:first-child,
+.phfck-review-row>:first-child,
+.phfck-employee-result-row>:first-child{position:sticky;left:0;z-index:2;background:inherit;box-shadow:1px 0 0 rgba(20,60,45,.09)}
+.phfck-self-row.is-head>:first-child,
+.phfck-review-row.is-head>:first-child,
+.phfck-employee-result-row.is-head>:first-child{z-index:5}
+/* Header nền gradient (employee / manager-my-work) → background:inherit ra transparent,
+   cần màu đục khớp gradient cho riêng ô sticky. */
+[data-checklist-role="employee"] .phfck-self-row.is-head>:first-child,
+.phfck-manager-my-work .phfck-self-row.is-head>:first-child,
+[data-checklist-role="employee"] .phfck-employee-result-row.is-head>:first-child,
+.phfck-manager-my-work .phfck-employee-result-row.is-head>:first-child{background:#08754f}
 @media(max-width:700px){
   .phfck-review-list>button{grid-template-columns:1fr}.phfck-review-context{grid-template-columns:1fr}
 }
@@ -1837,7 +1856,7 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 @media(max-width:700px){.phfck-admin-review-modal{width:calc(100vw - 12px);max-height:96vh}.phfck-admin-review-modal .phfck-modal-head,.phfck-admin-review-modal .phfck-modal-body,.phfck-admin-review-modal .phfck-modal-foot{padding-left:12px;padding-right:12px}.phfck-admin-review-modal .phfck-modal-foot{flex-wrap:wrap}.phfck-admin-review-modal .phfck-modal-foot button{flex:1 1 140px}}
 
 /* PHF Checklist 1.30.5 — Nhân viên xem kết quả thẩm định */
-.phfck-employee-review-result{margin-top:14px;border:1px solid #cfe4d8;border-radius:14px;background:#fbfefc;padding:14px}.phfck-employee-review-result>.phfck-panel-head{padding:0 0 11px}.phfck-employee-result-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px;background:#fff}.phfck-employee-result-row{display:grid;grid-template-columns:minmax(260px,1.5fr) 120px 140px minmax(220px,1fr);gap:10px;align-items:center;min-width:820px;padding:10px 12px;border-bottom:1px solid #e8efeb}.phfck-employee-result-row:last-child{border-bottom:0}.phfck-employee-result-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:700;text-transform:uppercase}.phfck-employee-result-row.is-automatic{background:#f4fbf6}.phfck-employee-result-row>div small,.phfck-employee-result-row>div b{display:block}.phfck-employee-result-row>div small{color:#82938c;font-size:8.8px}.phfck-employee-result-row>div b{margin-top:3px;color:#244f40;font-size:10.8px}.phfck-employee-result-row>strong{color:#205b43;font-size:11px}.phfck-employee-result-row>span{color:#647c72;font-size:9.8px;line-height:1.45}.phfck-employee-review-note{margin-top:10px;border:1px solid #dce8e2;border-radius:10px;background:#fff;padding:10px 12px}.phfck-employee-review-note small{display:block;color:#82938c;font-size:8.5px}.phfck-employee-review-note p{margin:4px 0 0;color:#345c4e;font-size:10.5px;line-height:1.5}.phfck-employee-history{display:flex;gap:18px;margin-top:11px;padding:10px 12px;border-radius:10px;background:#eef7f1}.phfck-employee-history article{display:grid;grid-template-columns:10px 1fr;gap:7px;align-items:start;flex:1}.phfck-employee-history i{width:8px;height:8px;margin-top:3px;border-radius:50%;background:#329d68;box-shadow:0 0 0 3px #d9ede1}.phfck-employee-history b,.phfck-employee-history span{display:block}.phfck-employee-history b{color:#285143;font-size:10px}.phfck-employee-history span{margin-top:2px;color:#72877e;font-size:9px}
+.phfck-employee-review-result{margin-top:14px;border:1px solid #cfe4d8;border-radius:14px;background:#fbfefc;padding:14px}.phfck-employee-review-result>.phfck-panel-head{padding:0 0 11px}.phfck-employee-result-table{overflow:auto;border:1px solid #dce9e2;border-radius:12px;background:#fff}.phfck-employee-result-row{display:grid;grid-template-columns:minmax(260px,1.5fr) 120px 140px minmax(220px,1fr);gap:10px;align-items:center;min-width:820px;padding:10px 12px;border-bottom:1px solid #e8efeb;background:#fff}.phfck-employee-result-row:last-child{border-bottom:0}.phfck-employee-result-row.is-head{background:#f1f6f3;color:#527066;font-size:9.5px;font-weight:700;text-transform:uppercase}.phfck-employee-result-row.is-automatic{background:#f4fbf6}.phfck-employee-result-row>div small,.phfck-employee-result-row>div b{display:block}.phfck-employee-result-row>div small{color:#82938c;font-size:8.8px}.phfck-employee-result-row>div b{margin-top:3px;color:#244f40;font-size:10.8px}.phfck-employee-result-row>strong{color:#205b43;font-size:11px}.phfck-employee-result-row>span{color:#647c72;font-size:9.8px;line-height:1.45}.phfck-employee-review-note{margin-top:10px;border:1px solid #dce8e2;border-radius:10px;background:#fff;padding:10px 12px}.phfck-employee-review-note small{display:block;color:#82938c;font-size:8.5px}.phfck-employee-review-note p{margin:4px 0 0;color:#345c4e;font-size:10.5px;line-height:1.5}.phfck-employee-history{display:flex;gap:18px;margin-top:11px;padding:10px 12px;border-radius:10px;background:#eef7f1}.phfck-employee-history article{display:grid;grid-template-columns:10px 1fr;gap:7px;align-items:start;flex:1}.phfck-employee-history i{width:8px;height:8px;margin-top:3px;border-radius:50%;background:#329d68;box-shadow:0 0 0 3px #d9ede1}.phfck-employee-history b,.phfck-employee-history span{display:block}.phfck-employee-history b{color:#285143;font-size:10px}.phfck-employee-history span{margin-top:2px;color:#72877e;font-size:9px}
 @media(max-width:700px){.phfck-employee-history{flex-direction:column}}
 
 /* PHF Checklist 1.30.6 — Điểm kết quả cuối */
@@ -5164,10 +5183,18 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 @media(max-width:720px){.phfck-report-range-filters{grid-template-columns:1fr}.phfck-report-range-filters>button{grid-column:auto}}
 
 /* ===== IA V1 (B1–B3) — nav cụm, foot phạm vi, màn Thẩm định, Tổng quan kỳ ===== */
-.phfck-nav-group{display:flex;align-items:center;margin:14px 14px 4px;padding:0}
-.phfck-nav-group:first-child{margin-top:2px}
-.phfck-nav-group span{font-size:10px;font-weight:800;letter-spacing:.09em;color:rgba(255,255,255,.5);text-transform:uppercase}
-.phfck-manager-sidebar .phfck-nav>button+.phfck-nav-group{margin-top:16px}
+/* 1.70.3 — Menu cha (cụm) rõ & trực quan hơn: gạch ngăn phía trên + thanh nhấn nhỏ
+   trước nhãn + chữ to/đậm/tương phản cao hơn. Cùng ngôn ngữ sidebar xanh đậm (nhấn trắng). */
+.phfck-nav-group{display:flex;align-items:center;gap:9px;margin:18px 12px 8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14)}
+.phfck-nav-group:first-child{margin-top:4px;padding-top:0;border-top:0}
+.phfck-nav-group:before{content:"";flex:0 0 auto;width:3px;height:13px;border-radius:2px;background:rgba(255,255,255,.5)}
+.phfck-nav-group span{font-size:11px;font-weight:800;letter-spacing:.11em;color:rgba(255,255,255,.74);text-transform:uppercase}
+.phfck-manager-sidebar .phfck-nav>button+.phfck-nav-group{margin-top:18px}
+@media(max-width:760px){
+  .phfck-manager-sidebar .phfck-nav-group{margin:0 2px 0 6px;padding:0 10px 0 0;border-top:0;border-right:1px solid rgba(255,255,255,.2);align-self:stretch}
+  .phfck-manager-sidebar .phfck-nav-group:before{height:11px}
+  .phfck-manager-sidebar .phfck-nav-group span{font-size:9.5px;letter-spacing:.05em;white-space:nowrap}
+}
 .phfck-scope-line{display:block;margin-top:6px;font-size:11px;line-height:1.4;color:rgba(255,255,255,.68)}
 .phfck-scope-period{margin-top:4px;color:rgba(255,255,255,.82);font-weight:600}
 .phfck-manager-people-status.is-overdue{background:#fdecec;color:#b42318}
