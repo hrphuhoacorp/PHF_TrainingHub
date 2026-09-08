@@ -596,12 +596,27 @@ async function monthlyReviewAccessContext(session){
  const access=await getChecklistMonthlyReviewAccess(session),assistantSelfReview=access.grant?.presetCode==='TRO_LY_GD';
  return {a,access,assistantSelfReview,allowedIds:new Set((access.people||[]).map(x=>t(x.employeeId)).filter(Boolean)),allowedCodes:new Set((access.people||[]).map(x=>t(x.employeeCode).toUpperCase()).filter(Boolean))};
 }
+/*
+ * Historical period visibility (IA V1) — một phiếu thẩm định HIỂN THỊ nếu:
+ *   A. Nhân sự thuộc phạm vi thẩm định HIỆN TẠI của tài khoản (allowedIds/allowedCodes
+ *      = checklist_employee_assignments hiện hành khớp review_scope — hành vi cũ), HOẶC
+ *   B. Tài khoản chính là người thẩm định được GHI TRÊN PHIẾU của kỳ đó
+ *      (form.reviewer_code / form.reviewer_id == actor) — để người thẩm định của kỳ
+ *      trước vẫn XEM được phiếu lịch sử của mình kể cả khi nhân sự sau đó đổi phòng
+ *      ban/chi nhánh/quản lý hoặc rời khỏi review_scope hiện tại.
+ * Nhánh B CHỈ mở rộng khả năng ĐỌC (list + detail). KHÔNG đổi:
+ *   review_scope · phạm vi thẩm định hiện tại/tương lai · quyền GỬI thẩm định
+ *   (saveMonthlyReview giữ nguyên check phạm vi + cửa sổ thời hạn riêng) · admin
+ *   override · permission grants. Không lộ phiếu của người thẩm định khác vì chỉ
+ *   khớp đúng định danh của chính actor.
+ */
 function monthlyReviewVisible(session,context,form){
  if(form.admin_exception_open&&form.status==='waiting_review')return false;
  if(session?.role==='admin')return true;
  const {a,assistantSelfReview,allowedIds,allowedCodes}=context,isOwn=(a.employeeId&&t(form.employee_id)===a.employeeId)||(a.employeeCode&&t(form.employee_code).toUpperCase()===a.employeeCode);
  if(isOwn&&!assistantSelfReview)return false;
- return allowedIds.has(t(form.employee_id))||allowedCodes.has(t(form.employee_code).toUpperCase());
+ if(allowedIds.has(t(form.employee_id))||allowedCodes.has(t(form.employee_code).toUpperCase()))return true;
+ return Boolean((a.employeeCode&&t(form.reviewer_code).toUpperCase()===a.employeeCode)||(a.employeeId&&t(form.reviewer_id)===a.employeeId));
 }
 const MONTHLY_REVIEW_SUMMARY_FIELDS='id,period_id,period_month,employee_id,employee_code,employee_name,department,title,branch,reviewer_id,reviewer_code,reviewer_name,status,checklist_score,checklist_review_score,self_total_score,review_total_score,final_score,self_submitted_at,review_submitted_at,reviewed_by,reviewed_by_code,reviewed_by_name,updated_at,admin_exception_open,pilot_opened_at';
 async function monthlyReviewWindows(periodMonths){
@@ -1044,4 +1059,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible};
