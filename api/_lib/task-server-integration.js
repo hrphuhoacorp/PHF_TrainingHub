@@ -44,7 +44,7 @@ const {
   assembleTaskDetailDto,
 } = require('./task-core');
 const { resolveActorContext, loadOrgRows } = require('./task-employee-scope');
-const { canAssignTaskTo, canAddTaskRelated, resolveTaskViewerAuthority, canProposeTo, listProposalRecipientEmployees } = require('./task-permissions');
+const { canAssignTaskTo, canAddTaskRelated, resolveTaskViewerAuthority, canProposeTo, listProposalRecipientEmployees, resolveEffectiveTaskScope } = require('./task-permissions');
 const { bridgeGetTaskDetail, bridgeListTaskCategories, bridgeListTasks, isTaskEventsBridgeEnabled, bridgeListTaskEvents } = require('./task-read-bridge');
 const {
   bridgeCreateDraftTask,
@@ -532,11 +532,19 @@ async function getTaskDetailViaServer(session, taskId) {
     err.statusCode = 404;
     throw err;
   }
-  await resolveAndAuthorizeView(session, detail.task, detail.assignees);
+  // PERF FIX V1 (2026-09-09) — REQUEST-SCOPED AUTHORIZATION SNAPSHOT. This is
+  // the PROD hot path (PHF_TASK_READ_BRIDGE_GETDETAIL_ENABLED=true). Previously
+  // resolveAndAuthorizeView + resolveTaskViewerAuthority each re-resolved the
+  // effective scope (and RTVA re-resolved it 3–4× more internally) => 6–10
+  // identical task_permission_assignments+grants reads on Supabase MAIN per
+  // detail open. Resolve ONCE here, thread the same immutable snapshot into
+  // both. Datastore, bridge, DTO assembly all unchanged.
+  const effective = await resolveEffectiveTaskScope(session);
+  await resolveAndAuthorizeView(session, detail.task, detail.assignees, effective);
   const [categoriesResult, orgRows, viewer] = await Promise.all([
     bridgeListTaskCategories(),
     loadOrgRows(),
-    resolveTaskViewerAuthority(session, detail.task, detail.assignees),
+    resolveTaskViewerAuthority(session, detail.task, detail.assignees, effective),
   ]);
   const categoryDtoObj = (categoriesResult.categories || []).find(c => c.category_code === detail.task.category_code) || null;
   return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments);

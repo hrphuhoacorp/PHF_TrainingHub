@@ -1092,12 +1092,15 @@ function toRelationAssignees(rows) {
   return (rows || []).map(r => ({ employeeCode: r.employee_code, role: r.role, isActive: r.is_active }));
 }
 
-async function requireView(session, taskRow, assigneeRows) {
+async function requireView(session, taskRow, assigneeRows, preEffective) {
   const relationTask = {
     createdByAccountId: taskRow.created_by_account_id,
     createdByEmployeeCode: taskRow.created_by_employee_code
   };
-  const allowed = await canViewTask(session, relationTask, toRelationAssignees(assigneeRows));
+  // PERF FIX V1 — forward an already-resolved effective scope when the caller
+  // has one for this request (getTaskDetail / getTaskDetailViaServer), so
+  // canViewTask does not re-hit the permission store.
+  const allowed = await canViewTask(session, relationTask, toRelationAssignees(assigneeRows), preEffective);
   if (!allowed) fail('Không có quyền xem task này.', 403, 'TASK_VIEW_DENIED');
 }
 
@@ -1228,10 +1231,15 @@ async function resolveAndAuthorizeComplete(session, assigneeRows) {
 
 // SEAM — addTaskComment/addTaskLink/removeTaskLink: chỉ cần requireView()
 // (xem, không cần update authority) — đúng phân loại đã audit ở S3A.
-async function resolveAndAuthorizeView(session, current, assigneeRows) {
-  const actorContext = await resolveActorContext(session);
+async function resolveAndAuthorizeView(session, current, assigneeRows, preEffective) {
+  // PERF FIX V1 — when a request-scoped effective-scope snapshot is supplied,
+  // reuse its actorContext and thread it into requireView(); otherwise keep the
+  // exact previous behaviour (resolveActorContext does NOT read the permission
+  // store — only the module-cached org snapshot — so leaving it in the no-arg
+  // path costs no extra permission query).
+  const actorContext = preEffective ? preEffective.actorContext : await resolveActorContext(session);
   if (!current) fail('Không tìm thấy task.', 404, 'TASK_NOT_FOUND');
-  await requireView(session, current, assigneeRows);
+  await requireView(session, current, assigneeRows, preEffective);
   return actorContext;
 }
 
@@ -1556,7 +1564,10 @@ async function publishTask(session, taskId, expectedRowVersion) {
 async function getTaskDetail(session, taskId) {
   const task = await loadTaskRow(taskId);
   const assigneeRows = await loadAssignees(taskId);
-  await requireView(session, task, assigneeRows);
+  // PERF FIX V1 — one request-scoped effective-scope snapshot, reused by both
+  // requireView() and resolveTaskViewerAuthority() below.
+  const effective = await resolveEffectiveTaskScope(session);
+  await requireView(session, task, assigneeRows, effective);
 
   ensureDb();
   const [commentsRes, linksRes, eventsRes, categoryRes, orgRows] = await Promise.all([
@@ -1571,7 +1582,7 @@ async function getTaskDetail(session, taskId) {
   if (eventsRes.error) throwDb(eventsRes.error);
   if (categoryRes.error) throwDb(categoryRes.error);
 
-  const viewer = await resolveTaskViewerAuthority(session, task, assigneeRows);
+  const viewer = await resolveTaskViewerAuthority(session, task, assigneeRows, effective);
   return assembleTaskDetailDto(task, assigneeRows, commentsRes.data, linksRes.data, eventsRes.data, categoryDto(categoryRes.data), orgRows, viewer);
 }
 
