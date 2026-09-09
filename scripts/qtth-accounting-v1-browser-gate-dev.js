@@ -33,7 +33,7 @@ async function api(cookie, payload) {
   // ---- A. route + shell + bundle -------------------------------------
   const idx = await (await fetch(BASE + '/')).text();
   const routerJs = await (await fetch(BASE + '/assets/js/phf-url-router.js')).text();
-  const appJs = await (await fetch(BASE + '/assets/js/qtth/phf-qtth-accounting.js?v=1.71.0_qtth_accounting_v1')).text();
+  const appJs = await (await fetch(BASE + '/assets/js/qtth/phf-qtth-accounting.js')).text();
   // local server.js has NO SPA deep-route fallback (every deep path 404s, incl.
   // /admin/thi-dua); the client router owns the route. Verify shell + router entry.
   ck('A. SPA shell served + client router owns /admin/qtth/truth-data/accounting',
@@ -41,9 +41,16 @@ async function api(cookie, payload) {
   ck('bundle phf-qtth-accounting.js served (runtime)', appJs.includes('phfQtthRenderAccounting') && appJs.length > 3000);
   ck('C. screen concept string present', appJs.includes('Dữ liệu chi phí kế toán'));
   ck('B. router registers truth-data/accounting for all 3 roles', /admin\/qtth\/truth-data\/accounting/.test(routerJs) && /hv\/qtth\/truth-data\/accounting/.test(routerJs));
-  const payrollJs = await (await fetch(BASE + '/assets/js/qtth/phf-qtth-payroll.js?v=1.71.0_qtth_accounting_v1')).text();
+  const payrollJs = await (await fetch(BASE + '/assets/js/qtth/phf-qtth-payroll.js')).text();
   ck('B. truth-data dispatcher routes sub=accounting -> phfQtthRenderAccounting', payrollJs.includes("sub === 'accounting'") && payrollJs.includes('phfQtthRenderAccounting'));
   ck('E. bundle never renders raw 86k rows (drilldown slice(0,500) cap)', appJs.includes('slice(0, 500)') || appJs.includes('slice(0,500)'));
+  // UX-only pass: operator-first structure present in the served bundle
+  ck('UX. plain-VN summary + grouped review in the served bundle',
+    appJs.includes('Tóm tắt kỳ') && appJs.includes('phf-qtth-rgroup') && appJs.includes('Cần rà soát') && !/>NEEDS_REVIEW</.test(appJs));
+  ck('UX. technical sections are collapsed folds (phf-qtth-fold, no [open])',
+    appJs.includes('phf-qtth-fold') && !appJs.includes('phf-qtth-fold" open'));
+  const cssTxt = await (await fetch(BASE + '/assets/css/phf-qtth.css?v=1.71.2_qtth_accounting_ux')).text();
+  ck('UX. accounting UX styles served', cssTxt.includes('phf-qtth-rgroup') && cssTxt.includes('phf-qtth-statgrid'));
 
   // ---- session (operator on the QTTH dev allow-list) -----------------
   let cookie, who = '';
@@ -82,8 +89,10 @@ async function api(cookie, payload) {
   const rev = await api(cookie, { action: 'qtthAccountingListNormalized', period_month: PERIOD, classification: 'NEEDS_REVIEW' });
   ck('G. NEEDS_REVIEW drilldown returns 51 lines', rev.rowCount === 51, rev.rowCount);
   const r0 = rev.rows[0] || {};
-  ck('G. each review line carries Tài khoản / Diễn giải / Số tiền / Mã bp / Ngày ct / Số ct',
+  ck('G. each review line carries Tài khoản / Diễn giải / Số tiền / Mã bp / Ngày / Số ct',
     'taiKhoan' in r0 && 'dienGiai' in r0 && 'phatSinhNo' in r0 && 'maBp' in r0 && 'ngayCt' in r0 && 'soCt' in r0, JSON.stringify(Object.keys(r0)));
+  ck('VIETNAMESE_DATE_DISPLAY: ngayCt is DD/MM/YYYY (not ISO datetime)',
+    /^\d{2}\/\d{2}\/\d{4}$/.test(r0.ngayCt) && !/T\d\d:\d\d/.test(String(r0.ngayCt)), r0.ngayCt);
   ck('J. drilldown is bounded (<= 5000, never 86k)', rev.rows.length <= 5000);
 
   // ---- I. confirm / version flow -----------------------------------

@@ -268,3 +268,51 @@
   .phf-qtth-nav-items a.is-active{border-left:0;border-bottom-color:var(--qt-orange);}
   .phf-qtth-dict-grid{grid-template-columns:1fr;}
 }
+
+/* ── ACCOUNTING DATA V1 · Dữ liệu chi phí kế toán (Operator UX) ─────────────
+   Presentation only. Calm, dense, scannable enterprise work screen. Uses the
+   existing QTTH tokens (orange structural accent, white ground, thin lines). */
+.phf-qtth-summary{margin-top:16px;}
+.phf-qtth-summary h3,.phf-qtth-review h3,.phf-qtth-deptsum h3{font-size:13.5px;font-weight:800;margin:0 0 8px;}
+.phf-qtth-statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.phf-qtth-stat{border:1px solid var(--qt-line);border-radius:7px;padding:11px 13px;background:#fff;display:flex;flex-direction:column;gap:2px;}
+.phf-qtth-stat.is-ok{border-left:3px solid #2E7D32;}
+.phf-qtth-stat.is-warn{border-left:3px solid var(--qt-orange);background:var(--qt-orange-wash);}
+.phf-qtth-stat-label{font-size:11.5px;font-weight:700;color:var(--qt-muted);text-transform:uppercase;letter-spacing:.4px;}
+.phf-qtth-stat-rows{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;}
+.phf-qtth-stat-amt{font-size:12.5px;font-variant-numeric:tabular-nums;}
+
+.phf-qtth-actionbar{margin:14px 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.phf-qtth-actionbar .phf-qtth-muted{font-size:12.5px;}
+
+.phf-qtth-review{margin-top:18px;padding-top:14px;border-top:1px solid var(--qt-line);}
+.phf-qtth-rgroup{border:1px solid var(--qt-line);border-radius:7px;padding:10px 12px;margin-bottom:8px;background:#fff;}
+.phf-qtth-rgroup.is-open{border-color:var(--qt-line-strong);box-shadow:var(--qt-shadow);}
+.phf-qtth-rgroup-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.phf-qtth-rgroup-id{display:flex;flex-direction:column;gap:1px;}
+.phf-qtth-rgroup-id b{font-size:14px;font-variant-numeric:tabular-nums;}
+.phf-qtth-rgroup-id span{font-size:12px;}
+.phf-qtth-rgroup-samples{margin:7px 0 2px;padding-left:18px;font-size:12.5px;color:var(--qt-ink);}
+.phf-qtth-rgroup-samples li{margin:1px 0;}
+.phf-qtth-rgroup-dept{margin:3px 0 0;font-size:12px;}
+.phf-qtth-btn.sm{padding:6px 12px;min-height:32px;font-size:12.5px;}
+
+.phf-qtth-deptsum{margin-top:18px;padding-top:14px;border-top:1px solid var(--qt-line);}
+.phf-qtth-deptchip{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:4px;background:#EEF0F2;color:var(--qt-ink);white-space:nowrap;margin:0 4px 4px 0;font-variant-numeric:tabular-nums;}
+.phf-qtth-deptchip.is-warn{background:var(--qt-orange-wash);color:var(--qt-orange-ink);}
+.phf-qtth-note{font-size:12.5px;color:var(--qt-muted);margin:6px 0 0;line-height:1.5;}
+
+.phf-qtth-tech{margin-top:18px;padding-top:6px;}
+.phf-qtth-fold{border-top:1px solid var(--qt-line);}
+.phf-qtth-fold>summary{cursor:pointer;padding:11px 2px;font-size:12.5px;font-weight:700;color:var(--qt-muted);list-style:none;}
+.phf-qtth-fold>summary::-webkit-details-marker{display:none;}
+.phf-qtth-fold>summary::before{content:"▸ ";color:var(--qt-line-strong);}
+.phf-qtth-fold[open]>summary::before{content:"▾ ";}
+.phf-qtth-rawfields>summary{cursor:pointer;font-size:11.5px;color:var(--qt-muted);padding:6px 0;}
+.phf-qtth-table.phf-qtth-table-compact{min-width:0;font-size:12.5px;}
+.phf-qtth-table-compact th{padding:7px 10px;}
+.phf-qtth-table-compact td{padding:7px 10px;}
+
+@media (max-width:900px){
+  .phf-qtth-statgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}

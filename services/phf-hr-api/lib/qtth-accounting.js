@@ -229,13 +229,15 @@ async function listNormalized(config, actor, params) {
     if (cls && ['INCLUDE', 'EXCLUDE', 'NEEDS_REVIEW'].indexOf(cls) >= 0) { vals.push(cls); conds.push('classification = $' + vals.length); }
     if (account) { vals.push(account); conds.push('tai_khoan = $' + vals.length); }
     const r = (await c.query(
-      `SELECT source_row_index, ngay_ct, ma_ct, so_ct, ma_khach, ten_khach, dien_giai, tai_khoan, tk_doi_ung,
+      `SELECT source_row_index,
+              to_char(ngay_ct, 'DD/MM/YYYY') AS ngay_ct, ngay_ct AS ngay_ct_iso,
+              ma_ct, so_ct, ma_khach, ten_khach, dien_giai, tai_khoan, tk_doi_ung,
               phat_sinh_no, ma_bp, ma_bp_out_of_master, classification, classified_by_rule_id, cost_code_status, warnings
        FROM accounting.normalized WHERE ${conds.join(' AND ')} ORDER BY tai_khoan, source_row_index LIMIT 5000`, vals)).rows;
     return {
       periodMonth: pm, version: file.version, status: file.status, isConfirmed: file.status === 'confirmed', rowCount: r.length,
       rows: r.map((x) => ({
-        sourceRowIndex: x.source_row_index, ngayCt: x.ngay_ct, maCt: x.ma_ct, soCt: x.so_ct,
+        sourceRowIndex: x.source_row_index, ngayCt: x.ngay_ct, ngayCtIso: x.ngay_ct_iso, maCt: x.ma_ct, soCt: x.so_ct,
         maKhach: x.ma_khach, tenKhach: x.ten_khach, dienGiai: x.dien_giai,
         taiKhoan: x.tai_khoan, tkDoiUng: x.tk_doi_ung, phatSinhNo: Number(x.phat_sinh_no),
         maBp: x.ma_bp, maBpOutOfMaster: x.ma_bp_out_of_master,
