@@ -837,11 +837,11 @@ function createServer(config) {
       }
 
       // ---------------------------------------------------------------
-      // ---------------------------------------------------------------
-      // POST /v1/qtth - QUAN TRI TONG HOP (QTTH) V1 - Batch 01. LOCAL/DEV ONLY
+      // POST /v1/qtth — QUẢN TRỊ TỔNG HỢP (QTTH) V1 · Batch 01. LOCAL/DEV ONLY
       // (target phf_hr_e2e / throwaway). One route dispatches a QTTH action
-      // against Company PostgreSQL qtth.*. The verified actor is supplied by the
-      // Vercel identity layer across the service-token boundary. Authorization is
+      // against Company PostgreSQL qtth.*. The verified `actor` is supplied by
+      // the Vercel identity layer across the service-token boundary — this
+      // service never resolves identity itself. Authorization is
       // server-authoritative inside qtth-service (system Admin OR an active
       // qtth.permission_manager_grant). No Task/Competition/Notice behaviour touched.
       // ---------------------------------------------------------------
@@ -853,7 +853,7 @@ function createServer(config) {
         }
         let body;
         try {
-          // Batch 02: payroll import (Truth Data) carries a base64 .xlsx - allow
+          // Batch 02: payroll import (Truth Data) carries a base64 .xlsx — allow
           // a 16MB body for /v1/qtth (LOCAL/DEV only). Other actions are tiny.
           body = await readJsonBody(req, 16 * 1024 * 1024);
         } catch (err) {
@@ -861,7 +861,7 @@ function createServer(config) {
         }
         const action = body && body.action;
         if (!action || typeof action !== 'string') {
-          return sendJson(res, 400, { ok: false, code: 'QTTH_ACTION_REQUIRED', message: 'Thieu action.' });
+          return sendJson(res, 400, { ok: false, code: 'QTTH_ACTION_REQUIRED', message: 'Thiếu action.' });
         }
         try {
           const data = await qtthService.dispatch(config, body.actor, action, body.params);
@@ -873,15 +873,17 @@ function createServer(config) {
             return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
           }
           logger.error('qtth_unexpected_error', { path, action, message: err && err.message });
-          return sendJson(res, 500, { ok: false, code: 'QTTH_ERROR', message: 'Loi he thong khi xu ly QTTH.' });
+          return sendJson(res, 500, { ok: false, code: 'QTTH_ERROR', message: 'Lỗi hệ thống khi xử lý QTTH.' });
         }
       }
 
       // ---------------------------------------------------------------
-      // POST /v1/notice - THONG BAO QUAN TRI V1 - Batch 01. LOCAL/DEV ONLY
-      // (target phf_hr_e2e / throwaway). Authorization server-authoritative
-      // inside notice-service (PUBLIC read for every verified actor; MANAGE =
-      // system Admin OR notice.notice_permissions).
+      // POST /v1/notice — THÔNG BÁO QUẢN TRỊ V1 · Batch 01. LOCAL/DEV ONLY
+      // (target phf_hr_e2e / throwaway). The verified `actor` is supplied by
+      // the Vercel identity layer across the service-token boundary — this
+      // service never resolves identity itself. Authorization is
+      // server-authoritative inside notice-service (PUBLIC read for every
+      // verified actor; MANAGE = system Admin OR notice.notice_permissions).
       // ---------------------------------------------------------------
       if (req.method === 'POST' && path === '/v1/notice') {
         const auth = authCheck(req);
@@ -891,14 +893,14 @@ function createServer(config) {
         }
         let body;
         try {
-          // base64 of a 4MB attachment is ~5.4MB; 8MB envelope covers it.
+          // base64 of a 4MB attachment (§19) is ~5.4MB; 8MB envelope covers it.
           body = await readJsonBody(req, 8 * 1024 * 1024);
         } catch (err) {
           return sendJson(res, err.statusCode || 400, { error: err.message || 'BODY_INVALID' });
         }
         const action = body && body.action;
         if (!action || typeof action !== 'string') {
-          return sendJson(res, 400, { ok: false, code: 'NOTICE_ACTION_REQUIRED', message: 'Thieu action.' });
+          return sendJson(res, 400, { ok: false, code: 'NOTICE_ACTION_REQUIRED', message: 'Thiếu action.' });
         }
         try {
           const data = await noticeService.dispatch(config, body.actor, action, body.params);
@@ -909,7 +911,7 @@ function createServer(config) {
             return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
           }
           logger.error('notice_unexpected_error', { path, action, message: err && err.message });
-          return sendJson(res, 500, { ok: false, code: 'NOTICE_ERROR', message: 'Loi he thong khi xu ly Thong bao.' });
+          return sendJson(res, 500, { ok: false, code: 'NOTICE_ERROR', message: 'Lỗi hệ thống khi xử lý Thông báo.' });
         }
       }
 
