@@ -51,9 +51,9 @@
         active: true
       })
       + sourceCard({
-        key: 'accounting', title: 'Chứng từ kế toán', sub: 'Bảng kê chứng từ · Danh mục phí',
-        desc: 'Sẽ triển khai sau. Chưa mở trong giai đoạn này.',
-        active: false
+        key: 'accounting', title: 'Dữ liệu chi phí kế toán', sub: 'Bảng kê chứng từ FAST · Danh mục phí',
+        desc: 'Nhập bảng kê chứng từ theo bộ phận (xuất từ FAST) → hệ thống đọc theo luồng, lọc phát sinh Nợ, khoanh vùng chi phí quản trị (641*/642*), phân loại Đưa vào / Loại trừ / Chờ rà soát, xem trước rồi lưu phiên bản. Chưa có báo cáo — chỉ dựng nền dữ liệu.',
+        active: true
       })
       + '</div>'
       + '</section>';
@@ -662,6 +662,11 @@
     if (top !== 'truth-data') { renderLanding(slot); return; }
     var sub = String(key || '').split('/')[1] || '';
     if (sub === 'payroll') { await renderPayroll(slot); return; }
+    if (sub === 'accounting') {
+      if (typeof window.phfQtthRenderAccounting === 'function') { await window.phfQtthRenderAccounting(slot, boot); return; }
+      slot.innerHTML = '<section class="phf-qtth-card"><p class="phf-qtth-muted">Chưa tải được màn Dữ liệu chi phí kế toán.</p></section>';
+      return;
+    }
     renderLanding(slot);
   };
 
