@@ -19,10 +19,11 @@ const TPL = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-templa
 const NRM = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-normalize'));
 const { readWorkbook } = require(path.join(REPO, 'services/phf-hr-api/lib/xlsx-lite'));
 const { gridToXlsx } = require(path.join(REPO, 'scripts/lib/xlsx-write-lite'));
-const CORP = path.join(REPO, 'scripts/fixtures/payroll');
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+const CORP = resolvePayrollCorpusDir();
 
 function grid(name) {
-  return fs.readFileSync(path.join(CORP, name + '.tsv'), 'utf8')
+  return fs.readFileSync(path.join(CORP, (name === 'T7' ? 'T7_CANONICAL' : name) + '.tsv'), 'utf8')
     .replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t'));
 }
 function rec(nm, code) { return nm.records.find((r) => r.employeeCode === code); }

@@ -45,7 +45,8 @@ function tcpOpen(port) { return new Promise((res) => { const s = net.connect(por
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function waitHealth(u, ms) { const end = Date.now() + ms; while (Date.now() < end) { try { const r = await fetch(u); if (r.status === 200) return true; } catch (_) {} await sleep(200); } return false; }
 function psql(sql) { return execFileSync('ssh', ['claude-phf', `docker exec ${THROWAWAY_CONTAINER} psql -U postgres -d phf_hr_e2e -tAc "${sql.replace(/"/g, '\\"')}"`], { encoding: 'utf8' }).trim(); }
-function tsvGrid(name) { return fs.readFileSync(path.join(REPO, 'scripts/fixtures/payroll', name), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t')); }
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+function tsvGrid(name) { const dir = resolvePayrollCorpusDir(); const fn = name === 'T7.tsv' ? 'T7_CANONICAL.tsv' : name; return fs.readFileSync(path.join(dir, fn), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t')); }
 
 let PASS = 0, FAIL = 0;
 function check(name, cond, extra) { if (cond) { PASS++; console.log('  PASS  ' + name); } else { FAIL++; console.error('  FAIL  ' + name + (extra ? '  -> ' + extra : '')); } }

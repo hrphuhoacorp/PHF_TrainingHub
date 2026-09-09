@@ -17,7 +17,8 @@ const TPL = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-templa
 const NRM = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-normalize'));
 const COST = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-cost-model'));
 
-const CORPUS = path.join(REPO, 'docs/payroll-corpus');
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+const CORPUS = resolvePayrollCorpusDir();
 const FILES = { T1:'T1.tsv', T2:'T2.tsv', T3:'T3.tsv', T4:'T4.tsv', T5:'T5.tsv', T6:'T6.tsv', T7:'T7_CANONICAL.tsv' };
 
 let pass = 0, fail = 0;

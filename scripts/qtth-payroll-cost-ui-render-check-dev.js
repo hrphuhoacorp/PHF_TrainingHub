@@ -19,7 +19,8 @@ const COST = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-cost-
 
 // --- build a realistic cost object from real T7 ---
 function readTsv(f) { let s = fs.readFileSync(f, 'utf8'); if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1); return s.split(/\r?\n/).map((l) => l.split('\t')); }
-const T7 = readTsv(path.join(REPO, 'docs/payroll-corpus/T7_CANONICAL.tsv'));
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+const T7 = readTsv(path.join(resolvePayrollCorpusDir(), 'T7_CANONICAL.tsv'));
 const b = TPL.buildColumnMap(T7);
 const nr = NRM.normalizeGrid(T7, b.map, {});
 const agg = COST.aggregatePeriodCost(nr.records);
