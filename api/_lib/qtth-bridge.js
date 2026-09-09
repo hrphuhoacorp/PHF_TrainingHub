@@ -15,6 +15,9 @@ const PHF_HR_API_BASE_URL = String(process.env.PHF_HR_API_BASE_URL || '').trim()
 const PHF_HR_API_SERVICE_TOKEN = String(process.env.PHF_HR_API_SERVICE_TOKEN || '').trim();
 const BRIDGE_TIMEOUT_MS = 8000;
 const BRIDGE_TIMEOUT_MS_PAYROLL = 25000; // payroll import (parse + normalize + persist) is heavier
+// accounting.uploadPreview streams + classifies a ~73MB FAST worksheet then
+// persists ~350 rows — give it the same generous window as payroll import.
+const BRIDGE_TIMEOUT_MS_ACCOUNTING = 45000;
 
 function isQtthBridgeEnabled() {
   return String(process.env.PHF_QTTH_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -42,7 +45,10 @@ async function callQtthAction(action, actor, params) {
   preflightCheck();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), /^payroll\./.test(action) ? BRIDGE_TIMEOUT_MS_PAYROLL : BRIDGE_TIMEOUT_MS);
+  const timeoutMs = /^payroll\./.test(action) ? BRIDGE_TIMEOUT_MS_PAYROLL
+    : (action === 'accounting.uploadPreview' || action === 'accounting.decideItem' || action === 'accounting.setRuleActive' || action === 'accounting.importDictionary') ? BRIDGE_TIMEOUT_MS_ACCOUNTING
+      : BRIDGE_TIMEOUT_MS;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response;
   try {
     response = await fetch(PHF_HR_API_BASE_URL + '/v1/qtth', {

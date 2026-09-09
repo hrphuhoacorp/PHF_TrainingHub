@@ -251,6 +251,21 @@ const ACCOUNTING_ACTION_MAP = {
   qtthAccountingDictionaryStatus: () => ({ remote: 'accounting.dictionaryStatus', params: {} }),
   qtthAccountingImportDictionary: (p) => ({ remote: 'accounting.importDictionary', params: {
     fileName: str(p.file_name), fileBase64: str(p.file_base64) } }),
+  qtthAccountingListCategories: (p) => ({ remote: 'accounting.listCategories', params: { account: str(p.account) } }),
+  qtthAccountingDecideItem: (p) => ({ remote: 'accounting.decideItem', params: {
+    fileId: str(p.file_id),
+    sourceRowIndexes: Array.isArray(p.source_row_indexes) ? p.source_row_indexes.map(Number).filter(Number.isFinite)
+      : (p.source_row_index != null && p.source_row_index !== '' ? [Number(p.source_row_index)] : []),
+    decision: str(p.decision),
+    costCode: str(p.cost_code), costCodeName: str(p.cost_code_name),
+    note: str(p.note),
+    remember: p.remember === true || p.remember === 'true',
+    matchText: str(p.match_text),
+  } }),
+  qtthAccountingListRememberedRules: () => ({ remote: 'accounting.listRememberedRules', params: {} }),
+  qtthAccountingRuleHistory: (p) => ({ remote: 'accounting.ruleHistory', params: { ruleId: str(p.rule_id) } }),
+  qtthAccountingSetRuleActive: (p) => ({ remote: 'accounting.setRuleActive', params: {
+    ruleId: str(p.rule_id), isActive: p.is_active === true || p.is_active === 'true', reason: str(p.reason) } }),
 };
 
 async function dispatchAccounting(session, payload, action) {
@@ -301,6 +316,8 @@ const QTTH_ACTION_MANIFEST = Object.freeze([
   'qtthAccountingStatus', 'qtthAccountingPreview', 'qtthAccountingConfirm',
   'qtthAccountingListNormalized', 'qtthAccountingListRules',
   'qtthAccountingDictionaryStatus', 'qtthAccountingImportDictionary',
+  'qtthAccountingListCategories', 'qtthAccountingDecideItem',
+  'qtthAccountingListRememberedRules', 'qtthAccountingRuleHistory', 'qtthAccountingSetRuleActive',
 ]);
 
 // The dedicated binary upload endpoint (api/qtth-accounting-upload.js) needs the

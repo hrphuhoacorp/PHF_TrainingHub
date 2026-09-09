@@ -80,6 +80,9 @@ async function runFunnel(buffer, opts) {
       maBp: row.maBp, maBpOutOfMaster: oom,
       classification: verdict.classification,
       classifiedByRuleId: verdict.ruleId,
+      decisionSource: verdict.source === 'operator_rule' ? 'operator_rule' : 'engine',
+      costCode: verdict.costCode || null,
+      costCodeName: verdict.costCodeName || null,
       warnings: oom ? ['MA_BP_OUT_OF_MASTER'] : [],
     });
   });
