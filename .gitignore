@@ -54,3 +54,10 @@ scripts/*.result.json
 # QTTH Accounting Data V1 — operator source files (FAST export, cost dictionary,
 # KTT management-cost reference). CHỨA DỮ LIỆU KẾ TOÁN THẬT — never commit.
 /phf-qtth-input/
+
+# QTTH Truth Data PROD bootstrap — CONFIDENTIAL payloads (employee-level payroll
+# salary + vendor/customer accounting rows). Machine-fed to the importer ONLY,
+# NEVER committed. Only the sanitized manifest/*.json (counts/fingerprints/totals)
+# under docs/qtth-truth-bootstrap/ is committable.
+/scripts/qtth-truth-bootstrap/_secure/
+/scripts/qtth-truth-bootstrap/*.secure.json
