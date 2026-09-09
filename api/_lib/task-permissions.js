@@ -409,8 +409,18 @@ const RELATION_VIEW_ALLOWED = new Set(['creator', 'primary', 'related']);
 // đóng gap: NHÂN VIÊN thường không được auto-view chỉ vì trùng manager_employee_code).
 const MANAGER_VIEW_ACTOR_TYPES = new Set(['truong_bo_phan', 'truong_ca', 'giam_doc', 'tro_ly_gd']);
 
-async function canViewTask(session, task, assignees) {
-  const { actorContext, scope } = await resolveEffectiveTaskScope(session);
+// PERF FIX V1 (2026-09-09) — REQUEST-SCOPED AUTHORIZATION SNAPSHOT.
+// `preEffective` is an already-resolved resolveEffectiveTaskScope() result
+// ({ actorContext, scope, authorityPeopleScope, assignment, grants }). When a
+// caller (resolveTaskViewerAuthority / requireView / getTaskDetail(ViaServer))
+// has already resolved the effective scope for THIS request it passes it in so
+// the permission-store reads (task_permission_assignments + task_permission_
+// grants on Supabase MAIN) happen once per request, not 3–5×. Zero business
+// change: resolveEffectiveTaskScope is a pure function of (session identity,
+// assignment rows, grant rows, org snapshot) and none of those change within a
+// request. Omitting the arg keeps the exact previous behaviour.
+async function canViewTask(session, task, assignees, preEffective) {
+  const { actorContext, scope } = preEffective || await resolveEffectiveTaskScope(session);
   if (actorContext.actorType === 'admin') return true;
   const relation = await classifyTaskRelation(actorContext, task, assignees);
   if (RELATION_VIEW_ALLOWED.has(relation)) return true;
@@ -456,8 +466,8 @@ async function canViewTask(session, task, assignees) {
 const INTERVENTION_EXECUTIVE_ACTOR_TYPES = Object.freeze(new Set(['giam_doc', 'tro_ly_gd']));
 const TASK_INTERVENTION_BASES = Object.freeze(new Set(['system_admin', 'executive_authority', 'active_primary', 'exception_grant', 'creator']));
 
-async function resolveUpdateAuthorityBasis(session, task, assignees) {
-  const { actorContext, scope, authorityPeopleScope } = await resolveEffectiveTaskScope(session);
+async function resolveUpdateAuthorityBasis(session, task, assignees, preEffective) {
+  const { actorContext, scope, authorityPeopleScope } = preEffective || await resolveEffectiveTaskScope(session);
   if (actorContext.actorType === 'admin') return 'system_admin';
   if (!scope.capabilities.update) return null;
 
@@ -504,8 +514,8 @@ async function canUpdateTask(session, task, assignees) {
 // exception_grant). The creator/assigner is handled by the caller's
 // actorOwnsTask shortcut (basis 'creator'). A plain active primary must use
 // the "Yêu cầu hủy" request flow instead.
-async function resolveDirectCancelAuthorityBasis(session, task, assignees) {
-  const { actorContext, scope, authorityPeopleScope } = await resolveEffectiveTaskScope(session);
+async function resolveDirectCancelAuthorityBasis(session, task, assignees, preEffective) {
+  const { actorContext, scope, authorityPeopleScope } = preEffective || await resolveEffectiveTaskScope(session);
   if (actorContext.actorType === 'admin') return 'system_admin';
   if (!scope.capabilities.update) return null;
 
@@ -588,8 +598,14 @@ function toViewerAssignees(rows) {
  * managed_view_only == true is the read-only "đang theo dõi" mode: viewer is
  * manager_of_primary with no intervention authority.
  */
-async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
-  const { actorContext } = await resolveEffectiveTaskScope(session);
+async function resolveTaskViewerAuthority(session, taskRow, assigneeRows, preEffective) {
+  // PERF FIX V1 — resolve the effective scope AT MOST ONCE here and thread the
+  // SAME immutable snapshot into every downstream gate (canViewTask /
+  // resolveUpdateAuthorityBasis / resolveDirectCancelAuthorityBasis). No
+  // permission math is copied — the delegates are called unchanged, they just
+  // skip their own re-resolution when handed the snapshot.
+  const effective = preEffective || await resolveEffectiveTaskScope(session);
+  const { actorContext } = effective;
   const relationTask = {
     createdByAccountId: text(taskRow && (taskRow.created_by_account_id !== undefined ? taskRow.created_by_account_id : taskRow.createdByAccountId)),
     createdByEmployeeCode: code(taskRow && (taskRow.created_by_employee_code !== undefined ? taskRow.created_by_employee_code : taskRow.createdByEmployeeCode))
@@ -604,15 +620,15 @@ async function resolveTaskViewerAuthority(session, taskRow, assigneeRows) {
   const activePrimary = assignees.find(a => a.role === 'primary' && a.isActive);
   const isActivePrimary = !!(activePrimary && actorContext.employeeCode && activePrimary.employeeCode === code(actorContext.employeeCode));
 
-  const canView = isAdmin ? true : await canViewTask(session, relationTask, assignees);
-  const updateBasis = canView ? (isCreator ? 'creator' : await resolveUpdateAuthorityBasis(session, relationTask, assignees)) : null;
+  const canView = isAdmin ? true : await canViewTask(session, relationTask, assignees, effective);
+  const updateBasis = canView ? (isCreator ? 'creator' : await resolveUpdateAuthorityBasis(session, relationTask, assignees, effective)) : null;
   const canUpdate = !!updateBasis;
 
   // CANCEL POLICY V1 — DIRECT cancel = creator OR an authorised management
   // basis (system_admin / executive_authority / exception_grant). A plain
   // active primary is excluded and gets the request flow instead.
   const directCancelBasis = canView
-    ? (isCreator ? 'creator' : await resolveDirectCancelAuthorityBasis(session, relationTask, assignees))
+    ? (isCreator ? 'creator' : await resolveDirectCancelAuthorityBasis(session, relationTask, assignees, effective))
     : null;
   const canDirectCancel = !!directCancelBasis;
   const canRequestCancel = isActivePrimary && !canDirectCancel;
