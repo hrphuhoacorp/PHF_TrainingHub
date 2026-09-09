@@ -216,10 +216,16 @@ async function listNormalized(config, actor, params) {
   const account = params && params.account ? String(params.account).trim() : null;
   return readTx(config, async (c) => {
     const imp = (await c.query('SELECT * FROM accounting.import WHERE period_month = $1', [pm])).rows[0];
-    if (!imp || !imp.current_file_id) return { periodMonth: pm, version: null, rows: [] };
-    const file = (await c.query('SELECT version FROM accounting.import_file WHERE id = $1', [imp.current_file_id])).rows[0];
+    if (!imp) return { periodMonth: pm, version: null, status: null, rows: [] };
+    // Prefer the confirmed current version; before confirm, fall back to the
+    // latest previewed version so the Operator can review NEEDS_REVIEW evidence
+    // line-by-line BEFORE deciding to confirm.
+    let file = imp.current_file_id
+      ? (await c.query('SELECT id, version, status FROM accounting.import_file WHERE id = $1', [imp.current_file_id])).rows[0]
+      : (await c.query("SELECT id, version, status FROM accounting.import_file WHERE import_id = $1 ORDER BY (status='previewed') DESC, version DESC LIMIT 1", [imp.id])).rows[0];
+    if (!file) return { periodMonth: pm, version: null, status: null, rows: [] };
     const conds = ['file_id = $1'];
-    const vals = [imp.current_file_id];
+    const vals = [file.id];
     if (cls && ['INCLUDE', 'EXCLUDE', 'NEEDS_REVIEW'].indexOf(cls) >= 0) { vals.push(cls); conds.push('classification = $' + vals.length); }
     if (account) { vals.push(account); conds.push('tai_khoan = $' + vals.length); }
     const r = (await c.query(
@@ -227,7 +233,7 @@ async function listNormalized(config, actor, params) {
               phat_sinh_no, ma_bp, ma_bp_out_of_master, classification, classified_by_rule_id, cost_code_status, warnings
        FROM accounting.normalized WHERE ${conds.join(' AND ')} ORDER BY tai_khoan, source_row_index LIMIT 5000`, vals)).rows;
     return {
-      periodMonth: pm, version: file ? file.version : null, rowCount: r.length,
+      periodMonth: pm, version: file.version, status: file.status, isConfirmed: file.status === 'confirmed', rowCount: r.length,
       rows: r.map((x) => ({
         sourceRowIndex: x.source_row_index, ngayCt: x.ngay_ct, maCt: x.ma_ct, soCt: x.so_ct,
         maKhach: x.ma_khach, tenKhach: x.ten_khach, dienGiai: x.dien_giai,

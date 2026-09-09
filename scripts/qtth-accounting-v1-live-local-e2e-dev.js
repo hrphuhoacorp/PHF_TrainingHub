@@ -135,7 +135,9 @@ async function expectThrow(name, fn, codeWanted) {
   const stPre = await D(S_OP, { action: 'qtthAccountingStatus', period_month: PERIOD });
   check('sau preview: chưa có "current"', stPre.exists === true && !stPre.current && stPre.versions[0].status === 'previewed');
   const listPre = await D(S_OP, { action: 'qtthAccountingListNormalized', period_month: PERIOD });
-  check('listNormalized rỗng trước confirm', (listPre.rows || []).length === 0);
+  check('listNormalized trước confirm: trả dòng của bản previewed (để Operator rà soát), isConfirmed=false',
+    (listPre.rows || []).length === 350 && listPre.isConfirmed === false && listPre.status === 'previewed',
+    JSON.stringify({ n: (listPre.rows || []).length, status: listPre.status, isConfirmed: listPre.isConfirmed }));
 
   // RAW_ROWS_SAVED_AS_FACT = 0
   check('DB: normalized rows = 350 (KHÔNG 86k)', psql('select count(*) from accounting.normalized') === '350');

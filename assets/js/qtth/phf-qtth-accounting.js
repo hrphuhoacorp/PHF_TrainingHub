@@ -41,8 +41,11 @@
         call('qtthAccountingListRules', {})
       ]);
       A.status = r[0]; A.dict = r[1]; A.rules = r[2];
+      // Show the funnel from the current confirmed version, else from the latest
+      // previewed version so the Operator can review BEFORE confirming.
       var cur = A.status && A.status.current;
-      A.preview = cur ? await call('qtthAccountingPreview', { file_id: cur.fileId }) : null;
+      var latest = cur || (A.status && A.status.versions && A.status.versions[0]);
+      A.preview = latest ? await call('qtthAccountingPreview', { file_id: latest.fileId }) : null;
     } catch (e) {
       slot.innerHTML = card('<h2>Dữ liệu chi phí kế toán</h2><p class="phf-qtth-error">' + esc(e.message) + '</p>' + backBtn());
       return;
@@ -96,7 +99,7 @@
 
   function funnelBlock(rep, st) {
     var t = rep.totals, a = rep.amounts;
-    var cur = st.current;
+    var cur = st.current || (st.versions && st.versions[0]) || null;
     var canConfirm = cur && cur.status === 'previewed';
     return '<div class="phf-qtth-funnel">'
       + '<h3>Xem trước — phễu lọc kỳ ' + esc(rep.meta.fromDate || A.period) + ' → ' + esc(rep.meta.toDate || '') + '</h3>'
