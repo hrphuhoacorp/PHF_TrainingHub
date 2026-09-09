@@ -25,6 +25,13 @@ class AccountingError extends Error {
 function aErr(code, message, statusCode) { return new AccountingError(code, message, statusCode); }
 function mapPg(e) {
   const c = String((e && e.code) || '');
+  // DB connectivity (dev: SSH tunnel to the throwaway PG can drop). Surface a
+  // clear, retryable message instead of a generic system error — the operator's
+  // click simply never reached the DB; nothing was written.
+  if (c === 'ECONNREFUSED' || c === 'ETIMEDOUT' || c === 'ENOTFOUND' || c === 'ECONNRESET'
+    || /ECONNREFUSED|ETIMEDOUT|Connection terminated|timeout expired/i.test(String(e && e.message || ''))) {
+    return aErr('ACCOUNTING_DB_UNREACHABLE', 'Chưa kết nối được cơ sở dữ liệu — thao tác chưa được ghi. Vui lòng thử lại.', 503);
+  }
   if (c === '23505') return aErr('ACCOUNTING_DUPLICATE', 'Bản ghi trùng.', 409);
   if (c === '42P01' || c === '3F000') return aErr('ACCOUNTING_SCHEMA_MISSING', 'Schema accounting chưa được cài đặt (migrations/phf_hr_qtth_accounting_v1.sql).', 503);
   if (c === '42501') return aErr('ACCOUNTING_PERMISSION_DENIED', 'Thiếu quyền CSDL accounting.', 500);
