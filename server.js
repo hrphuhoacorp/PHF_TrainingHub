@@ -932,6 +932,14 @@ const server = http.createServer(async (req, res) => {
       return handleTaskAttachmentRequest(req, res);
     }
 
+    if (pathname === '/api/qtth-accounting-upload') {
+      // QTTH Truth Data · Dữ liệu chi phí kế toán — dedicated binary endpoint
+      // for the ~4MB FAST export (see api/_lib/qtth-accounting-endpoint.js).
+      // Raw request body — NOT readBody(). LOCAL ONLY, flag PHF_QTTH_BRIDGE_ENABLED.
+      const { handleQtthAccountingUpload } = require('./api/_lib/qtth-accounting-endpoint');
+      return handleQtthAccountingUpload(req, res);
+    }
+
     if (pathname === '/api/data') {
       assertSameOrigin(req);
       const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);

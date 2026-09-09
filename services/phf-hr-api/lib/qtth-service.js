@@ -500,6 +500,17 @@ for (const act of payrollService.ACTIONS) {
   };
 }
 
+// QTTH Truth Data · Dữ liệu chi phí kế toán (Accounting Data V1). Same
+// development-access lock + permission-manager gate. FAST export -> streaming
+// parse -> classification engine -> Preview -> Confirm -> normalized cost truth.
+const accountingService = require('./qtth-accounting');
+for (const act of accountingService.ACTIONS) {
+  HANDLERS[act] = async (config, actor, params) => {
+    await requirePermissionManager(config, actor);
+    return accountingService.dispatch(config, actor, act, params);
+  };
+}
+
 const ACTIONS = Object.freeze(Object.keys(HANDLERS));
 
 async function dispatch(config, rawActor, action, params) {

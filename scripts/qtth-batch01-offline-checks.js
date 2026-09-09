@@ -30,7 +30,10 @@ ok('Vercel <-> phf-hr-api action parity', () => {
     'qtth.history.permission', 'qtth.history.classification',
   ]);
   for (const r of remotes) assert.ok(svc.ACTIONS.indexOf(r) >= 0, 'phf-hr-api missing handler: ' + r);
-  for (const a of svc.ACTIONS) assert.ok(remotes.has(a) || a.startsWith('payroll.'), 'phf-hr-api has an unexpected handler: ' + a);
+  // payroll.* is reached via the qtth-actions payroll map; accounting.* small
+  // actions via the qtth-actions accounting map + accounting.uploadPreview via
+  // the dedicated binary endpoint api/_lib/qtth-accounting-endpoint.js.
+  for (const a of svc.ACTIONS) assert.ok(remotes.has(a) || a.startsWith('payroll.') || a.startsWith('accounting.'), 'phf-hr-api has an unexpected handler: ' + a);
 });
 
 // 3. service authorization: non-admin non-manager rejected

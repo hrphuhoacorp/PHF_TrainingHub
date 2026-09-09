@@ -867,7 +867,8 @@ function createServer(config) {
           const data = await qtthService.dispatch(config, body.actor, action, body.params);
           return sendJson(res, 200, { ok: true, data });
         } catch (err) {
-          if (err instanceof QtthError || (err && err.isQtthError) || (err && err.isPayrollError) || (err && err.isXlsxLiteError) || (err && err.isPayrollStorageError)) {
+          if (err instanceof QtthError || (err && err.isQtthError) || (err && err.isPayrollError) || (err && err.isXlsxLiteError) || (err && err.isPayrollStorageError)
+              || (err && (err.isAccountingError || err.isAccountingXlsxError || err.isAccountingStorageError || err.isAccountingDictError))) {
             logger.warn('qtth_rejected', { path, action, code: err.code });
             return sendJson(res, err.statusCode || 400, { ok: false, code: err.code, message: err.message });
           }

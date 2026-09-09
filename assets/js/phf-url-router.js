@@ -532,9 +532,9 @@
   // Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION, HR shell. Namespace
   // role guard + server/route capability guard (see the /qtth branch in
   // render()). 3 top-level sections: qtth / van-hanh / phan-quyen.
-  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/truth-data','/hv/qtth/truth-data/payroll','/hv/qtth/phan-quyen');
-  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/truth-data','/ql/qtth/truth-data/payroll','/ql/qtth/phan-quyen');
-  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/truth-data','/admin/qtth/truth-data/payroll','/admin/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/truth-data','/hv/qtth/truth-data/payroll','/hv/qtth/truth-data/accounting','/hv/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/truth-data','/ql/qtth/truth-data/payroll','/ql/qtth/truth-data/accounting','/ql/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/truth-data','/admin/qtth/truth-data/payroll','/admin/qtth/truth-data/accounting','/admin/qtth/phan-quyen');
   // Thông báo Quản trị (Notice) V1 — PUBLIC-READ module, HR shell (#phfHrRoot).
   // Every authenticated role reaches /{p}/thong-bao (feed) + /{p}/thong-bao/n/:id
   // (detail). /{p}/thong-bao/quyen (permission screen) is admitted for all roles

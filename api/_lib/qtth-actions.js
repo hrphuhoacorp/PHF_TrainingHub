@@ -236,11 +236,38 @@ async function dispatchPayroll(session, payload, action) {
   return callQtthAction(build.remote, actor, params);
 }
 
+// QTTH Truth Data · Dữ liệu chi phí kế toán (Accounting Data V1). Small JSON
+// actions only — the FAST source upload (~5.5MB base64) goes through the
+// dedicated binary endpoint api/qtth-accounting-upload.js, NOT /api/data.
+const ACCOUNTING_ACTION_MAP = {
+  qtthAccountingStatus: (p) => ({ remote: 'accounting.status', params: { periodMonth: str(p.period_month || p.period) } }),
+  qtthAccountingPreview: (p) => ({ remote: 'accounting.preview', params: {
+    fileId: str(p.file_id), periodMonth: str(p.period_month || p.period),
+    version: (p.version === 0 || p.version) ? Number(p.version) : undefined } }),
+  qtthAccountingConfirm: (p) => ({ remote: 'accounting.confirm', params: { fileId: str(p.file_id) } }),
+  qtthAccountingListNormalized: (p) => ({ remote: 'accounting.listNormalized', params: {
+    periodMonth: str(p.period_month || p.period), classification: str(p.classification), account: str(p.account) } }),
+  qtthAccountingListRules: () => ({ remote: 'accounting.listRules', params: {} }),
+  qtthAccountingDictionaryStatus: () => ({ remote: 'accounting.dictionaryStatus', params: {} }),
+  qtthAccountingImportDictionary: (p) => ({ remote: 'accounting.importDictionary', params: {
+    fileName: str(p.file_name), fileBase64: str(p.file_base64) } }),
+};
+
+async function dispatchAccounting(session, payload, action) {
+  const actor = await resolveQtthActor(session);
+  await ensureManageAuthority(actor);
+  const build = ACCOUNTING_ACTION_MAP[action](payload || {});
+  return callQtthAction(build.remote, actor, build.params);
+}
+
 async function dispatchQtthAction(session, payload) {
   const action = String((payload && payload.action) || '').trim();
 
   if (PAYROLL_ACTION_MAP[action]) {
     return { handled: true, result: await dispatchPayroll(session, payload || {}, action) };
+  }
+  if (ACCOUNTING_ACTION_MAP[action]) {
+    return { handled: true, result: await dispatchAccounting(session, payload || {}, action) };
   }
 
   if (action === 'qtthListRoster') {
@@ -271,6 +298,22 @@ const QTTH_ACTION_MANIFEST = Object.freeze([
   'qtthPermissionHistory', 'qtthClassificationHistory',
   'qtthPayrollStatus', 'qtthPayrollValidatePreview', 'qtthPayrollConfirm',
   'qtthPayrollListNormalized', 'qtthPayrollEmployeeDetail', 'qtthPayrollCostTruth',
+  'qtthAccountingStatus', 'qtthAccountingPreview', 'qtthAccountingConfirm',
+  'qtthAccountingListNormalized', 'qtthAccountingListRules',
+  'qtthAccountingDictionaryStatus', 'qtthAccountingImportDictionary',
 ]);
 
-module.exports = { dispatchQtthAction, QTTH_ACTION_MANIFEST };
+// The dedicated binary upload endpoint (api/qtth-accounting-upload.js) needs the
+// same verified-actor + manage-authority + bridge path without going through
+// /api/data. Exported for that endpoint only.
+async function accountingUploadPreviewViaBridge(session, { periodMonth, fileName, buffer }) {
+  const actor = await resolveQtthActor(session);
+  await ensureManageAuthority(actor);
+  return callQtthAction('accounting.uploadPreview', actor, {
+    periodMonth: str(periodMonth),
+    fileName: str(fileName),
+    fileBase64: Buffer.isBuffer(buffer) ? buffer.toString('base64') : String(buffer || ''),
+  });
+}
+
+module.exports = { dispatchQtthAction, QTTH_ACTION_MANIFEST, accountingUploadPreviewViaBridge };

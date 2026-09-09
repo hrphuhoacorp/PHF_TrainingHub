@@ -50,3 +50,7 @@ scripts/*.result.json
 # PHF Task Mail V1 — offline HTML previews generated from SYNTHETIC demo data
 # for visual review only (scripts/task-mail-preview-generate.js). Not fixtures.
 /tmp/
+
+# QTTH Accounting Data V1 — operator source files (FAST export, cost dictionary,
+# KTT management-cost reference). CHỨA DỮ LIỆU KẾ TOÁN THẬT — never commit.
+/phf-qtth-input/
