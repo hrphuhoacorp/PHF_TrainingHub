@@ -17,6 +17,30 @@
 
 const RULE_VERSION = 'v1';
 
+// Deterministic, inspectable text normalization for operator "remembered rule"
+// description matching. NO fuzzy/semantic logic:
+//   lowercase · strip Vietnamese diacritics · collapse punctuation & whitespace
+//   -> a space-separated token string. The same function is used to build a
+//   rule's stored pattern AND to test a candidate row, so a human can predict
+//   the outcome exactly.
+function normalizeDesc(s) {
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function descTokens(s) { const n = normalizeDesc(s); return n ? n.split(' ') : []; }
+// allTokensMatch(pattern, candidate): every token of the (already-normalized)
+// pattern appears as a whole token in the candidate. Order-independent,
+// deterministic, fully auditable.
+function allTokensMatch(patternTokens, candidateText) {
+  const have = new Set(descTokens(candidateText));
+  return patternTokens.length > 0 && patternTokens.every((t) => have.has(t));
+}
+
 // Department master (FAST `Mã bp`). Out-of-master values are KEPT + flagged,
 // never remapped, never dropped (§13).
 const MASTER_DEPARTMENTS = ['BP01', 'BP02', 'CN1', 'CN2', 'CN3', 'CN4'];
@@ -58,6 +82,11 @@ function ruleMatches(rule, row) {
     case 'department': return Array.isArray(mv.departments) && mv.departments.map(String).map((s) => s.toUpperCase()).indexOf(dept) >= 0;
     case 'voucher': return Array.isArray(mv.vouchers) && mv.vouchers.map(String).map((s) => s.toUpperCase()).indexOf(voucher) >= 0;
     case 'description': {
+      // Operator remembered rules use { allTokens: [...normalized tokens...] } —
+      // deterministic all-token containment on normalized text. Fail-safe: if
+      // not every token is present the rule does NOT fire (caller falls back to
+      // NEEDS_REVIEW).
+      if (Array.isArray(mv.allTokens)) return allTokensMatch(mv.allTokens, desc);
       if (mv.regex) { try { return new RegExp(mv.regex, mv.flags || 'i').test(desc); } catch (_) { return false; } }
       return Array.isArray(mv.contains) && mv.contains.some((s) => desc.toLowerCase().includes(String(s).toLowerCase()));
     }
@@ -77,14 +106,29 @@ function buildClassifier(rules) {
   const ver = active.length && active[0].ruleVersion ? active[0].ruleVersion : RULE_VERSION;
 
   function classify(row) {
+    // 1) Operator "remembered" rules first — they encode an explicit human
+    //    decision. But a CONFLICT between two operator rules (different actions
+    //    both matching the same row) is NEVER resolved by precedence — it goes
+    //    back to NEEDS_REVIEW (Operator handover §6).
+    const opHits = active.filter((r) => r.origin === 'operator' && ruleMatches(r, row));
+    if (opHits.length) {
+      const actions = Array.from(new Set(opHits.map((r) => r.action)));
+      if (actions.length > 1) {
+        return { classification: 'NEEDS_REVIEW', ruleId: null, source: 'operator_rule',
+          ruleNote: 'Có quy tắc đã ghi nhớ mâu thuẫn nhau — đưa lại vào Cần rà soát.' };
+      }
+      const r = opHits[0];
+      return { classification: r.action, ruleId: r.id, source: 'operator_rule',
+        ruleNote: r.note || null, costCode: r.costCode || null, costCodeName: r.costCodeName || null };
+    }
+    // 2) Seed engine rules (BC Chi Phí QTTH / safety nets) by priority.
     for (const rule of active) {
+      if (rule.origin === 'operator') continue;
       if (ruleMatches(rule, row)) {
-        return { classification: rule.action, ruleId: rule.id, ruleNote: rule.note || null };
+        return { classification: rule.action, ruleId: rule.id, source: 'engine', ruleNote: rule.note || null };
       }
     }
-    // defence in depth — the priority-90 safety rules should always catch a
-    // cost-scope row, but an unknown is NEEDS_REVIEW, never dropped/included.
-    return { classification: 'NEEDS_REVIEW', ruleId: null, ruleNote: 'Không khớp rule nào — giữ lại để Operator xem.' };
+    return { classification: 'NEEDS_REVIEW', ruleId: null, source: 'engine', ruleNote: 'Không khớp rule nào — giữ lại để Operator xem.' };
   }
   return { classify, ruleVersion: ver, rules: active };
 }
@@ -98,4 +142,5 @@ function isOutOfMasterDepartment(maBp) {
 module.exports = {
   RULE_VERSION, MASTER_DEPARTMENTS, SEED_RULES,
   inCostScope, buildClassifier, isOutOfMasterDepartment, ruleMatches,
+  normalizeDesc, descTokens, allTokensMatch,
 };

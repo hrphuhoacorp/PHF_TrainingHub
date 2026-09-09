@@ -30,7 +30,8 @@
     return s || '—';
   }
 
-  var A = { period: '', status: null, preview: null, reviewRows: null, rules: null, dict: null, uploading: false, openAcct: {}, incDrill: null };
+  var A = { period: '', status: null, preview: null, reviewRows: null, rules: null, dict: null, uploading: false,
+    openAcct: {}, incDrill: null, decideFor: null, categories: {}, remembered: null, showRules: false };
   var UPLOAD_URL = '/api/qtth-accounting-upload';
   var MASTER_BP = ['BP01', 'BP02', 'CN1', 'CN2', 'CN3', 'CN4'];
 
@@ -47,14 +48,14 @@
       var r = await Promise.all([
         call('qtthAccountingStatus', { period_month: A.period }),
         call('qtthAccountingDictionaryStatus', {}),
-        call('qtthAccountingListRules', {})
+        call('qtthAccountingListRules', {}),
+        call('qtthAccountingListRememberedRules', {})
       ]);
-      A.status = r[0]; A.dict = r[1]; A.rules = r[2];
+      A.status = r[0]; A.dict = r[1]; A.rules = r[2]; A.remembered = r[3];
       var cur = A.status && A.status.current;
       var latest = cur || (A.status && A.status.versions && A.status.versions[0]);
       A.preview = latest ? await call('qtthAccountingPreview', { file_id: latest.fileId }) : null;
-      // the 51 "cần rà soát" lines — small; used to build the account groups +
-      // inline drill-down without further round-trips.
+      // the NEEDS_REVIEW lines (small population) — group cards + inline review.
       A.reviewRows = A.preview
         ? (await call('qtthAccountingListNormalized', { period_month: A.period, classification: 'NEEDS_REVIEW' })).rows || []
         : [];
@@ -114,24 +115,34 @@
       + (amount != null ? '<span class="phf-qtth-stat-amt">' + fmtN(amount) + ' đ</span>' : '<span class="phf-qtth-stat-amt phf-qtth-muted">không lưu</span>')
       + '</div>';
   }
+  // live funnel (reflects Operator decisions) when available, else the upload snapshot
+  function funnelView(rep) {
+    var live = A.preview && A.preview.live;
+    var t = live ? Object.assign({}, rep.totals, live.totals) : rep.totals;
+    var a = live ? Object.assign({}, rep.amounts, live.amounts) : rep.amounts;
+    t.sourceRows = rep.totals.sourceRows;
+    return { t: t, a: a, reconciles: !live || live.reconciles !== false };
+  }
   function summaryBlock(rep) {
-    var t = rep.totals, a = rep.amounts;
+    var fv = funnelView(rep); var t = fv.t, a = fv.a;
     var period = (rep.meta.fromDate ? fmtDate(rep.meta.fromDate) + ' – ' + fmtDate(rep.meta.toDate) : A.period);
     return '<div class="phf-qtth-summary">'
       + '<h3>Tóm tắt kỳ · ' + esc(period) + '</h3>'
       + '<div class="phf-qtth-statgrid">'
       + stat('Dữ liệu nguồn (FAST)', t.sourceRows, null)
       + stat('Chi phí phát hiện', t.costScopeRows, a.costScope)
-      + stat('Đã nhận diện', t.included, a.included, 'ok')
+      + stat('Đã đưa vào', t.included, a.included, 'ok')
       + stat('Cần rà soát', t.needsReview, a.needsReview, t.needsReview > 0 ? 'warn' : 'ok')
       + '</div>'
-      + (t.excluded > 0 ? '<p class="phf-qtth-muted">Không đưa vào: ' + fmtN(t.excluded) + ' dòng · ' + fmtN(a.excluded) + ' đ (bút toán kết chuyển).</p>' : '')
+      + (t.excluded > 0 ? '<p class="phf-qtth-muted">Không đưa vào: ' + fmtN(t.excluded) + ' dòng · ' + fmtN(a.excluded) + ' đ.</p>' : '')
+      + (t.operatorDecided ? '<p class="phf-qtth-muted">Người dùng đã quyết định: ' + fmtN(t.operatorDecided) + ' khoản.</p>' : '')
+      + (!fv.reconciles ? '<p class="phf-qtth-error">⚠ Số liệu chưa khớp — vui lòng tải lại trang.</p>' : '')
       + '</div>';
   }
 
   /* ---- B. BUTTON HIERARCHY ---- */
   function actionBar(rep, st) {
-    var t = rep.totals;
+    var t = funnelView(rep).t;
     var cur = st.current || (st.versions && st.versions[0]) || null;
     var canConfirm = cur && cur.status === 'previewed';
     var confirmed = cur && cur.status === 'confirmed';
@@ -148,22 +159,28 @@
     return out + '</div>';
   }
 
-  /* ---- C. NEEDS REVIEW — GROUP FIRST ---- */
+  /* ---- C. NEEDS REVIEW — GROUP FIRST + per-line decision ---- */
   function reviewGroupsBlock(rep) {
-    var groups = rep.needsReviewAccounts || [];
-    if (!groups.length) return '<div class="phf-qtth-review" data-acc-review><h3>Cần rà soát</h3><p class="phf-qtth-muted">Không có khoản nào cần rà soát trong kỳ này.</p></div>';
+    // groups built from the LIVE NEEDS_REVIEW rows (reflects Operator decisions),
+    // not the frozen upload snapshot.
     var byAcct = {};
     (A.reviewRows || []).forEach(function (r) { (byAcct[r.taiKhoan] = byAcct[r.taiKhoan] || []).push(r); });
+    var accts = Object.keys(byAcct).sort(function (x, y) {
+      return byAcct[y].reduce(function (s, r) { return s + r.phatSinhNo; }, 0) - byAcct[x].reduce(function (s, r) { return s + r.phatSinhNo; }, 0);
+    });
+    var total = (A.reviewRows || []).length;
+    var totAmt = (A.reviewRows || []).reduce(function (s, r) { return s + r.phatSinhNo; }, 0);
     return '<div class="phf-qtth-review" data-acc-review>'
-      + '<h3>Cần rà soát — ' + fmtN(rep.totals.needsReview) + ' khoản · ' + fmtN(rep.amounts.needsReview) + ' đ</h3>'
-      + '<p class="phf-qtth-muted">Nhóm theo tài khoản. Bấm “Xem chi tiết” để xem từng khoản. Chưa quyết định đưa vào / không đưa vào ở bước này.</p>'
-      + groups.map(function (g) { return reviewGroupRow(g, byAcct[g.account] || []); }).join('')
+      + '<h3>Cần rà soát — ' + fmtN(total) + ' khoản · ' + fmtN(totAmt) + ' đ</h3>'
+      + '<p class="phf-qtth-muted">Nhóm theo tài khoản. Với mỗi khoản, chọn <b>Đưa vào</b> hoặc <b>Không đưa vào</b>. '
+      + 'Cùng tài khoản có thể có nhiều bản chất khác nhau — xem kỹ nội dung từng khoản.</p>'
+      + (total === 0 ? '<p class="phf-qtth-muted">Tất cả các khoản đã được xử lý.</p>'
+        : accts.map(function (a) { return reviewGroupRow(a, byAcct[a]); }).join(''))
       + '</div>';
   }
-  function reviewGroupRow(g, rows) {
-    var open = !!A.openAcct[g.account];
-    var samples = [];
-    var seen = {};
+  function reviewGroupRow(account, rows) {
+    var open = !!A.openAcct[account];
+    var samples = [], seen = {};
     for (var i = 0; i < rows.length && samples.length < 3; i++) {
       var d = (rows[i].dienGiai || '').trim();
       if (d && !seen[d]) { seen[d] = 1; samples.push(d); }
@@ -171,25 +188,33 @@
     var depts = {};
     rows.forEach(function (r) { if (r.maBp) depts[r.maBp] = (depts[r.maBp] || 0) + 1; });
     var deptStr = Object.keys(depts).map(function (k) { return k + ' (' + depts[k] + ')'; }).join(' · ');
+    var amt = rows.reduce(function (s, r) { return s + r.phatSinhNo; }, 0);
     return '<div class="phf-qtth-rgroup' + (open ? ' is-open' : '') + '">'
       + '<div class="phf-qtth-rgroup-head">'
-      + '<div class="phf-qtth-rgroup-id"><b>' + esc(g.account) + '</b><span class="phf-qtth-muted">' + fmtN(g.rows) + ' khoản · ' + fmtN(g.amount) + ' đ</span></div>'
-      + '<button type="button" class="phf-qtth-btn ghost sm" data-acc-toggle="' + esc(g.account) + '">' + (open ? 'Ẩn' : 'Xem ' + fmtN(g.rows) + ' khoản') + '</button>'
+      + '<div class="phf-qtth-rgroup-id"><b>' + esc(account) + '</b><span class="phf-qtth-muted">' + fmtN(rows.length) + ' khoản · ' + fmtN(amt) + ' đ</span></div>'
+      + '<button type="button" class="phf-qtth-btn ghost sm" data-acc-toggle="' + esc(account) + '">' + (open ? 'Ẩn' : 'Xem ' + fmtN(rows.length) + ' khoản') + '</button>'
       + '</div>'
       + (samples.length ? '<ul class="phf-qtth-rgroup-samples">' + samples.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' : '')
       + (deptStr ? '<p class="phf-qtth-muted phf-qtth-rgroup-dept">Bộ phận: ' + esc(deptStr) + '</p>' : '')
-      + (open ? reviewGroupDetail(rows) : '')
+      + (open ? reviewGroupDetail(account, rows) : '')
       + '</div>';
   }
-  function reviewGroupDetail(rows) {
+  function reviewGroupDetail(account, rows) {
     if (!rows.length) return '<p class="phf-qtth-muted">—</p>';
-    return '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table phf-qtth-table-compact" style="min-width:560px"><thead><tr>'
-      + '<th>Ngày</th><th>Diễn giải</th><th>Số tiền</th><th>Bộ phận</th><th>Số CT</th></tr></thead><tbody>'
+    return '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table phf-qtth-table-compact" style="min-width:640px"><thead><tr>'
+      + '<th>Ngày</th><th>Diễn giải</th><th>Số tiền</th><th>Bộ phận</th><th>Số CT</th><th>Quyết định</th></tr></thead><tbody>'
       + rows.slice(0, 500).map(function (r) {
+        var df = A.decideFor;
+        var isForm = df && df.account === account && df.rowIndex === r.sourceRowIndex;
         return '<tr><td>' + esc(fmtDate(r.ngayCt)) + '</td><td>' + esc(r.dienGiai || '') + '</td>'
           + '<td style="text-align:right">' + fmtN(r.phatSinhNo) + '</td>'
           + '<td>' + esc(r.maBp || '') + (r.maBpOutOfMaster ? ' *' : '') + '</td>'
-          + '<td>' + esc(r.soCt || r.maCt || '') + '</td></tr>';
+          + '<td>' + esc(r.soCt || r.maCt || '') + '</td>'
+          + '<td class="phf-qtth-decide-cell">'
+          + '<button type="button" class="phf-qtth-btn ghost sm" data-acc-decide-open="' + esc(account) + '|' + r.sourceRowIndex + '|INCLUDE">Đưa vào</button> '
+          + '<button type="button" class="phf-qtth-btn ghost sm" data-acc-decide-open="' + esc(account) + '|' + r.sourceRowIndex + '|EXCLUDE">Không đưa vào</button>'
+          + '</td></tr>'
+          + (isForm ? '<tr><td colspan="6">' + decideFormHtml(account, r) + '</td></tr>' : '');
       }).join('')
       + '</tbody></table></div>'
       + '<details class="phf-qtth-rawfields"><summary>Trường kỹ thuật</summary>'
@@ -198,6 +223,41 @@
         return '<tr><td>' + esc(fmtDate(r.ngayCtIso || r.ngayCt)) + '</td><td>' + esc(r.maCt || '') + '</td><td>' + esc(r.tkDoiUng || '') + '</td><td>' + esc(r.ruleId || '') + '</td></tr>';
       }).join('')
       + '</tbody></table></div></details>';
+  }
+
+  function decideFormHtml(account, r) {
+    var df = A.decideFor || {};
+    var isInc = df.decision === 'INCLUDE';
+    var cats = A.categories[account] || null;
+    var tokens = df.matchText || (r.dienGiai || '');
+    return '<div class="phf-qtth-decideform">'
+      + '<p><b>' + (isInc ? 'Đưa vào quản trị' : 'Không đưa vào quản trị') + '</b> — ' + esc(account) + ' · ' + esc(r.dienGiai || '') + ' · ' + fmtN(r.phatSinhNo) + ' đ</p>'
+      + (isInc
+        ? '<label>Nhóm chi phí&nbsp;'
+          + (cats && cats.hasDictionary
+            ? '<select data-acc-cat><option value="">— chọn nhóm —</option>'
+              + cats.categories.map(function (c) { return '<option value="' + esc(c.maPhi) + '|' + esc(c.tenPhi || '') + '"' + (df.costCode === c.maPhi ? ' selected' : '') + '>' + esc(c.maPhi) + ' — ' + esc(c.tenPhi || c.sub || c.groupName) + '</option>'; }).join('')
+              + '</select>'
+            : '<span class="phf-qtth-muted">(Chưa nhập Danh mục phí — hãy nhập ở mục kỹ thuật bên dưới trước; hoặc để trống)</span>')
+          + '</label>'
+        : '')
+      + '<label class="phf-qtth-remember"><input type="checkbox" data-acc-remember' + (df.remember ? ' checked' : '') + '> Ghi nhớ cho các khoản tương tự lần sau</label>'
+      + (df.remember
+        ? '<div class="phf-qtth-remember-box">'
+          + '<label>Nội dung nhận diện&nbsp;<input type="text" data-acc-match value="' + esc(tokens) + '" size="48"></label>'
+          + '<p class="phf-qtth-muted">Hệ thống chỉ áp dụng khi <b>cùng tài khoản</b> và <b>nội dung chứa đủ các từ này</b>. '
+          + 'Nội dung khác sẽ tiếp tục đưa vào Cần rà soát.</p>'
+          + '<div class="phf-qtth-remember-preview">'
+          + '<div><span>Tài khoản</span><b>' + esc(account) + '</b></div>'
+          + '<div><span>Nhận diện nội dung</span><b>có các từ: ' + esc((tokens || '').toLowerCase().split(/\s+/).filter(Boolean).join(' · ')) + '</b></div>'
+          + '<div><span>Quyết định</span><b>' + (isInc ? 'Đưa vào' : 'Không đưa vào') + '</b></div>'
+          + (isInc && df.costCode ? '<div><span>Nhóm chi phí</span><b>' + esc(df.costCode) + '</b></div>' : '')
+          + '</div></div>'
+        : '')
+      + '<div class="phf-qtth-decideform-actions">'
+      + '<button type="button" class="phf-qtth-btn sm" data-acc-decide-submit>Lưu quyết định</button> '
+      + '<button type="button" class="phf-qtth-btn ghost sm" data-acc-decide-cancel>Huỷ</button>'
+      + '</div></div>';
   }
 
   /* ---- 7. DEPARTMENT SUMMARY (compact) ---- */
@@ -222,10 +282,30 @@
       + '<p style="margin-top:8px"><button type="button" class="phf-qtth-btn ghost sm" data-acc-inc-drill>' + (A.incDrill ? 'Ẩn dòng đã nhận diện' : 'Xem dòng đã nhận diện') + '</button></p>'
       + (A.incDrill ? incDrillTable(A.incDrill) : '')
       + '</details>'
+      + '<details class="phf-qtth-fold"' + (A.showRules ? ' open' : '') + '><summary>Quy tắc đã ghi nhớ (' + ((A.remembered && A.remembered.rules) ? A.remembered.rules.length : 0) + ')</summary>' + rememberedInner() + '</details>'
       + '<details class="phf-qtth-fold"><summary>Danh mục phí</summary>' + dictInner(A.dict) + '</details>'
-      + '<details class="phf-qtth-fold"><summary>Bộ quy tắc phân loại (' + (A.rules ? A.rules.rules.length : 0) + ')</summary>' + rulesInner(A.rules) + '</details>'
+      + '<details class="phf-qtth-fold"><summary>Bộ quy tắc phân loại của hệ thống (' + (A.rules ? A.rules.rules.length : 0) + ')</summary>' + rulesInner(A.rules) + '</details>'
       + '<details class="phf-qtth-fold"><summary>Phiên bản & nguồn</summary>' + versionsInner(st) + '</details>'
       + '</div>';
+  }
+
+  function rememberedInner() {
+    var rr = (A.remembered && A.remembered.rules) || [];
+    if (!rr.length) return '<p class="phf-qtth-muted">Chưa có quy tắc nào được ghi nhớ. '
+      + 'Khi rà soát một khoản, tích “Ghi nhớ cho các khoản tương tự lần sau” để tạo.</p>';
+    return '<p class="phf-qtth-muted">Chỉ áp dụng khi cùng tài khoản và nội dung chứa đủ các từ đã ghi nhớ. Tắt một quy tắc để ngừng áp dụng.</p>'
+      + '<div class="phf-qtth-tablewrap"><table class="phf-qtth-table phf-qtth-table-compact" style="min-width:640px"><thead><tr>'
+      + '<th>Tài khoản</th><th>Nội dung nhận diện</th><th>Quyết định</th><th>Nhóm chi phí</th><th>Trạng thái</th><th>Người tạo</th><th></th></tr></thead><tbody>'
+      + rr.map(function (x) {
+        return '<tr' + (x.isActive ? '' : ' class="is-inactive"') + '><td>' + esc(x.account) + '</td>'
+          + '<td>có các từ: ' + esc((x.matchTokens || []).join(' · ')) + '</td>'
+          + '<td>' + (x.decision === 'INCLUDE' ? 'Đưa vào' : 'Không đưa vào') + '</td>'
+          + '<td>' + esc(x.costCode || '—') + '</td>'
+          + '<td>' + (x.isActive ? 'Đang áp dụng' : 'Đã tắt') + '</td>'
+          + '<td>' + esc(x.createdByName || '') + (x.createdAt ? ' · ' + fmtDate(String(x.createdAt).slice(0, 10)) : '') + '</td>'
+          + '<td><button type="button" class="phf-qtth-btn ghost sm" data-acc-rule-toggle="' + esc(x.id) + '|' + (x.isActive ? '0' : '1') + '">' + (x.isActive ? 'Tắt' : 'Bật') + '</button></td></tr>';
+      }).join('')
+      + '</tbody></table></div>';
   }
 
   function acctTable(rows) {
@@ -313,6 +393,62 @@
 
     var di = slot.querySelector('[data-acc-dict-import]');
     if (di) di.onclick = function () { doDictImport(slot); };
+
+    // ---- decision layer ----
+    slot.querySelectorAll('[data-acc-decide-open]').forEach(function (b) {
+      b.onclick = async function () {
+        var p = b.getAttribute('data-acc-decide-open').split('|');
+        var account = p[0], rowIndex = Number(p[1]), decision = p[2];
+        A.decideFor = { account: account, rowIndex: rowIndex, decision: decision, remember: false, costCode: '', costCodeName: '', matchText: null };
+        if (decision === 'INCLUDE' && !A.categories[account]) {
+          try { A.categories[account] = await call('qtthAccountingListCategories', { account: account }); } catch (e) { A.categories[account] = { hasDictionary: false, categories: [] }; }
+        }
+        paint(slot);
+      };
+    });
+    slot.querySelectorAll('[data-acc-decide-cancel]').forEach(function (b) { b.onclick = function () { A.decideFor = null; paint(slot); }; });
+    var catSel = slot.querySelector('[data-acc-cat]');
+    if (catSel) catSel.onchange = function () { var v = (catSel.value || '').split('|'); A.decideFor.costCode = v[0] || ''; A.decideFor.costCodeName = v[1] || ''; paint(slot); };
+    var rem = slot.querySelector('[data-acc-remember]');
+    if (rem) rem.onchange = function () { A.decideFor.remember = rem.checked; paint(slot); };
+    var mt = slot.querySelector('[data-acc-match]');
+    if (mt) mt.oninput = function () { A.decideFor.matchText = mt.value; };
+    var sub = slot.querySelector('[data-acc-decide-submit]');
+    if (sub) sub.onclick = function () { doDecide(slot); };
+
+    slot.querySelectorAll('[data-acc-rule-toggle]').forEach(function (b) {
+      b.onclick = async function () {
+        var p = b.getAttribute('data-acc-rule-toggle').split('|');
+        b.disabled = true;
+        try {
+          await call('qtthAccountingSetRuleActive', { rule_id: p[0], is_active: p[1] === '1' });
+          A.showRules = true;
+          toast(p[1] === '1' ? 'Đã bật lại quy tắc.' : 'Đã tắt quy tắc.', 'ok');
+          reload(slot);
+        } catch (e) { toast(e.message, 'error'); b.disabled = false; }
+      };
+    });
+  }
+
+  async function doDecide(slot) {
+    var df = A.decideFor;
+    if (!df) return;
+    var fileId = A.preview && A.preview.fileId;
+    if (!fileId) { toast('Chưa có phiên bản dữ liệu.', 'warn'); return; }
+    var payload = {
+      file_id: fileId, source_row_index: df.rowIndex, decision: df.decision,
+      remember: df.remember === true,
+    };
+    if (df.decision === 'INCLUDE' && df.costCode) { payload.cost_code = df.costCode; payload.cost_code_name = df.costCodeName; }
+    if (df.remember && df.matchText != null) payload.match_text = df.matchText;
+    try {
+      var res = await call('qtthAccountingDecideItem', payload);
+      var msg = df.decision === 'INCLUDE' ? 'Đã đưa vào.' : 'Đã đánh dấu không đưa vào.';
+      if (res.remembered) msg += ' Đã ghi nhớ' + (res.ruleAlsoAppliedTo ? ' — áp dụng thêm ' + res.ruleAlsoAppliedTo + ' khoản tương tự.' : '.');
+      toast(msg, 'ok');
+      A.decideFor = null;
+      await reload(slot);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   function readFileB64(file) {
@@ -370,6 +506,9 @@
 
   window.__qtthAccountingTestHooks = {
     summaryBlock: summaryBlock, reviewGroupsBlock: reviewGroupsBlock, actionBar: actionBar,
-    deptSummaryBlock: deptSummaryBlock, techDetails: techDetails, fmtDate: fmtDate, esc: esc, fmtN: fmtN,
+    deptSummaryBlock: deptSummaryBlock, techDetails: techDetails, decideFormHtml: decideFormHtml,
+    rememberedInner: rememberedInner, fmtDate: fmtDate, esc: esc, fmtN: fmtN,
+    __setState: function (partial) { Object.assign(A, partial || {}); },
+    __state: function () { return A; },
   };
 })();

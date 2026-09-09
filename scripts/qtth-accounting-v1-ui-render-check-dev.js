@@ -21,7 +21,9 @@ const ck = (n, c, x) => { c ? (P++, console.log('  PASS  ' + n)) : (F++, console
 
 (async () => {
   if (!fs.existsSync(T07)) { console.error('MISSING ' + T07); process.exit(2); }
-  const { report } = await runFunnel(fs.readFileSync(T07), { rules: SEED_RULES });
+  const { report, normalizedRows } = await runFunnel(fs.readFileSync(T07), { rules: SEED_RULES });
+  const reviewRows = normalizedRows.filter((r) => r.classification === 'NEEDS_REVIEW')
+    .map((r) => ({ taiKhoan: r.taiKhoan, dienGiai: r.dienGiai, phatSinhNo: r.phatSinhNo, maBp: r.maBp, maBpOutOfMaster: r.maBpOutOfMaster, soCt: '', maCt: r.maCt, ngayCt: '2026-07-31', ngayCtIso: '2026-07-31', sourceRowIndex: r.sourceRowIndex, ruleId: r.classifiedByRuleId }));
 
   const src = fs.readFileSync(path.join(REPO, 'assets/js/qtth/phf-qtth-accounting.js'), 'utf8');
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -29,6 +31,7 @@ const ck = (n, c, x) => { c ? (P++, console.log('  PASS  ' + n)) : (F++, console
   const document = { addEventListener() {} };
   new Function('window', 'document', src)(window, document);
   const H = window.__qtthAccountingTestHooks;
+  H.__setState({ reviewRows: reviewRows, preview: { report: report, fileId: 'f1' }, openAcct: {}, decideFor: null, categories: {}, remembered: { rules: [] } });
   ck('test hooks exposed', H && typeof H.summaryBlock === 'function' && typeof H.reviewGroupsBlock === 'function');
 
   console.log('\nQTTH Accounting Data V1 — Operator-UX render check\n');
@@ -36,7 +39,7 @@ const ck = (n, c, x) => { c ? (P++, console.log('  PASS  ' + n)) : (F++, console
   // ---- A. TÓM TẮT KỲ leads, plain Vietnamese --------------------------
   const summary = H.summaryBlock(report);
   ck('A. summary leads with Tóm tắt kỳ', /Tóm tắt kỳ/.test(summary));
-  ck('A. plain-VN stat labels present', ['Dữ liệu nguồn', 'Chi phí phát hiện', 'Đã nhận diện', 'Cần rà soát'].every((s) => summary.includes(s)));
+  ck('A. plain-VN stat labels present', ['Dữ liệu nguồn', 'Chi phí phát hiện', 'Đã đưa vào', 'Cần rà soát'].every((s) => summary.includes(s)));
   ck('A. shows the canonical numbers', summary.includes('85.975') && summary.includes('350') && summary.includes('299') && summary.includes('51'));
   ck('9. no engineering terms leak into the summary', !/NEEDS_REVIEW|INCLUDED|cost scope|normalized|classification rule/i.test(summary));
 
@@ -48,12 +51,36 @@ const ck = (n, c, x) => { c ? (P++, console.log('  PASS  ' + n)) : (F++, console
   ck('C. all 8 canonical unresolved accounts shown', CANON.every((a) => groups.includes('<b>' + a + '</b>')));
   ck('C. default render shows ZERO raw review rows (groups collapsed)', !/<tbody>\s*<tr>/.test(groups) && !groups.includes('phf-qtth-table-compact'), 'found a rendered row table');
   ck('C. each group has a "Xem N khoản" drill button', (groups.match(/data-acc-toggle=/g) || []).length === 8);
-  ck('C. no final INCLUDE/EXCLUDE decision buttons yet', !/Đưa vào khoản này|Loại trừ khoản này|data-acc-decide/.test(groups));
-
-  // account-group drilldown (simulate one open) — reviewGroupsBlock reads A.openAcct
-  // via module state; exercise reviewGroupDetail indirectly is covered by the
-  // live browser gate. Here assert the toggle wiring + count text.
   ck('C. group row shows count + amount', groups.includes('khoản · ') && /đ<\/span>/.test(groups));
+
+  // ---- 4. per-line DECISION (Đưa vào / Không đưa vào) --------------
+  H.__setState({ openAcct: { '64177': true } });
+  const opened = H.reviewGroupsBlock(report);
+  ck('4. open group shows per-line "Đưa vào" / "Không đưa vào"',
+    opened.includes('>Đưa vào<') && opened.includes('>Không đưa vào<') && opened.includes('data-acc-decide-open='));
+  ck('4. detail rows use DD/MM/YYYY + human columns (Ngày/Diễn giải/Số tiền/Bộ phận/Số CT)',
+    /<th>Ngày<\/th><th>Diễn giải<\/th><th>Số tiền<\/th><th>Bộ phận<\/th><th>Số CT<\/th>/.test(opened));
+  ck('4. rule-id / contra behind "Trường kỹ thuật" fold', opened.includes('<summary>Trường kỹ thuật</summary>'));
+
+  // decide form: INCLUDE with category + remember preview
+  H.__setState({ decideFor: { account: '64177', rowIndex: reviewRows.find((r) => r.taiKhoan === '64177').sourceRowIndex, decision: 'INCLUDE', remember: true, costCode: 'D-6413-1-05', costCodeName: 'Chi phí Facebook, Zalo…', matchText: 'Chi phí quảng cáo facebook' },
+    categories: { '64177': { hasDictionary: true, categories: [{ maPhi: 'D-6413-1-05', tenPhi: 'Chi phí Facebook, Zalo…', group: 'D', groupName: 'CP bán hàng', sub: 'Nghiệp vụ' }] } } });
+  const f = H.reviewGroupsBlock(report);
+  ck('5. INCLUDE form: "Nhóm chi phí" selector from the Cost Dictionary', f.includes('Nhóm chi phí') && f.includes('data-acc-cat') && f.includes('D-6413-1-05'));
+  ck('5. "Ghi nhớ cho các khoản tương tự lần sau" is optional (checkbox)', f.includes('Ghi nhớ cho các khoản tương tự') && f.includes('type="checkbox"'));
+  ck('5. remember preview is human-readable (Tài khoản / Nhận diện nội dung / Quyết định)',
+    f.includes('phf-qtth-remember-preview') && f.includes('>Tài khoản<') && f.includes('có các từ:') && f.includes('>Quyết định<'));
+  ck('5. supporting text: only same account + similar content, else stays Cần rà soát',
+    /cùng tài khoản/.test(f) && /nội dung khác sẽ tiếp tục đưa vào cần rà soát/i.test(f));
+
+  // ---- 10. "Quy tắc đã ghi nhớ" section ---------------------------
+  H.__setState({ decideFor: null, remembered: { rules: [
+    { id: 'op-abc', account: '6414', matchTokens: ['but', 'toan', 'phan', 'bo', 'khau', 'hao', 'tscd'], decision: 'EXCLUDE', costCode: null, isActive: true, createdByName: 'Thắng', createdAt: '2026-09-09' },
+  ] } });
+  const rr = H.rememberedInner();
+  ck('10. remembered rules table: Tài khoản / Nội dung / Quyết định / Trạng thái + disable button',
+    rr.includes('>6414<') && rr.includes('Không đưa vào') && rr.includes('Đang áp dụng') && rr.includes('data-acc-rule-toggle='));
+  ck('10. plain Vietnamese — no SQL / rule-engine jargon as primary text', !/SELECT |match_kind|combo|priority 15/i.test(rr));
 
   // ---- 5/6. TECHNICAL SECTIONS collapsed ---------------------------
   window.__accModule_A = null;

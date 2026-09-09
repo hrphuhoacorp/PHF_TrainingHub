@@ -176,6 +176,73 @@ async function expectThrow(name, fn, codeWanted) {
     check('dictionaryStatus: current V1, 6 nhóm', ds.exists && ds.version === 1 && ds.groups.length >= 5, JSON.stringify(ds.groups));
   }
 
+  // ================= V2 · OPERATOR DECISION LAYER =========================
+  const hasV2 = psql("select count(*) from information_schema.columns where table_schema='accounting' and table_name='normalized' and column_name='decision_source'") === '1';
+  if (!hasV2) {
+    console.log('\n[e2e] accounting V2 not applied (migrations/phf_hr_qtth_accounting_v2.sql) — decision-layer checks skipped.');
+  } else {
+    console.log('\n--- V2 · Operator decision layer ---');
+    const fid = stPost.current.fileId;
+
+    // categories come from the imported Cost Dictionary D/E groups
+    const cats641 = await D(S_OP, { action: 'qtthAccountingListCategories', account: '64177' });
+    check('listCategories: from Cost Dictionary, filtered to D (641*)', cats641.hasDictionary && cats641.filteredBy === 'D' && cats641.categories.length > 0, JSON.stringify({ n: cats641.categories.length, f: cats641.filteredBy }));
+
+    // A. EXCLUDE 6414 + remember "phân bổ khấu hao TSCĐ"
+    const r6414 = rev.rows.filter((r) => r.taiKhoan === '6414');
+    const dec = await D(S_OP, { action: 'qtthAccountingDecideItem', file_id: fid, source_row_index: r6414[0].sourceRowIndex, decision: 'EXCLUDE', remember: true, match_text: 'phân bổ khấu hao TSCĐ' });
+    check('decideItem EXCLUDE 6414 + remember -> rule created + applied to all matching 6414 rows',
+      dec.remembered && dec.decision === 'EXCLUDE' && (dec.decided + dec.ruleAlsoAppliedTo) >= r6414.length - 0, JSON.stringify({ decided: dec.decided, also: dec.ruleAlsoAppliedTo }));
+    check('decideItem live funnel reconciles (I+E+NR === 350)',
+      dec.live.totals.included + dec.live.totals.excluded + dec.live.totals.needsReview === 350 && dec.live.reconciles === true, JSON.stringify(dec.live.totals));
+
+    const rev2 = await D(S_ADMIN, { action: 'qtthAccountingListNormalized', period_month: PERIOD, classification: 'EXCLUDE' });
+    check('6414 rows now EXCLUDE via operator (decision_source operator_*)',
+      rev2.rows.filter((r) => r.taiKhoan === '6414').length > 0 && rev2.rows.filter((r) => r.taiKhoan === '6414').every((r) => /operator/.test(r.decisionSource)));
+    check('other accounts NOT touched by the 6414 rule', rev2.rows.every((r) => r.taiKhoan === '6414'));
+
+    // B. INCLUDE 64177 FB row + category
+    const fbRow = rev.rows.find((r) => r.taiKhoan === '64177' && /facebook/i.test(r.dienGiai || ''));
+    const cat = cats641.categories[0].maPhi;
+    const decInc = await D(S_OP, { action: 'qtthAccountingDecideItem', file_id: fid, source_row_index: fbRow.sourceRowIndex, decision: 'INCLUDE', cost_code: cat, cost_code_name: cats641.categories[0].tenPhi, remember: false });
+    check('decideItem INCLUDE 64177 + category (no remember) -> single row, cost_code set',
+      decInc.decided === 1 && decInc.costCode === cat && !decInc.remembered);
+    const incRows = await D(S_ADMIN, { action: 'qtthAccountingListNormalized', period_month: PERIOD, account: '64177' });
+    const fbNow = incRows.rows.find((r) => r.sourceRowIndex === fbRow.sourceRowIndex);
+    check('64177 FB row: classification INCLUDE, costCode kept, costCodeStatus RESOLVED, decision_source operator_item',
+      fbNow.classification === 'INCLUDE' && fbNow.costCode === cat && fbNow.costCodeStatus === 'RESOLVED' && fbNow.decisionSource === 'operator_item');
+
+    // C. remembered rule list + conflict guard
+    const rr = await D(S_ADMIN, { action: 'qtthAccountingListRememberedRules' });
+    check('listRememberedRules: 1 operator rule (6414 EXCLUDE), account-only NOT a rule kind',
+      rr.rules.length === 1 && rr.rules[0].account === '6414' && rr.rules[0].decision === 'EXCLUDE' && rr.rules[0].matchTokens.length >= 3);
+    await expectThrow('conflict: remembering 6414 same content with opposite decision -> blocked',
+      () => D(S_OP, { action: 'qtthAccountingDecideItem', file_id: fid, source_row_index: r6414[1] ? r6414[1].sourceRowIndex : r6414[0].sourceRowIndex, decision: 'INCLUDE', remember: true, match_text: 'phân bổ khấu hao TSCĐ' }),
+      'ACCOUNTING_RULE_CONFLICT');
+
+    // D. disable rule -> re-upload (fresh preview) puts 6414 back to NEEDS_REVIEW
+    const rid = rr.rules[0].id;
+    const off = await D(S_OP, { action: 'qtthAccountingSetRuleActive', rule_id: rid, is_active: false, reason: 'e2e test' });
+    check('setRuleActive false -> changed', off.changed === true);
+    const rr2 = await D(S_ADMIN, { action: 'qtthAccountingListRememberedRules' });
+    check('rule now inactive in the list', rr2.rules[0].isActive === false);
+    const hist = await D(S_ADMIN, { action: 'qtthAccountingRuleHistory', rule_id: rid });
+    check('rule_history: create + disable recorded (audit preserved)',
+      hist.entries.length >= 2 && hist.entries.some((e) => e.action === 'create') && hist.entries.some((e) => e.action === 'disable'));
+    // fresh preview (new period) proves the disabled rule no longer fires
+    const P2 = '2026-06';
+    psql("delete from accounting.import where period_month = '2026-06'");
+    const fresh = await accountingUploadPreviewViaBridge(S_OP, { periodMonth: P2, fileName: 'accounting_t07.xlsx', buffer: buf });
+    check('disabled rule does NOT auto-classify a fresh import (6414 back to NEEDS_REVIEW, INCLUDE 299 / NR 51 / EXCL 0)',
+      fresh.totals.included === 299 && fresh.totals.needsReview === 51 && fresh.totals.excluded === 0, JSON.stringify(fresh.totals));
+
+    // E. no raw rows persisted as fact (still)
+    check('V2: still 0 raw source rows persisted as fact',
+      Number(psql('select coalesce(max(n),0) from (select count(*) n from accounting.normalized group by file_id) x')) < 1000);
+    check('V2: item_decision + rule_history are append-only (blocked UPDATE)',
+      psql("select count(*) from pg_trigger where tgname in ('item_decision_immutable','rule_history_immutable')") === '2');
+  }
+
   cleanup();
   console.log('\nTESTED_COMMIT =', (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim(); } catch (_) { return '?'; } })());
   console.log('TEST_DB       = phf_hr_e2e (throwaway, tunnel 15432)   SUPABASE_REF = PHF-HR-DEV pxkjvawdrixgoukhyvnk');

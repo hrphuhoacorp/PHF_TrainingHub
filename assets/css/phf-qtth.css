@@ -316,3 +316,17 @@
 @media (max-width:900px){
   .phf-qtth-statgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+/* ── ACCOUNTING V2 · Operator decision layer ──────────────────────────────── */
+.phf-qtth-decide-cell{white-space:nowrap;}
+.phf-qtth-decideform{border:1px solid var(--qt-line-strong);border-radius:7px;padding:12px 14px;margin:6px 0;background:var(--qt-orange-wash);}
+.phf-qtth-decideform>p{margin:0 0 8px;font-size:13px;}
+.phf-qtth-decideform label{display:block;margin:6px 0;font-size:12.5px;font-weight:600;}
+.phf-qtth-decideform select,.phf-qtth-decideform input[type=text]{font:inherit;padding:5px 8px;border:1px solid var(--qt-line-strong);border-radius:5px;background:#fff;margin-left:4px;}
+.phf-qtth-remember{font-weight:600;}
+.phf-qtth-remember input{margin-right:6px;accent-color:var(--qt-orange);}
+.phf-qtth-remember-box{border-top:1px dashed var(--qt-line-strong);margin-top:8px;padding-top:8px;}
+.phf-qtth-remember-preview{display:grid;grid-template-columns:1fr;gap:4px;background:#fff;border:1px solid var(--qt-line);border-radius:6px;padding:9px 11px;margin-top:6px;}
+.phf-qtth-remember-preview>div{display:flex;gap:8px;font-size:12.5px;}
+.phf-qtth-remember-preview>div span{color:var(--qt-muted);min-width:130px;font-weight:600;}
+.phf-qtth-decideform-actions{margin-top:10px;}

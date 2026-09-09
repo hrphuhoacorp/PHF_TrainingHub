@@ -107,6 +107,52 @@ async function api(cookie, payload) {
   const rules = await api(cookie, { action: 'qtthAccountingListRules' });
   ck('rules list served (13 seed rules from DB)', rules.rules.length === 13, rules.rules.length);
 
+  // ---- V2 · Operator decision layer (workflow the screen drives) ----------
+  ck('UX. bundle exposes per-line decision + remember + remembered-rules section',
+    appJs.includes('data-acc-decide-open') && appJs.includes('data-acc-remember') && appJs.includes('Quy tắc đã ghi nhớ') && appJs.includes('phf-qtth-remember-preview'));
+
+  const DICT = path.join(__dirname, '..', 'phf-qtth-input', 'cost_dictionary.xlsx');
+  if (fs.existsSync(DICT)) {
+    await api(cookie, { action: 'qtthAccountingImportDictionary', file_name: 'cost_dictionary.xlsx', file_base64: fs.readFileSync(DICT).toString('base64') });
+  }
+  const cats = await api(cookie, { action: 'qtthAccountingListCategories', account: '64177' });
+  ck('DECIDE. categories come from the imported Cost Dictionary (D group for 641*)',
+    cats.hasDictionary === true && cats.filteredBy === 'D' && cats.categories.length > 0, JSON.stringify({ has: cats.hasDictionary, f: cats.filteredBy, n: cats.categories.length }));
+
+  // fresh preview to decide on (period 2026-05, previewed, not confirmed)
+  const P2 = '2026-05';
+  await fetch(BASE + '/api/qtth-accounting-upload?period=' + P2, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Accounting-Filename': encodeURIComponent('accounting_t07.xlsx'), Cookie: cookie }, body: buf,
+  }).then((r) => r.json());
+  const revP2 = await api(cookie, { action: 'qtthAccountingListNormalized', period_month: P2, classification: 'NEEDS_REVIEW' });
+  const st2b = await api(cookie, { action: 'qtthAccountingStatus', period_month: P2 });
+  const fid2 = st2b.versions[0].fileId;
+  const row6414 = revP2.rows.find((r) => r.taiKhoan === '6414');
+
+  const d1 = await api(cookie, { action: 'qtthAccountingDecideItem', file_id: fid2, source_row_index: row6414.sourceRowIndex, decision: 'EXCLUDE', remember: true, match_text: 'phân bổ khấu hao TSCĐ' });
+  ck('DECIDE. "Không đưa vào" + Ghi nhớ -> rule made, applied to matching 6414 rows', d1.remembered === true && (d1.decided + d1.ruleAlsoAppliedTo) >= 1);
+  ck('DECIDE. live funnel reconciles: INCLUDE + EXCLUDE + NEEDS_REVIEW === 350',
+    d1.live.totals.included + d1.live.totals.excluded + d1.live.totals.needsReview === 350 && d1.live.reconciles === true, JSON.stringify(d1.live.totals));
+
+  const fbRow = revP2.rows.find((r) => r.taiKhoan === '64177' && /facebook/i.test(r.dienGiai || ''));
+  const d2 = await api(cookie, { action: 'qtthAccountingDecideItem', file_id: fid2, source_row_index: fbRow.sourceRowIndex, decision: 'INCLUDE', cost_code: cats.categories[0].maPhi, cost_code_name: cats.categories[0].tenPhi, remember: false });
+  ck('DECIDE. "Đưa vào" + Nhóm chi phí (no remember) -> 1 row, category kept', d2.decided === 1 && d2.costCode === cats.categories[0].maPhi && d2.remembered === false);
+
+  const rr = await api(cookie, { action: 'qtthAccountingListRememberedRules' });
+  ck('REMEMBER. exactly 1 operator rule (6414/EXCLUDE), matched by account + tokens (never account alone)',
+    rr.rules.length === 1 && rr.rules[0].account === '6414' && rr.rules[0].decision === 'EXCLUDE' && rr.rules[0].matchTokens.length >= 3);
+
+  const off = await api(cookie, { action: 'qtthAccountingSetRuleActive', rule_id: rr.rules[0].id, is_active: false, reason: 'browser gate' });
+  ck('REMEMBER. disable rule works + audit history', off.changed === true);
+  const hist = await api(cookie, { action: 'qtthAccountingRuleHistory', rule_id: rr.rules[0].id });
+  ck('REMEMBER. rule_history has create + disable', hist.entries.some((e) => e.action === 'create') && hist.entries.some((e) => e.action === 'disable'));
+
+  // CCDC never auto-decided
+  const anyCCDC = revP2.rows.some((r) => /phân bổ CCDC/i.test(r.dienGiai || ''));
+  const p2now = await api(cookie, { action: 'qtthAccountingListNormalized', period_month: P2, classification: 'NEEDS_REVIEW' });
+  ck('CCDC. "Bút toán phân bổ CCDC" rows remain NEEDS_REVIEW (no auto decision)',
+    !anyCCDC || p2now.rows.some((r) => /phân bổ CCDC/i.test(r.dienGiai || '')));
+
   console.log(`\n${P} passed, ${F} failed`);
   process.exit(F ? 1 : 0);
 })().catch((e) => { console.error('CRASH', e); process.exit(3); });
