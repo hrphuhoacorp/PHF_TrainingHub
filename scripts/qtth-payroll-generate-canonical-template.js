@@ -24,7 +24,8 @@ const REPO = path.resolve(__dirname, '..');
 const TPL = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-template'));
 const { gridToXlsx } = require(path.join(REPO, 'scripts/lib/xlsx-write-lite'));
 
-const SRC = path.join(REPO, 'docs/payroll-corpus/T7_CANONICAL.tsv');
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+const SRC = path.join(resolvePayrollCorpusDir(), 'T7_CANONICAL.tsv');
 const OUT = path.join(REPO, 'assets/templates/PHF_Payroll_Canonical_V1.xlsx');
 const TEMPLATE_VERSION = 1;
 const TEMPLATE_NAME = 'PHF Payroll Canonical V1';

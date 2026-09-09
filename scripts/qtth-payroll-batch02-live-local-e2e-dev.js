@@ -51,7 +51,8 @@ async function expectThrow(name, fn, codeWanted) {
   catch (e) { check(name, !codeWanted || e.code === codeWanted, 'got code=' + e.code + ' msg=' + e.message); }
 }
 
-function tsvGrid(name) { return fs.readFileSync(path.join(REPO, 'scripts/fixtures/payroll', name), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t')); }
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+function tsvGrid(name) { const dir = resolvePayrollCorpusDir(); const fn = name === 'T7.tsv' ? 'T7_CANONICAL.tsv' : name; return fs.readFileSync(path.join(dir, fn), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map((l) => l.split('\t')); }
 function empCol(grid) { return 2; }
 function phfCodes(grid) { return grid.map((r) => String(r[2] || '').toUpperCase()).filter((c) => /^PHF\d+$/.test(c)); }
 

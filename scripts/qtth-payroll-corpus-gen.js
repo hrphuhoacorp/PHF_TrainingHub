@@ -14,7 +14,8 @@
  */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const REPO = path.resolve(__dirname, '..');
-const SRC = path.join(REPO, 'docs/payroll-corpus');
+const { resolvePayrollCorpusDir } = require(path.join(__dirname, 'lib/payroll-corpus-dir'));
+const SRC = resolvePayrollCorpusDir();
 const OUT = path.join(REPO, 'scripts/fixtures/payroll');
 fs.mkdirSync(OUT, { recursive: true });
 

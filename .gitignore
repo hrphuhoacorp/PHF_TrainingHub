@@ -61,3 +61,10 @@ scripts/*.result.json
 # under docs/qtth-truth-bootstrap/ is committable.
 /scripts/qtth-truth-bootstrap/_secure/
 /scripts/qtth-truth-bootstrap/*.secure.json
+
+# QTTH Payroll corpus — Operator REAL workbooks (employee names + salary +
+# per-employee tax IDs). NEVER committed. Kept only in the gitignored secure
+# path scripts/qtth-truth-bootstrap/_secure/payroll-corpus/ and fed to the
+# tests / package builder via scripts/lib/payroll-corpus-dir.js.
+/docs/payroll-corpus/*.tsv
+/scripts/fixtures/payroll/

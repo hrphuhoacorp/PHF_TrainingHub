@@ -1,9 +1,9 @@
 {
   "bundleId": "QTTH_TRUTH_BOOTSTRAP_V1_2026-09-09",
-  "generatedAt": "2026-09-09T13:25:53.588Z",
+  "generatedAt": "2026-09-09T13:51:56.806Z",
   "generatedFrom": {
     "branch": "feat/qtth-accounting-data-v1",
-    "head": "870ba552e38944f7df442cebdf886ae701f974a5",
+    "head": "18dd11f4c9c2730654eb088ed4016e611b84bfcf",
     "payrollSource": "docs/payroll-corpus/ (Operator real workbooks, verbatim) via shipped normalizer",
     "accountingSource": "throwaway phf_hr_e2e accounting.* (CONFIRMED period 2026-07)"
   },
@@ -70,8 +70,8 @@
   },
   "checksums": {
     "bundleId": "QTTH_TRUTH_BOOTSTRAP_V1_2026-09-09",
-    "payrollPayloadSha256": "758136ffe6fb397b13deacc71d61eccced859e2958af17838bc0d34ebef99349",
-    "accountingPayloadSha256": "1b51e8b82268d0e6ccf47cfa16fbb115b164799459e220a9a68c5040b01bc339",
+    "payrollPayloadSha256": "661eb66c24f508e1abffadec0566aec358412868771c98dfa7152986122d1e85",
+    "accountingPayloadSha256": "d8eee0736c66004d171b34c6fd031738e556bdeaff7d115364ec2693112097b9",
     "payrollPeriodsSha256": "9d7759c7fd768c049b4255bf093f7ccfce7454f8aaf3bbb78d26f951f17444a4",
     "accountingSummarySha256": "3f2ae8b07fc281c5bbc404cca66dbb8e8d1cd1b6986f09852d2d206e061c59f7",
     "payrollSourceSha256": {

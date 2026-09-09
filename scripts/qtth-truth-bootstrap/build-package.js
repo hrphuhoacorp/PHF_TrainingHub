@@ -36,6 +36,8 @@ const { Client } = require(path.join(REPO, 'services/phf-hr-api/node_modules/pg'
 const T = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-template'));
 const { normalizeGrid } = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-normalize'));
 const COST = require(path.join(REPO, 'services/phf-hr-api/lib/qtth-payroll-cost-model'));
+const { resolvePayrollCorpusDir } = require(path.join(REPO, 'scripts/lib/payroll-corpus-dir'));
+const CORPUS_DIR = resolvePayrollCorpusDir(); // gitignored secure path — real employee salary
 
 const OUT_PUB = path.join(REPO, 'docs/qtth-truth-bootstrap');
 const OUT_SEC = path.join(REPO, 'scripts/qtth-truth-bootstrap/_secure');
@@ -54,7 +56,7 @@ function buildPayroll() {
   const periods = [];
   const secure = { bundleId: BUNDLE_ID, generatedAt: new Date().toISOString(), schemaTarget: 'payroll', periods: [] };
   for (const [tag, pm] of Object.entries(PERIOD_MAP)) {
-    const srcFile = path.join(REPO, 'scripts/fixtures/payroll', tag + '.tsv');
+    const srcFile = path.join(CORPUS_DIR, tag === 'T7' ? 'T7_CANONICAL.tsv' : tag + '.tsv');
     const buf = fs.readFileSync(srcFile);
     const g = grid(srcFile);
     const fp = T.fingerprint(g);
