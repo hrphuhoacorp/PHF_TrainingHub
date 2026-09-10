@@ -839,7 +839,7 @@ function mapAccountDatabaseError(error){
   return error;
 }
 
-async function updateAccountByAdmin(accountId, input){
+async function updateAccountByAdmin(accountId, input, session){
   const id = String(accountId || '').trim();
   const current = await getAccountById(id);
   if (!current) {
@@ -982,7 +982,9 @@ async function updateAccountByAdmin(accountId, input){
       missing.code = 'ACCOUNT_NOT_FOUND_AFTER_UPDATE';
       throw missing;
     }
-    return publicAccount(dbRowToAccount(savedRows[0]));
+    const savedAccount = publicAccount(dbRowToAccount(savedRows[0]));
+    const peopleMaster = await syncPeopleMasterForAccount(session, updated, isSystemAccount);
+    return {...savedAccount, peopleMaster};
   } else {
     const store = readFileStore();
     const index = (store.accounts || []).findIndex(a => String(a.id || '') === id);
@@ -1094,7 +1096,39 @@ async function resetPasswordByAdmin(accountId){
 }
 
 
-async function createAccountByAdmin(input){
+// PHF HR SYSTEM · Account -> People Master auto-link (LOCAL batch). Fires
+// AFTER the account row is already committed, so a People Master hiccup never
+// blocks account creation/update itself — it only decides what
+// peopleMaster.status comes back in the response for the UI to act on.
+// employee-master.js has no reverse dependency on auth.js (verified), so this
+// require is safe here.
+async function syncPeopleMasterForAccount(session, account, isSystemAccount){
+  if (!supabase || !account || isSystemAccount) return {status:'not_applicable'};
+  try {
+    const { ensureProfileFromAccount } = require('./employee-master');
+    return await ensureProfileFromAccount(session, account);
+  } catch (e) {
+    return {status:'error', message: (e && e.message) || 'Không tạo được hồ sơ nhân sự.'};
+  }
+}
+
+// "Hoàn tất hồ sơ nhân sự" (§ repair action for an account created before this
+// batch, or whose People Master sync errored at create/update time). Deliberately
+// does NOT go through updateAccountByAdmin — it only needs to READ the account
+// (already-granted SELECT) and INSERT into employee_profiles if missing; it must
+// never require UPDATE privilege on user_accounts, which is a separate
+// permission surface this action has no reason to touch.
+async function completeAccountPeopleMaster(accountId, session){
+  const account = await getAccountById(accountId);
+  if (!account) {
+    const error = new Error('Không tìm thấy tài khoản.');
+    error.statusCode = 404; error.code = 'ACCOUNT_NOT_FOUND'; throw error;
+  }
+  const peopleMaster = await syncPeopleMasterForAccount(session, account, isStandaloneSystemAccount(account));
+  return { account: publicAccount(account), peopleMaster };
+}
+
+async function createAccountByAdmin(input, session){
   const data = input || {};
   const email = cleanEmail(data.email);
   const accountType = String(data.accountType || (data.metadata && data.metadata.accountType) || 'employee').trim().toLowerCase();
@@ -1198,7 +1232,8 @@ async function createAccountByAdmin(input){
     store.updatedAt = new Date().toISOString();
     writeFileStore(store);
   }
-  return {account:publicAccount(account), temporaryPassword};
+  const peopleMaster = await syncPeopleMasterForAccount(session, account, isSystemAccount);
+  return {account:publicAccount(account), temporaryPassword, peopleMaster};
 }
 
 async function syncAccounts(list){
@@ -1357,6 +1392,7 @@ module.exports = {
   resetPasswordByAdmin,
   createAccountByAdmin,
   updateAccountByAdmin,
+  completeAccountPeopleMaster,
   deleteAccountByAdmin,
   listAccountsForAdmin,
   listHubAccountSummaries,

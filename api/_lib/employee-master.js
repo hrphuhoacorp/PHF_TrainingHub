@@ -123,32 +123,82 @@ async function getEmployeeMasterDetail(session,input){
 // account, the employee, history or the identity mapping. Reactivation is
 // deliberately NOT automatic — an Admin must re-enable the account from
 // Quản trị tài khoản. role='admin' / system_admin accounts are left untouched.
+// Resilient per-account lock: ONE failing account must never stop attempts
+// on the remaining linked accounts (multiple accounts can share an
+// employee_code/employee_id in edge cases) — each account's UPDATE is
+// isolated in its own try/catch, and the function returns a full
+// locked/failed breakdown instead of throwing on the first error.
 async function lockAccountsForDepartedEmployee(session,profileRow){
   const employeeId=text(profileRow&&profileRow.employee_id);
   const employeeCode=code(profileRow&&profileRow.employee_code);
-  if(!employeeId&&!employeeCode)return{locked:0};
+  const empty={locked:0,failed:0,accounts:[],failures:[]};
+  if(!employeeId&&!employeeCode)return empty;
   const filters=[];
   if(employeeId)filters.push('employee_id.eq.'+employeeId);
   if(employeeCode)filters.push('employee_code.eq.'+employeeCode);
   const found=await db.from('user_accounts').select('id,role,status,metadata').or(filters.join(','));
-  if(found.error){if(missingSchema(found.error))return{locked:0};throw found.error;}
+  if(found.error){if(missingSchema(found.error))return empty;throw found.error;}
   const targets=(found.data||[]).filter(row=>{
     if(String(row.status||'').toLowerCase()!=='active')return false;
     if(String(row.role||'').toLowerCase()==='admin')return false;
     if(String((row.metadata&&row.metadata.accountType)||'').toLowerCase()==='system_admin')return false;
     return true;
   });
-  let locked=0;const accounts=[];
+  let locked=0;const accounts=[];const failures=[];
   for(const row of targets){
-    const upd=await db.from('user_accounts').update({status:'inactive',updated_at:new Date().toISOString()}).eq('id',row.id);
-    if(upd.error)throw upd.error;
-    locked++;accounts.push({id:String(row.id||''),employee_code:employeeCode||'',previous_status:row.status||'active'});
-    // Employee Master module-history trail (Supabase MAIN). The System V1
-    // central audit row (EMPLOYEE_INACTIVE_AUTO_LOCK) is emitted by the caller
-    // in api/data.js where the request context (ip/ua/request-id) is available.
-    try{await history(session,profileRow.id,'account','auto_lock',{status:row.status},{status:'inactive'},'Tự động khóa tài khoản do nhân sự chuyển sang Nghỉ việc');}catch(_e){}
+    try{
+      const upd=await db.from('user_accounts').update({status:'inactive',updated_at:new Date().toISOString()}).eq('id',row.id);
+      if(upd.error)throw upd.error;
+      locked++;accounts.push({id:String(row.id||''),employee_code:employeeCode||'',previous_status:row.status||'active'});
+      // Employee Master module-history trail (Supabase MAIN). The System V1
+      // central audit row (EMPLOYEE_INACTIVE_AUTO_LOCK) is emitted by the
+      // caller in api/data.js where the request context (ip/ua/request-id)
+      // is available.
+      try{await history(session,profileRow.id,'account','auto_lock',{status:row.status},{status:'inactive'},'Tự động khóa tài khoản do nhân sự chuyển sang Nghỉ việc');}catch(_e){}
+    }catch(lockError){
+      failures.push({id:String(row.id||''),message:(lockError&&lockError.message)||'Không khóa được tài khoản.'});
+    }
   }
-  return{locked,accounts};
+  return{locked,failed:failures.length,accounts,failures};
+}
+
+// PHF HR SYSTEM · Account -> People Master auto-link (LOCAL batch).
+// Called right after an account is created/updated with a non-empty
+// employeeCode. Idempotent + safe:
+//   - employeeCode missing -> does NOT guess/create anything; caller must
+//     surface 'employee_code_required' as an actionable next step.
+//   - a employee_profiles row already exists for that employee_code -> NEVER
+//     overwritten here (admin edits stay the only path to change it); returns
+//     'linked_existing'.
+//   - otherwise creates ONE new employee_profiles row from the account's own
+//     already-collected fields (full_name/phone/branch/department/position).
+//     employment_status is left to its schema default ('active') — this is
+//     People Master's own identity/status field, not a QTTH classification;
+//     QTTH unit/group/role/permission are never touched here.
+async function ensureProfileFromAccount(session,account){
+  requireDb();
+  const employeeCode=code(account&&account.employeeCode);
+  if(!employeeCode)return{status:'employee_code_required',profile:null};
+  const existing=await findProfile({employeeCode});
+  if(existing)return{status:'linked_existing',profile:existing};
+  const fullName=text(account&&account.name);
+  if(!fullName)return{status:'name_required',profile:null};
+  const row={
+    employee_code:employeeCode,
+    full_name:fullName,
+    phone:text(account&&account.phone),
+    branch:text(account&&account.branch),
+    department:text(account&&account.department),
+    position:text(account&&account.position),
+  };
+  const result=await db.from('employee_profiles').insert(row).select('*').single();
+  if(result.error){
+    if(String(result.error.code||'')==='23505')return{status:'linked_existing',profile:(await findProfile({employeeCode}))||null};
+    throw result.error;
+  }
+  invalidateTaskPeopleCache();
+  try{await history(session,result.data.id,'profile','create',null,result.data,'Tự động tạo hồ sơ nhân sự khi tạo/cập nhật tài khoản');}catch(_e){}
+  return{status:'created',profile:result.data};
 }
 
 async function saveProfile(session,input){
@@ -159,6 +209,86 @@ async function saveProfile(session,input){
     accountLock=await lockAccountsForDepartedEmployee(session,result.data);
   }
   return{profile:result.data,accountLock};
+}
+
+// PHF HR SYSTEM · "Đổi trạng thái nhân sự" — a dedicated, narrow action for
+// the Account screen's status modal (and any future caller) that ONLY
+// changes employment_status. Deliberately separate from saveProfile:
+//   - requires an EXISTING People Master profile (employeeCode/employeeId/
+//     profileId) — never creates one. A not-yet-linked account must link
+//     identity first (see ensureProfileFromAccount in the Account flow); this
+//     function never silently creates a "trạng thái rời" for nobody.
+//   - writes ONE canonical column (employee_profiles.employment_status) —
+//     the SAME column saveProfile's own employmentStatus branch writes, so
+//     there is still only one status source of truth regardless of which UI
+//     entry point is used.
+//   - captures effectiveDate/reason into employee_master_history's after_data
+//     JSON (no schema change — the history table already stores arbitrary
+//     JSON) so "có hiệu lực từ ngày nào" is recorded without redesigning
+//     People Master or its history contract.
+//   - reuses the EXISTING "nghỉ việc = mất quyền truy cập PHF HR" auto-lock
+//     rule (lockAccountsForDepartedEmployee) — this rule already fires from
+//     saveProfile today; it is not a new behavior introduced here.
+async function setEmploymentStatus(session,input){
+  requireAdmin(session);requireDb();
+  const employeeCode=code(input&&input.employeeCode);
+  const employeeId=text(input&&input.employeeId);
+  const profileId=text(input&&input.profileId);
+  if(!employeeCode&&!employeeId&&!profileId)fail('Thiếu định danh nhân viên.',400,'EMPLOYEE_IDENTITY_REQUIRED');
+  const existing=await findProfile({employeeCode,employeeId,profileId});
+  if(!existing)fail('Nhân sự chưa liên kết People Master. Vui lòng liên kết nhân sự trước khi đổi trạng thái.',409,'EMPLOYEE_PROFILE_NOT_LINKED');
+  const nextStatus=normalizeEmploymentStatus(input&&input.employmentStatus);
+  if(!nextStatus)fail('Trạng thái làm việc chỉ nhận active hoặc inactive.',400,'EMPLOYMENT_STATUS_INVALID');
+  const effectiveDate=date(input&&input.effectiveDate);
+  if(input&&input.effectiveDate&&!effectiveDate)fail('Ngày hiệu lực không hợp lệ (định dạng YYYY-MM-DD).',400,'EFFECTIVE_DATE_INVALID');
+  const reason=text(input&&input.reason);
+  const beforeStatus=normalizeEmploymentStatus(existing.employment_status)||'active';
+  if(beforeStatus===nextStatus){
+    return{profile:existing,changed:false,historyLogged:false,accountLock:null};
+  }
+  const result=await db.from('employee_profiles').update({employment_status:nextStatus}).eq('id',existing.id).select('*').single();
+  if(result.error)throw result.error;
+
+  // employee_profiles.employment_status + employee_master_history are BOTH
+  // mandatory — Supabase's REST layer has no cross-table transaction, so a
+  // history-insert failure AFTER the status write already committed is
+  // compensated by reverting the status write, then reported as a hard
+  // error. Never return success with the status changed but no audit trail.
+  try{
+    await history(session,existing.id,'employment_status','status_change',
+      {employment_status:beforeStatus},
+      {employment_status:nextStatus,effective_date:effectiveDate,reason:reason||null},
+      reason||'Đổi trạng thái nhân sự');
+  }catch(historyError){
+    const revert=await db.from('employee_profiles').update({employment_status:beforeStatus}).eq('id',existing.id);
+    const revertOk=!revert.error;
+    const err=new Error(revertOk
+      ?'Không ghi được lịch sử đổi trạng thái — đã hoàn tác trạng thái nhân sự về giá trị cũ. Vui lòng thử lại.'
+      :'Không ghi được lịch sử đổi trạng thái, và hoàn tác trạng thái cũng thất bại. Cần kiểm tra thủ công ngay: employee_profiles.id='+existing.id+'.');
+    err.statusCode=revertOk?409:503;
+    err.code=revertOk?'EMPLOYMENT_STATUS_HISTORY_FAILED_REVERTED':'EMPLOYMENT_STATUS_HISTORY_FAILED_REVERT_FAILED';
+    err.cause=historyError;
+    throw err;
+  }
+  invalidateTaskPeopleCache();
+
+  // From this point, employment_status + history are BOTH already durably
+  // committed. Account-lock is best-effort bookkeeping on top of that
+  // canonical write — its failure is reported as a structured warning, NEVER
+  // rolled back into the status/history that already succeeded.
+  let accountLock=null;
+  if(nextStatus==='inactive'&&beforeStatus!=='inactive'){
+    try{
+      accountLock=await lockAccountsForDepartedEmployee(session,result.data);
+    }catch(lockError){
+      accountLock={locked:0,failed:-1,accounts:[],failures:[{message:(lockError&&lockError.message)||'Không khóa được tài khoản liên quan.'}]};
+    }
+  }
+  // §Không tự mở khóa: chuyển inactive -> active không có bất kỳ đường ghi
+  // nào xuống user_accounts ở dưới đây — tái kích hoạt nhân sự KHÔNG tự mở
+  // lại tài khoản đăng nhập đã bị khóa; đó vẫn là một hành động Admin riêng,
+  // rõ ràng, cho tới khi có business rule khác chỉ định.
+  return{profile:result.data,changed:true,historyLogged:true,accountLock};
 }
 
 async function savePrivateProfile(session,input){
@@ -173,4 +303,4 @@ async function saveCompensation(session,input){
   requireAdmin(session);requireDb();const profile=await ensureProfile(input),currentResult=await db.from('employee_compensation').select('*').eq('employee_profile_id',profile.id).is('effective_to',null).order('effective_from',{ascending:false}).limit(1).maybeSingle();if(currentResult.error)throw currentResult.error;const current=currentResult.data||null;let result;if(current)result=await db.from('employee_compensation').update({base_salary:money(input.baseSalary)}).eq('id',current.id).select('*').single();else result=await db.from('employee_compensation').insert({employee_profile_id:profile.id,base_salary:money(input.baseSalary),allowances:0,currency:'VND',effective_from:new Date().toISOString().slice(0,10),effective_to:null,note:''}).select('*').single();if(result.error)throw result.error;await history(session,profile.id,'compensation',current?'update':'create',current,result.data,input.reason||'Cập nhật mức lương hiện tại');return{compensation:result.data};
 }
 
-module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,resolveEmployeeContacts,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,saveProfile,savePrivateProfile,saveContract,saveCompensation,lockAccountsForDepartedEmployee};
+module.exports={EMPLOYMENT_STATUSES,normalizeEmploymentStatus,mergeSources,loadCanonicalEmployeeProfiles,resolveEmployeeContacts,listEmployeeMaster,getEmployeeMasterDetail,ensureProfile,ensureProfileFromAccount,saveProfile,setEmploymentStatus,savePrivateProfile,saveContract,saveCompensation,lockAccountsForDepartedEmployee};

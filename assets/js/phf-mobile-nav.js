@@ -143,7 +143,7 @@ function menuItemsFor(caps,r){
       {label:'Training Hub',route:p,icon:'▦'},{label:'Classroom',route:p+'/classroom',icon:'▤'},{label:'Khung năng lực',route:p+'/knl',icon:'◆'}]});
     items.push({accordion:true,key:'danh-gia',label:'Đánh giá',children:[{label:'Checklist',route:p+'/checklist',icon:'☰'}]});
     items.push({accordion:true,key:'thi-dua',label:'Thi đua & Thưởng',children:[{label:'Chương trình thi đua',route:p+'/thi-dua',icon:'♛'}]});
-    if(isAdminRoute)items.push({accordion:true,key:'he-thong',label:'Hệ thống',children:[{label:'Quản trị tài khoản',route:'/admin/nhan-su',icon:'♙'}]});
+    if(isAdminRoute)items.push({accordion:true,key:'he-thong',label:'Hệ thống',children:[{label:'Quản trị tài khoản',route:'/admin/nhan-su/tai-khoan',icon:'♙'}]});
   }
   return items;
 }

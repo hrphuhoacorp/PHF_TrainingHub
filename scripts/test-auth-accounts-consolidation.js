@@ -52,11 +52,15 @@ const fakeAuthLib = {
   },
   async createAccountByAdmin(account) {
     calls.push(['createAccountByAdmin', account]);
-    return { account: { id: 'new-1', email: account.email, role: account.role || 'learner' }, temporaryPassword: 'Temp-Create-1' };
+    return { account: { id: 'new-1', email: account.email, role: account.role || 'learner' }, temporaryPassword: 'Temp-Create-1', peopleMaster: { status: 'created' } };
   },
   async updateAccountByAdmin(accountId, patch) {
     calls.push(['updateAccountByAdmin', accountId, patch]);
     return { id: accountId, email: patch.email || 'kept@test.local', role: patch.role || 'learner', status: 'active' };
+  },
+  async completeAccountPeopleMaster(accountId) {
+    calls.push(['completeAccountPeopleMaster', accountId]);
+    return { account: { id: accountId, email: 'kept@test.local' }, peopleMaster: { status: 'created' } };
   },
   async deleteAccountByAdmin(accountId, session) {
     calls.push(['deleteAccountByAdmin', accountId]);
@@ -168,7 +172,7 @@ async function main() {
     const res = fakeRes();
     await accountsHandler(fakeReq('POST', { body: { action: 'create', account: { email: 'new@test.local', role: 'learner' } } }), res);
     assert.strictEqual(res._status, 201);
-    assert.deepStrictEqual(res._body, { ok: true, user: { id: 'new-1', email: 'new@test.local', role: 'learner' }, temporaryPassword: 'Temp-Create-1' });
+    assert.deepStrictEqual(res._body, { ok: true, user: { id: 'new-1', email: 'new@test.local', role: 'learner' }, temporaryPassword: 'Temp-Create-1', peopleMaster: { status: 'created' } });
     assert.ok(calls.some(c => c[0] === 'assertSameOrigin') && calls.some(c => c[0] === 'assertJsonContentType') && calls.some(c => c[0] === 'assertContentLength'), 'create phải chạy đủ 3 guard request-guard.');
   });
 
@@ -248,6 +252,24 @@ async function main() {
     await accountsHandler(fakeReq('POST', { body: { action: 'reset-password', accountId: 'a1' } }), res);
     assert.strictEqual(res._status, 200);
     assert.deepStrictEqual(res._body, { ok: true, user: { id: 'a1', mustChangePassword: true }, temporaryPassword: 'Temp-Reset-1' });
+  });
+
+  await record('POST action=complete-people-master (Admin) -> 200, đúng contract {ok,user,peopleMaster}, KHÔNG qua updateAccountByAdmin', async () => {
+    currentSession = { role: 'admin', sub: 'admin-1' };
+    const res = fakeRes();
+    await accountsHandler(fakeReq('POST', { body: { action: 'complete-people-master', accountId: 'a1' } }), res);
+    assert.strictEqual(res._status, 200);
+    assert.deepStrictEqual(res._body, { ok: true, user: { id: 'a1', email: 'kept@test.local' }, peopleMaster: { status: 'created' } });
+    assert.ok(calls.some(c => c[0] === 'completeAccountPeopleMaster'), 'phải gọi completeAccountPeopleMaster.');
+    assert.ok(!calls.some(c => c[0] === 'updateAccountByAdmin'), 'complete-people-master không được đi qua updateAccountByAdmin (không cần UPDATE user_accounts).');
+  });
+
+  await record('POST action=complete-people-master (Web Operator / manager) -> 403 FORBIDDEN', async () => {
+    currentSession = { role: 'manager', sub: 'mgr-1' };
+    const res = fakeRes();
+    await accountsHandler(fakeReq('POST', { body: { action: 'complete-people-master', accountId: 'a1' } }), res);
+    assert.strictEqual(res._status, 403);
+    assert.strictEqual(res._body.code, 'FORBIDDEN');
   });
 
   await record('POST action không hợp lệ -> 400 ACCOUNT_ACTION_INVALID', async () => {
