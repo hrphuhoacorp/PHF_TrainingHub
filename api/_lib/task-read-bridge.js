@@ -168,6 +168,8 @@ async function bridgeListTasks(session, params) {
     is_cross_department: r.isCrossDepartment,
     source_department: r.sourceDepartment,
     target_department: r.targetDepartment,
+    created_at: r.createdAt != null ? r.createdAt : null,
+    completed_at: r.completedAt != null ? r.completedAt : null,
     created_by: personInfo(r.createdByEmployeeCode),
     primary: r.primaryEmployeeCode ? personInfo(r.primaryEmployeeCode) : null,
     // "Tự giao" — CREATION-TIME classification (creator vs the INITIAL primary,

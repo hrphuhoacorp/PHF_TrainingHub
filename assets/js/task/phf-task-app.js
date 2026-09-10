@@ -583,7 +583,7 @@ var TASK_LIST_PAGE_SIZE=50;
 // are simply not rendered.
 function defaultTaskListFilters(){return {priority:'',category:'',creator:'',primary:'',deadlineFrom:'',deadlineTo:''};}
 function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false,loadedOnce:false,
-  filters:defaultTaskListFilters(),filterOpen:false,filterDraft:null,filterPeople:{loading:false,loaded:false,rows:[]}};}
+  filters:defaultTaskListFilters(),filterOpen:false,filterDraft:null,filterPeople:{loading:false,loaded:false,rows:[]},exporting:false,exportError:''};}
 var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),pendingCancel:defaultTaskPendingCancelState(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,mailSettings:null,mailSettingsLoading:false,mailSettingsError:'',mailSettingsSaving:false,newRecipientEmail:'',newRecipientLabel:'',newRecipientError:'',
   recurrenceManage:{loading:false,error:'',rules:[],editing:null,saving:false,confirmStop:null,filters:{q:'',status:'all',frequency:'all'},loadedOnce:false},
   // P0-2 FIX (2026-08-29) — detail-page business action UI (đổi hạn/chuyển
@@ -1979,6 +1979,178 @@ function taskListFiltersPayload(filters){
   if(f.deadlineTo)out.deadline_to=f.deadlineTo;
   return out;
 }
+/* ---------------------------------------------------------------------
+   TASK LIST EXPORT EXCEL V1 (2026-09-10) — "Xuất Excel" trên Task List.
+   KHÔNG phải reporting engine: 1 nút, 1 sheet, TÁI DÙNG NGUYÊN contract
+   listTasks() đã ký/authorize hiện có (workspace/search/Filter V1) — mọi
+   trang dữ liệu đi qua taskApi({action:'listTasks',...}) Y HỆT
+   loadTaskList()/loadMoreTaskList(), chỉ lặp offset để lấy HẾT (không bị
+   giới hạn UI page 50 dòng) thay vì dừng ở trang đầu. KHÔNG query riêng,
+   KHÔNG field lọc mới không ký tới phf-hr-api — server vẫn authoritative.
+   Giới hạn hệ thống có sẵn (KHÔNG phải do tính năng này thêm): descriptor
+   builder cap limit<=200/offset<=5000 (api/_lib/task-query-descriptor-
+   builder.js, task-core.js legacy path tương đương) — nếu phạm vi/bộ lọc
+   đang chọn vượt quá, export dừng ở giới hạn đó và BÁO RÕ cho người dùng
+   (fetched.capped), KHÔNG âm thầm cắt bớt.
+--------------------------------------------------------------------- */
+var TASK_EXPORT_PAGE_SIZE=200; // = cap tối đa hiện có của descriptor builder
+var TASK_EXPORT_MAX_OFFSET=5000; // = cap tối đa hiện có của descriptor builder
+var TASK_EXPORT_DAY_MS=86400000;
+
+async function taskExportFetchAllRows(list){
+  var wireRelation=list.relation==='managed'?'received':list.relation;
+  var wireScope=list.relation==='managed'?(list.scope==='cross_department'?'cross_department':'managed'):(list.scope||undefined);
+  var basePayload=Object.assign({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined},taskListFiltersPayload(list.filters));
+  var rows=[],offset=0,capped=false;
+  while(true){
+    var response=await taskApi(Object.assign({},basePayload,{limit:TASK_EXPORT_PAGE_SIZE,offset:offset}));
+    var result=taskResult(response)||{};
+    var pageRows=Array.isArray(result.tasks)?result.tasks:[];
+    rows=rows.concat(pageRows);
+    if(!pageRows.length||result.hasMore!==true)break;
+    offset=rows.length;
+    if(offset>=TASK_EXPORT_MAX_OFFSET){capped=true;break;}
+  }
+  return {rows:rows,capped:capped};
+}
+
+// PURE — không ExcelJS, không DOM. Test độc lập không cần thư viện Excel.
+// LOCK (evidence 2026-09-10, phf_hr PROD: 2/220 Task completed thiếu
+// completed_at — toàn bộ "CV-LG-*", tức Task nhập từ Giao việc lịch sử,
+// xem project_phf_task_legacy_giaoviec_import.md): KHÔNG suy đoán quá hạn/
+// đúng hạn cho Task completed thiếu completed_at — nhãn riêng, trung thực,
+// overdueDays=null (không phải 0), để KHÔNG lẫn vào bộ lọc "đúng hạn".
+// Tương tự "Đã hủy" tách riêng khỏi 4 nhãn gốc trong đặc tả — Task hủy
+// không có ý nghĩa "quá hạn" để rà soát Checklist thủ công.
+function taskExportDeadlineStatus(task,nowMs){
+  var status=String((task&&task.status)||'');
+  if(status==='cancelled')return {label:'Đã hủy',overdueDays:null};
+  var deadlineRaw=task&&task.deadline;
+  var deadlineMs=deadlineRaw?new Date(deadlineRaw).getTime():NaN;
+  if(!deadlineRaw||!isFinite(deadlineMs))return {label:'Không có deadline',overdueDays:null};
+  if(status==='completed'){
+    var completedRaw=(task&&(task.completed_at||task.completedAt))||null;
+    var completedMs=completedRaw?new Date(completedRaw).getTime():NaN;
+    if(!completedRaw||!isFinite(completedMs))return {label:'Hoàn thành (không rõ thời điểm)',overdueDays:null};
+    if(completedMs<=deadlineMs)return {label:'Hoàn thành đúng hạn',overdueDays:0};
+    return {label:'Quá hạn',overdueDays:Math.ceil((completedMs-deadlineMs)/TASK_EXPORT_DAY_MS)};
+  }
+  if(nowMs>deadlineMs)return {label:'Quá hạn',overdueDays:Math.ceil((nowMs-deadlineMs)/TASK_EXPORT_DAY_MS)};
+  return {label:'Chưa đến hạn',overdueDays:0};
+}
+function taskExportDateDdMmYyyy(raw){
+  if(!raw)return '';
+  var d=new Date(raw);
+  if(!isFinite(d.getTime()))return '';
+  var dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
+  return dd+'/'+mm+'/'+yyyy;
+}
+var TASK_EXPORT_HEADERS=['Mã công việc','Tên công việc','Người giao','Người phụ trách chính','Phòng ban','Danh mục','Ưu tiên','Ngày tạo','Hạn hoàn thành','Ngày hoàn thành','Trạng thái','Tình trạng deadline','Số ngày quá hạn'];
+// PURE model builder — dùng chung cho render Excel + test. `rows` CÙNG shape
+// với taskUiState.list.tasks (row.created_by/row.primary đã enrich sẵn
+// full_name/department từ People Master, KHÔNG query riêng — xem
+// api/_lib/task-core.js::listTasks()/task-read-bridge.js::bridgeListTasks()
+// personInfo()). Phòng ban lấy theo NGƯỜI PHỤ TRÁCH CHÍNH (ai đang ôm việc
+// quá hạn), fallback người giao nếu Task chưa có primary.
+function buildTaskExportModel(rows,categoryLabelFn,nowMs){
+  var now=typeof nowMs==='number'?nowMs:Date.now();
+  var body=(rows||[]).map(function(row){
+    var ds=taskExportDeadlineStatus(row,now);
+    return [
+      row.task_code||'',
+      row.title||'',
+      (row.created_by&&row.created_by.full_name)||'',
+      (row.primary&&row.primary.full_name)||'',
+      (row.primary&&row.primary.department)||(row.created_by&&row.created_by.department)||'',
+      categoryLabelFn?categoryLabelFn(row):(row.category_code||''),
+      TASK_PRIORITY_LABELS[String(row.priority||'').toLowerCase()]||row.priority||'',
+      taskExportDateDdMmYyyy(row.created_at),
+      taskExportDateDdMmYyyy(row.deadline),
+      taskExportDateDdMmYyyy(row.completed_at||row.completedAt),
+      TASK_STATUS_LABELS[String(row.status||'').toLowerCase()]||row.status||'',
+      ds.label,
+      ds.overdueDays,
+    ];
+  });
+  return {headers:TASK_EXPORT_HEADERS,rows:body};
+}
+function ensureTaskExcelJs(){
+  if(window.ExcelJS)return Promise.resolve(window.ExcelJS);
+  if(window.__phfTaskExcelJsLoadingPromise)return window.__phfTaskExcelJsLoadingPromise;
+  window.__phfTaskExcelJsLoadingPromise=new Promise(function(resolve,reject){
+    var script=document.createElement('script');
+    script.src='assets/vendor/exceljs.min.js?v=4.4.0_phf_task_export_v1';
+    script.async=true;
+    script.onload=function(){window.ExcelJS?resolve(window.ExcelJS):reject(new Error('Không khởi tạo được thư viện tạo Excel.'));};
+    script.onerror=function(){reject(new Error('Không tải được thư viện tạo Excel.'));};
+    document.head.appendChild(script);
+  }).catch(function(error){window.__phfTaskExcelJsLoadingPromise=null;throw error;});
+  return window.__phfTaskExcelJsLoadingPromise;
+}
+function taskExportDownloadBuffer(buffer,fileName){
+  var blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=fileName;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+}
+function taskExportFileName(list){
+  var now=new Date();
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var stamp=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'_'+pad(now.getHours())+pad(now.getMinutes());
+  return 'PHF_Task_'+(TASK_NAV_KEY_BY_RELATION[list.relation]||list.relation)+'_'+stamp+'.xlsx';
+}
+async function renderTaskExportWorkbook(model,fileName){
+  var ExcelJS=await ensureTaskExcelJs();
+  var wb=new ExcelJS.Workbook();
+  wb.creator='PHF Task';wb.company='PHUHOA FRESH';wb.created=new Date();wb.modified=new Date();
+  var sheet=wb.addWorksheet('Task',{properties:{defaultRowHeight:20}});
+  var headerRow=sheet.getRow(1);
+  headerRow.values=model.headers;
+  headerRow.height=24;
+  headerRow.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+  headerRow.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0B5D47'}};
+  headerRow.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+  sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:model.headers.length}};
+  sheet.views=[{state:'frozen',ySplit:1,showGridLines:false}];
+  model.rows.forEach(function(r,i){
+    var row=sheet.getRow(i+2);
+    row.values=r;
+    if(r[12]!=null)row.getCell(13).numFmt='0';
+  });
+  [20,36,20,20,18,18,14,12,14,14,16,22,14].forEach(function(w,i){sheet.getColumn(i+1).width=w;});
+  sheet.eachRow(function(row){row.eachCell(function(cell){cell.alignment=Object.assign({vertical:'middle'},cell.alignment||{});if(!cell.font)cell.font={name:'Arial',size:10};});});
+  var buffer=await wb.xlsx.writeBuffer();
+  taskExportDownloadBuffer(buffer,fileName);
+}
+async function exportTaskListExcel(root){
+  var list=taskUiState.list;
+  if(list.exporting)return;
+  list.exporting=true;list.exportError='';
+  renderTaskRoot(root);
+  try{
+    var fetched=await taskExportFetchAllRows(list);
+    if(!fetched.rows.length){
+      taskNotice('info','Không có dữ liệu','Không có công việc nào khớp bộ lọc hiện tại để xuất.');
+      return;
+    }
+    var model=buildTaskExportModel(fetched.rows,taskListCategoryLabel);
+    var fileName=taskExportFileName(list);
+    await renderTaskExportWorkbook(model,fileName);
+    if(fetched.capped){
+      taskNotice('info','Đã xuất Excel (giới hạn)','Đã xuất '+fetched.rows.length+' dòng đầu tiên — phạm vi/bộ lọc hiện tại có nhiều hơn giới hạn xuất một lần. Vui lòng thu hẹp bộ lọc (VD: theo tháng) để xuất đầy đủ.');
+    }else{
+      taskNotice('success','Đã xuất Excel','Đã xuất '+fetched.rows.length+' công việc ('+fileName+').');
+    }
+  }catch(error){
+    list.exportError=taskApiErrorMessage(error);
+    taskNotice('error','Chưa thể xuất Excel',list.exportError);
+  }finally{
+    list.exporting=false;
+    renderTaskRoot(root);
+  }
+}
 // Category/people picker options — REUSE existing data sources only (no new
 // endpoint): loadTaskCategories() is the same call Settings/Create already
 // use; loadTaskAssignableEmployees() is the same assignable-population call
@@ -2117,6 +2289,7 @@ function taskListHtml(){
           taskListManagerScopeFilterHtml() +
           taskListFilterButtonHtml() +
           '<input type="search" class="phft-input" placeholder="Tìm theo mã phiếu hoặc tiêu đề (VD: CV-2608-0003)" value="'+esc(taskUiState.list.search)+'" data-task-list-search>' +
+          '<button type="button" class="phft-btn-secondary" data-task-list-export'+(taskUiState.list.exporting?' disabled':'')+'>'+(taskUiState.list.exporting?'Đang xuất…':'Xuất Excel')+'</button>' +
         '</div>' +
       '</div>' +
       taskListFilterPanelHtml() +
@@ -6170,6 +6343,7 @@ function bindShell(root){
     if(target.matches('[data-task-demo-cancel-request-confirm]')){demoCancelRequestConfirm(root);return;}
     if(target.matches('[data-task-list-status]')){taskUiState.list.statusFilter=target.getAttribute('data-task-list-status');loadTaskList(root);return;}
     if(target.matches('[data-task-list-load-more]')){loadMoreTaskList(root);return;}
+    if(target.matches('[data-task-list-export]')){exportTaskListExcel(root);return;}
     if(target.matches('[data-task-list-filter-toggle]')){if(taskUiState.list.filterOpen)closeTaskListFilterPanel(root);else openTaskListFilterPanel(root);return;}
     if(target.matches('[data-task-list-filter-close]')){closeTaskListFilterPanel(root);return;}
     if(target.matches('[data-task-list-filter-apply]')){applyTaskListFilters(root);return;}
@@ -6772,6 +6946,11 @@ if(window.__PHF_TASK_TEST_MODE__){
   openTaskListFilterPanel:openTaskListFilterPanel,closeTaskListFilterPanel:closeTaskListFilterPanel,
   applyTaskListFilters:applyTaskListFilters,clearTaskListFilters:clearTaskListFilters,
   taskListFilterButtonHtml:taskListFilterButtonHtml,taskListFilterPanelHtml:taskListFilterPanelHtml,
-  loadTaskListFilterOptionsIfNeeded:loadTaskListFilterOptionsIfNeeded};
+  loadTaskListFilterOptionsIfNeeded:loadTaskListFilterOptionsIfNeeded,
+  // TASK LIST EXPORT EXCEL V1 (2026-09-10)
+  taskExportFetchAllRows:taskExportFetchAllRows,taskExportDeadlineStatus:taskExportDeadlineStatus,
+  taskExportDateDdMmYyyy:taskExportDateDdMmYyyy,buildTaskExportModel:buildTaskExportModel,
+  taskExportFileName:taskExportFileName,exportTaskListExcel:exportTaskListExcel,
+  TASK_EXPORT_HEADERS:TASK_EXPORT_HEADERS,TASK_EXPORT_PAGE_SIZE:TASK_EXPORT_PAGE_SIZE,TASK_EXPORT_MAX_OFFSET:TASK_EXPORT_MAX_OFFSET};
 }
 })();

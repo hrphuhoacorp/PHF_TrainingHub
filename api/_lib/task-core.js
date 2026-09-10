@@ -2296,6 +2296,8 @@ async function listTasks(session, params) {
       is_cross_department: t.is_cross_department,
       source_department: t.source_department,
       target_department: t.target_department,
+      created_at: t.created_at,
+      completed_at: t.completed_at != null ? t.completed_at : null,
       created_by: personInfo(t.created_by_employee_code),
       primary: primary ? personInfo(primary.employee_code) : null,
       // "Tự giao" — CREATION-TIME classification (creator vs the INITIAL
