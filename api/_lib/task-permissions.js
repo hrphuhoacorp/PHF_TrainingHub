@@ -10,6 +10,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const __timing = require('./request-timing'); // FORENSIC V3 — env-gated phase timing, inert otherwise
 const {
   resolveActorContext,
   applyTaskPresetToActorContext,
@@ -151,7 +152,7 @@ async function loadActiveTaskAssignment(actorContext) {
   if (accountId && employeeCode) query = query.or('account_id.eq.' + accountId + ',employee_code.eq.' + employeeCode);
   else if (accountId) query = query.eq('account_id', accountId);
   else query = query.eq('employee_code', employeeCode);
-  const { data, error } = await query.limit(50);
+  const { data, error } = await __timing.span('task_permission', () => query.limit(50));
   if (error) throwDb(error, ASSIGNMENTS_TABLE);
   return selectCurrentAssignment(data || [], actorContext, nowIso);
 }
@@ -161,12 +162,12 @@ async function loadActiveGrants(employeeCode) {
   if (!target) return [];
   ensureDb();
   const nowIso = new Date().toISOString();
-  const { data, error } = await supabase.from(GRANTS_TABLE)
+  const { data, error } = await __timing.span('task_permission', () => supabase.from(GRANTS_TABLE)
     .select('*')
     .eq('grantee_employee_code', target)
     .eq('is_active', true)
     .lte('effective_from', nowIso)
-    .limit(200);
+    .limit(200));
   if (error) throwDb(error, GRANTS_TABLE);
   return (data || []).filter(grant => !grant.effective_to || text(grant.effective_to) >= nowIso);
 }
@@ -350,11 +351,11 @@ async function resolveEffectiveTaskScopesForActorContexts(actorContexts) {
   if (!nonAdmins.length) return contexts.map(context => resolveEffectiveTaskScopeFromGrants(context, [], null, []));
   const nowIso = new Date().toISOString();
   const employeeCodes = Array.from(new Set(nonAdmins.map(context => code(context.employeeCode)).filter(Boolean)));
-  const [assignmentResult, grantResult, orgRows] = await Promise.all([
+  const [assignmentResult, grantResult, orgRows] = await __timing.span('task_permission', () => Promise.all([
     supabase.from(ASSIGNMENTS_TABLE).select('*').eq('is_active', true).lte('effective_from', nowIso).limit(5000),
     supabase.from(GRANTS_TABLE).select('*').in('grantee_employee_code', employeeCodes).eq('is_active', true).lte('effective_from', nowIso).limit(5000),
     loadOrgRows()
-  ]);
+  ]));
   if (assignmentResult.error) throwDb(assignmentResult.error, ASSIGNMENTS_TABLE);
   if (grantResult.error) throwDb(grantResult.error, GRANTS_TABLE);
   const assignmentRows = assignmentResult.data || [];

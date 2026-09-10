@@ -31,6 +31,7 @@
 const crypto = require('crypto');
 const { resolveEffectiveTaskScope } = require('./task-permissions');
 const { resolveAuthorizedTaskEmployeeScope, deriveTaskNavAuthoritySignals } = require('./task-core');
+const __timing = require('./request-timing'); // FORENSIC V3 — env-gated phase timing, inert otherwise
 
 const DESCRIPTOR_TTL_MS = 15000;
 
@@ -48,6 +49,9 @@ function canonicalSortedJson(obj) {
  * payload (phf-hr-api does not need it to run the query).
  */
 async function buildResolvedTaskOverviewQueryDescriptor(session, options) {
+  return __timing.spanInclusive('descriptor_build', () => _buildResolvedTaskOverviewQueryDescriptor(session, options));
+}
+async function _buildResolvedTaskOverviewQueryDescriptor(session, options) {
   const signingSecret = options && options.signingSecret;
   if (!signingSecret) {
     const err = new Error('signingSecret bắt buộc để ký descriptor Tổng quan.');

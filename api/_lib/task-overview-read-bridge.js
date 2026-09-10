@@ -20,6 +20,7 @@ const BRIDGE_TIMEOUT_MS = 6000;
 
 const { buildResolvedTaskOverviewQueryDescriptor } = require('./task-overview-query-descriptor-builder');
 const { classifySourceOfWork, isRecurringOccurrence } = require('./task-source-of-work');
+const __timing = require('./request-timing'); // FORENSIC V3 — env-gated bridge_wait timing, inert otherwise
 
 function isOverviewBridgeEnabled() {
   return String(process.env.PHF_TASK_OVERVIEW_READ_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -54,12 +55,12 @@ async function bridgeFetchOverviewPopulation(session, opts) {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/overview', {
+    response = await __timing.bridgeSpan('overview', () => fetch(PHF_HR_API_BASE_URL + '/v1/task/overview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
       body: JSON.stringify({ descriptor }),
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời (timeout).', 504, 'TASK_OVERVIEW_READ_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api: ' + err.message, 502, 'TASK_OVERVIEW_READ_BRIDGE_UNREACHABLE');

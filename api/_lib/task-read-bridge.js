@@ -36,6 +36,7 @@ const BRIDGE_TIMEOUT_MS = 6000;
 
 const { buildResolvedTaskQueryDescriptor } = require('./task-query-descriptor-builder');
 const { loadOrgRows } = require('./task-employee-scope');
+const __timing = require('./request-timing'); // FORENSIC V3 — env-gated bridge_wait timing, inert otherwise
 const { classifySourceOfWork: taskSourceOfWork } = require('./task-source-of-work');
 
 function isBridgeEnabled() {
@@ -70,11 +71,11 @@ async function bridgeListTaskCategories() {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/categories', {
+    response = await __timing.bridgeSpan('categories', () => fetch(PHF_HR_API_BASE_URL + '/v1/task/categories', {
       method: 'GET',
       headers: { Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời (timeout).', 504, 'TASK_READ_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api: ' + err.message, 502, 'TASK_READ_BRIDGE_UNREACHABLE');
@@ -118,12 +119,12 @@ async function bridgeListTasks(session, params) {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/tasks', {
+    response = await __timing.bridgeSpan('tasks_list', () => fetch(PHF_HR_API_BASE_URL + '/v1/task/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
       body: JSON.stringify({ descriptor }),
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời (timeout).', 504, 'TASK_READ_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api: ' + err.message, 502, 'TASK_READ_BRIDGE_UNREACHABLE');
@@ -242,12 +243,12 @@ async function bridgeListTaskEvents(session, params, eventLimit) {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/events', {
+    response = await __timing.bridgeSpan('events', () => fetch(PHF_HR_API_BASE_URL + '/v1/task/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
       body: JSON.stringify({ descriptor, eventLimit: eventLimit || undefined }),
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi đọc dòng thời gian (timeout).', 504, 'TASK_READ_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api khi đọc dòng thời gian: ' + err.message, 502, 'TASK_READ_BRIDGE_UNREACHABLE');
@@ -289,11 +290,11 @@ async function bridgeGetTaskDetail(taskId) {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + `/v1/task/tasks/${encodeURIComponent(taskId)}`, {
+    response = await __timing.bridgeSpan('task_detail', () => fetch(PHF_HR_API_BASE_URL + `/v1/task/tasks/${encodeURIComponent(taskId)}`, {
       method: 'GET',
       headers: { Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi đọc chi tiết task (timeout).', 504, 'TASK_READ_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api khi đọc chi tiết task: ' + err.message, 502, 'TASK_READ_BRIDGE_UNREACHABLE');
@@ -327,12 +328,12 @@ async function notificationFetch(method, pathAndQuery, body) {
   const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(PHF_HR_API_BASE_URL + pathAndQuery, {
+    response = await __timing.bridgeSpan('notifications', () => fetch(PHF_HR_API_BASE_URL + pathAndQuery, {
       method,
       headers: Object.assign({ Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN }, method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
       body: method === 'GET' ? undefined : JSON.stringify(body || {}),
       signal: controller.signal,
-    });
+    }));
   } catch (err) {
     if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi xử lý Thông báo (timeout).', 504, 'TASK_NOTIFICATION_BRIDGE_TIMEOUT');
     bridgeFail('Không kết nối được phf-hr-api khi xử lý Thông báo: ' + err.message, 502, 'TASK_NOTIFICATION_BRIDGE_UNREACHABLE');
