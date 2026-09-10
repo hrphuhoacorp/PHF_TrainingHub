@@ -15,6 +15,7 @@ const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibr
 // Proposal V2 (2026-08-29) — dùng để tính viewer flags (canAccept/canReject/
 // canCancel) cho detail DTO, xem attachProposalViewerFlags() bên dưới.
 const { resolveActorContext } = require('./_lib/task-employee-scope');
+const __reqTiming = require('./_lib/request-timing');
 const {
   listTaskAssignableEmployees,
   listTaskAdminPeople,
@@ -1094,7 +1095,12 @@ module.exports = async function handler(req, res) {
       assertJsonContentType(req);
       assertContentLength(req);
       const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-      const session = await requireSession(req, ['learner','manager','admin']);
+      // FORENSIC V3 — structured phase timing for /api/data (env-gated:
+      // PHF_API_TIMING_ENABLED='true'; fully inert otherwise). No PII, one
+      // JSON line per request. Bind context to this request's async root.
+      { const __pa = String(payload && payload.action || '').trim();
+        if (__reqTiming.enabled() && (/task/i.test(__pa) || __pa === 'listMyTaskNotifications')) __reqTiming.enter(__pa); }
+      const session = await __reqTiming.span('session_verify', () => requireSession(req, ['learner','manager','admin']));
       const classroomMode = String(req.query?.classroom || '') === '1';
       const classroomAttendanceMode = String(req.query?.classroomAttendance || '') === '1';
       const classroomLearningMode = String(req.query?.classroomLearning || '') === '1';
@@ -1470,7 +1476,14 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='getKnlSurveyResults')return res.status(200).json({ok:true,...await getKnlSurveyResults(session,payload)});
       if(payload&&payload.action==='cloneKnlSurveyVersionToDraft')return res.status(200).json({ok:true,...await cloneKnlSurveyVersionToDraft(session,payload)});
       const taskDispatch = await dispatchTaskAction(session, payload);
-      if (taskDispatch.handled) return res.status(200).json({ok:true,result:taskDispatch.result});
+      if (taskDispatch.handled) {
+        // FORENSIC V3 — representative serialization measurement (same result
+        // object res.json will serialize) + emit the one timing line. The
+        // response itself is sent EXACTLY as before via res.json().
+        __reqTiming.span('serialization', () => { try { JSON.stringify(taskDispatch.result); } catch (_e) {} });
+        __reqTiming.finish(200);
+        return res.status(200).json({ok:true,result:taskDispatch.result});
+      }
       const competitionDispatch = await dispatchCompetitionAction(session, payload);
       if (competitionDispatch.handled) return res.status(200).json({ok:true,result:competitionDispatch.result});
       const noticeDispatch = await dispatchNoticeAction(session, payload);
@@ -1504,6 +1517,7 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     console.error('[PHF API]', err?.code || err?.name || 'ERROR', err?.message || err);
     const response = publicError(err);
+    try { __reqTiming.finish(response.status); } catch (_e) {}
     return res.status(response.status).json(response.body);
   }
 };

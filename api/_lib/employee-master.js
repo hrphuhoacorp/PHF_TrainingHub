@@ -31,7 +31,9 @@ async function safeRows(table,select='*'){
 // paths from silently drifting to another Supabase project or query contract.
 async function loadCanonicalEmployeeProfiles(select='*'){
   requireDb();
-  return safeRows('employee_profiles',select);
+  // FORENSIC V3 — People Master fetch time (env-gated, inert otherwise; no-op
+  // when there is no active request timing context, e.g. non-Task callers).
+  return require('./request-timing').span('people_master', () => safeRows('employee_profiles',select));
 }
 
 function invalidateTaskPeopleCache(){

@@ -181,6 +181,11 @@ function applyTaskPresetToActorContext(actorContext, presetCode, rows) {
 }
 
 async function resolveActorContext(session) {
+  // FORENSIC V3 — inclusive wall time of identity resolution (contains the
+  // people_master leaf phase when the 30s org cache misses). Env-gated / inert.
+  return require('./request-timing').spanInclusive('account_resolve', () => _resolveActorContext(session));
+}
+async function _resolveActorContext(session) {
   if (resolveSessionAccountRole(session) === 'admin') {
     const accountId = resolveSessionAccountId(session);
     if (!accountId) fail('Phiên Admin thiếu account_id canonical cho PHF Task.', 401, 'TASK_ACCOUNT_IDENTITY_REQUIRED');
