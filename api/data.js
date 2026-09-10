@@ -425,7 +425,7 @@ const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKn
 const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade, correctKnlEmployeeCompensationPeriod } = require('./_lib/knl-foundation');
 const { getKnlDashboardOverview } = require('./_lib/knl-dashboard');
 const { askKnlDashboardAi } = require('./_lib/knl-dashboard-ai');
-const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./_lib/employee-master');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, setEmploymentStatus:setEmployeeMasterEmploymentStatus, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./_lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./_lib/employee-import');
 const { getActiveEmployeeCount, getChecklistMonthlyFormCount } = require('./_lib/home-quick-stats');
 const {
@@ -1140,6 +1140,19 @@ module.exports = async function handler(req, res) {
         const action=String(payload.action||'').trim();
         if(action==='saveProfile'){
           const out=await saveEmployeeMasterProfile(session,payload);
+          if(out&&out.accountLock&&out.accountLock.locked>0){
+            const {auditEmit}=require('./_lib/audit-emit');
+            for(const acc of (out.accountLock.accounts||[])){
+              await auditEmit(req,session,{module:'account',action:'EMPLOYEE_INACTIVE_AUTO_LOCK',result:'success',
+                object_type:'account',object_id:acc.id||null,object_label:acc.employee_code||acc.id||null,
+                before:{status:acc.previous_status},after:{status:'inactive'},
+                metadata:{trigger:'employment_status->inactive',employeeProfileId:out.profile&&out.profile.id}});
+            }
+          }
+          return res.status(200).json({ok:true,...out});
+        }
+        if(action==='setEmploymentStatus'){
+          const out=await setEmployeeMasterEmploymentStatus(session,payload);
           if(out&&out.accountLock&&out.accountLock.locked>0){
             const {auditEmit}=require('./_lib/audit-emit');
             for(const acc of (out.accountLock.accounts||[])){

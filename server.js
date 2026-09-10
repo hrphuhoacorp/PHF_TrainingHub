@@ -269,7 +269,7 @@ const { getKnlSurveySetup, saveKnlSurveyCampaign, openKnlSurveyCampaign, closeKn
 const { getKnlGradeMatrix, saveKnlGradeMatrix, setKnlVersionEffectivity, listKnlCompensationStandards, previewKnlCompensationFoundation, applyKnlCompensationFoundation, listKnlIncomeTargets, getKnlEmployeeIncome, saveKnlEmployeeIncome, listKnlCompensationAssignmentTargets, cloneKnlCompensationVersion, saveKnlCompensationGrades, scheduleKnlCompensationVersion, getKnlCompensationVersionAudit, listKnlEmployeeCompensationHistory, listKnlEmployeeCompensationPeriods, getKnlEmployeeNextCompensationGrade, correctKnlEmployeeCompensationPeriod } = require('./api/_lib/knl-foundation');
 const { getKnlDashboardOverview } = require('./api/_lib/knl-dashboard');
 const { askKnlDashboardAi } = require('./api/_lib/knl-dashboard-ai');
-const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./api/_lib/employee-master');
+const { listEmployeeMaster, getEmployeeMasterDetail, saveProfile:saveEmployeeMasterProfile, setEmploymentStatus:setEmployeeMasterEmploymentStatus, savePrivateProfile:saveEmployeeMasterPrivateProfile, saveContract:saveEmployeeMasterContract } = require('./api/_lib/employee-master');
 const { previewEmployeeImport, commitEmployeeImport } = require('./api/_lib/employee-import');
 const { getActiveEmployeeCount, getChecklistMonthlyFormCount } = require('./api/_lib/home-quick-stats');
 const { runChatSandbox } = require('./api/_lib/ai-sandbox');
@@ -284,7 +284,7 @@ const {
   publicError
 } = require('./api/_lib/request-guard');
 const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./api/_lib/production-hardening');
-const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./api/_lib/auth');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, completeAccountPeopleMaster, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./api/_lib/auth');
 
 /* TASK_API_WIRING_START */
 const TASK_ACTION_MANIFEST = Object.freeze([
@@ -850,14 +850,59 @@ const server = http.createServer(async (req, res) => {
       const accounts = await listAccountsForAdmin();
       return sendJson(res,200,{ok:true,accounts});
     }
+    // Combined action-in-body route — mirrors api/auth/accounts.js (Vercel)
+    // so the Account admin screen's fetch('/api/auth/accounts',{action:...})
+    // works identically on local :3000 (previously only the discrete
+    // /create /update /delete /reset-password /sync sub-routes below existed
+    // here; the frontend has always called this combined path).
+    if (pathname === '/api/auth/accounts' && req.method === 'POST') {
+      assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+      const session=await requireWebOperatorSession(req);
+      const raw=await readBody(req); let body={};
+      try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu không hợp lệ.',400,'JSON_INVALID')}
+      const action=String(body.action||'').trim();
+      if(action==='create'){
+        await assertAccountMutationAllowed(session,body.account||body);
+        const result=await createAccountByAdmin(body.account||body, session);
+        return sendJson(res,201,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword,peopleMaster:result.peopleMaster});
+      }
+      if(action==='update'){
+        await assertAccountMutationAllowed(session,body.account||body,body.accountId);
+        const user=await updateAccountByAdmin(body.accountId, body.account||body, session);
+        const reauthRequired=String(session.sub||'')===String(user.id||'') && (session.email!==user.email || session.role!==user.role || user.status!=='active');
+        if(reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
+        return sendJson(res,200,{ok:true,user,reauthRequired});
+      }
+      if(action==='delete'){
+        await assertAccountMutationAllowed(session,{},body.accountId);
+        const user = await deleteAccountByAdmin(body.accountId, session);
+        return sendJson(res,200,{ok:true,user});
+      }
+      if(action==='reset-password'){
+        await assertAccountMutationAllowed(session,{},body.accountId);
+        const result=await resetPasswordByAdmin(body.accountId);
+        return sendJson(res,200,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
+      }
+      if(action==='sync'){
+        if(session.role!=='admin') throw new RequestError('Tài khoản không có quyền thực hiện thao tác này.',403,'FORBIDDEN');
+        const accountsSynced=await syncAccounts(body.accounts||[]);
+        return sendJson(res,200,{ok:true,count:accountsSynced.length});
+      }
+      if(action==='complete-people-master'){
+        await assertAccountMutationAllowed(session,{},body.accountId);
+        const result=await completeAccountPeopleMaster(body.accountId, session);
+        return sendJson(res,200,{ok:true,user:result.account,peopleMaster:result.peopleMaster});
+      }
+      throw new RequestError('Hành động tài khoản không hợp lệ.',400,'ACCOUNT_ACTION_INVALID');
+    }
     if (pathname === '/api/auth/accounts/create' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
       const session=await requireWebOperatorSession(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu tạo tài khoản không hợp lệ.',400,'JSON_INVALID')}
       await assertAccountMutationAllowed(session,body.account||body);
-      const result=await createAccountByAdmin(body.account||body);
-      return sendJson(res,201,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword});
+      const result=await createAccountByAdmin(body.account||body, session);
+      return sendJson(res,201,{ok:true,user:result.account,temporaryPassword:result.temporaryPassword,peopleMaster:result.peopleMaster});
     }
     if (pathname === '/api/auth/accounts/update' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
@@ -865,7 +910,7 @@ const server = http.createServer(async (req, res) => {
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu cập nhật tài khoản không hợp lệ.',400,'JSON_INVALID')}
       await assertAccountMutationAllowed(session,body.account||body,body.accountId);
-      const user=await updateAccountByAdmin(body.accountId, body.account||body);
+      const user=await updateAccountByAdmin(body.accountId, body.account||body, session);
       const reauthRequired=String(session.sub||'')===String(user.id||'') && (session.email!==user.email || session.role!==user.role || user.status!=='active');
       if(reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
       return sendJson(res,200,{ok:true,user,reauthRequired});
@@ -1115,6 +1160,7 @@ const server = http.createServer(async (req, res) => {
         if(employeeMasterMode){
           const action=String(payload.action||'').trim();
           if(action==='saveProfile')return sendJson(res,200,{ok:true,...await saveEmployeeMasterProfile(session,payload)});
+          if(action==='setEmploymentStatus')return sendJson(res,200,{ok:true,...await setEmployeeMasterEmploymentStatus(session,payload)});
           if(action==='savePrivateProfile')return sendJson(res,200,{ok:true,...await saveEmployeeMasterPrivateProfile(session,payload)});
           if(action==='saveContract')return sendJson(res,200,{ok:true,...await saveEmployeeMasterContract(session,payload)});
           if(action==='saveCompensation'){

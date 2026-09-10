@@ -15,6 +15,7 @@ const {
   requireSession,
   createAccountByAdmin,
   updateAccountByAdmin,
+  completeAccountPeopleMaster,
   deleteAccountByAdmin,
   listAccountsForAdmin,
   syncAccounts,
@@ -116,9 +117,9 @@ async function handleCreate(req, res, body) {
   assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, body.account || body);
-  const result = await createAccountByAdmin(body.account || body);
+  const result = await createAccountByAdmin(body.account || body, session);
   await emitAccountAudit(req, session, 'create', null, result.account, { accountType: result.account && result.account.accountType });
-  return send(res, 201, { ok: true, user: result.account, temporaryPassword: result.temporaryPassword });
+  return send(res, 201, { ok: true, user: result.account, temporaryPassword: result.temporaryPassword, peopleMaster: result.peopleMaster });
 }
 
 async function handleUpdate(req, res, body) {
@@ -126,12 +127,26 @@ async function handleUpdate(req, res, body) {
   const session = await requireWebOperatorSession(req);
   await assertAccountMutationAllowed(session, body.account || body, body.accountId);
   const before = await getAccountById(body.accountId);
-  const user = await updateAccountByAdmin(body.accountId, body.account || body);
+  const user = await updateAccountByAdmin(body.accountId, body.account || body, session);
   await emitAccountAudit(req, session, 'update', before, user);
   const reauthRequired = String(session.sub || '') === String(user.id || '') &&
     (session.email !== user.email || session.role !== user.role || user.status !== 'active');
   if (reauthRequired) res.setHeader('Set-Cookie', clearCookieHeader());
   return send(res, 200, { ok: true, user, reauthRequired });
+}
+
+// "Hoàn tất hồ sơ nhân sự" — People Master repair action. Deliberately NOT an
+// account-field update: only reads the account (SELECT, already granted) and
+// creates the missing employee_profiles row if needed. See auth.js
+// completeAccountPeopleMaster for why this must never go through
+// updateAccountByAdmin (that requires UPDATE privilege on user_accounts,
+// a permission surface this action has no reason to touch).
+async function handleCompletePeopleMaster(req, res, body) {
+  assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
+  const session = await requireWebOperatorSession(req);
+  await assertAccountMutationAllowed(session, {}, body.accountId);
+  const result = await completeAccountPeopleMaster(body.accountId, session);
+  return send(res, 200, { ok: true, user: result.account, peopleMaster: result.peopleMaster });
 }
 
 async function handleDelete(req, res, body) {
@@ -177,6 +192,7 @@ module.exports = async function handler(req, res) {
       if (action === 'delete') return await handleDelete(req, res, body);
       if (action === 'sync') return await handleSync(req, res, body);
       if (action === 'reset-password') return await handleResetPassword(req, res, body);
+      if (action === 'complete-people-master') return await handleCompletePeopleMaster(req, res, body);
       return send(res, 400, { ok: false, error: 'Thao tác tài khoản không hợp lệ.', code: 'ACCOUNT_ACTION_INVALID' });
     }
     res.setHeader('Allow', 'GET, POST');
