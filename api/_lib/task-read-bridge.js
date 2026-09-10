@@ -302,7 +302,7 @@ async function bridgeGetTaskDetail(taskId) {
     clearTimeout(timer);
   }
 
-  if (response.status === 404) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null };
+  if (response.status === 404) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null, cancel_request_history: [] };
   if (!response.ok) {
     bridgeFail('phf-hr-api trả lỗi khi đọc chi tiết task (HTTP ' + response.status + ').', 502, 'TASK_READ_BRIDGE_UPSTREAM_ERROR');
   }

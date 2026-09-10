@@ -201,6 +201,39 @@ async function bridgeGetTaskById(taskId) {
   return parsed.data;
 }
 
+// CANCEL REQUEST USABILITY V1 (2026-09-10) — GET /v1/task/cancel-requests/pending.
+// Same GET-not-callWriteRoute shape as bridgeGetTaskById() above (this is a
+// read, not a mutation). Returns the RAW, unauthorized list — the caller
+// (task-server-integration.js) re-runs resolveTaskViewerAuthority() per row
+// to keep only the requests the calling actor may review. NEVER exposed to
+// the client unfiltered.
+async function bridgeListPendingCancelRequests() {
+  preflightCheck();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(PHF_HR_API_BASE_URL + '/v1/task/cancel-requests/pending', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + PHF_HR_API_SERVICE_TOKEN },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') bridgeFail('phf-hr-api không phản hồi kịp thời khi đọc yêu cầu hủy đang chờ (timeout).', 504, 'TASK_WRITE_BRIDGE_TIMEOUT');
+    bridgeFail('Không kết nối được phf-hr-api khi đọc yêu cầu hủy đang chờ: ' + err.message, 502, 'TASK_WRITE_BRIDGE_UNREACHABLE');
+  } finally {
+    clearTimeout(timer);
+  }
+  let parsed;
+  try { parsed = await response.json(); } catch (err) { bridgeFail('phf-hr-api trả response đọc yêu cầu hủy không phải JSON hợp lệ.', 502, 'TASK_WRITE_BRIDGE_BAD_RESPONSE'); }
+  if (!response.ok) {
+    const code = (parsed && parsed.error) || 'TASK_WRITE_BRIDGE_UPSTREAM_ERROR';
+    const message = (parsed && parsed.message) || ('phf-hr-api trả lỗi HTTP ' + response.status);
+    bridgeFail(message, response.status, code);
+  }
+  return (parsed && parsed.data) || [];
+}
+
 // GET route — KHÔNG dùng callWriteRoute (đó là POST-only). Trả về response
 // thô (không parse JSON — đây là file binary) để caller tự pipe/stream tiếp,
 // tránh buffer file lớn vào memory ở tầng bridge.
@@ -475,6 +508,7 @@ module.exports = {
   bridgeRemoveTaskAttachment,
   bridgeDownloadTaskAttachment,
   bridgeGetTaskById,
+  bridgeListPendingCancelRequests,
   bridgeAcceptTaskProposal,
   bridgeRejectTaskProposal,
   bridgeCancelTaskProposal,
