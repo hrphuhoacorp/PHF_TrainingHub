@@ -1651,7 +1651,7 @@ function initialPrimaryEmployeeCode(assigneeRows) {
   return code(primaries[0].employee_code);
 }
 
-function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventRows, categoryDtoObj, orgRows, viewer, recurrence, cancelRequest, attachmentRows, sourceMeta) {
+function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventRows, categoryDtoObj, orgRows, viewer, recurrence, cancelRequest, attachmentRows, sourceMeta, cancelRequestHistory) {
   const peopleByCode = new Map((orgRows || []).map(person => [code(person.employeeCode), person]));
   const activePrimaryRow = (assigneeRows || []).find(a => a.role === 'primary' && a.is_active) || null;
   // FILE ATTACHMENT V1 — the phf-hr-api read path already returns ONLY active
@@ -1724,7 +1724,31 @@ function assembleTaskDetailDto(task, assigneeRows, commentRows, linkRows, eventR
     cancel_request: cancelRequest ? Object.assign({}, cancelRequest, {
       can_review: !!(viewer && viewer.actions && viewer.actions.review_cancel_request === true),
       can_withdraw: !!(viewer && viewer.is_active_primary === true),
+      // CANCEL REQUEST USABILITY V1 (2026-09-10) — display name, same
+      // peopleByCode enrichment every other DTO section already uses. The
+      // panel showed only a bare employee_code before; this closes that gap
+      // without a new query (orgRows already loaded for this DTO).
+      requested_by_full_name: (peopleByCode.get(code(cancelRequest.requested_by_employee_code)) || {}).fullName || '',
     }) : null,
+    // CANCEL REQUEST USABILITY V1 (2026-09-10) — most recent DECIDED requests
+    // (approved/rejected/withdrawn) for this Task, newest first, bounded to
+    // what task-read.js already fetched. Read-only history — a decided
+    // request is NEVER actionable again (no can_review/can_withdraw here);
+    // it exists so "requester → reason → decision → decision actor → time"
+    // stays visible on the Task after the pending panel clears. Legacy
+    // Supabase path passes nothing -> [].
+    cancel_request_history: (cancelRequestHistory || []).map(row => ({
+      id: row.id,
+      status: row.status,
+      reason: row.reason,
+      requested_by_employee_code: row.requested_by_employee_code || null,
+      requested_by_full_name: (peopleByCode.get(code(row.requested_by_employee_code)) || {}).fullName || '',
+      requested_at: row.requested_at,
+      decided_by_employee_code: row.decided_by_employee_code || null,
+      decided_by_full_name: (peopleByCode.get(code(row.decided_by_employee_code)) || {}).fullName || '',
+      decided_at: row.decided_at || null,
+      decision_note: row.decision_note || null,
+    })),
     viewer: viewer || null
   };
 }

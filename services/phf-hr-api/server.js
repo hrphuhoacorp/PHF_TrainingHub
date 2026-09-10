@@ -91,6 +91,7 @@ const {
 const {
   submitCancelRequest: submitTaskCancelRequest,
   decideCancelRequest: decideTaskCancelRequest,
+  listPendingCancelRequests,
 } = require('./lib/task-cancel-request');
 // PHF Task — MAIL CONTRACT V1 (LOCAL ONLY until the migrations +
 // PHF_TASK_MAIL_OUTBOX_ENABLED). phf-hr-api NEVER sends mail — it owns the
@@ -650,6 +651,25 @@ function createServer(config) {
           return sendJson(res, 401, { error: auth.reason });
         }
         const result = await listTaskCategories(config);
+        return sendJson(res, 200, result);
+      }
+
+      // ---------------------------------------------------------------
+      // GET /v1/task/cancel-requests/pending — CANCEL REQUEST USABILITY V1
+      // (2026-09-10). Bearer service token only, SELECT only, no CORS. Returns
+      // EVERY pending "Yêu cầu hủy" across the company, unauthorized — the
+      // MAIN APP filters down to what the calling actor may review (same
+      // review authority resolveTaskViewerAuthority() already computes for
+      // the single-Task detail path). Never lists decided (approved/
+      // rejected/withdrawn) requests — that stays a Task-scoped concern.
+      // ---------------------------------------------------------------
+      if (req.method === 'GET' && path === '/v1/task/cancel-requests/pending') {
+        const auth = authCheck(req);
+        if (!auth.authorized) {
+          logger.warn('auth_denied', { path, reason: auth.reason });
+          return sendJson(res, 401, { error: auth.reason });
+        }
+        const result = await listPendingCancelRequests(config);
         return sendJson(res, 200, result);
       }
 

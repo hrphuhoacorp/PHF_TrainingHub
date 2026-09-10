@@ -179,7 +179,7 @@ async function getTaskById(config, taskId) {
         [taskId]
       );
       const task = taskResult.rows[0] || null;
-      if (!task) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null };
+      if (!task) return { task: null, assignees: [], comments: [], links: [], events: [], attachments: [], recurrence: null, cancel_request: null, cancel_request_history: [] };
 
       const [assigneesResult, commentsResult, linksResult, eventsResult, attachmentsResult] = await Promise.all([
         client.query('SELECT * FROM task.assignees WHERE task_id = $1', [taskId]),
@@ -262,20 +262,30 @@ async function getTaskById(config, taskId) {
       // to_regclass so it is a single no-op query until the schema patch
       // (migrations/phf_hr_task_cancel_request_v1.sql) is applied, and never
       // breaks Task Detail.
+      //
+      // CANCEL REQUEST USABILITY V1 (2026-09-10, additive) — ALSO fetch the
+      // most recent DECIDED requests (approved/rejected/withdrawn), bounded,
+      // so a request never "disappears" from the Task's own record after a
+      // decision — LOCK "request không được biến mất hoàn toàn". Read-only,
+      // no new column, same guarded query, just no longer status-filtered —
+      // split pending vs. history in JS.
       let cancelRequest = null;
+      let cancelRequestHistory = [];
       try {
         const crRes = await client.query(
           `SELECT id, status, reason, requested_by_employee_code, requested_at,
                   decided_by_employee_code, decided_at, decision_note
              FROM task.cancel_requests
             WHERE to_regclass('task.cancel_requests') IS NOT NULL
-              AND task_id = $1 AND status = 'pending'
-            ORDER BY requested_at DESC LIMIT 1`,
+              AND task_id = $1
+            ORDER BY requested_at DESC LIMIT 5`,
           [taskId]
         );
-        cancelRequest = crRes.rows[0] || null;
+        cancelRequest = crRes.rows.find((r) => r.status === 'pending') || null;
+        cancelRequestHistory = crRes.rows.filter((r) => r.status !== 'pending');
       } catch (_crErr) {
         cancelRequest = null;
+        cancelRequestHistory = [];
       }
 
       return {
@@ -287,6 +297,7 @@ async function getTaskById(config, taskId) {
         attachments: attachmentsResult.rows,
         recurrence,
         cancel_request: cancelRequest,
+        cancel_request_history: cancelRequestHistory,
       };
     }, { timeoutMs: QUERY_TIMEOUT_MS });
   } catch (err) {

@@ -344,6 +344,9 @@
     '/hv/task/nhan':Object.freeze({area:'learner',screen:'task-received',roles:['learner']}),
     '/hv/task/giao':Object.freeze({area:'learner',screen:'task-assigned',roles:['learner']}),
     '/hv/task/nhan-su-toi-quan-ly':Object.freeze({area:'learner',screen:'task-managed',roles:['learner']}),
+    // CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" inbox,
+    // same "Việc của tôi" group as nhan/giao/nhan-su-toi-quan-ly above.
+    '/hv/task/yeu-cau-huy':Object.freeze({area:'learner',screen:'task-pending-cancel',roles:['learner']}),
     '/hv/task/de-xuat/toi-gui':Object.freeze({area:'learner',screen:'task-proposal-sent',roles:['learner']}),
     '/hv/task/de-xuat/toi-nhan-xu-ly':Object.freeze({area:'learner',screen:'task-proposal-received',roles:['learner']}),
     // RECURRENCE MGMT — "Lịch lặp" is a core user feature, not Admin-only.
@@ -382,6 +385,8 @@
     '/ql/task/nhan':Object.freeze({area:'manager',screen:'task-received',roles:['manager']}),
     '/ql/task/giao':Object.freeze({area:'manager',screen:'task-assigned',roles:['manager']}),
     '/ql/task/nhan-su-toi-quan-ly':Object.freeze({area:'manager',screen:'task-managed',roles:['manager']}),
+    // CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" inbox.
+    '/ql/task/yeu-cau-huy':Object.freeze({area:'manager',screen:'task-pending-cancel',roles:['manager']}),
     // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-29, business owner
     // correction) — "Nhân sự & phân quyền" giờ dùng chung cho Admin/GĐ/Trợ
     // lý GĐ (Hub role admin hoặc manager); actual authorization (đúng
@@ -450,6 +455,8 @@
     '/admin/task/nhan':Object.freeze({area:'admin',screen:'task-received',roles:['admin']}),
     '/admin/task/giao':Object.freeze({area:'admin',screen:'task-assigned',roles:['admin']}),
     '/admin/task/nhan-su-toi-quan-ly':Object.freeze({area:'admin',screen:'task-managed',roles:['admin']}),
+    // CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" inbox.
+    '/admin/task/yeu-cau-huy':Object.freeze({area:'admin',screen:'task-pending-cancel',roles:['admin']}),
     '/admin/task/de-xuat/toi-gui':Object.freeze({area:'admin',screen:'task-proposal-sent',roles:['admin']}),
     '/admin/task/de-xuat/toi-nhan-xu-ly':Object.freeze({area:'admin',screen:'task-proposal-received',roles:['admin']}),
     // P0-1 FIX (2026-08-29) — "Cài đặt" (task category admin) was NEVER
@@ -515,9 +522,9 @@
   window.PHF_ROUTE_MAP.admin.push('/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/admin/knl/de-xuat-nang-bac','/admin/knl/dashboard');
   window.PHF_ROUTE_MAP.knl.push('/hv/knl/co-cau-thu-nhap','/ql/knl/co-cau-thu-nhap','/admin/knl/tieu-chuan-bac','/admin/knl/phien-ban-lich-su','/admin/knl/ngach-bac-luong','/admin/knl/gan-thu-nhap','/admin/knl/co-cau-thu-nhap','/admin/knl/lich-su-thu-nhap','/hv/knl/de-xuat-nang-bac','/ql/knl/de-xuat-nang-bac','/admin/knl/de-xuat-nang-bac','/ql/knl/dashboard','/admin/knl/dashboard');
   // PHF Task registers only screens backed by a real renderer.
-  window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly','/hv/task/lich','/hv/task/lich-lap','/hv/task/dong-thoi-gian','/hv/task/bao-cao');
-  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/nhan-su','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich','/ql/task/lich-lap','/ql/task/dong-thoi-gian','/ql/task/bao-cao');
-  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/cai-dat','/admin/task/lich-lap','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
+  window.PHF_ROUTE_MAP.learner.push('/hv/task','/hv/task/tao','/hv/task/chi-tiet','/hv/task/nhan','/hv/task/giao','/hv/task/nhan-su-toi-quan-ly','/hv/task/yeu-cau-huy','/hv/task/de-xuat/toi-gui','/hv/task/de-xuat/toi-nhan-xu-ly','/hv/task/lich','/hv/task/lich-lap','/hv/task/dong-thoi-gian','/hv/task/bao-cao');
+  window.PHF_ROUTE_MAP.management.push('/ql/task','/ql/task/tao','/ql/task/chi-tiet','/ql/task/nhan','/ql/task/giao','/ql/task/nhan-su-toi-quan-ly','/ql/task/yeu-cau-huy','/ql/task/nhan-su','/ql/task/de-xuat/toi-gui','/ql/task/de-xuat/toi-nhan-xu-ly','/ql/task/lich','/ql/task/lich-lap','/ql/task/dong-thoi-gian','/ql/task/bao-cao');
+  window.PHF_ROUTE_MAP.admin.push('/admin/task','/admin/task/nhan-su','/admin/task/cai-dat','/admin/task/lich-lap','/admin/task/tao','/admin/task/chi-tiet','/admin/task/nhan','/admin/task/giao','/admin/task/nhan-su-toi-quan-ly','/admin/task/yeu-cau-huy','/admin/task/de-xuat/toi-gui','/admin/task/de-xuat/toi-nhan-xu-ly','/admin/task/lich','/admin/task/dong-thoi-gian','/admin/task/bao-cao');
   // Chương trình thi đua (Competition) — Batch A UI skeleton, HR shell.
   window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua','/hv/thi-dua/bang-tin','/hv/thi-dua/bai-cua-toi','/hv/thi-dua/gui','/hv/thi-dua/ket-qua');
   // V1.4 — "Bài tôi đã duyệt" (da-duyet) is reviewer-only, same namespaces as

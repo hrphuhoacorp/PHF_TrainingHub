@@ -233,6 +233,22 @@
 .phft-quick-percent-row{display:flex;flex-wrap:wrap;gap:6px}
 .phft-chip-btn.is-active{background:var(--phft-accent);border-color:var(--phft-accent);color:#fff}
 .phft-lifecycle-actions{display:flex;gap:10px;flex-wrap:wrap}
+.phft-inline-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* CANCEL REQUEST USABILITY V1 (2026-09-10) — decided-request history (read-
+   only, inside the "Yêu cầu hủy công việc" detail section). Same list token
+   language as .phft-person-list/.phft-detail-links above, just its own class
+   so the two never accidentally share a selector and drift. */
+.phft-cancel-history{margin-top:14px}
+.phft-cancel-history>summary{cursor:pointer;font-size:11px;font-weight:750;color:#405062;list-style:none}
+.phft-cancel-history>summary::-webkit-details-marker{display:none}
+.phft-cancel-history>summary::before{content:'▸';display:inline-block;margin-right:6px;color:var(--phft-muted)}
+.phft-cancel-history[open]>summary::before{content:'▾'}
+.phft-cancel-history-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.phft-cancel-history-item{padding:10px 12px;border-radius:9px;background:#f7f9fc;font-size:10.5px;color:#344454;display:flex;flex-direction:column;gap:3px}
+.phft-cancel-history-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px}
+.phft-cancel-history-top b{color:#243547}
+.phft-cancel-history-top span{color:var(--phft-muted);font-weight:600}
+.phft-cancel-history-line{color:#344454}
 .phft-lifecycle-form{margin-top:14px;padding-top:14px;border-top:1px solid var(--phft-line);display:flex;flex-direction:column;gap:12px;max-width:520px}
 .phft-lifecycle-form label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:750;color:#405062}
 .phft-lifecycle-form input,.phft-lifecycle-form select,.phft-lifecycle-form textarea{width:100%;border:1px solid #cfd8e3;border-radius:9px;background:#fff;color:#1d2b39;font:inherit;font-size:12px;padding:10px 11px;outline:none}
@@ -248,6 +264,9 @@
 .phft-list-table td small{display:block;margin-top:3px;color:var(--phft-muted);font-size:9.5px}
 .phft-list-table tr[data-task-list-row]{cursor:pointer}
 .phft-list-table tr[data-task-list-row]:hover{background:#f4f7fb}
+/* CANCEL REQUEST USABILITY V1 — "Yêu cầu cần xử lý" reason column: free text,
+   capped width so one long reason never stretches the whole table. */
+.phft-pending-cancel-reason{max-width:280px;overflow-wrap:anywhere}
 .phft-list-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:700;color:#16243a;white-space:nowrap}
 .phft-self-task-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:#f1f3f6;color:#687582;font-size:8.6px;font-weight:800;text-transform:uppercase;vertical-align:middle}
 .phft-repeat-tag,.phft-link-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;font-size:8.6px;font-weight:800;text-transform:uppercase;vertical-align:middle}
@@ -256,6 +275,11 @@
 .phft-nav-group-toggle{cursor:pointer}.phft-nav-chevron{flex:0 0 auto;color:#8896a4;font-size:11px}
 .phft-nav-children{display:flex;flex-direction:column;gap:3px;padding-left:14px;margin:2px 0 4px;border-left:2px solid var(--phft-line)}
 .phft-nav-child{padding:8px 12px;font-size:11.5px}.phft-nav-child b{font-size:11.5px;font-weight:650}
+/* CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" pending-count
+   badge, same red pill language as .phft-notif-badge but inline (not
+   absolute) since it sits as a flex sibling inside the nav row, pushed to the
+   trailing edge by the existing .phft-nav-item justify-content:space-between. */
+.phft-nav-badge{flex:0 0 auto;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:#e5484d;color:#fff;font-size:9.5px;font-weight:800;line-height:17px;text-align:center}
 .phft-list-load-more{display:flex;justify-content:center;margin-top:14px}
 .phft-workspace-card{background:#f8fafc;border:1px solid var(--phft-line);border-radius:14px;padding:16px;margin:16px 0}
 .phft-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}

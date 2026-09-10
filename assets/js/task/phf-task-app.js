@@ -47,6 +47,11 @@ function taskListPath(relation){return taskHomePath()+(TASK_LIST_RELATION_PATHS[
 function taskCalendarPath(){return taskHomePath()+'/lich';}
 function taskTimelinePath(){return taskHomePath()+'/dong-thoi-gian';}
 function taskReportPath(){return taskHomePath()+'/bao-cao';}
+// CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" inbox route.
+// Registered in assets/js/phf-url-router.js (ROUTE_REGISTRY + PHF_ROUTE_MAP,
+// all 3 namespaces) same as every other Task sub-route — see comment above
+// TASK_LIST_RELATION_PATHS for why BOTH places are required.
+function taskPendingCancelPath(){return taskHomePath()+'/yeu-cau-huy';}
 function navigateTask(path,replace){taskUiState.mobileNavOpen=false;if(typeof window.phfNavigate==='function')return window.phfNavigate(path,replace===true);}
 function parseTaskRoute(routeKey){
   var url;try{url=new URL(String(routeKey||location.href),location.origin);}catch(e){url=new URL(location.href);}
@@ -59,6 +64,7 @@ function parseTaskRoute(routeKey){
   if(path===taskCalendarPath())return{view:'calendar'};
   if(path===taskTimelinePath())return{view:'timeline'};
   if(path===taskReportPath())return{view:'report'};
+  if(path===taskPendingCancelPath())return{view:'pending-cancel'};
   var relationMatch=Object.keys(TASK_LIST_RELATION_PATHS).find(function(relation){return path===taskHomePath()+TASK_LIST_RELATION_PATHS[relation];});
   if(relationMatch)return{view:'list',relation:relationMatch};
   return{view:'dashboard'};
@@ -569,7 +575,7 @@ function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'
 function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
 var TASK_LIST_PAGE_SIZE=50;
 function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false,loadedOnce:false};}
-var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,mailSettings:null,mailSettingsLoading:false,mailSettingsError:'',mailSettingsSaving:false,newRecipientEmail:'',newRecipientLabel:'',newRecipientError:'',
+var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),pendingCancel:defaultTaskPendingCancelState(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,mailSettings:null,mailSettingsLoading:false,mailSettingsError:'',mailSettingsSaving:false,newRecipientEmail:'',newRecipientLabel:'',newRecipientError:'',
   recurrenceManage:{loading:false,error:'',rules:[],editing:null,saving:false,confirmStop:null,filters:{q:'',status:'all',frequency:'all'},loadedOnce:false},
   // P0-2 FIX (2026-08-29) — detail-page business action UI (đổi hạn/chuyển
   // Primary/thêm-xóa Related). Gate hiện/ẩn HOÀN TOÀN dựa trên viewer.actions
@@ -628,6 +634,7 @@ function resetTaskUserScopedState(){
   taskUiState.timeline = defaultTaskTimelineState();
   taskUiState.report = defaultTaskReportState();
   taskUiState.overview = defaultTaskOverviewV2State();
+  taskUiState.pendingCancel = defaultTaskPendingCancelState();
   taskUiState.recurrenceManage = {loading:false,error:'',rules:[],editing:null,saving:false,confirmStop:null,filters:{q:'',status:'all',frequency:'all'},loadedOnce:false};
   taskUiState.hasManagedScope = false;
   taskUiState.managedScopeHydrated = false;
@@ -648,6 +655,11 @@ function resetTaskUserScopedState(){
   phftNotif.items = []; phftNotif.unread = 0; phftNotif.open = false;
   phftNotif.loading = false; phftNotif.loaded = false; phftNotif.loadedAt = 0; phftNotif.error = false;
   phftNotif.token += 1; // orphan any in-flight notification load
+  // CANCEL REQUEST USABILITY V1 — pending-cancel badge belongs to the
+  // previous identity too, same reset discipline as phftNotif above.
+  phftPendingCancel.count = 0; phftPendingCancel.loading = false;
+  phftPendingCancel.loaded = false; phftPendingCancel.loadedAt = 0; phftPendingCancel.error = false;
+  phftPendingCancel.token += 1;
 }
 function syncTaskIdentity(root){
   var key = computeTaskIdentityKey();
@@ -710,6 +722,7 @@ function taskScreenPrimaryDataReady(){
   if(v==='timeline'){ var t=taskUiState.timeline; return !!(t && (t.loadedOnce || t.error)); }
   if(v==='admin-people') return !!(taskUiState.adminPeople || taskUiState.adminPeopleError);
   if(v==='recurrence'){ var r=taskUiState.recurrenceManage; return !!(r && (r.loadedOnce || r.error)); }
+  if(v==='pending-cancel'){ var pcg=taskUiState.pendingCancel; return !!(pcg && (pcg.loadedOnce || pcg.error)); }
   if(v==='detail') return !!(taskUiState.detail || taskUiState.detailError || taskUiState.detailLoading);
   // create / settings — internal loading states are adequate & truthful
   return true;
@@ -832,6 +845,11 @@ var NAV_ITEMS = [
     { key:'toi-nhan', label:'Tôi nhận', relation:'received' },
     { key:'toi-giao', label:'Tôi giao', relation:'assigned' },
     { key:'nhan-su-toi-quan-ly', label:'Nhân sự tôi quản lý', relation:'managed', managerOnly:true },
+    // CANCEL REQUEST USABILITY V1 (2026-09-10) — the ONE entrypoint the UX
+    // direction lock asks for: "Yêu cầu cần xử lý" / "Yêu cầu hủy công việc".
+    // badge is a function (not a static value) so it always reads the live
+    // count at render time — see taskPendingCancelBadgeCount().
+    { key:'yeu-cau-huy', label:'Yêu cầu cần xử lý', desc:'Yêu cầu hủy công việc', badge:taskPendingCancelBadgeCount },
     { key:'de-xuat-toi-gui', label:'Đề xuất tôi gửi', relation:'proposal_sent' },
     { key:'de-xuat-toi-nhan', label:'Đề xuất tôi nhận xử lý', relation:'proposal_received' }
   ]},
@@ -886,7 +904,13 @@ function navItemHtml(item,activeNav){
       '<span class="phft-nav-chevron" aria-hidden="true">'+(expanded?'▾':'▸')+'</span>' +
     '</button>';
     var childrenHtml=expanded?('<div class="phft-nav-children">'+visibleChildren.map(function(child){
-      return '<button type="button" class="phft-nav-item phft-nav-child'+(child.key===activeNav?' active':'')+'" data-task-nav="'+child.key+'"><span><b>'+esc(child.label)+'</b></span></button>';
+      // CANCEL REQUEST USABILITY V1 — 'desc'/'badge' are OPT-IN per child
+      // (only 'yeu-cau-huy' carries them today); every other child keeps its
+      // existing single-line, no-badge rendering unchanged.
+      var descHtml=child.desc?('<small>'+esc(child.desc)+'</small>'):'';
+      var badgeCount=(typeof child.badge==='function')?(child.badge()||0):0;
+      var badgeHtml=badgeCount>0?'<span class="phft-nav-badge">'+esc(badgeCount>99?'99+':String(badgeCount))+'</span>':'';
+      return '<button type="button" class="phft-nav-item phft-nav-child'+(child.key===activeNav?' active':'')+'" data-task-nav="'+child.key+'"><span><b>'+esc(child.label)+'</b>'+descHtml+'</span>'+badgeHtml+'</button>';
     }).join('')+'</div>'):'';
     return header+childrenHtml;
   }
@@ -912,12 +936,20 @@ function taskBrandLockupHtml(){
     '<strong>PHF TASK</strong><small>Điều hành công việc</small>' +
   '</div>';
 }
+// STRUCTURAL PARTIAL UPDATE / CANCEL REQUEST USABILITY V1 — factored out so
+// shellFrame() (full render) and the nav-only DOM patch (renderTaskNav(),
+// used to update the pending-cancel badge without a full shell re-render)
+// compute the exact same active nav key, never 2 copies that can drift.
+function taskActiveNavKey(){
+  return taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='recurrence'?'lich-lap':(taskUiState.view==='settings'?'settings':(taskUiState.view==='calendar'?'lich':(taskUiState.view==='timeline'?'timeline':(taskUiState.view==='pending-cancel'?'yeu-cau-huy':(taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||'toi-nhan'):'tong-quan-bao-cao'))))));
+}
+function taskNavItemsHtml(){
+  var activeNav=taskActiveNavKey();
+  return NAV_ITEMS.filter(function(item){return (!item.adminOnly||isTaskAdminUi())&&(!item.managePermissionsOnly||taskManagePermissionsAvailable());}).map(function(item){return navItemHtml(item,activeNav);}).join('');
+}
 function shellFrame(bodyHtml,opts){
   var hydrating=!!(opts&&opts.hydrating);
-  var activeNav=taskUiState.view==='admin-people'?'people-permissions':(taskUiState.view==='recurrence'?'lich-lap':(taskUiState.view==='settings'?'settings':(taskUiState.view==='calendar'?'lich':(taskUiState.view==='timeline'?'timeline':(taskUiState.view==='list'?(TASK_NAV_KEY_BY_RELATION[taskUiState.list.relation]||'toi-nhan'):'tong-quan-bao-cao')))));
-  var navHtml = hydrating
-    ? taskHydrationNavSkelHtml()
-    : NAV_ITEMS.filter(function(item){return (!item.adminOnly||isTaskAdminUi())&&(!item.managePermissionsOnly||taskManagePermissionsAvailable());}).map(function(item){return navItemHtml(item,activeNav);}).join('');
+  var navHtml = hydrating ? taskHydrationNavSkelHtml() : taskNavItemsHtml();
   return '' +
     '<header class="phft-topbar">' +
       '<div class="phft-top-left">' +
@@ -1044,6 +1076,118 @@ function bindTaskNotif(root){
       if(w && !w.contains(e.target)){ phftNotif.open=false; renderTaskNotif(document); }
     });
   }
+}
+
+/* ==========================================================================
+ * CANCEL REQUEST USABILITY V1 (2026-09-10) — sidebar "Yêu cầu cần xử lý"
+ * pending-count badge. Same load-on-render + TTL-cache pattern as the
+ * notification bell above (loadTaskNotifications/renderTaskNotif): fired
+ * alongside it at every renderTaskRoot() call, gated by its own loading/TTL
+ * flags so repeated calls are cheap no-ops, and patches ONLY the sidebar nav
+ * DOM in place (renderTaskNav) — never forces a full shell re-render, which
+ * would defeat the STRUCTURAL PARTIAL UPDATE scroll-stability mechanism.
+ * The notification bell stays the reminder/deep-link; THIS badge + the
+ * "Yêu cầu cần xử lý" list page are the real entrypoint.
+ * ==========================================================================*/
+var phftPendingCancel={count:0,loading:false,loaded:false,loadedAt:0,token:0,error:false};
+var PHFT_PENDING_CANCEL_TTL=45000;
+function taskPendingCancelBadgeCount(){
+  if(isTaskDemoModeOn())return 0; // no demo fixture source for this V1 — never show a fake badge
+  return phftPendingCancel.count||0;
+}
+function renderTaskNav(root){
+  var scope=notifScope(root); if(!scope) return;
+  var nav=scope.querySelector('.phft-nav');
+  if(!nav) return;
+  nav.innerHTML=taskNavItemsHtml();
+}
+function defaultTaskPendingCancelState(){return {loading:false,error:'',requests:[],loadedOnce:false};}
+// "Yêu cầu cần xử lý" — dedicated pending-cancel-request inbox, same
+// layout/list style as the other Task workspaces (Tôi nhận/Tôi giao/…). Lists
+// ONLY pending requests the calling actor holds review authority over — the
+// server (listMyPendingCancelRequestsViaServer) already applies that filter
+// via the SAME resolveTaskViewerAuthority() gate the Task Detail panel uses;
+// this page does no additional filtering/authorization of its own — NO new
+// approval engine.
+async function loadTaskPendingCancelList(root){
+  var pc=taskUiState.pendingCancel;
+  pc.loading=true;pc.error='';
+  renderTaskRoot(root);
+  try{
+    var response=await taskApi({action:'listMyPendingCancelRequests'});
+    var result=taskResult(response)||{};
+    pc.requests=Array.isArray(result.requests)?result.requests:[];
+  }catch(error){
+    pc.error=taskApiErrorMessage(error);
+    pc.requests=[];
+  }
+  pc.loading=false;pc.loadedOnce=true;
+  if(taskUiState.view==='pending-cancel')renderTaskRoot(root);
+  // Keep the sidebar badge in sync with what this page just showed — avoids
+  // the page and the badge disagreeing right after a decision made elsewhere.
+  phftPendingCancel.count=pc.requests.length;
+  phftPendingCancel.loaded=true;phftPendingCancel.loadedAt=Date.now();phftPendingCancel.error=false;
+  renderTaskNav(root);
+}
+async function openTaskPendingCancelList(root){
+  taskUiState.view='pending-cancel';
+  renderTaskRoot(root);
+  await loadTaskPendingCancelList(root);
+}
+function taskPendingCancelRowHtml(row){
+  var requesterName=(row.requested_by&&(row.requested_by.full_name||row.requested_by.employee_code))||'—';
+  return '<tr data-task-list-row="'+esc(row.task_id)+'">'+
+    '<td class="phft-list-code">'+esc(row.task_code||'—')+'</td>'+
+    '<td class="phft-list-title"><span class="phft-list-title-main">'+esc(row.title)+'</span></td>'+
+    '<td class="phft-list-person"><b>'+esc(requesterName)+'</b></td>'+
+    '<td class="phft-pending-cancel-reason">'+esc(row.reason||'—')+'</td>'+
+    '<td class="phft-list-deadline">'+esc(formatTaskDateTime(row.requested_at))+'</td>'+
+    '<td class="phft-list-status"><span class="phft-badge tone-orange">Đang chờ xử lý</span></td>'+
+    '<td class="phft-pending-cancel-view-cell"><button type="button" class="phft-btn-secondary" data-task-pending-cancel-view="'+esc(row.task_id)+'">Xem</button></td>'+
+  '</tr>';
+}
+function taskPendingCancelListHtml(){
+  var pc=taskUiState.pendingCancel;
+  var header='<div class="phft-page-head"><div><small>PHF TASK</small><h1>Yêu cầu cần xử lý</h1><p class="phft-page-subtitle">Yêu cầu hủy công việc</p></div></div>';
+  if(pc.error)return header+'<div class="phft-alert is-error"><div><b>Không tải được danh sách.</b><small>'+esc(pc.error)+'</small></div></div>';
+  var rows=pc.requests||[];
+  var body;
+  if(pc.loading)body='<tr><td colspan="7" class="phft-list-statecell">Đang tải danh sách yêu cầu hủy…</td></tr>';
+  else if(!rows.length)body='<tr><td colspan="7" class="phft-list-statecell">Không có yêu cầu hủy nào đang chờ bạn xử lý.</td></tr>';
+  else body=rows.map(taskPendingCancelRowHtml).join('');
+  return '<div class="phft-list-page">'+header+
+    '<section class="phft-panel">' +
+      '<div class="phft-table-scroll"><table class="phft-list-table"><thead><tr>' +
+        '<th>Mã phiếu</th><th>Tên công việc</th><th>Người yêu cầu</th><th>Lý do</th><th>Thời gian</th><th>Trạng thái</th><th></th>' +
+      '</tr></thead><tbody>'+body+'</tbody></table></div>' +
+      (rows.length?'<div class="phft-list-foot"><span class="phft-list-foot-count">Đang hiển thị <b>'+rows.length+'</b> yêu cầu</span></div>':'') +
+    '</section>' +
+  '</div>';
+}
+async function loadPendingCancelCount(root,force){
+  if(isTaskDemoModeOn())return;
+  if(phftPendingCancel.loading) return;
+  if(!force && phftPendingCancel.loaded && (Date.now()-phftPendingCancel.loadedAt)<PHFT_PENDING_CANCEL_TTL) return;
+  phftPendingCancel.loading=true;
+  var myToken=++phftPendingCancel.token;
+  var myGen=phfTaskIdentityGen;
+  var okLoad=false,data=null;
+  try{
+    var res=await taskApi({action:'listMyPendingCancelRequests'},{timeoutMs:PHFT_NOTIF_TIMEOUT});
+    data=taskResult(res)||{};
+    okLoad=true;
+  }catch(e){
+    okLoad=false; // timeout / network / API error — badge just stays at its last known value
+  }
+  phftPendingCancel.loading=false;
+  if(myToken!==phftPendingCancel.token||myGen!==phfTaskIdentityGen)return; // superseded / identity changed mid-flight
+  if(okLoad){
+    phftPendingCancel.count=Array.isArray(data.requests)?data.requests.length:0;
+    phftPendingCancel.loaded=true;phftPendingCancel.loadedAt=Date.now();phftPendingCancel.error=false;
+  }else{
+    phftPendingCancel.error=true;
+  }
+  if(root)renderTaskNav(root);
 }
 
 /* ---------------------------------------------------------------------
@@ -4780,7 +4924,13 @@ function taskLifecycleSectionHtml(task,viewer){
     (allowDeleteDraft?'<button type="button" class="phft-btn-secondary is-danger" data-task-lifecycle-open="delete_draft"'+(saving?' disabled':'')+'>Xóa bản nháp</button>':'')+
     (!anyButton&&!allowProgress&&!pendingCancelReq?'<div class="phft-inline-empty">Không còn thao tác vòng đời khả dụng cho bạn ở trạng thái này.</div>':'')+
   '</div>';
-  var cancelReqPanel=taskCancelRequestPanelHtml(pendingCancelReq,mode,saving);
+  // CANCEL REQUEST USABILITY V1 (2026-09-10) — the pending-request panel (info
+  // + Duyệt hủy/Từ chối/Rút yêu cầu) now renders up near the hero/title, NOT
+  // here (see taskCancelRequestSectionHtml() in detailContentHtml()). This
+  // section keeps only the "Yêu cầu hủy" TRIGGER button above (opens the
+  // request form) and the request_cancel compose form below — creating a new
+  // request is still a lifecycle action; reviewing/deciding an existing one is
+  // not.
   var formHtml='';
   if(mode==='complete'){
     formHtml='<div class="phft-lifecycle-form"><label><span>Kết quả thực hiện *</span><textarea rows="3" data-task-lifecycle-field="resultText" placeholder="Bắt buộc nhập kết quả trước khi hoàn thành">'+esc(taskUiState.lifecycleResultText)+'</textarea></label>'+taskLifecycleErrorHtml('complete')+
@@ -4797,17 +4947,14 @@ function taskLifecycleSectionHtml(task,viewer){
   } else if(mode==='request_cancel'){
     formHtml='<div class="phft-lifecycle-form"><label><span>Lý do yêu cầu hủy *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do — người có thẩm quyền sẽ xem xét">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml('request_cancel')+
       '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="request_cancel"'+(saving?' disabled':'')+'>'+(saving?'Đang gửi…':'Gửi yêu cầu hủy')+'</button></div></div>';
-  } else if(mode==='reject_cancel_request'){
-    formHtml='<div class="phft-lifecycle-form"><label><span>Lý do từ chối *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do từ chối yêu cầu hủy">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml('reject_cancel_request')+
-      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="reject_cancel_request"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận từ chối')+'</button></div></div>';
   }
-  return '<section class="phft-form-card"><header><h2>Thao tác vòng đời</h2><p>Trạng thái hiện tại: '+esc(taskEnumLabel(TASK_STATUS_LABELS,status))+'</p></header>'+progressBlock+cancelReqPanel+actionsRow+formHtml+'</section>';
+  return '<section class="phft-form-card"><header><h2>Thao tác vòng đời</h2><p>Trạng thái hiện tại: '+esc(taskEnumLabel(TASK_STATUS_LABELS,status))+'</p></header>'+progressBlock+actionsRow+formHtml+'</section>';
 }
 // CANCEL POLICY V1 — the pending "Yêu cầu hủy" panel. Reviewer sees Duyệt/Từ
 // chối; the requester sees Rút yêu cầu. Compact, never a large card.
 function taskCancelRequestPanelHtml(req,mode,saving){
   if(!req)return '';
-  var byName=req.requested_by_employee_code||'—';
+  var byName=req.requested_by_full_name||req.requested_by_employee_code||'—';
   var when=req.requested_at?formatTaskDateTime(req.requested_at):'';
   var actions='';
   if(req.can_review){
@@ -4822,8 +4969,54 @@ function taskCancelRequestPanelHtml(req,mode,saving){
     '<small>Người gửi: '+esc(byName)+(when?' · '+esc(when):'')+'</small>'+
     '<small>Lý do: '+esc(req.reason||'—')+'</small>'+
     (req.can_review?'<small>Duyệt sẽ hủy công việc theo đúng quy trình vòng đời (lịch sử/audit được giữ nguyên).</small>':'')+
+    (!req.can_review&&!req.can_withdraw?'<small>Bạn không có quyền xử lý yêu cầu này — chỉ xem.</small>':'')+
   '</div>'+(actions?'<div class="phft-inline-actions">'+actions+'</div>':'')+
   taskLifecycleErrorHtml('cancel_request_decision')+'</div>';
+}
+// CANCEL REQUEST USABILITY V1 (2026-09-10) — read-only record of DECIDED
+// requests (approved/rejected/withdrawn) for this Task. "requester → reason →
+// decision → decision actor → time" — the request never disappears from the
+// Task's own record after a decision. Never actionable (no buttons).
+var TASK_CANCEL_REQUEST_HISTORY_STATUS_LABELS={approved:'Đã duyệt hủy',rejected:'Đã từ chối',withdrawn:'Đã rút yêu cầu'};
+function taskCancelRequestHistoryItemHtml(row){
+  var statusLabel=TASK_CANCEL_REQUEST_HISTORY_STATUS_LABELS[row.status]||row.status;
+  var requesterName=row.requested_by_full_name||row.requested_by_employee_code||'—';
+  var deciderName=row.decided_by_full_name||row.decided_by_employee_code||'';
+  var deciderLine=row.status==='withdrawn'
+    ? '<span class="phft-cancel-history-line">Người rút: '+esc(requesterName)+'</span>'
+    : '<span class="phft-cancel-history-line">Người xử lý: '+esc(deciderName||'—')+(row.decision_note?' · Ghi chú: '+esc(row.decision_note):'')+'</span>';
+  return '<li class="phft-cancel-history-item">'+
+    '<div class="phft-cancel-history-top"><b>'+esc(statusLabel)+'</b><span>'+esc(formatTaskDateTime(row.decided_at||row.requested_at))+'</span></div>'+
+    '<span class="phft-cancel-history-line">Người yêu cầu: '+esc(requesterName)+(row.requested_at?' · '+esc(formatTaskDateTime(row.requested_at)):'')+'</span>'+
+    '<span class="phft-cancel-history-line">Lý do: '+esc(row.reason||'—')+'</span>'+
+    deciderLine+
+  '</li>';
+}
+function taskCancelRequestHistoryHtml(history){
+  if(!history||!history.length)return '';
+  return '<details class="phft-cancel-history"><summary>Lịch sử yêu cầu hủy ('+history.length+')</summary>'+
+    '<ul class="phft-cancel-history-list">'+history.map(taskCancelRequestHistoryItemHtml).join('')+'</ul>'+
+  '</details>';
+}
+// CANCEL REQUEST USABILITY V1 — top-level Task Detail section, placed right
+// under the hero/title (see detailContentHtml()). Carries the pending panel
+// (with its own Duyệt/Từ chối/Rút yêu cầu actions + the reject-reason mini
+// form) AND the decided-request history, so the whole "Yêu cầu hủy" story
+// lives in ONE place instead of buried at the bottom of "Thao tác vòng đời".
+// Renders nothing when there is neither a pending request nor any history —
+// never an empty card on a Task that was never involved in a cancel request.
+function taskCancelRequestSectionHtml(detail){
+  var cancelReq=(detail&&detail.cancel_request)||null;
+  var history=(detail&&detail.cancel_request_history)||[];
+  if(!cancelReq&&!history.length)return '';
+  var mode=taskUiState.lifecycleMode,saving=taskUiState.lifecycleSaving;
+  var body=cancelReq?taskCancelRequestPanelHtml(cancelReq,mode,saving):'';
+  if(cancelReq&&mode==='reject_cancel_request'){
+    body+='<div class="phft-lifecycle-form"><label><span>Lý do từ chối *</span><textarea rows="3" data-task-lifecycle-field="reason" placeholder="Bắt buộc nhập lý do từ chối yêu cầu hủy">'+esc(taskUiState.lifecycleReason)+'</textarea></label>'+taskLifecycleErrorHtml('reject_cancel_request')+
+      '<div class="phft-form-actions"><button type="button" class="phft-btn-secondary" data-task-lifecycle-close'+(saving?' disabled':'')+'>Đóng</button><button type="button" class="phft-btn-primary" data-task-lifecycle-submit="reject_cancel_request"'+(saving?' disabled':'')+'>'+(saving?'Đang lưu…':'Xác nhận từ chối')+'</button></div></div>';
+  }
+  body+=taskCancelRequestHistoryHtml(history);
+  return '<section class="phft-detail-card phft-cancel-request-section"><header><h2>Yêu cầu hủy công việc</h2></header>'+body+'</section>';
 }
 function openTaskLifecycleForm(root,mode){
   if(taskUiState.lifecycleSaving)return;
@@ -4905,6 +5098,13 @@ async function submitTaskLifecycleAction(root,mode){
       return;
     }
     await reloadTaskDetail(root);
+    // CANCEL REQUEST USABILITY V1 — a request/decide/withdraw action just
+    // changed the "Yêu cầu cần xử lý" population; force-refresh the sidebar
+    // badge immediately instead of waiting out its TTL (mirrors the pattern
+    // the notification bell already uses at its own action sites).
+    if(mode==='request_cancel'||mode==='approve_cancel_request'||mode==='reject_cancel_request'||mode==='withdraw_cancel_request'){
+      loadPendingCancelCount(root,true);
+    }
     taskNotice('success','Đã cập nhật','Trạng thái công việc đã được cập nhật.');
   }catch(error){
     taskUiState.lifecycleSaving=false;
@@ -5114,6 +5314,7 @@ function detailContentHtml(detail,partialErrors){
         '<div><dt>Phiên bản dòng</dt><dd>'+esc(detailValue(task.row_version))+'</dd></div>'+
       '</dl></details>'+
     '</section>'+
+    taskCancelRequestSectionHtml(source)+
     taskDetailContentCardHtml(task)+
     '<div class="phft-detail-support"><div class="phft-detail-support-grid">'+taskDetailRelatedSectionHtml(related,viewer)+'<section class="phft-form-card"><header><h2>Tài liệu / Link</h2></header>'+detailLinksHtml(links)+'</section></div>'+
     taskDetailAttachmentsSectionHtml(source)+'</div>'+
@@ -5136,6 +5337,7 @@ function taskViewHtml(){
     return detailContentHtml(taskUiState.detail,taskUiState.partialErrors);
   }
   if(taskUiState.view==='list')return taskListHtml();
+  if(taskUiState.view==='pending-cancel')return taskPendingCancelListHtml();
   return taskOverviewV2Html();
 }
 /* STRUCTURAL SHELL SIGNATURE (2026-09-07) — everything shellFrame() bakes into
@@ -5179,7 +5381,7 @@ function renderTaskRoot(root){
     main.innerHTML=body;
     shell.classList.toggle('is-mobile-nav-open',!!(taskUiState&&taskUiState.mobileNavOpen));
     phfTaskLastRenderKey=key;
-    bindTaskNotif(root);loadTaskNotifications(root,false);
+    bindTaskNotif(root);loadTaskNotifications(root,false);loadPendingCancelCount(root,false);
     return;
   }
 
@@ -5188,7 +5390,7 @@ function renderTaskRoot(root){
   var wantY=(!phfTaskNavigating && sameContext) ? Math.max(beforeY, phfTaskPendingScrollRestore) : 0;
 
   root.innerHTML='<div class="phf-task-root-shell'+(gated?' is-hydrating':'')+(taskUiState.mobileNavOpen?' is-mobile-nav-open':'')+'">'+shellFrame(body,{hydrating:gated})+'</div>';
-  bindShell(root);bindTaskNotif(root);loadTaskNotifications(root,false);
+  bindShell(root);bindTaskNotif(root);loadTaskNotifications(root,false);loadPendingCancelCount(root,false);
 
   phfTaskLastRenderKey=key;
   phfTaskLastShellSig=shellSig;
@@ -5799,6 +6001,11 @@ function bindShell(root){
     if(target.matches('[data-task-nav="tong-quan-bao-cao"]')){navigateTask(taskHomePath());return;}
     if(target.matches('[data-task-nav="lich"]')){navigateTask(taskCalendarPath());return;}
     if(target.matches('[data-task-nav="timeline"]')){navigateTask(taskTimelinePath());return;}
+    if(target.matches('[data-task-nav="yeu-cau-huy"]')){navigateTask(taskPendingCancelPath());return;}
+    // data-task-pending-cancel-view sits inside a data-task-list-row=<taskId>
+    // row (bindShell's row-click closest() above already opens the Task
+    // detail for any click inside that row) — the "Xem" button is the visible
+    // affordance for the same navigation, not a separate handler.
     if(target.matches('[data-task-overview-tab]')){navigateTask(target.getAttribute('data-task-overview-tab')==='report'?taskReportPath():taskHomePath());return;}
     if(target.matches('[data-task-nav-group]')){
       var groupKey=target.getAttribute('data-task-nav-group');
@@ -6295,6 +6502,7 @@ async function applyTaskRoute(root,routeKey){
     await reloadTaskDetail(root);return true;
   }
   if(route.view==='list'){await openTaskList(root,route.relation);return true;}
+  if(route.view==='pending-cancel'){await openTaskPendingCancelList(root);return true;}
   if(taskUiState.view==='dashboard'&&taskUiState.overview.data&&!taskUiState.overview.error){renderTaskRoot(root);return true;}
   await openTaskOverviewV2(root);return true;
 }
@@ -6351,6 +6559,14 @@ if(window.__PHF_TASK_TEST_MODE__){
   createAttachmentBlockHtml:createAttachmentBlockHtml,createAttachmentQuickBlockHtml:createAttachmentQuickBlockHtml,
   createTaskQuickFormHtml:createTaskQuickFormHtml,quickSuccessBannerHtml:quickSuccessBannerHtml,handleCreateAttachSelect:handleCreateAttachSelect,
   handleTaskDetailAttachUpload:handleTaskDetailAttachUpload,handleTaskDetailAttachRemove:handleTaskDetailAttachRemove,
-  getAttachState:function(){return phftAttach;},PHFT_ATTACH_MAX_COUNT:PHFT_ATTACH_MAX_COUNT,PHFT_ATTACH_MAX_BYTES:PHFT_ATTACH_MAX_BYTES};
+  getAttachState:function(){return phftAttach;},PHFT_ATTACH_MAX_COUNT:PHFT_ATTACH_MAX_COUNT,PHFT_ATTACH_MAX_BYTES:PHFT_ATTACH_MAX_BYTES,
+  // CANCEL REQUEST USABILITY V1 (2026-09-10)
+  taskPendingCancelPath:taskPendingCancelPath,defaultTaskPendingCancelState:defaultTaskPendingCancelState,
+  loadTaskPendingCancelList:loadTaskPendingCancelList,openTaskPendingCancelList:openTaskPendingCancelList,
+  taskPendingCancelListHtml:taskPendingCancelListHtml,taskPendingCancelRowHtml:taskPendingCancelRowHtml,
+  taskCancelRequestSectionHtml:taskCancelRequestSectionHtml,taskCancelRequestHistoryHtml:taskCancelRequestHistoryHtml,
+  taskCancelRequestHistoryItemHtml:taskCancelRequestHistoryItemHtml,taskPendingCancelBadgeCount:taskPendingCancelBadgeCount,
+  loadPendingCancelCount:loadPendingCancelCount,renderTaskNav:renderTaskNav,taskActiveNavKey:taskActiveNavKey,taskNavItemsHtml:taskNavItemsHtml,
+  getPendingCancelBadgeState:function(){return phftPendingCancel;},setPendingCancelBadgeState:function(s){Object.assign(phftPendingCancel,s);}};
 }
 })();

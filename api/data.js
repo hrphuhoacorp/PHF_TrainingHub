@@ -121,6 +121,7 @@ const {
   approveTaskCancelRequestViaServer,
   rejectTaskCancelRequestViaServer,
   withdrawTaskCancelRequestViaServer,
+  listMyPendingCancelRequestsViaServer,
   listProposalRecipientEmployeesViaServer,
   getTaskDetailProposalAwareViaServer,
 } = require('./_lib/task-server-integration');
@@ -157,6 +158,7 @@ const requestTaskCancel = requestTaskCancelViaServer;
 const approveTaskCancelRequest = approveTaskCancelRequestViaServer;
 const rejectTaskCancelRequest = rejectTaskCancelRequestViaServer;
 const withdrawTaskCancelRequest = withdrawTaskCancelRequestViaServer;
+const listMyPendingCancelRequests = listMyPendingCancelRequestsViaServer;
 const listProposalRecipientEmployees = listProposalRecipientEmployeesViaServer;
 // RECURRENCE V1 (2026-08-31) — PostgreSQL-only, no Legacy fallback (same as
 // Proposal V2). Action layer rides the shared PHF_TASK_WRITE_BRIDGE_ENABLED
@@ -452,7 +454,7 @@ const TASK_ACTION_MANIFEST = Object.freeze([
   'getTaskOverviewV2', 'getTaskReportV2Bundle', 'listTaskOverviewV2Drilldown',
   'getTaskReportV2PersonAnalysis', 'getTaskReportV2DepartmentAnalysis', 'getTaskReportV2CategoryAnalysis', 'getTaskReportV2Trend',
   'createTaskRecurrence', 'updateTaskRecurrence', 'pauseTaskRecurrence', 'resumeTaskRecurrence', 'stopTaskRecurrence', 'listTaskRecurrence', 'runTaskRecurrence',
-  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest',
+  'requestTaskCancel', 'approveTaskCancelRequest', 'rejectTaskCancelRequest', 'withdrawTaskCancelRequest', 'listMyPendingCancelRequests',
   'taskMailSettingsGet', 'taskMailSetWeeklyEnabled', 'taskMailAddRecipient', 'taskMailSetRecipientEnabled', 'taskMailRemoveRecipient', 'taskMailWeeklyPreview'
 ]);
 
@@ -787,6 +789,9 @@ async function dispatchTaskAction(session, payload) {
     case 'approveTaskCancelRequest': return { handled: true, result: await approveTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
     case 'rejectTaskCancelRequest': return { handled: true, result: await rejectTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
     case 'withdrawTaskCancelRequest': return { handled: true, result: await withdrawTaskCancelRequest(session, payload.task_id, taskCancelRequestDecisionInput(payload)) };
+    // CANCEL REQUEST USABILITY V1 — "Yêu cầu cần xử lý" inbox (pending cancel
+    // requests the calling actor holds review authority over).
+    case 'listMyPendingCancelRequests': return { handled: true, result: await listMyPendingCancelRequests(session) };
     case 'changeTaskDeadline': return { handled: true, result: await changeTaskDeadline(session, payload.task_id, payload.expected_row_version, payload.new_deadline, payload.reason) };
     case 'transferTaskPrimary': return { handled: true, result: await transferTaskPrimary(session, payload.task_id, payload.expected_row_version, payload.new_primary_employee_code, payload.reason) };
     case 'addTaskRelated': return { handled: true, result: await addTaskRelated(session, payload.task_id, payload.target_employee_code) };

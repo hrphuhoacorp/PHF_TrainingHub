@@ -43,12 +43,13 @@ const {
   validateCategorySortOrder,
   assembleTaskDetailDto,
 } = require('./task-core');
-const { resolveActorContext, loadOrgRows } = require('./task-employee-scope');
+const { resolveActorContext, loadOrgRows, findByCode } = require('./task-employee-scope');
 const { canAssignTaskTo, canAddTaskRelated, resolveTaskViewerAuthority, canProposeTo, listProposalRecipientEmployees, resolveEffectiveTaskScope } = require('./task-permissions');
 const { bridgeGetTaskDetail, bridgeListTaskCategories, bridgeListTasks, isTaskEventsBridgeEnabled, bridgeListTaskEvents } = require('./task-read-bridge');
 const {
   bridgeCreateDraftTask,
   bridgeGetTaskById,
+  bridgeListPendingCancelRequests,
   bridgePublishTask,
   bridgeAcceptTaskProposal,
   bridgeRequestTaskCancel,
@@ -281,6 +282,71 @@ async function decideTaskCancelRequestViaServer(session, taskId, decision, opts)
 function approveTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'approve', opts); }
 function rejectTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'reject', opts); }
 function withdrawTaskCancelRequestViaServer(session, taskId, opts) { return decideTaskCancelRequestViaServer(session, taskId, 'withdraw', opts); }
+
+// -----------------------------------------------------------------------------
+// CANCEL REQUEST USABILITY V1 (2026-09-10) — "Yêu cầu cần xử lý" inbox.
+// NO new approval engine: reuses resolveTaskViewerAuthority() PER pending
+// request row — the EXACT same review-authority gate the Task Detail panel
+// already uses (actions.review_cancel_request). A request is included iff
+// the calling actor could see the "Duyệt hủy"/"Từ chối" buttons on that
+// Task's own detail page. Bounded fan-out (phf-hr-api caps at 500 pending
+// rows, itself a rare-event ceiling) — one bridgeGetTaskById() per DISTINCT
+// task, never per request.
+// -----------------------------------------------------------------------------
+function text(v) { return String(v == null ? '' : v).trim(); }
+function upperCode(v) { return text(v).toUpperCase(); }
+
+async function listMyPendingCancelRequestsViaServer(session) {
+  const raw = await bridgeListPendingCancelRequests();
+  if (!Array.isArray(raw) || !raw.length) return { requests: [] };
+
+  const orgRows = await loadOrgRows();
+  function personInfo(employeeCode) {
+    const c = upperCode(employeeCode);
+    if (!c) return null;
+    const person = findByCode(orgRows, c);
+    return { employee_code: c, full_name: person ? person.fullName : '', department: person ? person.department : '' };
+  }
+
+  const out = [];
+  const taskCache = new Map(); // task_id -> { task, assignees } | null (fetched once per distinct task)
+  for (const row of raw) {
+    const taskId = row && row.task_id;
+    if (!taskId) continue;
+    let loaded;
+    if (taskCache.has(taskId)) {
+      loaded = taskCache.get(taskId);
+    } else {
+      try {
+        loaded = await bridgeGetTaskById(taskId);
+      } catch (_e) {
+        loaded = null; // never let one bad task block the whole inbox
+      }
+      taskCache.set(taskId, loaded);
+    }
+    const current = loaded && loaded.task;
+    if (!current) continue; // task missing/unreadable — omit, fail-closed (same as the notification list)
+
+    let viewer;
+    try {
+      viewer = await resolveTaskViewerAuthority(session, current, loaded.assignees);
+    } catch (_e) {
+      continue;
+    }
+    if (!viewer || !viewer.actions || viewer.actions.review_cancel_request !== true) continue;
+
+    out.push({
+      task_id: taskId,
+      task_code: row.task_code || '',
+      title: row.title || '',
+      requested_by: personInfo(row.requested_by_employee_code),
+      reason: row.reason || '',
+      requested_at: row.requested_at || null,
+      status: 'pending',
+    });
+  }
+  return { requests: out };
+}
 
 async function changeTaskDeadlineViaServer(session, taskId, expectedRowVersion, newDeadline, reason) {
   const { task: current, assignees } = await bridgeGetTaskById(taskId);
@@ -547,7 +613,7 @@ async function getTaskDetailViaServer(session, taskId) {
     resolveTaskViewerAuthority(session, detail.task, detail.assignees, effective),
   ]);
   const categoryDtoObj = (categoriesResult.categories || []).find(c => c.category_code === detail.task.category_code) || null;
-  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments);
+  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments, undefined, detail.cancel_request_history);
 }
 
 // =============================================================================
@@ -805,7 +871,7 @@ async function getTaskDetailProposalAwareViaServer(session, taskId) {
     resolveTaskViewerAuthority(session, detail.task, detail.assignees),
   ]);
   const categoryDtoObj = (categoriesResult.categories || []).find((c) => c.category_code === detail.task.category_code) || null;
-  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments);
+  return assembleTaskDetailDto(detail.task, detail.assignees, detail.comments, detail.links, detail.events, categoryDtoObj, orgRows, viewer, detail.recurrence, detail.cancel_request, detail.attachments, undefined, detail.cancel_request_history);
 }
 
 // listProposalRecipientEmployeesViaServer — population cho recipient picker
@@ -848,6 +914,7 @@ module.exports = {
   approveTaskCancelRequestViaServer,
   rejectTaskCancelRequestViaServer,
   withdrawTaskCancelRequestViaServer,
+  listMyPendingCancelRequestsViaServer,
   changeTaskDeadlineViaServer,
   transferTaskPrimaryViaServer,
   addTaskRelatedViaServer,

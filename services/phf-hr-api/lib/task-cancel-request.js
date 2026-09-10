@@ -17,7 +17,7 @@
  * TASK_CANCEL_REQUEST_UNSUPPORTED (509-ish; mapped 409 at the route).
  */
 
-const { withTaskWriteTransaction } = require('./db');
+const { withTaskWriteTransaction, withTaskReadTransaction } = require('./db');
 const notify = require('./task-notification-emit');
 
 // IN-APP NOTIFICATION V1 — in-transaction emit wrapper (see lib/task-write.js
@@ -252,4 +252,31 @@ async function decideCancelRequest(config, params) {
   });
 }
 
-module.exports = { submitCancelRequest, decideCancelRequest, hasCancelRequestSchema, MANAGEMENT_CANCEL_BASES };
+// ---------------------------------------------------------------------------
+// LIST PENDING (CANCEL REQUEST USABILITY V1, 2026-09-10) — read-only, no
+// authorization here (same invariant as everywhere else in this file: the
+// MAIN APP decides who reviews what). Returns EVERY pending request across
+// EVERY task, joined with the minimal task fields the main app needs to
+// re-run resolveTaskViewerAuthority() per row and keep only the ones the
+// calling actor may actually review. Bounded (LIMIT) — pending cancel
+// requests are a rare event, never a bulk list.
+// ---------------------------------------------------------------------------
+async function listPendingCancelRequests(config) {
+  return withTaskReadTransaction(config, async (client) => {
+    if (!(await hasCancelRequestSchema(client))) return { data: [] };
+    const r = await client.query(
+      `SELECT cr.id, cr.task_id, cr.reason, cr.requested_by_employee_code,
+              cr.requested_by_account_id, cr.requested_at,
+              t.task_code, t.title, t.status AS task_status,
+              t.created_by_employee_code, t.created_by_account_id
+         FROM task.cancel_requests cr
+         JOIN task.tasks t ON t.id = cr.task_id
+        WHERE cr.status = 'pending'
+        ORDER BY cr.requested_at ASC
+        LIMIT 500`
+    );
+    return { data: r.rows };
+  });
+}
+
+module.exports = { submitCancelRequest, decideCancelRequest, listPendingCancelRequests, hasCancelRequestSchema, MANAGEMENT_CANCEL_BASES };
