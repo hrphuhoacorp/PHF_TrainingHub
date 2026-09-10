@@ -30,14 +30,32 @@ const { resolveEffectiveTaskScope } = require('./task-permissions');
 const __timing = require('./request-timing'); // FORENSIC V3 — env-gated phase timing, inert otherwise
 
 const TASK_LIST_RELATIONS = new Set(['received', 'assigned', 'proposal_sent', 'proposal_received']);
-const TASK_LIST_STATUS_FILTERS = new Set(['all', 'in_progress', 'overdue', 'completed']);
+// FILTER V1 (2026-09-10) — 'cancelled' added as a REAL backend-supported
+// status filter (was UI-only before: the tab existed in "Nhân sự tôi quản
+// lý" but the descriptor builder silently coerced it to 'all' — the exact
+// UI/backend drift the lock calls out to fix, not paper over).
+const TASK_LIST_STATUS_FILTERS = new Set(['all', 'in_progress', 'overdue', 'completed', 'cancelled']);
 const TASK_LIST_SCOPES = new Set(['mine', 'managed', 'cross_department', 'all_company']);
+// FILTER V1 — real Task priority enum (task-core.js's own list, 3 values;
+// there is no separate "Thấp" value in the data model, never invented here).
+const TASK_LIST_PRIORITIES = new Set(['thuong', 'quan_trong', 'khan_cap']);
 const DESCRIPTOR_TTL_MS = 15000;
 // COMPANY-LEVEL PERMISSION CLEANUP (2026-08-28) — khớp 100% với
 // task-core.js::COMPANY_TIER_ACTOR_TYPES (xem comment gốc ở đó).
 const COMPANY_TIER_ACTOR_TYPES = new Set(['admin', 'giam_doc', 'tro_ly_gd']);
 
 function text(v) { return String(v == null ? '' : v).trim(); }
+function code(v) { return text(v).toUpperCase(); }
+// FILTER V1 — deadline range bound: accept only a value that parses to a
+// real timestamp; anything else is treated as "not provided" (never a hard
+// 400 for a malformed date — same permissiveness as the existing `search`
+// field). Never lets an unparseable string reach SQL.
+function dateFilterValue(v) {
+  const s = text(v);
+  if (!s) return '';
+  const d = new Date(s);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : '';
+}
 
 function invalid(message, code, statusCode) {
   const err = new Error(message);
@@ -94,6 +112,19 @@ async function _buildResolvedTaskQueryDescriptor(session, params, options) {
   const search = text(input.search).slice(0, 100);
   const limit = Math.min(200, Math.max(1, Number(input.limit) || 50));
   const offset = Math.min(5000, Math.max(0, Math.trunc(Number(input.offset)) || 0));
+
+  // FILTER V1 (2026-09-10) — additional narrowing on top of the already-
+  // authorized population above (relation/scope/assigneeEmployeeCodes are
+  // computed identically to before this section; these 6 fields ONLY add
+  // WHERE conditions in the executor, never touch authorization). All 6 use
+  // data already present on task.tasks/task.assignees — no new table, no
+  // new join beyond the existing assignee-relation pattern.
+  const priorityFilter = TASK_LIST_PRIORITIES.has(text(input.priorityFilter)) ? text(input.priorityFilter) : '';
+  const categoryFilter = code(input.categoryFilter).slice(0, 40);
+  const creatorFilter = code(input.creatorFilter).slice(0, 20);
+  const primaryFilter = code(input.primaryFilter).slice(0, 20);
+  const deadlineFrom = dateFilterValue(input.deadlineFrom);
+  const deadlineTo = dateFilterValue(input.deadlineTo);
 
   const isReceivedLike = relation === 'received' || relation === 'proposal_received';
   const flowType = (relation === 'proposal_sent' || relation === 'proposal_received') ? 'de_xuat' : 'giao_viec';
@@ -163,6 +194,13 @@ async function _buildResolvedTaskQueryDescriptor(session, params, options) {
     crossDepartmentOnly: scopeParam === 'cross_department',
     statusFilter,
     search,
+    // FILTER V1 (2026-09-10)
+    priorityFilter,
+    categoryFilter,
+    creatorFilter,
+    primaryFilter,
+    deadlineFrom,
+    deadlineTo,
     offset,
     limit,
     relation,

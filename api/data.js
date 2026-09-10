@@ -470,6 +470,16 @@ function taskListInput(payload) {
   copyTaskPayloadField(input, payload, 'search', 'search');
   copyTaskPayloadField(input, payload, 'limit', 'limit');
   copyTaskPayloadField(input, payload, 'offset', 'offset');
+  // FILTER V1 (2026-09-10) — additive; every value re-validated/sanitized in
+  // task-query-descriptor-builder.js before it ever reaches the signed
+  // descriptor (this whitelist only decides which raw client fields are
+  // even LOOKED AT — no trust boundary crossed here).
+  copyTaskPayloadField(input, payload, 'priority_filter', 'priorityFilter');
+  copyTaskPayloadField(input, payload, 'category_filter', 'categoryFilter');
+  copyTaskPayloadField(input, payload, 'creator_filter', 'creatorFilter');
+  copyTaskPayloadField(input, payload, 'primary_filter', 'primaryFilter');
+  copyTaskPayloadField(input, payload, 'deadline_from', 'deadlineFrom');
+  copyTaskPayloadField(input, payload, 'deadline_to', 'deadlineTo');
   return input;
 }
 
@@ -602,6 +612,16 @@ function taskListInput(payload) {
   copyTaskPayloadField(input, payload, 'search', 'search');
   copyTaskPayloadField(input, payload, 'limit', 'limit');
   copyTaskPayloadField(input, payload, 'offset', 'offset');
+  // FILTER V1 (2026-09-10) — additive; every value re-validated/sanitized in
+  // task-query-descriptor-builder.js before it ever reaches the signed
+  // descriptor (this whitelist only decides which raw client fields are
+  // even LOOKED AT — no trust boundary crossed here).
+  copyTaskPayloadField(input, payload, 'priority_filter', 'priorityFilter');
+  copyTaskPayloadField(input, payload, 'category_filter', 'categoryFilter');
+  copyTaskPayloadField(input, payload, 'creator_filter', 'creatorFilter');
+  copyTaskPayloadField(input, payload, 'primary_filter', 'primaryFilter');
+  copyTaskPayloadField(input, payload, 'deadline_from', 'deadlineFrom');
+  copyTaskPayloadField(input, payload, 'deadline_to', 'deadlineTo');
   return input;
 }
 

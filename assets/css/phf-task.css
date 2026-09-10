@@ -1068,6 +1068,23 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 .phft-list-toolbar-right .phft-input{flex:0 1 300px}
 .phft-list-page .phft-table-scroll{border:0;border-radius:0}
 
+/* TASK LIST USABILITY V1 (2026-09-10) — Filter V1 button + compact panel.
+   Same toolbar row as search ("bên cạnh search"), same .phft-select/.phft-
+   input/.phft-form-actions tokens as everywhere else in Task — no new
+   visual language, no modal/backdrop (spec: "không biến thành form lớn"). */
+.phft-lf-toggle-wrap{display:flex;align-items:center;gap:8px}
+.phft-lf-toggle{display:inline-flex;align-items:center;gap:6px}
+.phft-lf-toggle.is-active{border-color:var(--phft-accent);color:var(--phft-accent)}
+.phft-lf-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;border-radius:999px;background:var(--phft-accent);color:#fff;font-size:9.5px;font-weight:800;line-height:16px}
+.phft-lf-clear-inline{font-size:11px}
+.phft-list-filter-panel{padding:14px 16px;border-bottom:1px solid var(--phft-line);background:#fbfcfe}
+.phft-list-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.phft-lf-field{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#405062}
+.phft-lf-field select,.phft-lf-field input{width:100%}
+.phft-lf-hint{margin:10px 0 0;font-size:10.5px;color:var(--phft-muted)}
+.phft-list-filter-panel .phft-form-actions{margin-top:12px}
+@media(max-width:760px){.phft-list-filter-grid{grid-template-columns:1fr 1fr}}
+
 /* ---- 5B · shared semantic badges (status + priority) ---- */
 .phft-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:8px;font-size:11px;font-weight:800;line-height:1;white-space:nowrap;border:1px solid transparent;background:#eef1f4;color:#55606d}
 .phft-badge.tone-blue{background:var(--phft-blue-bg);color:var(--phft-blue);border-color:var(--phft-blue-line)}
@@ -1114,6 +1131,11 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 .phft-managed-recipient-note{display:block;margin-top:3px;color:#19714b;font-size:10px}
 .phft-list-deadline .phft-dl-cell{font-variant-numeric:tabular-nums;font-size:12px;color:#3b4653}
 .phft-list-deadline .phft-dl-cell.tone-red{color:var(--phft-red);font-weight:800}
+/* TASK LIST USABILITY V1 (2026-09-10) — deadline readability label. Plain
+   small text under the date, no pill/background ("không cần chip màu mè") —
+   red only inherits from the overdue date itself, everything else muted. */
+.phft-list-deadline .phft-dl-label{display:block;margin-top:2px;font-size:9.5px;font-weight:700;color:var(--phft-muted)}
+.phft-list-deadline .phft-dl-cell.tone-red .phft-dl-label{color:var(--phft-red)}
 .phft-list-status{white-space:nowrap}
 .phft-list-prog-cell .phft-prog{display:flex;align-items:center;gap:8px}
 .phft-prog-track{flex:1;min-width:34px;height:6px;border-radius:999px;background:#e7ebf0;overflow:hidden}

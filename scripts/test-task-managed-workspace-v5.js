@@ -118,23 +118,33 @@ function render(window, T, root) { root.innerHTML = T.shellFrame(T.taskListHtml(
   pass(state.list.tasks.some(t => t.task_id === 'demo-r7'), 'MANAGER DATASET: case canonical demo-r7 vẫn còn nguyên trong managed workspace');
 
   // ================= D. Summary reconciliation (assert bằng code) =================
+  // TASK LIST USABILITY V1 (2026-09-10) — 'rework' bucket REMOVED (backend
+  // never had rework_state support on real data; the tab was always empty
+  // in Production). demo-r13 keeps its fixture's rework_state='requested'
+  // field (harmless — only the per-row STATUS LABEL still reads it, see
+  // taskListRowStatusLabel(), untouched) but its real `status` is
+  // 'completed', so it now folds into the `completed` bucket like any other
+  // completed Task — no dedicated bucket, no dedicated tab.
   const counts = T.taskListSummaryCounts();
-  pass(typeof counts.rework === 'number' && typeof counts.cancelled === 'number', 'SUMMARY: relation=managed có đủ 2 bucket rework/cancelled ngoài 3 bucket cũ');
-  const sum = counts.in_progress + counts.overdue + counts.completed + counts.rework + counts.cancelled;
-  pass(counts.total === sum, 'SUMMARY RECONCILIATION: Tổng (' + counts.total + ') = Đang thực hiện(' + counts.in_progress + ') + Quá hạn(' + counts.overdue + ') + Hoàn thành(' + counts.completed + ') + Cần xử lý lại(' + counts.rework + ') + Đã hủy(' + counts.cancelled + ') = ' + sum);
-  pass(counts.in_progress === 1 && counts.completed === 1 && counts.rework === 1 && counts.cancelled === 1, 'SUMMARY: fixture có đủ 4/5 bucket = 1 task mỗi loại (demo-r7=in_progress, r12=completed, r13=rework, r14=cancelled)');
+  pass(counts.rework === undefined, 'SUMMARY: bucket "rework" đã bị gỡ hoàn toàn (không còn key trong counts)');
+  pass(typeof counts.cancelled === 'number', 'SUMMARY: relation=managed vẫn có bucket cancelled');
+  const sum = counts.in_progress + counts.overdue + counts.completed + counts.cancelled;
+  pass(counts.total === sum, 'SUMMARY RECONCILIATION: Tổng (' + counts.total + ') = Đang thực hiện(' + counts.in_progress + ') + Quá hạn(' + counts.overdue + ') + Hoàn thành(' + counts.completed + ') + Đã hủy(' + counts.cancelled + ') = ' + sum);
+  pass(counts.in_progress === 1 && counts.completed === 2 && counts.cancelled === 1, 'SUMMARY: r7=in_progress, r12=completed, r13=completed (rework_state không còn tách bucket riêng, gộp về status thật), r14=cancelled');
   // demo-r11 (published, deadline quá khứ) rơi vào overdue
   pass(counts.overdue === 1, 'SUMMARY: demo-r11 (quá hạn, chưa hoàn thành) rơi đúng vào bucket Quá hạn');
 
-  // status tab labels đủ 6 (bao gồm 'all')
+  // status tab labels đủ 5 (bao gồm 'all') — 'rework' đã gỡ khỏi UI
   const managedLabels = T.TASK_STATUS_TAB_LABELS_MANAGED;
-  pass(Object.keys(managedLabels).length === 6 && ['all', 'in_progress', 'overdue', 'completed', 'rework', 'cancelled'].every(k => k in managedLabels), 'STATUS TABS: managed có đủ 6 tab (Tất cả + 5 bucket)');
+  pass(Object.keys(managedLabels).length === 5 && ['all', 'in_progress', 'overdue', 'completed', 'cancelled'].every(k => k in managedLabels), 'STATUS TABS: managed có đủ 5 tab (Tất cả + 4 bucket) — không còn "rework"');
+  pass(!('rework' in managedLabels), 'STATUS TABS: "rework" không còn là key hợp lệ');
   render(window, T, root);
   const managedListHtml = window.document.getElementById('phfTaskRoot').innerHTML;
-  pass(/Cần xử lý lại/.test(managedListHtml) && /Đã hủy/.test(managedListHtml), 'STATUS TABS: render đủ "Cần xử lý lại" và "Đã hủy" trong tabbar');
+  pass(/Đã hủy/.test(managedListHtml), 'STATUS TABS: render đủ "Đã hủy" trong tabbar');
+  pass(!window.document.querySelector('[data-task-list-status="rework"]'), 'STATUS TABS: KHÔNG còn tab button "Cần xử lý lại" (data-task-list-status="rework") trong DOM thật — backend không có rework_state');
 
   // click từng status tab -> dataset con cộng đúng lại = total (double check qua UI thật, không chỉ qua counts object)
-  for (const key of ['in_progress', 'overdue', 'completed', 'rework', 'cancelled']) {
+  for (const key of ['in_progress', 'overdue', 'completed', 'cancelled']) {
     state.list.statusFilter = key;
     await T.loadTaskList(root);
     const bucketLen = state.list.tasks.length;
@@ -150,7 +160,7 @@ function render(window, T, root) { root.innerHTML = T.shellFrame(T.taskListHtml(
   await T.loadTaskList(root);
   pass(state.list.tasks.length === 1 && state.list.tasks[0].task_id === 'demo-r7', 'CROSS-DEPT FILTER: lọc đúng ra demo-r7, không lẫn 4 task managed cùng phòng ban khác');
   const crossDeptCounts = T.taskListSummaryCounts();
-  pass(crossDeptCounts.total === 1 && crossDeptCounts.total === crossDeptCounts.in_progress + crossDeptCounts.overdue + crossDeptCounts.completed + crossDeptCounts.rework + crossDeptCounts.cancelled, 'CROSS-DEPT FILTER: summary reconciliation VẪN đúng trên dataset ĐÃ lọc (attribute filter không phá vỡ phép cộng status)');
+  pass(crossDeptCounts.total === 1 && crossDeptCounts.total === crossDeptCounts.in_progress + crossDeptCounts.overdue + crossDeptCounts.completed + crossDeptCounts.cancelled, 'CROSS-DEPT FILTER: summary reconciliation VẪN đúng trên dataset ĐÃ lọc (attribute filter không phá vỡ phép cộng status)');
   state.list.scope = '';
   await T.loadTaskList(root);
 
