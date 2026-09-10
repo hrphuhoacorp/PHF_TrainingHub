@@ -292,7 +292,7 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
                t.category_code, t.progress_percent, t.progress_status,
                t.created_by_employee_code, t.created_by_account_id, t.recurring_series_id,
                t.is_cross_department, t.source_department,
-               t.target_department, t.created_at, t.row_version,
+               t.target_department, t.created_at, t.completed_at, t.row_version,
                pd.proposal_status, pd.recipient_employee_code, pd.generated_task_id,
                pd.reject_reason, pd.cancel_reason, pd.decided_by_employee_code, pd.decided_at,
                EXISTS (
@@ -365,6 +365,8 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
           isCrossDepartment: t.is_cross_department,
           sourceDepartment: t.source_department,
           targetDepartment: t.target_department,
+          createdAt: t.created_at,
+          completedAt: t.completed_at || null,
           rowVersion: t.row_version,
           // Proposal V2 (2026-08-29) — null cho mọi row flow_type='giao_viec'
           // (LEFT JOIN không match). LOCK "Proposal chưa Accept KHÔNG phải

@@ -1079,8 +1079,13 @@ g.is-zero .phft-trend-axis-label{opacity:.55;font-weight:500}
 .phft-lf-clear-inline{font-size:11px}
 .phft-list-filter-panel{padding:14px 16px;border-bottom:1px solid var(--phft-line);background:#fbfcfe}
 .phft-list-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.phft-lf-field{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#405062}
-.phft-lf-field select,.phft-lf-field input{width:100%}
+.phft-lf-field{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#405062;align-self:start}
+/* .phft-lf-field is flex-direction:column, so the global `.phft-input{flex:0 1 320px}`
+   would land its flex-basis on the VERTICAL axis and stretch <input type="date">
+   into a ~320px-tall box (selects use .phft-select and were unaffected). Pin the
+   controls to their natural height so date inputs line up with Priority/Category/
+   Creator across every Task-list workspace that shares this panel. */
+.phft-lf-field select,.phft-lf-field input{width:100%;flex:none;min-height:36px}
 .phft-lf-hint{margin:10px 0 0;font-size:10.5px;color:var(--phft-muted)}
 .phft-list-filter-panel .phft-form-actions{margin-top:12px}
 @media(max-width:760px){.phft-list-filter-grid{grid-template-columns:1fr 1fr}}
