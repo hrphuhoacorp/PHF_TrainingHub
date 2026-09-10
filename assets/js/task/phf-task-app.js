@@ -574,7 +574,16 @@ function toggleRelated(form,code){
 function defaultPeopleFilters(){return {role:'',department:'',employmentStatus:'',accountStatus:'',permissionSource:'',checklistStatus:'',search:''};}
 function defaultExpandedSections(){return {content:false,related:false,links:false,recurrence:false};}
 var TASK_LIST_PAGE_SIZE=50;
-function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false,loadedOnce:false};}
+// TASK LIST USABILITY V1 (2026-09-10) — Filter V1. Only fields already
+// present on task.tasks/task.assignees (priority/category_code/deadline/
+// created_by_employee_code/primary via the existing assignee-relation
+// pattern) — no schema, no new permission surface. Workspace-aware
+// availability is decided by taskListFilterFieldsForRelation() below, not
+// by hiding/disabling controls client-side only — the unavailable fields
+// are simply not rendered.
+function defaultTaskListFilters(){return {priority:'',category:'',creator:'',primary:'',deadlineFrom:'',deadlineTo:''};}
+function defaultTaskListState(){return {relation:'received',statusFilter:'all',scope:'',search:'',loading:false,loadingMore:false,error:'',tasks:[],viewScopeType:'self',requesterActorType:'nhan_vien',offset:0,hasMore:false,loadedOnce:false,
+  filters:defaultTaskListFilters(),filterOpen:false,filterDraft:null,filterPeople:{loading:false,loaded:false,rows:[]}};}
 var taskUiState={view:'dashboard',list:defaultTaskListState(),calendar:defaultTaskCalendarState(),timeline:defaultTaskTimelineState(),report:defaultTaskReportState(),overview:defaultTaskOverviewV2State(),pendingCancel:defaultTaskPendingCancelState(),navGroupExpanded:{},hasManagedScope:false,managedScopeHydrated:false,canManageTaskPermissions:false,demoDetailTaskId:'',demoWorkspaceNote:'',demoWorkspaceLinkLabel:'',demoWorkspaceLinkUrl:'',demoAssignerFeedback:'',demoReworkOpen:false,demoReworkReason:'',demoCancelOpen:false,demoCancelReason:'',demoCancelRequestOpen:false,demoCancelRequestReason:'',createTab:'quick',quickSuccess:null,modeSwitchWarning:null,advancedTouched:{start:false},createAttemptKey:null,taskCode:'',form:defaultTaskForm(),formErrors:{},submitError:'',submitPhase:'',submitting:false,categories:[],categoriesLoading:false,categoriesError:'',employees:[],employeesLoading:false,employeesError:'',requesterActorType:'nhan_vien',primaryPickerOpen:true,expandedSections:defaultExpandedSections(),primaryQuery:'',relatedQuery:'',primaryDept:'',relatedDept:'',taskId:'',rowVersion:null,detail:null,detailLoading:false,detailError:'',partialErrors:[],commentDraft:'',commentSaving:false,commentError:'',lifecycleMode:'',lifecyclePercent:0,lifecycleDirty:false,lifecycleResultText:'',lifecycleReason:'',lifecycleSaving:false,lifecycleError:'',lifecycleErrorCode:'',lifecycleErrorScope:'',adminPeople:null,adminPeopleLoading:false,adminPeopleError:'',peopleFilters:defaultPeopleFilters(),peopleAdvancedOpen:false,peopleDetailOpen:{},permissionEditor:null,permissionSaving:false,permissionError:'',settingsCategories:[],settingsLoading:false,settingsError:'',settingsSaving:false,newCategoryName:'',newCategoryError:'',editingCategoryCode:'',editingCategoryName:'',foundationStatus:null,foundationStatusLoading:false,mailSettings:null,mailSettingsLoading:false,mailSettingsError:'',mailSettingsSaving:false,newRecipientEmail:'',newRecipientLabel:'',newRecipientError:'',
   recurrenceManage:{loading:false,error:'',rules:[],editing:null,saving:false,confirmStop:null,filters:{q:'',status:'all',frequency:'all'},loadedOnce:false},
   // P0-2 FIX (2026-08-29) — detail-page business action UI (đổi hạn/chuyển
@@ -1721,7 +1730,13 @@ var TASK_STATUS_TAB_LABELS={all:'Tất cả',in_progress:'Đang làm',overdue:'Q
 // V5 mục 6 — "Nhân sự tôi quản lý" cần đủ 5 status bucket (mutually exclusive)
 // để Tổng luôn reconcile đúng bằng tổng 5 bucket con (không chỉ 3 bucket cũ
 // như Tôi nhận/Tôi giao — 2 relation đó KHÔNG đổi, giữ nguyên 4 tab cũ).
-var TASK_STATUS_TAB_LABELS_MANAGED={all:'Tất cả',in_progress:'Đang thực hiện',overdue:'Quá hạn',completed:'Hoàn thành',rework:'Cần xử lý lại',cancelled:'Đã hủy'};
+// TASK LIST USABILITY V1 (2026-09-10) — 'rework' REMOVED: backend has no
+// rework_state column/query support (real Task DTO never carries it — only
+// the flag-gated demo fixture sandbox does). The tab was silently useless on
+// real data (always empty). 'cancelled' stays and is now REAL backend
+// support (was UI-only before — the descriptor builder used to coerce any
+// unknown statusFilter, including 'cancelled', to 'all').
+var TASK_STATUS_TAB_LABELS_MANAGED={all:'Tất cả',in_progress:'Đang thực hiện',overdue:'Quá hạn',completed:'Hoàn thành',cancelled:'Đã hủy'};
 function taskStatusTabLabelsForRelation(relation){return relation==='managed'?TASK_STATUS_TAB_LABELS_MANAGED:TASK_STATUS_TAB_LABELS;}
 var TASK_STATUS_DISPLAY_LABELS={draft:'Nháp',published:'Mới giao',in_progress:'Đang làm',completed:'Hoàn thành',cancelled:'Đã hủy'};
 // V5 mục 5 — trong "Nhân sự tôi quản lý", "Liên phòng ban" là ATTRIBUTE
@@ -1790,11 +1805,31 @@ function taskListProgressHtml(row){
 // UI/UX Step 5 — deadline cell: neutral by default; red only when the row
 // is already overdue by the SAME rule taskListRowStatusLabel uses (no new
 // calculation).
+// TASK LIST USABILITY V1 (2026-09-10) — DEADLINE READABILITY. A small,
+// display-derived label next to the (unchanged) date — never stored, never
+// sent to the server, never changes which row a deadline belongs to. Only
+// active (published/in_progress) Tasks get a label; a far-future deadline
+// gets NO label at all (plain date only — "không cần chip màu mè"). Reuses
+// TASK_CAL_SOON_DAYS (already the Calendar's own "sắp tới hạn" window) so
+// the "soon" threshold is the SAME everywhere in Task, not a second number.
+function taskListDeadlineLabel(diffDays){
+  if(diffDays<0)return 'Quá hạn '+Math.abs(diffDays)+' ngày';
+  if(diffDays===0)return 'Hôm nay';
+  if(diffDays===1)return 'Ngày mai';
+  if(diffDays<=TASK_CAL_SOON_DAYS)return 'Còn '+diffDays+' ngày';
+  return '';
+}
 function taskListDeadlineHtml(row){
   if(!row.deadline)return '<span class="phft-cellmuted">—</span>';
   var open=row.status==='published'||row.status==='in_progress';
-  var overdue=open&&new Date(row.deadline).getTime()<Date.now();
-  return '<span class="phft-dl-cell'+(overdue?' tone-red':'')+'">'+esc(formatTaskDateTime(row.deadline))+'</span>';
+  var raw=new Date(row.deadline);
+  var overdue=open&&!isNaN(raw.getTime())&&raw.getTime()<Date.now();
+  var label='';
+  if(open&&!isNaN(raw.getTime())){
+    var diffDays=Math.ceil((raw.getTime()-Date.now())/86400000);
+    label=taskListDeadlineLabel(diffDays);
+  }
+  return '<span class="phft-dl-cell'+(overdue?' tone-red':'')+'">'+esc(formatTaskDateTime(row.deadline))+(label?'<small class="phft-dl-label">'+esc(label)+'</small>':'')+'</span>';
 }
 // UI/UX Step 5 — compact cross-department chip. Full route kept in the
 // title tooltip (Task detail keeps the expanded presentation).
@@ -1892,21 +1927,160 @@ function taskListManagerScopeFilterHtml(){
     return '<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(TASK_CROSS_DEPT_FILTER_LABELS[value])+'</option>';
   }).join('')+'</select>';
 }
+/* ==========================================================================
+ * TASK LIST USABILITY V1 (2026-09-10) — FILTER V1. Compact panel next to
+ * search ("không biến thành form lớn") — only fields already on task.tasks/
+ * task.assignees (priority/category_code/deadline/created_by_employee_code/
+ * Primary via the existing assignee-relation pattern). No new schema, no new
+ * permission surface. Deliberately OMITTED (per lock): chi nhánh, rework,
+ * nguồn công việc, advanced search, department (would need a wiring GO of
+ * its own beyond simple reuse). Trạng thái stays the existing tab bar, not a
+ * panel field — this section only adds priority/category/deadline range/
+ * creator/primary.
+ * ========================================================================== */
+// Workspace-aware field availability — computed ONCE here so the panel
+// markup, the active-count, and the payload builder can never drift into 3
+// different answers for "which fields does this workspace show".
+//   received (Tôi nhận) — Primary is ALWAYS the actor themself (self-only
+//     scope) -> omitted. Creator ("Người giao") is meaningful (many
+//     possible assigners).
+//   assigned (Tôi giao) — creator is ALWAYS the actor themself (creator_eq
+//     mode) -> omitted. Primary is meaningful (who is actually doing it).
+//   managed (Nhân sự tôi quản lý) — both meaningful (viewing many people's
+//     work).
+function taskListFilterFieldsForRelation(relation){
+  var base=['priority','category','deadline'];
+  if(relation==='received')return base.concat(['creator']);
+  if(relation==='assigned')return base.concat(['primary']);
+  if(relation==='managed')return base.concat(['creator','primary']);
+  return base;
+}
+function taskListFilterFieldEnabled(relation,field){return taskListFilterFieldsForRelation(relation).indexOf(field)>=0;}
+function taskListFilterCount(filters,relation){
+  var f=filters||{}, n=0;
+  if(f.priority)n++;
+  if(f.category)n++;
+  if(f.deadlineFrom||f.deadlineTo)n++;
+  if(f.creator&&taskListFilterFieldEnabled(relation,'creator'))n++;
+  if(f.primary&&taskListFilterFieldEnabled(relation,'primary'))n++;
+  return n;
+}
+// Wire payload — mirrors api/data.js::taskListInput()'s whitelist keys 1:1
+// (priority_filter/category_filter/creator_filter/primary_filter/
+// deadline_from/deadline_to). Only non-empty values are sent — an empty
+// field means "not filtered", never sent as an empty-string filter.
+function taskListFiltersPayload(filters){
+  var f=filters||{}, out={};
+  if(f.priority)out.priority_filter=f.priority;
+  if(f.category)out.category_filter=f.category;
+  if(f.creator)out.creator_filter=f.creator;
+  if(f.primary)out.primary_filter=f.primary;
+  if(f.deadlineFrom)out.deadline_from=f.deadlineFrom;
+  if(f.deadlineTo)out.deadline_to=f.deadlineTo;
+  return out;
+}
+// Category/people picker options — REUSE existing data sources only (no new
+// endpoint): loadTaskCategories() is the same call Settings/Create already
+// use; loadTaskAssignableEmployees() is the same assignable-population call
+// the Create form's Primary/Related pickers already use. This means the
+// Creator/Primary dropdown options are bounded to "people the actor may
+// currently assign work to" — a safe, already-authorized population, not a
+// perfectly exhaustive "every creator that ever appears in this list" set;
+// documented here rather than opening a new query surface for it.
+function loadTaskListFilterOptionsIfNeeded(root){
+  var list=taskUiState.list;
+  if(!(taskUiState.categories&&taskUiState.categories.length)&&!taskUiState.categoriesLoading){
+    taskUiState.categoriesLoading=true;
+    loadTaskCategories().then(function(rows){taskUiState.categories=rows;}).catch(function(){}).then(function(){
+      taskUiState.categoriesLoading=false;
+      if(list.filterOpen)renderTaskRoot(root);
+    });
+  }
+  var needsPeople=taskListFilterFieldEnabled(list.relation,'creator')||taskListFilterFieldEnabled(list.relation,'primary');
+  if(needsPeople&&!list.filterPeople.loaded&&!list.filterPeople.loading){
+    list.filterPeople.loading=true;
+    loadTaskAssignableEmployees().then(function(result){
+      list.filterPeople.rows=result.rows;list.filterPeople.loaded=true;
+    }).catch(function(){
+      list.filterPeople.rows=[];list.filterPeople.loaded=true;
+    }).then(function(){
+      list.filterPeople.loading=false;
+      if(list.filterOpen)renderTaskRoot(root);
+    });
+  }
+}
+function openTaskListFilterPanel(root){
+  var list=taskUiState.list;
+  list.filterDraft=Object.assign(defaultTaskListFilters(),list.filters);
+  list.filterOpen=true;
+  loadTaskListFilterOptionsIfNeeded(root);
+  renderTaskRoot(root);
+}
+function closeTaskListFilterPanel(root){
+  taskUiState.list.filterOpen=false;taskUiState.list.filterDraft=null;
+  renderTaskRoot(root);
+}
+function applyTaskListFilters(root){
+  var list=taskUiState.list;
+  list.filters=Object.assign(defaultTaskListFilters(),list.filterDraft||{});
+  list.filterOpen=false;list.filterDraft=null;
+  loadTaskList(root);
+}
+function clearTaskListFilters(root){
+  var list=taskUiState.list;
+  list.filters=defaultTaskListFilters();
+  list.filterOpen=false;list.filterDraft=null;
+  loadTaskList(root);
+}
+function taskListFilterButtonHtml(){
+  var list=taskUiState.list;
+  var count=taskListFilterCount(list.filters,list.relation);
+  return '<div class="phft-lf-toggle-wrap">'+
+    '<button type="button" class="phft-btn-secondary phft-lf-toggle'+(count>0?' is-active':'')+'" data-task-list-filter-toggle aria-expanded="'+(list.filterOpen?'true':'false')+'">Bộ lọc'+(count>0?'<span class="phft-lf-count">'+count+'</span>':'')+'</button>'+
+    (count>0?'<button type="button" class="phft-linklike phft-lf-clear-inline" data-task-list-filter-clear>Xóa lọc</button>':'')+
+  '</div>';
+}
+function taskListFilterPanelHtml(){
+  var list=taskUiState.list;
+  if(!list.filterOpen)return '';
+  var d=list.filterDraft||defaultTaskListFilters();
+  var relation=list.relation;
+  var priorityOptions=[['','Tất cả']].concat(Object.keys(TASK_PRIORITY_LABELS).map(function(k){return [k,TASK_PRIORITY_LABELS[k]];}));
+  var categoryOptions=[['','Tất cả']].concat((taskUiState.categories||[]).map(function(c){return [c.code,c.name];}));
+  var peopleOptions=[['','Tất cả']].concat((list.filterPeople.rows||[]).map(function(p){return [p.code,p.name];}));
+  function selectField(field,label,options){
+    return '<label class="phft-lf-field"><span>'+esc(label)+'</span><select class="phft-select" data-task-list-filter-field="'+field+'">'+options.map(function(o){
+      return '<option value="'+esc(o[0])+'"'+(o[0]===(d[field]||'')?' selected':'')+'>'+esc(o[1])+'</option>';
+    }).join('')+'</select></label>';
+  }
+  var fieldsHtml=selectField('priority','Ưu tiên',priorityOptions)+selectField('category','Danh mục',categoryOptions)+
+    '<label class="phft-lf-field"><span>Deadline từ ngày</span><input type="date" class="phft-input" data-task-list-filter-field="deadlineFrom" value="'+esc(d.deadlineFrom?taskDateTimeInputValue(d.deadlineFrom).slice(0,10):'')+'"></label>'+
+    '<label class="phft-lf-field"><span>Đến ngày</span><input type="date" class="phft-input" data-task-list-filter-field="deadlineTo" value="'+esc(d.deadlineTo?taskDateTimeInputValue(d.deadlineTo).slice(0,10):'')+'"></label>';
+  if(taskListFilterFieldEnabled(relation,'creator'))fieldsHtml+=selectField('creator','Người giao',peopleOptions);
+  if(taskListFilterFieldEnabled(relation,'primary'))fieldsHtml+=selectField('primary','Người phụ trách',peopleOptions);
+  var hint=list.filterPeople.loading?'<p class="phft-lf-hint">Đang tải danh sách nhân sự…</p>':'';
+  return '<div class="phft-list-filter-panel"><div class="phft-list-filter-grid">'+fieldsHtml+'</div>'+hint+
+    '<div class="phft-form-actions">'+
+      '<button type="button" class="phft-btn-secondary" data-task-list-filter-clear>Xóa lọc</button>'+
+      '<button type="button" class="phft-btn-secondary" data-task-list-filter-close>Đóng</button>'+
+      '<button type="button" class="phft-btn-primary" data-task-list-filter-apply>Áp dụng</button>'+
+    '</div></div>';
+}
 // V5 mục 6-7 — SUMMARY RECONCILIATION: mỗi row rơi vào ĐÚNG 1 bucket, không
 // hơn không kém, nên Tổng LUÔN bằng tổng các bucket con cho CÙNG 1 dataset
-// (mục 6: "Tổng = Đang thực hiện + Quá hạn + Hoàn thành + Cần xử lý lại +
-// Đã hủy"). "Liên phòng ban" KHÔNG tham gia phép cộng này — nó là attribute
-// filter áp dụng TRƯỚC khi đếm (rows đã được demoFilterTasks/backend lọc
-// theo scope=cross_department từ trước khi hàm này chạy), không phải 1
-// status riêng (mục 7).
+// (mục 6, cập nhật TASK LIST USABILITY V1: "Tổng = Đang thực hiện + Quá hạn
+// + Hoàn thành + Đã hủy" — bucket "Cần xử lý lại" đã gỡ, xem comment ở
+// TASK_STATUS_TAB_LABELS_MANAGED). "Liên phòng ban" KHÔNG tham gia phép cộng
+// này — nó là attribute filter áp dụng TRƯỚC khi đếm (rows đã được
+// demoFilterTasks/backend lọc theo scope=cross_department từ trước khi hàm
+// này chạy), không phải 1 status riêng (mục 7).
 function taskListSummaryCounts(){
   var rows=taskUiState.list.tasks||[], now=Date.now();
   var isManaged=taskUiState.list.relation==='managed';
   var counts={total:rows.length,in_progress:0,overdue:0,completed:0};
-  if(isManaged){counts.rework=0;counts.cancelled=0;}
+  if(isManaged){counts.cancelled=0;}
   rows.forEach(function(row){
     if(isManaged&&row.status==='cancelled'){counts.cancelled++;return;}
-    if(isManaged&&row.rework_state==='requested'){counts.rework++;return;}
     if(row.status==='completed'){counts.completed++;return;}
     if((row.status==='published'||row.status==='in_progress')){
       if(row.deadline&&new Date(row.deadline).getTime()<now)counts.overdue++;else counts.in_progress++;
@@ -1919,7 +2093,7 @@ function taskListHeaderFor(){
 }
 function taskListKpiTilesHtml(counts,relation){
   var tiles=[['total','Tổng công việc','gray'],['in_progress',relation==='managed'?'Đang thực hiện':'Đang làm','blue'],['overdue','Quá hạn','red'],['completed','Hoàn thành','green']];
-  if(relation==='managed')tiles=tiles.concat([['rework','Cần xử lý lại','orange'],['cancelled','Đã hủy','gray']]);
+  if(relation==='managed')tiles=tiles.concat([['cancelled','Đã hủy','gray']]);
   return tiles.map(function(t){return '<article class="phft-kpi phft-rk tone-'+t[2]+'"><strong>'+(counts[t[0]]||0)+'</strong><span>'+esc(t[1])+'</span></article>';}).join('');
 }
 function taskListHtml(){
@@ -1941,9 +2115,11 @@ function taskListHtml(){
         '<div class="phft-tabbar phft-tabbar-inline">'+tabs+'</div>' +
         '<div class="phft-list-toolbar-right">' +
           taskListManagerScopeFilterHtml() +
+          taskListFilterButtonHtml() +
           '<input type="search" class="phft-input" placeholder="Tìm theo mã phiếu hoặc tiêu đề (VD: CV-2608-0003)" value="'+esc(taskUiState.list.search)+'" data-task-list-search>' +
         '</div>' +
       '</div>' +
+      taskListFilterPanelHtml() +
       taskListTableHtml() +
       (counts.total>0?'<div class="phft-list-foot">' +
         '<span class="phft-list-foot-count">Đang hiển thị <b>'+counts.total+'</b> công việc'+(taskUiState.list.hasMore?' · còn nữa':'')+'</span>' +
@@ -1961,12 +2137,13 @@ function isTaskDemoModeOn(){return window.PHF_TASK_UI_DEMO_V1===true;}
 function demoFilterTasks(rows,list){
   var now=Date.now();
   return (rows||[]).filter(function(row){
-    // V5 mục 6 — thống nhất với taskListSummaryCounts(): 'completed' KHÔNG
-    // gồm Task đang "Cần xử lý lại" (rework_state='requested') — 2 bucket
-    // loại trừ nhau, để statusFilter và KPI/summary luôn khớp nhau.
+    // TASK LIST USABILITY V1 (2026-09-10) — 'rework' bucket/tab REMOVED
+    // (backend never had rework_state support on real data). 'completed' no
+    // longer carves out rework_state='requested' rows — every Task with
+    // status='completed' is in the completed bucket, full stop, matching
+    // taskListSummaryCounts() exactly (both must always agree).
     if(list.statusFilter==='cancelled'&&row.status!=='cancelled')return false;
-    if(list.statusFilter==='rework'&&row.rework_state!=='requested')return false;
-    if(list.statusFilter==='completed'&&!(row.status==='completed'&&row.rework_state!=='requested'))return false;
+    if(list.statusFilter==='completed'&&row.status!=='completed')return false;
     if(list.statusFilter==='in_progress'&&!((row.status==='published'||row.status==='in_progress')&&(!row.deadline||new Date(row.deadline).getTime()>=now)))return false;
     if(list.statusFilter==='overdue'&&!((row.status==='published'||row.status==='in_progress')&&row.deadline&&new Date(row.deadline).getTime()<now))return false;
     // V5 mục 5, 7 — "Liên phòng ban" là ATTRIBUTE FILTER duy nhất còn lại
@@ -2030,7 +2207,7 @@ async function loadTaskList(root){
   try{
     var wireRelation=list.relation==='managed'?'received':list.relation;
     var wireScope=list.relation==='managed'?(list.scope==='cross_department'?'cross_department':'managed'):(list.scope||undefined);
-    var response=await taskApi({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:0});
+    var response=await taskApi(Object.assign({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:0},taskListFiltersPayload(list.filters)));
     if(loadToken!==taskListLoadToken)return; // a newer tab/filter/search load started — drop this stale response
     var result=taskResult(response)||{};
     list.tasks=Array.isArray(result.tasks)?result.tasks:[];
@@ -2074,7 +2251,7 @@ async function loadMoreTaskList(root){
     var nextOffset=list.tasks.length;
     var wireRelation=list.relation==='managed'?'received':list.relation;
     var wireScope=list.relation==='managed'?(list.scope==='cross_department'?'cross_department':'managed'):(list.scope||undefined);
-    var response=await taskApi({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:nextOffset});
+    var response=await taskApi(Object.assign({action:'listTasks',relation:wireRelation,status_filter:list.statusFilter,scope:wireScope,search:list.search||undefined,limit:TASK_LIST_PAGE_SIZE,offset:nextOffset},taskListFiltersPayload(list.filters)));
     if(loadToken!==taskListLoadToken)return; // superseded by a fresh page-0 load — do not append a stale page
     var result=taskResult(response)||{};
     var nextRows=Array.isArray(result.tasks)?result.tasks:[];
@@ -5993,6 +6170,10 @@ function bindShell(root){
     if(target.matches('[data-task-demo-cancel-request-confirm]')){demoCancelRequestConfirm(root);return;}
     if(target.matches('[data-task-list-status]')){taskUiState.list.statusFilter=target.getAttribute('data-task-list-status');loadTaskList(root);return;}
     if(target.matches('[data-task-list-load-more]')){loadMoreTaskList(root);return;}
+    if(target.matches('[data-task-list-filter-toggle]')){if(taskUiState.list.filterOpen)closeTaskListFilterPanel(root);else openTaskListFilterPanel(root);return;}
+    if(target.matches('[data-task-list-filter-close]')){closeTaskListFilterPanel(root);return;}
+    if(target.matches('[data-task-list-filter-apply]')){applyTaskListFilters(root);return;}
+    if(target.matches('[data-task-list-filter-clear]')){clearTaskListFilters(root);return;}
     if(target.matches('[data-task-back]')){goHub();return;}
     if(target.matches('[data-task-nav].is-soon')){taskToast('Mục này sẽ được triển khai ở phase tiếp theo.');return;}
     if(target.matches('[data-task-nav="people-permissions"]')){navigateTask(taskAdminPeoplePath());return;}
@@ -6323,6 +6504,22 @@ function bindShell(root){
       return;
     }
     if(event.target.matches('[data-task-list-scope]')){taskUiState.list.scope=event.target.value;loadTaskList(root);return;}
+    var listFilterField=event.target.getAttribute('data-task-list-filter-field');
+    if(listFilterField&&taskUiState.list.filterDraft){
+      var lfDraft=taskUiState.list.filterDraft;
+      if(listFilterField==='deadlineFrom'||listFilterField==='deadlineTo'){
+        // Date-only input -> inclusive day boundary in TASK_TIME_ZONE (start
+        // of day for "từ ngày", end of day for "đến ngày") via the same
+        // local-wall-clock serializer the datetime pickers already use —
+        // never a naive UTC-midnight compare that would exclude same-day
+        // deadlines set later in the day.
+        var rawDate=event.target.value;
+        lfDraft[listFilterField]=rawDate?(serializeTaskLocalDateTime(rawDate+(listFilterField==='deadlineFrom'?'T00:00:00':'T23:59:59'))||''):'';
+      }else{
+        lfDraft[listFilterField]=event.target.value;
+      }
+      return;
+    }
     var peopleFilterField=event.target.getAttribute('data-task-people-filter');
     if(peopleFilterField){
       taskUiState.peopleFilters[peopleFilterField]=event.target.value;
@@ -6567,6 +6764,14 @@ if(window.__PHF_TASK_TEST_MODE__){
   taskCancelRequestSectionHtml:taskCancelRequestSectionHtml,taskCancelRequestHistoryHtml:taskCancelRequestHistoryHtml,
   taskCancelRequestHistoryItemHtml:taskCancelRequestHistoryItemHtml,taskPendingCancelBadgeCount:taskPendingCancelBadgeCount,
   loadPendingCancelCount:loadPendingCancelCount,renderTaskNav:renderTaskNav,taskActiveNavKey:taskActiveNavKey,taskNavItemsHtml:taskNavItemsHtml,
-  getPendingCancelBadgeState:function(){return phftPendingCancel;},setPendingCancelBadgeState:function(s){Object.assign(phftPendingCancel,s);}};
+  getPendingCancelBadgeState:function(){return phftPendingCancel;},setPendingCancelBadgeState:function(s){Object.assign(phftPendingCancel,s);},
+  // TASK LIST USABILITY V1 (2026-09-10)
+  taskListDeadlineLabel:taskListDeadlineLabel,taskListDeadlineHtml:taskListDeadlineHtml,
+  taskListFilterFieldsForRelation:taskListFilterFieldsForRelation,taskListFilterFieldEnabled:taskListFilterFieldEnabled,
+  taskListFilterCount:taskListFilterCount,taskListFiltersPayload:taskListFiltersPayload,defaultTaskListFilters:defaultTaskListFilters,
+  openTaskListFilterPanel:openTaskListFilterPanel,closeTaskListFilterPanel:closeTaskListFilterPanel,
+  applyTaskListFilters:applyTaskListFilters,clearTaskListFilters:clearTaskListFilters,
+  taskListFilterButtonHtml:taskListFilterButtonHtml,taskListFilterPanelHtml:taskListFilterPanelHtml,
+  loadTaskListFilterOptionsIfNeeded:loadTaskListFilterOptionsIfNeeded};
 }
 })();

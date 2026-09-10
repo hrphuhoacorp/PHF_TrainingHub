@@ -78,6 +78,37 @@ function escapeLikePattern(value) {
   return String(value).replace(/[%_]/g, (c) => '\\' + c);
 }
 
+// TASK LIST USABILITY V1 (2026-09-10) — smart default ordering, replacing
+// the old `created_at DESC` (newest-first, which buried an overdue Task
+// created last month under Tasks created 5 minutes ago). NO data/deadline/
+// priority value is changed — this is ORDER BY only.
+//
+// Rule (identical across every statusFilter — Tất cả/Đang làm/Quá hạn/Hoàn
+// thành/Đã hủy all reuse the SAME clause; each WHERE already narrows the
+// status set for its own tab, so the "active-first" bucket below is a no-op
+// constant within a single-status tab and only does real work on "Tất cả"):
+//   1. active (published/in_progress) before everything else (draft/
+//      completed/cancelled) — "Tất cả" must show actionable work first.
+//   2. deadline ASC NULLS LAST — a single ascending sort naturally produces
+//      "quá hạn (oldest first) → sắp đến hạn → deadline gần → deadline xa →
+//      không deadline" in one pass: overdue deadlines are just timestamps
+//      in the past, so they sort before future ones automatically; NULLS
+//      LAST pushes no-deadline Tasks after every dated Task, active or not.
+//   3. priority as a TIE-BREAKER ONLY (same deadline, or both NULL) —
+//      khan_cap (Khẩn cấp) > quan_trong (Quan trọng) > thuong (Thường/mặc
+//      định). The Task priority enum has exactly these 3 values (task-
+//      core.js's own list) — no separate "Thấp" exists in the data model,
+//      never invented here.
+//   4. created_at DESC — final tie-break, same direction as the old default
+//      so a genuine tie (same deadline+priority) still shows newest first.
+const TASK_LIST_ORDER_BY = `
+  CASE WHEN t.status IN ('published', 'in_progress') THEN 0 ELSE 1 END,
+  t.deadline ASC NULLS LAST,
+  CASE t.priority WHEN 'khan_cap' THEN 0 WHEN 'quan_trong' THEN 1 ELSE 2 END,
+  t.created_at DESC,
+  t.id ASC
+`;
+
 async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
   const verified = verifyDescriptor(descriptor, signingSecret);
   if (!verified.ok) {
@@ -167,6 +198,12 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
         params.push(new Date().toISOString());
         whereClauses.push(`status IN ('published', 'in_progress')`);
         whereClauses.push(`deadline < $${params.length}`);
+      } else if (descriptor.statusFilter === 'cancelled') {
+        // FILTER V1 (2026-09-10) — was UI-only before (the tab rendered in
+        // "Nhân sự tôi quản lý" but the descriptor builder coerced any
+        // unknown statusFilter to 'all', so it silently showed everything).
+        // Real backend support now: exact match, same shape as 'completed'.
+        whereClauses.push(`status = 'cancelled'`);
       }
 
       if (descriptor.search) {
@@ -174,6 +211,42 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
         params.push(pattern);
         const searchParamIdx = params.length;
         whereClauses.push(`(task_code ILIKE $${searchParamIdx} OR title ILIKE $${searchParamIdx})`);
+      }
+
+      // FILTER V1 (2026-09-10) — additional narrowing on top of the already-
+      // authorized population resolved above (assigneeEmployeeCodes / mode /
+      // statusFilter unchanged) — these only ADD WHERE conditions, never
+      // widen who can see what. Every value already validated/sanitized in
+      // task-query-descriptor-builder.js and covered by the descriptor
+      // signature, so phf-hr-api never trusts an unsigned filter value.
+      // priority/category_code/deadline are plain columns on task.tasks —
+      // direct equality/range, no extra query. Primary uses the SAME
+      // set-based assignee-relation shape already used for
+      // assigneeEmployeeCodes above (a bounded subquery, not a per-Task
+      // fetch) — no N+1.
+      if (descriptor.priorityFilter) {
+        params.push(descriptor.priorityFilter);
+        whereClauses.push(`priority = $${params.length}`);
+      }
+      if (descriptor.categoryFilter) {
+        params.push(descriptor.categoryFilter);
+        whereClauses.push(`category_code = $${params.length}`);
+      }
+      if (descriptor.creatorFilter) {
+        params.push(descriptor.creatorFilter);
+        whereClauses.push(`created_by_employee_code = $${params.length}`);
+      }
+      if (descriptor.deadlineFrom) {
+        params.push(descriptor.deadlineFrom);
+        whereClauses.push(`deadline >= $${params.length}`);
+      }
+      if (descriptor.deadlineTo) {
+        params.push(descriptor.deadlineTo);
+        whereClauses.push(`deadline <= $${params.length}`);
+      }
+      if (descriptor.primaryFilter) {
+        params.push(descriptor.primaryFilter);
+        whereClauses.push(`id IN (SELECT task_id FROM task.assignees WHERE role = 'primary' AND is_active = true AND employee_code = $${params.length})`);
       }
 
       // Range xin (limit+1) dòng để phát hiện hasMore, giữ đúng ngữ nghĩa
@@ -228,7 +301,7 @@ async function executeResolvedTaskQuery(config, descriptor, signingSecret) {
           FROM task.tasks t
           LEFT JOIN task.proposal_decisions pd ON pd.proposal_task_id = t.id
          WHERE ${qualifiedWhereClauses.join(' AND ')}
-         ORDER BY t.created_at DESC, t.id ASC
+         ORDER BY ${TASK_LIST_ORDER_BY}
          LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`;
 
       let pageRows;
