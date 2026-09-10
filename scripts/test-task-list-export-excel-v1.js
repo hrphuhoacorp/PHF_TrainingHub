@@ -217,6 +217,43 @@ async function sectionD() {
   pass(!!ws.autoFilter && ws.views && ws.views[0] && ws.views[0].state === 'frozen', 'D5: header row has autofilter + frozen pane');
 }
 
+function sectionF() {
+  // Filter-panel date-control layout regression (Operator, PROD): the global
+  // `.phft-input{flex:0 1 320px}` was landing its flex-basis on the vertical
+  // axis inside `.phft-lf-field` (flex-direction:column) and stretching
+  // <input type="date"> into a ~320px-tall box on every Task-list workspace.
+  const cssPath = path.join(ROOT, 'assets', 'css', 'phf-task.css');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  const rule = (css.match(/\.phft-lf-field select,\.phft-lf-field input\{[^}]*\}/) || [''])[0];
+  pass(/flex\s*:\s*(none|0 0 auto)/.test(rule), 'F1: .phft-lf-field select/input pin flex to natural height (neutralises the 320px flex-basis)');
+  pass(/min-height\s*:\s*3[0-9]px/.test(rule), 'F2: date/select controls keep a normal input min-height (aligned with Priority/Category/Creator)');
+  pass(!/\bheight\s*:\s*(100%|320px)/.test(rule), 'F3: no full-height / 320px stretch on the controls');
+
+  // Same fix reaches every workspace because it targets the ONE shared panel class.
+  const st = T.getState();
+  ['received', 'assigned', 'managed'].forEach(function (rel) {
+    st.list = Object.assign(T.defaultTaskListState(), { relation: rel, filterOpen: true, filterDraft: T.defaultTaskListFilters(), filterPeople: { loading: false, loaded: true, rows: [] } });
+    const html = T.taskListFilterPanelHtml();
+    pass(/class="phft-list-filter-panel"/.test(html) && /phft-lf-field/.test(html) && /type="date"[^>]*data-task-list-filter-field="deadlineFrom"/.test(html), 'F4-' + rel + ': ' + rel + ' workspace uses the shared .phft-list-filter-panel / .phft-lf-field markup (one fix covers all)');
+  });
+
+  // jsdom computed-style crosscheck (best-effort — skipped cleanly if jsdom
+  // does not resolve the shorthand).
+  try {
+    const d2 = new JSDOM('<!doctype html><head><style>' + css + '</style></head><body>' +
+      '<div class="phft-list-filter-panel"><div class="phft-list-filter-grid">' +
+      '<label class="phft-lf-field"><span>Deadline từ ngày</span><input type="date" class="phft-input" id="di"></label>' +
+      '<label class="phft-lf-field"><span>Ưu tiên</span><select class="phft-select" id="se"></select></label>' +
+      '</div></div></body>');
+    const cs = d2.window.getComputedStyle(d2.window.document.getElementById('di'));
+    const basis = cs.flexBasis || cs.getPropertyValue('flex-basis');
+    if (basis) pass(basis !== '320px', 'F5: computed flex-basis of the date input is not 320px (' + basis + ')');
+    else console.log('SKIP: F5 (jsdom did not resolve flex-basis)');
+  } catch (e) {
+    console.log('SKIP: F5 (' + e.message + ')');
+  }
+}
+
 function sectionE() {
   const diff = execFileSync('git', ['-C', ROOT, 'diff', '--stat', 'origin/main', '--', 'assets/js/phf-evaluation.js'], { encoding: 'utf8' }).trim();
   pass(diff === '', 'E1: assets/js/phf-evaluation.js has ZERO diff vs origin/main');
@@ -231,6 +268,7 @@ function sectionE() {
   sectionC_markup();
   await sectionC_flows();
   await sectionD();
+  sectionF();
   sectionE();
   console.log('\nPHF Task List Export Excel V1: ' + passed + '/' + passed + ' PASS');
 })().catch((err) => { console.error('\nFAIL:', err && err.message ? err.message : err); process.exit(1); });
