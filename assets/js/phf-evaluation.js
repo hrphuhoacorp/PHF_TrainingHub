@@ -171,7 +171,10 @@ function phfRenderLearnerPicker(selectedId){
   return `<div class="eval-learner-picker"><label>Chọn học viên cần xem/đánh giá</label><select id="evalLearnerSelect">${options}</select><div class="help">Trưởng ca/CHT/Quản lý và Quản trị có thể chọn học viên trong danh sách để xem, tạo hoặc sửa phiếu đánh giá.</div></div>`;
 }
 function phfBuildTimelineForProfile(profile){
-  const startValue = (profile && profile.studyStartDate) || phfGetStudyStartValue();
+  // PHF fix: chỉ dùng ngày bắt đầu của đúng học viên này. Không fallback sang
+  // phfGetStudyStartValue() (localStorage/DOM dùng chung) vì sẽ làm các học viên
+  // khác thiếu study_start_date bị gán nhầm cùng một ngày và sinh lịch đánh giá giả.
+  const startValue = profile && profile.studyStartDate;
   const start = phfParseDateInput(startValue);
   if(!start) return null;
   const endExclusive = phfAddMonths(start, 2);
