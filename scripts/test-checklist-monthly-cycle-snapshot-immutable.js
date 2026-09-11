@@ -209,9 +209,15 @@ async function main() {
 
   // ===== CASE 2 + CASE 3 (đổi global config A -> B sau khi kỳ đã tồn tại; kỳ mới nhận B, kỳ cũ giữ A) =====
   const storeCase23 = freshStore();
+  // Business rule (2026-09): self_open_at không còn là điều kiện mở kỳ — syncMonthlyCycle() giờ
+  // luôn thử mở kỳ đang draft ngay lập tức (xem checklist-monthly.js). Vì vậy để giữ kỳ này ở
+  // trạng thái draft xuyên suốt CASE 2/3 (mục tiêu thật của 2 case này là cycle_policy_snapshot
+  // KHÔNG bị ghi đè qua các lần sync, không phải hành vi mở/khoá kỳ), ta dùng đúng lớp an toàn
+  // thật của RPC open_checklist_monthly_period: thiếu người thẩm định (MISSING_REVIEWER) chặn
+  // toàn bộ việc mở kỳ, bất kể self_open_at đã tới hay chưa. Ưu tiên missing reviewer trong fixture
+  // thay cho self_open_at tương lai (đã bị loại bỏ vì không còn phản ánh đúng nghiệp vụ).
+  storeCase23.checklist_employee_assignments.forEach(a => { a.manager_id = ''; a.manager_code = ''; a.manager_name = ''; });
   const libCase23 = loadMonthlyLib(storeCase23);
-  // Dùng kỳ 2026-08 (tương lai xa so với self_open_at mặc định) để kỳ giữ nguyên trạng thái draft,
-  // tách bạch khỏi kịch bản mở/khoá kỳ ở CASE 4.
   await libCase23.syncMonthlyCycle(ADMIN_SESSION, { month: '2026-08', automatic: false });
   const periodAfterCreate = clone(storeCase23.checklist_monthly_periods.find(x => x.period_month === '2026-08'));
 
@@ -246,6 +252,11 @@ async function main() {
 
   // ===== CASE 5 (override tường minh theo kỳ vẫn hoạt động, không bị sync ghi đè bằng global) =====
   const storeCase5 = freshStore();
+  // Cùng lý do như CASE 2/3: syncMonthlyCycle() giờ mở kỳ ngay khi còn draft, không chờ self_open_at.
+  // CASE 5 chỉ kiểm tra cycle_policy_snapshot/override, không kiểm tra trạng thái mở/khoá kỳ, nên
+  // giữ kỳ này ở draft qua 2 lần sync bằng đúng lớp an toàn thật (thiếu người thẩm định) để lần sync
+  // thứ hai không rơi vào nhánh "kỳ đã mở" của phf_create_checklist_monthly (CHECKLIST_MONTHLY_NOT_DRAFT).
+  storeCase5.checklist_employee_assignments.forEach(a => { a.manager_id = ''; a.manager_code = ''; a.manager_name = ''; });
   const libCase5 = loadMonthlyLib(storeCase5);
   await libCase5.syncMonthlyCycle(ADMIN_SESSION, { month: '2026-10', automatic: false }); // snapshot = A (global hiện tại)
   // Admin đặt ngoại lệ tường minh cho riêng kỳ 2026-10: dời ngày khoá sang 15, các field khác không override.
