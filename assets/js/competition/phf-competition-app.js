@@ -1333,24 +1333,30 @@ async function openAdjustScoreModal(campaign,submissionId,current,onDone){
 // name or employee-code — see QUEUE_STATUS_FILTERS comment in
 // competition-review.js for why those are deliberately absent here).
 //
-// Hotfix 2026-09-11 — "Chưa xét" label (value key stays 'not_started', no
-// wire/API change). Renamed from "Chờ xét" AND the server predicate was
-// narrowed: it now requires a real, personally-held review_assignments row
-// (ra.id IS NOT NULL, status='assigned') for THIS reviewer — it deliberately
-// EXCLUDES "open pool" items a high-tier reviewer is merely eligible to pick
-// up but was never individually assigned. Real PROD data for PHF010/Tiên
-// showed two honest candidate counts: 3 (personal assignments only — this
-// one) vs 22 (if open-pool eligibility were also counted). Product decision:
-// "Chưa xét" tracks the personal, KPI-aligned scope (3), matching her
-// "Đang chờ" productivity card exactly — open-pool items stay visible under
-// "Tất cả" and other filters, just not this one. See the matching comment on
-// anonymousQueueFiltered() in competition-review.js for the exact predicate.
-// 'in_progress' (ra.status='in_progress') is a separate, PRE-EXISTING gap —
-// no code anywhere ever writes that status, so this bucket is always empty
-// today. Out of scope for this hotfix (only "Chưa xét" was requested).
+// V2 hotfix 2026-09-11 — "Chưa xét" is now a CANONICAL review-result filter,
+// not an assignment-state filter. Bug fixed: a 5đ reviewer's "Chưa xét"
+// could show an item labeled "Đã duyệt 2 điểm — có thể nâng mức", because
+// the previous predicate only checked THIS reviewer's assignment state
+// (which is legitimately still "active/not completed" for an
+// awaiting-upgrade item), never the submission's OWN review result. Fixed
+// server-side in anonymousQueueFiltered() (competition-review.js): "Chưa
+// xét" now requires competition.submissions.current_level_order IS NULL
+// (status='submitted') — the exact column reviewAction() writes, never
+// inferred from a label. Two new values, "reviewed_2"/"reviewed_5", added
+// for "Đã duyệt 2đ"/"Đã duyệt 5đ" (current_level_order = the campaign's
+// base/top approval_levels row) — same convention already used by the
+// admin "Toàn bộ bài dự thi" screen's approved_low/approved_high tabs.
+// These are pure STATUS filters on top of the UNCHANGED visibility/
+// permission predicate — never widen what a reviewer can see (e.g. a 2đ
+// reviewer filtering "Đã duyệt 5đ" still correctly gets zero rows).
+// 'in_progress' (ra.status='in_progress') remains a separate, PRE-EXISTING
+// gap — no code anywhere ever writes that status, so that bucket stays
+// empty; left exactly as-is per this hotfix's explicit instruction.
 var QUEUE_STATUS_OPTIONS=[
   {k:'all',label:'Tất cả'},
   {k:'not_started',label:'Chưa xét'},
+  {k:'reviewed_2',label:'Đã duyệt 2đ'},
+  {k:'reviewed_5',label:'Đã duyệt 5đ'},
   {k:'in_progress',label:'Đang xử lý'},
   {k:'overdue',label:'Quá hạn'},
 ];

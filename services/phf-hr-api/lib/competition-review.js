@@ -506,7 +506,7 @@ function decodeQueueCursor(raw) {
 // queue's own WHERE clause only ever admits submitted/needs_revision/a
 // room-for-upgrade approved row) — "Đã xử lý" already has its own dedicated,
 // non-anonymous screen ("Bài tôi đã duyệt" / myReviewedHistory below).
-const QUEUE_STATUS_FILTERS = ['not_started', 'in_progress', 'overdue'];
+const QUEUE_STATUS_FILTERS = ['not_started', 'reviewed_2', 'reviewed_5', 'in_progress', 'overdue'];
 const QUEUE_SORTS = {
   due_soonest: 'due_at ASC NULLS LAST, submitted_at ASC',
   overdue_first: '(due_at IS NOT NULL AND due_at < now()) DESC, due_at ASC NULLS LAST, submitted_at ASC',
@@ -642,31 +642,46 @@ async function anonymousQueueFiltered(config, actor, params, auth, limit) {
     && auth.reviewerMaxLevel != null && auth.reviewerMaxLevel > BASE_LEVEL_ORDER;
   const offset = Math.max(0, Math.floor(Number(params.offset) || 0));
   return readTx(config, async (client) => {
+    // V2 hotfix 2026-09-11 — status filters need the campaign's approval
+    // levels UP FRONT (to resolve "Đã duyệt 2đ"/"Đã duyệt 5đ" against the
+    // real level_order values, never a hardcoded "2"/"5"), so this query now
+    // runs before the extra/values are built instead of after. Reused below
+    // for `eligibleLevels` too — no duplicate query.
+    const levelsR = await client.query(
+      'SELECT level_order, name, score FROM competition.approval_levels WHERE campaign_id = $1 ORDER BY level_order', [params.campaignId]);
+    const baseLevelOrder = levelsR.rows.length ? levelsR.rows[0].level_order : 1;
+    const topLevelOrder = levelsR.rows.length ? levelsR.rows[levelsR.rows.length - 1].level_order : 1;
+
     const values = [params.campaignId, actor.accountId || '', actor.employeeCode || '',
       auth.isCompetitionAdmin, auth.reviewerMaxLevel, isHighTierReviewer];
     let i = values.length + 1;
     const extra = [];
     const status = String(params.status || '');
-    // Hotfix 2026-09-11 — 'not_started' ("Chưa xét"): requires an ACTUAL
-    // review_assignments row personally held by this reviewer
-    // (ra.id IS NOT NULL), still active and status='assigned' (never
-    // 'completed' — completeAssignmentForReviewer() flips it to 'completed'
-    // + is_active=false in the same transaction the moment this reviewer
-    // acts, which drops the row out of this predicate immediately). This
-    // deliberately EXCLUDES "open pool" rows (ra.id IS NULL — items a
-    // high-tier reviewer is merely eligible to pick up but has no
-    // assignment row for yet, per V1.5's "Reviewer 5 full pool" design).
-    // Two real, verified counts exist for PHF010/Tiên on PROD: 3 personal
-    // assignments (this predicate — matches her "Đang chờ" productivity
-    // KPI exactly) vs 22 if open-pool eligibility were also included
-    // (every item she's authorized to act on but hasn't touched). Product
-    // decision (2026-09-11): "Chưa xét" tracks the KPI-aligned personal
-    // scope (3), not the broader shared-pool scope (22) — open-pool items
-    // remain visible under "Tất cả" and other filters, just not this one.
-    // 'in_progress' below is a pre-existing, separate gap: nothing anywhere
-    // ever sets ra.status='in_progress', so that bucket is always empty —
-    // out of scope for this hotfix.
-    if (status === 'not_started') { extra.push(`ra.id IS NOT NULL AND ra.status = 'assigned'`); }
+    // V2 hotfix 2026-09-11 — CANONICAL review-result fields only
+    // (competition.submissions.status + current_level_order — the exact
+    // columns reviewAction()/completion writes, never inferred from FE
+    // labels). Reported bug: the previous ("assignment-only") version of
+    // "Chưa xét" let an approved-at-level-1, awaiting-upgrade item (which
+    // legitimately still has an ACTIVE personal primary_high assignment for
+    // a high-tier reviewer) appear under "Chưa xét" — it checked assignment
+    // state, never the submission's own review result. Fixed: "Chưa xét"
+    // now strictly requires current_level_order IS NULL (this submission
+    // has never been approved at ANY level — status='submitted' only;
+    // 'needs_revision' is itself a review result — a revision request — so
+    // it's excluded too, matching "chưa có bất kỳ kết quả review nào"
+    // literally). "Đã duyệt 2đ"/"Đã duyệt 5đ" check current_level_order
+    // against the campaign's actual base/top approval_levels rows (not a
+    // hardcoded 1/2) — mirrors competition-admin-view.js's
+    // approved_low/approved_high categories exactly, same convention.
+    // These are pure STATUS filters layered on the UNCHANGED visibility
+    // WHERE clause below (PERMISSION -> pool -> FILTER, per spec) — a
+    // Reviewer 2 (max level 1) filtering "Đã duyệt 5đ" still correctly gets
+    // zero rows, because the visibility clause already excludes anything
+    // beyond their authority; this never widens what a reviewer can see.
+    // 'in_progress'/'overdue' below are UNCHANGED from before this hotfix.
+    if (status === 'not_started') { extra.push(`s.status = 'submitted' AND s.current_level_order IS NULL`); }
+    else if (status === 'reviewed_2') { extra.push(`s.status = 'approved' AND s.current_level_order = $${i++}`); values.push(baseLevelOrder); }
+    else if (status === 'reviewed_5') { extra.push(`s.status = 'approved' AND s.current_level_order = $${i++}`); values.push(topLevelOrder); }
     else if (status === 'in_progress') { extra.push(`ra.status = 'in_progress'`); }
     else if (status === 'overdue') { extra.push(`ra.due_at IS NOT NULL AND ra.due_at < now()`); }
     const levelOrder = params.levelOrder == null ? null : Number(params.levelOrder);
@@ -723,9 +738,7 @@ async function anonymousQueueFiltered(config, actor, params, auth, limit) {
       `SELECT count(*)::int n FROM ( ${baseSelect}${extraSql} ) x`,
       values.slice(0, limitIdx - 1));
 
-    const levels = await client.query(
-      'SELECT level_order, name, score FROM competition.approval_levels WHERE campaign_id = $1 ORDER BY level_order', [params.campaignId]);
-    const eligible = levels.rows
+    const eligible = levelsR.rows
       .filter((l) => auth.isCompetitionAdmin || l.level_order <= auth.reviewerMaxLevel)
       .map((l) => ({ levelOrder: l.level_order, name: l.name, score: Number(l.score) }));
 
