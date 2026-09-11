@@ -78,6 +78,7 @@ function backdate(submissionId, daysAgo) {
     const CID = camp.id;
     await call(ADMIN, 'competition.level.upsert', { campaignId: CID, levelOrder: 1, name: 'Hợp lệ', score: 2, slaHours: 48 });
     await call(ADMIN, 'competition.level.upsert', { campaignId: CID, levelOrder: 2, name: 'Giá trị cao', score: 5, slaHours: 72 });
+    const levelTopOrder = 2;
     await call(ADMIN, 'competition.grant.reviewer', { campaignId: CID, accountId: REV2.accountId, employeeCode: REV2.employeeCode, displayName: REV2.displayName, maxLevelOrder: 1 });
     await call(ADMIN, 'competition.grant.reviewer', { campaignId: CID, accountId: REV5.accountId, employeeCode: REV5.employeeCode, displayName: REV5.displayName, maxLevelOrder: 2 });
     await call(ADMIN, 'competition.campaign.changeStatus', { campaignId: CID, targetStatus: 'accepting' });
@@ -183,21 +184,57 @@ function backdate(submissionId, daysAgo) {
     ok(q5Base.items.every((i) => !('authorDisplayName' in i) && !('authorEmployeeCode' in i) && !('authorDepartment' in i)),
       'P2-0b. No filter -> zero author-identity fields on any item (anonymity intact, baseline)');
 
-    // Hotfix 2026-09-11 — "Chưa xét" (not_started) is now scoped to PERSONAL
-    // assignments only (ra.id IS NOT NULL), excluding "open pool" items a
-    // high-tier reviewer is merely eligible for but never individually
-    // assigned. WHICH items land in which bucket depends on the assignment
-    // engine's own lowest-workload/random tie-break (real behavior, not
-    // something this test should hard-code) — so derive the expected set
-    // from q5Base's own `responsibility` field instead of assuming s1.
-    const q5PersonalUntouched = q5Base.items.filter((i) => i.responsibility === 'assigned').map((i) => i.submissionRef);
-    const q5OpenPool = q5Base.items.filter((i) => i.responsibility === 'open_pool').map((i) => i.submissionRef);
+    // V2 hotfix 2026-09-11 — "Chưa xét" (not_started) is now a CANONICAL
+    // review-result filter (s.status='submitted' AND s.current_level_order
+    // IS NULL), independent of assignment ownership. Derive the expected
+    // set from q5Base's own currentLevelOrder/reviewStatus fields (real
+    // data) rather than assuming which submission that is.
+    const q5NeverReviewedExpected = q5Base.items.filter((i) => i.reviewStatus === 'submitted' && i.currentLevelOrder == null).map((i) => i.submissionRef).sort();
+    const q5AwaitingUpgradeExpected = q5Base.items.filter((i) => i.reviewStatus === 'approved' && i.currentLevelOrder != null).map((i) => i.submissionRef);
     const q5NotStarted = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'not_started' });
     const q5NotStartedRefs = q5NotStarted.items.map((i) => i.submissionRef).sort();
-    ok(JSON.stringify(q5NotStartedRefs) === JSON.stringify([...q5PersonalUntouched].sort()),
-      'P2-1. status=not_started returns EXACTLY the personally-assigned (responsibility=assigned) items, matching the KPI-aligned scope', { got: q5NotStartedRefs, expected: q5PersonalUntouched });
-    ok(q5OpenPool.length === 0 || q5OpenPool.every((ref) => q5NotStartedRefs.indexOf(ref) === -1),
-      'P2-1b. status=not_started EXCLUDES open-pool items (no personal assignment row)', { openPool: q5OpenPool, notStarted: q5NotStartedRefs });
+    ok(JSON.stringify(q5NotStartedRefs) === JSON.stringify(q5NeverReviewedExpected),
+      'P2-1. status=not_started returns EXACTLY the never-reviewed (current_level_order IS NULL) items', { got: q5NotStartedRefs, expected: q5NeverReviewedExpected });
+    // THE REPORTED BUG: an approved-at-level-1 item awaiting upgrade (which
+    // legitimately still has an ACTIVE personal assignment for a high-tier
+    // reviewer — that's exactly what makes it actionable/visible at all)
+    // must NOT appear under "Chưa xét" just because the assignment itself
+    // isn't completed yet.
+    ok(q5AwaitingUpgradeExpected.every((ref) => q5NotStartedRefs.indexOf(ref) === -1),
+      'P2-1b. [BUG FIX] status=not_started EXCLUDES an approved-awaiting-upgrade item even with an active personal assignment', { awaitingUpgrade: q5AwaitingUpgradeExpected, notStarted: q5NotStartedRefs });
+
+    // "Đã duyệt 2đ" / "Đã duyệt 5đ" — canonical current_level_order match
+    // against the campaign's actual base/top approval_levels rows.
+    const q5Rev2 = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'reviewed_2' });
+    const q5Rev2Expected = q5Base.items.filter((i) => i.currentLevelOrder === 1).map((i) => i.submissionRef).sort();
+    ok(JSON.stringify(q5Rev2.items.map((i) => i.submissionRef).sort()) === JSON.stringify(q5Rev2Expected),
+      'P2-1c. status=reviewed_2 returns exactly the current_level_order=1 items visible to this reviewer', { got: q5Rev2.items.map((i) => i.submissionRef), expected: q5Rev2Expected });
+    ok(q5Rev2.items.every((i) => i.currentLevelOrder === 1),
+      'P2-1d. every reviewed_2 result genuinely carries current_level_order=1 (canonical field, not a guess)');
+
+    // reviewed_5 (top level): once a submission reaches the TOP approval
+    // level, the PRE-EXISTING (unchanged by this hotfix) visibility rule
+    // drops it out of a non-admin reviewer's actionable pool entirely
+    // (current_level_order < reviewerMaxLevel fails when equal — nothing
+    // left to upgrade to). So for a real, non-admin 5đ reviewer this filter
+    // is expected to run cleanly but return EMPTY — that is the pool
+    // layer's pre-existing behavior, not something this filter can or
+    // should override (would mean widening visibility beyond current
+    // permission, explicitly forbidden).
+    const q5Rev5 = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'reviewed_5' });
+    ok(Array.isArray(q5Rev5.items) && q5Rev5.items.every((i) => i.currentLevelOrder === levelTopOrder),
+      'P2-1e. status=reviewed_5 runs without error; any result genuinely carries the top level_order (none expected here — see comment)', q5Rev5.items.map((i) => i.submissionRef));
+    // Admin, which bypasses the "room to upgrade" pool gate, DOES see a
+    // fully top-level-approved item — proving reviewed_5 itself is correct,
+    // the emptiness above is purely the reviewer-facing pool boundary.
+    const adminRev5 = await call(ADMIN, 'competition.review.queue', { campaignId: CID, status: 'reviewed_5' });
+    ok(adminRev5.items.some((i) => i.submissionRef === s3.submission.id),
+      'P2-1f. [POOL PROOF] Admin (bypasses the upgrade-room gate) DOES see the top-level-approved s3 under reviewed_5 — confirms the predicate itself is correct', adminRev5.items.map((i) => i.submissionRef));
+
+    // SAFETY — REV2 (max level 1) must get ZERO rows for reviewed_5, no
+    // matter what: the filter must never surface something beyond authority.
+    const q2Rev5 = await call(REV2, 'competition.review.queue', { campaignId: CID, status: 'reviewed_5' });
+    ok(q2Rev5.items.length === 0, 'P2-1g. [SAFETY] Reviewer 2 (max level 1) filtering reviewed_5 gets zero rows — never widens authority', q2Rev5.items.length);
 
     const q5Level = await call(REV5, 'competition.review.queue', { campaignId: CID, levelOrder: 1 });
     ok(q5Level.items.every((i) => i.submissionRef !== s3.submission.id) || true,
@@ -219,15 +256,11 @@ function backdate(submissionId, daysAgo) {
     const q5SortOverdue = await call(REV5, 'competition.review.queue', { campaignId: CID, sort: 'overdue_first' });
     ok(Array.isArray(q5SortOverdue.items), 'P2-5b. sort=overdue_first runs without error', q5SortOverdue.items.length);
 
-    // s1's actual reviewer assignment (personal vs open-pool for REV5) is a
-    // real outcome of the assignment engine's own lowest-workload/random
-    // tie-break, not something this test should hard-code — derive the
-    // expected combo result from q5PersonalUntouched instead of assuming s1
-    // always lands on REV5.
+    // not_started is canonical now (current_level_order IS NULL), so s1
+    // (never reviewed) matches regardless of assignment/open-pool bucket.
     const q5Combo = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'not_started', keyword: 'POS' });
-    const s1IsPersonal = q5PersonalUntouched.indexOf(s1.submission.id) >= 0;
-    ok(q5Combo.items.length === (s1IsPersonal ? 1 : 0) && (!s1IsPersonal || q5Combo.items[0].submissionRef === s1.submission.id),
-      'P2-6. combined status + keyword narrows correctly (2-4 filter combo)', { got: q5Combo.items.map((i) => i.submissionRef), s1IsPersonal });
+    ok(q5Combo.items.length === 1 && q5Combo.items[0].submissionRef === s1.submission.id,
+      'P2-6. combined status + keyword narrows correctly (2-4 filter combo)', q5Combo.items.map((i) => i.submissionRef));
 
     const q5Clear = await call(REV5, 'competition.review.queue', { campaignId: CID });
     ok(q5Clear.items.length === q5Base.items.length, 'P2-7. clearing filters restores the exact baseline set size', q5Clear.items.length);
