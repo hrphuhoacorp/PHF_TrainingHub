@@ -183,9 +183,21 @@ function backdate(submissionId, daysAgo) {
     ok(q5Base.items.every((i) => !('authorDisplayName' in i) && !('authorEmployeeCode' in i) && !('authorDepartment' in i)),
       'P2-0b. No filter -> zero author-identity fields on any item (anonymity intact, baseline)');
 
+    // Hotfix 2026-09-11 — "Chưa xét" (not_started) is now scoped to PERSONAL
+    // assignments only (ra.id IS NOT NULL), excluding "open pool" items a
+    // high-tier reviewer is merely eligible for but never individually
+    // assigned. WHICH items land in which bucket depends on the assignment
+    // engine's own lowest-workload/random tie-break (real behavior, not
+    // something this test should hard-code) — so derive the expected set
+    // from q5Base's own `responsibility` field instead of assuming s1.
+    const q5PersonalUntouched = q5Base.items.filter((i) => i.responsibility === 'assigned').map((i) => i.submissionRef);
+    const q5OpenPool = q5Base.items.filter((i) => i.responsibility === 'open_pool').map((i) => i.submissionRef);
     const q5NotStarted = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'not_started' });
-    ok(q5NotStarted.items.some((i) => i.submissionRef === s1.submission.id),
-      'P2-1. status=not_started includes the never-touched s1', q5NotStarted.items.map((i) => i.submissionRef));
+    const q5NotStartedRefs = q5NotStarted.items.map((i) => i.submissionRef).sort();
+    ok(JSON.stringify(q5NotStartedRefs) === JSON.stringify([...q5PersonalUntouched].sort()),
+      'P2-1. status=not_started returns EXACTLY the personally-assigned (responsibility=assigned) items, matching the KPI-aligned scope', { got: q5NotStartedRefs, expected: q5PersonalUntouched });
+    ok(q5OpenPool.length === 0 || q5OpenPool.every((ref) => q5NotStartedRefs.indexOf(ref) === -1),
+      'P2-1b. status=not_started EXCLUDES open-pool items (no personal assignment row)', { openPool: q5OpenPool, notStarted: q5NotStartedRefs });
 
     const q5Level = await call(REV5, 'competition.review.queue', { campaignId: CID, levelOrder: 1 });
     ok(q5Level.items.every((i) => i.submissionRef !== s3.submission.id) || true,
@@ -193,7 +205,7 @@ function backdate(submissionId, daysAgo) {
 
     const q5Kw = await call(REV5, 'competition.review.queue', { campaignId: CID, keyword: 'POS' });
     ok(q5Kw.items.length === 1 && q5Kw.items[0].submissionRef === s1.submission.id,
-      'P2-3. keyword matches payload content only (POS) -> exactly s1', q5Kw.items.map((i) => i.submissionRef));
+      'P2-3. keyword matches payload content only (POS) -> exactly s1 (regardless of assignment/open-pool bucket)', q5Kw.items.map((i) => i.submissionRef));
     ok(q5Kw.items.every((i) => !('authorDisplayName' in i) && !('authorDepartment' in i) && !('authorBranch' in i) && !('authorEmployeeCode' in i)),
       'P2-3b. filtered results still carry ZERO identity fields (anonymity preserved under filter)');
 
@@ -207,9 +219,15 @@ function backdate(submissionId, daysAgo) {
     const q5SortOverdue = await call(REV5, 'competition.review.queue', { campaignId: CID, sort: 'overdue_first' });
     ok(Array.isArray(q5SortOverdue.items), 'P2-5b. sort=overdue_first runs without error', q5SortOverdue.items.length);
 
+    // s1's actual reviewer assignment (personal vs open-pool for REV5) is a
+    // real outcome of the assignment engine's own lowest-workload/random
+    // tie-break, not something this test should hard-code — derive the
+    // expected combo result from q5PersonalUntouched instead of assuming s1
+    // always lands on REV5.
     const q5Combo = await call(REV5, 'competition.review.queue', { campaignId: CID, status: 'not_started', keyword: 'POS' });
-    ok(q5Combo.items.length === 1 && q5Combo.items[0].submissionRef === s1.submission.id,
-      'P2-6. combined status + keyword narrows correctly (2-4 filter combo)', q5Combo.items.length);
+    const s1IsPersonal = q5PersonalUntouched.indexOf(s1.submission.id) >= 0;
+    ok(q5Combo.items.length === (s1IsPersonal ? 1 : 0) && (!s1IsPersonal || q5Combo.items[0].submissionRef === s1.submission.id),
+      'P2-6. combined status + keyword narrows correctly (2-4 filter combo)', { got: q5Combo.items.map((i) => i.submissionRef), s1IsPersonal });
 
     const q5Clear = await call(REV5, 'competition.review.queue', { campaignId: CID });
     ok(q5Clear.items.length === q5Base.items.length, 'P2-7. clearing filters restores the exact baseline set size', q5Clear.items.length);
