@@ -200,11 +200,21 @@ const ACTION_MAP = {
   // V1.6 — Admin Control Tower: "Toàn bộ bài dự thi" (bounded, paginated,
   // admin-only real-identity read) + its per-submission full history
   // drill-down + the lifecycle "Phục hồi trạng thái bài" restore action.
+  // Filter V1 — additive read-only filters on the admin-only, already
+  // real-identity "Toàn bộ bài dự thi" screen. Each field is picked
+  // explicitly (never spread) and passed through str/num/bool coercion —
+  // same anti-injection discipline as every other action here; the actual
+  // SQL binding happens server-side in competition-admin-view.js.
   competitionAdminListAllSubmissions: {
     remote: 'competition.admin.listAllSubmissions',
     params: (p) => ({
       campaignId: str(p.campaign_id), status: str(p.status),
       limit: num(p.limit), offset: num(p.offset),
+      department: str(p.department), branch: str(p.branch),
+      employeeQuery: str(p.employee_query), levelOrder: num(p.level_order),
+      hasSimilar: bool(p.has_similar),
+      dateFrom: str(p.date_from), dateTo: str(p.date_to),
+      keyword: str(p.keyword), sort: str(p.sort),
     }),
   },
   competitionAdminGetSubmissionHistory: {
@@ -240,9 +250,17 @@ const ACTION_MAP = {
     params: (p) => ({ submissionId: str(p.submission_id) }),
   },
 
+  // Filter V1 — status/level/keyword/sort/offset are additive (queue stays
+  // anonymous: no department/branch/name/code param exists here on purpose).
   competitionGetReviewQueue: {
     remote: 'competition.review.queue',
-    params: (p) => ({ campaignId: str(p.campaign_id), limit: num(p.limit), cursor: str(p.cursor) }),
+    params: (p) => ({
+      campaignId: str(p.campaign_id), limit: num(p.limit), cursor: str(p.cursor),
+      status: str(p.status), levelOrder: num(p.level_order), keyword: str(p.keyword),
+      sort: str(p.sort), offset: num(p.offset),
+      dateFrom: str(p.date_from), dateTo: str(p.date_to),
+      dueFrom: str(p.due_from), dueTo: str(p.due_to),
+    }),
   },
   competitionGetSimilarForReview: {
     remote: 'competition.review.similar',

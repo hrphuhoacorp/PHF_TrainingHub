@@ -201,6 +201,33 @@
 .phf-comp-filter.is-active{color:var(--comp-green-deep);background:var(--comp-green-soft);border-color:#cfe3d6;}
 .phf-comp-filter-count{font-variant-numeric:tabular-nums;opacity:.75;}
 
+/* Filter V1 — active-filter chip row, shared by the admin submissions list
+   and the reviewer queue filter bars ("Bộ lọc" shows its count inline as
+   "· N" text, not a separate badge element — see .phf-comp-filter-toggle). */
+.phf-comp-chip{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  color:var(--comp-green-deep);background:var(--comp-green-soft);border:1px solid #cfe3d6;
+  border-radius:999px;padding:4px 6px 4px 10px;
+}
+.phf-comp-chip button{
+  font:inherit;border:none;background:none;color:inherit;cursor:pointer;line-height:1;padding:0 2px;opacity:.75;
+}
+.phf-comp-chip button:hover{opacity:1;}
+
+/* Filter V1 polish — "Bộ lọc"/"Xóa lọc" as a quiet secondary toolbar control,
+   sized to match the status chips it sits next to (.phf-comp-filter), never
+   a CTA. Small icon, light border, neutral surface — a control, not a
+   headline action. */
+.phf-comp-filter-toggle{
+  display:inline-flex;align-items:center;gap:5px;
+  font:inherit;font-weight:600;font-size:12.5px;line-height:1.2;
+  color:var(--comp-ink-soft);background:var(--comp-surface);
+  border:1px solid var(--comp-border);border-radius:8px;
+  padding:6px 10px;cursor:pointer;
+}
+.phf-comp-filter-toggle:hover{background:var(--comp-surface-cream);color:var(--comp-green-deep);}
+.phf-comp-filter-toggle svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;}
+
 .phf-comp-card{
   border:1px solid var(--comp-border);border-radius:var(--comp-radius);background:var(--comp-surface);
   box-shadow:var(--comp-shadow);padding:clamp(16px,2.2vw,24px);

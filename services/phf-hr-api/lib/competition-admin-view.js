@@ -41,8 +41,80 @@ function statusPredicate(category) {
     case 'approved_high': return { sql: `s.status = 'approved' AND s.current_level_order = $TOPLEVEL`, params: [] };
     case 'zero': return { sql: `s.effective_score = 0`, params: [] };
     case 'rejected': return { sql: `s.status = 'rejected'`, params: [] };
+    // Filter V1 — 'finalized' is a real, pre-existing s.status value the old
+    // 7-tab set never exposed a filter for (only visible mixed into 'all').
+    case 'finalized': return { sql: `s.status = 'finalized'`, params: [] };
     case 'all': default: return { sql: '', params: [] };
   }
+}
+
+// Filter V1 — admin "Toàn bộ bài dự thi" server-side filters, additive to the
+// existing campaign_id + status predicate. Every value is bound as a query
+// parameter (never string-concatenated into SQL) and every sortable column
+// comes from a fixed allow-list — no user-controlled identifier ever reaches
+// ORDER BY/column position. Keyword search targets ONLY fields already shown
+// on this admin-only, already-deanonymized screen (author name/code +
+// payload.customer_question/answer/actual_result — the real jsonb keys
+// confirmed on phf_hr prod, not invented ones).
+const ADMIN_ALL_SORTS = {
+  // default = byte-identical to the pre-filter behavior (ORDER BY s.updated_at DESC)
+  default: 's.updated_at DESC, s.id DESC',
+  newest: 's.submitted_at DESC NULLS LAST, s.id DESC',
+  oldest: 's.submitted_at ASC NULLS LAST, s.id ASC',
+  score_desc: 's.effective_score DESC NULLS LAST, s.submitted_at DESC NULLS LAST, s.id DESC',
+  similar_desc: 'COALESCE(occ.occurrence_count, 0) DESC, s.submitted_at DESC NULLS LAST, s.id DESC',
+};
+
+function escapeLike(s) {
+  return String(s).replace(/[\\%_]/g, (c) => '\\' + c);
+}
+
+function buildAdminAllFilters(params, startIdx) {
+  const clauses = [];
+  const values = [];
+  let i = startIdx;
+  const department = cleanStr(params.department);
+  if (department) { clauses.push(`s.author_department_snapshot ILIKE $${i++} ESCAPE '\\'`); values.push('%' + escapeLike(department) + '%'); }
+  const branch = cleanStr(params.branch);
+  if (branch) { clauses.push(`s.author_branch_snapshot ILIKE $${i++} ESCAPE '\\'`); values.push('%' + escapeLike(branch) + '%'); }
+  const employeeQuery = cleanStr(params.employeeQuery);
+  if (employeeQuery) {
+    clauses.push(`(s.author_employee_code ILIKE $${i} ESCAPE '\\' OR s.author_display_name_snapshot ILIKE $${i} ESCAPE '\\')`);
+    values.push('%' + escapeLike(employeeQuery) + '%'); i++;
+  }
+  const levelOrder = params.levelOrder == null ? null : Number(params.levelOrder);
+  if (levelOrder != null && Number.isFinite(levelOrder)) { clauses.push(`s.current_level_order = $${i++}`); values.push(levelOrder); }
+  if (params.hasSimilar === true) { clauses.push(`COALESCE(occ.occurrence_count, 0) > 0`); }
+  else if (params.hasSimilar === false) { clauses.push(`COALESCE(occ.occurrence_count, 0) = 0`); }
+  const dateFrom = parseDateBoundary(params.dateFrom, false);
+  if (dateFrom) { clauses.push(`s.submitted_at >= $${i++}`); values.push(dateFrom); }
+  const dateTo = parseDateBoundary(params.dateTo, true);
+  if (dateTo) { clauses.push(`s.submitted_at <= $${i++}`); values.push(dateTo); }
+  const keyword = cleanStr(params.keyword);
+  if (keyword) {
+    clauses.push(`(s.author_display_name_snapshot ILIKE $${i} ESCAPE '\\' OR s.author_employee_code ILIKE $${i} ESCAPE '\\'
+                    OR (s.payload->>'customer_question') ILIKE $${i} ESCAPE '\\'
+                    OR (s.payload->>'answer') ILIKE $${i} ESCAPE '\\'
+                    OR (s.payload->>'actual_result') ILIKE $${i} ESCAPE '\\')`);
+    values.push('%' + escapeLike(keyword) + '%'); i++;
+  }
+  return { sql: clauses.length ? ' AND ' + clauses.join(' AND ') : '', values, nextIdx: i };
+}
+
+function cleanStr(v) {
+  const s = v == null ? '' : String(v).trim();
+  return s === '' ? null : s;
+}
+
+// Accepts 'YYYY-MM-DD' or a full ISO timestamp; invalid input is ignored
+// (treated as "no bound"), never thrown into the query as a raw string.
+function parseDateBoundary(v, endOfDay) {
+  const s = cleanStr(v);
+  if (!s) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(s) ? (s + (endOfDay ? 'T23:59:59.999Z' : 'T00:00:00.000Z')) : s;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 function submissionAdminView(r) {
@@ -60,6 +132,7 @@ function submissionAdminView(r) {
     currentLevelOrder: r.current_level_order,
     currentScore: r.current_score == null ? null : Number(r.current_score),
     effectiveScore, adjusted: r.effective_score != null,
+    similarCount: r.occurrence_count == null ? 0 : Number(r.occurrence_count),
     lastReviewNote: r.last_review_note,
     submittedAt: r.submitted_at, approvedAt: r.approved_at, rejectedAt: r.rejected_at, finalizedAt: r.finalized_at,
     rowVersion: r.row_version,
@@ -88,10 +161,31 @@ async function adminListAllSubmissions(config, actor, params) {
     const topLevel = topR.rows[0].m || 1;
 
     const pred = statusPredicate(params.status);
-    const extraSql = pred.sql ? ' AND ' + pred.sql.replace('$TOPLEVEL', String(topLevel)) : '';
+    const statusSql = pred.sql ? ' AND ' + pred.sql.replace('$TOPLEVEL', String(topLevel)) : '';
+    // Filter V1 — additive filters start binding at $5 (params 1-4 are the
+    // pre-existing campaignId/limit/offset/REVIEW_ACTIONS). The count query
+    // has none of those 3 extra params, so its own filter fragment is built
+    // SEPARATELY starting at $2 — Postgres' extended protocol requires the
+    // bind array to exactly match the placeholders a given query text
+    // actually references, so the two queries can never share one filt.values.
+    const filt = buildAdminAllFilters(params, 5);
+    const filtCount = buildAdminAllFilters(params, 2);
+    const extraSql = statusSql + filt.sql;
+    const extraSqlCount = statusSql + filtCount.sql;
+    const sortKey = ADMIN_ALL_SORTS[String(params.sort || 'default')] ? String(params.sort || 'default') : 'default';
+    const orderSql = ADMIN_ALL_SORTS[sortKey];
+
+    // occurrence_count is needed both for the hasSimilar filter and the
+    // similar_desc sort, computed once as a LEFT JOIN subquery (no N+1: one
+    // extra indexed join, not one query per row).
+    const occJoin = `LEFT JOIN (
+           SELECT source_submission_id, count(*)::int occurrence_count
+             FROM competition.submission_occurrences
+            GROUP BY source_submission_id
+         ) occ ON occ.source_submission_id = s.id`;
 
     const r = await client.query(
-      `SELECT s.*,
+      `SELECT s.*, COALESCE(occ.occurrence_count, 0) AS occurrence_count,
               ra.reviewer_account_id AS assigned_reviewer_account_id,
               ra.reviewer_employee_code AS assigned_reviewer_employee_code,
               ra.tier AS assigned_reviewer_tier,
@@ -102,6 +196,7 @@ async function adminListAllSubmissions(config, actor, params) {
               hist.action AS actual_action,
               hist.at AS actual_at
          FROM competition.submissions s
+         ${occJoin}
          LEFT JOIN LATERAL (
            SELECT reviewer_account_id, reviewer_employee_code, tier
              FROM competition.review_assignments
@@ -119,13 +214,13 @@ async function adminListAllSubmissions(config, actor, params) {
             ORDER BY at DESC LIMIT 1
          ) hist ON true
         WHERE s.campaign_id = $1 ${extraSql}
-        ORDER BY s.updated_at DESC
+        ORDER BY ${orderSql}
         LIMIT $2 OFFSET $3`,
-      [campaignId, limit, offset, REVIEW_ACTIONS]);
+      [campaignId, limit, offset, REVIEW_ACTIONS, ...filt.values]);
 
     const countR = await client.query(
-      `SELECT count(*)::int n FROM competition.submissions s WHERE s.campaign_id = $1 ${extraSql}`,
-      [campaignId]);
+      `SELECT count(*)::int n FROM competition.submissions s ${occJoin} WHERE s.campaign_id = $1 ${extraSqlCount}`,
+      [campaignId, ...filtCount.values]);
 
     return {
       items: r.rows.map(submissionAdminView),
