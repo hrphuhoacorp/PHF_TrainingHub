@@ -493,10 +493,51 @@ function decodeQueueCursor(raw) {
   }
 }
 
+// Filter V1 — "Chờ duyệt" filters. The queue is ANONYMOUS BY DESIGN (see
+// anonymousQueue's own DELIBERATELY-ABSENT comment below) — status/level/
+// keyword-in-content are safe (content only, no identity), but department/
+// branch/name/employee-code filters are intentionally NOT implemented here:
+// they would require exposing the submission author to the reviewer, which
+// would break the locked anonymity contract. (Confirmed with product before
+// implementing — see PHF_HR task history 2026-09-11.)
+//
+// 'processed' is deliberately NOT a filter value: once a submission is
+// actually completed it leaves this actionable set by construction (the
+// queue's own WHERE clause only ever admits submitted/needs_revision/a
+// room-for-upgrade approved row) — "Đã xử lý" already has its own dedicated,
+// non-anonymous screen ("Bài tôi đã duyệt" / myReviewedHistory below).
+const QUEUE_STATUS_FILTERS = ['not_started', 'in_progress', 'overdue'];
+const QUEUE_SORTS = {
+  due_soonest: 'due_at ASC NULLS LAST, submitted_at ASC',
+  overdue_first: '(due_at IS NOT NULL AND due_at < now()) DESC, due_at ASC NULLS LAST, submitted_at ASC',
+  newest: 'submitted_at DESC NULLS LAST, submission_ref DESC',
+  oldest: 'submitted_at ASC NULLS LAST, submission_ref ASC',
+};
+
+function queueHasFilters(params) {
+  return !!(params.status && QUEUE_STATUS_FILTERS.indexOf(String(params.status)) >= 0)
+    || params.levelOrder != null
+    || !!(params.keyword && String(params.keyword).trim())
+    || !!(params.sort && QUEUE_SORTS[String(params.sort)])
+    || !!params.dateFrom || !!params.dateTo || !!params.dueFrom || !!params.dueTo;
+}
+
+// Accepts 'YYYY-MM-DD' or a full ISO timestamp; invalid input is ignored
+// (treated as "no bound"), never thrown into the query as a raw string.
+function parseQueueDateBoundary(v, endOfDay) {
+  const s = v == null ? '' : String(v).trim();
+  if (!s) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(s) ? (s + (endOfDay ? 'T23:59:59.999Z' : 'T00:00:00.000Z')) : s;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 async function anonymousQueue(config, actor, params) {
   const auth = await resolveAuthority(config, actor, params.campaignId);
   if (!auth.canReview) throw cErr('COMPETITION_NOT_A_REVIEWER', 'Bạn không có quyền duyệt.', 403);
   const limit = Math.min(QUEUE_PAGE_MAX, Math.max(1, Math.floor(Number(params.limit) || QUEUE_PAGE_DEFAULT)));
+  if (queueHasFilters(params)) return anonymousQueueFiltered(config, actor, params, auth, limit);
   const cursor = decodeQueueCursor(params.cursor);
   // Reviewer 5 (or higher) tier authority: max level above the base/L1 level.
   // Per the locked contract "Reviewer 5 max-level authority includes
@@ -579,6 +620,109 @@ async function anonymousQueue(config, actor, params) {
         // caller's high-tier authority covers the next target level (no
         // assignment row yet). Additive/optional — never used server-side
         // for authorization, purely informational for the UI.
+        responsibility: x.assignment_id != null ? 'assigned' : 'open_pool',
+        // DELIBERATELY ABSENT: author name / code / department / branch / account
+      })),
+    };
+  });
+}
+
+// Filter V1 — filtered/sorted variant of the queue above. Reuses the EXACT
+// SAME visibility predicate (own active assignment, OR admin sees any
+// pending, OR high-tier reviewer sees open-pool room-for-upgrade rows;
+// author always excluded) — filters only ever ADD an AND clause on top, they
+// never widen who/what is visible, and never touch reviewer_grants. Switches
+// to bounded OFFSET pagination instead of the keyset cursor above because a
+// non-default sort (e.g. "overdue first") is not compatible with the
+// append-only (submitted_at, id) cursor invariant the default queue relies
+// on; a reviewer's actionable set is per-person and small, so OFFSET here is
+// safe (never used for the full-campaign admin lists elsewhere).
+async function anonymousQueueFiltered(config, actor, params, auth, limit) {
+  const isHighTierReviewer = !auth.isCompetitionAdmin
+    && auth.reviewerMaxLevel != null && auth.reviewerMaxLevel > BASE_LEVEL_ORDER;
+  const offset = Math.max(0, Math.floor(Number(params.offset) || 0));
+  return readTx(config, async (client) => {
+    const values = [params.campaignId, actor.accountId || '', actor.employeeCode || '',
+      auth.isCompetitionAdmin, auth.reviewerMaxLevel, isHighTierReviewer];
+    let i = values.length + 1;
+    const extra = [];
+    const status = String(params.status || '');
+    if (status === 'not_started') { extra.push(`(ra.id IS NULL OR ra.status = 'assigned')`); }
+    else if (status === 'in_progress') { extra.push(`ra.status = 'in_progress'`); }
+    else if (status === 'overdue') { extra.push(`ra.due_at IS NOT NULL AND ra.due_at < now()`); }
+    const levelOrder = params.levelOrder == null ? null : Number(params.levelOrder);
+    if (levelOrder != null && Number.isFinite(levelOrder)) {
+      extra.push(`COALESCE(ra.level_scope_order, COALESCE(s.current_level_order, 0) + 1) = $${i++}`);
+      values.push(levelOrder);
+    }
+    const keyword = params.keyword ? String(params.keyword).trim() : '';
+    if (keyword) {
+      const esc = keyword.replace(/[\\%_]/g, (c) => '\\' + c);
+      extra.push(`( (s.payload->>'customer_question') ILIKE $${i} ESCAPE '\\'
+                    OR (s.payload->>'answer') ILIKE $${i} ESCAPE '\\'
+                    OR (s.payload->>'actual_result') ILIKE $${i} ESCAPE '\\' )`);
+      values.push('%' + esc + '%'); i++;
+    }
+    // Content/timing-only bounds — submitted date (s.submitted_at) and
+    // processing deadline (ra.due_at). Neither reveals author identity, so
+    // both are safe on the anonymous queue (unlike department/branch/name).
+    const submittedFrom = parseQueueDateBoundary(params.dateFrom, false);
+    if (submittedFrom) { extra.push(`s.submitted_at >= $${i++}`); values.push(submittedFrom); }
+    const submittedTo = parseQueueDateBoundary(params.dateTo, true);
+    if (submittedTo) { extra.push(`s.submitted_at <= $${i++}`); values.push(submittedTo); }
+    const dueFrom = parseQueueDateBoundary(params.dueFrom, false);
+    if (dueFrom) { extra.push(`ra.due_at >= $${i++}`); values.push(dueFrom); }
+    const dueTo = parseQueueDateBoundary(params.dueTo, true);
+    if (dueTo) { extra.push(`ra.due_at <= $${i++}`); values.push(dueTo); }
+    const orderSql = QUEUE_SORTS[String(params.sort)] || 'submitted_at ASC NULLS LAST, submission_ref ASC';
+    const limitIdx = i++; values.push(limit);
+    const offsetIdx = i++; values.push(offset);
+
+    const baseSelect = `SELECT s.id AS submission_ref, s.campaign_id, c.title AS campaign_title,
+              s.payload, s.status AS review_status, s.current_level_order, s.submitted_at,
+              s.last_review_note,
+              ra.id AS assignment_id, ra.tier, ra.level_scope_order, ra.status AS assignment_status, ra.due_at
+         FROM competition.submissions s
+         JOIN competition.campaigns c ON c.id = s.campaign_id
+         LEFT JOIN competition.review_assignments ra
+                ON ra.submission_id = s.id AND ra.is_active
+               AND ( ($2 <> '' AND ra.reviewer_account_id = $2) OR ($3 <> '' AND ra.reviewer_employee_code = $3) )
+        WHERE s.campaign_id = $1
+          AND ( s.status IN ('submitted','needs_revision')
+                OR ( s.status = 'approved'
+                     AND ( $4::boolean = true
+                           OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) < $5::int ) ) ) )
+          AND NOT ( ($2 <> '' AND s.author_account_id = $2) OR ($3 <> '' AND s.author_employee_code = $3) )
+          AND ( $4::boolean = true OR ra.id IS NOT NULL
+                OR ( $6::boolean = true AND COALESCE(s.current_level_order, 0) + 1 <= $5::int ) )`;
+    const extraSql = extra.length ? ' AND ' + extra.join(' AND ') : '';
+
+    const r = await client.query(
+      `${baseSelect}${extraSql} ORDER BY ${orderSql} LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      values);
+    const countR = await client.query(
+      `SELECT count(*)::int n FROM ( ${baseSelect}${extraSql} ) x`,
+      values.slice(0, limitIdx - 1));
+
+    const levels = await client.query(
+      'SELECT level_order, name, score FROM competition.approval_levels WHERE campaign_id = $1 ORDER BY level_order', [params.campaignId]);
+    const eligible = levels.rows
+      .filter((l) => auth.isCompetitionAdmin || l.level_order <= auth.reviewerMaxLevel)
+      .map((l) => ({ levelOrder: l.level_order, name: l.name, score: Number(l.score) }));
+
+    return {
+      eligibleLevels: eligible,
+      total: countR.rows[0].n, limit, offset,
+      nextCursor: null,
+      items: r.rows.map((x) => ({
+        submissionRef: x.submission_ref,
+        campaignId: x.campaign_id, campaignTitle: x.campaign_title,
+        payload: x.payload,
+        reviewStatus: x.review_status,
+        currentLevelOrder: x.current_level_order,
+        submittedAt: x.submitted_at,
+        lastReviewNote: x.last_review_note,
+        assignmentId: x.assignment_id, tier: x.tier, dueAt: x.due_at,
         responsibility: x.assignment_id != null ? 'assigned' : 'open_pool',
         // DELIBERATELY ABSENT: author name / code / department / branch / account
       })),

@@ -1176,18 +1176,27 @@ async function screenReviewQueue(slot,boot){
   slot.innerHTML=heroHtml(campaign,'Xét duyệt ẩn danh — danh tính người gửi được ẩn trong suốt quá trình xét duyệt.')
     +'<section class="phf-comp-section"><h2>'+icon('review')+'Chờ duyệt</h2>'
     +'<div class="phf-comp-note">'+icon('lock')+'<span><b>Xét duyệt ẩn danh.</b> Danh tính người gửi được ẩn trong suốt quá trình xét duyệt.</span></div>'
+    +'<div data-comp-queue-filterbar></div>'
     +'<div data-comp-body style="margin-top:18px">'+loadingState()+'</div></section>'
     +'<section class="phf-comp-section" data-comp-productivity><h2>'+icon('users')+'Năng suất xét duyệt của bạn</h2>'
     +'<p class="phf-comp-em-sub" style="margin:-4px 0 10px">Đây là tốc độ xử lý hàng chờ của bạn — KHÔNG phải điểm thi đua.</p>'
     +'<div class="phf-comp-card">'+loadingState()+'</div></section>'
     +'<section class="phf-comp-section" data-comp-adjust-section hidden></section>';
   var body=slot.querySelector('[data-comp-body]');
+  var filterBarEl=slot.querySelector('[data-comp-queue-filterbar]');
   var prodBox=slot.querySelector('[data-comp-productivity] .phf-comp-card');
   var adjustSection=slot.querySelector('[data-comp-adjust-section]');
+  // Filter V1 — in-memory filter state for this screen visit. No route
+  // change happens when a card is expanded (renderItem/reviewerRecordHtml
+  // are plain inline <details>/textarea, never a navigation), so this
+  // closure variable already satisfies "giữ trạng thái filter khi quay lại
+  // danh sách" for free — confirmed by reading the render path, not assumed.
+  var queueFilter={status:'all',levelOrder:'',keyword:'',sort:'',dateFrom:'',dateTo:'',dueFrom:'',dueTo:''};
+  var lastEligibleLevels=[];
   // C4.4 latency fix: queue and productivity are independent reads (neither
   // depends on the other's result) — kick both off together instead of
   // waiting for the queue before even starting the productivity fetch.
-  var queueP=call('competitionGetReviewQueue',{campaign_id:campaign.id});
+  var queueP=call('competitionGetReviewQueue',queueFilterParams(campaign,queueFilter));
   var prodP=call('competitionGetReviewerProductivity',{campaign_id:campaign.id});
   // FINAL HOTFIX — after processing an item, the queue re-fetches itself but
   // the productivity card did not, so Đã xử lý/Đang chờ/Quá hạn stayed
@@ -1198,9 +1207,23 @@ async function screenReviewQueue(slot,boot){
     try{ prodBox.innerHTML=productivityCardHtml(await call('competitionGetReviewerProductivity',{campaign_id:campaign.id})); }
     catch(e){ /* best-effort — the queue itself already reflects the real action */ }
   }
+  function redrawFilterBar(){renderQueueFilterBar(filterBarEl,queueFilter,lastEligibleLevels,refetchQueue);}
+  async function refetchQueue(){
+    redrawFilterBar();
+    body.innerHTML=loadingState();
+    try{
+      var q=await call('competitionGetReviewQueue',queueFilterParams(campaign,queueFilter));
+      lastEligibleLevels=q.eligibleLevels||lastEligibleLevels;
+      redrawFilterBar();
+      renderReviewQueue(body,campaign,q,boot,refreshProductivity,queueFilter,refetchQueue);
+    }catch(e){body.innerHTML=errorState(e);wireRetrySingle(body,refetchQueue);}
+  }
+  redrawFilterBar();
   try{
     var queue=await queueP;
-    renderReviewQueue(body,campaign,queue,boot,refreshProductivity);
+    lastEligibleLevels=queue.eligibleLevels||[];
+    redrawFilterBar();
+    renderReviewQueue(body,campaign,queue,boot,refreshProductivity,queueFilter,refetchQueue);
   }catch(e){body.innerHTML=errorState(e);wireRetrySingle(body,function(){return screenReviewQueue(slot,boot);});}
   try{
     prodBox.innerHTML=productivityCardHtml(await prodP);
@@ -1305,6 +1328,123 @@ async function openAdjustScoreModal(campaign,submissionId,current,onDone){
     });
   });
 }
+// Filter V1 — "Chờ duyệt" filter bar. Anonymous by design: only status /
+// level / keyword-in-content / sort are offered (no department, branch,
+// name or employee-code — see QUEUE_STATUS_FILTERS comment in
+// competition-review.js for why those are deliberately absent here).
+var QUEUE_STATUS_OPTIONS=[
+  {k:'all',label:'Tất cả'},
+  {k:'not_started',label:'Chờ xét'},
+  {k:'in_progress',label:'Đang xử lý'},
+  {k:'overdue',label:'Quá hạn'},
+];
+var QUEUE_SORT_OPTIONS=[
+  {k:'',label:'Mặc định (cũ nhất trước)'},
+  {k:'due_soonest',label:'Sắp quá hạn trước'},
+  {k:'overdue_first',label:'Quá hạn trước'},
+  {k:'newest',label:'Mới nhất'},
+  {k:'oldest',label:'Cũ nhất'},
+];
+function queueFilterIsActive(f){return (f.status&&f.status!=='all')||!!f.levelOrder||!!(f.keyword&&f.keyword.trim())||!!f.sort||!!f.dateFrom||!!f.dateTo||!!f.dueFrom||!!f.dueTo;}
+function queueFilterCount(f){var n=0;if(f.status&&f.status!=='all')n++;if(f.levelOrder)n++;if(f.keyword&&f.keyword.trim())n++;if(f.sort)n++;if(f.dateFrom||f.dateTo)n++;if(f.dueFrom||f.dueTo)n++;return n;}
+function queueFilterParams(campaign,f,extra){
+  var p={campaign_id:campaign.id};
+  if(f.status&&f.status!=='all')p.status=f.status;
+  if(f.levelOrder)p.level_order=f.levelOrder;
+  if(f.keyword&&f.keyword.trim())p.keyword=f.keyword.trim();
+  if(f.sort)p.sort=f.sort;
+  if(f.dateFrom)p.date_from=f.dateFrom;
+  if(f.dateTo)p.date_to=f.dateTo;
+  if(f.dueFrom)p.due_from=f.dueFrom;
+  if(f.dueTo)p.due_to=f.dueTo;
+  return Object.assign(p,extra||{});
+}
+function renderQueueFilterBar(el,f,eligibleLevels,onChange){
+  if(!el)return;
+  var count=queueFilterCount(f);
+  var chips=[];
+  if(f.status&&f.status!=='all'){var st=QUEUE_STATUS_OPTIONS.filter(function(o){return o.k===f.status;})[0];if(st)chips.push({k:'status',label:'Trạng thái: '+st.label});}
+  if(f.levelOrder){var lv=(eligibleLevels||[]).filter(function(l){return String(l.levelOrder)===String(f.levelOrder);})[0];chips.push({k:'levelOrder',label:'Mức: '+(lv?lv.score+'đ · '+lv.name:f.levelOrder)});}
+  if(f.keyword&&f.keyword.trim())chips.push({k:'keyword',label:'Từ khóa: "'+f.keyword.trim()+'"'});
+  if(f.dateFrom||f.dateTo)chips.push({k:'date',label:'Ngày gửi: '+(f.dateFrom||'…')+' → '+(f.dateTo||'…')});
+  if(f.dueFrom||f.dueTo)chips.push({k:'due',label:'Hạn xử lý: '+(f.dueFrom||'…')+' → '+(f.dueTo||'…')});
+  if(f.sort){var so=QUEUE_SORT_OPTIONS.filter(function(o){return o.k===f.sort;})[0];if(so)chips.push({k:'sort',label:'Sắp xếp: '+so.label});}
+  el.innerHTML='<div class="phf-comp-queue-filterbar" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+    +QUEUE_STATUS_OPTIONS.map(function(o){return '<button type="button" class="phf-comp-filter'+(f.status===o.k?' is-active':'')+'" data-comp-qf-status="'+o.k+'">'+esc(o.label)+'</button>';}).join('')
+    +'<button type="button" class="phf-comp-filter-toggle" data-comp-qf-more>'+icon('gear')+'<span>Bộ lọc'+(count?' · '+count:'')+'</span></button>'
+    +(queueFilterIsActive(f)?'<button type="button" class="phf-comp-filter-toggle" data-comp-qf-clear>Xóa lọc</button>':'')
+  +'</div>'
+  +(chips.length?'<div class="phf-comp-queue-chips" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">'
+    +chips.map(function(c){return '<span class="phf-comp-chip" data-comp-qf-chip="'+c.k+'">'+esc(c.label)+' <button type="button" aria-label="Bỏ lọc" data-comp-qf-chip-x="'+c.k+'">×</button></span>';}).join('')
+  +'</div>':'');
+  el.querySelectorAll('[data-comp-qf-status]').forEach(function(b){
+    b.addEventListener('click',function(){f.status=b.getAttribute('data-comp-qf-status');onChange();});
+  });
+  el.querySelectorAll('[data-comp-qf-chip-x]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var k=b.getAttribute('data-comp-qf-chip-x');
+      if(k==='status')f.status='all';
+      else if(k==='levelOrder')f.levelOrder='';
+      else if(k==='keyword')f.keyword='';
+      else if(k==='sort')f.sort='';
+      else if(k==='date'){f.dateFrom='';f.dateTo='';}
+      else if(k==='due'){f.dueFrom='';f.dueTo='';}
+      onChange();
+    });
+  });
+  var clearBtn=el.querySelector('[data-comp-qf-clear]');
+  if(clearBtn)clearBtn.addEventListener('click',function(){f.status='all';f.levelOrder='';f.keyword='';f.sort='';f.dateFrom='';f.dateTo='';f.dueFrom='';f.dueTo='';onChange();});
+  var moreBtn=el.querySelector('[data-comp-qf-more]');
+  if(moreBtn)moreBtn.addEventListener('click',function(){showQueueFilterDrawer(f,eligibleLevels,onChange);});
+}
+// Advanced filter drawer — reuses the SAME modal scaffold as
+// showRestoreModal/showInputModal (.phf-comp-simwarn-backdrop), never a new
+// modal system. Houses level + keyword + sort (the quick status chips stay
+// inline on the filter bar, per the "3–4 filter thường dùng hiển thị trực
+// tiếp, phần còn lại trong drawer" UX rule).
+function showQueueFilterDrawer(f,eligibleLevels,onChange){
+  var wrap=document.createElement('div');
+  wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
+  wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Bộ lọc nâng cao">'
+    +'<h3>'+icon('gear')+'Bộ lọc nâng cao</h3>'
+    +'<div class="phf-comp-field"><label>Mức điểm / level được giao</label><select data-comp-qf-level style="width:100%">'
+      +'<option value="">Tất cả mức</option>'
+      +(eligibleLevels||[]).map(function(l){return '<option value="'+l.levelOrder+'"'+(String(f.levelOrder)===String(l.levelOrder)?' selected':'')+'>'+esc(l.score+'đ · '+l.name)+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="phf-comp-field"><label>Từ khóa (nội dung bài)</label>'
+      +'<input type="text" data-comp-qf-keyword value="'+esc(f.keyword||'')+'" placeholder="Tìm trong câu hỏi / cách trả lời…" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Khoảng ngày gửi</label><div style="display:flex;gap:8px">'
+      +'<input type="date" data-comp-qf-datefrom value="'+esc(f.dateFrom||'')+'" style="flex:1">'
+      +'<input type="date" data-comp-qf-dateto value="'+esc(f.dateTo||'')+'" style="flex:1">'
+    +'</div></div>'
+    +'<div class="phf-comp-field"><label>Khoảng hạn xử lý</label><div style="display:flex;gap:8px">'
+      +'<input type="date" data-comp-qf-duefrom value="'+esc(f.dueFrom||'')+'" style="flex:1">'
+      +'<input type="date" data-comp-qf-dueto value="'+esc(f.dueTo||'')+'" style="flex:1">'
+    +'</div></div>'
+    +'<div class="phf-comp-field"><label>Sắp xếp</label><select data-comp-qf-sort style="width:100%">'
+      +QUEUE_SORT_OPTIONS.map(function(o){return '<option value="'+o.k+'"'+(f.sort===o.k?' selected':'')+'>'+esc(o.label)+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+      +'<button type="button" class="phf-comp-btn" data-comp-modal-confirm>Áp dụng</button>'
+      +'<button type="button" class="phf-comp-btn is-ghost" data-comp-modal-cancel>Đóng</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(wrap);
+  function close(){wrap.remove();}
+  wrap.addEventListener('click',function(e){if(e.target===wrap)close();});
+  wrap.querySelector('[data-comp-modal-cancel]').addEventListener('click',close);
+  wrap.querySelector('[data-comp-modal-confirm]').addEventListener('click',function(){
+    f.levelOrder=wrap.querySelector('[data-comp-qf-level]').value||'';
+    f.keyword=wrap.querySelector('[data-comp-qf-keyword]').value||'';
+    f.dateFrom=wrap.querySelector('[data-comp-qf-datefrom]').value||'';
+    f.dateTo=wrap.querySelector('[data-comp-qf-dateto]').value||'';
+    f.dueFrom=wrap.querySelector('[data-comp-qf-duefrom]').value||'';
+    f.dueTo=wrap.querySelector('[data-comp-qf-dueto]').value||'';
+    f.sort=wrap.querySelector('[data-comp-qf-sort]').value||'';
+    close();
+    onChange();
+  });
+}
 function productivityCardHtml(prod){
   return '<div class="phf-comp-grid">'
     +'<div class="phf-comp-fact"><b>Đã nhận</b><span>'+esc(prod.assigned||0)+'</span></div>'
@@ -1313,9 +1453,11 @@ function productivityCardHtml(prod){
     +'<div class="phf-comp-fact"><b>Quá hạn</b><span>'+esc(prod.overdue||0)+'</span></div>'
   +'</div>';
 }
-function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
+function renderReviewQueue(body,campaign,queue,boot,refreshProductivity,queueFilter,refetchQueue){
   if(!queue.items||!queue.items.length){
-    body.innerHTML=emptyState('review','Hiện chưa có bài chờ duyệt.','Hàng đợi xét duyệt ẩn danh sẽ hiển thị khi có bài mới.');
+    body.innerHTML=(queueFilter&&queueFilterIsActive(queueFilter))
+      ?emptyState('review','Không có bài nào khớp bộ lọc hiện tại.','Thử đổi hoặc xóa bớt điều kiện lọc.')
+      :emptyState('review','Hiện chưa có bài chờ duyệt.','Hàng đợi xét duyệt ẩn danh sẽ hiển thị khi có bài mới.');
     return;
   }
   var renderItem=function(it){
@@ -1437,8 +1579,13 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
         toast('success','Đã cập nhật','Bài đã được xử lý.');
         // FINAL HOTFIX: refresh queue + productivity together (both are real
         // server refetches confirming the commit — no optimistic count).
-        var refreshed=await call('competitionGetReviewQueue',{campaign_id:campaign.id});
-        renderReviewQueue(body,campaign,refreshed,boot,refreshProductivity);
+        // Filter V1: refetchQueue() re-applies whatever filter is currently
+        // active instead of silently dropping it back to the unfiltered view.
+        if(refetchQueue)await refetchQueue();
+        else{
+          var refreshed=await call('competitionGetReviewQueue',{campaign_id:campaign.id});
+          renderReviewQueue(body,campaign,refreshed,boot,refreshProductivity,queueFilter,refetchQueue);
+        }
         if(refreshProductivity)refreshProductivity();
       }catch(e){toast('error','Không xử lý được',e.message);item.querySelectorAll('button').forEach(function(b){b.disabled=false;});}
     });
@@ -1446,26 +1593,33 @@ function renderReviewQueue(body,campaign,queue,boot,refreshProductivity){
   }
   wireItems(listEl);
 
-  // Keyset pagination — the queue is bounded per request. "Xem thêm" fetches
-  // the next page by cursor and appends it in place (new items are wired in
-  // isolation, existing cards keep their state, scroll position preserved).
-  var qCursor=queue.nextCursor||null,qLoading=false;
+  // Keyset pagination when unfiltered (unchanged). Filter V1 — when a
+  // filter/sort is active, the server switches to bounded OFFSET pagination
+  // (see anonymousQueueFiltered's own comment for why: a non-default sort is
+  // incompatible with the append-only cursor invariant), signalled by the
+  // response carrying `total` instead of `nextCursor`.
+  var isFilteredPage=queue.total!=null;
+  var qCursor=queue.nextCursor||null,qOffset=(queue.items||[]).length,qTotal=queue.total,qLoading=false;
+  function hasMore(){return isFilteredPage?(qOffset<(qTotal||0)):!!qCursor;}
   function renderMore(){
-    moreEl.innerHTML=qCursor
+    moreEl.innerHTML=hasMore()
       ?'<button type="button" class="phf-comp-btn is-ghost" data-comp-queue-more-btn>Xem thêm</button>':'';
     var b=moreEl.querySelector('[data-comp-queue-more-btn]');
     if(b)b.addEventListener('click',loadMoreQueue);
   }
   async function loadMoreQueue(){
-    if(qLoading||!qCursor)return;
+    if(qLoading||!hasMore())return;
     qLoading=true;moreEl.innerHTML=loadingState('Đang tải thêm…');
     try{
-      var next=await call('competitionGetReviewQueue',{campaign_id:campaign.id,cursor:qCursor});
+      var next=await call('competitionGetReviewQueue',isFilteredPage
+        ?queueFilterParams(campaign,queueFilter,{offset:qOffset})
+        :{campaign_id:campaign.id,cursor:qCursor});
       var wrap=document.createElement('div');
       wrap.innerHTML=(next.items||[]).map(renderItem).join('');
       wireItems(wrap);
       while(wrap.firstChild)listEl.appendChild(wrap.firstChild);
-      qCursor=next.nextCursor||null;
+      if(isFilteredPage){qOffset+=(next.items||[]).length;qTotal=next.total!=null?next.total:qTotal;}
+      else{qCursor=next.nextCursor||null;}
       renderMore();
     }catch(e){
       moreEl.innerHTML='<button type="button" class="phf-comp-btn is-ghost" data-comp-queue-more-btn>Thử lại</button>';
@@ -2027,9 +2181,126 @@ var ADMIN_ALL_FILTERS=[
   {k:'approved_low',label:'Đã duyệt 2 điểm'},
   {k:'approved_high',label:'Đã duyệt 5 điểm'},
   {k:'zero',label:'Không ghi nhận / 0 điểm'},
-  {k:'rejected',label:'Từ chối'}
+  {k:'rejected',label:'Từ chối'},
+  // Filter V1 — 'finalized' is a real, pre-existing status the old 7-tab set
+  // never exposed a tab for (see statusPredicate() in competition-admin-view.js).
+  {k:'finalized',label:'Đã chốt'}
 ];
 var ADMIN_ALL_PAGE_SIZE=20;
+// Filter V1 — advanced filters + sort for "Toàn bộ bài dự thi". Admin-only,
+// already real-identity screen, so department/branch/employee/keyword are
+// all safe here (unlike the anonymous reviewer queue).
+var ADMIN_ALL_SORT_OPTIONS=[
+  {k:'',label:'Mặc định (cập nhật gần nhất)'},
+  {k:'newest',label:'Mới nhất'},
+  {k:'oldest',label:'Cũ nhất'},
+  {k:'score_desc',label:'Điểm cao trước'},
+  {k:'similar_desc',label:'Nhiều xác nhận tương tự trước'},
+];
+function adminAllFilterIsActive(f){
+  return !!f.department||!!f.branch||!!f.employeeQuery||!!f.levelOrder||f.hasSimilar!=null||!!f.dateFrom||!!f.dateTo||!!f.keyword||!!f.sort;
+}
+function adminAllFilterCount(f){
+  var n=0;['department','branch','employeeQuery','levelOrder','keyword','sort'].forEach(function(k){if(f[k])n++;});
+  if(f.hasSimilar!=null)n++;
+  if(f.dateFrom||f.dateTo)n++;
+  return n;
+}
+function adminAllApiParams(c,activeFilter,f,offset){
+  var p={campaign_id:c.id,status:activeFilter,limit:ADMIN_ALL_PAGE_SIZE,offset:offset};
+  if(f.department)p.department=f.department;
+  if(f.branch)p.branch=f.branch;
+  if(f.employeeQuery)p.employee_query=f.employeeQuery;
+  if(f.levelOrder)p.level_order=f.levelOrder;
+  if(f.hasSimilar!=null)p.has_similar=f.hasSimilar;
+  if(f.dateFrom)p.date_from=f.dateFrom;
+  if(f.dateTo)p.date_to=f.dateTo;
+  if(f.keyword)p.keyword=f.keyword;
+  if(f.sort)p.sort=f.sort;
+  return p;
+}
+function renderAdminAllFilterBar(el,activeFilter,f,onChange,onOpenDrawer){
+  if(!el)return;
+  var count=adminAllFilterCount(f);
+  var chips=[];
+  if(f.department)chips.push({k:'department',label:'Phòng ban: '+f.department});
+  if(f.branch)chips.push({k:'branch',label:'Chi nhánh: '+f.branch});
+  if(f.employeeQuery)chips.push({k:'employeeQuery',label:'Người gửi: '+f.employeeQuery});
+  if(f.levelOrder)chips.push({k:'levelOrder',label:'Mức: '+f.levelOrder});
+  if(f.hasSimilar===true)chips.push({k:'hasSimilar',label:'Có nội dung tương tự'});
+  if(f.hasSimilar===false)chips.push({k:'hasSimilar',label:'Không có nội dung tương tự'});
+  if(f.dateFrom||f.dateTo)chips.push({k:'date',label:'Ngày gửi: '+(f.dateFrom||'…')+' → '+(f.dateTo||'…')});
+  if(f.keyword)chips.push({k:'keyword',label:'Từ khóa: "'+f.keyword+'"'});
+  if(f.sort){var so=ADMIN_ALL_SORT_OPTIONS.filter(function(o){return o.k===f.sort;})[0];if(so)chips.push({k:'sort',label:'Sắp xếp: '+so.label});}
+  el.innerHTML='<div style="margin:8px 0 4px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+    +'<button type="button" class="phf-comp-filter-toggle" data-comp-aa-more>'+icon('gear')+'<span>Bộ lọc'+(count?' · '+count:'')+'</span></button>'
+    +(adminAllFilterIsActive(f)?'<button type="button" class="phf-comp-filter-toggle" data-comp-aa-clear>Xóa lọc</button>':'')
+  +'</div>'
+  +(chips.length?'<div class="phf-comp-queue-chips" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">'
+    +chips.map(function(c){return '<span class="phf-comp-chip" data-comp-aa-chip="'+c.k+'">'+esc(c.label)+' <button type="button" aria-label="Bỏ lọc" data-comp-aa-chip-x="'+c.k+'">×</button></span>';}).join('')
+  +'</div>':'');
+  el.querySelectorAll('[data-comp-aa-chip-x]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var k=b.getAttribute('data-comp-aa-chip-x');
+      if(k==='date'){f.dateFrom='';f.dateTo='';}else if(k==='hasSimilar'){f.hasSimilar=null;}else{f[k]='';}
+      onChange();
+    });
+  });
+  var clearBtn=el.querySelector('[data-comp-aa-clear]');
+  if(clearBtn)clearBtn.addEventListener('click',function(){
+    f.department='';f.branch='';f.employeeQuery='';f.levelOrder='';f.hasSimilar=null;f.dateFrom='';f.dateTo='';f.keyword='';f.sort='';
+    onChange();
+  });
+  var moreBtn=el.querySelector('[data-comp-aa-more]');
+  if(moreBtn)moreBtn.addEventListener('click',onOpenDrawer);
+}
+function showAdminAllFilterDrawer(f,onChange){
+  var wrap=document.createElement('div');
+  wrap.className='phf-comp-simwarn-backdrop phf-comp-modal-scope';
+  var simVal=f.hasSimilar==null?'':(f.hasSimilar?'1':'0');
+  wrap.innerHTML='<div class="phf-comp-simwarn" role="dialog" aria-label="Bộ lọc nâng cao">'
+    +'<h3>'+icon('gear')+'Bộ lọc nâng cao</h3>'
+    +'<div class="phf-comp-field"><label>Phòng ban</label><input type="text" data-comp-aa-department value="'+esc(f.department||'')+'" placeholder="VD: Bán hàng" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Chi nhánh</label><input type="text" data-comp-aa-branch value="'+esc(f.branch||'')+'" placeholder="VD: Quận 1" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Người gửi (tên hoặc mã NV)</label><input type="text" data-comp-aa-employee value="'+esc(f.employeeQuery||'')+'" placeholder="VD: PHF010 hoặc Nguyễn Thủy Tiên" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Mức điểm / level</label><input type="number" min="1" data-comp-aa-level value="'+esc(f.levelOrder||'')+'" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Nội dung tương tự</label><select data-comp-aa-similar style="width:100%">'
+      +'<option value=""'+(simVal===''?' selected':'')+'>Tất cả</option>'
+      +'<option value="1"'+(simVal==='1'?' selected':'')+'>Có nội dung tương tự</option>'
+      +'<option value="0"'+(simVal==='0'?' selected':'')+'>Không có</option>'
+    +'</select></div>'
+    +'<div class="phf-comp-field"><label>Khoảng ngày gửi</label><div style="display:flex;gap:8px">'
+      +'<input type="date" data-comp-aa-datefrom value="'+esc(f.dateFrom||'')+'" style="flex:1">'
+      +'<input type="date" data-comp-aa-dateto value="'+esc(f.dateTo||'')+'" style="flex:1">'
+    +'</div></div>'
+    +'<div class="phf-comp-field"><label>Từ khóa (tên NV, mã NV, nội dung)</label><input type="text" data-comp-aa-keyword value="'+esc(f.keyword||'')+'" style="width:100%"></div>'
+    +'<div class="phf-comp-field"><label>Sắp xếp</label><select data-comp-aa-sort style="width:100%">'
+      +ADMIN_ALL_SORT_OPTIONS.map(function(o){return '<option value="'+o.k+'"'+(f.sort===o.k?' selected':'')+'>'+esc(o.label)+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="phf-comp-actions" style="border-top:1px solid var(--comp-border);padding-top:14px;margin-top:14px">'
+      +'<button type="button" class="phf-comp-btn" data-comp-modal-confirm>Áp dụng</button>'
+      +'<button type="button" class="phf-comp-btn is-ghost" data-comp-modal-cancel>Đóng</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(wrap);
+  function close(){wrap.remove();}
+  wrap.addEventListener('click',function(e){if(e.target===wrap)close();});
+  wrap.querySelector('[data-comp-modal-cancel]').addEventListener('click',close);
+  wrap.querySelector('[data-comp-modal-confirm]').addEventListener('click',function(){
+    f.department=wrap.querySelector('[data-comp-aa-department]').value.trim();
+    f.branch=wrap.querySelector('[data-comp-aa-branch]').value.trim();
+    f.employeeQuery=wrap.querySelector('[data-comp-aa-employee]').value.trim();
+    f.levelOrder=wrap.querySelector('[data-comp-aa-level]').value.trim();
+    var sv=wrap.querySelector('[data-comp-aa-similar]').value;
+    f.hasSimilar=sv===''?null:(sv==='1');
+    f.dateFrom=wrap.querySelector('[data-comp-aa-datefrom]').value;
+    f.dateTo=wrap.querySelector('[data-comp-aa-dateto]').value;
+    f.keyword=wrap.querySelector('[data-comp-aa-keyword]').value.trim();
+    f.sort=wrap.querySelector('[data-comp-aa-sort]').value;
+    close();
+    onChange();
+  });
+}
 // Same 6-value restorable set the server enforces (competition-submissions.js
 // RESTORABLE_HISTORY_ACTIONS) — used here ONLY to decide whether the
 // "Phục hồi trạng thái bài" button/checkpoint list has anything to offer;
@@ -2047,6 +2318,7 @@ function adminAllRowHtml(item){
       +'<span><b>'+esc(item.authorDisplayName||item.authorEmployeeCode||'—')+'</b> <span style="color:var(--comp-ink-soft);font-size:11.5px">('+esc(item.authorEmployeeCode||'—')+')</span></span>'
       +statusPill(item.status)
       +'<span style="font-size:12.5px">'+esc(scoreLabel)+'</span>'
+      +(item.similarCount?'<span class="phf-comp-chip" style="padding:2px 8px;font-size:11px">'+item.similarCount+' xác nhận tương tự</span>':'')
       +'<span style="font-size:11.5px;color:var(--comp-ink-soft)">'+esc(fmtDate(item.submittedAt))+'</span>'
     +'</summary>'
     +'<div class="phf-comp-admin-all-detail" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--comp-border)">'
@@ -2121,6 +2393,10 @@ async function screenAdminAllSubmissions(slot,boot){
   var activeFilter='all';
   var offset=0;
   var currentCampaign=null;
+  // Filter V1 — advanced filter state for this screen visit. Rows are inline
+  // <details> (adminAllRowHtml), never a route navigation, so this closure
+  // already satisfies "giữ trạng thái filter khi quay lại danh sách".
+  var advFilter={department:'',branch:'',employeeQuery:'',levelOrder:'',hasSimilar:null,dateFrom:'',dateTo:'',keyword:'',sort:''};
   async function renderAll(){
     try{
       var picker=await adminCampaignPicker(boot);
@@ -2131,15 +2407,18 @@ async function screenAdminAllSubmissions(slot,boot){
   }
   async function renderList(){
     var c=currentCampaign;
-    var res=await call('competitionAdminListAllSubmissions',{campaign_id:c.id,status:activeFilter,limit:ADMIN_ALL_PAGE_SIZE,offset:offset});
+    var res=await call('competitionAdminListAllSubmissions',adminAllApiParams(c,activeFilter,advFilter,offset));
     var items=res.items||[];
     body.innerHTML=campaignSelectHtml((await adminCampaignPicker(boot)).campaigns,ADMIN_SELECTED_CAMPAIGN_ID)
       +'<h2>'+icon('doc')+'Toàn bộ bài dự thi — '+esc(c.title)+'</h2>'
       +'<div class="phf-comp-filters" role="tablist" aria-label="Lọc theo trạng thái">'
         +ADMIN_ALL_FILTERS.map(function(f){return '<button type="button" class="phf-comp-filter'+(f.k===activeFilter?' is-active':'')+'" data-comp-admin-all-filter="'+f.k+'" role="tab" aria-selected="'+(f.k===activeFilter?'true':'false')+'">'+esc(f.label)+'</button>';}).join('')
       +'</div>'
+      +'<div data-comp-aa-filterbar></div>'
       +'<div data-comp-admin-all-list style="margin-top:6px">'
-        +(items.length?items.map(adminAllRowHtml).join(''):emptyState('inbox','Không có bài nào ở nhóm này.'))
+        +(items.length?items.map(adminAllRowHtml).join(''):(adminAllFilterIsActive(advFilter)||activeFilter!=='all'
+            ?emptyState('inbox','Không có bài nào khớp bộ lọc hiện tại.','Thử đổi hoặc xóa bớt điều kiện lọc.')
+            :emptyState('inbox','Không có bài nào ở nhóm này.')))
       +'</div>'
       +'<div class="phf-comp-actions" style="padding-top:14px">'
         +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-prev'+(offset<=0?' disabled':'')+'>‹ Trước</button>'
@@ -2147,6 +2426,9 @@ async function screenAdminAllSubmissions(slot,boot){
         +'<button type="button" class="phf-comp-btn is-ghost" data-comp-admin-all-next'+(offset+ADMIN_ALL_PAGE_SIZE>=(res.total||0)?' disabled':'')+'>Sau ›</button>'
       +'</div>';
     wireCampaignSelect(body,function(){offset=0;renderAll();});
+    renderAdminAllFilterBar(body.querySelector('[data-comp-aa-filterbar]'),activeFilter,advFilter,
+      function(){offset=0;renderList();},
+      function(){showAdminAllFilterDrawer(advFilter,function(){offset=0;renderList();});});
     body.querySelectorAll('[data-comp-admin-all-filter]').forEach(function(btn){
       btn.addEventListener('click',function(){activeFilter=btn.getAttribute('data-comp-admin-all-filter');offset=0;renderList();});
     });
