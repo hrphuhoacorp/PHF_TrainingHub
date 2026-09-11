@@ -540,7 +540,22 @@ async function buildMonthlyCreationState(periodMonth){
  const rows=people.map(p=>{
   const code=t(p.employee_code).toUpperCase(),templateKey=t(p.template_id).toLowerCase(),tm=templates.find(x=>t(x.template_key).toLowerCase()===templateKey)||null;
   const eligibleVersions=versions.filter(x=>t(x.template_key).toLowerCase()===templateKey&&t(x.effective_date)<=end).sort((a,b)=>t(b.effective_date).localeCompare(t(a.effective_date))||t(b.created_at).localeCompare(t(a.created_at)));
-  const requestedVersion=t(p.template_version),tv=requestedVersion?eligibleVersions.find(x=>t(x.version_no)===requestedVersion)||null:(eligibleVersions[0]||null),version=t(tv&&tv.version_no);
+  /* Monthly snapshot source-of-truth fix (2026-09): với PHIẾU MỚI, nguồn phiên bản chính
+   * phải là checklist_templates.current_version của MẪU (tm) — không phải assignment.
+   * template_version đã pin cứng từ lần "Gán mẫu Checklist" gần nhất. Nếu Admin sửa tiêu
+   * chí qua Quản lý tiêu chí (chỉ đổi current_version, không đụng assignment), phiếu tháng
+   * MỚI vẫn phải lấy đúng bộ tiêu chí đang áp dụng. requestedVersion (assignment pin) chỉ
+   * còn dùng làm fallback khi current_version chưa có hiệu lực đến kỳ này/không tìm thấy,
+   * và eligibleVersions[0] (mới nhất theo effective_date) là fallback cuối cùng — giữ
+   * nguyên hành vi cũ khi current_version không giải quyết được gì. KHÔNG ảnh hưởng phiếu
+   * đã tồn tại: hàm này chỉ dựng `rows` cho phf_create_checklist_monthly, còn RPC đó tự
+   * bỏ qua (skippedExisting) mọi nhân sự đã có phiếu đúng kỳ — snapshot của phiếu cũ không
+   * bị hàm này hay RPC ghi đè.
+   */
+  const requestedVersion=t(p.template_version),currentVersion=t(tm&&tm.current_version);
+  const tvFromCurrent=currentVersion?eligibleVersions.find(x=>t(x.version_no)===currentVersion)||null:null;
+  const tvFromAssignment=requestedVersion?eligibleVersions.find(x=>t(x.version_no)===requestedVersion)||null:null;
+  const tv=tvFromCurrent||tvFromAssignment||eligibleVersions[0]||null,version=t(tv&&tv.version_no);
   if(!tm||!tv){missing.push({employeeCode:code,employeeName:t(p.employee_name),templateId:templateKey,templateVersion:requestedVersion||'(theo ngày hiệu lực)'});}
   let snapshotVersion=tv||{};
   const currentConfigured=currentMarketingDefinitions.get(templateKey),inherited=previousMarketingDefinitions.get(templateKey),selected=currentConfigured&&currentConfigured.templateVersion===version?currentConfigured:(inherited&&inherited.templateVersion===version?inherited:null);

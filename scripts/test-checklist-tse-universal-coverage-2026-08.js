@@ -196,14 +196,20 @@ async function buildDom(extraTemplates) {
   await tick(60);
   const previewModal = window.document.querySelector('.phfck-tse-preview-modal');
   check(!!previewModal, '2j. [custom-existing] Modal xem trước mở được (dùng chung checklistTsePreviewHtml/checklistRetroPreviewDiff)');
-  setValue(window, previewModal.querySelector('[data-phfck-tse-new-version]'), 'NV-TN-1.1');
-  setValue(window, previewModal.querySelector('[data-phfck-tse-reason]'), 'Điều chỉnh trọng số quý 3');
+  // Đơn giản hóa (2026-09): số phiên bản mới không còn là input thủ công của Admin — tự
+  // sinh kế tiếp từ phiên bản nguồn (nextTemplateVersion), giống hệt cePublish của "Quản lý
+  // tiêu chí". Input [data-phfck-tse-new-version] đã bị bỏ khỏi checklistTsePreviewHtml().
+  check(!previewModal.querySelector('[data-phfck-tse-new-version]'), '2i2. [simplify] Không còn input "Phiên bản mới" thủ công — số phiên bản tự sinh');
+  setValue(window, previewModal.querySelector('[data-phfck-tse-reason]'), 'Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc');
   await tick();
   click(window, previewModal.querySelector('[data-phfck-tse-confirm-publish]'));
   await tick(80);
   const postPublish = window.document.querySelector('[data-phfck-tse-postpublish]');
   check(!!postPublish, '2k. [custom-existing] Modal 2-lựa-chọn sau publish xuất hiện — dùng chung checklistTsePostPublishHtml()');
-  check(postPublish.textContent.includes('Cập nhật Phiếu tháng hiện có'), '2l. [custom-existing] Lựa chọn mở luồng "Cập nhật Phiếu tháng hiện có" (drawer 3 bước) hiện diện, giống hệt nhánh specialized');
+  // Đơn giản hóa (2026-09): copy đổi từ "Cập nhật Phiếu tháng hiện có" (câu hỏi trước khi
+  // coi việc lưu là xong) sang "cập nhật Phiếu tháng hiện có" (lựa chọn PHỤ, không bắt buộc,
+  // sau khi việc lưu+áp dụng đã xong) — hành vi mở drawer 3 bước không đổi.
+  check(postPublish.textContent.includes('cập nhật Phiếu tháng hiện có'), '2l. [custom-existing] Lựa chọn mở luồng "cập nhật Phiếu tháng hiện có" (drawer 3 bước) hiện diện, giống hệt nhánh specialized');
 
   // -------------------------------------------------------------------------
   // 3. Version cũ (NV-TN-1.0) của mẫu custom vẫn bất biến sau khi publish.

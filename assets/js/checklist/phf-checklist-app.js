@@ -2786,10 +2786,10 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">'+esc(config.title)+'</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(config.groupLabel||'Mẫu đánh giá')+' · '+esc(config.scope)+'</span><b>'+esc(shownVersion)+' <em>(thay đổi gần nhất)</em></b><small>Nguồn tham chiếu nội bộ: '+esc(config.source)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(config.scope)+'</b></section><section><small>HIỆU LỰC</small><b>01/08/2026 · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>Khuyến khích</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(config.reason)+'</p></div>'
       +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):assistantTemplateTreeHtml(config)+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul>'+((config.rules||['File nguồn không có TCCV riêng; phần Checklist hiện áp dụng nhóm TACPHONG chung toàn công ty.','Tiêu chí ứng xử PHF giữ hệ số 10 và Đi trễ lấy từ thư viện chung.','Bảng tổng giữ nguyên toàn bộ chỉ tiêu, mục tiêu và trọng số trong file gốc.','Công thức chung: Thực đạt ×1, Thẩm định ×2, chia 3; sau đó quy đổi theo trọng số.']).map(function(x){return '<li>'+esc(x)+'</li>';}).join(''))+'</ul></div>')
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Lưu & áp dụng</button></div></div></div>';
   }
   function salesTotalScoreHtml(policyCode){
     var rows=[
@@ -2816,11 +2816,11 @@
       +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
         +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):salesTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mỗi tháng, mỗi nhân viên Bán hàng áp dụng một mẫu.</li><li>Tất cả tiêu chí đều có cột Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa ít trên hệ thống, sửa nhiều bằng file chuẩn; cả hai đều tạo phiên bản mới.</li><li>Đổi nhóm cha/con phải tạo mã tiêu chí mới; tiêu chí cũ chỉ ngừng áp dụng.</li><li>Phiên bản mới tự áp dụng cho toàn bộ chức danh Bán hàng từ đầu tháng N+1.</li></ul></div>')
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div>'
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Lưu & áp dụng</button></div>'
     +'</div></div>';
   }
   function shiftLeadTemplateDetailHtml(item){
@@ -2830,11 +2830,11 @@
       +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body">'
         +'<div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Bán hàng · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+        +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
         +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div>'
         +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
         +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):shiftLeadTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Mẫu dùng chung cho cả Trưởng ca và Phó ca bán hàng.</li><li>Kế thừa toàn bộ tiêu chí của Nhân viên bán hàng và bổ sung 6 tiêu chí Điều hành ca.</li><li>Tiêu chí “Tuân thủ nguyên tắc ứng xử PHF” là tiêu chí chung toàn công ty, hệ số 10.</li><li>Tất cả tiêu chí đều có Hệ số; để trống thì mặc định bằng 1.</li><li>Sửa nội dung, hệ số hoặc cấu trúc phải tạo phiên bản mới và áp dụng từ tháng N+1.</li></ul></div>')
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div>'
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Lưu & áp dụng</button></div>'
     +'</div></div>';
   }
   function warehouseTotalScoreHtml(){
@@ -2861,10 +2861,10 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Nhân viên Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
       +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):warehouseTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Giữ nguyên nội dung và hệ số theo file gốc Nhân viên Kho.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số 5% – 65% – 10% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Lưu & áp dụng</button></div></div></div>';
   }
 
   function warehouseManagerTotalScoreHtml(){
@@ -2892,10 +2892,10 @@
       +'<div class="phfck-modal-head"><div><small>MẪU CHECKLIST ĐÃ CHUẨN HÓA</small><h2 id="phfckTemplateTitle">Trưởng bộ phận Kho & Sơ chế</h2></div><div class="phfck-modal-head-actions"><button type="button" data-phfck-toggle-sales-fullscreen aria-label="'+(templateUiState.salesFullscreen?'Thu nhỏ':'Phóng to')+'" title="'+(templateUiState.salesFullscreen?'Thu nhỏ khung':'Mở toàn màn hình')+'">'+(templateUiState.salesFullscreen?'↙':'⛶')+'</button><button type="button" data-phfck-close-modal aria-label="Đóng">×</button></div></div>'
       +checklistTemplateTabsHtml(item,templateUiState.salesTab)
       +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>Kho · '+esc(v.scope)+'</span><b>'+esc(v.version)+' <em>(thay đổi '+esc(v.changedDate)+')</em></b><small>Nguồn tham chiếu nội bộ: '+esc(v.sourceOwner)+'</small></div></div>'
-      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
+      +'<div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".csv,.xlsx,.xls" data-phfck-sales-file hidden></div>'
       +'<div class="phfck-template-detail-grid"><section><small>PHẠM VI</small><b>'+esc(v.scope)+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(v.effectiveFrom)+' · tháng N+1</b></section><section><small>MINH CHỨNG</small><b>'+esc(v.evidence)+'</b></section><section><small>GHI CHÚ LỖI</small><b>Bắt buộc</b></section></div><div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(v.changeReason)+'</p></div>'
       +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?checklistTotalScoreTabHtml(item):warehouseManagerTemplateTreeHtml()+'<div class="phfck-template-rules"><h3>Quy tắc đã chốt</h3><ul><li>Kế thừa toàn bộ tiêu chuẩn Nhân viên Kho và bổ sung 9 tiêu chí quản lý bộ phận.</li><li>Nhóm cha TACPHONG – Nội quy và tác phong là nhóm chung toàn công ty.</li><li>Tiêu chí ứng xử PHF giữ hệ số 10; Đi trễ được gắn từ thư viện chung.</li><li>Bảng tổng giữ đúng trọng số gốc 5% – 60% – 10% – 5% – 10% – 10%.</li><li>Chỉ kế thừa giao diện, công thức 1:2, HQCV và trải nghiệm từ mẫu Bán hàng.</li></ul></div>')
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Phát hành phiên bản mới</button></div></div></div>';
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button><button type="button" class="phfck-primary" disabled title="Sẽ mở khi kết nối dữ liệu và quyền phát hành">Lưu & áp dụng</button></div></div></div>';
   }
   function genericTemplateTreeHtml(groups){var no=0;return '<div class="phfck-detail-table-wrap"><table class="phfck-detail-table"><thead><tr><th>STT</th><th>Nhóm</th><th>Mã tiêu chí</th><th>Nội dung</th><th>Hệ số</th><th>Thao tác</th></tr></thead><tbody>'+flattenCriteria(groups).map(function(x){no+=1;return '<tr><td>'+no+'</td><td>'+esc(x.groupName+' / '+x.childName)+'</td><td><b>'+esc(x.code)+'</b></td><td>'+esc(x.content)+'</td><td>'+esc(x.factor)+'</td><td><button type="button" class="phfck-row-action" data-phfck-direct-edit-code="'+esc(x.code)+'">Sửa</button></td></tr>';}).join('')+'</tbody></table></div>';}
   function templateDetailModalHtml(item){
@@ -2911,7 +2911,7 @@
       var customTotalBody=checklistTotalScoreTabHtml(item);
       return '<div class="phfck-modal-layer phfck-sales-layer" data-phfck-modal-layer><div class="phfck-modal phfck-template-modal phfck-sales-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>MẪU TẠO TRÊN WEB</small><h2>'+esc(item.name)+'</h2></div><button type="button" data-phfck-close-modal>×</button></div>'
         +checklistTemplateTabsHtml(item,templateUiState.salesTab)
-        +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(meta.version)+'</b><small>'+esc(item.source)+'</small></div></div><div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử phiên bản</button><input type="file" accept=".xlsx,.xls" data-phfck-sales-file hidden></div><div class="phfck-template-detail-grid"><section><small>PHÒNG BAN/NHÓM</small><b>'+esc(item.group)+'</b></section><section><small>PHIÊN BẢN</small><b>'+esc(meta.version)+'</b></section><section><small>TIÊU CHÍ</small><b>'+count+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(item.effectiveFrom||'—')+'</b></section></div>'
+        +'<div class="phfck-modal-body"><div class="phfck-template-summary"><div class="phfck-template-icon">▤</div><div><span>'+esc(item.group)+'</span><b>'+esc(meta.version)+'</b><small>'+esc(item.source)+'</small></div></div><div class="phfck-template-actionbar"><button type="button" class="phfck-primary" data-phfck-manage-criteria>☰ Quản lý tiêu chí</button><button type="button" class="phfck-secondary" data-phfck-direct-edit>✎ Sửa trực tiếp</button><button type="button" class="phfck-secondary" data-phfck-bulk-update>⇧ Cập nhật hàng loạt</button><button type="button" class="phfck-secondary" data-phfck-download-view>⇩ Tải mẫu đang xem</button><button type="button" class="phfck-secondary" data-phfck-version-history>↺ Lịch sử thay đổi</button><input type="file" accept=".xlsx,.xls" data-phfck-sales-file hidden></div><div class="phfck-template-detail-grid"><section><small>PHÒNG BAN/NHÓM</small><b>'+esc(item.group)+'</b></section><section><small>PHIÊN BẢN</small><b>'+esc(meta.version)+'</b></section><section><small>TIÊU CHÍ</small><b>'+count+'</b></section><section><small>HIỆU LỰC</small><b>'+esc(item.effectiveFrom||'—')+'</b></section></div>'
         +(templateUiState.salesTab==='total'&&checklistTemplateHasTotalScoreMechanism(item)?customTotalBody:customCriteriaBody)
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-modal>Đóng</button></div></div></div>';
     }
@@ -3298,10 +3298,42 @@
     saveBulkOverrideLocal(state.templateId,payload);
     return payload;
   }
+  /* Nhóm nội dung do accountingGroups(prefix,sections) tự sinh (và nhóm Admin thêm qua
+     ceAddGroup bên dưới) luôn có DUY NHẤT một "con" mang CÙNG mã/tên với nhóm cha — hiển
+     thị "Tên / Tên" là thông tin trùng lặp gây hiểu nhầm có 2 cấp phân loại. Chỉ hiển thị
+     tên một lần khi g.code===c.code hoặc g.name===c.name. Đây CHỈ là fix hiển thị — không
+     đổi cấu trúc definition.groups đã lưu/lịch sử. */
+  function ceGroupChildLabel(g,c){
+    if(String(g.code)===String(c.code)||String(g.name)===String(c.name))return g.name;
+    return g.name+' / '+c.name;
+  }
   function ceGroupOptionsHtml(state,selGroup,selChild){
     var out=[];
-    (state.groups||[]).forEach(function(g){(g.children||[]).forEach(function(c){var sel=(selGroup===g.code&&selChild===c.code)?' selected':'';out.push('<option value="'+esc(g.code)+'::'+esc(c.code)+'"'+sel+'>'+esc(g.name)+' / '+esc(c.name)+'</option>');});});
+    (state.groups||[]).forEach(function(g){(g.children||[]).forEach(function(c){var sel=(selGroup===g.code&&selChild===c.code)?' selected':'';out.push('<option value="'+esc(g.code)+'::'+esc(c.code)+'"'+sel+'>'+esc(ceGroupChildLabel(g,c))+'</option>');});});
     return out.join('');
+  }
+  /* Thêm nhóm nội dung mới (2026-09) — trước đây chỉ có ceMoveGroup/ceMoveChild (sắp xếp),
+     không có cách tạo nhóm mới trong phiên Quản lý tiêu chí. Theo mô hình phẳng của mẫu
+     Checklist (một nhóm = một "loại tiêu chí"), nhóm mới tự sinh đúng MỘT child cùng mã/tên
+     với nhóm — giống hệt accountingGroups(prefix,sections) — để: (1) tối giản UI (Admin chỉ
+     nhập một tên), (2) tự động tránh trùng nhãn "Tên / Tên" (ceGroupChildLabel ở trên coi
+     g.code===c.code là một cấp). Nhóm chỉ tồn tại trong state.groups của phiên làm việc hiện
+     tại — giống hệt tiêu chí mới thêm — cho tới khi cePublish() lưu xuống server. */
+  function ceExistingGroupCodes(state){var out={};(state.groups||[]).forEach(function(g){if(g.code)out[String(g.code)]=true;});return out;}
+  function ceSlugifyGroupCode(name,existingCodes){
+    var base=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/Đ/g,'D').replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'NHOM';
+    var code=base,n=2;
+    while(existingCodes[code]){code=base+'_'+n;n++;}
+    return code;
+  }
+  function ceAddGroup(state,input){
+    var name=normalizeText(input&&input.name),errors=[];
+    if(!name)errors.push({key:'groupName',message:'Vui lòng nhập tên nhóm nội dung.'});
+    else if((state.groups||[]).some(function(g){return String(g.name).toLowerCase()===name.toLowerCase();}))errors.push({key:'groupName',message:'Nhóm nội dung "'+name+'" đã tồn tại.'});
+    if(errors.length)return {ok:false,errors:errors};
+    var code=ceSlugifyGroupCode(name,ceExistingGroupCodes(state));
+    state.groups.push({code:code,name:name,children:[{code:code,name:name,items:[]}]});
+    return {ok:true,code:code};
   }
   function ceRowsHtml(state){
     var rows=[];
@@ -3319,7 +3351,7 @@
             return;
           }
           var hard=ceIsHardDeletable(state,code);
-          rows.push('<tr data-phfck-ce-row="'+esc(code)+'"><td>'+esc(g.name+' / '+c.name)+'</td><td><b>'+esc(code)+'</b></td><td>'+esc(item[1])+'</td><td>'+esc(item[2])+'</td><td class="phfck-ce-actions">'
+          rows.push('<tr data-phfck-ce-row="'+esc(code)+'"><td>'+esc(ceGroupChildLabel(g,c))+'</td><td><b>'+esc(code)+'</b></td><td>'+esc(item[1])+'</td><td>'+esc(item[2])+'</td><td class="phfck-ce-actions">'
             +'<button type="button" data-phfck-ce-move-up="'+esc(code)+'"'+(ii===0?' disabled':'')+' aria-label="Chuyển lên">↑</button>'
             +'<button type="button" data-phfck-ce-move-down="'+esc(code)+'"'+(ii===c.items.length-1?' disabled':'')+' aria-label="Chuyển xuống">↓</button>'
             +'<button type="button" data-phfck-ce-edit="'+esc(code)+'">Sửa</button>'
@@ -3340,6 +3372,9 @@
       +'<div class="phfck-notice phfck-ce-immutable-note"><p>Thay đổi tại đây không làm thay đổi các phiếu tháng đã phát hành trước đó.</p></div>'
       +'<div data-phfck-ce-validation class="phfck-notice '+(v.errors.length?'':'is-success')+'">'+(v.errors.length?('<b>Chưa thể tạo phiên bản mới</b><ul>'+v.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>'):'<b>Hợp lệ</b><p>Có thể xem trước và tạo phiên bản mới.</p>')+'</div>'
       +'<div class="phfck-detail-table-wrap"><table class="phfck-detail-table phfck-ce-table"><thead><tr><th>Nhóm nội dung</th><th>Mã</th><th>Nội dung</th><th>Hệ số</th><th>Thao tác</th></tr></thead><tbody data-phfck-ce-rows>'+ceRowsHtml(state)+'</tbody></table></div>'
+      +'<div class="phfck-ce-add phfck-ce-add-group"><h3>+ Thêm nhóm nội dung</h3><div class="phfck-form-error-summary" data-phfck-ce-add-group-summary hidden><b>Không thể thêm nhóm</b><ul></ul></div><div class="phfck-edit-grid">'
+      +'<label class="is-wide" data-phfck-field-wrap="groupName"><b>Tên nhóm nội dung <em>*</em></b><input type="text" placeholder="vd: Vận hành" data-phfck-ce-add-group-name><small class="phfck-field-error" hidden></small></label>'
+      +'</div><button type="button" class="phfck-secondary" data-phfck-ce-add-group-submit">+ Thêm nhóm nội dung</button></div>'
       +'<div class="phfck-ce-add"><h3>Thêm tiêu chí mới</h3><div class="phfck-form-error-summary" data-phfck-ce-add-summary hidden><b>Không thể thêm tiêu chí</b><ul></ul></div><div class="phfck-edit-grid">'
       +'<label class="is-wide" data-phfck-field-wrap="group"><b>Nhóm nội dung <em>*</em></b><select data-phfck-ce-add-group>'+ceGroupOptionsHtml(state)+'</select><small class="phfck-field-error" hidden></small></label>'
       +'<label data-phfck-field-wrap="code"><b>Mã tiêu chí <em>*</em></b><input type="text" data-phfck-ce-add-code><small class="phfck-field-error" hidden></small></label>'
@@ -3347,7 +3382,7 @@
       +'<label data-phfck-field-wrap="factor"><b>Hệ số <em>*</em></b><input type="number" min="1" step="1" value="1" data-phfck-ce-add-factor><small class="phfck-field-error" hidden></small></label>'
       +'</div><button type="button" class="phfck-secondary" data-phfck-ce-add-submit">＋ Thêm tiêu chí</button></div>'
       +'<div class="phfck-edit-grid phfck-ce-publish-fields"><label data-phfck-field-wrap="effective"><b>Ngày hiệu lực <em>*</em></b><input type="date" data-phfck-ce-effective value="'+esc(state.effectiveDate||'')+'"><small class="phfck-field-error" hidden></small></label><label class="is-wide" data-phfck-field-wrap="reason"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-ce-reason placeholder="Nêu rõ lý do cập nhật">'+esc(state.reason||'')+'</textarea><small class="phfck-field-error" hidden></small></label></div>'
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button><button type="button" class="phfck-primary" data-phfck-ce-preview'+(v.errors.length?' disabled':'')+'>Xem trước & tạo phiên bản</button></div></div></div>';
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button><button type="button" class="phfck-primary" data-phfck-ce-preview'+(v.errors.length?' disabled':'')+'>Lưu & áp dụng</button></div></div></div>';
   }
   function ceRerenderModal(root){
     var modal=root.querySelector('[data-phfck-ce-modal],[data-phfck-submodal] .phfck-ce-modal');
@@ -3363,10 +3398,10 @@
   function cePreviewHtml(p){
     var item=templateCatalog().find(function(x){return x.id===p.templateId;})||{};
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview" role="dialog" aria-modal="true">'
-      +'<div class="phfck-modal-head"><div><small>XEM TRƯỚC PHIÊN BẢN MỚI</small><h2>'+esc(item.name||'Mẫu Checklist')+' · '+esc(p.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div>'
-      +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>PHIÊN BẢN HIỆN TẠI</small><b>'+esc(p.oldVersion)+'</b></article><article><small>PHIÊN BẢN SẼ TẠO</small><b>'+esc(p.newVersion)+'</b></article><article><small>NGÀY HIỆU LỰC</small><b>'+esc(p.effectiveDate)+'</b></article><article><small>SỐ TIÊU CHÍ</small><b>'+ceCriterionList(p.state).length+'</b></article></div>'
-      +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Phiên bản hiện tại vẫn được giữ cho các kỳ trước ngày hiệu lực. Hệ thống chỉ áp dụng dữ liệu mới từ ngày đã chọn.</p></div></div>'
-      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-back-ce>Quay lại chỉnh</button><button type="button" class="phfck-primary" data-phfck-apply-ce>Phát hành phiên bản Checklist mới ('+esc(p.newVersion)+')</button></div></div></div>';
+      +'<div class="phfck-modal-head"><div><small>XÁC NHẬN CẬP NHẬT TIÊU CHÍ</small><h2>'+esc(item.name||'Mẫu Checklist')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div>'
+      +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>ĐANG ÁP DỤNG</small><b>'+esc(p.oldVersion)+'</b></article><article><small>SAU KHI LƯU</small><b>'+esc(p.newVersion)+'</b></article><article><small>NGÀY HIỆU LỰC</small><b>'+esc(p.effectiveDate)+'</b></article><article><small>SỐ TIÊU CHÍ</small><b>'+ceCriterionList(p.state).length+'</b></article></div>'
+      +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Cấu hình đang áp dụng cho các kỳ trước ngày hiệu lực vẫn được giữ nguyên. Hệ thống chỉ áp dụng tiêu chí mới từ ngày đã chọn.</p></div></div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-back-ce>Quay lại chỉnh</button><button type="button" class="phfck-primary" data-phfck-apply-ce>Lưu & áp dụng</button></div></div></div>';
   }
 
   function bulkStartModalHtml(){var meta=viewWorkbookMeta(templateUiState.selectedId||'nv-ban-hang');return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-bulk-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT HÀNG LOẠT BẰNG EXCEL</small><h2>'+esc(meta.name)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-bulk-steps"><article><span>1</span><div><b>Tải file cập nhật</b><p>File được tạo trực tiếp từ phiên bản đang mở, có mã nhận diện và dữ liệu hiện hành của đúng mẫu.</p><button type="button" class="phfck-secondary" data-phfck-download-bulk-file>⇩ Tải file cập nhật hàng loạt</button></div></article><article><span>2</span><div><b>Chỉnh file Excel</b><p>Không xóa dòng có sẵn. Giữ nguyên tên sheet/cột; dùng cột Xử lý để chọn Giữ nguyên, Cập nhật, Thêm mới hoặc Ngưng áp dụng.</p></div></article><article><span>3</span><div><b>Chọn file đã chỉnh</b><p>Hệ thống kiểm tra và cho xem trước, chưa ghi đè mẫu hiện hành.</p><button type="button" class="phfck-primary" data-phfck-choose-bulk-file>⇧ Chọn file để kiểm tra</button></div></article></div><div class="phfck-import-rules"><b>Quy tắc an toàn</b><ul><li>File phải thuộc đúng mẫu, mã mẫu và phiên bản đang mở.</li><li>Các giá trị danh mục phải khớp tuyệt đối với dữ liệu hệ thống.</li><li>Không đổi mã hoặc chuyển nhóm tiêu chí cũ.</li><li>Tổng trọng số phải bằng 100%.</li><li>Chỉ sau khi xác nhận mới tạo phiên bản mới.</li></ul></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
@@ -6524,6 +6559,14 @@
       if(salesUpload){e.preventDefault();var fi=root.querySelector('[data-phfck-sales-file]');if(fi)fi.click();return;}
       var directEdit=e.target.closest('[data-phfck-direct-edit]');if(directEdit){e.preventDefault();var first=selectedTemplateGroups()[0]&&selectedTemplateGroups()[0].children[0]&&selectedTemplateGroups()[0].children[0].items[0];appendSubmodal(root,directEditModalHtml(first?first[0]:''));return;}
       var manageCriteria=e.target.closest('[data-phfck-manage-criteria]');if(manageCriteria){e.preventDefault();ceOpen(templateUiState.selectedId);appendSubmodal(root,checklistCeEditorHtml());return;}
+      var ceAddGroupSubmit=e.target.closest('[data-phfck-ce-add-group-submit]');if(ceAddGroupSubmit){
+        e.preventDefault();if(!checklistCeState)return;var cgModal=ceAddGroupSubmit.closest('[data-phfck-submodal]');
+        var nameInput=cgModal.querySelector('[data-phfck-ce-add-group-name]');
+        var gres=ceAddGroup(checklistCeState,{name:nameInput?nameInput.value:''});
+        var gsummary=cgModal.querySelector('[data-phfck-ce-add-group-summary]');if(gsummary){gsummary.hidden=true;var gul=gsummary.querySelector('ul');if(gul)gul.innerHTML='';}
+        if(!gres.ok){if(gsummary){gsummary.hidden=false;var gul2=gsummary.querySelector('ul');if(gul2)gul2.innerHTML=gres.errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}return;}
+        ceRerenderModal(root);return;
+      }
       var ceAddSubmit=e.target.closest('[data-phfck-ce-add-submit]');if(ceAddSubmit){
         e.preventDefault();if(!checklistCeState)return;var caModal=ceAddSubmit.closest('[data-phfck-submodal]');
         var selVal=(caModal.querySelector('[data-phfck-ce-add-group]')||{}).value||'',selParts=selVal.split('::'),input={groupCode:selParts[0]||'',childCode:selParts[1]||'',code:(caModal.querySelector('[data-phfck-ce-add-code]')||{}).value||'',content:(caModal.querySelector('[data-phfck-ce-add-content]')||{}).value||'',factor:(caModal.querySelector('[data-phfck-ce-add-factor]')||{}).value||''};
@@ -6561,9 +6604,9 @@
         e.preventDefault();if(!pendingCePublish||!checklistCeState)return;applyCe.disabled=true;
         try{
           var appliedCe=await cePublish(checklistCeState);
-          addAudit({action:'Quản lý tiêu chí — phát hành phiên bản',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Một mẫu',version:appliedCe.sourceVersion+' → '+appliedCe.version,reason:appliedCe.reason});
+          addAudit({action:'Quản lý tiêu chí — Lưu & áp dụng',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Một mẫu',version:appliedCe.sourceVersion+' → '+appliedCe.version,reason:appliedCe.reason});
           checklistCeState=null;pendingCePublish=null;var sm2=applyCe.closest('[data-phfck-submodal]');if(sm2)sm2.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);
-          if(window.phfNotice)window.phfNotice('Đã tạo phiên bản mới. Phiên bản cũ vẫn được giữ cho các kỳ trước ngày hiệu lực.');
+          if(window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');
         }catch(error){
           applyCe.disabled=false;checklistToast('error','Không thể phát hành phiên bản mới',error&&error.message||'Máy chủ chưa xác nhận phát hành. Dữ liệu trong phiên làm việc chưa bị mất.',true);
         }
@@ -9136,14 +9179,22 @@
    * tự viết lại logic này. Trả về '' nếu mẫu không có cơ chế Bảng tổng điểm
    * (xem checklistTemplateHasTotalScoreMechanism — điều kiện cấu trúc).
    */
-  function tsePendingActivationVersion(templateId){
-    ensureChecklistTemplatesHydrated();
-    var row=checklistTemplateDbState.byId[templateId];
-    if(!row||!Array.isArray(row.versions))return null;
-    var current=normalizeText(row.version);
-    var pending=row.versions.filter(function(v){return normalizeText(v&&v.version)&&normalizeText(v.version)!==current;})
-      .sort(function(a,b){return checklistIsoDate(b.effectiveDate||'').localeCompare(checklistIsoDate(a.effectiveDate||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''));});
-    return pending.length?{current:current,target:pending[0]}:null;
+  /* Đơn giản hóa (2026-09): trước đây hàm này coi BẤT KỲ version_no nào trong lịch sử khác
+     current_version là "chờ kích hoạt" — kể cả một version đã bị SUPERSEDE bởi một lần lưu
+     khác qua đường ce.../cePublish (vốn promote current_version ngay lập tức, không qua bước
+     kích hoạt riêng). Hệ quả là banner mâu thuẫn kiểu "KTT 2.1 chưa kích hoạt" trong khi màn
+     hình khác đã ghi rõ "đang áp dụng KTT 2.2" — vì 2.1 chỉ là version cũ do "Sửa Bảng tổng
+     điểm" tạo trước khi có auto-activate, không còn ai định kích hoạt nữa.
+     Từ khi "Sửa Bảng tổng điểm" tự động Lưu & áp dụng trong MỘT thao tác (xem
+     data-phfck-tse-confirm-publish), luồng bình thường không còn để lại version nào thật sự
+     "đang chờ kích hoạt" — nên banner này bị loại bỏ hoàn toàn khỏi UI bình thường thay vì cố
+     phân biệt "còn treo thật" với "đã bị supersede" (dữ liệu lịch sử không đủ để phân biệt an
+     toàn). Luôn trả về null: không crash trên dữ liệu cũ, không còn banner/nút "Kích hoạt
+     phiên bản" gây hiểu nhầm. Hàm/nút kích hoạt thủ công (tseActivateOpen/
+     checklistTseActivateModalHtml) vẫn còn trong file cho trường hợp vận hành đặc biệt nhưng
+     không còn lối vào nào từ UI bình thường vì banner gọi hàm này không còn render. */
+  function tsePendingActivationVersion(_templateId){
+    return null;
   }
   function tseActivateBannerHtml(templateId){
     var info=tsePendingActivationVersion(templateId);
@@ -9167,7 +9218,7 @@
     var criteriaActive=activeTab!=='total'||!showTotal;
     return '<div class="phfck-template-tabs phfck-template-tabs-fixed"><button class="'+(criteriaActive?'active':'')+'" type="button" data-phfck-sales-tab="criteria">Tiêu chuẩn Checklist</button>'
       +(showTotal?('<button class="'+(!criteriaActive?'active':'')+'" type="button" data-phfck-sales-tab="total">Bảng tổng điểm</button>'):'')
-      +'<button type="button" data-phfck-version-history>Lịch sử phiên bản</button></div>';
+      +'<button type="button" data-phfck-version-history>Lịch sử thay đổi</button></div>';
   }
   function tseNormalizeRow(row,index){
     if(Array.isArray(row)){
@@ -9259,7 +9310,7 @@
       +tseValidationPanelHtml(v)
       +'</div>'
       +tseTotalWeightBannerHtml(v)
-      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-secondary" data-phfck-tse-save-draft>Lưu nháp</button><button type="button" class="phfck-primary" '+(v.errors.length?'disabled':'')+' data-phfck-tse-preview>Xem trước & tạo phiên bản</button></div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Hủy</button><button type="button" class="phfck-secondary" data-phfck-tse-save-draft>Lưu nháp</button><button type="button" class="phfck-primary" '+(v.errors.length?'disabled':'')+' data-phfck-tse-preview>Lưu & áp dụng</button></div>'
       +'</div></div>';
   }
   function tseSyncRowsFromDom(modal){
@@ -9325,20 +9376,62 @@
     var body;
     if(state.previewError)body='<div class="phfck-notice"><b>Chưa thể xem trước</b><p>'+esc(state.previewError)+'</p></div><div class="phfck-modal-foot" style="border-top:0;padding:0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button></div>';
     else if(state.preview)body=crwDiffSummaryHtml(state.preview)
-      +'<div class="phfck-form-grid"><label><b>Phiên bản mới <em>*</em></b><input type="text" placeholder="vd: '+esc(state.sourceVersion)+'-r2" data-phfck-tse-new-version value="'+esc(state.newVersion)+'"></label><label><b>Ngày hiệu lực</b><input type="date" data-phfck-tse-effective-date value="'+esc(state.effectiveDate)+'"></label></div>'
-      +'<label><b>Lý do <em>*</em></b><input type="text" placeholder="vd: Cập nhật trọng số quý 3" data-phfck-tse-reason value="'+esc(state.reason)+'"></label>'
-      +(state.publishError?'<div class="phfck-notice"><b>Không tạo được phiên bản</b><p>'+esc(state.publishError)+'</p></div>':'')
-      +'<div class="phfck-modal-foot" style="border-top:0;padding:14px 0 0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button><button type="button" class="phfck-primary" '+(state.publishing?'disabled':'')+' data-phfck-tse-confirm-publish>'+(state.publishing?'Đang tạo phiên bản…':'Xác nhận tạo phiên bản')+'</button></div>';
+      +'<div class="phfck-form-grid"><label><b>Ngày hiệu lực</b><input type="date" data-phfck-tse-effective-date value="'+esc(state.effectiveDate)+'"></label></div>'
+      +'<label><b>Lý do thay đổi <em>*</em></b><input type="text" placeholder="vd: Cập nhật trọng số quý 3 (tối thiểu 10 ký tự)" data-phfck-tse-reason value="'+esc(state.reason)+'"></label>'
+      +(state.publishError?'<div class="phfck-notice"><b>Không thể lưu</b><p>'+esc(state.publishError)+'</p></div>':'')
+      +'<div class="phfck-modal-foot" style="border-top:0;padding:14px 0 0"><button type="button" class="phfck-secondary" data-phfck-tse-back-editor>Quay lại chỉnh sửa</button><button type="button" class="phfck-primary" '+(state.publishing?'disabled':'')+' data-phfck-tse-confirm-publish>'+(state.publishing?'Đang lưu…':'Lưu & áp dụng')+'</button></div>';
     else body='<p>Chưa có dữ liệu xem trước.</p>';
-    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview phfck-tse-preview-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>XEM TRƯỚC PHIÊN BẢN MỚI</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.sourceVersion||'—')+' → '+esc(state.newVersion||'?')+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'+body+'</div></div></div>';
+    return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview phfck-tse-preview-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>XÁC NHẬN THAY ĐỔI BẢNG TỔNG ĐIỂM</small><h2>'+esc(item.name||state.templateId)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'+body+'</div></div></div>';
   }
   function tseRerenderPreview(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTsePreviewHtml());}
+  /*
+   * Đơn giản hóa "Sửa Bảng tổng điểm" (2026-09): trước đây bấm "Lưu" chỉ tạo version mới
+   * (copyTemplateVersion, KHÔNG đổi current_version) rồi bắt Admin bấm thêm một nút "Kích
+   * hoạt phiên bản" riêng (modal riêng, dry-run tác động, lý do ít nhất 10 ký tự riêng) mới
+   * thật sự áp dụng. Từ nay LƯU và ÁP DỤNG là MỘT thao tác: bước 1 vẫn gọi đúng RPC canonical
+   * copyTemplateVersion (tsePersistPublishedVersion, không đổi cơ chế RPC) để tạo version bất
+   * biến; bước 2 gọi TIẾP activateTemplateVersion (qua action 'activateChecklistTemplateVersion',
+   * KHÔNG dryRun) để promote current_version + repoint phân công — dùng lại NGUYÊN lý do vừa
+   * nhập ở bước 1, không hỏi lại. Nếu state.published đã có (ví dụ bấm lại sau khi bước 2 lỗi
+   * lần trước), bỏ qua copy (đã tồn tại), chỉ retry activate — tránh gọi lại RPC tạo version với
+   * version_no đã tồn tại.
+   * KHÔNG tự động mở wizard "Cập nhật Phiếu tháng hiện có" — đó vẫn là lựa chọn phụ, Admin tự
+   * quyết định ở checklistTsePostPublishHtml() ngay sau khi bước này xong (xem ghi chú ở đó).
+   * Tách thành hàm riêng (thay vì để thẳng trong document.addEventListener) để: (1) dễ unit-test
+   * orchestration này mà không cần dựng DOM/click event thật, (2) hành vi giống hệt trước khi
+   * tách — chỉ đổi cách gọi, không đổi logic.
+   */
+  function tseConfirmSaveAndApply(effectiveDateInput,reasonInput){
+    if(!checklistTseState)return Promise.resolve(null);
+    var ed=normalizeText(effectiveDateInput)||todayIso(),rs=normalizeText(reasonInput);
+    if(!rs){checklistToast('warning','Thiếu lý do','Vui lòng nhập lý do trước khi lưu.',true);return Promise.resolve(null);}
+    if(rs.length<10){checklistToast('warning','Lý do quá ngắn','Lý do thay đổi cần tối thiểu 10 ký tự (áp dụng chung cho việc lưu và áp dụng ngay).',true);return Promise.resolve(null);}
+    var state=checklistTseState;if(!state.newVersion)state.newVersion=nextTemplateVersion(state.sourceVersion);state.effectiveDate=ed;state.reason=rs;state.publishing=true;state.publishError='';tseRerenderPreview();
+    return (state.published?Promise.resolve({data:state.published,item:tseTemplateItem(state.templateId)||{}}):tsePersistPublishedVersion(state)).then(function(result){
+      state.published=result.data;
+      return checklistRetroApiCall('activateChecklistTemplateVersion',{templateKey:state.templateId,newVersion:state.newVersion,fromVersion:state.sourceVersion,effectiveDate:state.effectiveDate,reason:state.reason}).then(function(activateData){
+        state.publishing=false;
+        addAudit({action:'Sửa Bảng tổng điểm — Lưu & áp dụng',area:'Bảng tổng điểm',object:result.item.name||state.templateId,source:'Web',impact:'Mẫu + phân công',version:state.sourceVersion+' → '+state.newVersion,reason:state.reason+'; phân công cập nhật: '+Number((activateData&&activateData.assignmentsChanged)||0)});
+        var trow=checklistTemplateDbState.byId[state.templateId];if(trow)trow.version=state.newVersion;
+        var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();
+        // Bắt buộc hỏi Admin lựa chọn phạm vi áp dụng (chỉ phiếu mới / cập nhật phiếu hiện có)
+        // trước khi coi phiên bản là đã xử lý xong — không được tự chọn "chỉ phiếu mới" thay Admin.
+        if(root){refreshTemplatesWorkspace(root);appendSubmodal(root,checklistTsePostPublishHtml());}
+        checklistToast('success','Đã cập nhật Bảng tổng điểm','Bảng tổng điểm đang áp dụng đã được cập nhật.');
+        return activateData;
+      });
+    }).catch(function(err){state.publishing=false;if(!state.publishError)state.publishError=err&&err.message||'Máy chủ chưa xác nhận cập nhật.';tseRerenderPreview();});
+  }
   function tseRowsForDefinition(rows){
     return (rows||[]).map(function(r){return {id:r.id,code:r.id,name:r.name,target:r.target,unit:r.unit,weight:r.weight,source:{type:r.source&&r.source.type==='checklist_total'?'checklist_total':'manual'},note:r.note||''};});
   }
   function tseOpenPreview(){
     var state=checklistTseState;if(!state)return;
     var v=tseValidate(state);if(v.errors.length)return;
+    /* Đơn giản hóa (2026-09): Admin không còn phải tự đặt tên phiên bản mới — số phiên
+       bản chỉ còn là chi tiết kỹ thuật nội bộ (giống cePublish của Quản lý tiêu chí), tự
+       sinh kế tiếp từ phiên bản đang áp dụng. */
+    if(!state.newVersion)state.newVersion=nextTemplateVersion(state.sourceVersion);
     state.previewError='';state.previewing=true;state.preview=null;tseRerenderPreview();
     // Bước 4 luôn gọi checklistRetroPreviewDiff (server) để tính/validate lại diff từ
     // definition thật đã sửa — không được tính diff thuần client rồi coi là kết quả cuối,
@@ -9351,13 +9444,19 @@
       tseRerenderPreview();
     }).catch(function(err){state.previewing=false;state.previewError=err&&err.message||'Chưa thể xem trước.';state.preview=null;tseRerenderPreview();});
   }
+  /* Post-save decision (2026-09, đơn giản hóa): tới đây Bảng tổng điểm ĐÃ được cập nhật và
+     áp dụng (current_version đã promote, phân công đã repoint — xem data-phfck-tse-confirm-publish
+     ở trên). Modal này chỉ còn hỏi MỘT việc phụ, không bắt buộc: có muốn chạy thêm wizard
+     "Cập nhật Phiếu tháng hiện có" (retroactiveApply, 3 bước, dry-run trước khi ghi) hay không.
+     Mặc định/an toàn là "Không" — đóng modal này (data-phfck-tse-only-new) không đụng phiếu nào.
+     KHÔNG được coi lựa chọn phụ này là điều kiện để hoàn tất việc lưu — việc lưu đã xong. */
   function checklistTsePostPublishHtml(){
     var state=checklistTseState;if(!state||!state.published)return '';
     var item=tseTemplateItem(state.templateId)||{};
-    return '<div class="phfck-modal-layer phfck-decision-layer" data-phfck-modal-layer data-phfck-submodal data-phfck-tse-postpublish><div class="phfck-modal phfck-tse-postpublish-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>ĐÃ TẠO PHIÊN BẢN MỚI</small><h2>'+esc(item.name||state.templateId)+' · '+esc(state.newVersion)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
-      +'<p>Phiên bản mới đã được tạo. Anh/chị muốn áp dụng như thế nào?</p>'
-      +'<div class="phfck-postpublish-choices"><button type="button" class="phfck-primary" data-phfck-tse-only-new>Chỉ áp dụng cho Phiếu tháng tạo mới</button><button type="button" class="phfck-secondary" data-phfck-tse-open-retro>Cập nhật Phiếu tháng hiện có</button></div>'
-      +'<p class="phfck-muted-line">Phiên bản cũ ('+esc(state.sourceVersion)+') vẫn được giữ nguyên cho mọi phiếu đang dùng nó. "Chỉ áp dụng cho Phiếu tháng tạo mới" là lựa chọn an toàn/mặc định — không đụng phiếu đã có.</p>'
+    return '<div class="phfck-modal-layer phfck-decision-layer" data-phfck-modal-layer data-phfck-submodal data-phfck-tse-postpublish><div class="phfck-modal phfck-tse-postpublish-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>ĐÃ CẬP NHẬT BẢNG TỔNG ĐIỂM</small><h2>'+esc(item.name||state.templateId)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div><div class="phfck-modal-body">'
+      +'<p>Bảng tổng điểm đang áp dụng đã được cập nhật. Anh/chị có muốn áp dụng lại cho các Phiếu tháng hiện có không?</p>'
+      +'<div class="phfck-postpublish-choices"><button type="button" class="phfck-primary" data-phfck-tse-only-new>Không, chỉ áp dụng cho Phiếu tháng tạo mới</button><button type="button" class="phfck-secondary" data-phfck-tse-open-retro>Có, cập nhật Phiếu tháng hiện có</button></div>'
+      +'<p class="phfck-muted-line">Các Phiếu tháng đã tạo trước đó giữ nguyên dữ liệu cũ trừ khi anh/chị chủ động chọn cập nhật ở đây. Đây là lựa chọn phụ, không bắt buộc.</p>'
       +'</div></div></div>';
   }
 
@@ -9496,18 +9595,8 @@
       if(e.target.closest('[data-phfck-tse-back-editor]')){tseRerender();return;}
       if(e.target.closest('[data-phfck-tse-confirm-publish]')){
         if(checklistTseState.publishing)return;
-        var nv=normalizeText((previewModal.querySelector('[data-phfck-tse-new-version]')||{}).value),ed=normalizeText((previewModal.querySelector('[data-phfck-tse-effective-date]')||{}).value)||todayIso(),rs=normalizeText((previewModal.querySelector('[data-phfck-tse-reason]')||{}).value);
-        if(!nv){checklistToast('warning','Thiếu phiên bản mới','Vui lòng nhập số phiên bản mới.',true);return;}
-        if(!rs){checklistToast('warning','Thiếu lý do','Vui lòng nhập lý do trước khi tạo phiên bản.',true);return;}
-        var state=checklistTseState;state.newVersion=nv;state.effectiveDate=ed;state.reason=rs;state.publishing=true;state.publishError='';tseRerenderPreview();
-        tsePersistPublishedVersion(state).then(function(result){
-          state.publishing=false;state.published=result.data;
-          addAudit({action:'Phát hành phiên bản từ web',area:'Bảng tổng điểm',object:result.item.name||state.templateId,source:'Web',impact:'Một mẫu',version:state.sourceVersion+' → '+state.newVersion,reason:state.reason});
-          var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();
-          // Bắt buộc hỏi Admin lựa chọn phạm vi áp dụng (chỉ phiếu mới / cập nhật phiếu hiện có)
-          // trước khi coi phiên bản là đã xử lý xong — không được tự chọn "chỉ phiếu mới" thay Admin.
-          if(root){refreshTemplatesWorkspace(root);appendSubmodal(root,checklistTsePostPublishHtml());}
-        }).catch(function(err){state.publishing=false;if(!state.publishError)state.publishError=err&&err.message||'Máy chủ chưa xác nhận phát hành.';tseRerenderPreview();});
+        var ed=normalizeText((previewModal.querySelector('[data-phfck-tse-effective-date]')||{}).value)||todayIso(),rs=normalizeText((previewModal.querySelector('[data-phfck-tse-reason]')||{}).value);
+        tseConfirmSaveAndApply(ed,rs);
         return;
       }
     }

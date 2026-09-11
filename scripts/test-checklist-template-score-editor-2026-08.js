@@ -215,11 +215,15 @@ async function buildDom(startPath) {
 
     // 9. Create version -> reuses checklistRetroCopyVersion, old version untouched.
     const oldVersionSnapshotBefore = JSON.stringify(window.__phfLocalData.checklistTemplates[0].versions[0]);
-    setValue(window, previewModal.querySelector('[data-phfck-tse-new-version]'), 'v2');
+    // Đơn giản hóa (2026-09): số phiên bản mới không còn là input thủ công của Admin — tự
+    // sinh kế tiếp từ phiên bản nguồn (nextTemplateVersion), giống hệt cePublish của "Quản lý
+    // tiêu chí". Input [data-phfck-tse-new-version] đã bị bỏ khỏi checklistTsePreviewHtml().
+    check(!previewModal.querySelector('[data-phfck-tse-new-version]'), '9a0. [simplify] Không còn input "Phiên bản mới" thủ công — số phiên bản tự sinh');
     setValue(window, previewModal.querySelector('[data-phfck-tse-reason]'), 'Cập nhật trọng số theo quyết định Ban Giám đốc');
     click(window, previewModal.querySelector('[data-phfck-tse-confirm-publish]'));
     await tick(60);
-    check(calls.some(c => c.action === 'checklistRetroCopyVersion' && c.input.templateKey === 'nv-marketing' && c.input.sourceVersion === 'v1' && c.input.newVersion === 'v2' && c.input.definition), '9a. checklistRetroCopyVersion called with templateKey/source/new version + the edited definition (reuses the existing publish RPC, passes the edited draft as definition override)');
+    const copyCallForV9 = calls.find(c => c.action === 'checklistRetroCopyVersion');
+    check(!!copyCallForV9 && copyCallForV9.input.templateKey === 'nv-marketing' && copyCallForV9.input.sourceVersion === 'v1' && !!copyCallForV9.input.newVersion && copyCallForV9.input.newVersion !== 'v1' && !!copyCallForV9.input.definition, '9a. checklistRetroCopyVersion called with templateKey/source/an auto-generated new version + the edited definition (reuses the existing publish RPC, passes the edited draft as definition override)');
     const oldVersionSnapshotAfter = JSON.stringify(window.__phfLocalData.checklistTemplates[0].versions[0]);
     check(oldVersionSnapshotBefore === oldVersionSnapshotAfter, '9b. Old version (v1) fixture untouched after publish (no mutation of the prior version)');
     const copyCall = calls.find(c => c.action === 'checklistRetroCopyVersion');
@@ -232,8 +236,12 @@ async function buildDom(startPath) {
     await tick(30);
     const postPublish = window.document.querySelector('[data-phfck-tse-postpublish]');
     check(!!postPublish, '10a. Post-publish modal opens automatically after a successful publish');
-    check(!!postPublish.querySelector('[data-phfck-tse-only-new]') && !!postPublish.querySelector('[data-phfck-tse-open-retro]'), '10b. Both required choices present: "Chỉ áp dụng cho Phiếu tháng tạo mới" and "Cập nhật Phiếu tháng hiện có"');
-    check(postPublish.textContent.includes('Phiên bản mới đã được tạo'), '10c. Vietnamese copy matches the spec');
+    check(!!postPublish.querySelector('[data-phfck-tse-only-new]') && !!postPublish.querySelector('[data-phfck-tse-open-retro]'), '10b. Both required choices present: "chỉ áp dụng cho Phiếu tháng tạo mới" and "cập nhật Phiếu tháng hiện có"');
+    // Đơn giản hóa (2026-09): tới bước này việc lưu+áp dụng ĐÃ xong (current_version đã
+    // promote qua activateChecklistTemplateVersion, không chỉ tạo version) — copy đổi từ
+    // "Phiên bản mới đã được tạo" (hàm ý còn phải kích hoạt) sang "Đã cập nhật Bảng tổng
+    // điểm" (hàm ý đã áp dụng xong, đây chỉ còn là lựa chọn phụ cho phiếu đã tồn tại).
+    check(postPublish.textContent.includes('đang áp dụng đã được cập nhật'), '10c. Vietnamese copy matches the simplified save-and-apply-in-one-step model');
 
     const applyCallsBeforeChoice = calls.filter(c => c.action === 'checklistRetroApply' || c.action === 'checklistRetroDryRunApply').length;
     click(window, postPublish.querySelector('[data-phfck-tse-only-new]'));
@@ -285,17 +293,19 @@ async function buildDom(startPath) {
     click(window, modal.querySelector('[data-phfck-tse-preview]'));
     await tick(50);
     let previewModal = window.document.querySelector('.phfck-tse-preview-modal');
-    setValue(window, previewModal.querySelector('[data-phfck-tse-new-version]'), 'v2');
     setValue(window, previewModal.querySelector('[data-phfck-tse-reason]'), 'Điều chỉnh theo quyết định Ban Giám đốc');
     click(window, previewModal.querySelector('[data-phfck-tse-confirm-publish]'));
     await tick(60);
+    const copyCallForV11 = calls.find(c => c.action === 'checklistRetroCopyVersion');
+    const autoNewVersion = copyCallForV11 && copyCallForV11.input.newVersion;
+    check(!!autoNewVersion && autoNewVersion !== 'v1', '11a0. Auto-generated new version used for the copy call');
     let postPublish = window.document.querySelector('[data-phfck-tse-postpublish]');
     click(window, postPublish.querySelector('[data-phfck-tse-open-retro]'));
     await tick(30);
 
     const drawer = window.document.querySelector('.phfck-tra-modal');
     check(!!drawer, '11a. 3-step "Cập nhật Phiếu tháng hiện có" modal opens');
-    check(drawer.textContent.includes('nv-marketing') === false && drawer.textContent.includes('v1') && drawer.textContent.includes('v2'), '11b. Old/new version pre-filled from context (v1 -> v2), no re-selection needed');
+    check(drawer.textContent.includes('nv-marketing') === false && drawer.textContent.includes('v1') && drawer.textContent.includes(autoNewVersion), '11b. Old/new version pre-filled from context (v1 -> auto-generated version), no re-selection needed');
     check(!!drawer.querySelector('[data-phfck-tra-next-from-1]'), '11c. Step 1 (Chọn phạm vi) shown first');
 
     setValue(window, drawer.querySelector('[data-phfck-tra-period-from]'), '2026-07');
