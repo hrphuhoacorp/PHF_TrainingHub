@@ -54,9 +54,9 @@ function freshStore() {
       // GREEN — no self data at all.
       { id: 'f-green', period_id: 'per-2026-03', period_month: '2026-03', employee_id: 'id-e50', employee_code: 'E50', employee_name: 'NV Năm Mươi', status: 'draft', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: {}, self_saved_at: null, self_submitted_at: null, review_answers: {}, review_saved_at: null, review_submitted_at: null, reviewed_by: null, final_score: null, updated_at: '2026-03-01T00:00:00Z' },
       // YELLOW — self-evaluated, not reviewed.
-      { id: 'f-yellow', period_id: 'per-2026-03', period_month: '2026-03', employee_id: 'id-e51', employee_code: 'E51', employee_name: 'NV Năm Mốt', status: 'waiting_review', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: { C1: { value: '8' } }, self_saved_at: '2026-03-05T00:00:00Z', self_submitted_at: '2026-03-05T00:00:00Z', review_answers: {}, review_saved_at: null, review_submitted_at: null, reviewed_by: null, final_score: null, updated_at: '2026-03-05T00:00:00Z' },
+      { id: 'f-yellow', period_id: 'per-2026-03', period_month: '2026-03', employee_id: 'id-e51', employee_code: 'E51', employee_name: 'NV Năm Mốt', status: 'waiting_review', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: { C1: { value: '8' } }, self_note: 'Đã hoàn thành doanh số', self_saved_at: '2026-03-05T00:00:00Z', self_submitted_at: '2026-03-05T00:00:00Z', self_total_score: 80, review_answers: {}, review_note: '', checklist_review_score: null, checklist_review_reason: '', review_total_score: null, review_saved_at: null, review_submitted_at: null, reviewed_by: null, reviewed_by_code: null, reviewed_by_name: null, reviewed_as_override: false, review_override_reason: '', final_score: null, score_calculated_at: null, admin_exception_open: false, updated_at: '2026-03-05T00:00:00Z' },
       // ORANGE — already reviewed.
-      { id: 'f-orange', period_id: 'per-2026-03', period_month: '2026-03', employee_id: 'id-e52', employee_code: 'E52', employee_name: 'NV Năm Hai', status: 'reviewed', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: { C1: { value: '9' } }, self_saved_at: '2026-03-06T00:00:00Z', self_submitted_at: '2026-03-06T00:00:00Z', review_answers: { C1: { value: '9' } }, review_saved_at: '2026-03-07T00:00:00Z', review_submitted_at: '2026-03-07T00:00:00Z', reviewed_by: 'id-mgr', reviewed_by_code: 'MGR1', reviewed_by_name: 'Quản lý', final_score: 90, updated_at: '2026-03-07T00:00:00Z' },
+      { id: 'f-orange', period_id: 'per-2026-03', period_month: '2026-03', employee_id: 'id-e52', employee_code: 'E52', employee_name: 'NV Năm Hai', status: 'reviewed', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: { C1: { value: '9' } }, self_note: 'Vượt chỉ tiêu', self_saved_at: '2026-03-06T00:00:00Z', self_submitted_at: '2026-03-06T00:00:00Z', self_total_score: 90, review_answers: { C1: { value: '9' } }, review_note: 'Xác nhận đúng số liệu', checklist_review_score: 90, checklist_review_reason: 'Đạt', review_total_score: 90, review_saved_at: '2026-03-07T00:00:00Z', review_submitted_at: '2026-03-07T00:00:00Z', reviewed_by: 'id-mgr', reviewed_by_code: 'MGR1', reviewed_by_name: 'Quản lý', reviewed_as_override: false, review_override_reason: '', final_score: 90, score_calculated_at: '2026-03-07T00:00:00Z', admin_exception_open: false, updated_at: '2026-03-07T00:00:00Z' },
       // Control — SAME template, DIFFERENT (locked) period. Must never be touched.
       { id: 'f-locked-period', period_id: 'per-2026-04', period_month: '2026-04', employee_id: 'id-e50', employee_code: 'E50', employee_name: 'NV Năm Mươi', status: 'draft', template_id: TPL, template_version: 'V1', template_snapshot: snap('V1', V1_DEF), self_answers: {}, self_saved_at: null, self_submitted_at: null, review_answers: {}, review_saved_at: null, review_submitted_at: null, reviewed_by: null, final_score: null, updated_at: '2026-04-01T00:00:00Z' },
       // Control — DIFFERENT template, SAME period. Must never be touched.
@@ -199,6 +199,75 @@ async function main() {
     assert.strictEqual(hy[0].changed_by, 'admin-1'); assert.ok(hy[0].changed_at);
     assert.strictEqual(hy[0].employee_code, 'E51');
     assert.strictEqual(ho[0].employee_code, 'E52');
+  });
+
+  // ---------------------------------------------------------------------
+  // ITEM 9 — audit-history completeness: a RESET (yellow/orange) apply must capture the FULL
+  // pre-reset self/review data in before_data, since the live form's own columns are about to
+  // be wiped and this history row is the only place that data survives afterwards.
+  // ---------------------------------------------------------------------
+  await rec('ITEM 9a — YELLOW reset: before_data preserves the exact OLD self_* fields that were on the form', async () => {
+    store = freshStore();
+    const preYellow = clone(formById('f-yellow'));
+    await lib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: '2026-03', mode: 'reset', reason: 'Cập nhật tiêu chí quý 3, yêu cầu đánh giá lại' });
+    const hy = historyFor('f-yellow');
+    assert.strictEqual(hy.length, 1);
+    const bd = hy[0].before_data;
+    assert.deepStrictEqual(bd.selfAnswers, preYellow.self_answers, 'before_data.selfAnswers matches the exact pre-reset self_answers');
+    assert.strictEqual(bd.selfNote, preYellow.self_note);
+    assert.strictEqual(bd.selfSavedAt, preYellow.self_saved_at);
+    assert.strictEqual(bd.selfSubmittedAt, preYellow.self_submitted_at);
+    assert.strictEqual(bd.selfTotalScore, preYellow.self_total_score);
+    assert.strictEqual(bd.status, preYellow.status);
+    assert.strictEqual(bd.templateVersion, preYellow.template_version);
+    assert.deepStrictEqual(bd.templateSnapshot, preYellow.template_snapshot, 'before_data preserves the prior template snapshot');
+    // Live form itself is genuinely reset (already covered by ITEM 3/4, re-confirmed here).
+    const liveYellow = formById('f-yellow');
+    assert.strictEqual(liveYellow.status, 'waiting_self');
+    assert.deepStrictEqual(liveYellow.self_answers, {});
+    assert.strictEqual(liveYellow.self_saved_at, null);
+  });
+
+  await rec('ITEM 9b — ORANGE reset: before_data preserves the exact OLD review_*/reviewer/score fields', async () => {
+    store = freshStore();
+    const preOrange = clone(formById('f-orange'));
+    await lib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: '2026-03', mode: 'reset', reason: 'Cập nhật tiêu chí quý 3, yêu cầu đánh giá lại' });
+    const ho = historyFor('f-orange');
+    assert.strictEqual(ho.length, 1);
+    const bd = ho[0].before_data;
+    assert.deepStrictEqual(bd.reviewAnswers, preOrange.review_answers, 'before_data.reviewAnswers matches the exact pre-reset review_answers');
+    assert.strictEqual(bd.reviewNote, preOrange.review_note);
+    assert.strictEqual(bd.checklistReviewScore, preOrange.checklist_review_score);
+    assert.strictEqual(bd.checklistReviewReason, preOrange.checklist_review_reason);
+    assert.strictEqual(bd.reviewTotalScore, preOrange.review_total_score);
+    assert.strictEqual(bd.reviewSavedAt, preOrange.review_saved_at);
+    assert.strictEqual(bd.reviewSubmittedAt, preOrange.review_submitted_at);
+    assert.strictEqual(bd.reviewedBy, preOrange.reviewed_by);
+    assert.strictEqual(bd.reviewedByCode, preOrange.reviewed_by_code);
+    assert.strictEqual(bd.reviewedByName, preOrange.reviewed_by_name);
+    assert.strictEqual(bd.reviewedAsOverride, preOrange.reviewed_as_override);
+    assert.strictEqual(bd.reviewOverrideReason, preOrange.review_override_reason);
+    assert.strictEqual(bd.finalScore, preOrange.final_score);
+    assert.strictEqual(bd.scoreCalculatedAt, preOrange.score_calculated_at);
+    assert.strictEqual(bd.adminExceptionOpen, preOrange.admin_exception_open);
+    // Also still carries the old self_* data (orange forms have self data too, by definition).
+    assert.deepStrictEqual(bd.selfAnswers, preOrange.self_answers);
+    // Live form itself is genuinely reset.
+    const liveOrange = formById('f-orange');
+    assert.strictEqual(liveOrange.status, 'waiting_self');
+    assert.strictEqual(liveOrange.reviewed_by, null);
+    assert.strictEqual(liveOrange.final_score, null);
+  });
+
+  await rec('ITEM 9c — GREEN safe-apply history stays compact: before_data has NO self/review-answer blobs', async () => {
+    store = freshStore();
+    await lib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: '2026-03', mode: 'safe', reason: 'Cập nhật mẫu chụp cho phiếu chưa có dữ liệu' });
+    const hg = historyFor('f-green');
+    assert.strictEqual(hg.length, 1);
+    const bd = hg[0].before_data;
+    const keys = Object.keys(bd).sort();
+    assert.deepStrictEqual(keys, ['status', 'templateId', 'templateVersion'], 'GREEN/safe before_data stays exactly the pre-existing compact shape');
+    assert.ok(!('selfAnswers' in bd) && !('reviewAnswers' in bd) && !('templateSnapshot' in bd), 'no answer blobs or snapshot leak into the compact safe-mode history entry');
   });
 
   // ---------------------------------------------------------------------

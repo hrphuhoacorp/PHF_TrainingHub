@@ -932,7 +932,7 @@ async function retroCurrentPeriodScope(templateKey,periodMonth){
  const periodRes=await db.from('checklist_monthly_periods').select('status').eq('period_month',periodMonth).maybeSingle();
  if(periodRes.error)throw periodRes.error;
  const periodLocked=t(periodRes.data&&periodRes.data.status)==='locked';
- const formsRes=await db.from('checklist_monthly_forms').select('id,employee_code,employee_name,status,self_answers,self_saved_at,self_submitted_at,review_answers,review_saved_at,review_submitted_at,reviewed_by,final_score,updated_at,template_id,template_version').eq('template_id',templateKey).eq('period_month',periodMonth).not('status','in','("locked","cancelled")').limit(1000);
+ const formsRes=await db.from('checklist_monthly_forms').select('id,employee_code,employee_name,status,self_answers,self_note,self_saved_at,self_submitted_at,self_total_score,review_answers,review_note,checklist_review_score,checklist_review_reason,review_total_score,review_saved_at,review_submitted_at,reviewed_by,reviewed_by_code,reviewed_by_name,reviewed_as_override,review_override_reason,final_score,score_calculated_at,admin_exception_open,updated_at,template_id,template_version,template_snapshot').eq('template_id',templateKey).eq('period_month',periodMonth).not('status','in','("locked","cancelled")').limit(1000);
  if(formsRes.error)throw formsRes.error;
  return {periodLocked,forms:formsRes.data||[]};
 }
@@ -967,7 +967,14 @@ async function applyChecklistMonthlyRetroactiveScope(session,input={}){
   const code=t(form.employee_code).toUpperCase();
   const target=(prepared.rows||[]).find(r=>t(r.employee_code).toUpperCase()===code);
   if(!target){skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unresolved',reason:'Không xác định được mẫu hiệu lực theo phân công hiện tại.'});continue;}
-  const before={templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status};
+  const before=mode==='reset'?{
+   templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status,
+   templateSnapshot:form.template_snapshot||null,
+   selfAnswers:form.self_answers||{},selfNote:t(form.self_note),selfSavedAt:form.self_saved_at||null,selfSubmittedAt:form.self_submitted_at||null,selfTotalScore:form.self_total_score==null?null:Number(form.self_total_score),
+   reviewAnswers:form.review_answers||{},reviewNote:t(form.review_note),checklistReviewScore:form.checklist_review_score==null?null:Number(form.checklist_review_score),checklistReviewReason:t(form.checklist_review_reason),reviewTotalScore:form.review_total_score==null?null:Number(form.review_total_score),reviewSavedAt:form.review_saved_at||null,reviewSubmittedAt:form.review_submitted_at||null,
+   reviewedBy:form.reviewed_by||null,reviewedByCode:t(form.reviewed_by_code),reviewedByName:t(form.reviewed_by_name),reviewedAsOverride:!!form.reviewed_as_override,reviewOverrideReason:t(form.review_override_reason),
+   finalScore:form.final_score==null?null:Number(form.final_score),scoreCalculatedAt:form.score_calculated_at||null,adminExceptionOpen:!!form.admin_exception_open
+  }:{templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status};
   if(before.templateId.toLowerCase()===t(target.template_id).toLowerCase()&&before.templateVersion===t(target.template_version)&&mode==='safe'){
    skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unchanged',reason:'Mẫu chụp đã khớp phân công hiện tại.'});continue;
   }
