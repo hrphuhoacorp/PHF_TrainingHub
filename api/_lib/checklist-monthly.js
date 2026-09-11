@@ -169,7 +169,11 @@ async function syncMonthlyCycle(session,input={}){
  const patch={auto_created:input.automatic===true||(existing&&existing.auto_created===true),synced_at:reconciled?new Date().toISOString():(existing&&existing.synced_at||new Date().toISOString()),self_open_at:effectiveWindow.selfOpenAt,self_due_at:effectiveWindow.selfDueAt,review_open_at:effectiveWindow.reviewOpenAt,review_due_at:effectiveWindow.reviewDueAt,scheduled_lock_at:effectiveWindow.lockAt};
  if(!priorSnapshot){patch.cycle_policy_snapshot=cfg.policy;patch.source_period_month=cfg.policy.sourceMode==='previous_period'?previousPeriod(period):null;}
  const updated=await db.from('checklist_monthly_periods').update(patch).eq('period_month',period).select('*').maybeSingle();if(updated.error)monthlyCycleDbError(updated.error,'lưu snapshot lịch kỳ');if(updated.data)existing=updated.data;
- if(existing&&existing.status==='draft'&&now>=Date.parse(effectiveWindow.selfOpenAt)){
+ /* Business rule (2026-09): self_open_at/self_due_at là mốc SLA hiển thị (đúng hạn/trễ),
+    KHÔNG còn là điều kiện để mở kỳ. Đồng bộ kỳ mở kỳ NGAY khi kỳ còn ở trạng thái draft —
+    không chờ tới self_open_at. Toàn bộ an toàn "all-or-nothing" (thiếu người thẩm định/
+    thiếu mẫu chặn toàn bộ) vẫn do RPC open_checklist_monthly_period đảm nhiệm, không đổi. */
+ if(existing&&existing.status==='draft'){
   try{const openedResult=await openMonthly(session,{month:period});opened=openedResult&&openedResult.ok!==false;existing=openedResult.period||existing;}
   catch(err){
    const code=t(err&&err.code).toUpperCase(),message=t(err&&err.message)||'Chưa thể mở kỳ.';
