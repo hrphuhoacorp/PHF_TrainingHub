@@ -1332,9 +1332,25 @@ async function openAdjustScoreModal(campaign,submissionId,current,onDone){
 // level / keyword-in-content / sort are offered (no department, branch,
 // name or employee-code — see QUEUE_STATUS_FILTERS comment in
 // competition-review.js for why those are deliberately absent here).
+//
+// Hotfix 2026-09-11 — "Chưa xét" label (value key stays 'not_started', no
+// wire/API change). Renamed from "Chờ xét" AND the server predicate was
+// narrowed: it now requires a real, personally-held review_assignments row
+// (ra.id IS NOT NULL, status='assigned') for THIS reviewer — it deliberately
+// EXCLUDES "open pool" items a high-tier reviewer is merely eligible to pick
+// up but was never individually assigned. Real PROD data for PHF010/Tiên
+// showed two honest candidate counts: 3 (personal assignments only — this
+// one) vs 22 (if open-pool eligibility were also counted). Product decision:
+// "Chưa xét" tracks the personal, KPI-aligned scope (3), matching her
+// "Đang chờ" productivity card exactly — open-pool items stay visible under
+// "Tất cả" and other filters, just not this one. See the matching comment on
+// anonymousQueueFiltered() in competition-review.js for the exact predicate.
+// 'in_progress' (ra.status='in_progress') is a separate, PRE-EXISTING gap —
+// no code anywhere ever writes that status, so this bucket is always empty
+// today. Out of scope for this hotfix (only "Chưa xét" was requested).
 var QUEUE_STATUS_OPTIONS=[
   {k:'all',label:'Tất cả'},
-  {k:'not_started',label:'Chờ xét'},
+  {k:'not_started',label:'Chưa xét'},
   {k:'in_progress',label:'Đang xử lý'},
   {k:'overdue',label:'Quá hạn'},
 ];

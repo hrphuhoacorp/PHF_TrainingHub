@@ -647,7 +647,26 @@ async function anonymousQueueFiltered(config, actor, params, auth, limit) {
     let i = values.length + 1;
     const extra = [];
     const status = String(params.status || '');
-    if (status === 'not_started') { extra.push(`(ra.id IS NULL OR ra.status = 'assigned')`); }
+    // Hotfix 2026-09-11 — 'not_started' ("Chưa xét"): requires an ACTUAL
+    // review_assignments row personally held by this reviewer
+    // (ra.id IS NOT NULL), still active and status='assigned' (never
+    // 'completed' — completeAssignmentForReviewer() flips it to 'completed'
+    // + is_active=false in the same transaction the moment this reviewer
+    // acts, which drops the row out of this predicate immediately). This
+    // deliberately EXCLUDES "open pool" rows (ra.id IS NULL — items a
+    // high-tier reviewer is merely eligible to pick up but has no
+    // assignment row for yet, per V1.5's "Reviewer 5 full pool" design).
+    // Two real, verified counts exist for PHF010/Tiên on PROD: 3 personal
+    // assignments (this predicate — matches her "Đang chờ" productivity
+    // KPI exactly) vs 22 if open-pool eligibility were also included
+    // (every item she's authorized to act on but hasn't touched). Product
+    // decision (2026-09-11): "Chưa xét" tracks the KPI-aligned personal
+    // scope (3), not the broader shared-pool scope (22) — open-pool items
+    // remain visible under "Tất cả" and other filters, just not this one.
+    // 'in_progress' below is a pre-existing, separate gap: nothing anywhere
+    // ever sets ra.status='in_progress', so that bucket is always empty —
+    // out of scope for this hotfix.
+    if (status === 'not_started') { extra.push(`ra.id IS NOT NULL AND ra.status = 'assigned'`); }
     else if (status === 'in_progress') { extra.push(`ra.status = 'in_progress'`); }
     else if (status === 'overdue') { extra.push(`ra.due_at IS NOT NULL AND ra.due_at < now()`); }
     const levelOrder = params.levelOrder == null ? null : Number(params.levelOrder);
