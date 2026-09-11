@@ -908,6 +908,91 @@ async function overrideMonthlyFormVersion(session,input={}){
  if(hist.error)throw hist.error;
  return {changed:true,form:saved.data,before,after,diff};
 }
+/* Retroactive apply — CURRENT PERIOD decision (2026-09-11, Phase 2B). Sau khi Admin
+ * "Lưu & áp dụng" một mẫu Checklist (Quản lý tiêu chí hoặc Bảng tổng điểm), các Phiếu
+ * tháng ĐÃ TẠO của kỳ hiện tại vẫn giữ nguyên template_snapshot cũ (đúng nguyên tắc "đóng
+ * băng tại thời điểm tạo" — xem ghi chú đầu resnapshotMonthlyDraftTemplate). Đây KHÔNG
+ * phải một engine mới: tái dùng buildMonthlyCreationState() (đã dùng bởi
+ * resnapshotMonthlyDraftTemplate) để tính đúng mẫu/phiên bản hiệu lực theo phân công hiện
+ * tại, và cùng cột dữ liệu tự đánh giá/thẩm định đã có ở saveMyMonthly/saveMonthlyReview.
+ * Phân loại 3 mức để hỏi Admin một lần, ngôn ngữ nghiệp vụ (không nói "version/snapshot"):
+ *   GREEN  — chưa có dữ liệu tự đánh giá -> an toàn, chỉ cập nhật mẫu chụp.
+ *   YELLOW — đã tự đánh giá, CHƯA thẩm định -> cập nhật mẫu chụp + yêu cầu tự đánh giá lại.
+ *   ORANGE — đã có dữ liệu thẩm định / đã thẩm định -> cùng cơ chế YELLOW, cảnh báo mạnh hơn.
+ * Kỳ đã khóa (checklist_monthly_periods.status==='locked') LUÔN là điểm dừng cứng — hàm
+ * classify trả periodLocked:true (FE bỏ qua toàn bộ luồng, im lặng); hàm apply TỪ CHỐI
+ * tường minh nếu vẫn bị gọi nhầm vào kỳ đã khóa (không bao giờ âm thầm no-op-thành-công).
+ */
+function retroImpactTier(form){
+ if(form.status==='reviewed'||t(form.reviewed_by)||t(form.review_saved_at)||t(form.review_submitted_at)||hasAnswerData(form.review_answers)||form.final_score!=null)return 'orange';
+ if(t(form.self_saved_at)||t(form.self_submitted_at)||hasAnswerData(form.self_answers))return 'yellow';
+ return 'green';
+}
+async function retroCurrentPeriodScope(templateKey,periodMonth){
+ const periodRes=await db.from('checklist_monthly_periods').select('status').eq('period_month',periodMonth).maybeSingle();
+ if(periodRes.error)throw periodRes.error;
+ const periodLocked=t(periodRes.data&&periodRes.data.status)==='locked';
+ const formsRes=await db.from('checklist_monthly_forms').select('id,employee_code,employee_name,status,self_answers,self_saved_at,self_submitted_at,review_answers,review_saved_at,review_submitted_at,reviewed_by,final_score,updated_at,template_id,template_version').eq('template_id',templateKey).eq('period_month',periodMonth).not('status','in','("locked","cancelled")').limit(1000);
+ if(formsRes.error)throw formsRes.error;
+ return {periodLocked,forms:formsRes.data||[]};
+}
+async function classifyChecklistMonthlyRetroactiveScope(session,input={}){
+ if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
+ const templateKey=t(input.templateId).toLowerCase(),periodMonth=month(input.periodMonth);
+ if(!templateKey)fail('Thiếu mẫu Checklist cần kiểm tra.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_INPUT_REQUIRED');
+ const {periodLocked,forms}=await retroCurrentPeriodScope(templateKey,periodMonth);
+ if(periodLocked)return {templateId:templateKey,periodMonth,periodLocked:true,totalAffected:0,green:{count:0,codes:[]},yellow:{count:0,codes:[]},orange:{count:0,codes:[]}};
+ const buckets={green:[],yellow:[],orange:[]};
+ forms.forEach(form=>{buckets[retroImpactTier(form)].push(form);});
+ const pack=list=>({count:list.length,formIds:list.map(x=>x.id),codes:[...new Set(list.map(x=>t(x.employee_code).toUpperCase()).filter(Boolean))].slice(0,50)});
+ return {templateId:templateKey,periodMonth,periodLocked:false,totalAffected:forms.length,green:pack(buckets.green),yellow:pack(buckets.yellow),orange:pack(buckets.orange)};
+}
+/* mode: 'safe' (chỉ GREEN, không cần reset) | 'reset' (YELLOW+ORANGE, reset về chờ tự đánh
+ * giá). Luôn tính lại tier ở SERVER cho từng phiếu — KHÔNG tin danh sách formId phía client
+ * — để không thể mở rộng phạm vi vượt quá đúng mẫu+kỳ đang xét (đúng yêu cầu "chỉ ảnh hưởng
+ * mẫu/kỳ đang được xét"). */
+async function applyChecklistMonthlyRetroactiveScope(session,input={}){
+ if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
+ const templateKey=t(input.templateId).toLowerCase(),periodMonth=month(input.periodMonth),mode=t(input.mode),reason=t(input.reason);
+ if(!templateKey)fail('Thiếu mẫu Checklist cần áp dụng.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_INPUT_REQUIRED');
+ if(mode!=='safe'&&mode!=='reset')fail('Lựa chọn áp dụng không hợp lệ.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_MODE_INVALID');
+ if(reason.length<10)fail('Lý do áp dụng cần tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_REASON_REQUIRED');
+ const {periodLocked,forms}=await retroCurrentPeriodScope(templateKey,periodMonth);
+ if(periodLocked)fail('Kỳ đánh giá đã được khóa. Không thể áp dụng lại cho kỳ đã khóa.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_PERIOD_LOCKED');
+ const eligible=forms.filter(form=>{const tier=retroImpactTier(form);return mode==='safe'?tier==='green':(tier==='yellow'||tier==='orange');});
+ if(!eligible.length)return {templateId:templateKey,periodMonth,mode,appliedCount:0,skippedCount:0,items:[]};
+ const prepared=await buildMonthlyCreationState(periodMonth);
+ const a=actor(session),now=new Date().toISOString(),items=[];let applied=0,skipped=0;
+ for(const form of eligible){
+  const code=t(form.employee_code).toUpperCase();
+  const target=(prepared.rows||[]).find(r=>t(r.employee_code).toUpperCase()===code);
+  if(!target){skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unresolved',reason:'Không xác định được mẫu hiệu lực theo phân công hiện tại.'});continue;}
+  const before={templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status};
+  if(before.templateId.toLowerCase()===t(target.template_id).toLowerCase()&&before.templateVersion===t(target.template_version)&&mode==='safe'){
+   skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unchanged',reason:'Mẫu chụp đã khớp phân công hiện tại.'});continue;
+  }
+  const patch={template_id:target.template_id,template_version:target.template_version,template_snapshot:target.template_snapshot,score_policy_snapshot:target.score_policy_snapshot||prepared.scorePolicySnapshot,score_formula_version:SCORE_FORMULA_VERSION,updated_at:now};
+  if(mode==='reset'){
+   Object.assign(patch,{
+    status:'waiting_self',
+    self_answers:{},self_note:'',self_saved_at:null,self_submitted_at:null,self_total_score:null,
+    review_answers:{},review_note:'',checklist_review_score:null,checklist_review_reason:'',review_total_score:null,
+    review_saved_at:null,review_submitted_at:null,reviewed_by:null,reviewed_by_code:null,reviewed_by_name:null,
+    reviewed_as_override:false,review_override_reason:'',final_score:null,score_calculated_at:null,admin_exception_open:false
+   });
+  }
+  const upd=await db.from('checklist_monthly_forms').update(patch).eq('id',form.id).eq('updated_at',form.updated_at).not('status','in','("locked","cancelled")').select('*').maybeSingle();
+  if(upd.error)throw upd.error;
+  if(!upd.data){skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-stale',reason:'Phiếu vừa thay đổi ở nơi khác. Cần chạy lại.'});continue;}
+  const after={templateId:t(target.template_id),templateVersion:t(target.template_version),status:upd.data.status};
+  const hist=await db.from('checklist_monthly_form_history').insert({form_id:form.id,period_month:periodMonth,employee_code:code,
+   action:mode==='reset'?'retroactive_apply_current_period_reset':'retroactive_apply_current_period_safe',
+   before_data:before,after_data:after,reason,changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name,changed_at:now});
+  if(hist.error)throw hist.error;
+  applied++;items.push({formId:form.id,employeeCode:code,outcome:'applied',before,after});
+ }
+ return {templateId:templateKey,periodMonth,mode,appliedCount:applied,skippedCount:skipped,items};
+}
 function exportStatus(value){
  const aliases={all:'',draft:'draft',self:'waiting_self',review:'waiting_review',reviewed:'reviewed',locked:'locked',waiting_self:'waiting_self',waiting_review:'waiting_review'};
  return Object.prototype.hasOwnProperty.call(aliases,t(value))?aliases[t(value)]:'';
@@ -1162,4 +1247,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,classifyChecklistMonthlyRetroactiveScope,applyChecklistMonthlyRetroactiveScope,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState};

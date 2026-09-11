@@ -6606,7 +6606,10 @@
           var appliedCe=await cePublish(checklistCeState);
           addAudit({action:'Quản lý tiêu chí — Lưu & áp dụng',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Một mẫu',version:appliedCe.sourceVersion+' → '+appliedCe.version,reason:appliedCe.reason});
           checklistCeState=null;pendingCePublish=null;var sm2=applyCe.closest('[data-phfck-submodal]');if(sm2)sm2.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);
-          if(window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');
+          // Phase 2B: hỏi Admin có áp dụng lại cho Phiếu tháng của kỳ hiện tại không — chỉ khi
+          // có phiếu thật sự bị ảnh hưởng và kỳ chưa khóa (xem checklistRetroOfferCurrentPeriod).
+          var ceOffered=await checklistRetroOfferCurrentPeriod(root,appliedCe.templateId);
+          if(!ceOffered&&window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');
         }catch(error){
           applyCe.disabled=false;checklistToast('error','Không thể phát hành phiên bản mới',error&&error.message||'Máy chủ chưa xác nhận phát hành. Dữ liệu trong phiên làm việc chưa bị mất.',true);
         }
@@ -9414,10 +9417,18 @@
         addAudit({action:'Sửa Bảng tổng điểm — Lưu & áp dụng',area:'Bảng tổng điểm',object:result.item.name||state.templateId,source:'Web',impact:'Mẫu + phân công',version:state.sourceVersion+' → '+state.newVersion,reason:state.reason+'; phân công cập nhật: '+Number((activateData&&activateData.assignmentsChanged)||0)});
         var trow=checklistTemplateDbState.byId[state.templateId];if(trow)trow.version=state.newVersion;
         var root=document.getElementById('phfChecklistRoot'),layer=root&&root.querySelector('.phfck-tse-preview-modal');if(layer)layer=layer.closest('[data-phfck-submodal]');if(layer)layer.remove();
-        // Bắt buộc hỏi Admin lựa chọn phạm vi áp dụng (chỉ phiếu mới / cập nhật phiếu hiện có)
-        // trước khi coi phiên bản là đã xử lý xong — không được tự chọn "chỉ phiếu mới" thay Admin.
-        if(root){refreshTemplatesWorkspace(root);appendSubmodal(root,checklistTsePostPublishHtml());}
+        if(root)refreshTemplatesWorkspace(root);
         checklistToast('success','Đã cập nhật Bảng tổng điểm','Bảng tổng điểm đang áp dụng đã được cập nhật.');
+        // Phase 2B: nếu kỳ hiện tại (chưa khóa) có phiếu tháng thật sự bị ảnh hưởng, hỏi Admin
+        // ngay ở ĐÂY (modal quyết định GREEN/YELLOW/ORANGE) thay cho việc luôn mở lựa chọn phụ
+        // cũ (checklistTsePostPublishHtml, vẫn giữ nguyên cho trường hợp không có gì bị ảnh
+        // hưởng ở kỳ hiện tại — Admin vẫn có thể tự mở wizard phạm vi kỳ tuỳ chọn/nhiều kỳ).
+        if(root){
+          return checklistRetroOfferCurrentPeriod(root,state.templateId).then(function(offered){
+            if(!offered)appendSubmodal(root,checklistTsePostPublishHtml());
+            return activateData;
+          });
+        }
         return activateData;
       });
     }).catch(function(err){state.publishing=false;if(!state.publishError)state.publishError=err&&err.message||'Máy chủ chưa xác nhận cập nhật.';tseRerenderPreview();});
@@ -9458,6 +9469,60 @@
       +'<div class="phfck-postpublish-choices"><button type="button" class="phfck-primary" data-phfck-tse-only-new>Không, chỉ áp dụng cho Phiếu tháng tạo mới</button><button type="button" class="phfck-secondary" data-phfck-tse-open-retro>Có, cập nhật Phiếu tháng hiện có</button></div>'
       +'<p class="phfck-muted-line">Các Phiếu tháng đã tạo trước đó giữ nguyên dữ liệu cũ trừ khi anh/chị chủ động chọn cập nhật ở đây. Đây là lựa chọn phụ, không bắt buộc.</p>'
       +'</div></div></div>';
+  }
+
+  /*
+   * Phase 2B (2026-09-11) — quyết định hồi tố cho ĐÚNG KỲ HIỆN TẠI, hỏi Admin MỘT lần ngay
+   * sau khi "Lưu & áp dụng" thành công (cả Quản lý tiêu chí lẫn Bảng tổng điểm) — không đợi
+   * Admin tự vào wizard 3 bước cũ (checklistTraState, vẫn giữ nguyên cho phạm vi kỳ tự
+   * chọn/nhiều kỳ). Gọi checklistRetroClassifyCurrentPeriod (server, đọc dữ liệu thật của
+   * ĐÚNG mẫu + kỳ hiện tại) — nếu kỳ đã khóa hoặc không có phiếu nào bị ảnh hưởng, KHÔNG mở
+   * modal nào cả (im lặng, đúng "save đã xong, không có gì thêm để hỏi"). Ngôn ngữ hiển thị
+   * chỉ nói "phiếu/dữ liệu/kỳ", không nói "version/snapshot/RPC/kích hoạt".
+   */
+  var checklistRetroDecisionState=null;
+  function checklistRetroTierCounts(cls){
+    return {green:(cls&&cls.green&&Number(cls.green.count))||0,yellow:(cls&&cls.yellow&&Number(cls.yellow.count))||0,orange:(cls&&cls.orange&&Number(cls.orange.count))||0};
+  }
+  function checklistRetroOfferCurrentPeriod(root,templateId){
+    var periodMonth=todayIso().slice(0,7);
+    return checklistRetroApiCall('checklistRetroClassifyCurrentPeriod',{templateId:templateId,periodMonth:periodMonth}).then(function(cls){
+      var counts=checklistRetroTierCounts(cls),total=Number(cls&&cls.totalAffected)||(counts.green+counts.yellow+counts.orange);
+      if(!cls||cls.periodLocked||!total)return false;
+      checklistRetroDecisionState={templateId:templateId,periodMonth:periodMonth,cls:cls,applying:false,applyError:'',reason:''};
+      if(root)appendSubmodal(root,checklistRetroDecisionHtml());
+      return true;
+    }).catch(function(){return false;});
+  }
+  function checklistRetroDecisionRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistRetroDecisionHtml());}
+  function checklistRetroDecisionHtml(){
+    var s=checklistRetroDecisionState;if(!s)return '';
+    var counts=checklistRetroTierCounts(s.cls),monthLabel=reportMonthLabel(s.periodMonth);
+    var item=(templateCatalog().find(function(x){return x.id===s.templateId;}))||tseTemplateItem(s.templateId)||{};
+    var tier=counts.orange>0?'orange':(counts.yellow>0?'yellow':'green'),headline='',mode='',actionLabel='',toneClass='';
+    if(tier==='green'){
+      headline=counts.green+' phiếu chưa có dữ liệu — an toàn để cập nhật.';
+      mode='safe';actionLabel='Áp dụng cho kỳ '+esc(monthLabel);toneClass='is-success';
+    }else if(tier==='yellow'){
+      headline=counts.yellow+' nhân viên đã tự đánh giá theo mẫu cũ. Nếu áp dụng thay đổi cho kỳ '+esc(monthLabel)+', các phiếu này cần đánh giá lại.';
+      mode='reset';actionLabel='Áp dụng & yêu cầu đánh giá lại';toneClass='';
+    }else{
+      var mix=counts.yellow>0?(counts.yellow+' phiếu đã tự đánh giá, '+counts.orange+' phiếu đã thẩm định'):(counts.orange+' phiếu đã thẩm định');
+      headline=mix+'. Áp dụng thay đổi cho kỳ '+esc(monthLabel)+' sẽ yêu cầu làm lại đánh giá/thẩm định.';
+      mode='reset';actionLabel='Áp dụng & yêu cầu làm lại';toneClass='';
+    }
+    var reasonOk=normalizeText(s.reason||'').length>=10;
+    return '<div class="phfck-modal-layer phfck-decision-layer" data-phfck-modal-layer data-phfck-submodal data-phfck-retro-decision><div class="phfck-modal phfck-retro-decision-modal" role="dialog" aria-modal="true">'
+      +'<div class="phfck-modal-head"><div><small>CẬP NHẬT PHIẾU THÁNG '+esc(monthLabel).toUpperCase()+'</small><h2>'+esc(item.name||s.templateId)+'</h2></div><button type="button" data-phfck-close-submodal aria-label="Đóng">×</button></div>'
+      +'<div class="phfck-modal-body">'
+      +'<div class="phfck-notice '+toneClass+'"><p>'+esc(headline)+'</p></div>'
+      +'<label><b>Lý do</b><input type="text" placeholder="Lý do áp dụng cho kỳ hiện tại (tối thiểu 10 ký tự)" value="'+esc(s.reason||'')+'" data-phfck-retro-decision-reason></label>'
+      +(s.applyError?'<div class="phfck-notice"><b>Không thể áp dụng</b><p>'+esc(s.applyError)+'</p></div>':'')
+      +'<p class="phfck-muted-line">Không chọn áp dụng sẽ giữ nguyên toàn bộ Phiếu tháng hiện có của kỳ '+esc(monthLabel)+'; thay đổi chỉ dùng cho kỳ đồng bộ tiếp theo.</p>'
+      +'</div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-retro-decision-skip>Chỉ áp dụng cho kỳ đồng bộ tiếp theo</button>'
+      +'<button type="button" class="'+(tier==='orange'?'phfck-danger':'phfck-primary')+'" '+((!reasonOk||s.applying)?'disabled':'')+' data-phfck-retro-decision-apply="'+mode+'">'+(s.applying?'Đang áp dụng…':esc(actionLabel))+'</button></div>'
+      +'</div></div>';
   }
 
   /* --- Modal 3 bước "Cập nhật Phiếu tháng hiện có" (checklistTraState) ---
@@ -9647,6 +9712,37 @@
       traOpenFromPublish();
       var sm2=e.target.closest('[data-phfck-submodal]');if(sm2)sm2.remove();
       traRerender();
+      return;
+    }
+    var retroDecisionModal=e.target.closest('[data-phfck-retro-decision]');
+    if(retroDecisionModal&&checklistRetroDecisionState){
+      var rds=checklistRetroDecisionState;
+      if(e.target.closest('[data-phfck-retro-decision-skip]')){
+        var rsm=retroDecisionModal;if(rsm)rsm.remove();syncChecklistModalScrollLock();
+        checklistRetroDecisionState=null;
+        checklistToast('success','Đã lưu','Phiếu tháng hiện có giữ nguyên. Thay đổi áp dụng từ kỳ đồng bộ tiếp theo.');
+        return;
+      }
+      var retroApplyBtn=e.target.closest('[data-phfck-retro-decision-apply]');
+      if(retroApplyBtn){
+        if(rds.applying)return;
+        rds.reason=normalizeText((retroDecisionModal.querySelector('[data-phfck-retro-decision-reason]')||{}).value);
+        if(rds.reason.length<10){checklistToast('warning','Thiếu lý do','Lý do áp dụng cần tối thiểu 10 ký tự.',true);return;}
+        var retroMode=retroApplyBtn.getAttribute('data-phfck-retro-decision-apply');
+        rds.applying=true;rds.applyError='';checklistRetroDecisionRerender();
+        checklistRetroApiCall('checklistRetroApplyCurrentPeriod',{templateId:rds.templateId,periodMonth:rds.periodMonth,mode:retroMode,reason:rds.reason}).then(function(data){
+          rds.applying=false;
+          var rroot=document.getElementById('phfChecklistRoot');
+          var rlayer=rroot&&rroot.querySelector('[data-phfck-retro-decision]');if(rlayer)rlayer.remove();
+          syncChecklistModalScrollLock();
+          addAudit({action:'Áp dụng lại cho Phiếu tháng hiện có',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===rds.templateId;})||{}).name||rds.templateId,source:'Web',impact:Number(data.appliedCount||0)+' phiếu',version:rds.periodMonth,reason:rds.reason});
+          checklistToast('success','Đã cập nhật Phiếu tháng '+reportMonthLabel(rds.periodMonth),'Đã cập nhật '+Number(data.appliedCount||0)+' phiếu.');
+          checklistRetroDecisionState=null;
+        }).catch(function(err){
+          rds.applying=false;rds.applyError=err&&err.message||'Máy chủ chưa xác nhận.';checklistRetroDecisionRerender();
+        });
+        return;
+      }
       return;
     }
     var traRoot=e.target.closest('.phfck-tra-modal');
