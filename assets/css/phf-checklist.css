@@ -989,7 +989,12 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-review-warning{margin:0 0 14px;border:1px solid #eed1a8;background:#fff8ed;border-radius:12px;padding:11px 13px;color:#765024}
 .phfck-review-warning.is-info{margin:14px 0 0;border-color:#cfe1d8;background:#f2f8f5;color:#315f50}
 .phfck-review-warning b{display:block;font-size:12px}.phfck-review-warning p{margin:4px 0 0;font-size:11px;line-height:1.5}
-@media(max-width:760px){.phfck-quick-footer>div:last-child{display:grid;grid-template-columns:1fr 1fr}.phfck-quick-footer>div:last-child .phfck-primary{grid-column:1/-1}.phfck-quick-review-context{grid-template-columns:1fr}.phfck-quick-review-item{grid-template-columns:1fr}.phfck-quick-review-item>span{white-space:normal}.phfck-quick-review-modal{width:calc(100vw - 16px)}}
+.phfck-multi-review-modal{width:min(900px,calc(100vw - 28px));max-height:90vh}
+.phfck-multi-review-date-group{margin-bottom:12px}
+.phfck-multi-review-date-group:last-child{margin-bottom:0}
+.phfck-multi-review-date-chip{display:inline-block;margin:0 0 7px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4d6b60;background:#eef5f1;border-radius:8px;padding:4px 9px}
+.phfck-multi-review-date-group .phfck-quick-review-item+.phfck-quick-review-item{margin-top:9px}
+@media(max-width:760px){.phfck-quick-footer>div:last-child{display:grid;grid-template-columns:1fr 1fr}.phfck-quick-footer>div:last-child .phfck-primary{grid-column:1/-1}.phfck-quick-review-context{grid-template-columns:1fr}.phfck-quick-review-item{grid-template-columns:1fr}.phfck-quick-review-item>span{white-space:normal}.phfck-quick-review-modal{width:calc(100vw - 16px)}.phfck-multi-review-modal{width:calc(100vw - 16px)}}
 
 /* PHF Checklist 1.7.105 — sticky actions & draft recovery */
 .phfck-quick-entry{padding-bottom:108px}
