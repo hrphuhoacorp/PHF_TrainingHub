@@ -59,6 +59,48 @@ function validateScoredDefinition(definition){
   if(requiresChecklistTotalRow(definition)&&!rows.some(isChecklistTotalRow))failValidation('Mẫu có nhóm tiêu chí Checklist nhưng Bảng tổng điểm chưa có dòng nhận điểm Checklist (source.type=checklist_total). Vui lòng thêm dòng Tuân thủ Checklist trước khi lưu.','CHECKLIST_TEMPLATE_CHECKLIST_TOTAL_ROW_MISSING');
   return {totalWeight};
 }
+/*
+ * Criterion Admin V1 (2026-09) — validateGroupsDefinition() chỉ kiểm tra
+ * NỘI DUNG của phiên bản groups đang được ghi (không so sánh với lịch sử,
+ * không chặn việc ngưng áp dụng một mã đã từng phát hành — một mã cũ vắng
+ * mặt trong groups của phiên bản mới là hợp lệ, đó chính là cách "Ngưng áp
+ * dụng" hoạt động phía client, xem ceDiscontinueCriterion() trong
+ * assets/js/checklist/phf-checklist-app.js). Item vẫn là mảng 3 phần tử
+ * [code,content,factor] — không có field trạng thái nào để đọc ở đây.
+ */
+function validateGroupsDefinition(definition){
+  const groups=definition&&Array.isArray(definition.groups)?definition.groups:null;
+  if(groups===null)failValidation('Dữ liệu tiêu chí (groups) không hợp lệ: phải là một mảng.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+  const seenCodes=new Set();
+  groups.forEach((group,gIndex)=>{
+    if(!group||typeof group!=='object')failValidation('Nhóm tiêu chí ở vị trí '+(gIndex+1)+' không hợp lệ.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+    if(!text(group.name)&&!text(group.code))failValidation('Nhóm tiêu chí ở vị trí '+(gIndex+1)+' thiếu tên/mã nhóm.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+    const children=Array.isArray(group.children)?group.children:null;
+    if(children===null)failValidation('Nhóm "'+(text(group.name)||text(group.code))+'" thiếu danh sách nhóm con (children) hợp lệ.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+    children.forEach((child,cIndex)=>{
+      if(!child||typeof child!=='object')failValidation('Nhóm con ở vị trí '+(cIndex+1)+' trong nhóm "'+(text(group.name)||text(group.code))+'" không hợp lệ.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+      const items=Array.isArray(child.items)?child.items:null;
+      if(items===null)failValidation('Nhóm con "'+(text(child.name)||text(child.code))+'" thiếu danh sách tiêu chí (items) hợp lệ.','CHECKLIST_TEMPLATE_GROUPS_SHAPE_INVALID');
+      items.forEach((item,iIndex)=>{
+        const code=text(Array.isArray(item)?item[0]:item&&item.code);
+        const content=text(Array.isArray(item)?item[1]:item&&item.content);
+        const factorRaw=Array.isArray(item)?item[2]:item&&item.factor;
+        const label=code||('dòng '+(iIndex+1)+' trong nhóm con "'+(text(child.name)||text(child.code))+'"');
+        if(!code)failValidation('Tiêu chí '+label+' thiếu mã tiêu chí (code).','CHECKLIST_TEMPLATE_CRITERION_CODE_REQUIRED');
+        if(!content)failValidation('Tiêu chí '+label+' thiếu nội dung (content).','CHECKLIST_TEMPLATE_CRITERION_CONTENT_REQUIRED');
+        if(factorRaw!==undefined&&factorRaw!==null&&factorRaw!==''){
+          const factor=Number(factorRaw);
+          if(!Number.isFinite(factor)||factor<=0)failValidation('Tiêu chí '+label+' có hệ số (factor) không hợp lệ — phải là số lớn hơn 0.','CHECKLIST_TEMPLATE_CRITERION_FACTOR_INVALID');
+        }
+        if(code){
+          if(seenCodes.has(code))failValidation('Mã tiêu chí "'+code+'" bị trùng trong cùng một phiên bản.','CHECKLIST_TEMPLATE_CRITERION_DUPLICATE_CODE');
+          seenCodes.add(code);
+        }
+      });
+    });
+  });
+  return {groupCount:groups.length,criterionCount:seenCodes.size};
+}
 function normalizeTemplate(row){
   const key=text(row.templateKey||row.template_key||row.id).toLowerCase();
   const code=text(row.code).toUpperCase();
@@ -135,6 +177,7 @@ async function saveOne(session,row){
   if(!supabase){const e=new Error('Supabase chưa được cấu hình.');e.statusCode=503;e.code='SUPABASE_NOT_CONFIGURED';throw e;}
   const template=normalizeTemplate(row),version=normalizeVersion({...row,templateKey:template.template_key});
   validateScoredDefinition(version.definition);
+  validateGroupsDefinition(version.definition);
   const actorId=text(session.account?.id||session.sub),actorName=text(session.account?.name||session.account?.email||session.email);
   template.created_by=actorId;template.created_by_name=actorName;
   version.created_by=actorId;version.created_by_name=actorName;
@@ -195,4 +238,4 @@ async function saveChecklistTemplateLibrary(session,rows){
   const snapshot=await listChecklistTemplates();
   return {saved:saved.length,failed:failures.length,failures,templates:snapshot.templates||saved};
 }
-module.exports={listChecklistTemplates,saveChecklistTemplate,saveChecklistTemplateLibrary,validateScoredDefinition,isChecklistTotalRow,requiresChecklistTotalRow,rowSourceType};
+module.exports={listChecklistTemplates,saveChecklistTemplate,saveChecklistTemplateLibrary,validateScoredDefinition,validateGroupsDefinition,isChecklistTotalRow,requiresChecklistTotalRow,rowSourceType};
