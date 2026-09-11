@@ -22,6 +22,10 @@
       "destination": "/api/task-attachment?id=:id&__phf_route=evidence"
     },
     {
+      "source": "/api/qtth-accounting-upload",
+      "destination": "/api/task-attachment?__phf_route=qtth-accounting-upload"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/:path*"
     },

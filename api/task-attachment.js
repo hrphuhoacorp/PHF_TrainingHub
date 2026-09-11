@@ -25,6 +25,7 @@
 // literal path when hit directly / in local dev). No business logic here.
 
 const { handleTaskAttachmentRequest } = require('./_lib/task-attachment-endpoint');
+const { handleQtthAccountingUpload } = require('./_lib/qtth-accounting-endpoint');
 const { requireSession } = require('./_lib/auth');
 const { streamChecklistEvidenceDownload } = require('./_lib/checklist-evidence');
 const { sendError } = require('./_lib/api-response');
@@ -61,8 +62,16 @@ async function handleEvidence(req, res) {
   }
 }
 
+function isQtthAccountingUploadRoute(req) {
+  try {
+    const u = new URL(req.url || '/', 'http://localhost');
+    return u.searchParams.get('__phf_route') === 'qtth-accounting-upload' || u.pathname === '/api/qtth-accounting-upload';
+  } catch (_e) { return false; }
+}
+
 module.exports = async function handler(req, res) {
   if (isEvidenceRoute(req)) return handleEvidence(req, res);
+  if (isQtthAccountingUploadRoute(req)) return handleQtthAccountingUpload(req, res);
   return handleTaskAttachmentRequest(req, res);
 };
 

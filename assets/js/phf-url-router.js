@@ -536,6 +536,12 @@
   window.PHF_ROUTE_MAP.learner.push('/hv/thi-dua/da-duyet');
   window.PHF_ROUTE_MAP.management.push('/ql/thi-dua','/ql/thi-dua/bang-tin','/ql/thi-dua/bai-cua-toi','/ql/thi-dua/gui','/ql/thi-dua/ket-qua','/ql/thi-dua/cho-duyet','/ql/thi-dua/da-duyet');
   window.PHF_ROUTE_MAP.admin.push('/admin/thi-dua','/admin/thi-dua/bang-tin','/admin/thi-dua/bai-cua-toi','/admin/thi-dua/gui','/admin/thi-dua/ket-qua','/admin/thi-dua/cho-duyet','/admin/thi-dua/da-duyet','/admin/thi-dua/quan-ly','/admin/thi-dua/xet-duyet','/admin/thi-dua/chot');
+  // Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION, HR shell. Namespace
+  // role guard + server/route capability guard (see the /qtth branch in
+  // render()). 3 top-level sections: qtth / van-hanh / phan-quyen.
+  window.PHF_ROUTE_MAP.learner.push('/hv/qtth','/hv/qtth/qtth','/hv/qtth/van-hanh','/hv/qtth/truth-data','/hv/qtth/truth-data/payroll','/hv/qtth/truth-data/accounting','/hv/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.management.push('/ql/qtth','/ql/qtth/qtth','/ql/qtth/van-hanh','/ql/qtth/truth-data','/ql/qtth/truth-data/payroll','/ql/qtth/truth-data/accounting','/ql/qtth/phan-quyen');
+  window.PHF_ROUTE_MAP.admin.push('/admin/qtth','/admin/qtth/qtth','/admin/qtth/van-hanh','/admin/qtth/truth-data','/admin/qtth/truth-data/payroll','/admin/qtth/truth-data/accounting','/admin/qtth/phan-quyen');
   // Thông báo Quản trị (Notice) V1 — PUBLIC-READ module, HR shell (#phfHrRoot).
   // Every authenticated role reaches /{p}/thong-bao (feed) + /{p}/thong-bao/n/:id
   // (detail). /{p}/thong-bao/quyen (permission screen) is admitted for all roles
@@ -1217,6 +1223,23 @@
         if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
         if(typeof window.phfRenderCompetition!=='function')return renderRouteModuleError('competition',path,new Error('PHF_COMPETITION_RENDERER_MISSING'));
         await Promise.resolve(window.phfRenderCompetition(targetRouteKey));
+        return true;
+      }
+      if(/^\/(?:admin|ql|hv)\/qtth(?:\/|$)/.test(path)){
+        /* Quản trị tổng hợp (QTTH) — Batch 01 LOCAL FOUNDATION. Renders inside
+           the HR shell (#phfHrRoot), same as /admin/nhan-su and /…/thi-dua.
+           Namespace role guard only here; the REAL QTTH permission contract
+           (system Admin Control Tower OR an active qtth.permission_manager_grant
+           for "quản lý phân quyền", plus can_view_qtth / can_view_operations
+           per person) is server-authoritative inside phf-hr-api against Company
+           PostgreSQL qtth.*. The QTTH shell itself also route-guards each screen
+           against the viewer's resolved capability — menu hiding is not the
+           only boundary. */
+        var qtthRole=/^\/admin\//.test(path)?'admin':(/^\/ql\//.test(path)?'manager':'learner');
+        if(!requireRoles([qtthRole]))return false;
+        if(window.PHFAppShell)window.PHFAppShell.activateHr({clear:false,restoreTitle:false});
+        if(typeof window.phfRenderQtth!=='function')return renderRouteModuleError('qtth',path,new Error('PHF_QTTH_RENDERER_MISSING'));
+        await Promise.resolve(window.phfRenderQtth(targetRouteKey));
         return true;
       }
       if(/^\/(?:admin|ql|hv)\/thong-bao(?:\/|$)/.test(path)){

@@ -1,0 +1,111 @@
+'use strict';
+/*
+ * PHF HR — QTTH Batch 01B · UI render check (offline, no DB/network).
+ * Loads the QTTH module app in a minimal DOM sandbox, feeds it a synthetic
+ * roster (classified / unclassified / inactive / markup-injection rows) and
+ * renders the Phân quyền table + drawer, asserting NO raw markup ever reaches
+ * the user as visible text and escaping is intact.
+ * Run: node scripts/qtth-batch01b-ui-render-check-dev.js
+ */
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'qtth', 'phf-qtth-app.js'), 'utf8');
+
+// minimal DOM sandbox
+function makeEl() {
+  const el = { children: [], innerHTML: '', style: {}, hidden: false, dataset: {},
+    setAttribute() {}, getAttribute() { return null; }, addEventListener() {},
+    appendChild(c) { this.children.push(c); return c; }, removeChild() {}, remove() {},
+    querySelector() { return makeEl(); }, querySelectorAll() { return []; }, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } };
+  return el;
+}
+const window = { location: { pathname: '/admin/qtth/phan-quyen' }, phfGetSessionRole: () => 'admin' };
+const document = { getElementById: () => makeEl(), createElement: makeEl, body: { classList: { add() {} }, appendChild() {} }, addEventListener() {} };
+const fn = new Function('window', 'document', src + '\nreturn window.__phfQtthTestHooks;');
+const H = fn(window, document);
+
+let P = 0, F = 0;
+const ck = (n, c, x) => { c ? (P++, console.log('  PASS  ' + n)) : (F++, console.error('  FAIL  ' + n + (x ? '  -> ' + x : ''))); };
+
+// 1. unclassified chip renders as real markup, not escaped text
+const u = H.classifiedCell('');
+ck('unclassified CN cell = rendered chip (not literal <span>)',
+  u === '<span class="phf-qtth-chip is-unset">Chưa phân loại</span>');
+
+// 2. a dictionary name is escaped inside the chip
+const n = H.classifiedCell('Kho <b>Cung Ứng</b> & "Online"');
+ck('dictionary name escaped inside chip',
+  n.startsWith('<span class="phf-qtth-chip">') && n.includes('&lt;b&gt;') && n.includes('&amp;') && n.includes('&quot;') && !n.includes('<b>'), n);
+
+// 3. staff kind cells
+ck('staff kind direct', H.staffKindCell('direct') === '<span class="phf-qtth-chip is-kind">Trực tiếp</span>');
+ck('staff kind indirect', H.staffKindCell('indirect') === '<span class="phf-qtth-chip is-kind is-alt">Gián tiếp</span>');
+ck('staff kind unset', H.staffKindCell(null) === '<span class="phf-qtth-chip is-unset">Chưa xác định</span>');
+
+// 4. esc still strong (no security weakening)
+ck('esc() unchanged / strong', H.esc('<script>&"\'') === '&lt;script&gt;&amp;&quot;&#39;');
+
+// 4b. render a full roster table with hostile data — nothing leaks as text
+const roster = H.renderRosterHtml({
+  period: '2026-09',
+  units: [{ id: 'u1', name: 'Kho <b>Cung Ứng</b>', isActive: true }],
+  groups: [{ id: 'g1', name: 'Nhóm & Co', isActive: true }],
+  roster: [
+    { employeeCode: 'PHF001', fullName: 'Nguyễn <script>A', status: 'active', sourceDepartment: 'Bán hàng', unitId: 'u1', groupId: 'g1', staffKind: 'direct', canViewQtth: true, canViewOperations: false, sourceDepartmentChanged: false },
+    { employeeCode: 'PHF002', fullName: 'Trần B', status: 'active', sourceDepartment: 'Kho', unitId: null, groupId: null, staffKind: null, canViewQtth: false, canViewOperations: false, sourceDepartmentChanged: true, sourceDepartmentSnapshot: 'Cũ' },
+    { employeeCode: 'PHF003', fullName: 'Lê C', status: 'inactive', sourceDepartment: '', unitId: null, groupId: null, staffKind: null, canViewQtth: false, canViewOperations: false },
+  ],
+  permissionManagers: [],
+  warnings: { newNoPermission: 1, incompleteClassification: 2, sourceDepartmentChanged: 1 },
+}, '2026-09');
+ck('roster: unclassified rows show the chip, not literal markup', roster.includes('<span class="phf-qtth-chip is-unset">Chưa phân loại</span>') && roster.includes('Chưa xác định'));
+ck('roster: hostile employee name is escaped', roster.includes('Nguyễn &lt;script&gt;A') && !roster.includes('<script>A'));
+ck('roster: hostile dictionary name is escaped in the chip', roster.includes('Kho &lt;b&gt;Cung Ứng&lt;/b&gt;'));
+ck('roster: no un-rendered "phf-qtth-unclassified" leftover class', !roster.includes('phf-qtth-unclassified'));
+ck('roster: no visible escaped span text (&lt;span class=)', !roster.includes('&lt;span class='));
+
+// 4c. authenticated user block — real session data, no hard-coded name, escaped
+ck('user block: Admin -> Control Tower label',
+  H.userBlockHtml({ viewer: { isAdmin: true, displayName: 'Trần Thu Thủy' } }).includes('<em>Quản trị hệ thống · Control Tower</em>') &&
+  H.userBlockHtml({ viewer: { isAdmin: true, displayName: 'X' } }).includes('Xin chào,'));
+ck('user block: allow-listed operator -> "Người vận hành QTTH"',
+  H.viewerRoleLabel({ viewer: { isAdmin: false, systemRole: 'manager' }, devOperator: true }) === 'Người vận hành QTTH');
+ck('user block: plain manager/learner labels',
+  H.viewerRoleLabel({ viewer: { systemRole: 'manager' } }) === 'Quản lý' &&
+  H.viewerRoleLabel({ viewer: { systemRole: 'learner' } }) === 'Nhân viên');
+ck('user block: name is escaped, never a hard-coded literal',
+  H.userBlockHtml({ viewer: { displayName: 'Lê <b>C</b>' } }).includes('Lê &lt;b&gt;C&lt;/b&gt;') &&
+  !/Nguyễn Văn A|hard.?cod/i.test(fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'qtth', 'phf-qtth-app.js'), 'utf8').replace(/for example|ví dụ/gi, '')));
+
+// 5. no source file path still funnels markup through esc()
+const badPattern = /esc\([^)]*['"`]\s*<[a-z]/i;
+ck('no esc(<markup>) pattern remains in phf-qtth-app.js', !badPattern.test(src),
+  (src.match(badPattern) || [''])[0]);
+
+// 6. CSS: approved direction kept, forbidden techniques absent
+const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'phf-qtth.css'), 'utf8');
+ck('CSS keeps strong orange #E1500A', css.includes('#E1500A'));
+ck('CSS: no blur/backdrop-filter', !/backdrop-filter|filter:\s*blur/i.test(css));
+ck('CSS: no hazy gradient background', !/linear-gradient|radial-gradient/i.test(css));
+// 01D — Checklist-style viewport-wide shell: NO global max-width / margin:auto
+ck('CSS: shell is viewport-wide (no global max-width / margin:auto centering)',
+  !/\.phf-qtth-shell\{[^}]*max-width/.test(css) && !/\.phf-qtth-shell\{[^}]*margin:0 auto/.test(css) &&
+  !/\.phf-qtth-layout\{[^}]*max-width/.test(css));
+ck('CSS: layout = fixed sidebar rail + fluid main (grid minmax(0,1fr))',
+  /\.phf-qtth-layout\{[^}]*grid-template-columns:\s*\d+px\s+minmax\(0,\s*1fr\)/.test(css) &&
+  /\.phf-qtth-layout\{[^}]*min-height:calc\(100vh - 76px\)/.test(css));
+ck('CSS: sidebar is a sticky full-height rail (Checklist pattern)',
+  /\.phf-qtth-nav\{[\s\S]*?position:sticky[\s\S]*?top:76px[\s\S]*?height:calc\(100vh - 76px\)[\s\S]*?overflow:auto/.test(css));
+ck('CSS: header = full-bleed sticky strong-orange bar, viewport-centered title',
+  /\.phf-qtth-top\{[\s\S]*?position:sticky[\s\S]*?height:76px[\s\S]*?background:var\(--qt-orange\)/.test(css) &&
+  /\.phf-qtth-logo\{[^}]*object-fit:contain/.test(css) &&
+  /\.phf-qtth-brand\{[\s\S]*?left:50%[\s\S]*?transform:translate\(-50%,-50%\)/.test(css));
+ck('CSS: header has an authenticated user block on the right',
+  /\.phf-qtth-user\{/.test(css) && /\.phf-qtth-user strong\{/.test(css));
+ck('CSS: header has no gradient', !/\.phf-qtth-top\{[^}]*gradient/i.test(css));
+ck('CSS: rows are table cells, not cards (no card-ification of tr)', !/\.phf-qtth-table tr\{[^}]*border-radius/.test(css));
+
+console.log('\n' + P + '/' + (P + F) + ' render-check assertions passed' + (F ? '  — FAIL' : '  — ALL PASS'));
+process.exit(F ? 1 : 0);

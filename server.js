@@ -104,6 +104,8 @@ const {
 // ONLY, flag-gated). Mirrors api/data.js verbatim — see
 // api/_lib/competition-actions.js.
 const { dispatchCompetitionAction } = require('./api/_lib/competition-actions');
+// PHF HR — QTTH V1 · Batch 01 (LOCAL ONLY, flag-gated PHF_QTTH_BRIDGE_ENABLED).
+const { dispatchQtthAction } = require('./api/_lib/qtth-actions');
 // PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (2026-09-06, LOCAL ONLY, flag-gated
 // PHF_NOTICE_BRIDGE_ENABLED). See api/_lib/notice-actions.js.
 const { dispatchNoticeAction } = require('./api/_lib/notice-actions');
@@ -975,6 +977,14 @@ const server = http.createServer(async (req, res) => {
       return handleTaskAttachmentRequest(req, res);
     }
 
+    if (pathname === '/api/qtth-accounting-upload') {
+      // QTTH Truth Data · Dữ liệu chi phí kế toán — dedicated binary endpoint
+      // for the ~4MB FAST export (see api/_lib/qtth-accounting-endpoint.js).
+      // Raw request body — NOT readBody(). LOCAL ONLY, flag PHF_QTTH_BRIDGE_ENABLED.
+      const { handleQtthAccountingUpload } = require('./api/_lib/qtth-accounting-endpoint');
+      return handleQtthAccountingUpload(req, res);
+    }
+
     if (pathname === '/api/data') {
       assertSameOrigin(req);
       const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -1524,6 +1534,8 @@ const server = http.createServer(async (req, res) => {
         if (taskDispatch.handled) return sendJson(res, 200, {ok:true,result:taskDispatch.result});
         const competitionDispatch = await dispatchCompetitionAction(session, payload);
         if (competitionDispatch.handled) return sendJson(res, 200, {ok:true,result:competitionDispatch.result});
+        const qtthDispatch = await dispatchQtthAction(session, payload);
+        if (qtthDispatch.handled) return sendJson(res, 200, {ok:true,result:qtthDispatch.result});
         const noticeDispatch = await dispatchNoticeAction(session, payload);
         if (noticeDispatch.handled) return sendJson(res, 200, {ok:true,result:noticeDispatch.result});
         payload = authorizePayload(session, payload);

@@ -1,0 +1,90 @@
+{
+  "bundleId": "QTTH_TRUTH_BOOTSTRAP_V1_2026-09-09",
+  "generatedAt": "2026-09-09T13:51:56.806Z",
+  "generatedFrom": {
+    "branch": "feat/qtth-accounting-data-v1",
+    "head": "18dd11f4c9c2730654eb088ed4016e611b84bfcf",
+    "payrollSource": "docs/payroll-corpus/ (Operator real workbooks, verbatim) via shipped normalizer",
+    "accountingSource": "throwaway phf_hr_e2e accounting.* (CONFIRMED period 2026-07)"
+  },
+  "targets": {
+    "payrollSchema": "payroll",
+    "accountingSchema": "accounting",
+    "prerequisite": "qtth foundation schema + Admin/permission_manager grant"
+  },
+  "contents": {
+    "payroll": {
+      "periods": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07"
+      ],
+      "totalNormalizedRows": 331,
+      "canonicalTemplateFingerprint": "82b1b54c2bc2 (T5/T6/T7)",
+      "payloadFile": "scripts/qtth-truth-bootstrap/_secure/payroll_payload.secure.json (GITIGNORED — employee salary)"
+    },
+    "accounting": {
+      "period": "2026-07",
+      "parity": {
+        "sourceRows": 85975,
+        "debitRows": 38768,
+        "costScopeRows": 350,
+        "include": {
+          "rows": 334,
+          "amount": 1026022214
+        },
+        "exclude": {
+          "rows": 16,
+          "amount": 22725465
+        },
+        "needsReview": {
+          "rows": 0,
+          "amount": 0
+        },
+        "costScopeAmount": 1048747679,
+        "operatorDecidedRows": 51,
+        "decisionSourceBreakdown": {
+          "engine": 299,
+          "operator_item": 44,
+          "operator_rule": 7
+        },
+        "reconciles": true
+      },
+      "costDictionary": {
+        "version": 1,
+        "sourceSha256": "b3291f80a3f5d1f28c73cd04460227309beaf226d7458ec8eb93eb4e5ce253d3",
+        "entryCount": 170
+      },
+      "operatorRules": {
+        "active": 43,
+        "disabled": 0,
+        "historyRows": 43,
+        "itemDecisions": 44
+      },
+      "payloadFile": "scripts/qtth-truth-bootstrap/_secure/accounting_payload.secure.json (GITIGNORED — vendor/customer rows)"
+    }
+  },
+  "checksums": {
+    "bundleId": "QTTH_TRUTH_BOOTSTRAP_V1_2026-09-09",
+    "payrollPayloadSha256": "661eb66c24f508e1abffadec0566aec358412868771c98dfa7152986122d1e85",
+    "accountingPayloadSha256": "d8eee0736c66004d171b34c6fd031738e556bdeaff7d115364ec2693112097b9",
+    "payrollPeriodsSha256": "9d7759c7fd768c049b4255bf093f7ccfce7454f8aaf3bbb78d26f951f17444a4",
+    "accountingSummarySha256": "3f2ae8b07fc281c5bbc404cca66dbb8e8d1cd1b6986f09852d2d206e061c59f7",
+    "payrollSourceSha256": {
+      "2026-01": "d547cc0aa50bedda616fb2d89bc266f5660c0a37a86ed8a8a09ad1c50b13fd6f",
+      "2026-02": "1aef82d1e02cac6e714add50a6c0fa753227a4663e6b4eea313e84c0eeb252d7",
+      "2026-03": "0164e97e2e89fab197a0f400641113a1cf7e5210dad70d42e63e5da3b965f9a5",
+      "2026-04": "61e7675f80750dd34304955b6ef02bf1b4d466ec7a09b3250051bfaae9b73f08",
+      "2026-05": "bc48d8a0ca210b9c60bf38438e8763bd4b1f9e5e85feb3e0c1b15b2fff9391b4",
+      "2026-06": "26e0683c2127240ca49fc4fa2d136a90e30de29120affb3a9e196d20bc807e34",
+      "2026-07": "eb3b5ad8c2ecac8fb344f18563fe9b88a8ff2d981e09049af85e5ba8d2b9bc3e"
+    },
+    "accountingSourceSha256": "8c7fcab70ab568bf6f53d55feda06dd85c56717c0abf0009809bae351034f53e",
+    "costDictionarySha256": "b3291f80a3f5d1f28c73cd04460227309beaf226d7458ec8eb93eb4e5ce253d3"
+  },
+  "prodWrite": false
+}

@@ -130,6 +130,10 @@ const {
 // the REAL PHF HR session actor from People Master (never a client-supplied
 // actor), forwards to phf-hr-api's /v1/competition dispatcher.
 const { dispatchCompetitionAction } = require('./_lib/competition-actions');
+// PHF HR — QUẢN TRỊ TỔNG HỢP (QTTH) V1 · Batch 01 (2026-09-06, LOCAL ONLY,
+// flag-gated PHF_QTTH_BRIDGE_ENABLED). Resolves the verified actor from the
+// session (People Master) then forwards to phf-hr-api's /v1/qtth dispatcher.
+const { dispatchQtthAction } = require('./_lib/qtth-actions');
 // PHF HR — THÔNG BÁO QUẢN TRỊ V1 · Batch 01 (2026-09-06, LOCAL ONLY, flag-gated
 // PHF_NOTICE_BRIDGE_ENABLED). Resolves the verified actor from the session
 // (People Master) then forwards to phf-hr-api's /v1/notice dispatcher.
@@ -1524,6 +1528,8 @@ module.exports = async function handler(req, res) {
       }
       const competitionDispatch = await dispatchCompetitionAction(session, payload);
       if (competitionDispatch.handled) return res.status(200).json({ok:true,result:competitionDispatch.result});
+      const qtthDispatch = await dispatchQtthAction(session, payload);
+      if (qtthDispatch.handled) return res.status(200).json({ok:true,result:qtthDispatch.result});
       const noticeDispatch = await dispatchNoticeAction(session, payload);
       if (noticeDispatch.handled) return res.status(200).json({ok:true,result:noticeDispatch.result});
       authorizePayload(session, payload);

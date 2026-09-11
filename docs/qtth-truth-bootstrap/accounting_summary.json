@@ -1,0 +1,82 @@
+{
+  "bundleId": "QTTH_TRUTH_BOOTSTRAP_V1_2026-09-09",
+  "schemaTarget": "accounting",
+  "period": "2026-07",
+  "fileSha256": "8c7fcab70ab568bf6f53d55feda06dd85c56717c0abf0009809bae351034f53e",
+  "ruleVersion": "v1",
+  "sourceFromDate": "2026-06-30T17:00:00.000Z",
+  "sourceToDate": null,
+  "confirmedAt": "2026-09-09T11:13:54.635Z",
+  "parity": {
+    "sourceRows": 85975,
+    "debitRows": 38768,
+    "costScopeRows": 350,
+    "include": {
+      "rows": 334,
+      "amount": 1026022214
+    },
+    "exclude": {
+      "rows": 16,
+      "amount": 22725465
+    },
+    "needsReview": {
+      "rows": 0,
+      "amount": 0
+    },
+    "costScopeAmount": 1048747679,
+    "operatorDecidedRows": 51,
+    "decisionSourceBreakdown": {
+      "engine": 299,
+      "operator_item": 44,
+      "operator_rule": 7
+    },
+    "reconciles": true
+  },
+  "costDictionary": {
+    "version": 1,
+    "sourceSha256": "b3291f80a3f5d1f28c73cd04460227309beaf226d7458ec8eb93eb4e5ce253d3",
+    "entryCount": 170
+  },
+  "operatorRules": {
+    "active": 43,
+    "disabled": 0,
+    "historyRows": 43,
+    "itemDecisions": 44,
+    "allAreAccountPlusDescription": true,
+    "accountOnlyRules": 0,
+    "byAccount": {
+      "6414": {
+        "INCLUDE": 0,
+        "EXCLUDE": 1
+      },
+      "6422": {
+        "INCLUDE": 10,
+        "EXCLUDE": 1
+      },
+      "6423": {
+        "INCLUDE": 6,
+        "EXCLUDE": 1
+      },
+      "64177": {
+        "INCLUDE": 2,
+        "EXCLUDE": 1
+      },
+      "64178": {
+        "INCLUDE": 0,
+        "EXCLUDE": 1
+      },
+      "64188": {
+        "INCLUDE": 7,
+        "EXCLUDE": 1
+      },
+      "64273": {
+        "INCLUDE": 0,
+        "EXCLUDE": 1
+      },
+      "64274": {
+        "INCLUDE": 8,
+        "EXCLUDE": 3
+      }
+    }
+  }
+}

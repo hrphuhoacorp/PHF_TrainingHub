@@ -89,6 +89,13 @@ process.on('SIGTERM', () => stopAll(0));
       PHF_HR_DB_NAME: dbEnv.PHF_HR_DB_NAME, PHF_HR_DB_RUNTIME_USER: dbEnv.PHF_HR_DB_RUNTIME_USER,
       PHF_HR_DB_RUNTIME_PASSWORD: dbEnv.PHF_HR_DB_RUNTIME_PASSWORD,
       PHF_HR_ATTACHMENT_ROOT: ATTACH_ROOT,
+      // QTTH Batch 01A — DEVELOPMENT ACCESS LOCK. While QTTH is not FINAL the
+      // module is closed to everyone except the system Admin and this explicit
+      // allow-list (employee codes / account ids — never display names). Build/
+      // test operators only. GO-LIVE = drop this env var (no code / no
+      // permission-data change). Override with env QTTH_DEV_ACCESS_ALLOW.
+      QTTH_DEV_ACCESS_ALLOW: process.env.QTTH_DEV_ACCESS_ALLOW
+        || 'PHF012,acct-3a03c49e-5835-4d92-b89e-424836e79e24',
       // THÔNG BÁO QUẢN TRỊ V1 · Batch 01 — DEVELOPMENT ACCESS LOCK. While the
       // module is not FINAL it is closed to everyone except the system Admin and
       // this explicit allow-list (employee codes / account ids — never display
@@ -128,6 +135,10 @@ process.on('SIGTERM', () => stopAll(0));
       // C4.1 — Chương trình thi đua (Competition) V1 bridge, same phf-hr-api
       // child, same throwaway DB. Does not affect any PHF_TASK_* behaviour.
       PHF_COMPETITION_BRIDGE_ENABLED: 'true',
+      // QTTH V1 Batch 01 — Quản trị tổng hợp bridge, same phf-hr-api child,
+      // same throwaway DB. Needs migrations/phf_hr_qtth_foundation_v1.sql applied
+      // to the throwaway (deployer). Does not affect Task/Competition behaviour.
+      PHF_QTTH_BRIDGE_ENABLED: 'true',
       // THÔNG BÁO QUẢN TRỊ V1 · Batch 01 — Thông báo Quản trị bridge, same
       // phf-hr-api child, same throwaway DB. Needs migrations/phf_hr_notice_v1.sql
       // applied to the throwaway. Does not affect Task/Competition behaviour.
