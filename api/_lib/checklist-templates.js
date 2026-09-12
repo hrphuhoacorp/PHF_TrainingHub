@@ -155,8 +155,15 @@ async function listChecklistTemplates(options={}){
     if(te||ve){const error=te||ve;if(schemaMissing(error))return {templates:[],ready:false,error:'CHECKLIST_TEMPLATE_SCHEMA_MISSING'};throw error;}
     return {templates:(templates||[]).map(t=>publicTemplate(t,versions||[])),ready:true,error:''};
   }
-  /* Workspace Ghi nhận lỗi chỉ cần phiên bản đang áp dụng để dựng tiêu chí.
-     Không tải toàn bộ lịch sử definition của mọi phiên bản ở bootstrap. */
+  /* Workspace Ghi nhận lỗi chỉ cần phiên bản đang áp dụng để dựng tiêu chí -
+     KHÔNG tải toàn bộ lịch sử definition của mọi phiên bản, mọi mẫu ở bootstrap
+     (giữ nguyên tối ưu gốc). Riêng phiên bản LỊCH SỬ của những mẫu THỰC SỰ có
+     phân công lịch sử (options.fullVersionsFor - do caller tính từ
+     checklist_employee_assignment_history của đúng tập nhân sự đang xem, xem
+     api/data.js) được nạp thêm tại đây - vẫn bounded theo số mẫu thực tế đang
+     dùng, không phải toàn bộ thư viện mẫu (2026-09-12, version-consistency
+     audit round 2: Ghi nhận lỗi cho một ngày TRƯỚC ngày hiệu lực phiên bản
+     hiện hành cần đúng phiên bản mẫu đã hiệu lực tại ngày đó). */
   const parentResult=await supabase.from(TEMPLATE_TABLE)
     .select('template_key,code,name,group_name,template_type,has_checklist,source,note,status,current_version,effective_date,updated_at')
     .order('name',{ascending:true});
@@ -170,7 +177,18 @@ async function listChecklistTemplates(options={}){
     if(versionResult.error){if(schemaMissing(versionResult.error))return {templates:[],ready:false,error:'CHECKLIST_TEMPLATE_SCHEMA_MISSING'};throw versionResult.error;}
     currentVersions=(versionResult.data||[]).filter(v=>parents.some(t=>t.template_key===v.template_key&&t.current_version===v.version_no));
   }
-  return {templates:parents.map(t=>publicTemplate(t,currentVersions)),ready:true,error:'',compact:true};
+  let mergedVersions=currentVersions;
+  const fullVersionKeys=Array.isArray(options.fullVersionsFor)?[...new Set(options.fullVersionsFor.map(k=>text(k).toLowerCase()).filter(Boolean))]:[];
+  if(fullVersionKeys.length){
+    const historyVersionResult=await supabase.from(VERSION_TABLE)
+      .select('template_key,version_no,effective_date,reason,source_version,change_type,definition,created_at')
+      .in('template_key',fullVersionKeys);
+    if(historyVersionResult.error){if(schemaMissing(historyVersionResult.error))return {templates:[],ready:false,error:'CHECKLIST_TEMPLATE_SCHEMA_MISSING'};throw historyVersionResult.error;}
+    const byKey=new Map(mergedVersions.map(v=>[v.template_key+'|'+v.version_no,v]));
+    (historyVersionResult.data||[]).forEach(v=>byKey.set(v.template_key+'|'+v.version_no,v));
+    mergedVersions=[...byKey.values()];
+  }
+  return {templates:parents.map(t=>publicTemplate(t,mergedVersions)),ready:true,error:'',compact:true};
 }
 async function saveOne(session,row){
   ensureAdmin(session);
