@@ -161,12 +161,28 @@ async function activateTemplateVersion(session,input={}){
   if(asgRes.error)fail(asgRes.error.message,'CHECKLIST_ACTIVATE_SCOPE_LOOKUP_FAILED',503);
   const all=(asgRes.data||[]).filter(r=>t(r.template_id).toLowerCase()===templateKey);
   const active=r=>t(r.employee_status)!=='Đã nghỉ việc';
-  // fromVersion===newVersion nghĩa là không có phiên bản cũ nào cần chuyển (thường là lần
-  // chạy lại sau khi đã kích hoạt) -> scope rỗng, không đụng phân công đã ở phiên bản mới.
-  const scoped=(fromVersion&&fromVersion!==newVersion)?all.filter(r=>active(r)&&t(r.template_version)===fromVersion):[];
+  // Multi-hop catch-up fix (2026-09-12): trước đây chỉ bắt phân công đang PIN ĐÚNG
+  // fromVersion (đúng một bước ngay trước lần kích hoạt này). Một phân công đã lỡ MỘT lần
+  // kích hoạt trước đó (còn pin ở phiên bản CŨ HƠN fromVersion, ví dụ được tạo/sửa giữa hai
+  // lần activate) rơi vào otherVersion và KHÔNG BAO GIỜ được các lần kích hoạt sau bắt lại -
+  // tồn đọng vĩnh viễn, càng lệch xa hơn qua mỗi lần activate. Bounded search xác nhận
+  // checklist_employee_assignments.template_version chỉ được đọc làm metadata hiển thị/lịch
+  // sử ở mọi nơi khác trong repo (checklist-permissions.js, checklist-recovery.js, báo cáo) -
+  // KHÔNG resolver nghiệp vụ đang hoạt động nào dùng field này làm "phiên bản hiệu lực hôm
+  // nay"; nguồn canonical thật (Ghi nhận lỗi lúc lưu) luôn là resolveTemplateVersionAt() ở
+  // checklist-violations.js, tính lại từ checklist_template_versions.effective_date theo
+  // occurredDate, không đọc field này. Vì vậy mở rộng phạm vi an toàn: bắt MỌI phân công
+  // đang hoạt động của đúng mẫu này có template_version khác newVersion (không chỉ đúng
+  // fromVersion) để dồn về đúng phiên bản mới trong một lần kích hoạt.
+  const scoped=all.filter(r=>active(r)&&t(r.template_version)&&t(r.template_version)!==newVersion);
   const alreadyNew=all.filter(r=>t(r.template_version)===newVersion);
-  const inactivePinnedOld=all.filter(r=>!active(r)&&t(r.template_version)===fromVersion);
-  const otherVersion=all.filter(r=>t(r.template_version)&&t(r.template_version)!==fromVersion&&t(r.template_version)!==newVersion);
+  const inactivePinnedOld=all.filter(r=>!active(r)&&t(r.template_version)&&t(r.template_version)!==newVersion);
+  // Giữ biến/field này để không đổi shape summary + UI (s.preview.otherVersionCount ở
+  // phf-checklist-app.js:~9912). scoped ở trên giờ đã bắt MỌI phân công đang hoạt động với
+  // template_version khác newVersion, nên không còn phân công đang hoạt động nào rơi vào
+  // nhóm "đang dùng phiên bản khác" nữa - bucket này luôn rỗng theo thiết kế mới, dòng chữ
+  // "(không đụng)" ở UI sẽ tự ẩn (điều kiện hiển thị đã có sẵn: otherVersionCount?...).
+  const otherVersion=[];
   const scopeCodes=scoped.map(r=>t(r.employee_code).toUpperCase()).filter(Boolean).sort();
 
   const retro={templateKey,oldVersion:fromVersion,newVersion,periodMonthFrom:periodMonth,periodMonthTo:periodMonth};

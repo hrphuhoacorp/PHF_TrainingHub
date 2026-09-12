@@ -4151,18 +4151,29 @@
   }
   function violationLiveCriteria(){return violationCriteriaForContext(violationAssignmentContext());}
   function violationCriteriaAt(eventDate){return violationCriteriaForContext(violationAssignmentContextAt(eventDate));}
+  /* UI jargon fix (2026-09-12, version-consistency audit): 3 mặt hiển thị routine của Ghi
+     nhận lỗi (violationContextNoticeHtml/violationAssignmentCardHtml/violationCompactContextHtml)
+     KHÔNG được lộ chuỗi phiên bản kỹ thuật thô (vd "TBP-HCNS-1.3") cho Admin thường - chỉ cần
+     tên mẫu + ngày hiệu lực (nghiệp vụ). ctx.version vẫn được giữ NGUYÊN trong payload gửi đi
+     lúc submit (server vẫn đối chiếu qua CHECKLIST_TEMPLATE_VERSION_MISMATCH) - hàm này chỉ
+     đổi PHẦN HIỂN THỊ, không đụng logic ghi nhận. */
+  function violationTemplateOperationalNote(ctx){
+    if(!ctx||!ctx.ok)return '';
+    return ctx.effectiveFrom?('Áp dụng từ '+checklistDmyDate(ctx.effectiveFrom)):'';
+  }
   function violationContextNoticeHtml(){
     var ctx=violationAssignmentContext(),person=violationSelectedEmployee();
     if(!violationUiState.employeeId)return '<div class="phfck-notice"><b>Chưa chọn nhân sự</b><p>Tìm và chọn đúng người trước khi ghi nhận.</p></div>';
     if(!ctx.ok)return '<div class="phfck-notice is-warning"><b>Đang tải phiếu của '+esc((person&&person.name)||'Nhân sự')+((person&&person.code)?' · '+esc(person.code):'')+'</b><p>'+esc(ctx.message)+'</p></div>';
-    return '<div class="phfck-notice is-success phfck-violation-safety-banner phfck-violation-safety-banner-compact"><b>Đang ghi nhận lỗi cho: '+esc((person&&person.name)||'Nhân sự')+((person&&person.code)?' · '+esc(person.code):'')+'</b><p>'+esc((person&&person.title)||'Chưa có chức danh')+' · '+esc((person&&person.branch)||'Chưa có chi nhánh')+' · '+esc(ctx.version||'Mẫu đang áp dụng')+'</p></div>';
+    var noticeTemplateText=(ctx.meta&&ctx.meta.name)||'Mẫu đang áp dụng',noticeNote=violationTemplateOperationalNote(ctx);
+    return '<div class="phfck-notice is-success phfck-violation-safety-banner phfck-violation-safety-banner-compact"><b>Đang ghi nhận lỗi cho: '+esc((person&&person.name)||'Nhân sự')+((person&&person.code)?' · '+esc(person.code):'')+'</b><p>'+esc((person&&person.title)||'Chưa có chức danh')+' · '+esc((person&&person.branch)||'Chưa có chi nhánh')+' · '+esc(noticeTemplateText)+(noticeNote?' · '+esc(noticeNote):'')+'</p></div>';
   }
   function violationAssignmentCardHtml(){
     var ctx=violationAssignmentContext();
     if(!violationUiState.employeeId)return '<section class="phfck-assignment-card is-empty"><div class="phfck-assignment-main"><small>MẪU ĐANG ÁP DỤNG</small><b>Chọn nhân sự để hệ thống xác định mẫu</b><span>Phiên bản và ngày hiệu lực được đọc tự động từ phân công.</span></div></section>';
     if(!ctx.ok)return '<section class="phfck-assignment-card is-warning"><div class="phfck-assignment-main"><small>MẪU ĐANG ÁP DỤNG</small><b>Chưa xác định được phiên bản</b><span>'+esc(ctx.message)+'</span></div></section>';
     var person=ctx.person||{},meta=ctx.meta||{};
-    return '<section class="phfck-assignment-card"><div class="phfck-assignment-main"><small>MẪU ĐANG ÁP DỤNG</small><b>'+esc(meta.name||'Mẫu Checklist')+'</b><span>'+esc(person.department||'Chưa có phòng ban')+(person.title?' · '+esc(person.title):'')+'</span></div><div class="phfck-assignment-chips"><span title="Kỳ đánh giá">◷ Kỳ đánh giá '+esc(violationEvaluationPeriodValue())+'</span><span>'+esc(ctx.version)+'</span>'+(ctx.effectiveFrom?'<span>Hiệu lực '+esc(ctx.effectiveFrom)+'</span>':'')+(person.branch?'<span>'+esc(person.branch)+'</span>':'')+'</div></section>';
+    return '<section class="phfck-assignment-card"><div class="phfck-assignment-main"><small>MẪU ĐANG ÁP DỤNG</small><b>'+esc(meta.name||'Mẫu Checklist')+'</b><span>'+esc(person.department||'Chưa có phòng ban')+(person.title?' · '+esc(person.title):'')+'</span></div><div class="phfck-assignment-chips"><span title="Kỳ đánh giá">◷ Kỳ đánh giá '+esc(violationEvaluationPeriodValue())+'</span>'+(ctx.effectiveFrom?'<span>Áp dụng từ '+esc(checklistDmyDate(ctx.effectiveFrom))+'</span>':'')+(person.branch?'<span>'+esc(person.branch)+'</span>':'')+'</div></section>';
   }
   function violationEvaluationPeriodValue(){
     var period=roleWorkspaceState&&roleWorkspaceState.monthlyPeriod||null;
@@ -4178,7 +4189,8 @@
   function violationCompactContextHtml(){
     var person=violationSelectedEmployee(),ctx=violationAssignmentContext();
     if(!person)return '<div class="phfck-quick-context is-empty"><span>Chọn nhân viên để hệ thống tự xác định mẫu, kỳ đánh giá và địa điểm.</span></div>';
-    var templateText=ctx.ok?((ctx.meta&&ctx.meta.name)||'Mẫu Checklist')+' · '+(ctx.version||''):(ctx.message||'Chưa xác định mẫu');
+    var compactNote=violationTemplateOperationalNote(ctx);
+    var templateText=ctx.ok?((ctx.meta&&ctx.meta.name)||'Mẫu Checklist')+(compactNote?' · '+compactNote:''):(ctx.message||'Chưa xác định mẫu');
     var locationText=normalizeText(violationUiState.location||person.branch)||'Chưa có địa điểm';
     var periodText=violationEvaluationPeriodValue();
     return '<div class="phfck-quick-context '+(ctx.ok?'':'is-warning')+'"><div class="phfck-context-person"><small>ĐANG GHI NHẬN CHO</small><b>'+esc(person.name||'Nhân sự')+'</b><span>'+esc([person.code,person.title].filter(Boolean).join(' · '))+'</span></div><div class="phfck-context-chips"><span title="Kỳ đánh giá">◷ Kỳ đánh giá '+esc(periodText)+'</span><span title="Mẫu đang áp dụng">▤ '+esc(templateText)+'</span><span title="Địa điểm">⌖ '+esc(locationText)+'</span></div></div>';
@@ -7629,7 +7641,16 @@
     violationInitState.selectionToken=selectionToken;
     violationInitState.running=true;
     if(!checklistPeopleDataReady())showViolationLoading(root,false);
-    var workspaceTask=fetchViolationWorkspaceSnapshot(root,!!force);
+    /* Version-consistency fix (2026-09-12): mỗi lần workspace Ghi nhận lỗi được vào/kích
+       hoạt lại (đổi route, đổi vai trò, sự kiện 'phf-training-data-ready', bấm Thử lại...)
+       PHẢI bỏ qua bộ nhớ đệm 15s và tải lại checklistTemplates/checklistAssignments thật -
+       một tab/Admin khác có thể vừa "Lưu & áp dụng" phiên bản mẫu mới trong lúc tab này vẫn
+       mở. Không dùng lại giá trị `force` do caller truyền vào (đa số gọi force=false) vì
+       chính hành vi "vào lại workspace" ở đây là điểm cần làm tươi dữ liệu, không phải một
+       tuỳ chọn phụ. fetchViolationWorkspaceSnapshot() vẫn coalesce các lượt gọi đang chạy
+       cùng lúc qua violationWorkspaceFetchState.inflight nên không tạo request thừa.
+       KHÔNG thêm API mới - tái dùng nguyên GET /api/data?checklistWorkspace=1 hiện có. */
+    var workspaceTask=fetchViolationWorkspaceSnapshot(root,true);
     return Promise.allSettled([workspaceTask]).then(function(results){
       if(!violationLifecycleCurrent(token,selectionToken))return false;
       var peopleFailed=results[0]&&results[0].status==='rejected';

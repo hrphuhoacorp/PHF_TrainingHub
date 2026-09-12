@@ -222,6 +222,22 @@ async function main(){
     assert.strictEqual(out2.assignmentsChanged,0);
   });
 
+  // CASE — Multi-hop catch-up fix (2026-09-12, version-consistency audit). PHF012-shape:
+  // an assignment already 2+ activations behind (still pinned at BH-0.5, one version OLDER
+  // than fromVersion=BH-1.0 - e.g. it missed the earlier BH-0.5->BH-1.0 activation). BEFORE
+  // this fix it would land in otherVersion and NEVER be repointed by any later activation
+  // (permanent staleness). AFTER the fix it must be caught up in this single activation.
+  await rec('CASE — multi-hop stale pin (BH-0.5, 2 versions behind) is caught up by activation, not stranded as otherVersion', async()=>{
+    reset();rpcCalls.length=0;
+    store.checklist_employee_assignments.push(row('PHF012','nv-ban-hang','BH-0.5','Đang làm việc','2026-06-01T00:00:00Z'));
+    const dry=await svc.activateTemplateVersion(ADMIN,{templateKey:'nv-ban-hang',newVersion:'BH-2.0',effectiveDate:'2026-09-01',dryRun:true});
+    assert.ok(dry.scopeCodes.includes('PHF012'),'PHF012 (BH-0.5) must be IN scope, not otherVersion');
+    assert.strictEqual(dry.otherVersionCount,0,'no active assignment is stranded as otherVersion anymore');
+    await svc.activateTemplateVersion(ADMIN,{templateKey:'nv-ban-hang',newVersion:'BH-2.0',effectiveDate:'2026-09-01',reason:'Áp dụng BH 70/30 từ kỳ 09/2026 theo QĐ BGĐ'});
+    assert.strictEqual(asg('PHF012').template_version,'BH-2.0','PHF012 repointed to BH-2.0 even though it was 2 versions behind, not just 1');
+    assert.strictEqual(asg('PHF012').effective_date,'2026-09-01');
+  });
+
   // CASE — version not found
   await rec('activate non-existent version -> clear error, nothing written', async()=>{
     reset();rpcCalls.length=0;
