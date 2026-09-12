@@ -408,6 +408,30 @@ async function refreshUnlockedChecklistScore(form){
  const frozen=['reviewed','locked'].includes(form.status);
  return {...form,checklist_breakdown:frozen?{...breakdown,score:Number(form.checklist_score||0),locked:true}:breakdown};
 }
+/* Monthly score sync V1 (2026-09-12): write-through refresh for the OPEN monthly
+ * form of one employee+month right after an official (is_test=false) Daily
+ * Checklist violation is created/edited/cancelled — reusing refreshUnlockedChecklistScore()
+ * (same formula, same live-vs-frozen gate) instead of a second scoring path. Only
+ * touches a form that ALREADY exists and is still live (draft/waiting_self/
+ * waiting_review); never creates one. reviewed/locked forms are read-only here
+ * (refreshUnlockedChecklistScore() itself is the only place allowed to persist
+ * checklist_score, so this stays a thin caller of it). Callers (checklist-
+ * violations.js create/edit/cancel paths) call this once per affected
+ * employee+month bucket — including BOTH the old and the new bucket when an edit
+ * moves a record's employee_code/occurred_date across a boundary — and treat
+ * failures as best-effort (log + continue) so a sync hiccup never blocks the
+ * violation write itself. */
+async function syncMonthlyChecklistScoreForEmployeeMonth(employeeCode,periodMonth){
+ if(!db)return null;
+ const code=t(employeeCode).toUpperCase(),m=month(periodMonth);
+ if(!code||!m)return null;
+ const liveStatuses=['draft','waiting_self','waiting_review'];
+ const got=await db.from('checklist_monthly_forms').select('*').eq('period_month',m).in('status',liveStatuses).limit(500);
+ if(got.error)throw got.error;
+ const form=(got.data||[]).find(row=>t(row.employee_code).toUpperCase()===code);
+ if(!form)return null;
+ return refreshUnlockedChecklistScore(form);
+}
 async function formHistories(formIds){
  const ids=[...new Set((formIds||[]).map(t).filter(Boolean))];if(!ids.length)return new Map();
  const got=await db.from('checklist_monthly_form_history').select('*').in('form_id',ids).order('changed_at',{ascending:true});if(got.error)throw got.error;
@@ -726,6 +750,33 @@ function resolveMonthlyCycleWindowSync(periodMonth,policy,override){
  const pick=(key,base)=>override&&override[key]!=null?override[key]:base;
  return {periodMonth:month(periodMonth),selfOpenAt:periodDateTime(periodMonth,pick('self_start_day',policy.selfStartDay),'00:00'),selfDueAt:periodDateTime(periodMonth,pick('self_end_day',policy.selfEndDay),'23:59'),reviewOpenAt:periodDateTime(periodMonth,pick('review_start_day',policy.reviewStartDay),'00:00'),reviewDueAt:periodDateTime(periodMonth,pick('review_end_day',policy.reviewEndDay),'23:59'),lockAt:periodDateTime(periodMonth,pick('lock_day',policy.lockDay),pick('lock_time',policy.lockTime)),isOverride:Boolean(override),overrideReason:t(override&&override.reason)};
 }
+const MONTHLY_LIVE_STATUSES=['draft','waiting_self','waiting_review'];
+/* Read-side defense (2026-09-12): myMonthlyReviewSummaries() lists many forms at
+ * once and previously returned the raw stored checklist_score, which goes stale
+ * the moment a Daily Checklist violation changes without a write-through hitting
+ * that exact form (e.g. before this fix, or if a sync call is ever missed).
+ * For OPEN forms only, override with the current live score using ONE batched
+ * checklist_violation_records query per period_month (same shape as listMonthly()'s
+ * existing batch) — no per-form query (no N+1), and reviewed/locked forms are
+ * left untouched (frozen = stored value is the historical truth). */
+async function liveChecklistScoreOverrides(forms){
+ const liveForms=(forms||[]).filter(f=>MONTHLY_LIVE_STATUSES.includes(f.status));
+ if(!liveForms.length)return new Map();
+ const codesByMonth=new Map();
+ liveForms.forEach(f=>{const m=month(f.period_month);if(!codesByMonth.has(m))codesByMonth.set(m,new Set());codesByMonth.get(m).add(t(f.employee_code).toUpperCase());});
+ const pointsByMonth=new Map();
+ await Promise.all([...codesByMonth.entries()].map(async([m,codesSet])=>{
+  const codes=[...codesSet];if(!codes.length)return;
+  const range=periodBounds(m);
+  const {data,error}=await db.from('checklist_violation_records').select('employee_code,points').in('employee_code',codes).eq('is_test',false).eq('record_status','official').gte('occurred_date',range.start).lte('occurred_date',range.end);
+  if(error)throw error;
+  const map=new Map();(data||[]).forEach(x=>{const c=t(x.employee_code).toUpperCase();map.set(c,(map.get(c)||0)+Math.max(0,Number(x.points||0)));});
+  pointsByMonth.set(m,map);
+ }));
+ const overrides=new Map();
+ liveForms.forEach(f=>{const m=month(f.period_month),code=t(f.employee_code).toUpperCase(),points=(pointsByMonth.get(m)||new Map()).get(code)||0;overrides.set(f.id,Math.max(0,100-points));});
+ return overrides;
+}
 async function myMonthlyReviewSummaries(session,input={}){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');
  let query=db.from('checklist_monthly_forms').select(MONTHLY_REVIEW_SUMMARY_FIELDS).in('status',['draft','waiting_self','waiting_review','reviewed','locked']).order('period_month',{ascending:false}).order('self_submitted_at',{ascending:true}).limit(500);
@@ -735,7 +786,9 @@ async function myMonthlyReviewSummaries(session,input={}){
     capability/scope ở server. */
  const [context,result]=await Promise.all([monthlyReviewAccessContext(session),query]);
  if(result.error)throw result.error;if(session?.role!=='admin'&&!context.access.canReview)return {forms:[],summaryMode:true};
- const unique=new Map((result.data||[]).filter(form=>monthlyReviewVisible(session,context,form)).map(x=>[x.id,x])),rawForms=[...unique.values()];
+ const unique=new Map((result.data||[]).filter(form=>monthlyReviewVisible(session,context,form)).map(x=>[x.id,x])),rawFormsRaw=[...unique.values()];
+ const scoreOverrides=await liveChecklistScoreOverrides(rawFormsRaw);
+ const rawForms=rawFormsRaw.map(form=>scoreOverrides.has(form.id)?{...form,checklist_score:scoreOverrides.get(form.id)}:form);
  /* Cấu hình chu kỳ và toàn bộ ngoại lệ tháng được đọc theo lô, song song.
     Trước đây mỗi tháng phát sinh hai lượt Supabase nối tiếp. */
  const windows=await monthlyReviewWindows(rawForms.map(form=>form.period_month));
@@ -1265,4 +1318,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,classifyChecklistMonthlyRetroactiveScope,applyChecklistMonthlyRetroactiveScope,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,classifyChecklistMonthlyRetroactiveScope,applyChecklistMonthlyRetroactiveScope,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState,syncMonthlyChecklistScoreForEmployeeMonth};
