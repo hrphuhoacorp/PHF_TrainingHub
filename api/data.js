@@ -10,7 +10,7 @@ const { listClassroomUsers } = require('./_lib/classroom-users');
 const { listProposals, saveProposal, reviewProposal } = require('./_lib/classroom-proposals');
 const { listNotifications, saveNotification, markNotificationRead, markAllNotificationsRead, hideNotification } = require('./_lib/classroom-notifications');
 const { getSettings, saveSettings, resetSettings, softDelete, restore, purge, listAudit } = require('./_lib/classroom-settings');
-const { listChecklistAssignments, saveChecklistAssignments } = require('./_lib/checklist-assignments');
+const { listChecklistAssignments, saveChecklistAssignments, listChecklistAssignmentHistory } = require('./_lib/checklist-assignments');
 const { listChecklistTemplates, saveChecklistTemplate, saveChecklistTemplateLibrary } = require('./_lib/checklist-templates');
 // Proposal V2 (2026-08-29) — dùng để tính viewer flags (canAccept/canReject/
 // canCancel) cho detail DTO, xem attachProposalViewerFlags() bên dưới.
@@ -954,9 +954,18 @@ module.exports = async function handler(req, res) {
         }
       }
       if (checklistWorkspaceMode) {
-        const [workspace, templateData, violationMode] = await Promise.all([
-          getChecklistRoleWorkspace(session),
-          listChecklistTemplates({compact:true}),
+        const workspace = await getChecklistRoleWorkspace(session);
+        const peopleCodes = Array.isArray(workspace.people) ? workspace.people.map(p=>p.employeeCode).filter(Boolean) : [];
+        /* Version-consistency audit round 2 (2026-09-12): Ghi nhận lỗi cho một ngày TRƯỚC
+           ngày hiệu lực của phân công hiện tại cần đúng phân công/mẫu đã hiệu lực tại ngày
+           đó - không chỉ snapshot hiện tại. assignmentHistory phải có TRƯỚC khi gọi
+           listChecklistTemplates() vì nó quyết định fullVersionsFor (những mẫu nào cần nạp
+           đủ lịch sử phiên bản) - không thể chạy song song với bước đó, nhưng vẫn bounded
+           đúng theo peopleCodes (tập nhân sự đang hiển thị), không quét toàn công ty. */
+        const assignmentHistory = await listChecklistAssignmentHistory(peopleCodes);
+        const fullVersionsFor = [...new Set(assignmentHistory.flatMap(h=>[String(h.templateId||'').toLowerCase(),String(h.previousTemplateId||'').toLowerCase()]).filter(Boolean))];
+        const [templateData, violationMode] = await Promise.all([
+          listChecklistTemplates({compact:true, fullVersionsFor}),
           getChecklistViolationMode()
         ]);
         return res.status(200).json({
@@ -966,6 +975,7 @@ module.exports = async function handler(req, res) {
           checklistWorkspaceCompact:true,
           checklistAssignmentsReady:true,
           checklistAssignmentsError:'',
+          checklistAssignmentHistory:assignmentHistory,
           checklistTemplates:Array.isArray(templateData.templates)?templateData.templates:[],
           checklistTemplatesReady:templateData.ready===true,
           checklistTemplatesError:templateData.error||'',

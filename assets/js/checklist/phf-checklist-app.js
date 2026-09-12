@@ -1924,6 +1924,14 @@
   var CHECKLIST_BRANCH_STORE='phf_checklist_branch_assignments_v1';
   var CHECKLIST_MANAGER_STORE='phf_checklist_manager_assignments_v1';
   var CHECKLIST_EMPLOYEE_STATUS_STORE='phf_checklist_employee_status_assignments_v1';
+  /* Version-consistency audit round 2 (2026-09-12): danh sách phân công LỊCH SỬ cho tập
+     nhân sự đang hiển thị - đến từ data.checklistAssignmentHistory (GET
+     /api/data?checklistWorkspace=1, mở rộng ở api/data.js#checklistWorkspaceMode). Giữ
+     THUẦN in-memory (không localStorage) vì được tải mới hoàn toàn mỗi lần
+     fetchViolationWorkspaceSnapshot() chạy (Fix 1, luôn force refresh) - không cần bền
+     qua phiên. Key giống hệt formAssignmentKey()/hydrateChecklistAssignmentsFromDatabase()
+     (employeeKey||employeeCode, normalize+lowercase) để join đúng với phân công hiện tại. */
+  var checklistAssignmentHistoryByKey={};
   var pendingTitleChange=null;
   var pendingBranchChange=null;
   var checklistAssignmentDbState={suppress:false,timer:null,inflight:null,lastError:'',ready:false,revision:0,settledRevision:0,baseline:{},versions:{},retryTimer:null,retryCount:0,retryScheduled:false,blocked:false};
@@ -1975,9 +1983,20 @@
       .finally(function(){checklistAssignmentDbState.inflight=null;if(!checklistAssignmentDbState.blocked&&!checklistAssignmentDbState.retryScheduled&&checklistAssignmentDbState.revision>checklistAssignmentDbState.settledRevision)setTimeout(function(){persistChecklistAssignmentsToDatabase();},0);});
     return checklistAssignmentDbState.inflight;
   }
+  function hydrateChecklistAssignmentHistory(data){
+    var rows=data&&Array.isArray(data.checklistAssignmentHistory)?data.checklistAssignmentHistory:[];
+    var byKey={};
+    rows.forEach(function(h){
+      var key=normalizeText(h&&(h.employeeKey||h.employeeCode)).toLowerCase();if(!key)return;
+      if(!byKey[key])byKey[key]=[];
+      byKey[key].push(h);
+    });
+    checklistAssignmentHistoryByKey=byKey;
+  }
   function hydrateChecklistAssignmentsFromDatabase(data){
     var rows=data&&Array.isArray(data.checklistAssignments)?data.checklistAssignments:[];
     checklistAssignmentDbState.ready=!!(data&&data.checklistAssignmentsReady);checklistAssignmentDbState.lastError=normalizeText(data&&data.checklistAssignmentsError);checklistAssignmentDbState.blocked=false;checklistAssignmentDbState.retryCount=0;checklistAssignmentDbState.retryScheduled=false;clearTimeout(checklistAssignmentDbState.retryTimer);
+    hydrateChecklistAssignmentHistory(data);
     if(!checklistAssignmentDbState.ready||!rows.length){if(checklistAssignmentDbState.ready&&!rows.length)setTimeout(scheduleChecklistAssignmentsPersist,100);return;}
     var departments={},titles={},positions={},branches={},managers={},statuses={},forms={};
     rows.forEach(function(row){var key=normalizeText(row.employeeKey||row.employeeCode||row.employeeId).toLowerCase();if(!key)return;departments[key]=normalizeText(row.department);titles[key]={title:normalizeText(row.title),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};positions[key]={position:normalizeText(row.position),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};branches[key]={branch:normalizeText(row.branch),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};managers[key]={managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};statuses[key]={status:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',note:row.statusNote||'',effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};if(row.templateId)forms[key]={templateId:normalizeLegacyTemplateId(row.templateId),templateVersion:(row.templateId==='nv-thu-mua'?'TBP-TM-1.0':(row.templateVersion||'')),effectiveDate:row.effectiveDate||'',reason:row.reason||'',updatedAt:row.updatedAt||''};checklistAssignmentDbState.versions[key]=row.updatedAt||'';checklistAssignmentDbState.baseline[key]=assignmentComparable({employeeId:row.employeeId||'',employeeCode:row.employeeCode||'',employeeName:row.employeeName||'',department:row.department||'',title:row.title||'',position:row.position||'',branch:row.branch||'',managerId:row.managerId||'',managerCode:row.managerCode||'',managerName:row.managerName||'',employeeStatus:row.employeeStatus||'Đang làm việc',leaveUntil:row.leaveUntil||'',statusNote:row.statusNote||'',templateId:row.templateId||'',templateVersion:row.templateVersion||'',effectiveDate:row.effectiveDate||'',reason:row.reason||''});});
@@ -4044,19 +4063,57 @@
     });
   }
   function violationSelectedEmployee(){var id=String(violationUiState.employeeId||'');if(!id)return null;var snapshot=violationUiState.selectedEmployee;if(snapshot&&String(snapshot.id)===id)return snapshot;var live=violationEligibleEmployees().find(function(item){return String(item.id)===id;})||null;if(live)violationUiState.selectedEmployee=Object.assign({},live);return live;}
+  /* Version-consistency audit round 2 (2026-09-12) - mirror của resolveAssignmentAt() ở
+     lib/checklist-violations.js: employee + occurredDate -> phân công (hiện tại + lịch sử,
+     mỗi dòng lịch sử đóng góp CẢ trạng thái mới ghi trên dòng LẪN trạng thái cũ trong
+     previous_data) -> dòng có effective_date lớn nhất <= occurredDate (hòa thì ưu tiên
+     changedAt/updatedAt mới hơn, đúng thứ tự sort của backend). Trả về template_id đã
+     resolve cho đúng ngày được chọn - CHÍNH mảnh còn thiếu trước đây: assignmentTemplateMeta()
+     vẫn chỉ chọn PHIÊN BẢN theo effective_date của MẪU, nhưng luôn nhận nguyên assigned.templateId
+     của phân công HIỆN TẠI bất kể occurredDate - khiến một ngày trước lần đổi phân công gần
+     nhất không bao giờ resolve được, dù dữ liệu lịch sử đã có sẵn trong CSDL. */
+  function violationAssignmentHistoryCandidates(key){
+    return (checklistAssignmentHistoryByKey&&checklistAssignmentHistoryByKey[key])||[];
+  }
+  function resolveEmployeeAssignmentAt(person,eventDate){
+    var key=formAssignmentKey(person),current=loadFormAssignments()[key]||null;
+    var target=checklistIsoDate(eventDate||todayIso()),candidates=[];
+    function push(templateId,templateVersion,effectiveDate,changedAt){
+      templateId=normalizeText(templateId);effectiveDate=checklistIsoDate(effectiveDate||'');
+      if(!templateId||!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate))return;
+      candidates.push({templateId:templateId,templateVersion:normalizeText(templateVersion),effectiveDate:effectiveDate,changedAt:normalizeText(changedAt)});
+    }
+    if(current)push(current.templateId,current.templateVersion,current.effectiveDate,current.updatedAt);
+    violationAssignmentHistoryCandidates(key).forEach(function(h){
+      push(h.templateId,h.templateVersion,h.effectiveDate,h.changedAt);
+      push(h.previousTemplateId,h.previousTemplateVersion,h.previousEffectiveDate,h.changedAt);
+    });
+    var eligible=candidates.filter(function(c){return c.effectiveDate<=target;});
+    eligible.sort(function(a,b){
+      if(a.effectiveDate!==b.effectiveDate)return a.effectiveDate<b.effectiveDate?1:-1;
+      return a.changedAt<b.changedAt?1:(a.changedAt>b.changedAt?-1:0);
+    });
+    return eligible[0]||null;
+  }
   function violationAssignmentContextAt(eventDate){
     var person=violationSelectedEmployee();if(!person)return {ok:false,message:'Chọn nhân sự đang làm việc và đã được gán mẫu Checklist.'};
     var assigned=loadFormAssignments()[formAssignmentKey(person)]||null;if(!assigned||!assigned.templateId)return {ok:false,message:'Nhân sự chưa được gán mẫu Checklist.'};
-    eventDate=eventDate||violationUiState.date||todayIso();var meta=assignmentTemplateMeta(assigned.templateId,eventDate);
+    eventDate=eventDate||violationUiState.date||todayIso();
+    var resolved=resolveEmployeeAssignmentAt(person,eventDate);
+    if(!resolved)return {ok:false,person:person,assigned:assigned,eventDate:eventDate,message:'Không tìm thấy phân công Checklist có hiệu lực tại ngày '+eventDate+'.'};
+    var meta=assignmentTemplateMeta(resolved.templateId,eventDate);
     if(!meta||!meta.version)return {ok:false,person:person,assigned:assigned,eventDate:eventDate,message:'Không có phiên bản mẫu hiệu lực tại ngày '+eventDate+'.'};
-    return {ok:true,person:person,assigned:assigned,eventDate:eventDate,templateId:assigned.templateId,version:meta.version,effectiveFrom:meta.effectiveFrom||'',meta:meta};
+    return {ok:true,person:person,assigned:assigned,eventDate:eventDate,templateId:resolved.templateId,version:meta.version,effectiveFrom:meta.effectiveFrom||'',meta:meta};
   }
   function violationAssignmentContextForEmployee(person,eventDate){
     if(!person)return {ok:false,message:'Chưa chọn nhân sự.'};
     var assigned=loadFormAssignments()[formAssignmentKey(person)]||null;if(!assigned||!assigned.templateId)return {ok:false,person:person,message:'Nhân sự chưa được gán mẫu Checklist.'};
-    eventDate=eventDate||todayIso();var meta=assignmentTemplateMeta(assigned.templateId,eventDate);
+    eventDate=eventDate||todayIso();
+    var resolved=resolveEmployeeAssignmentAt(person,eventDate);
+    if(!resolved)return {ok:false,person:person,assigned:assigned,eventDate:eventDate,message:'Không tìm thấy phân công Checklist có hiệu lực tại ngày '+eventDate+'.'};
+    var meta=assignmentTemplateMeta(resolved.templateId,eventDate);
     if(!meta||!meta.version)return {ok:false,person:person,assigned:assigned,eventDate:eventDate,message:'Không có phiên bản mẫu hiệu lực tại ngày '+eventDate+'.'};
-    return {ok:true,person:person,assigned:assigned,eventDate:eventDate,templateId:assigned.templateId,version:meta.version,effectiveFrom:meta.effectiveFrom||'',meta:meta};
+    return {ok:true,person:person,assigned:assigned,eventDate:eventDate,templateId:resolved.templateId,version:meta.version,effectiveFrom:meta.effectiveFrom||'',meta:meta};
   }
   function violationAssignmentContext(){return violationAssignmentContextAt(violationUiState.date||todayIso());}
   function violationEmployeeDisplay(person){

@@ -123,4 +123,38 @@ async function saveChecklistAssignments(session, rows){
   return {saved:Number(result&&result.saved)||normalized.length,changed:Number(result&&result.changed)||0,assignments:(saved||[]).map(publicRow)};
 }
 
-module.exports={listChecklistAssignments,saveChecklistAssignments};
+/*
+ * Version-consistency audit round 2 (2026-09-12) - Ghi nhận lỗi cho một ngày TRƯỚC ngày
+ * hiệu lực của phân công hiện tại (CURRENT_TABLE) phải resolve đúng phân công LỊCH SỬ đã
+ * hiệu lực tại ngày đó, giống hệt canonical resolver ở lib/checklist-violations.js
+ * (resolveAssignmentAt: current row UNION history rows, mỗi history row đóng góp 2 trạng
+ * thái - trạng thái MỚI ghi ngay trên dòng, và trạng thái CŨ trong previous_data, xem
+ * PHF_CHECKLIST_ASSIGNMENTS_1.7.77.sql#phf_save_checklist_assignments). Hàm này chỉ ĐỌC,
+ * bounded theo đúng tập nhân sự đang hiển thị (employeeCodes do caller truyền vào, không
+ * quét toàn bộ lịch sử toàn công ty) - dùng để mở rộng payload
+ * GET /api/data?checklistWorkspace=1 hiện có, KHÔNG tạo API mới.
+ */
+function publicHistoryRow(r){
+  const prev=r&&r.previous_data&&typeof r.previous_data==='object'?r.previous_data:null;
+  return {
+    employeeKey:r.employee_key||'', employeeId:r.employee_id||'', employeeCode:r.employee_code||'',
+    templateId:r.template_id||'', templateVersion:r.template_version||'', effectiveDate:r.effective_date||'',
+    changedAt:r.changed_at||r.updated_at||'',
+    previousTemplateId:prev?text(prev.template_id):'', previousTemplateVersion:prev?text(prev.template_version):'',
+    previousEffectiveDate:prev?text(prev.effective_date):''
+  };
+}
+async function listChecklistAssignmentHistory(employeeCodes){
+  if(!supabase) return [];
+  const codes=[...new Set((employeeCodes||[]).map(c=>text(c).toUpperCase()).filter(Boolean))];
+  if(!codes.length) return [];
+  const {data,error}=await supabase.from(HISTORY_TABLE)
+    .select('employee_key,employee_id,employee_code,template_id,template_version,effective_date,previous_data,changed_at,updated_at')
+    .in('employee_code',codes)
+    .order('changed_at',{ascending:false})
+    .limit(2000);
+  if(error){ if(schemaMissing(error)) return []; throw error; }
+  return (data||[]).map(publicHistoryRow);
+}
+
+module.exports={listChecklistAssignments,saveChecklistAssignments,listChecklistAssignmentHistory};
