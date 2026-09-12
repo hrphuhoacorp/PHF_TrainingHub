@@ -40,11 +40,22 @@ function check(condition, message) {
   if (!condition) { console.error('FAIL: ' + message); failures++; }
   else console.log('PASS: ' + message);
 }
+// Brace-counting (not a 2-space-closing-line regex): robust to any function body
+// formatting, e.g. a multi-line sort comparator whose closing is `});}` rather than a bare
+// `}` on its own 2-space-indented line (see checklistTemplateVersions() same-day tie-break
+// fix, 2026-09-12).
 function extractFnSource(source, name) {
-  const re = new RegExp('function ' + name + '\\([^)]*\\)\\{[\\s\\S]*?\\n  \\}');
-  const m = source.match(re);
-  if (!m) throw new Error('function ' + name + '() not found in ' + appPath);
-  return m[0];
+  const startRe = new RegExp('function ' + name + '\\([^)]*\\)\\{');
+  const sm = source.match(startRe);
+  if (!sm) throw new Error('function ' + name + '() not found in ' + appPath);
+  let i = sm.index + sm[0].length, depth = 1;
+  while (depth > 0 && i < source.length) {
+    const ch = source[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    i++;
+  }
+  return source.slice(sm.index, i);
 }
 
 const FN_NAMES = ['normalizeText', 'checklistIsoDate', 'formAssignmentKey', 'violationAssignmentHistoryCandidates', 'resolveEmployeeAssignmentAt'];

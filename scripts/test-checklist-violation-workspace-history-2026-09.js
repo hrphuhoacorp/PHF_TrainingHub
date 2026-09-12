@@ -218,9 +218,21 @@ async function runBackendCanonicalAndParityChecks() {
   console.log('== Part 4: frontend/backend parity for the SAME fixture/date ==');
   const app = fs.readFileSync(path.resolve(__dirname, '..', 'assets/js/checklist/phf-checklist-app.js'), 'utf8');
   const FN_NAMES = ['normalizeText', 'checklistIsoDate', 'formAssignmentKey', 'violationAssignmentHistoryCandidates', 'resolveEmployeeAssignmentAt'];
+  // Brace-counting (not a 2-space-closing-line regex): robust to any function body
+  // formatting, e.g. a multi-line sort comparator whose closing is `});}` (see
+  // checklistTemplateVersions() same-day tie-break fix, 2026-09-12).
   function extractFnSource(name) {
-    const re = new RegExp('function ' + name + '\\([^)]*\\)\\{[\\s\\S]*?\\n  \\}');
-    const m = app.match(re); if (!m) throw new Error('missing ' + name); return m[0];
+    const startRe = new RegExp('function ' + name + '\\([^)]*\\)\\{');
+    const sm = app.match(startRe);
+    if (!sm) throw new Error('missing ' + name);
+    let i = sm.index + sm[0].length, depth = 1;
+    while (depth > 0 && i < app.length) {
+      const ch = app[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      i++;
+    }
+    return app.slice(sm.index, i);
   }
   const CURRENT_FORMS_FRONTEND = { phf012: { templateId: 'qtth-hcns-thang', templateVersion: 'TBP-HCNS-1.3', effectiveDate: '2026-09-12', updatedAt: '2026-09-12T03:00:00Z' } };
   const HISTORY_BY_KEY_FRONTEND = { phf012: [{ employeeKey: 'phf012', employeeCode: 'PHF012', templateId: 'qtth-hcns-thang', templateVersion: 'TBP-HCNS-1.3', effectiveDate: '2026-09-12', changedAt: '2026-09-12T03:00:00Z', previousTemplateId: 'qtth-hcns-thang', previousTemplateVersion: 'TBP-HCNS-1.2', previousEffectiveDate: '2026-08-01' }] };
