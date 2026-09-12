@@ -2135,6 +2135,15 @@
         current.checklistAssignments=Array.isArray(data.checklistAssignments)?data.checklistAssignments:current.employees.slice();
         current.checklistAssignmentsReady=data.checklistAssignmentsReady===true;
         current.checklistAssignmentsError=data.checklistAssignmentsError||'';
+        /* Version-consistency audit round 4 (2026-09-12): GET /api/data?checklistWorkspace=1
+           đã trả checklistAssignmentHistory (Round 2, PR #75) nhưng hàm này - viết từ Round 1
+           trước khi field đó tồn tại - chưa từng copy nó sang `current`/window.__phfLocalData.
+           hydrateChecklistAssignmentsFromDatabase(current) bên dưới đọc
+           current.checklistAssignmentHistory (qua hydrateChecklistAssignmentHistory()) nên nếu
+           thiếu dòng này, checklistAssignmentHistoryByKey LUÔN rỗng trên trình duyệt thật dù
+           API đã trả đúng dữ liệu lịch sử - đúng nguyên nhân Ghi nhận lỗi báo "Không tìm thấy
+           phân công Checklist có hiệu lực" cho một ngày trước lần đổi phân công gần nhất. */
+        current.checklistAssignmentHistory=Array.isArray(data.checklistAssignmentHistory)?data.checklistAssignmentHistory:[];
         current.checklistTemplates=Array.isArray(data.checklistTemplates)?data.checklistTemplates:[];
         current.checklistTemplatesReady=data.checklistTemplatesReady===true;
         current.checklistTemplatesError=data.checklistTemplatesError||'';
