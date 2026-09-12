@@ -5243,4 +5243,14 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-auto-score.is-system-locked{opacity:1}
 .phfck-auto-score.is-system-locked small{color:var(--phfck-muted);font-weight:600}
 .phfck-context-hint{display:block;margin-top:3px;font-size:10.5px;font-style:normal;color:var(--phfck-muted)}
+
+/* Criterion Admin UX V2 (2026-09) — Part G: cột thao tác tiêu chí gọn một dòng
+   "↑ ↓ Sửa ⋯", tái dùng .phfck-row-menu/.phfck-row-menu-pop đã có (khu Nhân sự chưa liên
+   kết) cho phần popover — không có gì mới về hành vi, chỉ đóng gói lại layout. */
+.phfck-ce-actions{white-space:nowrap}
+.phfck-ce-actions-line{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.phfck-ce-icon-btn{min-width:30px;height:30px;padding:0 8px;border:1px solid #bad7cb;border-radius:9px;background:#fff;color:#075b46;font-weight:700;font-size:13px;line-height:1;cursor:pointer}
+.phfck-ce-icon-btn:disabled{opacity:.4;cursor:not-allowed}
+.phfck-ce-menu-edit{display:none}
+@media(max-width:640px){.phfck-ce-edit-btn{display:none}.phfck-ce-menu-edit{display:block}}
 .phfck-manager-people-action.is-late{border-color:#f6c96b;background:#fff8e9;color:#9a6b00}
