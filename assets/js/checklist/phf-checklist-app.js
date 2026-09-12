@@ -2022,7 +2022,20 @@
   function checklistIsoDate(value){value=normalizeText(value);var m=value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:value;}
   function checklistDmyDate(value){value=normalizeText(value);var m=value.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:value;}
   function checklistFormatDateTime(value){value=normalizeText(value);if(!value)return '';try{var d=new Date(value);if(isNaN(d.getTime()))return '';return d.toLocaleString('vi-VN',{hour12:false});}catch(_){return '';}}
-  function checklistTemplateVersions(id){var row=checklistTemplateDatabaseRow(id),versions=row&&Array.isArray(row.versions)?row.versions.slice():[];if(row&&row.version&&!versions.some(function(x){return x.version===row.version;}))versions.push({version:row.version,effectiveDate:row.effectiveDate||'',reason:row.reason||'',definition:row.definition||null});return versions.filter(function(x){return normalizeText(x&&x.version);}).sort(function(a,b){return checklistIsoDate(a.effectiveDate||'').localeCompare(checklistIsoDate(b.effectiveDate||''));});}
+  function checklistTemplateVersions(id){var row=checklistTemplateDatabaseRow(id),versions=row&&Array.isArray(row.versions)?row.versions.slice():[];if(row&&row.version&&!versions.some(function(x){return x.version===row.version;}))versions.push({version:row.version,effectiveDate:row.effectiveDate||'',reason:row.reason||'',definition:row.definition||null});return versions.filter(function(x){return normalizeText(x&&x.version);}).sort(function(a,b){
+    /* Same-day tie-break fix (2026-09-12): nhiều phiên bản có thể cùng effectiveDate (Admin
+       publish 3 lần trong một ngày, vd 1.3/1.4/1.5 cùng hiệu lực 12/09). Chỉ sort theo
+       effectiveDate là KHÔNG đủ - Array.sort ổn định nên các phần tử bằng nhau giữ nguyên
+       thứ tự đầu vào (created_at DESC từ backend publicTemplate()), khiến
+       assignmentTemplateMeta()'s "last match wins" chọn nhầm bản CŨ NHẤT trong nhóm cùng
+       ngày thay vì bản MỚI NHẤT - ngược với canonical backend resolveTemplateVersionAt()
+       (ORDER BY effective_date DESC, created_at DESC LIMIT 1). Thêm createdAt làm khóa phụ
+       ASC để cùng ngày thì bản tạo sau đứng sau trong mảng - "last match wins" của
+       assignmentTemplateMeta() khi đó tự nhiên chọn đúng bản mới nhất, không đổi hàm đó. */
+    var d=checklistIsoDate(a.effectiveDate||'').localeCompare(checklistIsoDate(b.effectiveDate||''));
+    if(d)return d;
+    return String(a.createdAt||'').localeCompare(String(b.createdAt||''));
+  });}
   /* Tra cứu hiệu lực/lý do của một phiên bản nội bộ để hiển thị thông tin vận hành
      (ngày áp dụng, lý do thay đổi) thay cho chuỗi phiên bản kỹ thuật thô. */
   function templateVersionInfo(templateId,version){version=normalizeText(version);if(!version)return null;var list=checklistTemplateVersions(templateId)||[];return list.find(function(v){return normalizeText(v&&v.version)===version;})||null;}
