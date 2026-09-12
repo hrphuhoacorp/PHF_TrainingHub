@@ -5254,3 +5254,13 @@ html.phfck-modal-open,body.phfck-modal-open{overscroll-behavior:none}
 .phfck-ce-menu-edit{display:none}
 @media(max-width:640px){.phfck-ce-edit-btn{display:none}.phfck-ce-menu-edit{display:block}}
 .phfck-manager-people-action.is-late{border-color:#f6c96b;background:#fff8e9;color:#9a6b00}
+
+/* Apply-timing V1 (2026-09-12) — quyết định "áp dụng ngay / chỉ áp dụng kỳ tiếp theo" gộp
+   vào modal xác nhận Quản lý tiêu chí (cePreviewHtml), tái dùng .phfck-notice sẵn có cho
+   cảnh báo YELLOW/ORANGE — chỉ thêm bố cục cho khối lựa chọn + xác nhận riêng. */
+.phfck-ce-timing-choice{margin:14px 0 0;padding:14px 16px;border:1px solid #dce8df;border-radius:12px;background:#f8fbf8}
+.phfck-ce-timing-choice h3{margin:0 0 8px;font-size:12px;color:#315344}
+.phfck-ce-timing-option{display:flex;align-items:flex-start;gap:8px;font-size:11.5px;color:#33463c;margin:0 0 8px;cursor:pointer}
+.phfck-ce-timing-option input{margin-top:2px}
+.phfck-ce-timing-confirm{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#755f2c;margin:8px 0 0;cursor:pointer}
+.phfck-ce-timing-confirm input{margin-top:2px}

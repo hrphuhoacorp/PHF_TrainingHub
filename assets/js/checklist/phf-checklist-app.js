@@ -3345,6 +3345,28 @@
     var after=ceCanonical(normalizeSharedCriterionFactors(state.groups||[]));
     return JSON.stringify(before)!==JSON.stringify(after);
   }
+  /* Apply-timing V1 (2026-09-12) — PHF071/KTT PROD gap: trước đây quyết định "áp dụng ngay
+     cho kỳ hiện tại hay chỉ từ kỳ sau" chỉ được hỏi SAU KHI phiên bản đã lưu xong (xem
+     checklistRetroOfferCurrentPeriod/checklistRetroDecisionState) — Admin có thể tưởng đã
+     xong việc trước khi quyết định thật sự được đưa ra. Hàm này tái dùng NGUYÊN đường
+     classify server (checklistRetroClassifyCurrentPeriod, action đã có sẵn, KHÔNG có RPC
+     mới) nhưng gọi TRƯỚC khi mở modal xác nhận cuối cùng, để quyết định trở thành một PHẦN
+     của modal xác nhận đó (cePreviewHtml), không phải bước phụ rời sau khi đã lưu. Lỗi/mất
+     mạng được nuốt êm (retro=null) — coi như không có gì để hỏi, luồng quay lại y hệt trước
+     khi có Apply-timing V1 (chỉ xác nhận phiên bản, xem ceFinishApplyTiming). */
+  async function ceClassifyCurrentPeriod(p){
+    p.retro=null;
+    try{
+      var periodMonth=todayIso().slice(0,7);
+      var cls=await checklistRetroApiCall('checklistRetroClassifyCurrentPeriod',{templateId:p.templateId,periodMonth:periodMonth});
+      var counts=checklistRetroTierCounts(cls);
+      var total=Number(cls&&cls.totalAffected)||(counts.green+counts.yellow+counts.orange);
+      p.retro={periodMonth:periodMonth,periodLocked:!!(cls&&cls.periodLocked),counts:counts,
+        offerTiming:!!(cls&&!cls.periodLocked&&total>0),choice:'now',confirmed:false,applyError:''};
+    }catch(_e){p.retro=null;}
+    return p.retro;
+  }
+  function cePreviewRerender(){var r=document.getElementById('phfChecklistRoot');if(r&&pendingCePublish)appendSubmodal(r,cePreviewHtml(pendingCePublish));}
   /* Part A/B (2026-09) — đọc trực tiếp DOM của form "Thêm tiêu chí mới" đang hiển thị (form
      này không còn nút chốt riêng — chỉ có "Lưu & áp dụng" đọc form tại thời điểm bấm), tách
      khỏi phần tạo nhóm mới inline ("+ Tạo nhóm mới..." trong dropdown "Thuộc nhóm" — Part E). */
@@ -3418,9 +3440,13 @@
     checklistCeState.effectiveDate=checklistCeState.effectiveDate||todayIso();
     checklistCeState.newVersion=nextTemplateVersion(checklistCeState.oldVersion);
     pendingCePublish={state:checklistCeState,templateId:checklistCeState.templateId,oldVersion:checklistCeState.oldVersion,newVersion:checklistCeState.newVersion,effectiveDate:checklistCeState.effectiveDate,reason:reason};
-    /* root có thể null khi được gọi trực tiếp từ test offline thuần logic (cùng convention
-       "if(root)appendSubmodal(...)" đã dùng ở checklistRetroOfferCurrentPeriod) — phần DOM
-       thật (appendSubmodal/prepareChecklistModalLayer) chỉ chạy khi có root browser thật. */
+    /* Apply-timing V1 — phân loại tác động kỳ hiện tại TRƯỚC khi mở modal xác nhận cuối cùng
+       (xem ceClassifyCurrentPeriod ở trên). root có thể null khi được gọi trực tiếp từ test
+       offline thuần logic (cùng convention "if(root)appendSubmodal(...)" đã dùng ở
+       checklistRetroOfferCurrentPeriod) — phần DOM thật (appendSubmodal/
+       prepareChecklistModalLayer) chỉ chạy khi có root browser thật; classify vẫn luôn chạy
+       (lỗi được nuốt êm) vì đây là bước xác định trạng thái, không phụ thuộc DOM. */
+    await ceClassifyCurrentPeriod(pendingCePublish);
     if(root)appendSubmodal(root,cePreviewHtml(pendingCePublish));
     return {ok:true};
   }
@@ -3539,13 +3565,91 @@
     if(nl)nl.scrollTop=scrollTop;
   }
   var pendingCePublish=null;
+  /* Apply-timing V1 — phần "Áp dụng cho Phiếu tháng ..." chỉ xuất hiện khi p.retro.offerTiming
+     (có phiếu kỳ hiện tại thật sự bị ảnh hưởng VÀ kỳ chưa khóa — xem ceClassifyCurrentPeriod).
+     Mặc định chọn "Áp dụng ngay cho kỳ hiện tại" (spec mục 2 "default/pre-selected"). Có
+     YELLOW/ORANGE thì bắt buộc tick xác nhận riêng trước khi nút "Lưu & áp dụng" bật lại. */
+  function ceTimingSectionHtml(p){
+    var retro=p.retro;
+    if(!retro||!retro.offerTiming)return '';
+    var counts=retro.counts||{green:0,yellow:0,orange:0};
+    var monthLabel=reportMonthLabel(retro.periodMonth),nextLabel=reportMonthLabel(scoreShiftMonth(retro.periodMonth,1));
+    var total=counts.green+counts.yellow+counts.orange,needsConfirm=(counts.yellow>0||counts.orange>0);
+    var warning='';
+    if(retro.choice==='now'&&needsConfirm){
+      if(counts.orange>0){
+        var mix=counts.yellow>0?(counts.yellow+' phiếu đã tự đánh giá, '+counts.orange+' phiếu đã thẩm định'):(counts.orange+' phiếu đã thẩm định');
+        warning='<div class="phfck-notice"><p>'+esc(mix)+'. Áp dụng ngay cho kỳ '+esc(monthLabel)+' sẽ yêu cầu làm lại đánh giá/thẩm định cho các phiếu này.</p></div>';
+      }else{
+        warning='<div class="phfck-notice"><p>'+counts.yellow+' nhân viên đã tự đánh giá theo mẫu cũ. Áp dụng ngay cho kỳ '+esc(monthLabel)+' sẽ yêu cầu các nhân viên này đánh giá lại.</p></div>';
+      }
+    }
+    return '<div class="phfck-ce-timing-choice"><h3>Áp dụng cho Phiếu tháng '+esc(monthLabel)+'</h3>'
+      +'<label class="phfck-ce-timing-option"><input type="radio" name="phfck-ce-timing" value="now" data-phfck-ce-timing-choice'+(retro.choice==='now'?' checked':'')+'> Áp dụng ngay cho kỳ hiện tại ('+total+' phiếu)</label>'
+      +'<label class="phfck-ce-timing-option"><input type="radio" name="phfck-ce-timing" value="next" data-phfck-ce-timing-choice'+(retro.choice==='next'?' checked':'')+'> Chỉ áp dụng từ kỳ tiếp theo ('+esc(nextLabel)+')</label>'
+      +warning
+      +(retro.choice==='now'&&needsConfirm?('<label class="phfck-ce-timing-confirm"><input type="checkbox" data-phfck-ce-timing-confirm'+(retro.confirmed?' checked':'')+'> Tôi đã hiểu và xác nhận áp dụng ngay, kể cả với các phiếu cần đánh giá/thẩm định lại.</label>'):'')
+      +(retro.applyError?'<div class="phfck-notice"><b>Chưa áp dụng được cho phiếu tháng hiện tại</b><p>'+esc(retro.applyError)+'</p></div>':'')
+      +'</div>';
+  }
+  function ceTimingSubmitDisabled(p){
+    var retro=p.retro;
+    return !!(retro&&retro.offerTiming&&retro.choice==='now'&&((retro.counts.yellow>0||retro.counts.orange>0))&&!retro.confirmed);
+  }
   function cePreviewHtml(p){
     var item=templateCatalog().find(function(x){return x.id===p.templateId;})||{};
+    var disabled=ceTimingSubmitDisabled(p);
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview" role="dialog" aria-modal="true">'
       +'<div class="phfck-modal-head"><div><small>XÁC NHẬN CẬP NHẬT TIÊU CHÍ</small><h2>'+esc(item.name||'Mẫu Checklist')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div>'
       +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>ĐANG ÁP DỤNG</small><b>'+esc(p.oldVersion)+'</b></article><article><small>SAU KHI LƯU</small><b>'+esc(p.newVersion)+'</b></article><article><small>NGÀY HIỆU LỰC</small><b>'+esc(p.effectiveDate)+'</b></article><article><small>SỐ TIÊU CHÍ</small><b>'+ceCriterionList(p.state).length+'</b></article></div>'
-      +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Cấu hình đang áp dụng cho các kỳ trước ngày hiệu lực vẫn được giữ nguyên. Hệ thống chỉ áp dụng tiêu chí mới từ ngày đã chọn.</p></div></div>'
-      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-back-ce>Quay lại chỉnh</button><button type="button" class="phfck-primary" data-phfck-apply-ce>Lưu & áp dụng</button></div></div></div>';
+      +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Cấu hình đang áp dụng cho các kỳ trước ngày hiệu lực vẫn được giữ nguyên. Hệ thống chỉ áp dụng tiêu chí mới từ ngày đã chọn.</p></div>'
+      +ceTimingSectionHtml(p)
+      +'</div>'
+      +'<div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-back-ce>Quay lại chỉnh</button><button type="button" class="phfck-primary" '+(disabled?'disabled':'')+' data-phfck-apply-ce>Lưu & áp dụng</button></div></div></div>';
+  }
+  /* Apply-timing V1 — Phase 2 của quy trình 2 bước (Phase 1 = cePublish, đã lưu AN TOÀN
+     trước khi hàm này chạy). KHÔNG có transaction DB thật xuyên suốt 2 lệnh gọi (2 round-trip
+     HTTP khác nhau, xem ghi chú ATOMICITY_IMPLEMENTATION trong báo cáo bàn giao) — hàm này
+     thay vào đó theo dõi tường minh trạng thái từng bước và không bao giờ hiển thị thông báo
+     "thành công" đầy đủ trừ khi cả hai bước thực sự xong. Nếu bước áp dụng (Phase 2) thất
+     bại, mở lại đúng cơ chế "hỏi lại" đã có (checklistRetroOfferCurrentPeriod) làm đường thử
+     lại — phiên bản mẫu lúc này đã an toàn, current_version đã đúng, chỉ còn thiếu bước áp
+     dụng lại cho phiếu kỳ hiện tại. */
+  /* "MM/YYYY" thuần (không lặp chữ "Tháng" như reportMonthLabel() — reportMonthLabel() vốn
+     dùng cho tiêu đề modal/label ("Tháng 09/2026"), ghép vào câu "...phiếu tháng Tháng
+     09/2026." sẽ lặp từ; thông báo kết quả cuối cùng ở đây dùng đúng dạng spec yêu cầu. */
+  function ceMonthLabelMY(pm){var parts=String(pm||'').split('-');return parts.length===2?(parts[1]+'/'+parts[0]):String(pm||'');}
+  async function ceFinishApplyTiming(root,appliedCe,pcp,criterionCount){
+    var retro=pcp.retro;
+    if(!retro){if(window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');return;}
+    if(retro.periodLocked){
+      if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí. Kỳ hiện tại đã khóa, không thể áp dụng cho phiếu đã khóa; thay đổi áp dụng từ kỳ tiếp theo.');
+      return;
+    }
+    if(!retro.offerTiming){
+      if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí. Hiện chưa có phiếu kỳ này cần cập nhật.');
+      return;
+    }
+    if(retro.choice!=='now'){
+      var nextLabel=ceMonthLabelMY(scoreShiftMonth(retro.periodMonth,1));
+      if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí. Thay đổi sẽ áp dụng từ kỳ '+nextLabel+'.');
+      return;
+    }
+    var monthLabel=ceMonthLabelMY(retro.periodMonth);
+    try{
+      var data=await checklistRetroApiCall('checklistRetroApplyCurrentPeriod',{templateId:appliedCe.templateId,periodMonth:retro.periodMonth,mode:'all',reason:appliedCe.reason});
+      var applied=Number(data&&data.appliedCount)||0;
+      addAudit({action:'Áp dụng lại cho Phiếu tháng hiện có',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||appliedCe.templateId,source:'Web',impact:applied+' phiếu',version:retro.periodMonth,reason:appliedCe.reason});
+      if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí và áp dụng cho '+applied+' phiếu tháng '+monthLabel+'.');
+    }catch(err){
+      checklistToast('error','Chưa áp dụng được cho phiếu tháng hiện tại','Đã cập nhật '+criterionCount+' tiêu chí, nhưng chưa áp dụng được cho phiếu tháng '+monthLabel+' — vui lòng thử lại việc áp dụng.',true);
+      /* Đường thử lại: mở lại đúng cơ chế "hỏi lại" đã có (checklistRetroOfferCurrentPeriod) —
+         hàm này tự gate việc render DOM theo root (root có thể null, ví dụ khi gọi từ luồng
+         không có DOM), nhưng LUÔN chạy classify + set checklistRetroDecisionState, nên KHÔNG
+         được bọc thêm if(root) ở đây (nếu không đường thử lại sẽ không bao giờ chạy khi root
+         là null). */
+      await checklistRetroOfferCurrentPeriod(root,appliedCe.templateId);
+    }
   }
 
   function bulkStartModalHtml(){var meta=viewWorkbookMeta(templateUiState.selectedId||'nv-ban-hang');return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-bulk-modal" role="dialog" aria-modal="true"><div class="phfck-modal-head"><div><small>CẬP NHẬT HÀNG LOẠT BẰNG EXCEL</small><h2>'+esc(meta.name)+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div><div class="phfck-modal-body"><div class="phfck-bulk-steps"><article><span>1</span><div><b>Tải file cập nhật</b><p>File được tạo trực tiếp từ phiên bản đang mở, có mã nhận diện và dữ liệu hiện hành của đúng mẫu.</p><button type="button" class="phfck-secondary" data-phfck-download-bulk-file>⇩ Tải file cập nhật hàng loạt</button></div></article><article><span>2</span><div><b>Chỉnh file Excel</b><p>Không xóa dòng có sẵn. Giữ nguyên tên sheet/cột; dùng cột Xử lý để chọn Giữ nguyên, Cập nhật, Thêm mới hoặc Ngưng áp dụng.</p></div></article><article><span>3</span><div><b>Chọn file đã chỉnh</b><p>Hệ thống kiểm tra và cho xem trước, chưa ghi đè mẫu hiện hành.</p><button type="button" class="phfck-primary" data-phfck-choose-bulk-file>⇧ Chọn file để kiểm tra</button></div></article></div><div class="phfck-import-rules"><b>Quy tắc an toàn</b><ul><li>File phải thuộc đúng mẫu, mã mẫu và phiên bản đang mở.</li><li>Các giá trị danh mục phải khớp tuyệt đối với dữ liệu hệ thống.</li><li>Không đổi mã hoặc chuyển nhóm tiêu chí cũ.</li><li>Tổng trọng số phải bằng 100%.</li><li>Chỉ sau khi xác nhận mới tạo phiên bản mới.</li></ul></div></div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button></div></div></div>';}
@@ -6727,15 +6831,21 @@
       }
       var backCe=e.target.closest('[data-phfck-back-ce]');if(backCe){e.preventDefault();if(!checklistCeState)return;appendSubmodal(root,checklistCeEditorHtml());return;}
       var applyCe=e.target.closest('[data-phfck-apply-ce]');if(applyCe){
-        e.preventDefault();if(!pendingCePublish||!checklistCeState)return;applyCe.disabled=true;
+        e.preventDefault();if(!pendingCePublish||!checklistCeState||applyCe.disabled)return;
+        var pcp=pendingCePublish;
+        if(ceTimingSubmitDisabled(pcp)){checklistToast('warning','Cần xác nhận','Vui lòng xác nhận trước khi áp dụng ngay cho các phiếu cần đánh giá/thẩm định lại.',true);return;}
+        applyCe.disabled=true;
         try{
           var appliedCe=await cePublish(checklistCeState);
+          var ceCriterionCount=ceCriterionList(appliedCe).length;
           addAudit({action:'Quản lý tiêu chí — Lưu & áp dụng',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||'Mẫu Checklist',source:'Web',impact:'Một mẫu',version:appliedCe.sourceVersion+' → '+appliedCe.version,reason:appliedCe.reason});
-          checklistCeState=null;pendingCePublish=null;var sm2=applyCe.closest('[data-phfck-submodal]');if(sm2)sm2.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);
-          // Phase 2B: hỏi Admin có áp dụng lại cho Phiếu tháng của kỳ hiện tại không — chỉ khi
-          // có phiếu thật sự bị ảnh hưởng và kỳ chưa khóa (xem checklistRetroOfferCurrentPeriod).
-          var ceOffered=await checklistRetroOfferCurrentPeriod(root,appliedCe.templateId);
-          if(!ceOffered&&window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');
+          checklistCeState=null;var sm2=applyCe.closest('[data-phfck-submodal]');if(sm2)sm2.remove();syncChecklistModalScrollLock();refreshTemplatesWorkspace(root);
+          // Apply-timing V1: phiên bản đã lưu AN TOÀN tại đây (Phase 1 của quy trình 2 bước —
+          // xem ATOMICITY_IMPLEMENTATION trong báo cáo). Phase 2 (áp dụng lại cho kỳ hiện tại,
+          // nếu Admin chọn "Áp dụng ngay") được tách riêng để có thể thất bại độc lập mà không
+          // kéo theo một thông báo "thành công" sai sự thật (ceFinishApplyTiming).
+          await ceFinishApplyTiming(root,appliedCe,pcp,ceCriterionCount);
+          pendingCePublish=null;
         }catch(error){
           applyCe.disabled=false;checklistToast('error','Không thể phát hành phiên bản mới',error&&error.message||'Máy chủ chưa xác nhận phát hành. Dữ liệu trong phiên làm việc chưa bị mất.',true);
         }
@@ -9933,6 +10043,11 @@
     }
   });
   document.addEventListener('change',function(e){
+    var cePreviewModalC=e.target.closest('.phfck-direct-preview');
+    if(cePreviewModalC&&pendingCePublish&&pendingCePublish.retro&&pendingCePublish.retro.offerTiming){
+      if(e.target.matches('[data-phfck-ce-timing-choice]')){pendingCePublish.retro.choice=e.target.value;pendingCePublish.retro.confirmed=false;cePreviewRerender();return;}
+      if(e.target.matches('[data-phfck-ce-timing-confirm]')){pendingCePublish.retro.confirmed=e.target.checked;cePreviewRerender();return;}
+    }
     var activateModalC=e.target.closest('.phfck-tse-activate-modal');
     if(activateModalC&&checklistTseActivateState&&e.target.matches('[data-phfck-tse-activate-period]')){
       var as=checklistTseActivateState,m=e.target.value||'';

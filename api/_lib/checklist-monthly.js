@@ -951,23 +951,34 @@ async function classifyChecklistMonthlyRetroactiveScope(session,input={}){
  * giá). Luôn tính lại tier ở SERVER cho từng phiếu — KHÔNG tin danh sách formId phía client
  * — để không thể mở rộng phạm vi vượt quá đúng mẫu+kỳ đang xét (đúng yêu cầu "chỉ ảnh hưởng
  * mẫu/kỳ đang được xét"). */
+/* mode==='all' (Apply-timing V1, 2026-09-12) — dùng cho quyết định "Áp dụng ngay cho kỳ hiện
+ * tại" ở Quản lý tiêu chí: áp dụng CẢ 3 mức trong MỘT lệnh gọi thay vì bắt Admin gọi riêng
+ * 'safe' rồi 'reset' (tránh 2 round-trip có thể thành công lệch nhau). Vẫn tái dùng NGUYÊN
+ * retroImpactTier + đúng patch reset đã có cho 'reset' — chỉ khác ở chỗ mode hiệu lực từng
+ * phiếu (formMode) được suy ra theo TIER của chính phiếu đó thay vì một mode toàn cục. */
 async function applyChecklistMonthlyRetroactiveScope(session,input={}){
  if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');admin(session);
  const templateKey=t(input.templateId).toLowerCase(),periodMonth=month(input.periodMonth),mode=t(input.mode),reason=t(input.reason);
  if(!templateKey)fail('Thiếu mẫu Checklist cần áp dụng.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_INPUT_REQUIRED');
- if(mode!=='safe'&&mode!=='reset')fail('Lựa chọn áp dụng không hợp lệ.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_MODE_INVALID');
+ if(mode!=='safe'&&mode!=='reset'&&mode!=='all')fail('Lựa chọn áp dụng không hợp lệ.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_MODE_INVALID');
  if(reason.length<10)fail('Lý do áp dụng cần tối thiểu 10 ký tự.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_REASON_REQUIRED');
  const {periodLocked,forms}=await retroCurrentPeriodScope(templateKey,periodMonth);
  if(periodLocked)fail('Kỳ đánh giá đã được khóa. Không thể áp dụng lại cho kỳ đã khóa.',409,'CHECKLIST_MONTHLY_RETRO_SCOPE_PERIOD_LOCKED');
- const eligible=forms.filter(form=>{const tier=retroImpactTier(form);return mode==='safe'?tier==='green':(tier==='yellow'||tier==='orange');});
+ const eligible=forms.filter(form=>{
+  const tier=retroImpactTier(form);
+  if(mode==='safe')return tier==='green';
+  if(mode==='reset')return tier==='yellow'||tier==='orange';
+  return true;
+ });
  if(!eligible.length)return {templateId:templateKey,periodMonth,mode,appliedCount:0,skippedCount:0,items:[]};
  const prepared=await buildMonthlyCreationState(periodMonth);
  const a=actor(session),now=new Date().toISOString(),items=[];let applied=0,skipped=0;
  for(const form of eligible){
   const code=t(form.employee_code).toUpperCase();
+  const formMode=mode==='all'?(retroImpactTier(form)==='green'?'safe':'reset'):mode;
   const target=(prepared.rows||[]).find(r=>t(r.employee_code).toUpperCase()===code);
   if(!target){skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unresolved',reason:'Không xác định được mẫu hiệu lực theo phân công hiện tại.'});continue;}
-  const before=mode==='reset'?{
+  const before=formMode==='reset'?{
    templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status,
    templateSnapshot:form.template_snapshot||null,
    selfAnswers:form.self_answers||{},selfNote:t(form.self_note),selfSavedAt:form.self_saved_at||null,selfSubmittedAt:form.self_submitted_at||null,selfTotalScore:form.self_total_score==null?null:Number(form.self_total_score),
@@ -975,11 +986,11 @@ async function applyChecklistMonthlyRetroactiveScope(session,input={}){
    reviewedBy:form.reviewed_by||null,reviewedByCode:t(form.reviewed_by_code),reviewedByName:t(form.reviewed_by_name),reviewedAsOverride:!!form.reviewed_as_override,reviewOverrideReason:t(form.review_override_reason),
    finalScore:form.final_score==null?null:Number(form.final_score),scoreCalculatedAt:form.score_calculated_at||null,adminExceptionOpen:!!form.admin_exception_open
   }:{templateId:t(form.template_id||''),templateVersion:t(form.template_version||''),status:form.status};
-  if(before.templateId.toLowerCase()===t(target.template_id).toLowerCase()&&before.templateVersion===t(target.template_version)&&mode==='safe'){
+  if(before.templateId.toLowerCase()===t(target.template_id).toLowerCase()&&before.templateVersion===t(target.template_version)&&formMode==='safe'){
    skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-unchanged',reason:'Mẫu chụp đã khớp phân công hiện tại.'});continue;
   }
   const patch={template_id:target.template_id,template_version:target.template_version,template_snapshot:target.template_snapshot,score_policy_snapshot:target.score_policy_snapshot||prepared.scorePolicySnapshot,score_formula_version:SCORE_FORMULA_VERSION,updated_at:now};
-  if(mode==='reset'){
+  if(formMode==='reset'){
    Object.assign(patch,{
     status:'waiting_self',
     self_answers:{},self_note:'',self_saved_at:null,self_submitted_at:null,self_total_score:null,
@@ -993,7 +1004,7 @@ async function applyChecklistMonthlyRetroactiveScope(session,input={}){
   if(!upd.data){skipped++;items.push({formId:form.id,employeeCode:code,outcome:'skipped-stale',reason:'Phiếu vừa thay đổi ở nơi khác. Cần chạy lại.'});continue;}
   const after={templateId:t(target.template_id),templateVersion:t(target.template_version),status:upd.data.status};
   const hist=await db.from('checklist_monthly_form_history').insert({form_id:form.id,period_month:periodMonth,employee_code:code,
-   action:mode==='reset'?'retroactive_apply_current_period_reset':'retroactive_apply_current_period_safe',
+   action:formMode==='reset'?'retroactive_apply_current_period_reset':'retroactive_apply_current_period_safe',
    before_data:before,after_data:after,reason,changed_by:a.id,changed_by_code:a.employeeCode,changed_by_name:a.name,changed_at:now});
   if(hist.error)throw hist.error;
   applied++;items.push({formId:form.id,employeeCode:code,outcome:'applied',before,after});
