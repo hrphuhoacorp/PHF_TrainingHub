@@ -3629,7 +3629,7 @@
     var disabled=ceTimingSubmitDisabled(p);
     return '<div class="phfck-modal-layer phfck-edit-layer" data-phfck-submodal><div class="phfck-modal phfck-edit-modal phfck-direct-preview" role="dialog" aria-modal="true">'
       +'<div class="phfck-modal-head"><div><small>XÁC NHẬN CẬP NHẬT TIÊU CHÍ</small><h2>'+esc(item.name||'Mẫu Checklist')+'</h2></div><button type="button" data-phfck-close-submodal>×</button></div>'
-      +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>ĐANG ÁP DỤNG</small><b>'+esc(p.oldVersion)+'</b></article><article><small>SAU KHI LƯU</small><b>'+esc(p.newVersion)+'</b></article><article><small>NGÀY HIỆU LỰC</small><b>'+esc(p.effectiveDate)+'</b></article><article><small>SỐ TIÊU CHÍ</small><b>'+ceCriterionList(p.state).length+'</b></article></div>'
+      +'<div class="phfck-modal-body"><div class="phfck-version-preview-summary"><article><small>ÁP DỤNG TỪ</small><b>'+esc(checklistDmyDate(p.effectiveDate))+'</b></article><article><small>SỐ TIÊU CHÍ</small><b>'+ceCriterionList(p.state).length+'</b></article></div>'
       +'<div class="phfck-version-reason"><b>Lý do thay đổi</b><p>'+esc(p.reason)+'</p></div><div class="phfck-safe-version-note"><b>Nguyên tắc an toàn</b><p>Cấu hình đang áp dụng cho các kỳ trước ngày hiệu lực vẫn được giữ nguyên. Hệ thống chỉ áp dụng tiêu chí mới từ ngày đã chọn.</p></div>'
       +ceTimingSectionHtml(p)
       +'</div>'

@@ -1408,8 +1408,8 @@ module.exports = async function handler(req, res) {
       if(payload&&payload.action==='changeChecklistMonthlyReviewer')return res.status(200).json({ok:true,...await changeMonthlyReviewer(session,payload)});
       if(payload&&payload.action==='resnapshotChecklistMonthlyDraft')return res.status(200).json({ok:true,...await resnapshotMonthlyDraftTemplate(session,payload)});
       if(payload&&payload.action==='overrideChecklistMonthlyFormVersion')return res.status(200).json({ok:true,...await overrideMonthlyFormVersion(session,payload)});
-      if(payload&&payload.action==='checklistRetroClassifyCurrentPeriod')return res.status(200).json({ok:true,...await classifyChecklistMonthlyRetroactiveScope(session,payload)});
-      if(payload&&payload.action==='checklistRetroApplyCurrentPeriod')return res.status(200).json({ok:true,...await applyChecklistMonthlyRetroactiveScope(session,payload)});
+      if(payload&&payload.action==='checklistRetroClassifyCurrentPeriod')return res.status(200).json({ok:true,...await classifyChecklistMonthlyRetroactiveScope(session,payload.input||{})});
+      if(payload&&payload.action==='checklistRetroApplyCurrentPeriod')return res.status(200).json({ok:true,...await applyChecklistMonthlyRetroactiveScope(session,payload.input||{})});
       if(payload&&payload.action==='exportChecklistMonthlyData')return res.status(200).json({ok:true,...await exportMonthlyData(session,payload)});
       if(payload&&payload.action==='getChecklistMonthlyReport')return res.status(200).json({ok:true,...await getChecklistMonthlyReport(session,payload)});
       if(payload&&payload.action==='getChecklistCurrentScoreReport')return res.status(200).json({ok:true,...await getChecklistCurrentScoreReport(session,payload)});
