@@ -623,6 +623,79 @@ async function main() {
   });
 
   // -------------------------------------------------------------------
+  // ITEMS 17/18/19 — Zero-applied hardening: unlike ITEM 15 (the whole apply request throws),
+  // here the request itself succeeds (ok:true) but the server reports it could not actually
+  // apply to some/all forms (appliedCount/skippedCount). This must never render as (or be
+  // indistinguishable from) the plain success message.
+  // -------------------------------------------------------------------
+  await rec('ITEM 17 — appliedCount=0, skippedCount>0: warning shown, no success-styled notice, skipped count named', async () => {
+    resetStore('open');
+    const api = await hydratedTab();
+    api.ceOpen(TPL);
+    await api.ceSaveAndApply(null, makeCeAddFormModal(REAL_CHANGE));
+    const pending = api.getPendingCePublish();
+    api.setPendingCePublishRetro({ confirmed: true });
+    const appliedCe = await api.cePublish(pending.state);
+    fetchRouteOverride = async (action) => {
+      if (action === 'checklistRetroApplyCurrentPeriod') return { ok: true, status: 200, json: async () => ({ ok: true, templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', appliedCount: 0, skippedCount: 1, items: [] }) };
+      return undefined;
+    };
+    try {
+      const criterionCount = api.ceCriterionList(appliedCe).length;
+      await api.ceFinishApplyTiming(null, appliedCe, pending, criterionCount);
+      const toasts = api.getToasts(), notices = api.getNotices();
+      assert.ok(!notices.some(m => /áp dụng cho/.test(m)), 'no phfNotice (success-styled) message mentions forms being applied: ' + JSON.stringify(notices));
+      const warn = toasts.find(x => x.type === 'warning' && /chưa có Phiếu tháng nào được áp dụng/.test(x.message));
+      assert.ok(warn, 'a warning toast clearly stating no forms were applied is shown: ' + JSON.stringify(toasts));
+      assert.ok(/Có 1 phiếu bị bỏ qua/.test(warn.message), 'skipped count named in the message: ' + warn.message);
+      assert.ok(/thử lại/.test(warn.message), 'message tells Admin to review/retry: ' + warn.message);
+    } finally { fetchRouteOverride = null; }
+  });
+  await rec('ITEM 18 — appliedCount>0 and skippedCount>0: partial-warning shown, not the plain success message', async () => {
+    resetStore('open');
+    const api = await hydratedTab();
+    api.ceOpen(TPL);
+    await api.ceSaveAndApply(null, makeCeAddFormModal(REAL_CHANGE));
+    const pending = api.getPendingCePublish();
+    api.setPendingCePublishRetro({ confirmed: true });
+    const appliedCe = await api.cePublish(pending.state);
+    fetchRouteOverride = async (action) => {
+      if (action === 'checklistRetroApplyCurrentPeriod') return { ok: true, status: 200, json: async () => ({ ok: true, templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', appliedCount: 2, skippedCount: 1, items: [] }) };
+      return undefined;
+    };
+    try {
+      const criterionCount = api.ceCriterionList(appliedCe).length;
+      await api.ceFinishApplyTiming(null, appliedCe, pending, criterionCount);
+      const toasts = api.getToasts(), notices = api.getNotices();
+      assert.ok(!notices.some(m => /và áp dụng cho 2 phiếu/.test(m)), 'no plain success notice for a partial result: ' + JSON.stringify(notices));
+      const warn = toasts.find(x => x.type === 'warning' && /Đã áp dụng cho 2 phiếu/.test(x.message) && /1 phiếu chưa được cập nhật/.test(x.message));
+      assert.ok(warn, 'a partial-warning toast names both the applied and skipped counts: ' + JSON.stringify(toasts));
+      assert.ok(/thử lại/.test(warn.message));
+    } finally { fetchRouteOverride = null; }
+  });
+  await rec('ITEM 19 — appliedCount>0 and skippedCount=0: normal success message unchanged, no warning toast added', async () => {
+    resetStore('open');
+    const api = await hydratedTab();
+    api.ceOpen(TPL);
+    await api.ceSaveAndApply(null, makeCeAddFormModal(REAL_CHANGE));
+    const pending = api.getPendingCePublish();
+    api.setPendingCePublishRetro({ confirmed: true });
+    const appliedCe = await api.cePublish(pending.state);
+    fetchRouteOverride = async (action) => {
+      if (action === 'checklistRetroApplyCurrentPeriod') return { ok: true, status: 200, json: async () => ({ ok: true, templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', appliedCount: 3, skippedCount: 0, items: [] }) };
+      return undefined;
+    };
+    try {
+      const criterionCount = api.ceCriterionList(appliedCe).length;
+      const toastsBefore = api.getToasts().length;
+      await api.ceFinishApplyTiming(null, appliedCe, pending, criterionCount);
+      const toasts = api.getToasts(), notices = api.getNotices();
+      assert.strictEqual(toasts.length, toastsBefore, 'no new toast (warning or otherwise) added for a fully-applied result');
+      assert.ok(notices.some(m => m.indexOf('và áp dụng cho 3 phiếu') >= 0), 'plain success message unchanged when skippedCount is 0: ' + JSON.stringify(notices));
+    } finally { fetchRouteOverride = null; }
+  });
+
+  // -------------------------------------------------------------------
   // Backend — mode:'all' (the single-call extension backing "Áp dụng ngay" when GREEN and
   // YELLOW/ORANGE both exist): green gets the safe (no-reset) patch, yellow/orange get reset,
   // all in one applyChecklistMonthlyRetroactiveScope call; locked period still hard-refused.

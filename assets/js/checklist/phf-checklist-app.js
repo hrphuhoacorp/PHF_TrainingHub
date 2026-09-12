@@ -3639,8 +3639,29 @@
     try{
       var data=await checklistRetroApiCall('checklistRetroApplyCurrentPeriod',{templateId:appliedCe.templateId,periodMonth:retro.periodMonth,mode:'all',reason:appliedCe.reason});
       var applied=Number(data&&data.appliedCount)||0;
+      var skipped=Number(data&&data.skippedCount)||0;
       addAudit({action:'Áp dụng lại cho Phiếu tháng hiện có',area:'Mẫu Checklist',object:(templateCatalog().find(function(x){return x.id===appliedCe.templateId;})||{}).name||appliedCe.templateId,source:'Web',impact:applied+' phiếu',version:retro.periodMonth,reason:appliedCe.reason});
-      if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí và áp dụng cho '+applied+' phiếu tháng '+monthLabel+'.');
+      /* Zero-applied hardening (2026-09) — PHF071/KTT PROD gap thực tế xảy ra ở BẢN CODE
+         CŨ (trước PR#68, khi bước áp dụng lại là một modal hỏi lại tách rời sau khi phiên
+         bản đã lưu xong) — luồng hiện tại (một round-trip checklistRetroApplyCurrentPeriod
+         ngay trong ceFinishApplyTiming) đã được xác nhận đúng qua tái hiện offline. Đây là
+         lớp phòng thủ bổ sung: NGAY CẢ KHI lệnh gọi API trả về ok:true (không exception),
+         nếu appliedCount===0 (mọi phiếu bị bỏ qua — vd stale-conflict, không xác định được
+         mẫu hiệu lực) thì KHÔNG được hiển thị thông báo kiểu "thành công" (window.phfNotice)
+         — phải dùng checklistToast('warning',...) rõ ràng để Admin không lầm tưởng đã áp
+         dụng xong. Tương tự, áp dụng MỘT PHẦN (applied>0 nhưng vẫn có skipped>0) cũng phải
+         là warning, không phải success — chỉ khi skipped===0 mới giữ thông báo thành công cũ. */
+      var totalAffected=retro.counts?(Number(retro.counts.green||0)+Number(retro.counts.yellow||0)+Number(retro.counts.orange||0)):0;
+      if(applied===0&&(totalAffected>0||skipped>0)){
+        var zeroMsg='Tiêu chí đã được cập nhật, nhưng chưa có Phiếu tháng nào được áp dụng thay đổi.'
+          +(skipped>0?(' Có '+skipped+' phiếu bị bỏ qua.'):'')
+          +' Vui lòng kiểm tra và thử lại.';
+        checklistToast('warning','Chưa áp dụng được cho phiếu tháng hiện tại',zeroMsg,true);
+      }else if(applied>0&&skipped>0){
+        checklistToast('warning','Áp dụng một phần cho phiếu tháng hiện tại','Đã áp dụng cho '+applied+' phiếu; '+skipped+' phiếu chưa được cập nhật. Vui lòng kiểm tra và thử lại.',true);
+      }else{
+        if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí và áp dụng cho '+applied+' phiếu tháng '+monthLabel+'.');
+      }
     }catch(err){
       checklistToast('error','Chưa áp dụng được cho phiếu tháng hiện tại','Đã cập nhật '+criterionCount+' tiêu chí, nhưng chưa áp dụng được cho phiếu tháng '+monthLabel+' — vui lòng thử lại việc áp dụng.',true);
       /* Đường thử lại: mở lại đúng cơ chế "hỏi lại" đã có (checklistRetroOfferCurrentPeriod) —
