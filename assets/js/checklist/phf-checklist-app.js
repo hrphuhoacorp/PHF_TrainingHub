@@ -3345,9 +3345,9 @@
     var after=ceCanonical(normalizeSharedCriterionFactors(state.groups||[]));
     return JSON.stringify(before)!==JSON.stringify(after);
   }
-  /* Part A/B (2026-09) — đọc trực tiếp DOM của form "Thêm tiêu chí mới" đang hiển thị
-     (chưa chắc admin đã bấm nút phụ "+ Thêm tiêu chí khác"), tách khỏi phần tạo
-     nhóm mới inline ("+ Tạo nhóm mới..." trong dropdown "Thuộc nhóm" — xem Part E). */
+  /* Part A/B (2026-09) — đọc trực tiếp DOM của form "Thêm tiêu chí mới" đang hiển thị (form
+     này không còn nút chốt riêng — chỉ có "Lưu & áp dụng" đọc form tại thời điểm bấm), tách
+     khỏi phần tạo nhóm mới inline ("+ Tạo nhóm mới..." trong dropdown "Thuộc nhóm" — Part E). */
   function ceReadAddFormRaw(modalRoot){
     if(!modalRoot)return {groupVal:'',groupName:'',content:'',factor:''};
     return {
@@ -3511,16 +3511,20 @@
          mới" gộp cả tạo nhóm mới inline (chọn "+ Tạo nhóm mới..." ở dropdown "Thuộc nhóm"
          hiện ô "Tên nhóm mới") — không còn form "+ Thêm nhóm nội dung" tách riêng (2 luồng
          cạnh tranh trước đây). Bỏ hẳn ô "Mã tiêu chí" (tự sinh, Part C) khỏi luồng bình
-         thường. Nút "+ Thêm tiêu chí khác" là TÙY CHỌN để gộp nhiều tiêu chí mới trong một
-         phiên trước khi lưu — không còn là bước BẮT BUỘC trước "Lưu & áp dụng": nút "Lưu &
-         áp dụng" tự đọc form đang hiển thị (ceSaveAndApply/ceReadAddFormRaw) nên bỏ trống
-         thì bỏ qua, có nội dung thì tự chốt — đây chính là fix cho lỗi PROD KTT 2.3. */
+         thường. "Lưu & áp dụng" tự đọc form đang hiển thị (ceSaveAndApply/ceReadAddFormRaw)
+         nên bỏ trống thì bỏ qua, có nội dung thì tự chốt — đây chính là fix cho lỗi PROD
+         KTT 2.3.
+         UX V2 follow-up (2026-09) — bỏ hẳn nút "+ Thêm tiêu chí khác": khảo sát tay cho thấy
+         nút này gây nhầm lẫn và không có phản hồi rõ ràng khi bấm. Chốt lại một luồng thêm
+         duy nhất = một tiêu chí: nhập đủ 4 trường rồi bấm "Lưu & áp dụng" luôn; muốn thêm
+         tiêu chí khác thì mở lại "Quản lý tiêu chí". Không đổi ceCommitAddFormRaw/
+         ceSaveAndApply/ceReadAddFormRaw — auto-capture khi Lưu & áp dụng giữ nguyên. */
       +'<div class="phfck-ce-add"><h3>Thêm tiêu chí mới</h3><div class="phfck-form-error-summary" data-phfck-ce-add-summary hidden><b>Không thể thêm tiêu chí</b><ul></ul></div><div class="phfck-edit-grid">'
       +'<label class="is-wide" data-phfck-field-wrap="group"><b>Thuộc nhóm <em>*</em></b><select data-phfck-ce-add-group>'+ceGroupOptionsHtml(state)+'<option value="__new__">+ Tạo nhóm mới...</option></select><small class="phfck-field-error" hidden></small></label>'
       +'<label class="is-wide" data-phfck-field-wrap="groupName" data-phfck-ce-new-group-wrap hidden><b>Tên nhóm mới <em>*</em></b><input type="text" placeholder="vd: Vận hành" data-phfck-ce-add-group-name><small class="phfck-field-error" hidden></small></label>'
       +'<label class="is-wide" data-phfck-field-wrap="content"><b>Tên tiêu chí <em>*</em></b><textarea data-phfck-ce-add-content></textarea><small class="phfck-field-error" hidden></small></label>'
       +'<label data-phfck-field-wrap="factor"><b>Hệ số <em>*</em></b><input type="number" min="1" step="1" value="1" data-phfck-ce-add-factor><small class="phfck-field-error" hidden></small></label>'
-      +'</div><button type="button" class="phfck-secondary" data-phfck-ce-add-submit">+ Thêm tiêu chí khác</button></div>'
+      +'</div></div>'
       +'<div class="phfck-edit-grid phfck-ce-publish-fields"><label class="is-wide" data-phfck-field-wrap="reason"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-ce-reason placeholder="Nêu rõ lý do cập nhật">'+esc(state.reason||'')+'</textarea><small class="phfck-field-error" hidden></small></label></div>'
       +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button><button type="button" class="phfck-primary" data-phfck-ce-preview>Lưu & áp dụng</button></div></div></div>';
   }
@@ -6699,14 +6703,6 @@
       if(salesUpload){e.preventDefault();var fi=root.querySelector('[data-phfck-sales-file]');if(fi)fi.click();return;}
       var directEdit=e.target.closest('[data-phfck-direct-edit]');if(directEdit){e.preventDefault();var first=selectedTemplateGroups()[0]&&selectedTemplateGroups()[0].children[0]&&selectedTemplateGroups()[0].children[0].items[0];appendSubmodal(root,directEditModalHtml(first?first[0]:''));return;}
       var manageCriteria=e.target.closest('[data-phfck-manage-criteria]');if(manageCriteria){e.preventDefault();ceOpen(templateUiState.selectedId);appendSubmodal(root,checklistCeEditorHtml());return;}
-      var ceAddSubmit=e.target.closest('[data-phfck-ce-add-submit]');if(ceAddSubmit){
-        e.preventDefault();if(!checklistCeState)return;var caModal=ceAddSubmit.closest('[data-phfck-submodal]');
-        var raw=ceReadAddFormRaw(caModal);
-        var summary=caModal.querySelector('[data-phfck-ce-add-summary]');if(summary){summary.hidden=true;var sul=summary.querySelector('ul');if(sul)sul.innerHTML='';}
-        var res=ceCommitAddFormRaw(checklistCeState,raw);
-        if(!res.ok){if(summary){summary.hidden=false;var ul2=summary.querySelector('ul');if(ul2)ul2.innerHTML=res.errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}return;}
-        ceRerenderModal(root);return;
-      }
       var ceRowMenu=e.target.closest('[data-phfck-ce-row-menu]');if(ceRowMenu){
         e.preventDefault();e.stopPropagation();var ceMenuId=ceRowMenu.getAttribute('data-phfck-ce-row-menu')||'';var ceMenuScope=ceRowMenu.closest('[data-phfck-submodal]')||root;
         ceMenuScope.querySelectorAll('[data-phfck-ce-row-menu-pop]').forEach(function(pop){pop.classList.toggle('is-open',pop.getAttribute('data-phfck-ce-row-menu-pop')===ceMenuId&&!pop.classList.contains('is-open'));});

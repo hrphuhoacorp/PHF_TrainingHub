@@ -9,8 +9,11 @@
  * This batch:
  *  A/B. "Lưu & áp dụng" itself auto-captures whatever is currently filled in the visible
  *       add-criterion mini-form (ceSaveAndApply/ceReadAddFormRaw/ceCommitAddFormRaw) — no
- *       separate required commit click. Optional "+ Thêm tiêu chí khác" still exists for
- *       staging multiple new criteria in one session.
+ *       separate required commit click. UX V2 follow-up: the optional "+ Thêm tiêu chí khác"
+ *       staging button has been removed entirely (confusing in manual testing, no clear
+ *       feedback) — one add flow = one criterion; ceCommitAddFormRaw is still exercised
+ *       directly by these tests (it also backs the auto-capture path), it's just no longer
+ *       wired to a standalone button/click handler in the UI.
  *  C.   Criterion code and group code are both auto-generated (ceSlugifyCriterionCode,
  *       reusing the same style as the pre-existing ceSlugifyGroupCode), collision-safe.
  *  D.   No manual "Ngày hiệu lực" in the normal flow — auto-set to today (state.effectiveDate,
@@ -426,6 +429,28 @@ async function main() {
     const applied = await api.cePublish(api.getPendingCePublish().state);
     assert.strictEqual(applied.effectiveDate, api.todayIso(), 'published effectiveDate is today, auto-set with no manual input');
     assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(applied.effectiveDate), 'effectiveDate is a well-formed YYYY-MM-DD date');
+  });
+
+  // -------------------------------------------------------------------
+  // UX V2 follow-up — "+ Thêm tiêu chí khác" staging button removed entirely (confusing in
+  // manual testing, no clear feedback). One add flow = one criterion. ceCommitAddFormRaw
+  // itself is untouched (still backs the ceSaveAndApply auto-capture path) — only the
+  // standalone button/click-handler wiring it to a manual "stage now" action is gone.
+  // -------------------------------------------------------------------
+  await rec('UX V2 follow-up — "+ Thêm tiêu chí khác" button no longer rendered; auto-capture on Lưu & áp dụng still works', async () => {
+    resetStore();
+    const api = await hydratedTab();
+    api.ceOpen('ktt-ux-v2-test');
+    const html = api.checklistCeEditorHtml();
+    assert.ok(!html.includes('data-phfck-ce-add-submit'), 'no "+ Thêm tiêu chí khác" button rendered in the add-criterion form');
+    assert.ok(!html.includes('Thêm tiêu chí khác'), 'no "Thêm tiêu chí khác" label rendered anywhere in the editor');
+    // Auto-capture on Save must still work with the button gone (regression for the actual PROD fix).
+    const modal = makeCeAddFormModal({ groupVal: 'G1::C1', content: 'Tiêu chí sau khi bỏ nút phụ', factor: 2, reason: 'UX V2 follow-up — bỏ nút Thêm tiêu chí khác' });
+    const outcome = await api.ceSaveAndApply(null, modal);
+    assert.strictEqual(outcome.ok, true, 'Lưu & áp dụng still auto-captures the visible form with no staging button present: ' + JSON.stringify(outcome));
+    const applied = await api.cePublish(api.getPendingCePublish().state);
+    const flat = api.flattenCriteria(applied.groups);
+    assert.ok(flat.some(c => c.content === 'Tiêu chí sau khi bỏ nút phụ'), 'the auto-captured criterion made it into the published payload');
   });
 
   // -------------------------------------------------------------------
