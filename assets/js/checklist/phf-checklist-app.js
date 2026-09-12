@@ -3351,19 +3351,34 @@
      xong việc trước khi quyết định thật sự được đưa ra. Hàm này tái dùng NGUYÊN đường
      classify server (checklistRetroClassifyCurrentPeriod, action đã có sẵn, KHÔNG có RPC
      mới) nhưng gọi TRƯỚC khi mở modal xác nhận cuối cùng, để quyết định trở thành một PHẦN
-     của modal xác nhận đó (cePreviewHtml), không phải bước phụ rời sau khi đã lưu. Lỗi/mất
-     mạng được nuốt êm (retro=null) — coi như không có gì để hỏi, luồng quay lại y hệt trước
-     khi có Apply-timing V1 (chỉ xác nhận phiên bản, xem ceFinishApplyTiming). */
+     của modal xác nhận đó (cePreviewHtml), không phải bước phụ rời sau khi đã lưu.
+     FAIL-CLOSED hardening (2026-09-12) — PROD gap thực tế thứ hai: bản trước nuốt êm MỌI lỗi
+     classify (mạng chập chờn, 5xx tạm thời, hết phiên...) thành retro=null, coi như "không có
+     gì để hỏi" — modal xác nhận trông giống hệt trường hợp hợp lệ "không có phiếu nào bị ảnh
+     hưởng", Admin bấm "Lưu & áp dụng" vẫn phát hành bình thường mà KHÔNG BAO GIỜ áp dụng lại
+     cho phiếu kỳ hiện tại, không một dấu hiệu nào cho biết có lỗi. Từ nay retro LUÔN là một
+     object (không bao giờ null) và phân biệt rõ 3 trạng thái: (A) classify thành công + có
+     phiếu bị ảnh hưởng — giữ nguyên UI chọn thời điểm áp dụng; (B) classify thành công + 0
+     phiếu bị ảnh hưởng — cho phát hành bình thường, không hỏi thời điểm (hành vi cũ); (C)
+     classify THẤT BẠI (retro.classifyFailed=true) — hiển thị cảnh báo rõ ràng ngay trong modal
+     xác nhận (ceTimingSectionHtml) và CHẶN việc phát hành (nút "Lưu & áp dụng" bị vô hiệu hoá
+     qua ceTimingSubmitDisabled + handler chặn tường minh, xem data-phfck-apply-ce) — không gọi
+     cePublish, không tạo version, không gọi áp dụng lại. */
   async function ceClassifyCurrentPeriod(p){
-    p.retro=null;
+    var periodMonth=todayIso().slice(0,7);
+    p.retro={periodMonth:periodMonth,periodLocked:false,counts:{green:0,yellow:0,orange:0},
+      offerTiming:false,choice:'now',confirmed:false,applyError:'',classifyFailed:false};
     try{
-      var periodMonth=todayIso().slice(0,7);
       var cls=await checklistRetroApiCall('checklistRetroClassifyCurrentPeriod',{templateId:p.templateId,periodMonth:periodMonth});
       var counts=checklistRetroTierCounts(cls);
       var total=Number(cls&&cls.totalAffected)||(counts.green+counts.yellow+counts.orange);
       p.retro={periodMonth:periodMonth,periodLocked:!!(cls&&cls.periodLocked),counts:counts,
-        offerTiming:!!(cls&&!cls.periodLocked&&total>0),choice:'now',confirmed:false,applyError:''};
-    }catch(_e){p.retro=null;}
+        offerTiming:!!(cls&&!cls.periodLocked&&total>0),choice:'now',confirmed:false,applyError:'',classifyFailed:false};
+    }catch(_e){
+      console.warn('[PHF Checklist] checklistRetroClassifyCurrentPeriod thất bại — chặn phát hành (fail-closed):',_e&&_e.message||_e);
+      p.retro={periodMonth:periodMonth,periodLocked:false,counts:{green:0,yellow:0,orange:0},
+        offerTiming:false,choice:'now',confirmed:false,applyError:'',classifyFailed:true};
+    }
     return p.retro;
   }
   function cePreviewRerender(){var r=document.getElementById('phfChecklistRoot');if(r&&pendingCePublish)appendSubmodal(r,cePreviewHtml(pendingCePublish));}
@@ -3571,7 +3586,11 @@
      YELLOW/ORANGE thì bắt buộc tick xác nhận riêng trước khi nút "Lưu & áp dụng" bật lại. */
   function ceTimingSectionHtml(p){
     var retro=p.retro;
-    if(!retro||!retro.offerTiming)return '';
+    if(!retro)return '';
+    if(retro.classifyFailed){
+      return '<div class="phfck-ce-timing-choice"><div class="phfck-notice"><b>Chưa kiểm tra được ảnh hưởng lên Phiếu tháng</b><p>Chưa kiểm tra được ảnh hưởng lên Phiếu tháng. Vui lòng thử lại.</p></div></div>';
+    }
+    if(!retro.offerTiming)return '';
     var counts=retro.counts||{green:0,yellow:0,orange:0};
     var monthLabel=reportMonthLabel(retro.periodMonth),nextLabel=reportMonthLabel(scoreShiftMonth(retro.periodMonth,1));
     var total=counts.green+counts.yellow+counts.orange,needsConfirm=(counts.yellow>0||counts.orange>0);
@@ -3594,7 +3613,9 @@
   }
   function ceTimingSubmitDisabled(p){
     var retro=p.retro;
-    return !!(retro&&retro.offerTiming&&retro.choice==='now'&&((retro.counts.yellow>0||retro.counts.orange>0))&&!retro.confirmed);
+    if(!retro)return false;
+    if(retro.classifyFailed)return true;
+    return !!(retro.offerTiming&&retro.choice==='now'&&((retro.counts.yellow>0||retro.counts.orange>0))&&!retro.confirmed);
   }
   function cePreviewHtml(p){
     var item=templateCatalog().find(function(x){return x.id===p.templateId;})||{};
@@ -3621,6 +3642,10 @@
   function ceMonthLabelMY(pm){var parts=String(pm||'').split('-');return parts.length===2?(parts[1]+'/'+parts[0]):String(pm||'');}
   async function ceFinishApplyTiming(root,appliedCe,pcp,criterionCount){
     var retro=pcp.retro;
+    /* Defense-in-depth: unreachable under normal operation — the data-phfck-apply-ce handler
+       already refuses to call cePublish (and therefore this function) when classifyFailed is
+       true. Kept here so this function is never the single point of failure for fail-closed. */
+    if(retro&&retro.classifyFailed)return;
     if(!retro){if(window.phfNotice)window.phfNotice('Đã cập nhật tiêu chí Checklist.');return;}
     if(retro.periodLocked){
       if(window.phfNotice)window.phfNotice('Đã cập nhật '+criterionCount+' tiêu chí. Kỳ hiện tại đã khóa, không thể áp dụng cho phiếu đã khóa; thay đổi áp dụng từ kỳ tiếp theo.');
@@ -6854,6 +6879,11 @@
       var applyCe=e.target.closest('[data-phfck-apply-ce]');if(applyCe){
         e.preventDefault();if(!pendingCePublish||!checklistCeState||applyCe.disabled)return;
         var pcp=pendingCePublish;
+        /* FAIL-CLOSED (2026-09-12) — chặn tường minh ở ĐÂY, không chỉ dựa vào thuộc tính
+           disabled trên nút (phòng trường hợp DOM/CSS không đồng bộ): nếu bước kiểm tra ảnh
+           hưởng lên Phiếu tháng (classify) đã thất bại thì KHÔNG được phát hành — không gọi
+           cePublish, không tạo version mới, không gọi áp dụng lại. */
+        if(pcp.retro&&pcp.retro.classifyFailed){checklistToast('error','Chưa kiểm tra được ảnh hưởng lên Phiếu tháng','Chưa kiểm tra được ảnh hưởng lên Phiếu tháng. Vui lòng thử lại.',true);return;}
         if(ceTimingSubmitDisabled(pcp)){checklistToast('warning','Cần xác nhận','Vui lòng xác nhận trước khi áp dụng ngay cho các phiếu cần đánh giá/thẩm định lại.',true);return;}
         applyCe.disabled=true;
         try{
