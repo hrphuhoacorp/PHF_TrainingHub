@@ -42,6 +42,36 @@ function date(value) {
     : new Date().toISOString().slice(0, 10);
 }
 
+/* Monthly score sync V1 (2026-09-12) — write-through side effect. Buckets is an
+   iterable of {code, month} (month = 'YYYY-MM', from occurred_date.slice(0,7)).
+   Lazy require avoids a circular dependency (checklist-monthly.js does not
+   require this file, but requiring it eagerly at module-load time here would
+   still run before checklist-monthly.js finishes exporting during some load
+   orders). Best-effort: a sync failure must never fail the violation write
+   itself — the next read (refreshUnlockedChecklistScore/myMonthlyReviewSummaries
+   read-side defense) will still self-heal any form this call could not reach. */
+async function syncMonthlyScoreBuckets(buckets) {
+  const unique = new Map();
+  (buckets || []).forEach(b => {
+    if (!b || !b.code || !b.month) return;
+    unique.set(b.code + '|' + b.month, b);
+  });
+  if (!unique.size) return;
+  let syncFn;
+  try {
+    syncFn = require('./checklist-monthly').syncMonthlyChecklistScoreForEmployeeMonth;
+  } catch (err) {
+    console.warn('[PHF Checklist] monthly score sync module load failed', err && err.message || err);
+    return;
+  }
+  if (typeof syncFn !== 'function') return;
+  await Promise.all([...unique.values()].map(b =>
+    syncFn(b.code, b.month).catch(err => {
+      console.warn('[PHF Checklist] monthly score sync failed', b.code, b.month, err && err.message || err);
+    })
+  ));
+}
+
 function time(value) {
   const normalized = t(value);
   return /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(normalized)
@@ -1514,6 +1544,16 @@ async function saveChecklistViolations(session, rows) {
         isLateObservation: false
       };
     });
+
+    /* A. Write-through on violation create: only OFFICIAL, non-test rows move
+       checklist_score (checklistBreakdown() filters is_test=false AND
+       record_status='official') — sync exactly those employee+month buckets. */
+    if (modeInfo.mode === 'production') {
+      const officialBuckets = payload
+        .filter(row => row.record_status === 'official')
+        .map(row => ({ code: t(row.employee_code).toUpperCase(), month: t(row.occurred_date).slice(0, 7) }));
+      await syncMonthlyScoreBuckets(officialBuckets);
+    }
   }
 
   /* P0-2 — Đi trễ: gọi recordManagerLateObservation() (lib/checklist-late-reconciliation-service.js)
@@ -1903,6 +1943,10 @@ async function updateChecklistViolation(session, input = {}) {
   };
   patch.duplicate_fingerprint = duplicateFingerprint({ ...record, ...patch });
 
+  // Snapshot BEFORE the RPC call (only used for the post-edit sync below).
+  const preEditBucket = { code: t(record.employee_code).toUpperCase(), month: t(record.occurred_date).slice(0, 7) };
+  const postEditBucket = { code: t(canonical.employee_code).toUpperCase(), month: t(canonical.occurred_date).slice(0, 7) };
+
   const rpc=await supabase.rpc('phf_mutate_checklist_violation',{
     p_record_id:record.id,p_action:'edit_test',p_after:patch,p_reason:t(input.reason)||'Chỉnh sửa dữ liệu TEST',p_actor_id:currentActor.id,p_actor_name:currentActor.name,p_expected_updated_at:record.updated_at
   });
@@ -1914,6 +1958,12 @@ async function updateChecklistViolation(session, input = {}) {
     throw rpc.error;
   }
   const result=rpc.data||{};if(result.ok!==true)fail(t(result.message)||'Không thể cập nhật bản ghi.',409,t(result.code)||'CHECKLIST_VIOLATION_UPDATE_BLOCKED');
+
+  /* A. Write-through on violation edit: refresh BOTH the bucket the record left
+     and the bucket it landed in (occurred_date, hence its month, can move —
+     employee_code cannot, this endpoint is edit_test-only so it stays a no-op
+     against real scores today, but stays correct if that ever changes). */
+  await syncMonthlyScoreBuckets([preEditBucket, postEditBucket]);
   return { record: result.record, canonicalSource: 'assignment_template_version' };
 }
 
@@ -1924,6 +1974,11 @@ async function cancelChecklistViolation(session, input = {}) {
   const reason = t(input.reason);
   if (reason.length < 10) fail('Lý do hủy cần mô tả rõ tối thiểu 10 ký tự.',400,'CHECKLIST_CANCEL_REASON_REQUIRED');
   if (record.record_status === 'cancelled') fail('Bản ghi đã được hủy trước đó.',409,'CHECKLIST_ALREADY_CANCELLED');
+  // Snapshot BEFORE the RPC call: only used for the post-cancel sync decision below,
+  // so it must reflect the record's state as it stood before cancellation regardless
+  // of whether the RPC round-trip touches this same JS object.
+  const wasOfficialNonTest = record.is_test !== true && record.record_status === 'official';
+  const preCancelCode = t(record.employee_code).toUpperCase(), preCancelMonth = t(record.occurred_date).slice(0, 7);
   const currentActor=actor(session),rpc=await supabase.rpc('phf_mutate_checklist_violation',{p_record_id:record.id,p_action:'cancel',p_after:{},p_reason:reason,p_actor_id:currentActor.id,p_actor_name:currentActor.name,p_expected_updated_at:record.updated_at});
   if(rpc.error){
     const message=String(rpc.error.message||'');
@@ -1933,6 +1988,14 @@ async function cancelChecklistViolation(session, input = {}) {
     throw rpc.error;
   }
   const result=rpc.data||{};if(result.ok!==true)fail(t(result.message)||'Không thể hủy bản ghi.',409,t(result.code)||'CHECKLIST_VIOLATION_CANCEL_BLOCKED');
+
+  /* A. Write-through on violation cancel: cancelling an OFFICIAL, non-test
+     record removes its points from checklistBreakdown() — refresh that
+     employee+month's OPEN monthly form (record_status/is_test read from the
+     PRE-cancel snapshot: employee_code/occurred_date never change on cancel). */
+  if (wasOfficialNonTest) {
+    await syncMonthlyScoreBuckets([{ code: preCancelCode, month: preCancelMonth }]);
+  }
   return {record:result.record};
 }
 
