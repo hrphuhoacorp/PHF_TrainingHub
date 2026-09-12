@@ -79,13 +79,16 @@ const html = api.templateCardsHtml();
 const bhRow = html.split('data-phfck-template-detail="nv-ban-hang"')[0].split('<tr').pop();
 const khoRow = html.split('data-phfck-template-detail="nv-kho"')[0].split('<tr').pop();
 
-check(/phfck-template-version-chip">BH-2\.0</.test(bhRow), 'BH row version chip = BH-2.0 (current_version), not BH-1.0');
+// Admin UX cleanup (2026-09-12): the "Phiên bản" column now shows plain "Cập nhật gần nhất"
+// (formatted updatedAt), never the raw technical version string (BH-2.0/BH-1.0/NVK-1.0/...).
+check(!/phfck-template-version-chip">BH-2\.0</.test(bhRow), 'BH row does NOT show raw version BH-2.0');
 check(!/phfck-template-version-chip">BH-1\.0</.test(bhRow), 'BH row does NOT show BH-1.0');
+check(!/phfck-template-version-chip">NVK-1\.0</.test(khoRow), 'nv-kho row does NOT show raw version NVK-1.0');
 check(bhRow.includes('2026-09-01'), 'BH row effective = 2026-09-01 (BH-2.0 version effective date)');
 check(!bhRow.includes('2026-07-18'), 'BH row does NOT show BH-1.0 effective date');
 check(bhRow.includes('Đang áp dụng'), 'BH row status still "Đang áp dụng"');
+check(!/phfck-template-version-chip">\s*<\/span>/.test(bhRow), 'BH row updatedAt cell is not empty');
 
-check(/phfck-template-version-chip">NVK-1\.0</.test(khoRow), 'other template (nv-kho) still renders version NVK-1.0');
 check(khoRow.includes('2026-08-01'), 'nv-kho effective = its own version date 2026-08-01');
 
 console.log('\n' + (failures ? (failures + ' FAIL') : 'ALL PASS'));

@@ -78,7 +78,10 @@ const html = api.monthlyFormsHtml();
 // CASE 15
 const overrideRow = html.split('data-phfck-monthly-menu="f-override"')[0].split('<tr>').pop();
 check(html.includes('Điều chỉnh thủ công'), 'CASE 15: "Điều chỉnh thủ công" badge shown for version_overridden form');
-check(html.includes('Phiếu: BH-1.0 · Phân công hiện tại: BH-2.0'), 'CASE 15: shows "Phiếu: BH-1.0 · Phân công hiện tại: BH-2.0"');
+// Admin UX cleanup (2026-09-12): raw template-version strings (BH-1.0/BH-2.0) are no longer
+// rendered in the routine Phiếu đánh giá tháng list — only plain-language status.
+check(!overrideRow.includes('BH-1.0') && !overrideRow.includes('BH-2.0'), 'CASE 15: overridden row does NOT show raw template-version strings');
+check(overrideRow.includes('Nhân viên bán hàng'), 'CASE 15: overridden row shows human-readable template name');
 check(!/f-override[\s\S]*?Mẫu chụp khác phân công hiện tại[\s\S]*?<\/td>/.test(html) || !html.slice(html.indexOf('f-override'), html.indexOf('f-normal')).includes('Mẫu chụp khác phân công'), 'CASE 15: overridden form does NOT show the mismatch/corruption warning');
 
 // CASE 16
