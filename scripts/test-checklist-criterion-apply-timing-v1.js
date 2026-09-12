@@ -156,6 +156,34 @@ class FakeQuery {
     return Promise.resolve(p).then(res, rej);
   }
 }
+// ---------------------------------------------------------------------------
+// Retry/partial-failure harness for mode:'all' — simulates a real optimistic-concurrency
+// conflict (the same `.eq('updated_at', form.updated_at)` guard that already protects
+// single-form applies) on exactly ONE form mid-batch, by transiently forcing every row's
+// updated_at to a value that can never match the filter for the duration of that one
+// intercepted update() call, then restoring the real value immediately after (so a
+// subsequent, legitimate retry sees the row's true current state via a fresh SELECT, exactly
+// like a real concurrent-edit-then-resolved race). `conflictOnCallIndex` is relative to
+// updateCallCounter's value at the moment it is armed (see the test below), so it targets
+// "the Nth checklist_monthly_forms update call from now" regardless of how many update calls
+// earlier tests in this file already made.
+// ---------------------------------------------------------------------------
+let updateCallCounter = 0, conflictOnCallIndex = null;
+const origFakeQueryThen = FakeQuery.prototype.then;
+FakeQuery.prototype.then = function (res, rej) {
+  if (this.table === 'checklist_monthly_forms' && this._patch) {
+    updateCallCounter++;
+    if (conflictOnCallIndex === updateCallCounter) {
+      const table = store.checklist_monthly_forms || [];
+      const snapshot = table.map(r => r.updated_at);
+      table.forEach(r => { r.updated_at = '1970-01-01T00:00:00.000Z'; });
+      const result = origFakeQueryThen.call(this, res, rej);
+      table.forEach((r, i) => { r.updated_at = snapshot[i]; });
+      return result;
+    }
+  }
+  return origFakeQueryThen.call(this, res, rej);
+};
 async function fakeRpc(name, params) {
   rpcCalls.push({ name, params: clone(params) });
   if (name === 'phf_save_checklist_template') {
@@ -621,6 +649,87 @@ async function main() {
     let threw = null;
     try { await monthlyLib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', reason: 'thử áp dụng lên kỳ đã khóa' }); } catch (e) { threw = e; }
     assert.ok(threw && threw.code === 'CHECKLIST_MONTHLY_RETRO_SCOPE_PERIOD_LOCKED');
+  });
+
+  // -------------------------------------------------------------------
+  // Backend — mode:'all' PARTIAL FAILURE + RETRY (2026-09-12 follow-up). The prior report on
+  // this feature explicitly flagged this exact interleave as untested: a batch of 3 forms
+  // (GREEN/YELLOW/ORANGE) where ONE form (YELLOW, 2nd in iteration order) hits a real
+  // optimistic-concurrency conflict on the SAME `.eq('updated_at', ...)` guard that already
+  // protects single-form applies (scripts/test-checklist-retroactive-current-period-v1.js) —
+  // then a legitimate retry (the conflict condition resolved) must complete the failed form
+  // WITHOUT double-applying or double-recording history for the two forms that already
+  // succeeded on pass 1.
+  // -------------------------------------------------------------------
+  await rec('Backend — mode:"all" partial failure (stale-conflict on 1 of 3 forms) is reported honestly, and a retry completes the failed form without double-applying the ones that already succeeded', async () => {
+    resetStore('open');
+    store.checklist_template_versions.push({ template_key: TPL, version_no: 'KTT-2.3', effective_date: '2026-09-01', reason: 'bump', source_version: 'KTT-2.2', change_type: 'web-criteria-admin', definition: clone(V1_DEF), created_at: '2026-09-01T00:00:00.000Z' });
+    store.checklist_templates.find(x => x.template_key === TPL).current_version = 'KTT-2.3';
+    const preYellow = clone(formById('f-yellow'));
+
+    // ---- PASS 1: force the 2nd checklist_monthly_forms update call (iteration order is the
+    // store's insertion order — green, yellow, orange — none pre-skipped as "unchanged" since
+    // all 3 still point at KTT-2.2) to hit a transient stale-updated_at conflict, i.e. YELLOW.
+    conflictOnCallIndex = updateCallCounter + 2;
+    let out1;
+    try {
+      out1 = await monthlyLib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', reason: 'Apply-timing V1 — retry test pass 1' });
+    } finally {
+      conflictOnCallIndex = null;
+    }
+
+    // -- FALSE_FULL_SUCCESS_PREVENTED: the returned shape must be honest about the partial
+    // failure, not claim all 3 succeeded.
+    assert.strictEqual(out1.appliedCount, 2, 'only GREEN+ORANGE actually applied on pass 1');
+    assert.strictEqual(out1.skippedCount, 1, 'YELLOW counted as skipped, not silently dropped nor silently counted as applied');
+    const skippedItem1 = out1.items.find(x => x.formId === 'f-yellow');
+    assert.ok(skippedItem1, 'the skipped form is named in the result items');
+    assert.strictEqual(skippedItem1.outcome, 'skipped-stale', 'skip reason is the real optimistic-concurrency guard, not a generic/unknown failure');
+
+    // -- the failed form was left in a safe, unmodified, retryable state (byte-for-byte).
+    assert.deepStrictEqual(formById('f-yellow'), preYellow, 'YELLOW form completely untouched by the failed pass-1 attempt — safe to retry');
+    assert.strictEqual(historyFor('f-yellow').length, 0, 'no history row written for the failed attempt');
+
+    // -- the two forms that DID succeed on pass 1 are correctly updated.
+    const greenAfter1 = formById('f-green'), orangeAfter1 = formById('f-orange');
+    assert.strictEqual(greenAfter1.status, 'draft', 'GREEN: no reset (no data to lose)');
+    assert.strictEqual(greenAfter1.template_version, 'KTT-2.3');
+    assert.strictEqual(orangeAfter1.status, 'waiting_self', 'ORANGE: reset');
+    assert.strictEqual(orangeAfter1.template_version, 'KTT-2.3');
+    assert.strictEqual(historyFor('f-green').length, 1);
+    assert.strictEqual(historyFor('f-orange').length, 1);
+    assert.strictEqual(historyFor('f-green')[0].action, 'retroactive_apply_current_period_safe');
+    assert.strictEqual(historyFor('f-orange')[0].action, 'retroactive_apply_current_period_reset');
+    const greenUpdatedAtAfter1 = greenAfter1.updated_at, orangeUpdatedAtAfter1 = orangeAfter1.updated_at;
+
+    // ---- PASS 2 (retry): same call, conflict condition removed (a legitimate retry, exactly
+    // reflecting reality — the "concurrent" writer from pass 1 is gone/resolved).
+    const out2 = await monthlyLib.applyChecklistMonthlyRetroactiveScope(ADMIN, { templateId: TPL, periodMonth: CURRENT_PERIOD, mode: 'all', reason: 'Apply-timing V1 — retry test pass 2' });
+
+    // -- DOUBLE_APPLICATION_PREVENTED: GREEN/ORANGE (already succeeded) are re-classified as
+    // GREEN tier post-reset/no-op and their template already matches -> "skipped-unchanged",
+    // never re-touched. Only YELLOW (the one that actually still needs it) gets applied.
+    assert.strictEqual(out2.appliedCount, 1, 'only the previously-failed YELLOW form is applied on the retry');
+    assert.strictEqual(out2.skippedCount, 2, 'the already-succeeded GREEN+ORANGE are skipped as unchanged, not re-applied');
+    const appliedItem2 = out2.items.find(x => x.outcome === 'applied');
+    assert.strictEqual(appliedItem2.formId, 'f-yellow', 'the retry actually completes the previously-failed form');
+    out2.items.filter(x => x.formId !== 'f-yellow').forEach(x => assert.strictEqual(x.outcome, 'skipped-unchanged', 'GREEN/ORANGE skip as "unchanged", not reprocessed: ' + JSON.stringify(x)));
+
+    assert.strictEqual(formById('f-green').updated_at, greenUpdatedAtAfter1, 'GREEN row not re-touched by the retry (same updated_at as after pass 1)');
+    assert.strictEqual(formById('f-orange').updated_at, orangeUpdatedAtAfter1, 'ORANGE row not re-touched by the retry (same updated_at as after pass 1)');
+
+    // -- AUDIT_DUPLICATION_PREVENTED: no extra history rows for the forms that already
+    // succeeded on pass 1; exactly one new history row for the form the retry actually fixed.
+    assert.strictEqual(historyFor('f-green').length, 1, 'still exactly 1 history row for GREEN (no duplicate from the retry)');
+    assert.strictEqual(historyFor('f-orange').length, 1, 'still exactly 1 history row for ORANGE (no duplicate from the retry)');
+    assert.strictEqual(historyFor('f-yellow').length, 1, 'exactly 1 history row for YELLOW, written by the retry (pass 1 wrote none)');
+    assert.strictEqual(historyFor('f-yellow')[0].action, 'retroactive_apply_current_period_reset');
+
+    // -- final state: the retry actually completed the previously-failed form correctly.
+    const yellowFinal = formById('f-yellow');
+    assert.strictEqual(yellowFinal.status, 'waiting_self');
+    assert.deepStrictEqual(yellowFinal.self_answers, {});
+    assert.strictEqual(yellowFinal.template_version, 'KTT-2.3');
   });
 
   console.log('\n' + passed + ' passed, ' + failures + ' failed.');

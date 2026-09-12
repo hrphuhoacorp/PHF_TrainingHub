@@ -154,10 +154,16 @@ async function main() {
   // old post-publish wizard modal is only ever shown when NOT offered (no double-modal,
   // no automatic silent apply anywhere in either "Lưu & áp dụng" success path).
   // -------------------------------------------------------------------
-  await rec('structural: cePublish success handler calls checklistRetroOfferCurrentPeriod (Criterion Admin gets the same decision point)', () => {
+  await rec('structural: Criterion Admin runs the timing decision (classify) BEFORE the version is ever published — cePublish only fires later, from the explicit "Lưu & áp dụng" click, after the decision UI has already rendered', () => {
+    const fnStart = src.indexOf('async function ceSaveAndApply(root,modalRoot)');
+    const fnEnd = src.indexOf('\n  function ceGroupChildLabel', fnStart);
+    assert.ok(fnStart > -1 && fnEnd > fnStart, 'ceSaveAndApply located');
+    const fnBody = src.slice(fnStart, fnEnd);
+    assert.ok(/await ceClassifyCurrentPeriod\(pendingCePublish\)/.test(fnBody), 'ceSaveAndApply classifies the current-period impact before opening the confirm modal');
+    assert.ok(!/await cePublish\(/.test(fnBody), 'ceSaveAndApply never publishes itself — publishing only happens after the admin confirms the already-classified decision');
+    assert.ok(/appendSubmodal\(root,cePreviewHtml\(pendingCePublish\)\)/.test(fnBody), 'the classified retro state feeds the SAME confirm modal that carries the timing choice UI (ceTimingSectionHtml)');
     const applyCeBlock = src.slice(src.indexOf('var applyCe=e.target.closest'), src.indexOf('var editCriterion=e.target.closest'));
-    assert.ok(/await cePublish\(checklistCeState\)/.test(applyCeBlock));
-    assert.ok(/checklistRetroOfferCurrentPeriod\(root,appliedCe\.templateId\)/.test(applyCeBlock), 'applyCe handler offers the current-period decision after a successful publish');
+    assert.ok(/await cePublish\(checklistCeState\)/.test(applyCeBlock), 'publish happens only from the explicit apply-button click handler, which runs strictly after ceSaveAndApply already classified+rendered the timing decision');
   });
   await rec('structural: tseConfirmSaveAndApply calls checklistRetroOfferCurrentPeriod; checklistTsePostPublishHtml only shown when NOT offered', () => {
     const fnStart = src.indexOf('function tseConfirmSaveAndApply');
@@ -165,13 +171,35 @@ async function main() {
     assert.ok(/checklistRetroOfferCurrentPeriod\(root,state\.templateId\)/.test(fnBody));
     assert.ok(/if\(!offered\)appendSubmodal\(root,checklistTsePostPublishHtml\(\)\)/.test(fnBody), 'old wizard-offer modal only appended when the new decision was NOT offered (no double-modal)');
   });
-  await rec('structural: normal save never calls the APPLY action directly — only the CLASSIFY action; the apply action name only appears inside the new decision-modal click handler', () => {
-    const applyActionOccurrences = (src.match(/checklistRetroApplyCurrentPeriod/g) || []).length;
-    // Exactly one call site: inside the retro-decision-apply click handler (explicit admin action).
-    assert.strictEqual(applyActionOccurrences, 1, 'checklistRetroApplyCurrentPeriod referenced exactly once in the whole file — only from the explicit apply-button click handler, never from a save/publish/sync path');
-    const idx2 = src.indexOf('checklistRetroApplyCurrentPeriod');
-    const context = src.slice(Math.max(0, idx2 - 400), idx2 + 50);
-    assert.ok(/data-phfck-retro-decision-apply/.test(context), 'the one call site is inside the explicit apply-button handler');
+  await rec('structural: checklistRetroApplyCurrentPeriod is only ever invoked behind an explicit user-confirmed apply-now gate — never on a bare/unconditional save or on the "next period" path', () => {
+    const callSites = [];
+    let searchFrom = 0;
+    for (;;) {
+      const i = src.indexOf('checklistRetroApplyCurrentPeriod', searchFrom);
+      if (i === -1) break;
+      callSites.push(i);
+      searchFrom = i + 1;
+    }
+    assert.strictEqual(callSites.length, 2, 'exactly 2 call sites: the merged Criterion Admin flow (ceFinishApplyTiming) and the legacy standalone retro-decision modal (used by TSE publish/activation offers)');
+
+    // Call site 1 (Criterion Admin, merged flow): inside ceFinishApplyTiming, only reached
+    // when retro.choice==='now' — the "next period" branch returns BEFORE this line, so a
+    // save that goes the next-period route can never reach the apply call.
+    const finishStart = src.indexOf('async function ceFinishApplyTiming');
+    const finishEnd = src.indexOf('\n  function bulkStartModalHtml', finishStart);
+    assert.ok(finishStart > -1 && finishEnd > finishStart, 'ceFinishApplyTiming located');
+    assert.ok(callSites[0] > finishStart && callSites[0] < finishEnd, 'first call site sits inside ceFinishApplyTiming');
+    const finishBody = src.slice(finishStart, finishEnd);
+    const beforeCall1 = finishBody.slice(0, finishBody.indexOf('checklistRetroApplyCurrentPeriod'));
+    assert.ok(/if\(retro\.choice!==.now.\)\{[\s\S]*?return;\s*\}/.test(beforeCall1), 'the "next period" choice returns early, before the apply call, inside ceFinishApplyTiming — apply is unreachable on that path');
+
+    // Call site 2 (legacy standalone decision modal): gated behind the explicit
+    // data-phfck-retro-decision-apply button click, and requires a real user-entered reason
+    // (>=10 chars) before firing — never a default/blank confirmation.
+    const idx2 = callSites[1];
+    const context2 = src.slice(Math.max(0, idx2 - 700), idx2 + 50);
+    assert.ok(/data-phfck-retro-decision-apply/.test(context2), 'second call site is inside the explicit apply-button click handler of the standalone decision modal');
+    assert.ok(/reason\.length<10\)\{checklistToast/.test(context2), 'second call site additionally requires a real user-entered reason before firing (no default/blank confirmation)');
   });
 
   console.log('\n' + passed + ' PASS, ' + failures + ' FAIL');
