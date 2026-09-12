@@ -3200,6 +3200,10 @@
       templateId:templateId,
       oldVersion:effectiveTemplateVersion(templateId),
       groups:groups,
+      /* Part F (2026-09) — bản chụp nguyên trạng của groups tại thời điểm mở phiên làm
+         việc, dùng RIÊNG cho "zero-net-change guard" (ceHasSemanticChange bên dưới) —
+         không dùng cho bất kỳ mục đích nào khác, không gửi lên server. */
+      originalGroups:deepClone(groups),
       publishedCodes:publishedCodes,
       sessionAddedCodes:{},
       editingCode:'',
@@ -3216,15 +3220,35 @@
     (state.groups||[]).some(function(g){return (g.children||[]).some(function(c){return (c.items||[]).some(function(i,index){if(String(i[0])===String(code)){found={group:g,child:c,item:i,index:index};return true;}return false;});});});
     return found;
   }
+  /* Criterion Admin UX V2 (2026-09) — mã tiêu chí (Part C) không còn bắt Admin gõ tay ở
+     luồng bình thường; nếu input.code bỏ trống, tự sinh mã ổn định/dò trùng dựa trên nội
+     dung + mã nhóm (ceSlugifyCriterionCode bên dưới, cùng phong cách với
+     ceSlugifyGroupCode của ceAddGroup). Vẫn CHO PHÉP truyền code tường minh (test cũ,
+     hoặc import) để không phá các luồng khác đang gọi ceAddCriterion với code có sẵn. */
+  function ceExistingCriterionCodes(state){
+    var out={};
+    ceCriterionList(state).forEach(function(c){if(c.code)out[String(c.code).toUpperCase()]=true;});
+    Object.keys(state.publishedCodes||{}).forEach(function(k){out[String(k).toUpperCase()]=true;});
+    return out;
+  }
+  function ceSlugifyCriterionCode(content,groupCode,existingCodes){
+    var base=String(content||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/Đ/g,'D').replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+    var words=(base.split('_').filter(Boolean).slice(0,4).join('_')||'TC').slice(0,40);
+    var groupPrefix=String(groupCode||'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
+    var prefix=(groupPrefix?groupPrefix+'_':'')+words;
+    var code=prefix,n=2;
+    while(existingCodes[code]){code=prefix+'_'+n;n++;}
+    return code;
+  }
   function ceAddCriterion(state,input){
-    var code=normalizeText(input&&input.code).toUpperCase(),content=normalizeText(input&&input.content),factor=Number(input&&input.factor),errors=[];
-    if(!code)errors.push({key:'code',message:'Vui lòng nhập mã tiêu chí.'});
-    else if(ceCodeExistsInSession(state,code))errors.push({key:'code',message:'Mã tiêu chí "'+code+'" đã tồn tại.'});
+    var explicitCode=normalizeText(input&&input.code).toUpperCase(),content=normalizeText(input&&input.content),factor=Number(input&&input.factor),errors=[];
+    if(explicitCode&&ceCodeExistsInSession(state,explicitCode))errors.push({key:'code',message:'Mã tiêu chí "'+explicitCode+'" đã tồn tại.'});
     if(!content)errors.push({key:'content',message:'Vui lòng nhập nội dung tiêu chí.'});
     if(!Number.isFinite(factor)||factor<=0)errors.push({key:'factor',message:'Hệ số phải là số lớn hơn 0.'});
     var gc=findGroupChild(state.groups,input&&input.groupCode,input&&input.childCode,input&&input.groupName,input&&input.childName);
     if(!gc)errors.push({key:'group',message:'Vui lòng chọn đúng nhóm nội dung.'});
     if(errors.length)return {ok:false,errors:errors};
+    var code=explicitCode||ceSlugifyCriterionCode(content,gc.group.code,ceExistingCriterionCodes(state));
     gc.child.items.push([code,content,factor]);
     state.sessionAddedCodes[code]=true;
     return {ok:true,code:code};
@@ -3298,6 +3322,108 @@
     saveBulkOverrideLocal(state.templateId,payload);
     return payload;
   }
+  /* Part F (2026-09) — "zero-net-change guard": trước khi tạo phiên bản mới, so sánh
+     NGỮ NGHĨA giữa groups cuối phiên làm việc và groups gốc lúc mở phiên (ceOpen chụp lại
+     ở state.originalGroups). So sánh phải bỏ qua thứ tự KHÓA của object (key order) nhưng
+     PHẢI giữ thứ tự MẢNG (items/children/groups) vì sắp xếp lại là thay đổi thật, người
+     dùng nhìn thấy được (Part G/mục 12). Đây chính là lớp chặn trực tiếp lớp lỗi PROD gốc:
+     bấm "Lưu & áp dụng" nhưng tiêu chí định thêm không thực sự vào state -> không có gì
+     thay đổi thật -> KHÔNG được tạo version rác. normalizeSharedCriterionFactors() được áp
+     dụng cho cả hai vế để loại trừ khác biệt "cosmetic" do quy tắc hệ số văn hoá ứng xử tự
+     động ép cứng — tức không so sánh những gì hệ thống tự chuẩn hoá lại giống nhau. */
+  function ceCanonical(v){
+    if(Array.isArray(v))return v.map(ceCanonical);
+    if(v&&typeof v==='object'){
+      var out={};
+      Object.keys(v).sort().forEach(function(k){out[k]=ceCanonical(v[k]);});
+      return out;
+    }
+    return v;
+  }
+  function ceHasSemanticChange(state){
+    var before=ceCanonical(normalizeSharedCriterionFactors(state.originalGroups||[]));
+    var after=ceCanonical(normalizeSharedCriterionFactors(state.groups||[]));
+    return JSON.stringify(before)!==JSON.stringify(after);
+  }
+  /* Part A/B (2026-09) — đọc trực tiếp DOM của form "Thêm tiêu chí mới" đang hiển thị (form
+     này không còn nút chốt riêng — chỉ có "Lưu & áp dụng" đọc form tại thời điểm bấm), tách
+     khỏi phần tạo nhóm mới inline ("+ Tạo nhóm mới..." trong dropdown "Thuộc nhóm" — Part E). */
+  function ceReadAddFormRaw(modalRoot){
+    if(!modalRoot)return {groupVal:'',groupName:'',content:'',factor:''};
+    return {
+      groupVal:(modalRoot.querySelector('[data-phfck-ce-add-group]')||{}).value||'',
+      groupName:(modalRoot.querySelector('[data-phfck-ce-add-group-name]')||{}).value||'',
+      content:(modalRoot.querySelector('[data-phfck-ce-add-content]')||{}).value||'',
+      factor:(modalRoot.querySelector('[data-phfck-ce-add-factor]')||{}).value||''
+    };
+  }
+  /* Form được coi là "trống" (bỏ qua, không phải lỗi) khi Admin CHƯA gõ nội dung tiêu chí
+     nào — đây là điều kiện duy nhất; nếu content có chữ thì form được coi là "đang có tiêu
+     chí định thêm" và phải được auto-capture khi bấm "Lưu & áp dụng" (mục A/B của spec). */
+  function ceAddFormRawIsBlank(raw){return !normalizeText(raw&&raw.content);}
+  function ceCommitAddFormRaw(state,raw){
+    var input={content:raw&&raw.content,factor:raw&&raw.factor};
+    if(raw&&raw.groupVal==='__new__'){
+      var gres=ceAddGroup(state,{name:raw.groupName});
+      if(!gres.ok)return gres;
+      input.groupCode=gres.code;input.childCode=gres.code;
+    }else{
+      var parts=String((raw&&raw.groupVal)||'').split('::');
+      input.groupCode=parts[0]||'';input.childCode=parts[1]||'';
+    }
+    return ceAddCriterion(state,input);
+  }
+  /* Part A/B/F (2026-09) — hàm duy nhất đứng sau nút "Lưu & áp dụng": tự động "chốt" form
+     đang hiển thị (nếu có nội dung), chạy validate phiên làm việc, áp dụng zero-net-change
+     guard, rồi mới mở modal xác nhận (cePreviewHtml) — ĐÂY chính là fix cho lỗi PROD gốc
+     (KTT 2.3): trước đây phải bấm riêng "+ Thêm tiêu chí" rồi mới bấm "Lưu & áp dụng"; nếu
+     bước giữa không xảy ra, "Lưu & áp dụng" âm thầm phát hành lại đúng nội dung cũ dưới số
+     phiên bản mới. Được tách thành hàm riêng (không viết thẳng trong handler ủy quyền) để
+     có thể gọi trực tiếp từ test offline, theo đúng convention của lockMonthlyPeriod(root).*/
+  async function ceSaveAndApply(root,modalRoot){
+    if(!checklistCeState||!modalRoot)return {ok:false,reason:'no-state'};
+    clearInlineValidation(modalRoot);
+    var addSummary0=modalRoot.querySelector('[data-phfck-ce-add-summary]');
+    if(addSummary0){addSummary0.hidden=true;var ul0=addSummary0.querySelector('ul');if(ul0)ul0.innerHTML='';}
+    var reasonEl=modalRoot.querySelector('[data-phfck-ce-reason]');
+    var reason=((reasonEl&&reasonEl.value)||'').trim();
+    checklistCeState.reason=reason;
+    var raw=ceReadAddFormRaw(modalRoot),mutated=false;
+    if(!ceAddFormRawIsBlank(raw)){
+      var addRes=ceCommitAddFormRaw(checklistCeState,raw);
+      if(!addRes.ok){
+        if(addSummary0){addSummary0.hidden=false;var ul1=addSummary0.querySelector('ul');if(ul1)ul1.innerHTML=addRes.errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}
+        addRes.errors.forEach(function(x){var wrap=modalRoot.querySelector('[data-phfck-field-wrap="'+x.key+'"]');if(wrap){wrap.classList.add('is-invalid');var msg=wrap.querySelector('.phfck-field-error');if(msg){msg.hidden=false;msg.textContent=x.message;}}});
+        return {ok:false,reason:'invalid-add-form'};
+      }
+      mutated=true;
+    }
+    var sessionCheck=ceValidateSession(checklistCeState);
+    if(sessionCheck.errors.length){
+      if(root&&mutated)ceRerenderModal(root);
+      checklistToast('error','Chưa thể tạo phiên bản mới',sessionCheck.errors.join(' '),true);
+      return {ok:false,reason:'session-invalid'};
+    }
+    if(!reason){
+      var reasonModal=modalRoot;
+      if(root&&mutated){ceRerenderModal(root);reasonModal=root.querySelector('[data-phfck-submodal]')||modalRoot;}
+      if(reasonModal)showInlineValidation(reasonModal,[{key:'reason',message:'Vui lòng nhập lý do thay đổi.'}]);
+      return {ok:false,reason:'reason-required'};
+    }
+    if(!ceHasSemanticChange(checklistCeState)){
+      if(root&&mutated)ceRerenderModal(root);
+      checklistToast('info','Không có thay đổi','Chưa có thay đổi để áp dụng.',true);
+      return {ok:false,reason:'no-change'};
+    }
+    checklistCeState.effectiveDate=checklistCeState.effectiveDate||todayIso();
+    checklistCeState.newVersion=nextTemplateVersion(checklistCeState.oldVersion);
+    pendingCePublish={state:checklistCeState,templateId:checklistCeState.templateId,oldVersion:checklistCeState.oldVersion,newVersion:checklistCeState.newVersion,effectiveDate:checklistCeState.effectiveDate,reason:reason};
+    /* root có thể null khi được gọi trực tiếp từ test offline thuần logic (cùng convention
+       "if(root)appendSubmodal(...)" đã dùng ở checklistRetroOfferCurrentPeriod) — phần DOM
+       thật (appendSubmodal/prepareChecklistModalLayer) chỉ chạy khi có root browser thật. */
+    if(root)appendSubmodal(root,cePreviewHtml(pendingCePublish));
+    return {ok:true};
+  }
   /* Nhóm nội dung do accountingGroups(prefix,sections) tự sinh (và nhóm Admin thêm qua
      ceAddGroup bên dưới) luôn có DUY NHẤT một "con" mang CÙNG mã/tên với nhóm cha — hiển
      thị "Tên / Tên" là thông tin trùng lặp gây hiểu nhầm có 2 cấp phân loại. Chỉ hiển thị
@@ -3351,12 +3477,21 @@
             return;
           }
           var hard=ceIsHardDeletable(state,code);
-          rows.push('<tr data-phfck-ce-row="'+esc(code)+'"><td>'+esc(ceGroupChildLabel(g,c))+'</td><td><b>'+esc(code)+'</b></td><td>'+esc(item[1])+'</td><td>'+esc(item[2])+'</td><td class="phfck-ce-actions">'
-            +'<button type="button" data-phfck-ce-move-up="'+esc(code)+'"'+(ii===0?' disabled':'')+' aria-label="Chuyển lên">↑</button>'
-            +'<button type="button" data-phfck-ce-move-down="'+esc(code)+'"'+(ii===c.items.length-1?' disabled':'')+' aria-label="Chuyển xuống">↓</button>'
-            +'<button type="button" data-phfck-ce-edit="'+esc(code)+'">Sửa</button>'
-            +(hard?('<button type="button" class="phfck-danger" data-phfck-ce-remove="'+esc(code)+'">Xóa</button>'):('<button type="button" data-phfck-ce-discontinue="'+esc(code)+'">Ngưng áp dụng</button>'))
-            +'</td></tr>');
+          /* Part G (2026-09) — cột thao tác gọn một dòng "↑ ↓ Sửa ⋯": ⋯ mở popover chứa
+             "Ngưng áp dụng"/"Xóa" (đúng logic hard-delete-vs-discontinue cũ, KHÔNG đổi),
+             tái dùng đúng class .phfck-row-menu/.phfck-row-menu-pop đã có (khu vực Nhân sự
+             chưa liên kết) để nhất quán UI + không cần CSS mới cho phần popover. Nút "Sửa"
+             xuất hiện 2 lần (một bản luôn hiện, một bản chỉ hiện trong popover ở màn hẹp,
+             ẩn/hiện thuần CSS) — không đổi hành vi ceEdit, chỉ đổi layout/markup bao quanh. */
+          rows.push('<tr data-phfck-ce-row="'+esc(code)+'"><td>'+esc(ceGroupChildLabel(g,c))+'</td><td><b>'+esc(code)+'</b></td><td>'+esc(item[1])+'</td><td>'+esc(item[2])+'</td><td class="phfck-ce-actions"><div class="phfck-ce-actions-line">'
+            +'<button type="button" class="phfck-ce-icon-btn" data-phfck-ce-move-up="'+esc(code)+'"'+(ii===0?' disabled':'')+' aria-label="Chuyển lên">↑</button>'
+            +'<button type="button" class="phfck-ce-icon-btn" data-phfck-ce-move-down="'+esc(code)+'"'+(ii===c.items.length-1?' disabled':'')+' aria-label="Chuyển xuống">↓</button>'
+            +'<button type="button" class="phfck-ce-icon-btn phfck-ce-edit-btn" data-phfck-ce-edit="'+esc(code)+'">Sửa</button>'
+            +'<div class="phfck-row-tools"><button type="button" class="phfck-row-menu" data-phfck-ce-row-menu="'+esc(code)+'" aria-label="Thao tác khác">⋯</button><div class="phfck-row-menu-pop" data-phfck-ce-row-menu-pop="'+esc(code)+'">'
+            +'<button type="button" class="phfck-ce-menu-edit" data-phfck-ce-edit="'+esc(code)+'">Sửa</button>'
+            +(hard?('<button type="button" class="is-danger" data-phfck-ce-remove="'+esc(code)+'">Xóa</button>'):('<button type="button" data-phfck-ce-discontinue="'+esc(code)+'">Ngưng áp dụng</button>'))
+            +'</div></div>'
+            +'</div></td></tr>');
         });
       });
     });
@@ -3372,17 +3507,26 @@
       +'<div class="phfck-notice phfck-ce-immutable-note"><p>Thay đổi tại đây không làm thay đổi các phiếu tháng đã phát hành trước đó.</p></div>'
       +'<div data-phfck-ce-validation class="phfck-notice '+(v.errors.length?'':'is-success')+'">'+(v.errors.length?('<b>Chưa thể tạo phiên bản mới</b><ul>'+v.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>'):'<b>Hợp lệ</b><p>Có thể xem trước và tạo phiên bản mới.</p>')+'</div>'
       +'<div class="phfck-detail-table-wrap"><table class="phfck-detail-table phfck-ce-table"><thead><tr><th>Nhóm nội dung</th><th>Mã</th><th>Nội dung</th><th>Hệ số</th><th>Thao tác</th></tr></thead><tbody data-phfck-ce-rows>'+ceRowsHtml(state)+'</tbody></table></div>'
-      +'<div class="phfck-ce-add phfck-ce-add-group"><h3>+ Thêm nhóm nội dung</h3><div class="phfck-form-error-summary" data-phfck-ce-add-group-summary hidden><b>Không thể thêm nhóm</b><ul></ul></div><div class="phfck-edit-grid">'
-      +'<label class="is-wide" data-phfck-field-wrap="groupName"><b>Tên nhóm nội dung <em>*</em></b><input type="text" placeholder="vd: Vận hành" data-phfck-ce-add-group-name><small class="phfck-field-error" hidden></small></label>'
-      +'</div><button type="button" class="phfck-secondary" data-phfck-ce-add-group-submit">+ Thêm nhóm nội dung</button></div>'
+      /* Criterion Admin UX V2 (2026-09) — Part A/B/C/D/E: MỘT form duy nhất "Thêm tiêu chí
+         mới" gộp cả tạo nhóm mới inline (chọn "+ Tạo nhóm mới..." ở dropdown "Thuộc nhóm"
+         hiện ô "Tên nhóm mới") — không còn form "+ Thêm nhóm nội dung" tách riêng (2 luồng
+         cạnh tranh trước đây). Bỏ hẳn ô "Mã tiêu chí" (tự sinh, Part C) khỏi luồng bình
+         thường. "Lưu & áp dụng" tự đọc form đang hiển thị (ceSaveAndApply/ceReadAddFormRaw)
+         nên bỏ trống thì bỏ qua, có nội dung thì tự chốt — đây chính là fix cho lỗi PROD
+         KTT 2.3.
+         UX V2 follow-up (2026-09) — bỏ hẳn nút "+ Thêm tiêu chí khác": khảo sát tay cho thấy
+         nút này gây nhầm lẫn và không có phản hồi rõ ràng khi bấm. Chốt lại một luồng thêm
+         duy nhất = một tiêu chí: nhập đủ 4 trường rồi bấm "Lưu & áp dụng" luôn; muốn thêm
+         tiêu chí khác thì mở lại "Quản lý tiêu chí". Không đổi ceCommitAddFormRaw/
+         ceSaveAndApply/ceReadAddFormRaw — auto-capture khi Lưu & áp dụng giữ nguyên. */
       +'<div class="phfck-ce-add"><h3>Thêm tiêu chí mới</h3><div class="phfck-form-error-summary" data-phfck-ce-add-summary hidden><b>Không thể thêm tiêu chí</b><ul></ul></div><div class="phfck-edit-grid">'
-      +'<label class="is-wide" data-phfck-field-wrap="group"><b>Nhóm nội dung <em>*</em></b><select data-phfck-ce-add-group>'+ceGroupOptionsHtml(state)+'</select><small class="phfck-field-error" hidden></small></label>'
-      +'<label data-phfck-field-wrap="code"><b>Mã tiêu chí <em>*</em></b><input type="text" data-phfck-ce-add-code><small class="phfck-field-error" hidden></small></label>'
-      +'<label class="is-wide" data-phfck-field-wrap="content"><b>Nội dung <em>*</em></b><textarea data-phfck-ce-add-content></textarea><small class="phfck-field-error" hidden></small></label>'
+      +'<label class="is-wide" data-phfck-field-wrap="group"><b>Thuộc nhóm <em>*</em></b><select data-phfck-ce-add-group>'+ceGroupOptionsHtml(state)+'<option value="__new__">+ Tạo nhóm mới...</option></select><small class="phfck-field-error" hidden></small></label>'
+      +'<label class="is-wide" data-phfck-field-wrap="groupName" data-phfck-ce-new-group-wrap hidden><b>Tên nhóm mới <em>*</em></b><input type="text" placeholder="vd: Vận hành" data-phfck-ce-add-group-name><small class="phfck-field-error" hidden></small></label>'
+      +'<label class="is-wide" data-phfck-field-wrap="content"><b>Tên tiêu chí <em>*</em></b><textarea data-phfck-ce-add-content></textarea><small class="phfck-field-error" hidden></small></label>'
       +'<label data-phfck-field-wrap="factor"><b>Hệ số <em>*</em></b><input type="number" min="1" step="1" value="1" data-phfck-ce-add-factor><small class="phfck-field-error" hidden></small></label>'
-      +'</div><button type="button" class="phfck-secondary" data-phfck-ce-add-submit">＋ Thêm tiêu chí</button></div>'
-      +'<div class="phfck-edit-grid phfck-ce-publish-fields"><label data-phfck-field-wrap="effective"><b>Ngày hiệu lực <em>*</em></b><input type="date" data-phfck-ce-effective value="'+esc(state.effectiveDate||'')+'"><small class="phfck-field-error" hidden></small></label><label class="is-wide" data-phfck-field-wrap="reason"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-ce-reason placeholder="Nêu rõ lý do cập nhật">'+esc(state.reason||'')+'</textarea><small class="phfck-field-error" hidden></small></label></div>'
-      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button><button type="button" class="phfck-primary" data-phfck-ce-preview'+(v.errors.length?' disabled':'')+'>Lưu & áp dụng</button></div></div></div>';
+      +'</div></div>'
+      +'<div class="phfck-edit-grid phfck-ce-publish-fields"><label class="is-wide" data-phfck-field-wrap="reason"><b>Lý do thay đổi <em>*</em></b><textarea data-phfck-ce-reason placeholder="Nêu rõ lý do cập nhật">'+esc(state.reason||'')+'</textarea><small class="phfck-field-error" hidden></small></label></div>'
+      +'</div><div class="phfck-modal-foot"><button type="button" class="phfck-secondary" data-phfck-close-submodal>Đóng</button><button type="button" class="phfck-primary" data-phfck-ce-preview>Lưu & áp dụng</button></div></div></div>';
   }
   function ceRerenderModal(root){
     var modal=root.querySelector('[data-phfck-ce-modal],[data-phfck-submodal] .phfck-ce-modal');
@@ -6559,21 +6703,10 @@
       if(salesUpload){e.preventDefault();var fi=root.querySelector('[data-phfck-sales-file]');if(fi)fi.click();return;}
       var directEdit=e.target.closest('[data-phfck-direct-edit]');if(directEdit){e.preventDefault();var first=selectedTemplateGroups()[0]&&selectedTemplateGroups()[0].children[0]&&selectedTemplateGroups()[0].children[0].items[0];appendSubmodal(root,directEditModalHtml(first?first[0]:''));return;}
       var manageCriteria=e.target.closest('[data-phfck-manage-criteria]');if(manageCriteria){e.preventDefault();ceOpen(templateUiState.selectedId);appendSubmodal(root,checklistCeEditorHtml());return;}
-      var ceAddGroupSubmit=e.target.closest('[data-phfck-ce-add-group-submit]');if(ceAddGroupSubmit){
-        e.preventDefault();if(!checklistCeState)return;var cgModal=ceAddGroupSubmit.closest('[data-phfck-submodal]');
-        var nameInput=cgModal.querySelector('[data-phfck-ce-add-group-name]');
-        var gres=ceAddGroup(checklistCeState,{name:nameInput?nameInput.value:''});
-        var gsummary=cgModal.querySelector('[data-phfck-ce-add-group-summary]');if(gsummary){gsummary.hidden=true;var gul=gsummary.querySelector('ul');if(gul)gul.innerHTML='';}
-        if(!gres.ok){if(gsummary){gsummary.hidden=false;var gul2=gsummary.querySelector('ul');if(gul2)gul2.innerHTML=gres.errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}return;}
-        ceRerenderModal(root);return;
-      }
-      var ceAddSubmit=e.target.closest('[data-phfck-ce-add-submit]');if(ceAddSubmit){
-        e.preventDefault();if(!checklistCeState)return;var caModal=ceAddSubmit.closest('[data-phfck-submodal]');
-        var selVal=(caModal.querySelector('[data-phfck-ce-add-group]')||{}).value||'',selParts=selVal.split('::'),input={groupCode:selParts[0]||'',childCode:selParts[1]||'',code:(caModal.querySelector('[data-phfck-ce-add-code]')||{}).value||'',content:(caModal.querySelector('[data-phfck-ce-add-content]')||{}).value||'',factor:(caModal.querySelector('[data-phfck-ce-add-factor]')||{}).value||''};
-        var summary=caModal.querySelector('[data-phfck-ce-add-summary]');if(summary){summary.hidden=true;var sul=summary.querySelector('ul');if(sul)sul.innerHTML='';}
-        var res=ceAddCriterion(checklistCeState,input);
-        if(!res.ok){if(summary){summary.hidden=false;var ul2=summary.querySelector('ul');if(ul2)ul2.innerHTML=res.errors.map(function(x){return '<li>'+esc(x.message)+'</li>';}).join('');}return;}
-        ceRerenderModal(root);return;
+      var ceRowMenu=e.target.closest('[data-phfck-ce-row-menu]');if(ceRowMenu){
+        e.preventDefault();e.stopPropagation();var ceMenuId=ceRowMenu.getAttribute('data-phfck-ce-row-menu')||'';var ceMenuScope=ceRowMenu.closest('[data-phfck-submodal]')||root;
+        ceMenuScope.querySelectorAll('[data-phfck-ce-row-menu-pop]').forEach(function(pop){pop.classList.toggle('is-open',pop.getAttribute('data-phfck-ce-row-menu-pop')===ceMenuId&&!pop.classList.contains('is-open'));});
+        return;
       }
       var ceEdit=e.target.closest('[data-phfck-ce-edit]');if(ceEdit){e.preventDefault();if(!checklistCeState)return;checklistCeState.editingCode=ceEdit.getAttribute('data-phfck-ce-edit')||'';ceRerenderModal(root);return;}
       var ceCancelEdit=e.target.closest('[data-phfck-ce-cancel-edit]');if(ceCancelEdit){e.preventDefault();if(!checklistCeState)return;checklistCeState.editingCode='';ceRerenderModal(root);return;}
@@ -6590,14 +6723,7 @@
       var ceMoveDown=e.target.closest('[data-phfck-ce-move-down]');if(ceMoveDown){e.preventDefault();if(!checklistCeState)return;ceMoveCriterion(checklistCeState,ceMoveDown.getAttribute('data-phfck-ce-move-down')||'','down');ceRerenderModal(root);return;}
       var cePreviewBtn=e.target.closest('[data-phfck-ce-preview]');if(cePreviewBtn){
         e.preventDefault();if(!checklistCeState||cePreviewBtn.disabled)return;var cpm=cePreviewBtn.closest('[data-phfck-submodal]');
-        var effective=(cpm.querySelector('[data-phfck-ce-effective]')||{}).value||'',reason=((cpm.querySelector('[data-phfck-ce-reason]')||{}).value||'').trim();
-        var validation=[];if(!effective)validation.push({key:'effective',message:'Vui lòng chọn ngày hiệu lực.'});if(!reason)validation.push({key:'reason',message:'Vui lòng nhập lý do thay đổi.'});
-        var sessionCheck=ceValidateSession(checklistCeState);
-        if(sessionCheck.errors.length){checklistToast('error','Chưa thể tạo phiên bản mới',sessionCheck.errors.join(' '),true);return;}
-        if(validation.length){showInlineValidation(cpm,validation);return;}
-        checklistCeState.effectiveDate=effective;checklistCeState.reason=reason;checklistCeState.newVersion=nextTemplateVersion(checklistCeState.oldVersion);
-        pendingCePublish={state:checklistCeState,templateId:checklistCeState.templateId,oldVersion:checklistCeState.oldVersion,newVersion:checklistCeState.newVersion,effectiveDate:effective,reason:reason};
-        appendSubmodal(root,cePreviewHtml(pendingCePublish));return;
+        await ceSaveAndApply(root,cpm);return;
       }
       var backCe=e.target.closest('[data-phfck-back-ce]');if(backCe){e.preventDefault();if(!checklistCeState)return;appendSubmodal(root,checklistCeEditorHtml());return;}
       var applyCe=e.target.closest('[data-phfck-apply-ce]');if(applyCe){
@@ -7131,6 +7257,7 @@
     };
     root.addEventListener('input',root.__phfChecklistInputHandler);
     root.__phfChecklistChangeHandler=function(e){
+      if(e.target&&e.target.matches('[data-phfck-ce-add-group]')){var ceGroupWrap=e.target.closest('.phfck-ce-add'),ceNameWrap=ceGroupWrap&&ceGroupWrap.querySelector('[data-phfck-ce-new-group-wrap]');if(ceNameWrap)ceNameWrap.hidden=e.target.value!=='__new__';return;}
       if(e.target&&e.target.matches('[data-phfck-self-period]')){loadRoleMonthlyPeriod(root,e.target.value||'');return;}
       if(e.target&&e.target.matches('[data-phfck-late-field]')){var lateRowEl=e.target.closest('[data-phfck-late-row]'),lateRowId=lateRowEl&&lateRowEl.getAttribute('data-phfck-late-row'),lateStateRow=violationUiState.lateRows.find(function(row){return String(row.id)===String(lateRowId);});if(lateStateRow){var lateField=e.target.getAttribute('data-phfck-late-field');lateStateRow[lateField]=e.target.value||'';if(lateField==='minutes'||lateField==='date')recalcLateRow(lateStateRow,true);else if(lateField==='points')recalcLateRow(lateStateRow,false);if(lateField==='minutes'||lateField==='points'||lateField==='date')refreshLateRowsUi(root);}return;}
       if(e.target&&e.target.matches('[data-phfck-notification-category]')){notificationUiState.category=e.target.value||'all';var notificationRuleBox=root.querySelector('[data-phfck-notification-rules]');if(notificationRuleBox)notificationRuleBox.innerHTML=notificationRulesHtml();return;}
