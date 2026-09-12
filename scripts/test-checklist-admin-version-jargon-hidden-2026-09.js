@@ -33,7 +33,8 @@ const expose = "\n  window.__jargonTest={" +
   "hydrateChecklistTemplatesFromDatabase:hydrateChecklistTemplatesFromDatabase,checklistTemplateDbState:checklistTemplateDbState," +
   "tseOpen:tseOpen,getTseState:function(){return checklistTseState;}," +
   "checklistTsePreviewHtml:checklistTsePreviewHtml,tseActivateBannerHtml:tseActivateBannerHtml," +
-  "nextTemplateVersion:nextTemplateVersion,templateById:templateById" +
+  "nextTemplateVersion:nextTemplateVersion,templateById:templateById," +
+  "cePreviewHtml:cePreviewHtml" +
   "};\n";
 const testSrc = src.slice(0, idx) + expose + src.slice(idx);
 
@@ -134,6 +135,25 @@ tseState.preview = { added:[], removed:[], changed:[], renamed:[], totalWeightBe
 const tsePreviewHtml = api.checklistTsePreviewHtml();
 check(!tsePreviewHtml.includes(tseState.newVersion) && !tsePreviewHtml.includes('BH-2.0'), '4c. tse preview dialog never renders the auto-generated version string as raw text');
 check(!/data-phfck-tse-new-version/.test(tsePreviewHtml), '4d. tse preview dialog has no manual "Phiên bản mới" input for Admin to fill in');
+
+// ---------------------------------------------------------------------------
+// 5. cePreviewHtml() — Apply-timing V1 batch criterion-edit confirmation modal (2026-09-12
+//    PROD incident: this modal, opened right before "Lưu & áp dụng", still exposed the raw
+//    technical version codes p.oldVersion/p.newVersion via ĐANG ÁP DỤNG/SAU KHI LƯU — a
+//    sibling surface that PR #72's directEditPreviewHtml() fix did not reach). Fixed to the
+//    same plain-language convention: no raw version cards, only ÁP DỤNG TỪ + SỐ TIÊU CHÍ.
+// ---------------------------------------------------------------------------
+const cePreview = api.cePreviewHtml({
+  templateId: 'nv-ban-hang', oldVersion: 'BH-1.0', newVersion: 'BH-2.0',
+  effectiveDate: '2026-09-12', reason: 'Sua loi chinh ta trong noi dung tieu chi',
+  state: { groups: [{ code: 'G1', name: 'Nhóm 1', children: [{ code: 'C1', name: 'Nhóm con 1', items: [['C1-01', 'Tiêu chí 1', 1]] }] }] },
+  retro: null
+});
+check(!/BH-1\.0/.test(cePreview) && !/BH-2\.0/.test(cePreview), '5a. cePreviewHtml() does not expose raw old/new version strings');
+check(!/ĐANG ÁP DỤNG/.test(cePreview), '5b. cePreviewHtml() no longer shows "ĐANG ÁP DỤNG"');
+check(!/SAU KHI LƯU/.test(cePreview), '5c. cePreviewHtml() no longer shows "SAU KHI LƯU"');
+check(/ÁP DỤNG TỪ/.test(cePreview), '5d. cePreviewHtml() shows plain-language "ÁP DỤNG TỪ"');
+check(/SỐ TIÊU CHÍ/.test(cePreview) && /\b1\b/.test(cePreview), '5e. cePreviewHtml() still shows the criterion count');
 
 console.log('\n' + (failures ? (failures + ' FAIL') : 'ALL PASS'));
 process.exit(failures ? 1 : 0);

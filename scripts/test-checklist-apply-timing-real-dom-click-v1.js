@@ -4,12 +4,12 @@
  * (2026-09-12).
  *
  * PROD incident: Admin edited "Kế toán trưởng" criteria via /admin/checklist/mau ->
- * Quản lý tiêu chí, saw the confirmation screen (ĐANG ÁP DỤNG / SAU KHI LƯU / NGÀY HIỆU
- * LỰC / SỐ TIÊU CHÍ — this exact field set only exists in cePreviewHtml(), confirming the
- * Admin was in the Quản lý tiêu chí (ce*) flow, not the separate "Sửa Bảng tổng điểm" (tse*)
- * flow), clicked "Lưu & áp dụng", and the version published IMMEDIATELY with no Apply-Timing
- * choice ever shown — current-period forms (PHF071) were left on the old snapshot with zero
- * retroactive_apply_current_period_* history rows.
+ * Quản lý tiêu chí, saw the confirmation screen (originally ĐANG ÁP DỤNG / SAU KHI LƯU /
+ * NGÀY HIỆU LỰC / SỐ TIÊU CHÍ — this exact field set only exists in cePreviewHtml(),
+ * confirming the Admin was in the Quản lý tiêu chí (ce*) flow, not the separate "Sửa Bảng
+ * tổng điểm" (tse*) flow), clicked "Lưu & áp dụng", and the version published IMMEDIATELY
+ * with no Apply-Timing choice ever shown — current-period forms (PHF071) were left on the
+ * old snapshot with zero retroactive_apply_current_period_* history rows.
  *
  * Root cause: ceClassifyCurrentPeriod silently swallowed ANY classify failure into
  * retro=null, rendering identically to the legitimate "nothing to apply" case, and the
@@ -20,6 +20,22 @@
  * scenario "C" below), (C) classify failed -> retro.classifyFailed=true, which now renders a
  * visible warning ("Chưa kiểm tra được ảnh hưởng lên Phiếu tháng...") in the SAME confirm
  * modal and BLOCKS the real "Lưu & áp dụng" button from publishing at all.
+ *
+ * Second PROD incident (2026-09-12, QTTH/HCNS – Trưởng bộ phận): the real Admin click path
+ * hit "Chưa kiểm tra được ảnh hưởng lên Phiếu tháng" for a genuinely valid periodMonth,
+ * because /api/data (and server.js) routed checklistRetroClassifyCurrentPeriod /
+ * checklistRetroApplyCurrentPeriod by unwrapping the RAW body instead of body.input, so the
+ * backend saw periodMonth=undefined. That is a wiring bug between the real frontend request
+ * shape and the real backend route (covered end-to-end by
+ * scripts/test-checklist-retro-current-period-api-wiring-v1.js, which drives the real
+ * api/data.js handler) — this file additionally asserts, at the frontend boundary, that the
+ * REAL checklistRetroApiCall() helper actually serializes the wrapped {action,input:{...}}
+ * shape the backend now expects (see the wire-shape assertion in SCENARIO A below).
+ *
+ * Also covers the version-jargon fix (2026-09-12): cePreviewHtml() no longer exposes raw
+ * internal version codes (ĐANG ÁP DỤNG / SAU KHI LƯU) to a normal Admin — only ÁP DỤNG TỪ /
+ * SỐ TIÊU CHÍ, matching the plain-language rule already applied to directEditPreviewHtml()
+ * (PR #72).
  *
  * Every step below is a REAL jsdom .click()/change dispatched at a REAL DOM node, handled by
  * the ACTUAL delegated document click/change listeners that run in PROD. ceSaveAndApply,
@@ -98,7 +114,7 @@ function makeFetch(calls, classifyMode) {
     let body = {};
     try { body = JSON.parse((opts && opts.body) || '{}'); } catch (_) {}
     const action = body.action;
-    calls.push({ action, input: body.input || body });
+    calls.push({ action, input: body.input || body, rawBody: body });
     if (action === 'saveChecklistTemplate') {
       const tpl = body.template || {};
       return response({ ok: true, template: Object.assign({}, KTT_ROW, { version: tpl.version, effectiveDate: tpl.effectiveDate, definition: tpl.definition }) });
@@ -163,11 +179,26 @@ async function driveToConfirmModal(window, calls, classifyMode) {
     'Clicking "Lưu & áp dụng" in the criteria editor does NOT publish the version yet (classify-before-save)');
 
   const confirmModal = root.querySelector('.phfck-direct-preview');
-  check(!!confirmModal, 'Confirmation modal (cePreviewHtml) rendered with ĐANG ÁP DỤNG/SAU KHI LƯU/SỐ TIÊU CHÍ fields');
+  check(!!confirmModal, 'Confirmation modal (cePreviewHtml) rendered with ÁP DỤNG TỪ/SỐ TIÊU CHÍ fields');
   if (confirmModal) {
     const summaryText = confirmModal.textContent;
-    check(/ĐANG ÁP DỤNG/.test(summaryText) && /SAU KHI LƯU/.test(summaryText) && /SỐ TIÊU CHÍ/.test(summaryText),
-      'Confirmation modal shows the exact PROD-reported field labels (ĐANG ÁP DỤNG/SAU KHI LƯU/SỐ TIÊU CHÍ)');
+    check(/ÁP DỤNG TỪ/.test(summaryText) && /SỐ TIÊU CHÍ/.test(summaryText),
+      'Confirmation modal shows the plain-language field labels (ÁP DỤNG TỪ/SỐ TIÊU CHÍ)');
+    check(!/ĐANG ÁP DỤNG/.test(summaryText) && !/SAU KHI LƯU/.test(summaryText),
+      'Confirmation modal no longer exposes raw technical version jargon (ĐANG ÁP DỤNG/SAU KHI LƯU absent)');
+  }
+
+  // Wire-shape assertion (2026-09-12 PROD wiring bug) — the REAL checklistRetroApiCall()
+  // helper must have serialized the classify request as the wrapped {action,input:{...}}
+  // shape the backend route now unwraps via payload.input, not a flat body.
+  const classifyCall = calls.slice().reverse().find(c => c.action === 'checklistRetroClassifyCurrentPeriod');
+  check(!!classifyCall, 'Real checklistRetroApiCall() sent checklistRetroClassifyCurrentPeriod');
+  if (classifyCall) {
+    const raw = classifyCall.rawBody || {};
+    check(raw && typeof raw.input === 'object' && raw.input !== null, 'Real request body wraps fields under "input" (not flat) — {action, input:{...}}');
+    check(typeof raw.periodMonth === 'undefined', 'Real request body has NO top-level periodMonth (it must live under input.periodMonth)');
+    check(!!(raw.input && /^\d{4}-(0[1-9]|1[0-2])$/.test(raw.input.periodMonth)), 'Real request body input.periodMonth is a valid YYYY-MM (got ' + JSON.stringify(raw.input && raw.input.periodMonth) + ')');
+    check(!!(raw.input && raw.input.templateId === TPL), 'Real request body input.templateId matches the template being edited (got ' + JSON.stringify(raw.input && raw.input.templateId) + ')');
   }
   return root;
 }

@@ -1416,8 +1416,8 @@ const server = http.createServer(async (req, res) => {
         if(payload&&payload.action==='changeChecklistMonthlyReviewer')return sendJson(res,200,{ok:true,...await changeMonthlyReviewer(session,payload)});
         if(payload&&payload.action==='resnapshotChecklistMonthlyDraft')return sendJson(res,200,{ok:true,...await resnapshotMonthlyDraftTemplate(session,payload)});
         if(payload&&payload.action==='overrideChecklistMonthlyFormVersion')return sendJson(res,200,{ok:true,...await overrideMonthlyFormVersion(session,payload)});
-        if(payload&&payload.action==='checklistRetroClassifyCurrentPeriod')return sendJson(res,200,{ok:true,...await classifyChecklistMonthlyRetroactiveScope(session,payload)});
-        if(payload&&payload.action==='checklistRetroApplyCurrentPeriod')return sendJson(res,200,{ok:true,...await applyChecklistMonthlyRetroactiveScope(session,payload)});
+        if(payload&&payload.action==='checklistRetroClassifyCurrentPeriod')return sendJson(res,200,{ok:true,...await classifyChecklistMonthlyRetroactiveScope(session,payload.input||{})});
+        if(payload&&payload.action==='checklistRetroApplyCurrentPeriod')return sendJson(res,200,{ok:true,...await applyChecklistMonthlyRetroactiveScope(session,payload.input||{})});
         if(payload&&payload.action==='exportChecklistMonthlyData')return sendJson(res,200,{ok:true,...await exportMonthlyData(session,payload)});
         if(payload&&payload.action==='getChecklistMonthlyReport')return sendJson(res,200,{ok:true,...await getChecklistMonthlyReport(session,payload)});
         if(payload&&payload.action==='getChecklistCurrentScoreReport')return sendJson(res,200,{ok:true,...await getChecklistCurrentScoreReport(session,payload)});
