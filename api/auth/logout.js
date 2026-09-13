@@ -1,7 +1,7 @@
 'use strict';
 
 const { assertSameOrigin } = require('../_lib/request-guard');
-const { clearCookieHeader, readSession } = require('../_lib/auth');
+const { clearCookieHeader, clearImpersonationCookieHeader, readSession } = require('../_lib/auth');
 const { send, sendError } = require('../_lib/api-response');
 const { auditEmit } = require('../_lib/audit-emit');
 
@@ -15,13 +15,17 @@ module.exports = async function handler(req, res) {
     // Resolve who is logging out BEFORE the cookie is cleared (best-effort).
     let session = null;
     try { session = await readSession(req); } catch (_e) { session = null; }
-    res.setHeader('Set-Cookie', clearCookieHeader());
+    // Đăng xuất luôn kết thúc cả phiên giả lập (nếu có) — logout xoá hẳn danh
+    // tính đăng nhập nên không còn lý do giữ lại cookie giả lập mồ côi.
+    res.setHeader('Set-Cookie', [clearCookieHeader(), clearImpersonationCookieHeader()]);
+    const realIdentity = (session && session.impersonating && session.actor) ? session.actor : (session && session.account) || {};
     await auditEmit(req, session, {
       module: 'auth', action: 'AUTH_LOGOUT', result: 'success',
       object_type: 'account',
-      object_id: session && session.account && session.account.id,
-      object_label: session && session.account && session.account.email,
+      object_id: realIdentity.id,
+      object_label: realIdentity.email || realIdentity.name,
       metadata: { provider: (session && session.account && session.account.authProvider) || 'unknown' },
+      actor: { actor_account_id: realIdentity.id, actor_name: realIdentity.name || realIdentity.email },
     });
     return send(res, 200, {ok:true});
   } catch (error) {
