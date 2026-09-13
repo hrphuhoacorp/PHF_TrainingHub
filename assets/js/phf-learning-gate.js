@@ -135,11 +135,31 @@
     var row = learnerHrEmployeeRow();
     return row ? String(row.department || '').trim() : '';
   }
+  /* Lớp chuẩn hoá tên phòng ban dùng chung — CHỈ để so khớp lesson.departments
+     với phòng ban thật của học viên (không đụng dữ liệu gốc/hiển thị nơi khác).
+     Lesson content đang gắn nhãn ngắn (vd "Bán hàng") trong khi People Master
+     trả nhãn đầy đủ theo danh mục tổ chức hiện hành (vd "Bộ phận bán hàng") —
+     lệch tên khiến lessonAllowedForDepartment() so khớp chuỗi tuyệt đối thất
+     bại, chặn nhầm nội dung chuyên môn dù đã tồn tại (case PHF100).
+     Alias dưới đây CHỈ liệt kê cặp đã xác nhận thực sự lệch giữa lesson tags
+     hiện có và department thật đang dùng — không suy đoán/fuzzy match thêm để
+     tránh khớp nhầm ngoài ý muốn. */
+  var DEPARTMENT_ALIASES = {
+    'bán hàng':'bộ phận bán hàng'
+  };
+  function normalizeDepartmentLabel(name){
+    var n = String(name || '').trim().replace(/\s+/g,' ');
+    if(!n) return '';
+    var lower = n.toLowerCase();
+    return DEPARTMENT_ALIASES[lower] || lower;
+  }
   function lessonAllowedForDepartment(lesson, dept){
     var list = lesson && Array.isArray(lesson.departments) ? lesson.departments : null;
     if(!list || !list.length) return true;
     if(list.indexOf('all') >= 0) return true;
-    return !!dept && list.indexOf(dept) >= 0;
+    if(!dept) return false;
+    var normalizedDept = normalizeDepartmentLabel(dept);
+    return list.some(function(d){ return normalizeDepartmentLabel(d) === normalizedDept; });
   }
   function departmentLessonBoundary(lessons){
     if(isAdminSimulation()) return lessons.length - 1;
