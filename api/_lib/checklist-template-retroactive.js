@@ -98,12 +98,28 @@ function remapAnswersById(answers,before,after){
   });
   return {remapped,unmapped};
 }
-function classifyFormForApply({form,oldDefinition,newDefinition}){
+/*
+ * 1.76.0: `resolveOldDefinition` (tuỳ chọn) — hàm (form)=>definition|undefined, dùng khi
+ * caller không biết trước MỘT oldDefinition chung cho mọi phiếu (multi-hop: mỗi phiếu tụt ở
+ * một version khác nhau). CHỈ được gọi SAU khi đã qua các cổng trạng thái (locked/cancelled/
+ * reviewed/unknown-status) — một phiếu locked/cancelled vẫn phải trả đúng outcome của nó dù
+ * không tìm được oldDefinition, KHÔNG được lẫn với 'skipped-missing-old-definition'. Nếu
+ * `oldDefinition` đã được truyền trực tiếp (giá trị, không phải resolver), giữ nguyên hành vi
+ * cũ (dùng thẳng, không gọi resolver).
+ */
+function classifyFormForApply({form,oldDefinition,newDefinition,resolveOldDefinition}){
   const status=t(form&&form.status);
   if(NEVER_TOUCH_STATUSES.has(status))return {outcome:status==='locked'?'skipped-locked':'skipped-cancelled',formId:form&&form.id,reason:status==='locked'?'Phiếu đã khóa — không có ngoại lệ tự động trong batch này; cần quy trình ngoại lệ chính thức riêng.':'Phiếu đã hủy — không thuộc phạm vi.'};
   if(status==='reviewed')return {outcome:'requires-reviewed-adjustment',formId:form&&form.id,reason:'Phiếu đã thẩm định — KHÔNG remap tự động; cần bước "điều chỉnh phiếu đã thẩm định" xác nhận riêng.'};
   if(!AUTO_ELIGIBLE_STATUSES.has(status))return {outcome:'skipped-unknown-status',formId:form&&form.id,reason:'Trạng thái phiếu không xác định trong phạm vi áp dụng.'};
-  const before=indexRows(oldDefinition),after=indexRows(newDefinition);
+  let resolvedOldDefinition=oldDefinition;
+  if(resolvedOldDefinition===undefined&&typeof resolveOldDefinition==='function'){
+    resolvedOldDefinition=resolveOldDefinition(form);
+    if(resolvedOldDefinition===undefined){
+      return {outcome:'skipped-missing-old-definition',formId:form&&form.id,reason:'Không tìm thấy định nghĩa phiên bản "'+t(form&&form.template_version)+'" của mẫu để đối chiếu remap — không tự áp dụng bằng định nghĩa sai, cần Admin xác nhận thủ công.'};
+    }
+  }
+  const before=indexRows(resolvedOldDefinition),after=indexRows(newDefinition);
   const selfAnswers=form.self_answers||{},reviewAnswers=form.review_answers||{};
   if(!hasAnswers(selfAnswers)&&!hasAnswers(reviewAnswers)){
     return {outcome:'applied',formId:form&&form.id,reason:'Chưa có câu trả lời tự đánh giá/thẩm định gắn với dòng bị đổi — remap tại chỗ an toàn.',remappedSelfAnswers:selfAnswers,remappedReviewAnswers:reviewAnswers,unmappedSelfCodes:[],unmappedReviewCodes:[]};
@@ -121,8 +137,25 @@ function classifyFormForApply({form,oldDefinition,newDefinition}){
  * idempotent: nếu form đã có outcome ghi nhận cho đúng batch_id đó (ledger truyền vào),
  * bỏ qua — không double-apply. dryRun=true không làm thay đổi ledger/kết quả tính toán,
  * chỉ trả preview giống hệt apply thật.
+ *
+ * 1.76.0 (multi-hop stale form fix, audit PROD 2026-09-13 PHF008/ke-toan-doanh-thu-cnpt):
+ * hàm SQL song song (phf_retroactive_apply_checklist_template) không còn scope theo MỘT
+ * oldDefinition toàn cục nữa — mỗi phiếu có thể tụt lại bao nhiêu bậc phiên bản cũng được,
+ * và definition "cũ" dùng để remap phải đọc theo ĐÚNG template_version mà phiếu đó đang giữ.
+ * Ở đây mô phỏng lại bằng tham số `definitionsByVersion` (Map hoặc object: version_no ->
+ * definition). Khi được truyền, classifyFormForApply() tự resolve oldDefinition theo
+ * form.template_version SAU KHI đã qua cổng trạng thái (locked/cancelled/reviewed vẫn trả
+ * đúng outcome của nó); nếu không tìm thấy, trả outcome 'skipped-missing-old-definition' thay
+ * vì tự remap bằng definition sai. Khi KHÔNG truyền `definitionsByVersion` (tham số cũ
+ * `oldDefinition` dùng chung cho mọi form), hành vi giữ nguyên y hệt trước 1.76.0 — không phá
+ * vỡ các lệnh gọi/test hiện có.
  */
-function runRetroactiveBatch({batchId,forms,oldDefinition,newDefinition,dryRun,existingLedger}){
+function resolveOldDefinitionForForm(form,definitionsByVersion){
+  const version=t(form&&form.template_version);
+  if(!version)return undefined;
+  return definitionsByVersion instanceof Map?definitionsByVersion.get(version):(definitionsByVersion||{})[version];
+}
+function runRetroactiveBatch({batchId,forms,oldDefinition,newDefinition,definitionsByVersion,dryRun,existingLedger}){
   const ledger=existingLedger instanceof Map?existingLedger:new Map();
   const results=(forms||[]).map(form=>{
     const ledgerKey=batchId+'|'+form.id;
@@ -130,7 +163,9 @@ function runRetroactiveBatch({batchId,forms,oldDefinition,newDefinition,dryRun,e
       const prior=ledger.get(ledgerKey);
       return {...prior,formId:form.id,idempotentReplay:true};
     }
-    const classified=classifyFormForApply({form,oldDefinition,newDefinition});
+    const classified=definitionsByVersion
+      ?classifyFormForApply({form,newDefinition,resolveOldDefinition:f=>resolveOldDefinitionForForm(f,definitionsByVersion)})
+      :classifyFormForApply({form,oldDefinition,newDefinition});
     const result={...classified,batchId};
     if(!dryRun)ledger.set(ledgerKey,result);
     return result;
@@ -166,4 +201,4 @@ function planEmployeeImpactBatch({employeeCodes,scopedByCode,formByCode,checklis
   return {results,manual};
 }
 
-module.exports={diffDefinitions,simulateScoreImpact,classifyFormForApply,runRetroactiveBatch,planEmployeeImpactBatch,indexRows,rowId,rowCode,rowName,rowWeight,rowSourceType,remapAnswersById};
+module.exports={diffDefinitions,simulateScoreImpact,classifyFormForApply,runRetroactiveBatch,resolveOldDefinitionForForm,planEmployeeImpactBatch,indexRows,rowId,rowCode,rowName,rowWeight,rowSourceType,remapAnswersById};
