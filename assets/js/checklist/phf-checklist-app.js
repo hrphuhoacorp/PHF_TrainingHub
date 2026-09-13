@@ -2740,8 +2740,13 @@
       var config=ASSISTANT_TEMPLATE_CONFIGS[item.id];
       var ready=item.id==='nv-ban-hang'||item.id==='truong-ca-ban-hang'||item.id==='nv-kho'||item.id==='tbp-kho'||!!config;
       var fallbackVersion=config?config.version:(item.id==='truong-ca-ban-hang'?'TCP-BH-1.0':(item.id==='nv-kho'?'NVK-1.0':(item.id==='tbp-kho'?'TBP-KHO-1.0':'BH-1.0')));
-      var count=0;try{count=criteriaCount(baseTemplateGroups(item.id));}catch(_){count=0;}
       var override=loadBulkOverride(item.id);
+      // Đếm tiêu chí PHẢI theo đúng định nghĩa hiệu lực của mẫu (override CSDL nếu có).
+      // Mẫu custom/tạo trên web không có override thì KHÔNG được rơi về SALES_TEMPLATE_GROUPS
+      // (đó là bug 46 tiêu chí giả cho mẫu chưa có định nghĩa) — chỉ mẫu chuẩn hoá sẵn (built-in)
+      // mới được rơi về nhóm mặc định của chính nó qua baseTemplateGroups.
+      var overrideGroups=(override&&Array.isArray(override.groups))?override.groups:null;
+      var count=0;try{count=overrideGroups?criteriaCount(overrideGroups):(item.custom?0:criteriaCount(baseTemplateGroups(item.id)));}catch(_){count=0;}
       // Phiên bản + Hiệu lực PHẢI cùng đến từ đúng current_version của bản ghi mẫu trong CSDL
       // (không lấy version từ hằng số cứng / assignment / phiếu tháng, không lấy hiệu lực từ
       // một bản ghi version khác). Chỉ rơi về giá trị cũ khi mẫu chưa có bản ghi CSDL.
