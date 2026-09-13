@@ -568,7 +568,7 @@ window.phfHubSurfaceIsActive = phfHubSurfaceIsActive;
 
 function phfLearnerLessonSurfaceIsActive(){
   var path = String((window.location && window.location.pathname) || '/').toLowerCase();
-  return path === '/hv/bai-hoc';
+  return path === '/hv/bai-hoc' || /^\/hv\/bai-hoc\//.test(path);
 }
 window.phfLearnerLessonSurfaceIsActive = phfLearnerLessonSurfaceIsActive;
 
