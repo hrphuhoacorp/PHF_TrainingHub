@@ -286,6 +286,7 @@ const {
 const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./api/_lib/production-hardening');
 const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, completeAccountPeopleMaster, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById, startImpersonation, impersonationCookieHeader, clearImpersonationCookieHeader, IMPERSONATABLE_ROLES } = require('./api/_lib/auth');
 const { auditEmit } = require('./api/_lib/audit-emit');
+const { listDepartments } = require('./api/_lib/department-catalog');
 
 /* TASK_API_WIRING_START */
 const TASK_ACTION_MANIFEST = Object.freeze([
@@ -875,7 +876,7 @@ const server = http.createServer(async (req, res) => {
       }
       await requireWebOperatorSession(req);
       const accounts = await listAccountsForAdmin();
-      return sendJson(res,200,{ok:true,accounts});
+      return sendJson(res,200,{ok:true,accounts,departmentCatalog:listDepartments()});
     }
     // Combined action-in-body route — mirrors api/auth/accounts.js (Vercel)
     // so the Account admin screen's fetch('/api/auth/accounts',{action:...})

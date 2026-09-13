@@ -705,6 +705,18 @@ async function readDataFromSupabase(options = {}) {
 
   let employeesQuery = supabase.from('employees').select('*');
   let progressQuery = supabase.from('progress').select('*');
+  // Batch B — read-only enrichment: employee_profiles.department_key is the
+  // new canonical source (Batch A). We attach it to each employees[] item
+  // WITHOUT writing anything back to `employees` (Checklist/Classroom also
+  // read that table — never touched). Bridge via user_accounts, since
+  // `employees` has no employee_code column: employees.id ==
+  // user_accounts.employee_id, user_accounts.employee_code ==
+  // employee_profiles.employee_code. Missing table/column (older env not yet
+  // migrated) is tolerated — enrichment silently no-ops, employees[] still
+  // returns exactly as before.
+  let accountsDeptBridgeQuery = supabase.from('user_accounts').select('employee_id, employee_code');
+  if (employeeId) accountsDeptBridgeQuery = accountsDeptBridgeQuery.eq('employee_id', employeeId);
+  let departmentProfilesQuery = supabase.from('employee_profiles').select('employee_code, department_key');
   let testResultsQuery = supabase.from('test_results').select('*').order('saved_at');
   let progressRecoveryQuery = supabase
     .from('activity_log')
@@ -731,7 +743,9 @@ async function readDataFromSupabase(options = {}) {
     { data: commitmentRows, error: commitmentError },
     { data: legacyCommitmentLog, error: legacyCommitmentError },
     { data: probationRows, error: probationError },
-    { data: notificationStateRows, error: notificationStateError }
+    { data: notificationStateRows, error: notificationStateError },
+    { data: accountsDeptBridge, error: accountsDeptBridgeError },
+    { data: departmentProfiles, error: departmentProfilesError }
   ] = await Promise.all([
     supabase.from('settings').select('*').eq('id', 1).single(),
     employeesQuery,
@@ -742,7 +756,9 @@ async function readDataFromSupabase(options = {}) {
     commitmentQuery,
     legacyCommitmentQuery,
     probationQuery,
-    notificationStateQuery
+    notificationStateQuery,
+    accountsDeptBridgeQuery,
+    departmentProfilesQuery
   ]);
 
   if (activityError) console.warn('PHF activity_log gần nhất chưa tải được:', activityError.message || activityError);
@@ -759,6 +775,28 @@ async function readDataFromSupabase(options = {}) {
   if (notificationStateError && !isMissingOptionalTableError(notificationStateError, 'system_notifications')) {
     console.warn('PHF system_notifications chưa tải được:', notificationStateError.message || notificationStateError);
   }
+  if (accountsDeptBridgeError) {
+    console.warn('PHF department_key enrichment: chưa đọc được user_accounts:', accountsDeptBridgeError.message || accountsDeptBridgeError);
+  }
+  if (departmentProfilesError && !isMissingOptionalTableError(departmentProfilesError, 'employee_profiles')) {
+    console.warn('PHF department_key enrichment: chưa đọc được employee_profiles (có thể department_key chưa được migrate ở môi trường này):', departmentProfilesError.message || departmentProfilesError);
+  }
+
+  // employeeId (Training Hub `employees.id`) -> department_key, chỉ dùng để
+  // ENRICH response — không ghi ngược vào bất kỳ bảng nào.
+  const departmentKeyByEmployeeCode = new Map();
+  (departmentProfiles || []).forEach(p => {
+    const empCode = String(p && p.employee_code || '').trim().toUpperCase();
+    if (empCode && p.department_key) departmentKeyByEmployeeCode.set(empCode, p.department_key);
+  });
+  const departmentKeyByEmployeeId = new Map();
+  (accountsDeptBridge || []).forEach(a => {
+    const empId = String(a && a.employee_id || '').trim();
+    const empCode = String(a && a.employee_code || '').trim().toUpperCase();
+    if (!empId || !empCode) return;
+    const key = departmentKeyByEmployeeCode.get(empCode);
+    if (key) departmentKeyByEmployeeId.set(empId, key);
+  });
 
   const settings = settingsRow
     ? { passScore: settingsRow.pass_score, appName: settingsRow.app_name, note: settingsRow.note }
@@ -772,6 +810,7 @@ async function readDataFromSupabase(options = {}) {
     birthday: e.birthday,
     phone: e.phone || '',
     department: e.department || '',
+    departmentKey: departmentKeyByEmployeeId.get(String(e.id || '').trim()) || null,
     studyStartDate: e.study_start_date || e.studyStartDate || '',
     programId: e.program_id || 'new_sales',
     createdAt: e.created_at,

@@ -1242,6 +1242,16 @@ async function createAccountByAdmin(input, session){
     const error = new Error('Số điện thoại liên kết chưa đúng định dạng.');
     error.statusCode = 400; error.code = 'PHONE_INVALID'; throw error;
   }
+  // Batch B: employeeCode bắt buộc cho tài khoản nhân viên — nếu thiếu,
+  // ensureProfileFromAccount() (employee-master.js) sẽ bỏ qua không tạo
+  // employee_profiles ('employee_code_required'), khiến department_key và
+  // toàn bộ Employee Master không bao giờ có dữ liệu cho người này. Chặn
+  // ngay ở đây để mọi tài khoản học viên/quản lý mới đều có employee_profiles
+  // canonical ngay từ đầu.
+  if (!isSystemAccount && !employeeCode) {
+    const error = new Error('Mã nhân viên là bắt buộc để tạo hồ sơ nhân sự chuẩn.');
+    error.statusCode = 400; error.code = 'EMPLOYEE_CODE_REQUIRED'; throw error;
+  }
   if (isSystemAccount && cleanRole(data.role) !== 'admin') {
     const error = new Error('Tài khoản hệ thống chỉ được tạo với quyền Admin.');
     error.statusCode = 400; error.code = 'SYSTEM_ACCOUNT_ADMIN_ONLY'; throw error;
