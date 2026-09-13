@@ -9944,6 +9944,7 @@
       +'<div class="phfck-modal-body">'
       +'<div class="phfck-notice '+toneClass+'"><p>'+esc(headline)+'</p></div>'
       +'<label><b>Lý do</b><input type="text" placeholder="Lý do áp dụng cho kỳ hiện tại (tối thiểu 10 ký tự)" value="'+esc(s.reason||'')+'" data-phfck-retro-decision-reason></label>'
+      +'<p class="phfck-muted-line" data-phfck-retro-decision-reason-hint>'+(reasonOk?'':'Cần nhập lý do tối thiểu 10 ký tự để bật nút áp dụng (hiện có '+normalizeText(s.reason||'').length+' ký tự).')+'</p>'
       +(s.applyError?'<div class="phfck-notice"><b>Không thể áp dụng</b><p>'+esc(s.applyError)+'</p></div>':'')
       +'<p class="phfck-muted-line">Không chọn áp dụng sẽ giữ nguyên toàn bộ Phiếu tháng hiện có của kỳ '+esc(monthLabel)+'; thay đổi chỉ dùng cho kỳ đồng bộ tiếp theo.</p>'
       +'</div>'
@@ -10230,6 +10231,27 @@
     if(activateModal&&checklistTseActivateState){
       var as=checklistTseActivateState;
       if(e.target.matches('[data-phfck-tse-activate-reason]')){as.reason=e.target.value;var cb=activateModal.querySelector('[data-phfck-tse-activate-confirm]');if(cb)cb.disabled=!(normalizeText(as.reason).length>=10&&as.preview&&!as.activating);return;}
+    }
+    /* Fix 2026-09-13: "Cập nhật Phiếu tháng <kỳ>" (checklistRetroDecisionState, Phase 2B
+       2026-09-11) thiếu đúng listener này — nút "Áp dụng cho kỳ..." chỉ đọc rds.reason lúc
+       CLICK, nhưng rds.reason chỉ từng được gán bên trong chính handler click đó, nên nút bị
+       disabled ngay từ đầu (reason mặc định rỗng) không bao giờ tự bật lại được: nút disabled
+       không bao giờ nhận sự kiện click của trình duyệt, nên state không bao giờ được cập nhật
+       dù Admin gõ lý do dài bao nhiêu. Vá bằng đúng khuôn mẫu tse-activate-reason ở trên —
+       đồng bộ state + tự bật/tắt nút ngay khi gõ, không chờ render lại (giữ nguyên con trỏ
+       nhập liệu) — đồng thời cập nhật gợi ý hiển thị lý do bị khoá thay vì disable âm thầm. */
+    var retroDecisionModal=e.target.closest('.phfck-retro-decision-modal');
+    if(retroDecisionModal&&checklistRetroDecisionState){
+      var rds=checklistRetroDecisionState;
+      if(e.target.matches('[data-phfck-retro-decision-reason]')){
+        rds.reason=e.target.value;
+        var reasonLen=normalizeText(rds.reason||'').length,reasonOk2=reasonLen>=10;
+        var applyBtn=retroDecisionModal.querySelector('[data-phfck-retro-decision-apply]');
+        if(applyBtn)applyBtn.disabled=!reasonOk2||rds.applying;
+        var hint=retroDecisionModal.querySelector('[data-phfck-retro-decision-reason-hint]');
+        if(hint)hint.textContent=reasonOk2?'':'Cần nhập lý do tối thiểu 10 ký tự để bật nút áp dụng (hiện có '+reasonLen+' ký tự).';
+        return;
+      }
     }
   });
   document.addEventListener('change',function(e){
