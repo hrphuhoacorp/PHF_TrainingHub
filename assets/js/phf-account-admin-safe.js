@@ -615,7 +615,10 @@
     if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}
   };
   window.phfImpersonateStart=async function(id,label){
-    if(!(await phfConfirm('Bắt đầu giả lập tài khoản "'+(label||'')+'"?\n\nBạn sẽ thấy đúng giao diện của người này. Mọi thao tác ghi dữ liệu sẽ bị chặn. Bấm "Thoát giả lập" trên banner để quay lại Admin.','Giả lập tài khoản','Bắt đầu giả lập','Hủy')))return;
+    // phfConfirm(message,title,tone,okText) không cho tuỳ chỉnh nhãn nút Hủy
+    // (luôn cứng "Quay lại") và tham số thứ 3 là tone chứ không phải nhãn nút
+    // xác nhận — dùng thẳng phfDialog để có đúng "Bắt đầu giả lập" / "Hủy".
+    if(!(await phfDialog('Bắt đầu giả lập tài khoản "'+(label||'')+'"?\n\nBạn sẽ thấy đúng giao diện của người này. Mọi thao tác ghi dữ liệu sẽ bị chặn. Bấm "Thoát giả lập" trên banner để quay lại Admin.',{title:'Giả lập tài khoản',tone:'warn',icon:'?',confirm:true,okText:'Bắt đầu giả lập',cancelText:'Hủy'})))return;
     try{
       var response=await fetch('/api/auth/accounts',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'impersonate-start',accountId:id})});
       var json=await response.json().catch(function(){return{}});
