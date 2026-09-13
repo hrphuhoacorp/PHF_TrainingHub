@@ -9177,7 +9177,9 @@
   }
   function crwFormStatusLabel(status){return {draft:'Phiếu nháp',waiting_self:'Chờ tự đánh giá',waiting_review:'Chờ thẩm định',reviewed:'Đã thẩm định',locked:'Đã khóa',cancelled:'Đã hủy'}[status]||status||'—';}
   /* 4 nhóm trạng thái bắt buộc phân biệt trực quan (mục 4 đề bài), map trực tiếp từ outcome
-     do RPC phf_retroactive_apply_checklist_template trả (xem SQL 1.53.0). */
+     do RPC phf_retroactive_apply_checklist_template trả (xem SQL 1.53.0, mở rộng multi-hop
+     ở 1.76.0 — outcome 'skipped-missing-old-definition' cho phiếu tụt phiên bản mà definition
+     cũ không còn tồn tại để đối chiếu remap). */
   function crwOutcomeBadgeHtml(outcome){
     var map={
       'applied':['phfck-chip-success','Có thể tự động remap'],
@@ -9185,7 +9187,8 @@
       'requires-reviewed-adjustment':['phfck-chip-warning','Cần luồng riêng (đã thẩm định)'],
       'skipped-locked':['phfck-chip-muted','Không thể áp dụng — đã khóa'],
       'skipped-cancelled':['phfck-chip-muted','Không thể áp dụng — đã hủy'],
-      'skipped-unknown-status':['phfck-chip-muted','Ngoài phạm vi áp dụng']
+      'skipped-unknown-status':['phfck-chip-muted','Ngoài phạm vi áp dụng'],
+      'skipped-missing-old-definition':['phfck-chip-danger','Không tìm thấy phiên bản cũ của phiếu']
     };
     var m=map[outcome]||['phfck-chip-muted',outcome||'—'];
     return '<span class="phfck-chip '+m[0]+'">'+esc(m[1])+'</span>';
@@ -10016,7 +10019,7 @@
   function traRerender(){var root=document.getElementById('phfChecklistRoot');if(root)appendSubmodal(root,checklistTraDrawerHtml());}
   function traStep1Html(){
     var state=checklistTraState;
-    return '<p>Cập nhật các Phiếu tháng đang dùng <b>'+esc(state.oldVersion)+'</b> sang <b>'+esc(state.newVersion)+'</b> cho mẫu <b>'+esc((tseTemplateItem(state.templateId)||{}).name||state.templateId)+'</b> (đã điền sẵn, không cần chọn lại).</p>'
+    return '<p>Cập nhật các Phiếu tháng đang dùng phiên bản cũ hơn <b>'+esc(state.newVersion)+'</b> (kể cả phiếu đã tụt lại nhiều phiên bản, không chỉ riêng <b>'+esc(state.oldVersion)+'</b>) sang <b>'+esc(state.newVersion)+'</b> cho mẫu <b>'+esc((tseTemplateItem(state.templateId)||{}).name||state.templateId)+'</b> (đã điền sẵn, không cần chọn lại).</p>'
       +'<div class="phfck-form-grid"><label><b>Từ kỳ</b><input type="month" data-phfck-tra-period-from value="'+esc(state.periodMonthFrom)+'"></label><label><b>Đến kỳ</b><input type="month" data-phfck-tra-period-to value="'+esc(state.periodMonthTo)+'"></label></div>'
       +'<label><b>Lý do cập nhật</b><input type="text" placeholder="vd: Điều chỉnh trọng số quý 3 theo quyết định Ban Giám đốc" data-phfck-tra-scope-reason value="'+esc(state.scopeReason)+'"></label>'
       +'<div class="phfck-modal-foot" style="border-top:0;padding:18px 0 0"><button type="button" class="phfck-primary" data-phfck-tra-next-from-1>Tiếp tục · Xem tác động</button></div>';
