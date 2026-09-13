@@ -284,7 +284,8 @@ const {
   publicError
 } = require('./api/_lib/request-guard');
 const { assertLoginAllowed, recordLoginFailure, clearLoginFailures, checkSupabaseHealth } = require('./api/_lib/production-hardening');
-const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, completeAccountPeopleMaster, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById } = require('./api/_lib/auth');
+const { login, loginWithGoogle, googleClientConfig, readSession, requireSession, cookieHeader, clearCookieHeader, syncAccounts, bootstrapFromLocal, authorizePayload, changeOwnPassword, resetPasswordByAdmin, createAccountByAdmin, updateAccountByAdmin, completeAccountPeopleMaster, deleteAccountByAdmin, listAccountsForAdmin, listHubAccountSummaries, makeSession, publicAccount, getAccountById, startImpersonation, impersonationCookieHeader, clearImpersonationCookieHeader, IMPERSONATABLE_ROLES } = require('./api/_lib/auth');
+const { auditEmit } = require('./api/_lib/audit-emit');
 
 /* TASK_API_WIRING_START */
 const TASK_ACTION_MANIFEST = Object.freeze([
@@ -803,7 +804,15 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/auth/session' && req.method === 'GET') {
       const session = await readSession(req);
-      return sendJson(res, 200, { ok:true, authenticated:!!session, user:session ? session.account : null });
+      return sendJson(res, 200, {
+        ok:true,
+        authenticated:!!session,
+        user:session ? session.account : null,
+        impersonating:!!(session && session.impersonating),
+        actor:(session && session.impersonating && session.actor)
+          ? { id:session.actor.id, name:session.actor.name, role:session.actor.role }
+          : null
+      });
     }
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
@@ -833,7 +842,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {ok:true,user:result.user});
     }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
-      assertSameOrigin(req); res.setHeader('Set-Cookie', clearCookieHeader());
+      assertSameOrigin(req); res.setHeader('Set-Cookie', [clearCookieHeader(), clearImpersonationCookieHeader()]);
       return sendJson(res, 200, {ok:true});
     }
     if (pathname === '/api/auth/change-password' && req.method === 'POST') {
@@ -846,6 +855,24 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res,200,{ok:true,user:publicAccount(updated)});
     }
     if ((pathname === '/api/auth/accounts' || pathname === '/api/auth/accounts/list') && req.method === 'GET') {
+      const acctAction = String(new URL(req.url, 'http://localhost').searchParams.get('action') || 'list').trim();
+      if (acctAction === 'impersonate-candidates') {
+        // Account Impersonation V1 — gộp vào /api/auth/accounts (mirror
+        // đúng api/auth/accounts.js) thay vì route riêng, để không vượt giới
+        // hạn Serverless Function của Vercel Hobby.
+        const role = String(new URL(req.url, 'http://localhost').searchParams.get('role') || '').trim().toLowerCase();
+        if (!IMPERSONATABLE_ROLES.includes(role)) {
+          return sendJson(res, 400, { ok:false, error:'Vai trò không hợp lệ. Chỉ hỗ trợ learner hoặc manager.', code:'IMPERSONATION_ROLE_UNSUPPORTED' });
+        }
+        await requireWebOperatorSession(req);
+        const accountsForRole = await listAccountsForAdmin();
+        const candidates = accountsForRole.filter(a => a.role === role && a.status === 'active').map(a => ({
+          id:a.id, employeeId:a.employeeId||'', employeeCode:a.employeeCode||'', name:a.name||'',
+          role:a.role||'', branch:a.branch||'', department:a.department||'', position:a.position||'',
+          hubAssignmentStatus:a.hubAssignmentStatus||''
+        }));
+        return sendJson(res, 200, { ok:true, role, candidates });
+      }
       await requireWebOperatorSession(req);
       const accounts = await listAccountsForAdmin();
       return sendJson(res,200,{ok:true,accounts});
@@ -857,10 +884,37 @@ const server = http.createServer(async (req, res) => {
     // here; the frontend has always called this combined path).
     if (pathname === '/api/auth/accounts' && req.method === 'POST') {
       assertSameOrigin(req); assertJsonContentType(req); assertContentLength(req);
-      const session=await requireWebOperatorSession(req);
       const raw=await readBody(req); let body={};
       try{body=JSON.parse(raw||'{}')}catch{throw new RequestError('Dữ liệu không hợp lệ.',400,'JSON_INVALID')}
       const action=String(body.action||'').trim();
+      // impersonate-stop phải luôn an toàn/idempotent kể cả khi role hiệu lực
+      // không còn là admin (đang giả lập) — KHÔNG đi qua requireWebOperatorSession.
+      if(action==='impersonate-stop'){
+        let stopSession=null;
+        try{ stopSession=await readSession(req); }catch(_e){ stopSession=null; }
+        res.setHeader('Set-Cookie', clearImpersonationCookieHeader());
+        if(stopSession && stopSession.impersonating){
+          await auditEmit(req, stopSession, {
+            module:'account', action:'IMPERSONATION_STOP', result:'success',
+            object_type:'account', object_id:stopSession.account.id, object_label:stopSession.account.employeeCode||stopSession.account.name||stopSession.account.id,
+            actor:{ actor_account_id:stopSession.actor && stopSession.actor.id, actor_name:stopSession.actor && (stopSession.actor.name||stopSession.actor.email) }
+          });
+        }
+        return sendJson(res, 200, { ok:true, impersonating:false });
+      }
+      const session=await requireWebOperatorSession(req);
+      if(action==='impersonate-start'){
+        const accountId=String(body.accountId||'').trim();
+        if(!accountId) return sendJson(res, 400, { ok:false, error:'Thiếu tài khoản cần giả lập.', code:'IMPERSONATION_TARGET_REQUIRED' });
+        const { token, target } = await startImpersonation(session, accountId);
+        res.setHeader('Set-Cookie', impersonationCookieHeader(token));
+        await auditEmit(req, session, {
+          module:'account', action:'IMPERSONATION_START', result:'success',
+          object_type:'account', object_id:target.id, object_label:target.employeeCode||target.name||target.id,
+          metadata:{ targetRole:target.role }
+        });
+        return sendJson(res, 200, { ok:true, impersonating:true, account:target });
+      }
       if(action==='create'){
         await assertAccountMutationAllowed(session,body.account||body);
         const result=await createAccountByAdmin(body.account||body, session);

@@ -16,6 +16,12 @@ const SECRET_FILE = path.join(PRIVATE_DIR, 'session-secret.txt');
 const COOKIE_NAME = 'phf_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 120000;
+// Account Impersonation V1 — Admin xem PHF HR đúng như một tài khoản
+// learner/manager thật đang thấy, chỉ để soát lỗi/UX. Cookie riêng, KHÔNG
+// thay thế phf_session của Admin thật. TTL ngắn hơn nhiều so với phiên chính.
+const IMPERSONATION_COOKIE_NAME = 'phf_impersonate';
+const IMPERSONATION_TTL_MS = 60 * 60 * 1000;
+const IMPERSONATABLE_ROLES = ['learner', 'manager'];
 
 const hasSupabaseEnv = Boolean(
   String(process.env.SUPABASE_URL || '').trim() &&
@@ -541,7 +547,7 @@ function parseCookies(req){
   });
   return out;
 }
-async function readSession(req){
+async function readRealSession(req){
   try {
     const token = parseCookies(req)[COOKIE_NAME] || '';
     const [body, signature] = token.split('.');
@@ -567,6 +573,62 @@ async function readSession(req){
     return null;
   }
 }
+function parseImpersonationToken(req){
+  const token = parseCookies(req)[IMPERSONATION_COOKIE_NAME] || '';
+  const [body, signature] = token.split('.');
+  if (!body || !signature || !safeEqual(sign(body), signature)) return null;
+  let payload;
+  try { payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); }
+  catch (e) { return null; }
+  if (!payload || payload.v !== 1 || !payload.exp || Date.now() > payload.exp) return null;
+  return payload;
+}
+// Overlay một phiên "giả lập" lên trên phiên Admin thật: session.account/role/
+// employeeId trở thành CỦA TÀI KHOẢN ĐANG GIẢ LẬP (để mọi logic đọc dữ liệu/
+// gating sẵn có tự động scope đúng theo người đó, không cần sửa nơi khác),
+// còn session.actor luôn giữ danh tính Admin thật để audit/security. Mọi lỗi
+// hoặc dữ liệu giả lập không còn hợp lệ (đổi role/khoá tài khoản...) đều fail
+// open về đúng phiên Admin thật — không bao giờ vô hiệu hoá cả phiên.
+async function applyImpersonationOverlay(req, realSession){
+  if (!realSession || realSession.role !== 'admin') return realSession;
+  const impersonationPayload = parseImpersonationToken(req);
+  if (!impersonationPayload) return realSession;
+  if (String(impersonationPayload.actorId || '') !== String(realSession.account.id || '')) return realSession;
+  try {
+    const target = await getAccountById(impersonationPayload.targetId);
+    if (!target || target.status !== 'active') return realSession;
+    if (!IMPERSONATABLE_ROLES.includes(target.role)) return realSession;
+    return {
+      ...realSession,
+      sub:target.id,
+      email:target.email,
+      role:target.role,
+      employeeId:String(target.employeeId || ''),
+      phone:String(target.phone || ''),
+      account:{...publicAccount(target), authProvider:'impersonation'},
+      actor:{
+        id:realSession.account.id,
+        email:realSession.account.email,
+        role:realSession.account.role,
+        name:realSession.account.name || realSession.account.email
+      },
+      impersonating:true,
+      impersonation:{
+        targetAccountId:target.id,
+        targetEmployeeId:String(target.employeeId || ''),
+        startedAt:impersonationPayload.iat || null
+      }
+    };
+  } catch (error) {
+    console.warn('[PHF Auth] applyImpersonationOverlay:', error && error.message ? error.message : error);
+    return realSession;
+  }
+}
+async function readSession(req){
+  const realSession = await readRealSession(req);
+  if (!realSession) return null;
+  return applyImpersonationOverlay(req, realSession);
+}
 function cookieHeader(token){
   const secure = String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? '; Secure' : '';
   return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS/1000)}${secure}`;
@@ -574,6 +636,43 @@ function cookieHeader(token){
 function clearCookieHeader(){
   const secure = String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? '; Secure' : '';
   return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+}
+function makeImpersonationToken(actorAccountId, targetAccountId){
+  const payload = { v:1, actorId:String(actorAccountId), targetId:String(targetAccountId), iat:Date.now(), exp:Date.now() + IMPERSONATION_TTL_MS };
+  const body = b64url(JSON.stringify(payload));
+  return `${body}.${sign(body)}`;
+}
+function impersonationCookieHeader(token){
+  const secure = String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? '; Secure' : '';
+  return `${IMPERSONATION_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(IMPERSONATION_TTL_MS/1000)}${secure}`;
+}
+function clearImpersonationCookieHeader(){
+  const secure = String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? '; Secure' : '';
+  return `${IMPERSONATION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+}
+// Chỉ Admin thật (không đang giả lập ai) mới được bắt đầu giả lập một tài
+// khoản learner/manager thật đang active. Trả về cookie token + bản public
+// của tài khoản mục tiêu để phản hồi cho client dựng banner.
+async function startImpersonation(session, targetAccountId){
+  if (!session || session.role !== 'admin' || session.impersonating) {
+    const error = new Error('Chỉ Admin thật (chưa giả lập ai) mới được bắt đầu giả lập tài khoản.');
+    error.statusCode = 403; error.code = 'IMPERSONATION_NOT_ALLOWED'; throw error;
+  }
+  const target = await getAccountById(targetAccountId);
+  if (!target) {
+    const error = new Error('Không tìm thấy tài khoản cần giả lập.');
+    error.statusCode = 404; error.code = 'IMPERSONATION_TARGET_NOT_FOUND'; throw error;
+  }
+  if (target.status !== 'active') {
+    const error = new Error('Tài khoản này hiện không ở trạng thái hoạt động.');
+    error.statusCode = 409; error.code = 'IMPERSONATION_TARGET_INACTIVE'; throw error;
+  }
+  if (!IMPERSONATABLE_ROLES.includes(target.role)) {
+    const error = new Error('Chỉ hỗ trợ giả lập tài khoản Học viên hoặc Quản lý.');
+    error.statusCode = 400; error.code = 'IMPERSONATION_ROLE_UNSUPPORTED'; throw error;
+  }
+  const token = makeImpersonationToken(session.account.id, target.id);
+  return { token, target: publicAccount(target) };
 }
 
 async function login(email, password){
@@ -1313,6 +1412,16 @@ async function requireSession(req, roles){
     error.code = 'FORBIDDEN';
     throw error;
   }
+  // Account Impersonation V1 — nguồn chặn ghi CHÍNH. Đặt tại điểm gác duy nhất
+  // mà mọi API ghi dữ liệu (api/data.js POST, api/auth/accounts.js) đều đi
+  // qua, nên chặn được toàn bộ hành động ghi trong lúc đang giả lập mà không
+  // cần sửa từng action riêng lẻ.
+  if (session.impersonating && !['GET', 'HEAD'].includes(String(req.method || '').toUpperCase())) {
+    const error = new Error('Đang giả lập tài khoản — chỉ được xem, không thể ghi dữ liệu.');
+    error.statusCode = 403;
+    error.code = 'IMPERSONATION_READ_ONLY';
+    throw error;
+  }
   return session;
 }
 function matchesOwnEmployee(session, employee){
@@ -1397,5 +1506,10 @@ module.exports = {
   listAccountsForAdmin,
   listHubAccountSummaries,
   generateTemporaryPassword,
-  makeSession
+  makeSession,
+  IMPERSONATION_COOKIE_NAME,
+  IMPERSONATABLE_ROLES,
+  startImpersonation,
+  impersonationCookieHeader,
+  clearImpersonationCookieHeader
 };

@@ -261,10 +261,53 @@
     else setTimeout(run, 0);
   }
 
+  // Account Impersonation V1 — banner cố định "ĐANG GIẢ LẬP — CHỈ XEM" phải
+  // tồn tại xuyên navigation/refresh khi cookie phf_impersonate còn hiệu lực.
+  // Vẽ lại mỗi khi phiên được (tái) xác lập (login, F5, chuyển route) thay vì
+  // chỉ một lần lúc boot.
+  function ensureImpersonationBannerStyle(){
+    if(document.getElementById('phf-impersonation-banner-style')) return;
+    var s=document.createElement('style');
+    s.id='phf-impersonation-banner-style';
+    s.textContent='#phfImpersonationBanner{position:fixed;top:0;left:0;right:0;z-index:99998;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:9px 16px;background:#7a2b0a;color:#fff;font:600 13px/1.4 Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.18)}#phfImpersonationBanner b{letter-spacing:.02em}#phfImpersonationBanner span{opacity:.92}#phfImpersonationBanner button{font:inherit;font-weight:700;border:1px solid rgba(255,255,255,.7);background:transparent;color:#fff;border-radius:8px;padding:5px 12px;cursor:pointer}#phfImpersonationBanner button:hover{background:rgba(255,255,255,.14)}body.phf-impersonation-active{padding-top:40px}@media(max-width:640px){#phfImpersonationBanner{justify-content:flex-start;text-align:left}body.phf-impersonation-active{padding-top:64px}}';
+    document.head.appendChild(s);
+  }
+  async function exitImpersonation(){
+    var btn=document.querySelector('#phfImpersonationBanner button');
+    if(btn){btn.disabled=true;btn.textContent='Đang thoát...';}
+    try{
+      await request('/api/auth/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'impersonate-stop'})});
+    }catch(e){
+      console.warn('[PHF Auth] Thoát giả lập:', e && e.message || e);
+    }
+    location.href = '/';
+  }
+  window.phfExitImpersonation = exitImpersonation;
+  function renderImpersonationBanner(){
+    var old=document.getElementById('phfImpersonationBanner');
+    if(!impersonationState.active || !sessionUser){
+      if(old) old.remove();
+      document.body && document.body.classList.remove('phf-impersonation-active');
+      return;
+    }
+    ensureImpersonationBannerStyle();
+    var roleLabel = sessionUser.role === 'manager' ? 'Quản lý' : 'Học viên';
+    var codeLabel = sessionUser.employeeCode || sessionUser.employeeId || '';
+    var bar = old || document.createElement('div');
+    bar.id = 'phfImpersonationBanner';
+    bar.innerHTML = '<b>ĐANG GIẢ LẬP — CHỈ XEM</b><span>'+esc(codeLabel)+(codeLabel?' · ':'')+esc(sessionUser.name||sessionUser.email||'')+' · '+esc(roleLabel)+'</span><button type="button">Thoát giả lập</button>';
+    bar.querySelector('button').onclick = exitImpersonation;
+    if(!old && document.body) document.body.insertBefore(bar, document.body.firstChild);
+    document.body && document.body.classList.add('phf-impersonation-active');
+  }
+  window.phfRenderImpersonationBanner = renderImpersonationBanner;
+
   window.phfRefreshAuthenticatedDisplay = refreshSystemAdminDisplayMirror;
   window.addEventListener('pageshow', queueSystemAdminDisplayMirror);
   window.addEventListener('focus', queueSystemAdminDisplayMirror);
   window.addEventListener('phf-auth-changed', queueSystemAdminDisplayMirror);
+  window.addEventListener('phf-auth-changed', renderImpersonationBanner);
+  document.addEventListener('DOMContentLoaded', renderImpersonationBanner);
   window.addEventListener('storage', function(ev){
     if(!ev || ['phfLoginName','phfEmployeeProfile','phfLoginEmail'].indexOf(ev.key) >= 0){
       queueSystemAdminDisplayMirror();
@@ -333,6 +376,14 @@
     });
   }
 
+  // Account Impersonation V1 — session.user trả về ở trên LUÔN LÀ effective
+  // account (learner/manager đang bị giả lập); impersonationState chỉ giữ cờ
+  // + tối thiểu danh tính Admin thật để vẽ banner/nút Thoát, không phải một
+  // "current user" thứ hai.
+  var impersonationState = { active:false, actor:null };
+  window.phfIsImpersonating = function(){ return !!impersonationState.active; };
+  window.phfGetImpersonationActor = function(){ return impersonationState.actor; };
+
   async function readServerSession(){
     var now = Date.now();
     /* Trong lúc boot, server-auth, router và luồng phục hồi 401 có thể hỏi phiên
@@ -346,6 +397,7 @@
     serverSessionRequestPromise = (async function(){
       var json = await request('/api/auth/session?_=' + Date.now());
       var user = json && json.authenticated ? json.user : null;
+      impersonationState = { active:!!(json && json.impersonating), actor:(json && json.actor) || null };
       serverSessionCacheUser = user || null;
       serverSessionCacheAt = Date.now();
       return user || null;

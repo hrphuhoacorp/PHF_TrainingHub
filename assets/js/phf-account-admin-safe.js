@@ -482,7 +482,7 @@
 
   function ensureSelectOption(sel,value,suffix){if(!sel||!value)return;var exists=Array.prototype.some.call(sel.options||[],function(o){return String(o.value)===String(value)});if(!exists){var opt=document.createElement('option');opt.value=value;opt.textContent=value+(suffix||'');sel.appendChild(opt)}}
   window.phfAcctUpdatePositionOptions=function(selected){var d=(document.getElementById('phfAcctSafeDept')||{}).value||'';var sel=document.getElementById('phfAcctSafePosition');if(!sel)return;var wanted=selected||sel.value||'';var vals=positionNamesForDept(d);sel.innerHTML=selectOptions(vals,wanted);if(wanted){var historical=positions().find(function(p){return p.name===wanted&&p.department===d});ensureSelectOption(sel,wanted,historical&&historical.status==='inactive'?' (đã ngừng dùng)':'')}if(wanted)sel.value=wanted;if(!sel.value&&vals[0])sel.value=vals[0]};
-  function renderAccounts(){ensureAccountListUi();phfHrEnsureAccessUi();try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen','accounts');localStorage.removeItem('phfRefreshResumeState')}catch(e){}loadAccountsFromServer(false).catch(function(error){console.warn('[PHF Accounts] Tải danh sách máy chủ:',error&&error.message||error)});var body=accountHudStrip()+'<div class="phf-acct-safe-grid phf-acct-safe-grid-stacked"><section class="phf-acct-safe-panel phf-acct-list-panel"><div class="phf-acct-safe-toolbar"><div><h3>Danh sách tài khoản</h3><p>Ưu tiên Ngừng sử dụng để giữ nguyên hồ sơ. Chỉ xóa tài khoản test hoặc tạo nhầm.</p></div><input id="phfAcctSafeSearch" class="phf-acct-safe-search" placeholder="Tìm theo tên, email, SĐT, đơn vị, phân công..." oninput="phfAcctSafeRefresh();phfAcctBulkUpdate()"></div><div class="phf-acct-bulkbar" id="phfAcctBulkBar"><div><b>Đã chọn: <span id="phfAcctBulkCount">0</span> tài khoản</b><small>Không tác động hồ sơ nhân viên, tiến độ, bài thi, BMTT hoặc phiếu đánh giá.</small></div><div class="phf-acct-bulk-actions"><button class="phf-acct-safe-btn" type="button" onclick="phfAcctBulkSetStatus(\'inactive\')">Ngừng sử dụng</button><button class="phf-acct-safe-btn danger" type="button" onclick="phfAcctBulkDelete()">Xóa tài khoản</button></div></div><div class="phf-acct-safe-tablebox"><table class="phf-acct-safe-table phf-acct-account-table phf-acct-account-table-compact"><thead><tr><th class="phf-acct-select-cell"><input id="phfAcctBulkAll" type="checkbox" onchange="phfAcctBulkToggleAll(this)"></th><th>Tài khoản</th><th>Vai trò</th><th>Tài khoản</th><th>Đơn vị</th><th>Trạng thái nhân sự</th><th>Hệ thống PHF HR</th><th>Cảnh báo</th><th>Thao tác</th></tr></thead><tbody id="phfAcctSafeRows">'+accountRows()+'</tbody></table></div></section><section class="phf-acct-safe-panel phf-acct-form-panel" id="phfAcctSafeFormPanel"><div class="phf-acct-form-head"><div><span class="phf-acct-section-kicker">THÔNG TIN TÀI KHOẢN</span><h3 id="phfAcctSafeFormTitle">Tạo tài khoản mới</h3><p>Điền thông tin theo từng nhóm. Các trường và cơ chế lưu dữ liệu được giữ nguyên.</p></div><button class="phf-acct-safe-btn subtle" type="button" onclick="phfAcctSafeClearForm();document.getElementById(\'phfAcctSafeFormPanel\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">Tạo tài khoản mới</button></div>'+accountForm()+'<div class="phf-acct-safe-note"><b>Nguyên tắc:</b> Tạm khóa/Ngừng sử dụng chỉ chặn đăng nhập; hồ sơ và dữ liệu đào tạo vẫn được giữ nguyên. Xóa chỉ gỡ tài khoản đăng nhập.</div><div class="phf-acct-safe-log" id="phfAcctSafeLogs">'+logs()+'</div></section></div>';renderShell('accounts',body);setTimeout(accountBulkUpdateUi,0);phfHrLoadAccessState(false);phfPmLoadState(false)}
+  function renderAccounts(){ensureAccountListUi();phfHrEnsureAccessUi();try{localStorage.setItem('phfLastMainNav','admin');localStorage.setItem('phfLastAdminSubscreen','accounts');localStorage.removeItem('phfRefreshResumeState')}catch(e){}loadAccountsFromServer(false).catch(function(error){console.warn('[PHF Accounts] Tải danh sách máy chủ:',error&&error.message||error)});var body=accountHudStrip()+'<div class="phf-acct-safe-grid phf-acct-safe-grid-stacked"><section class="phf-acct-safe-panel phf-acct-list-panel"><div class="phf-acct-safe-toolbar"><div><h3>Danh sách tài khoản</h3><p>Ưu tiên Ngừng sử dụng để giữ nguyên hồ sơ. Chỉ xóa tài khoản test hoặc tạo nhầm.</p></div><button class="phf-acct-safe-btn" type="button" onclick="phfOpenImpersonateModal()" style="white-space:nowrap">Giả lập tài khoản (chỉ xem)</button><input id="phfAcctSafeSearch" class="phf-acct-safe-search" placeholder="Tìm theo tên, email, SĐT, đơn vị, phân công..." oninput="phfAcctSafeRefresh();phfAcctBulkUpdate()"></div><div class="phf-acct-bulkbar" id="phfAcctBulkBar"><div><b>Đã chọn: <span id="phfAcctBulkCount">0</span> tài khoản</b><small>Không tác động hồ sơ nhân viên, tiến độ, bài thi, BMTT hoặc phiếu đánh giá.</small></div><div class="phf-acct-bulk-actions"><button class="phf-acct-safe-btn" type="button" onclick="phfAcctBulkSetStatus(\'inactive\')">Ngừng sử dụng</button><button class="phf-acct-safe-btn danger" type="button" onclick="phfAcctBulkDelete()">Xóa tài khoản</button></div></div><div class="phf-acct-safe-tablebox"><table class="phf-acct-safe-table phf-acct-account-table phf-acct-account-table-compact"><thead><tr><th class="phf-acct-select-cell"><input id="phfAcctBulkAll" type="checkbox" onchange="phfAcctBulkToggleAll(this)"></th><th>Tài khoản</th><th>Vai trò</th><th>Tài khoản</th><th>Đơn vị</th><th>Trạng thái nhân sự</th><th>Hệ thống PHF HR</th><th>Cảnh báo</th><th>Thao tác</th></tr></thead><tbody id="phfAcctSafeRows">'+accountRows()+'</tbody></table></div></section><section class="phf-acct-safe-panel phf-acct-form-panel" id="phfAcctSafeFormPanel"><div class="phf-acct-form-head"><div><span class="phf-acct-section-kicker">THÔNG TIN TÀI KHOẢN</span><h3 id="phfAcctSafeFormTitle">Tạo tài khoản mới</h3><p>Điền thông tin theo từng nhóm. Các trường và cơ chế lưu dữ liệu được giữ nguyên.</p></div><button class="phf-acct-safe-btn subtle" type="button" onclick="phfAcctSafeClearForm();document.getElementById(\'phfAcctSafeFormPanel\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">Tạo tài khoản mới</button></div>'+accountForm()+'<div class="phf-acct-safe-note"><b>Nguyên tắc:</b> Tạm khóa/Ngừng sử dụng chỉ chặn đăng nhập; hồ sơ và dữ liệu đào tạo vẫn được giữ nguyên. Xóa chỉ gỡ tài khoản đăng nhập.</div><div class="phf-acct-safe-log" id="phfAcctSafeLogs">'+logs()+'</div></section></div>';renderShell('accounts',body);setTimeout(accountBulkUpdateUi,0);phfHrLoadAccessState(false);phfPmLoadState(false)}
   window.phfAcctSafeFill=function(id){renderAccounts();setTimeout(function(){var list=accounts(),a=list.find(function(x){return x.id===id});if(!a)return;PENDING_EMPLOYEE_ID=String(a.employeeId||'');document.getElementById('phfAcctSafeId').value=a.id||'';var typeSel=document.getElementById('phfAcctSafeType');if(typeSel){typeSel.value=a.accountType||'employee';typeSel.disabled=true}window.phfAcctToggleAccountType();document.getElementById('phfAcctSafeName').value=a.name||'';document.getElementById('phfAcctSafeCode').value=a.employeeCode||'';document.getElementById('phfAcctSafeEmail').value=a.email||'';document.getElementById('phfAcctSafePhone').value=a.phone||'';var pf=document.getElementById('phfAcctPasswordField');if(pf)pf.style.display='none';document.getElementById('phfAcctSafeRole').value=a.role||'learner';document.getElementById('phfAcctSafeStatus').value=a.status||'active';var branchSel=document.getElementById('phfAcctSafeBranch');ensureSelectOption(branchSel,a.branch||'',' (đã ngừng dùng)');branchSel.value=a.branch||'';var deptSel=document.getElementById('phfAcctSafeDept');ensureSelectOption(deptSel,a.department||'',' (đã ngừng dùng)');deptSel.value=a.department||'';phfAcctUpdatePositionOptions(a.position||'');var audSel=document.getElementById('phfAcctSafeAudience');ensureSelectOption(audSel,a.trainingAudience||'Nhân sự mới',' (đã ngừng dùng)');audSel.value=a.trainingAudience||'Nhân sự mới';document.getElementById('phfAcctSafeProgram').value=phfAcctValidTrainingScope(a.defaultProgram)?a.defaultProgram:'';var hs=document.getElementById('phfAcctSafeHubAssignment');if(hs)hs.value=normalizeHubAssignmentStatus(a.hubAssignmentStatus,a.trainingAudience);window.phfAcctTrainingScopeChanged();document.getElementById('phfAcctSafeNote').value=a.note||'';var btn=document.getElementById('phfAcctSafeSubmit');if(btn)btn.textContent='Lưu thay đổi';var ft=document.getElementById('phfAcctSafeFormTitle');if(ft)ft.textContent='Chỉnh sửa tài khoản: '+(a.name||a.email||'');var panel=document.getElementById('phfAcctSafeFormPanel');if(panel&&panel.scrollIntoView)panel.scrollIntoView({behavior:'smooth',block:'start'});},30)};
   window.phfAcctSafeSave=async function(ev){
     if(ev)ev.preventDefault();
@@ -523,6 +523,106 @@
 
   window.phfAcctSafeSetStatus=async function(id,nextStatus){var list=accounts();var a=list.find(function(x){return x.id===id});if(!a)return;nextStatus=statusCode(nextStatus);var loginEmail=currentLoginEmail();if(cleanEmail(a.email)===loginEmail&&nextStatus!=='active'){phfAlert('Không thể tạm khóa hoặc ngừng sử dụng tài khoản đang đăng nhập.');return}var previous=a.status||'active';if(previous===nextStatus)return;var action=nextStatus==='locked'?'tạm khóa':(nextStatus==='inactive'?'ngừng sử dụng':'khôi phục hoạt động');if(!(await phfConfirm('Xác nhận '+action+' tài khoản '+a.email+'?\n\nTiến độ học, kết quả kiểm tra và hồ sơ liên kết sẽ được giữ nguyên.')))return;a.status=nextStatus;a.statusUpdatedAt=new Date().toISOString();a.statusUpdatedBy=currentAdminLabel();saveAccounts(list);addLog('Trạng thái '+a.email+': '+statusLabel(previous)+' → '+statusLabel(nextStatus));refreshAccounts()};
   window.phfAcctSafeToggleLock=function(id){var a=accounts().find(function(x){return x.id===id});if(!a)return;return window.phfAcctSafeSetStatus(id,a.status==='locked'?'active':'locked')};
+
+  // Account Impersonation V1 — Admin xem PHF HR đúng như tài khoản Học viên
+  // hoặc Quản lý thật đang thấy (CHỈ XEM). Không nhập lại profile/ngày bắt
+  // đầu/phòng ban: server tự đọc dữ liệu thật của account đã chọn. Một khối
+  // modal 2 bước duy nhất (chọn vai trò -> chọn người), KHÔNG rải nút trên
+  // từng dòng tài khoản và KHÔNG route full-screen riêng.
+  var PHF_IMPERSONATE_ROLE=null;
+  function phfImpersonateStepRoleHtml(){
+    return '<section class="phf-modal-card" role="dialog" aria-modal="true" style="width:min(420px,100%)">'
+      +'<div class="phf-modal-head"><button class="phf-modal-close" type="button" data-imp-close aria-label="Đóng">×</button><div class="phf-modal-icon">👁</div><div><h3>Giả lập tài khoản (chỉ xem)</h3><p>Bước 1: chọn vai trò cần giả lập</p></div></div>'
+      +'<div style="padding:2px 22px 22px;display:grid;gap:10px">'
+      +'<button class="phf-acct-safe-btn" type="button" style="min-height:52px;font-size:15px" onclick="phfImpersonateChooseRole(\'learner\')">Học viên</button>'
+      +'<button class="phf-acct-safe-btn" type="button" style="min-height:52px;font-size:15px" onclick="phfImpersonateChooseRole(\'manager\')">Quản lý</button>'
+      +'</div></section>';
+  }
+  function phfImpersonateStepListHtml(role,state){
+    var roleLabel=role==='manager'?'Quản lý':'Học viên';
+    var body;
+    if(state.loading){
+      body='<div class="phf-acct-safe-note phf-acct-loading-note" role="status" aria-live="polite"><span class="phf-acct-spinner" aria-hidden="true"></span>Đang tải danh sách...</div>';
+    }else if(state.error){
+      body='<div class="phf-acct-safe-note is-error">Chưa tải được danh sách: '+esc(state.error)+'. <button type="button" class="phf-acct-safe-btn subtle" onclick="phfImpersonateChooseRole(\''+role+'\')">Thử lại</button></div>';
+    }else{
+      var q=(state.query||'').toLowerCase().trim();
+      var list=(state.candidates||[]).filter(function(c){return !q||[c.name,c.employeeCode,c.branch,c.department,c.position].join(' ').toLowerCase().indexOf(q)>=0});
+      body=list.length?('<div class="phf-imp-list">'+list.map(function(c){
+        var unit=[c.branch,c.department].filter(Boolean).join(' · ')||'Chưa cập nhật đơn vị';
+        return '<button type="button" class="phf-imp-row" onclick="phfImpersonateStart(\''+esc(c.id)+'\',\''+esc(c.name||c.employeeCode||'')+'\')">'
+          +'<div class="phf-imp-row-main"><b>'+esc(c.name||'Chưa đặt tên')+'</b><small>'+esc(c.employeeCode||'—')+'</small></div>'
+          +'<div class="phf-imp-row-unit">'+esc(unit)+'</div></button>';
+      }).join('')+'</div>'):('<div class="phf-acct-safe-note">Không có tài khoản '+esc(roleLabel)+' nào đang hoạt động.</div>');
+    }
+    return '<section class="phf-modal-card" role="dialog" aria-modal="true" style="width:min(480px,100%);max-height:min(80vh,620px);display:flex;flex-direction:column">'
+      +'<div class="phf-modal-head"><button class="phf-modal-close" type="button" data-imp-close aria-label="Đóng">×</button><div class="phf-modal-icon">👁</div><div><h3>Giả lập tài khoản (chỉ xem)</h3><p>Bước 2: chọn '+esc(roleLabel)+' cần giả lập</p></div></div>'
+      +'<div style="padding:0 22px 8px"><input id="phfImpersonateSearch" class="phf-acct-safe-search" placeholder="Tìm theo tên, mã NV, đơn vị..." oninput="phfImpersonateFilter(this.value)" value="'+esc(state.query||'')+'"></div>'
+      +'<div style="padding:0 22px 18px;overflow:auto;flex:1">'+body+'</div>'
+      +'<div class="phf-modal-actions"><button class="phf-modal-btn" type="button" onclick="phfImpersonateChooseRole(null)">← Chọn lại vai trò</button></div></section>';
+  }
+  function phfImpersonateEnsureStyle(){
+    if(document.getElementById('phf-impersonate-modal-style'))return;
+    var s=document.createElement('style');s.id='phf-impersonate-modal-style';
+    s.textContent='.phf-imp-list{display:grid;gap:8px}.phf-imp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:1px solid #dfeee7;border-radius:12px;background:#fff;padding:10px 12px;cursor:pointer;font:inherit;color:#17382d}.phf-imp-row:hover{border-color:#8fc9ae;background:#f4faf7}.phf-imp-row-main{display:grid;gap:2px;min-width:0}.phf-imp-row-main b{font-weight:650}.phf-imp-row-main small{color:#667a71}.phf-imp-row-unit{color:#60756c;font-size:12.5px;text-align:right;white-space:nowrap}';
+    document.head.appendChild(s);
+  }
+  function phfImpersonateRender(html){
+    var root=document.getElementById('phfImpersonateModal');
+    if(!root)return;
+    root.innerHTML=html;
+    root.querySelectorAll('[data-imp-close]').forEach(function(b){b.onclick=phfImpersonateClose;});
+  }
+  function phfImpersonateClose(){
+    var root=document.getElementById('phfImpersonateModal');
+    if(root){root.remove();phfPmUnlockBodyScroll();}
+    document.removeEventListener('keydown',phfImpersonateOnEsc);
+    PHF_IMPERSONATE_ROLE=null;
+  }
+  function phfImpersonateOnEsc(e){if(e.key==='Escape')phfImpersonateClose();}
+  window.phfOpenImpersonateModal=function(){
+    var old=document.getElementById('phfImpersonateModal');if(old){old.remove();phfPmUnlockBodyScroll();}
+    phfImpersonateEnsureStyle();
+    var root=document.createElement('div');root.id='phfImpersonateModal';root.className='phf-modal-backdrop';
+    document.body.appendChild(root);
+    phfPmLockBodyScroll();
+    document.addEventListener('keydown',phfImpersonateOnEsc);
+    root.addEventListener('click',function(e){if(e.target===root)phfImpersonateClose();});
+    phfImpersonateRender(phfImpersonateStepRoleHtml());
+  };
+  window.phfImpersonateChooseRole=async function(role){
+    if(!role){PHF_IMPERSONATE_ROLE=null;phfImpersonateRender(phfImpersonateStepRoleHtml());return}
+    PHF_IMPERSONATE_ROLE=role;
+    var state={loading:true,candidates:[],query:''};
+    phfImpersonateRender(phfImpersonateStepListHtml(role,state));
+    try{
+      var response=await fetch('/api/auth/accounts?action=impersonate-candidates&role='+encodeURIComponent(role),{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
+      var json=await response.json().catch(function(){return{}});
+      if(!response.ok||!json.ok)throw new Error(json.error||'Không tải được danh sách.');
+      if(PHF_IMPERSONATE_ROLE!==role)return;
+      window.__phfImpersonateState={loading:false,candidates:json.candidates||[],query:''};
+      phfImpersonateRender(phfImpersonateStepListHtml(role,window.__phfImpersonateState));
+    }catch(error){
+      if(PHF_IMPERSONATE_ROLE!==role)return;
+      phfImpersonateRender(phfImpersonateStepListHtml(role,{loading:false,error:error&&error.message?error.message:'Không tải được danh sách.'}));
+    }
+  };
+  window.phfImpersonateFilter=function(value){
+    if(!PHF_IMPERSONATE_ROLE||!window.__phfImpersonateState)return;
+    window.__phfImpersonateState.query=value;
+    phfImpersonateRender(phfImpersonateStepListHtml(PHF_IMPERSONATE_ROLE,window.__phfImpersonateState));
+    var input=document.getElementById('phfImpersonateSearch');
+    if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}
+  };
+  window.phfImpersonateStart=async function(id,label){
+    if(!(await phfConfirm('Bắt đầu giả lập tài khoản "'+(label||'')+'"?\n\nBạn sẽ thấy đúng giao diện của người này. Mọi thao tác ghi dữ liệu sẽ bị chặn. Bấm "Thoát giả lập" trên banner để quay lại Admin.','Giả lập tài khoản','Bắt đầu giả lập','Hủy')))return;
+    try{
+      var response=await fetch('/api/auth/accounts',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'impersonate-start',accountId:id})});
+      var json=await response.json().catch(function(){return{}});
+      if(!response.ok||!json.ok){await phfAlert(json.error||'Chưa thể bắt đầu giả lập tài khoản.','Chưa thể giả lập','danger');return}
+      location.href='/';
+    }catch(error){await phfAlert(error&&error.message?error.message:'Chưa thể kết nối máy chủ.','Chưa thể giả lập','danger')}
+  };
 
   function ensureStaffUi(){if(document.getElementById('phf-staff-2h-style'))return;var st=document.createElement('style');st.id='phf-staff-2h-style';st.textContent='\
 .phf-staff-page{display:grid;gap:16px}.phf-staff-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.phf-staff-summary-card{background:#fff;border:1px solid #dfeee7;border-radius:16px;padding:14px 16px;box-shadow:0 6px 16px rgba(0,45,30,.04)}.phf-staff-summary-card b{display:block;color:#17382d;font-size:24px;font-weight:650;line-height:1}.phf-staff-summary-card span{display:block;color:#60756c;font-size:13px;margin-top:7px}.phf-staff-summary-card.done{background:#f2faf6;border-color:#cfe7dc}.phf-staff-summary-card.done b{color:#07543e}.phf-staff-summary-card.warn{background:#fff9ee;border-color:#f0dfb9}.phf-staff-summary-card.warn b{color:#8a5a00}.phf-staff-tools{display:grid;grid-template-columns:minmax(240px,1.5fr) minmax(180px,.7fr) minmax(180px,.7fr) auto;gap:10px;align-items:end;background:#f8fbf9;border:1px solid #e0eee7;border-radius:16px;padding:14px}.phf-staff-tools label{display:block;margin-bottom:6px;color:#526960;font-size:12px;font-weight:600}.phf-staff-tools input,.phf-staff-tools select{width:100%;min-height:42px;border:1px solid #d6e9e1;border-radius:12px;background:#fff;color:#17382d;padding:0 12px;font:400 14px/1.2 Arial,"Helvetica Neue",Helvetica,system-ui,sans-serif}.phf-staff-table{min-width:1120px!important}.phf-staff-table td,.phf-staff-table th{padding:12px!important}.phf-staff-person{display:grid;gap:3px}.phf-staff-person b{font-weight:620;color:#17382d}.phf-staff-person small{color:#667a71;line-height:1.35}.phf-staff-meta{display:grid;gap:4px}.phf-staff-meta small{color:#667a71}.phf-staff-link-note{display:block;margin-top:5px;color:#667a71;font-size:12px;line-height:1.35}.phf-staff-empty{padding:26px;text-align:center;color:#667a71}.phf-staff-table tr[hidden]{display:none!important}.phf-link-review-card{width:min(860px,100%);max-height:min(88vh,760px);display:flex;flex-direction:column}.phf-link-review-body{padding:0 22px 18px;overflow:auto}.phf-link-review-guide{border:1px solid #dcebe4;border-radius:14px;background:#f8fbf9;padding:12px 14px;color:#49645a;font-size:13px;line-height:1.55;margin-bottom:14px}.phf-link-review-guide b{color:#17382d}.phf-link-review-staff{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:14px}.phf-link-review-field{border:1px solid #e1eee8;border-radius:12px;background:#fff;padding:10px 11px;min-width:0}.phf-link-review-field span{display:block;color:#6a7d74;font-size:11.5px;margin-bottom:4px}.phf-link-review-field b{display:block;color:#17382d;font-size:13px;word-break:break-word}.phf-link-review-list{display:grid;gap:11px}.phf-link-candidate{border:1px solid #dfece6;border-radius:15px;padding:13px;background:#fff}.phf-link-candidate.warn{border-color:#efd6a5;background:#fffbf2}.phf-link-candidate.danger{border-color:#efc9bf;background:#fff7f4}.phf-link-candidate-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.phf-link-candidate-head h4{margin:0;color:#17382d;font-size:15px}.phf-link-candidate-head p{margin:4px 0 0;color:#60756c;font-size:12.5px}.phf-link-compare{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:11px}.phf-link-compare-item{border-radius:10px;padding:8px 9px;background:#f7faf8;border:1px solid #e5efea}.phf-link-compare-item.match{background:#f1faf5;border-color:#cde7da}.phf-link-compare-item.mismatch{background:#fff5f1;border-color:#efcec3}.phf-link-compare-item span{display:block;font-size:11px;color:#6a7d74}.phf-link-compare-item b{display:block;margin-top:3px;font-size:12px;color:#17382d;word-break:break-word}.phf-link-candidate-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px}.phf-link-review-result{margin-top:12px;padding:11px 13px;border-radius:12px;background:#fff7e8;border:1px solid #efd8aa;color:#7a5716;font-size:12.5px;line-height:1.5}.phf-link-review-result.safe{background:#f1faf5;border-color:#cde7da;color:#07543e}@media(max-width:720px){.phf-link-review-staff,.phf-link-compare{grid-template-columns:1fr 1fr}.phf-link-review-card{max-height:94vh}.phf-link-candidate-head{flex-direction:column}}@media(max-width:460px){.phf-link-review-staff,.phf-link-compare{grid-template-columns:1fr}}@media(max-width:980px){.phf-staff-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.phf-staff-tools{grid-template-columns:1fr 1fr}.phf-staff-tools .phf-staff-search{grid-column:1/-1}}@media(max-width:620px){.phf-staff-summary{grid-template-columns:1fr}.phf-staff-tools{grid-template-columns:1fr}.phf-staff-tools .phf-staff-search{grid-column:auto}}';st.textContent+='\
