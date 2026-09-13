@@ -9,7 +9,7 @@
  * việc bắt đầu/kết thúc phiên giả lập, không tự chặn ghi thêm lần nữa.
  *
  * Session model: phf_session của Admin thật KHÔNG BAO GIỜ bị thay thế. Một
- * cookie riêng phf_impersonate (HttpOnly, signed, TTL 2 giờ) chỉ giữ
+ * cookie riêng phf_impersonate (HttpOnly, signed, TTL 60 phút) chỉ giữ
  * {actorId, targetId}. readSession() overlay hai cookie lại thành một session
  * hiệu lực (effective) mà account/role/employeeId là của người bị giả lập,
  * còn session.actor luôn là Admin thật (audit/security).

@@ -20,7 +20,7 @@ const PASSWORD_ITERATIONS = 120000;
 // learner/manager thật đang thấy, chỉ để soát lỗi/UX. Cookie riêng, KHÔNG
 // thay thế phf_session của Admin thật. TTL ngắn hơn nhiều so với phiên chính.
 const IMPERSONATION_COOKIE_NAME = 'phf_impersonate';
-const IMPERSONATION_TTL_MS = 2 * 60 * 60 * 1000;
+const IMPERSONATION_TTL_MS = 60 * 60 * 1000;
 const IMPERSONATABLE_ROLES = ['learner', 'manager'];
 
 const hasSupabaseEnv = Boolean(
