@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const { resolveDepartmentForWrite } = require('./department-catalog');
 
 const configured=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());
 const db=configured?createClient(String(process.env.SUPABASE_URL).trim(),String(process.env.SUPABASE_SECRET_KEY).trim(),{auth:{persistSession:false,autoRefreshToken:false}}):null;
@@ -12,6 +13,20 @@ function code(value){return text(value).toUpperCase();}
 function date(value){const valueText=text(value);return /^\d{4}-\d{2}-\d{2}$/.test(valueText)?valueText:null;}
 function money(value){const amount=Number(value);return Number.isFinite(amount)&&amount>=0?Math.round(amount*100)/100:0;}
 function missingSchema(error){return error&&(error.code==='42P01'||error.code==='42703'||/does not exist|schema cache/i.test(text(error.message)));}
+// Batch A: employee_profiles.department_key có thể CHƯA tồn tại ở môi trường
+// nào đó nếu migration additive (PHF_TRAINING_HUB_EMPLOYEE_PROFILES_DEPARTMENT_KEY_V1.sql)
+// chưa được áp dụng. Ghi vẫn phải hoạt động bình thường trong lúc đó — thử
+// ghi có department_key trước, nếu lỗi thiếu cột thì tự động bỏ trường này và
+// ghi lại (giống đúng pattern fallback đã có ở db.js:930 cho employees table).
+async function writeWithDepartmentKeyFallback(run, payload){
+  let result = await run(payload);
+  if(result.error && missingSchema(result.error) && Object.prototype.hasOwnProperty.call(payload,'department_key')){
+    const withoutKey = {...payload};
+    delete withoutKey.department_key;
+    result = await run(withoutKey);
+  }
+  return result;
+}
 function fail(message,statusCode,errorCode){const error=new Error(message);error.statusCode=statusCode||400;error.code=errorCode||'EMPLOYEE_MASTER_INVALID';throw error;}
 function requireAdmin(session){if(!session||String(session.role||'').toLowerCase()!=='admin')fail('Chỉ Admin được truy cập Hồ sơ nhân sự tập trung.',403,'EMPLOYEE_MASTER_ADMIN_REQUIRED');}
 function requireDb(){if(!db)fail('Supabase chưa được cấu hình.',503,'SUPABASE_NOT_CONFIGURED');}
@@ -183,15 +198,27 @@ async function ensureProfileFromAccount(session,account){
   if(existing)return{status:'linked_existing',profile:existing};
   const fullName=text(account&&account.name);
   if(!fullName)return{status:'name_required',profile:null};
+  // Batch A: department ghi vào employee_profiles PHẢI đi qua catalog chuẩn.
+  // resolveDepartmentForWrite() ném lỗi nếu account.department không rỗng
+  // nhưng không khớp đúng 1 trong 9 phòng ban chuẩn — an toàn ở đây vì
+  // syncPeopleMasterForAccount() (auth.js) đã bọc try/catch quanh lời gọi
+  // này, lỗi chỉ trả về peopleMaster.status:'error', KHÔNG chặn việc tạo
+  // tài khoản (đúng nguyên tắc cũ: hiccup ở People Master không được chặn
+  // tạo tài khoản).
+  const { department, departmentKey } = resolveDepartmentForWrite(account&&account.department);
   const row={
     employee_code:employeeCode,
     full_name:fullName,
     phone:text(account&&account.phone),
     branch:text(account&&account.branch),
-    department:text(account&&account.department),
+    department,
+    department_key:departmentKey,
     position:text(account&&account.position),
   };
-  const result=await db.from('employee_profiles').insert(row).select('*').single();
+  const result=await writeWithDepartmentKeyFallback(
+    (payload)=>db.from('employee_profiles').insert(payload).select('*').single(),
+    row
+  );
   if(result.error){
     if(String(result.error.code||'')==='23505')return{status:'linked_existing',profile:(await findProfile({employeeCode}))||null};
     throw result.error;
@@ -202,8 +229,22 @@ async function ensureProfileFromAccount(session,account){
 }
 
 async function saveProfile(session,input){
-  requireAdmin(session);requireDb();const existing=await ensureProfile(input),has=key=>Object.prototype.hasOwnProperty.call(input,key);let employmentStatus=existing.employment_status;if(has('employmentStatus')){employmentStatus=normalizeEmploymentStatus(input.employmentStatus);if(!employmentStatus)fail('Trạng thái làm việc chỉ nhận active hoặc inactive.',400,'EMPLOYMENT_STATUS_INVALID');}const patch={employee_id:text(input.employeeId)||existing.employee_id||null,employee_code:code(input.employeeCode)||existing.employee_code||'',full_name:text(input.fullName)||existing.full_name||'',employment_status:employmentStatus,avatar_url:has('avatarUrl')?text(input.avatarUrl):existing.avatar_url,birth_date:has('birthDate')?date(input.birthDate):existing.birth_date,gender:has('gender')?text(input.gender):existing.gender,phone:has('phone')?text(input.phone):existing.phone,work_email:has('workEmail')?text(input.workEmail):existing.work_email,personal_email:has('personalEmail')?text(input.personalEmail):existing.personal_email,hire_date:has('hireDate')?date(input.hireDate):existing.hire_date,official_date:has('officialDate')?date(input.officialDate):existing.official_date,note:has('note')?text(input.note):existing.note,department:has('department')?text(input.department):existing.department,title:has('title')?text(input.title):existing.title,position:has('position')?(text(input.position)||null):existing.position,branch:has('branch')?text(input.branch):existing.branch,manager_employee_code:has('managerEmployeeCode')?code(input.managerEmployeeCode):existing.manager_employee_code};
-  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');const result=await db.from('employee_profiles').update(patch).eq('id',existing.id).select('*').single();if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');invalidateTaskPeopleCache();
+  requireAdmin(session);requireDb();const existing=await ensureProfile(input),has=key=>Object.prototype.hasOwnProperty.call(input,key);let employmentStatus=existing.employment_status;if(has('employmentStatus')){employmentStatus=normalizeEmploymentStatus(input.employmentStatus);if(!employmentStatus)fail('Trạng thái làm việc chỉ nhận active hoặc inactive.',400,'EMPLOYMENT_STATUS_INVALID');}
+  // Batch A: department là 1 trong 9 phòng ban chuẩn, ghi cả displayName lẫn
+  // department_key qua catalog. Không khớp catalog -> ném lỗi (reject), không
+  // im lặng lưu free text nữa. Khi input không đổi department (!has), giữ
+  // nguyên departmentKey đã có trên hồ sơ (cột có thể chưa tồn tại ở DB cũ ->
+  // undefined, writeWithDepartmentKeyFallback tự lo phần đó).
+  const departmentResolved = has('department')
+    ? resolveDepartmentForWrite(input.department)
+    : { department: existing.department, departmentKey: existing.department_key };
+  const patch={employee_id:text(input.employeeId)||existing.employee_id||null,employee_code:code(input.employeeCode)||existing.employee_code||'',full_name:text(input.fullName)||existing.full_name||'',employment_status:employmentStatus,avatar_url:has('avatarUrl')?text(input.avatarUrl):existing.avatar_url,birth_date:has('birthDate')?date(input.birthDate):existing.birth_date,gender:has('gender')?text(input.gender):existing.gender,phone:has('phone')?text(input.phone):existing.phone,work_email:has('workEmail')?text(input.workEmail):existing.work_email,personal_email:has('personalEmail')?text(input.personalEmail):existing.personal_email,hire_date:has('hireDate')?date(input.hireDate):existing.hire_date,official_date:has('officialDate')?date(input.officialDate):existing.official_date,note:has('note')?text(input.note):existing.note,department:departmentResolved.department,department_key:departmentResolved.departmentKey,title:has('title')?text(input.title):existing.title,position:has('position')?(text(input.position)||null):existing.position,branch:has('branch')?text(input.branch):existing.branch,manager_employee_code:has('managerEmployeeCode')?code(input.managerEmployeeCode):existing.manager_employee_code};
+  if(!patch.full_name)fail('Họ tên nhân viên là bắt buộc.',400,'EMPLOYEE_NAME_REQUIRED');
+  const result=await writeWithDepartmentKeyFallback(
+    (payload)=>db.from('employee_profiles').update(payload).eq('id',existing.id).select('*').single(),
+    patch
+  );
+  if(result.error)throw result.error;await history(session,existing.id,'profile','update',existing,result.data,input.reason||'Cập nhật hồ sơ nhân sự');invalidateTaskPeopleCache();
   let accountLock=null;
   if(has('employmentStatus')&&employmentStatus==='inactive'&&normalizeEmploymentStatus(existing.employment_status)!=='inactive'){
     accountLock=await lockAccountsForDepartedEmployee(session,result.data);
