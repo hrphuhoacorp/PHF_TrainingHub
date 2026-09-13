@@ -596,7 +596,7 @@
     var state={loading:true,candidates:[],query:''};
     phfImpersonateRender(phfImpersonateStepListHtml(role,state));
     try{
-      var response=await fetch('/api/auth/impersonate?role='+encodeURIComponent(role),{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
+      var response=await fetch('/api/auth/accounts?action=impersonate-candidates&role='+encodeURIComponent(role),{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
       var json=await response.json().catch(function(){return{}});
       if(!response.ok||!json.ok)throw new Error(json.error||'Không tải được danh sách.');
       if(PHF_IMPERSONATE_ROLE!==role)return;
@@ -617,7 +617,7 @@
   window.phfImpersonateStart=async function(id,label){
     if(!(await phfConfirm('Bắt đầu giả lập tài khoản "'+(label||'')+'"?\n\nBạn sẽ thấy đúng giao diện của người này. Mọi thao tác ghi dữ liệu sẽ bị chặn. Bấm "Thoát giả lập" trên banner để quay lại Admin.','Giả lập tài khoản','Bắt đầu giả lập','Hủy')))return;
     try{
-      var response=await fetch('/api/auth/impersonate',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',accountId:id})});
+      var response=await fetch('/api/auth/accounts',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'impersonate-start',accountId:id})});
       var json=await response.json().catch(function(){return{}});
       if(!response.ok||!json.ok){await phfAlert(json.error||'Chưa thể bắt đầu giả lập tài khoản.','Chưa thể giả lập','danger');return}
       location.href='/';

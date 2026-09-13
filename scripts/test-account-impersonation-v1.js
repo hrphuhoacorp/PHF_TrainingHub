@@ -75,9 +75,30 @@ async function call(jar, path, opts) {
     assert.strictEqual(json.actor, null);
   });
 
+  await record('1b) GET /api/auth/accounts?action=impersonate-candidates (merged endpoint) returns real learner + manager lists', async () => {
+    const jar = { phf_session: adminToken };
+    const learnerList = await call(jar, '/api/auth/accounts?action=impersonate-candidates&role=learner');
+    assert.strictEqual(learnerList.status, 200, JSON.stringify(learnerList.json));
+    assert.strictEqual(learnerList.json.role, 'learner');
+    assert.ok(Array.isArray(learnerList.json.candidates) && learnerList.json.candidates.length > 0, 'phải có ít nhất 1 learner active');
+    assert.ok(learnerList.json.candidates.some(c => c.id === LEARNER_ID), 'phải chứa đúng learner test thật');
+
+    const managerList = await call(jar, '/api/auth/accounts?action=impersonate-candidates&role=manager');
+    assert.strictEqual(managerList.status, 200);
+    assert.strictEqual(managerList.json.role, 'manager');
+    assert.ok(managerList.json.candidates.some(c => c.id === MANAGER_ID), 'phải chứa đúng manager test thật');
+
+    const badRole = await call(jar, '/api/auth/accounts?action=impersonate-candidates&role=employee');
+    assert.strictEqual(badRole.status, 400, 'role không hợp lệ (employee) phải bị từ chối, không tạo role mới');
+
+    const jarLearner = { phf_session: learnerToken };
+    const forbidden = await call(jarLearner, '/api/auth/accounts?action=impersonate-candidates&role=learner');
+    assert.strictEqual(forbidden.status, 403, 'non-admin không được xem danh sách ứng viên giả lập');
+  });
+
   await record('2) Admin -> start impersonation (learner): effective session becomes learner, actor stays admin', async () => {
     const jar = { phf_session: adminToken };
-    const start = await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', accountId: LEARNER_ID }) });
+    const start = await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-start', accountId: LEARNER_ID }) });
     assert.strictEqual(start.status, 200, 'start phải 200: ' + JSON.stringify(start.json));
     assert.strictEqual(start.json.account.role, 'learner');
     assert.ok(jar.phf_impersonate, 'phải nhận cookie phf_impersonate');
@@ -125,7 +146,7 @@ async function call(jar, path, opts) {
 
   await record('7) Exit impersonation -> back to real admin, phf_session untouched throughout', async () => {
     const jar = global.__jarLearnerImpersonation;
-    const stop = await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'stop' }) });
+    const stop = await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-stop' }) });
     assert.strictEqual(stop.status, 200);
     assert.ok(!jar.phf_impersonate, 'cookie phf_impersonate phải bị xoá');
     assert.strictEqual(jar.phf_session, adminToken, 'phf_session của Admin thật không đổi');
@@ -139,7 +160,7 @@ async function call(jar, path, opts) {
 
   await record('8) Manager impersonation: effective role manager, scoped to that manager account', async () => {
     const jar = { phf_session: adminToken };
-    const start = await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', accountId: MANAGER_ID }) });
+    const start = await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-start', accountId: MANAGER_ID }) });
     assert.strictEqual(start.status, 200, JSON.stringify(start.json));
     assert.strictEqual(start.json.account.role, 'manager');
     const session = await call(jar, '/api/auth/session');
@@ -160,12 +181,12 @@ async function call(jar, path, opts) {
     assert.strictEqual(status, 403);
     assert.strictEqual(json.code, 'IMPERSONATION_READ_ONLY');
     // clean up: exit before moving on
-    await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'stop' }) });
+    await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-stop' }) });
   });
 
   await record('10) Non-admin (real learner session) cannot start impersonation', async () => {
     const jar = { phf_session: learnerToken };
-    const { status } = await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', accountId: MANAGER_ID }) });
+    const { status } = await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-start', accountId: MANAGER_ID }) });
     assert.strictEqual(status, 403);
   });
 
@@ -181,9 +202,9 @@ async function call(jar, path, opts) {
     // together with a DIFFERENT (learner) real session — actorId in the token
     // won't match this session's account id, so the overlay must be ignored.
     const jarA = { phf_session: adminToken };
-    await call(jarA, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', accountId: LEARNER_ID }) });
+    await call(jarA, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-start', accountId: LEARNER_ID }) });
     const stolenCookie = jarA.phf_impersonate;
-    await call(jarA, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'stop' }) });
+    await call(jarA, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-stop' }) });
 
     const jarB = { phf_session: learnerToken, phf_impersonate: stolenCookie };
     const { json } = await call(jarB, '/api/auth/session');
@@ -194,7 +215,7 @@ async function call(jar, path, opts) {
 
   await record('13) stop is idempotent / safe with no active impersonation', async () => {
     const jar = { phf_session: adminToken };
-    const { status, json } = await call(jar, '/api/auth/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'stop' }) });
+    const { status, json } = await call(jar, '/api/auth/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'impersonate-stop' }) });
     assert.strictEqual(status, 200);
     assert.strictEqual(json.impersonating, false);
   });

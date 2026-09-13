@@ -276,7 +276,7 @@
     var btn=document.querySelector('#phfImpersonationBanner button');
     if(btn){btn.disabled=true;btn.textContent='Đang thoát...';}
     try{
-      await request('/api/auth/impersonate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop'})});
+      await request('/api/auth/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'impersonate-stop'})});
     }catch(e){
       console.warn('[PHF Auth] Thoát giả lập:', e && e.message || e);
     }

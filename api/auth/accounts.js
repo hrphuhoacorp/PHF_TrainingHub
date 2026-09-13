@@ -13,6 +13,7 @@
 const { assertSameOrigin, assertJsonContentType, assertContentLength } = require('../_lib/request-guard');
 const {
   requireSession,
+  readSession,
   createAccountByAdmin,
   updateAccountByAdmin,
   completeAccountPeopleMaster,
@@ -21,7 +22,11 @@ const {
   syncAccounts,
   resetPasswordByAdmin,
   getAccountById,
-  clearCookieHeader
+  clearCookieHeader,
+  startImpersonation,
+  impersonationCookieHeader,
+  clearImpersonationCookieHeader,
+  IMPERSONATABLE_ROLES
 } = require('../_lib/auth');
 const { requireChecklistWebOperator, isChecklistWebOperator } = require('../_lib/checklist-permissions');
 const { send, sendError, requestBody } = require('../_lib/api-response');
@@ -174,15 +179,81 @@ async function handleSync(req, res, body) {
   return send(res, 200, { ok: true, count: accounts.length });
 }
 
+// --- Account Impersonation V1 — gộp vào api/auth/accounts.js (Account Admin
+// domain, đã có guard sẵn) thay vì một Serverless Function riêng, để không
+// vượt giới hạn 12 function của gói Vercel Hobby. Hành vi/nghiệp vụ giữ
+// nguyên 100% so với api/auth/impersonate.js trước đây (đã xoá).
+function impersonateCandidateProjection(a) {
+  return {
+    id: a.id,
+    employeeId: a.employeeId || '',
+    employeeCode: a.employeeCode || '',
+    name: a.name || '',
+    role: a.role || '',
+    branch: a.branch || '',
+    department: a.department || '',
+    position: a.position || '',
+    hubAssignmentStatus: a.hubAssignmentStatus || ''
+  };
+}
+async function handleImpersonateCandidates(req, res) {
+  const role = String((req.query && req.query.role) || '').trim().toLowerCase();
+  if (!IMPERSONATABLE_ROLES.includes(role)) {
+    return send(res, 400, { ok: false, error: 'Vai trò không hợp lệ. Chỉ hỗ trợ learner hoặc manager.', code: 'IMPERSONATION_ROLE_UNSUPPORTED' });
+  }
+  // Admin thật (chưa giả lập ai) mới được mở màn chọn tài khoản — nếu đang
+  // giả lập, role hiệu lực không còn là admin nên requireWebOperatorSession
+  // tự 403, đúng nghiệp vụ "phải Thoát giả lập trước khi giả lập người khác".
+  await requireWebOperatorSession(req);
+  const accounts = await listAccountsForAdmin();
+  const candidates = accounts
+    .filter(a => a.role === role && a.status === 'active')
+    .map(impersonateCandidateProjection);
+  return send(res, 200, { ok: true, role, candidates });
+}
+async function handleImpersonateStart(req, res, body) {
+  assertSameOrigin(req); assertJsonContentType(req);
+  const session = await requireWebOperatorSession(req);
+  const accountId = String(body.accountId || '').trim();
+  if (!accountId) {
+    return send(res, 400, { ok: false, error: 'Thiếu tài khoản cần giả lập.', code: 'IMPERSONATION_TARGET_REQUIRED' });
+  }
+  const { token, target } = await startImpersonation(session, accountId);
+  res.setHeader('Set-Cookie', impersonationCookieHeader(token));
+  await auditEmit(req, session, {
+    module: 'account', action: 'IMPERSONATION_START', result: 'success',
+    object_type: 'account', object_id: target.id, object_label: target.employeeCode || target.name || target.id,
+    metadata: { targetRole: target.role }
+  });
+  return send(res, 200, { ok: true, impersonating: true, account: target });
+}
+async function handleImpersonateStop(req, res) {
+  assertSameOrigin(req);
+  // Idempotent theo thiết kế: cho phép gọi kể cả khi phiên/hiệu lực giả lập
+  // đã hết hạn hoặc không hợp lệ — chỉ đơn thuần xoá cookie. KHÔNG đụng tới
+  // phf_session của Admin thật. Không đi qua requireWebOperatorSession vì
+  // role hiệu lực lúc đang giả lập không còn là admin.
+  let session = null;
+  try { session = await readSession(req); } catch (_e) { session = null; }
+  res.setHeader('Set-Cookie', clearImpersonationCookieHeader());
+  if (session && session.impersonating) {
+    await auditEmit(req, session, {
+      module: 'account', action: 'IMPERSONATION_STOP', result: 'success',
+      object_type: 'account', object_id: session.account.id, object_label: session.account.employeeCode || session.account.name || session.account.id,
+      actor: { actor_account_id: session.actor && session.actor.id, actor_name: session.actor && (session.actor.name || session.actor.email) }
+    });
+  }
+  return send(res, 200, { ok: true, impersonating: false });
+}
+
 module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const action = String((req.query && req.query.action) || 'list').trim();
-      if (action !== 'list') {
-        res.setHeader('Allow', 'GET, POST');
-        return send(res, 405, { ok: false, error: 'Phương thức không được hỗ trợ.', code: 'METHOD_NOT_ALLOWED' });
-      }
-      return await handleList(req, res);
+      if (action === 'list') return await handleList(req, res);
+      if (action === 'impersonate-candidates') return await handleImpersonateCandidates(req, res);
+      res.setHeader('Allow', 'GET, POST');
+      return send(res, 405, { ok: false, error: 'Phương thức không được hỗ trợ.', code: 'METHOD_NOT_ALLOWED' });
     }
     if (req.method === 'POST') {
       const body = requestBody(req);
@@ -193,6 +264,8 @@ module.exports = async function handler(req, res) {
       if (action === 'sync') return await handleSync(req, res, body);
       if (action === 'reset-password') return await handleResetPassword(req, res, body);
       if (action === 'complete-people-master') return await handleCompletePeopleMaster(req, res, body);
+      if (action === 'impersonate-start') return await handleImpersonateStart(req, res, body);
+      if (action === 'impersonate-stop') return await handleImpersonateStop(req, res);
       return send(res, 400, { ok: false, error: 'Thao tác tài khoản không hợp lệ.', code: 'ACCOUNT_ACTION_INVALID' });
     }
     res.setHeader('Allow', 'GET, POST');
