@@ -325,17 +325,43 @@ function parseObject(value){if(!value)return null;if(typeof value==='object'&&!A
 function assignmentIdentity(row){return t(row&&row.employee_key).toLowerCase()||t(row&&row.employee_id).toLowerCase()||t(row&&row.employee_code).toUpperCase();}
 function normalizeAssignmentSnapshot(source,sourceRank=0){if(!source||typeof source!=='object')return null;return {...source,employee_key:t(source.employee_key).toLowerCase(),employee_id:t(source.employee_id),employee_code:t(source.employee_code).toUpperCase(),employee_name:t(source.employee_name),department:t(source.department),title:t(source.title),branch:t(source.branch),manager_id:t(source.manager_id),manager_code:t(source.manager_code).toUpperCase(),manager_name:t(source.manager_name),employee_status:t(source.employee_status),template_id:t(source.template_id).toLowerCase(),template_version:t(source.template_version),effective_date:t(source.effective_date),_changed_at:t(source.changed_at||source.updated_at||source.created_at),_source_rank:sourceRank};}
 function latestStamp(rows,columns){let latest='';(rows||[]).forEach(row=>(columns||[]).forEach(column=>{const stamp=t(row&&row[column]);if(stamp&&(!latest||stamp>latest))latest=stamp;}));return latest;}
+/*
+ * Recovery Center fix (2026-09-13, PHF093): "as of cutoffDate" trước đây chọn ứng viên theo
+ * effective_date DESC trước tiên, rồi mới đến _source_rank — nghĩa là một dòng LỊCH SỬ (hoặc
+ * previous_data nhúng trong dòng lịch sử) có effective_date MUỘN HƠN dòng phân công HIỆN HÀNH
+ * (nhưng vẫn <= cutoffDate) có thể THẮNG dòng hiện hành thật, dù dòng hiện hành đó đã hiệu lực
+ * đến cutoffDate. Case thật: PHF093 có phân công hiện hành hiệu lực 2026-09-01 (template_id
+ * hợp lệ), nhưng một dòng checklist_employee_assignment_history (template_id/template_version
+ * RỖNG) có effective_date 2026-09-11 <= cutoffDate (cuối kỳ 09/2026) — dòng lịch sử rỗng này
+ * xếp trước dòng hiện hành thật trong sort cũ, nên Recovery Center đọc nhầm "chưa có
+ * assignment" dù dữ liệu thật hoàn toàn hợp lệ.
+ *
+ * FIX: đổi thứ tự so sánh — _source_rank (hiện hành=3 > lịch sử=2 > previous_data=1) LÀ KHÓA
+ * SO SÁNH CHÍNH; effective_date CHỈ dùng để so sánh GIỮA CÁC ỨNG VIÊN CÙNG rank. Vì add() đã
+ * loại MỌI ứng viên có effective_date>cutoffDate TRƯỚC KHI vào candidatesByKey (dòng add() bên
+ * dưới, không đổi), một dòng hiện hành LUÔN LUÔN thắng mọi dòng lịch sử/previous_data CÙNG
+ * NHÂN SỰ mỗi khi chính dòng hiện hành đó đã hiệu lực đến cutoffDate (tức nó có mặt trong pool
+ * ứng viên) — đúng yêu cầu "current-table phải thắng khi nó effective by cutoff". Khi dòng hiện
+ * hành CHƯA hiệu lực đến cutoffDate (bị add() loại vì effective_date>cutoffDate — ví dụ tái
+ * dựng trạng thái TRƯỚC ngày dòng hiện hành có hiệu lực), pool chỉ còn ứng viên lịch sử/
+ * previous_data — tái dựng lịch sử hợp lệ này GIỮ NGUYÊN, không bị đổi. KHÔNG xoá/sửa bất kỳ
+ * dòng assignment/history nào — đây thuần là thay đổi cách CHỌN ứng viên khi đọc.
+ */
+function resolveAssignmentSnapshots(currentRows,historyRows,cutoffDate){
+ const candidatesByKey=new Map();
+ function add(raw,rank){const row=normalizeAssignmentSnapshot(raw,rank),key=assignmentIdentity(row);if(!row||!key||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(row.effective_date)||row.effective_date>cutoffDate)return;if(!candidatesByKey.has(key))candidatesByKey.set(key,[]);candidatesByKey.get(key).push(row);}
+ (currentRows||[]).forEach(row=>add(row,3));
+ (historyRows||[]).forEach(row=>{add(row,2);add(parseObject(row.previous_data),1);});
+ const snapshots=[];
+ candidatesByKey.forEach(rows=>{rows.sort((a,b)=>(b._source_rank-a._source_rank)||b.effective_date.localeCompare(a.effective_date)||b._changed_at.localeCompare(a._changed_at));if(rows[0])snapshots.push(rows[0]);});
+ return snapshots;
+}
 async function assignmentSnapshotsAt(cutoffDate){
  const [currentRows,historyRows]=await Promise.all([
   readAllRows('checklist_employee_assignments',['employee_key','updated_at','id']),
   readAllRows('checklist_employee_assignment_history',['employee_key','changed_at','id'])
  ]);
- const candidatesByKey=new Map();
- function add(raw,rank){const row=normalizeAssignmentSnapshot(raw,rank),key=assignmentIdentity(row);if(!row||!key||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(row.effective_date)||row.effective_date>cutoffDate)return;if(!candidatesByKey.has(key))candidatesByKey.set(key,[]);candidatesByKey.get(key).push(row);}
- currentRows.forEach(row=>add(row,3));
- historyRows.forEach(row=>{add(row,2);add(parseObject(row.previous_data),1);});
- const snapshots=[];
- candidatesByKey.forEach(rows=>{rows.sort((a,b)=>b.effective_date.localeCompare(a.effective_date)||b._changed_at.localeCompare(a._changed_at)||b._source_rank-a._source_rank);if(rows[0])snapshots.push(rows[0]);});
+ const snapshots=resolveAssignmentSnapshots(currentRows,historyRows,cutoffDate);
  return {snapshots,revision:{current_count:currentRows.length,history_count:historyRows.length,current_max:latestStamp(currentRows,['updated_at','created_at']),history_max:latestStamp(historyRows,['changed_at','updated_at','created_at'])}};
 }
 function normalizedSource(v){return t(v).toLocaleLowerCase('vi-VN');}
@@ -1318,4 +1344,4 @@ async function getChecklistAssessmentProfile(session,input={}){
  return {target,selectedMonth,standard,currentScore,history,allowedTargets,isSelf:resolvedTarget.isSelf};
 }
 
-module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,classifyChecklistMonthlyRetroactiveScope,applyChecklistMonthlyRetroactiveScope,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState,syncMonthlyChecklistScoreForEmployeeMonth};
+module.exports={getMarketingMonthlyKpiConfig,saveMarketingMonthlyKpiConfig,listMonthly,createMonthly,openMonthly,lockMonthly,openMonthlyException,openMonthlyPilot,myMonthlyForm,saveMyMonthly,myMonthlyReviews,myMonthlyReviewSummaries,myMonthlyReviewDetail,saveMonthlyReview,changeMonthlyReviewer,resnapshotMonthlyDraftTemplate,overrideMonthlyFormVersion,classifyChecklistMonthlyRetroactiveScope,applyChecklistMonthlyRetroactiveScope,exportMonthlyData,getMonthlyOverduePolicy,saveMonthlyOverduePolicy,processMonthlySelfOverdue,getChecklistMonthlyScorePolicy,saveChecklistMonthlyScorePolicy,getMonthlyCyclePolicy,saveMonthlyCyclePolicy,saveMonthlyCycleOverride,syncMonthlyCycle,resolveMonthlyCycleWindow,reconcileMissingMonthlyReviewers,scoreSummary,withScoreSummary,overdueSelfAnswers,buildMonthlyCreationState,getChecklistAssessmentProfile,isAutomaticSource,monthlyRows,manualRows,checklistBreakdown,pendingLateProvisional,monthlyReviewVisible,lateDelta,reviewWindowState,syncMonthlyChecklistScoreForEmployeeMonth,resolveAssignmentSnapshots};
