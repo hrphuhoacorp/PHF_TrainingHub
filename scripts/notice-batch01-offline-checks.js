@@ -87,7 +87,9 @@ function freshService() { delete require.cache[require.resolve(path.join(REPO, '
   check('18 router: /thong-bao{,/bao-cao,/danh-muc,/quyen} registered for all 3 namespaces',
     /pf\+'\/thong-bao',pf\+'\/thong-bao\/bao-cao',pf\+'\/thong-bao\/danh-muc',pf\+'\/thong-bao\/quyen'/.test(router));
   check('19 index.html: /thong-bao -> HR shell + notice css/js loaded',
-    /\\\/thong-bao\(\?:\\\/\|\$\)\/\.test\(path\)\)return 'hr'/.test(read('index.html')) && /phf-notice-app\.js/.test(read('index.html')) && /phf-notice\.css/.test(read('index.html')));
+    // the /thong-bao route must be tested inside the HR-shell resolver (which returns 'hr');
+    // it need not be the LAST || alternative — later HR sub-modules (e.g. /qtth) append after it.
+    /\\\/thong-bao\(\?:\\\/\|\$\)\/\.test\(path\)/.test(read('index.html')) && /\)return 'hr';/.test(read('index.html')) && /phf-notice-app\.js/.test(read('index.html')) && /phf-notice\.css/.test(read('index.html')));
 
   // 20. Home entry contract: reuse existing "Thông báo" card, wire to /thong-bao, add NO new card
   const home = read('assets/js/phf-hr-home.js');
