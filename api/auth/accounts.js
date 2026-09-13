@@ -29,6 +29,7 @@ const {
   IMPERSONATABLE_ROLES
 } = require('../_lib/auth');
 const { requireChecklistWebOperator, isChecklistWebOperator } = require('../_lib/checklist-permissions');
+const { listDepartments } = require('../_lib/department-catalog');
 const { send, sendError, requestBody } = require('../_lib/api-response');
 const { auditEmit } = require('../_lib/audit-emit');
 
@@ -115,7 +116,7 @@ async function assertAccountMutationAllowed(session, input = {}, targetId = '') 
 async function handleList(req, res) {
   await requireWebOperatorSession(req);
   const accounts = await listAccountsForAdmin();
-  return send(res, 200, { ok: true, accounts });
+  return send(res, 200, { ok: true, accounts, departmentCatalog: listDepartments() });
 }
 
 async function handleCreate(req, res, body) {

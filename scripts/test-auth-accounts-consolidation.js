@@ -149,7 +149,13 @@ async function main() {
     const res = fakeRes();
     await accountsHandler(fakeReq('GET', { query: { action: 'list' } }), res);
     assert.strictEqual(res._status, 200);
-    assert.deepStrictEqual(res._body, { ok: true, accounts: [{ id: 'a1', email: 'a1@test.local' }, { id: 'a2', email: 'a2@test.local' }] });
+    // Batch B: handleList() giờ trả thêm departmentCatalog (api/_lib/department-catalog.js,
+    // KHÔNG mock — module thật, không có dependency ngoài) — kiểm accounts
+    // riêng và chỉ xác nhận departmentCatalog có đúng 9 phòng ban canonical,
+    // tránh assertion giòn nếu danh mục có thay đổi nội dung sau này.
+    assert.strictEqual(res._body.ok, true);
+    assert.deepStrictEqual(res._body.accounts, [{ id: 'a1', email: 'a1@test.local' }, { id: 'a2', email: 'a2@test.local' }]);
+    assert.ok(Array.isArray(res._body.departmentCatalog) && res._body.departmentCatalog.length === 9, 'list phải trả kèm đúng 9 phòng ban canonical (Batch B)');
     assert.ok(calls.some(c => c[0] === 'requireSession' && JSON.stringify(c[1]) === JSON.stringify(['admin'])), 'PHF SYSTEM V1: list phải gọi requireSession(["admin"]).');
     assert.ok(!calls.some(c => c[0] === 'requireChecklistWebOperator'), 'list KHÔNG còn đi qua requireChecklistWebOperator.');
   });

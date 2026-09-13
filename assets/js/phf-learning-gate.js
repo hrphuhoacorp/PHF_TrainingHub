@@ -135,6 +135,16 @@
     var row = learnerHrEmployeeRow();
     return row ? String(row.department || '').trim() : '';
   }
+  /* Batch B — canonical department key (employee_profiles.department_key,
+     xem api/_lib/department-catalog.js), enrich vào employees[] read-only
+     trong api/_lib/db.js. Ưu tiên so khớp CHÍNH XÁC bằng key này; chuỗi
+     display-name + DEPARTMENT_ALIASES chỉ còn là fallback cho học viên/lesson
+     chưa có key tương ứng (chưa migrate/chưa gán). */
+  function learnerHrDepartmentKey(){
+    if(isAdminSimulation()) return '';
+    var row = learnerHrEmployeeRow();
+    return row ? String(row.departmentKey || '').trim() : '';
+  }
   /* Lớp chuẩn hoá tên phòng ban dùng chung — CHỈ để so khớp lesson.departments
      với phòng ban thật của học viên (không đụng dữ liệu gốc/hiển thị nơi khác).
      Lesson content đang gắn nhãn ngắn (vd "Bán hàng") trong khi People Master
@@ -153,10 +163,19 @@
     var lower = n.toLowerCase();
     return DEPARTMENT_ALIASES[lower] || lower;
   }
-  function lessonAllowedForDepartment(lesson, dept){
+  function lessonAllowedForDepartment(lesson, dept, deptKey){
     var list = lesson && Array.isArray(lesson.departments) ? lesson.departments : null;
     if(!list || !list.length) return true;
     if(list.indexOf('all') >= 0) return true;
+    // Batch B: canonical key exact-match trước, khi CẢ lesson lẫn học viên
+    // đều đã có key. Không fuzzy — chỉ so bằng tuyệt đối.
+    var keyList = lesson && Array.isArray(lesson.departmentKeys) ? lesson.departmentKeys : null;
+    if(keyList && keyList.length && deptKey){
+      return keyList.indexOf(deptKey) >= 0;
+    }
+    // Fallback legacy (PR #87): lesson chưa có departmentKeys canonical, hoặc
+    // học viên chưa có departmentKey (employee_profiles chưa migrate/chưa
+    // gán) — so khớp chuỗi display-name qua DEPARTMENT_ALIASES như cũ.
     if(!dept) return false;
     var normalizedDept = normalizeDepartmentLabel(dept);
     return list.some(function(d){ return normalizeDepartmentLabel(d) === normalizedDept; });
@@ -172,8 +191,9 @@
        thêm cơ chế theo dõi riêng. */
     if(!trainingHrDataLoaded()) return lessons.length - 1;
     var dept = learnerHrDepartment();
+    var deptKey = learnerHrDepartmentKey();
     for(var i = lessons.length - 1; i >= 0; i--){
-      if(lessonAllowedForDepartment(lessons[i], dept)) return i;
+      if(lessonAllowedForDepartment(lessons[i], dept, deptKey)) return i;
     }
     return 0;
   }

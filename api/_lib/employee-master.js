@@ -2,7 +2,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { resolveDepartmentForWrite } = require('./department-catalog');
+const { resolveDepartmentForWrite, listDepartments } = require('./department-catalog');
 
 const configured=Boolean(String(process.env.SUPABASE_URL||'').trim()&&String(process.env.SUPABASE_SECRET_KEY||'').trim());
 const db=configured?createClient(String(process.env.SUPABASE_URL).trim(),String(process.env.SUPABASE_SECRET_KEY).trim(),{auth:{persistSession:false,autoRefreshToken:false}}):null;
@@ -104,7 +104,7 @@ async function resolveEmployeeContacts(codes){
 
 async function listEmployeeMaster(session){
   requireAdmin(session);const source=await sources();
-  return{employees:mergeSources(source),schemaReady:source.schemaReady,organizationReady:source.organizationReady,organizationError:source.organizationError,fieldSources:{identity:'employees + user_accounts + employee_profiles',organization:'employee_profiles (People Master — department, title, position, branch, manager)',employmentStatus:'employee_profiles.employment_status',account:'user_accounts',personal:'employee_profiles / employee_private_profiles',contracts:'employee_contracts',compensation:'employee_compensation'},generatedAt:new Date().toISOString()};
+  return{employees:mergeSources(source),schemaReady:source.schemaReady,organizationReady:source.organizationReady,organizationError:source.organizationError,departmentCatalog:listDepartments(),fieldSources:{identity:'employees + user_accounts + employee_profiles',organization:'employee_profiles (People Master — department, title, position, branch, manager)',employmentStatus:'employee_profiles.employment_status',account:'user_accounts',personal:'employee_profiles / employee_private_profiles',contracts:'employee_contracts',compensation:'employee_compensation'},generatedAt:new Date().toISOString()};
 }
 
 async function findProfile(input){
