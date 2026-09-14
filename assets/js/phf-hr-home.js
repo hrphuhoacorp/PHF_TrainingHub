@@ -143,9 +143,12 @@ function hrNavModel(){
   model.push({key:'cong-viec',label:'Công việc',children:[
     {label:'PHF Task',href:p+'/task',icon:'tasks'},
     {label:'Lịch làm việc & Chấm công',soon:true,icon:'calendar'},
-    // Quản trị tổng hợp — module CHƯA XÂY trên Home V1: placeholder cho MỌI role,
-    // không route (route /admin/quan-tri hiện có là khu Quản trị chung của Training
-    // Hub, KHÔNG phải module QTTH của PHF HR Home).
+    // Quản trị tổng hợp (QTTH) — route /{p}/qtth exists (module QTTH của PHF HR,
+    // KHÁC /admin/quan-tri của Training Hub) but the phf-hr-api bridge
+    // (PHF_QTTH_BRIDGE_ENABLED) is intentionally still OFF on Production and
+    // the module is not yet generally released — keep this a placeholder on
+    // Home until go-live so no role gets a clickable entry that only shows an
+    // access-denied/bridge-disabled screen.
     {label:'Quản trị tổng hợp',soon:true,icon:'gear'},
     // Thông báo Quản trị V1 — real route /{p}/thong-bao (feed public cho mọi vai
     // trò; quyền quản trị nội dung do module quyết định server-side).
@@ -292,7 +295,9 @@ function hrGroupsModel(){
     {key:'a',icon:'grid',title:'Làm việc hằng ngày',sub:'Các công cụ phục vụ vận hành thường nhật',cols:4,cards:[
       {tint:'green',icon:'tasks',title:'PHF Task',desc:'Giao việc • Theo dõi • Báo cáo',badge:'Đang hoạt động',href:p+'/task'},
       {tint:'blue',icon:'calendar',title:'Lịch làm việc & Chấm công',desc:'Ca làm • Lịch tuần • Chấm công',soon:true},
-      // Quản trị tổng hợp — module CHƯA XÂY: placeholder cho mọi role, không route.
+      // Quản trị tổng hợp (QTTH) — route /{p}/qtth exists but the phf-hr-api
+      // bridge is intentionally still OFF on Production and the module is not
+      // yet generally released; keep this a placeholder on Home until go-live.
       {tint:'purple',icon:'gear',title:'Quản trị tổng hợp',desc:'Vận hành nội bộ • Quy trình • Biểu mẫu',soon:true},
       {tint:'red',icon:'notice',title:'Thông báo Quản trị',desc:'Quy định • Chính sách • Hướng dẫn',badge:'Đang hoạt động',href:p+'/thong-bao'}
     ]},
