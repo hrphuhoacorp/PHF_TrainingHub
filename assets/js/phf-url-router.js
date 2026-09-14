@@ -1562,19 +1562,22 @@
     window.phfRestoreLastRouteAfterAuth=async function(){
       if(restoreInFlight) return restoreInFlight;
       restoreInFlight=(async function(){
-        /* Checklist là module độc lập và trang nền không cần payload /api/data.
-           Khi F5 tại /admin|ql|hv/checklist, chỉ chờ session xác thực rồi dựng
-           đúng shell ngay. Không chờ phfWhenAppReady vì Promise này còn phụ
-           thuộc dữ liệu Training Hub; nếu dữ liệu chậm hơn watchdog 7 giây,
-           Auth sẽ fallback về Home và làm mất deep link Checklist. */
+        /* Checklist và QTTH là module độc lập, trang nền không cần payload
+           /api/data (mỗi module tự resolve authority/actor riêng — QTTH qua
+           qtth.bootstrap). Khi F5 tại /admin|ql|hv/checklist hoặc /qtth, chỉ
+           chờ session xác thực rồi dựng đúng shell ngay. Không chờ
+           phfWhenAppReady vì Promise này còn phụ thuộc dữ liệu Training Hub;
+           nếu dữ liệu chậm hơn watchdog 7 giây, Auth sẽ fallback về Home và
+           làm mất deep link (quan sát thực tế: /admin/qtth/truth-data F5 bị
+           bounce về Home dù canManageTruthData=true ở tầng authorization). */
         var stored='';try{stored=sessionStorage.getItem('phfRouteReturnTo')||'';}catch(e){}
         var explicitTarget=stored||pendingPath;
         var currentKey=currentRouteKey();
         var currentPath=cleanPath(location.pathname);
         var target=safeReturnTo(explicitTarget||(currentPath!=='/'&&currentPath!=='/login'?currentKey:''));
-        var checklistTarget=/^\/(?:admin|ql|hv)\/checklist(?:\/|$)/.test(cleanPath(target||currentPath));
+        var lightAuthReadyTarget=/^\/(?:admin|ql|hv)\/(?:checklist|qtth)(?:\/|$)/.test(cleanPath(target||currentPath));
         try{
-          if(checklistTarget && typeof window.phfWhenAuthReady==='function') await window.phfWhenAuthReady();
+          if(lightAuthReadyTarget && typeof window.phfWhenAuthReady==='function') await window.phfWhenAuthReady();
           else if(typeof window.phfWhenAppReady==='function') await window.phfWhenAppReady();
         }catch(e){}
         if(!authenticated()) return false;
