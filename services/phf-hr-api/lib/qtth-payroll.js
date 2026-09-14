@@ -18,6 +18,7 @@ const TPL = require('./qtth-payroll-template');
 const { normalizeGrid, diffVersions } = require('./qtth-payroll-normalize');
 const storage = require('./qtth-payroll-storage');
 const costModel = require('./qtth-payroll-cost-model');
+const bhxhService = require('./qtth-bhxh');
 
 class PayrollError extends Error {
   constructor(code, message, statusCode) { super(message || code); this.code = code; this.statusCode = statusCode || 400; this.isPayrollError = true; }
@@ -356,6 +357,14 @@ async function costTruth(config, actor, params) {
     const tolerance = Math.max(5, records.length * 0.5); // corpus/source sub-VND artifacts
     const bg = agg.byGroup || {};
 
+    // BHXH is a structurally separate Truth Data source (own schema, own
+    // confirmed-version lifecycle) — merged here read-only. Only a CONFIRMED
+    // BHXH version feeds Personnel Cost; a schema-not-yet-installed DB
+    // degrades to NOT_AVAILABLE rather than failing payroll's read model.
+    let bhxhResult;
+    try { bhxhResult = await bhxhService.confirmedEmployerCostForPeriod(config, pm); }
+    catch (_) { bhxhResult = { available: false }; }
+
     return {
       periodMonth: pm, exists: true, hasCost: true,
       importId: imp.id, version: file.version, status: file.status,
@@ -370,8 +379,9 @@ async function costTruth(config, actor, params) {
       otherAllowanceCost: round2(bg.OTHER_ALLOWANCE || 0),
       performanceRewardCost: round2(bg.PERFORMANCE_REWARD || 0),
 
-      employerBhxhCost: null,
-      employerBhxhStatus: 'NOT_AVAILABLE',
+      employerBhxhCost: bhxhResult.available ? round2(bhxhResult.total) : null,
+      employerBhxhStatus: bhxhResult.available ? 'CONFIRMED' : 'NOT_AVAILABLE',
+      personnelCost: bhxhResult.available ? round2(agg.totalPersonnelCost + bhxhResult.total) : null,
 
       excludedCost: {
         thuongLe11: round2(t13in4),

@@ -36,6 +36,9 @@
   function pill(txt, kind) { return '<span class="phf-qtth-pill ' + (kind || 'is-off') + '">' + esc(txt) + '</span>'; }
 
   /* ============================ TRUTH DATA LANDING ======================== */
+  // §2 groups (UI grouping only — no change to routing/permissions/schema):
+  //   CHI PHÍ NHÂN SỰ    = Bảng lương, BHXH, Chi phí xử lý
+  //   CHI PHÍ HOẠT ĐỘNG  = Dữ liệu chi phí kế toán
   function renderLanding(slot) {
     slot.innerHTML =
       '<section class="phf-qtth-card">'
@@ -44,6 +47,9 @@
       + '<p class="phf-qtth-muted">Nguồn dữ liệu quản trị đã được chuẩn hóa &amp; phiên bản hóa. '
       + 'Định danh nhân sự lấy từ People Master (chỉ đọc); dữ liệu chuẩn lưu tại Company PostgreSQL.</p>'
       + '</div></div>'
+
+      + '<div class="phf-qtth-td-group">'
+      + '<h3 class="phf-qtth-td-group-title">Chi phí nhân sự</h3>'
       + '<div class="phf-qtth-td-sources">'
       + sourceCard({
         key: 'payroll', title: 'Bảng lương', sub: 'Dữ liệu chuẩn quản trị',
@@ -51,10 +57,27 @@
         active: true
       })
       + sourceCard({
+        key: 'bhxh', title: 'BHXH', sub: 'Chi phí BHXH doanh nghiệp',
+        desc: 'Nhập bảng BHXH hằng tháng (sheet TỔNG_BHXH) → hệ thống đọc cột TK642 (21.5%) nguyên văn làm chi phí BHXH doanh nghiệp, kết hợp với Bảng lương thành Chi phí nhân sự. Dòng thiếu mã nhân viên không bị bỏ — chờ Admin xác định.',
+        active: true
+      })
+      + sourceCard({
+        key: 'chi-phi-xu-ly', title: 'Chi phí xử lý', sub: 'Chi phí xử lý theo nhân viên · hằng tháng',
+        desc: 'Nhập chi phí xử lý hằng tháng theo từng nhân viên (mẫu chuẩn V1: MÃ NV · HỌ VÀ TÊN · CHI PHÍ XỬ LÝ) → hệ thống đọc, chuẩn hóa, lưu phiên bản. Chỉ dựng nền dữ liệu — chưa có báo cáo/tổng hợp.',
+        active: true
+      })
+      + '</div>'
+      + '</div>'
+
+      + '<div class="phf-qtth-td-group">'
+      + '<h3 class="phf-qtth-td-group-title">Chi phí hoạt động</h3>'
+      + '<div class="phf-qtth-td-sources">'
+      + sourceCard({
         key: 'accounting', title: 'Dữ liệu chi phí kế toán', sub: 'Bảng kê chứng từ FAST · Danh mục phí',
         desc: 'Nhập bảng kê chứng từ theo bộ phận (xuất từ FAST) → hệ thống đọc theo luồng, lọc phát sinh Nợ, khoanh vùng chi phí quản trị (641*/642*), phân loại Đưa vào / Loại trừ / Chờ rà soát, xem trước rồi lưu phiên bản. Chưa có báo cáo — chỉ dựng nền dữ liệu.',
         active: true
       })
+      + '</div>'
       + '</div>'
       + '</section>';
     slot.querySelectorAll('[data-td-open]').forEach(function (b) {
@@ -665,6 +688,16 @@
     if (sub === 'accounting') {
       if (typeof window.phfQtthRenderAccounting === 'function') { await window.phfQtthRenderAccounting(slot, boot); return; }
       slot.innerHTML = '<section class="phf-qtth-card"><p class="phf-qtth-muted">Chưa tải được màn Dữ liệu chi phí kế toán.</p></section>';
+      return;
+    }
+    if (sub === 'bhxh') {
+      if (typeof window.phfQtthRenderBhxh === 'function') { await window.phfQtthRenderBhxh(slot, boot); return; }
+      slot.innerHTML = '<section class="phf-qtth-card"><p class="phf-qtth-muted">Chưa tải được màn BHXH.</p></section>';
+      return;
+    }
+    if (sub === 'chi-phi-xu-ly') {
+      if (typeof window.phfQtthRenderProcessingCost === 'function') { await window.phfQtthRenderProcessingCost(slot, boot); return; }
+      slot.innerHTML = '<section class="phf-qtth-card"><p class="phf-qtth-muted">Chưa tải được màn Chi phí xử lý.</p></section>';
       return;
     }
     renderLanding(slot);

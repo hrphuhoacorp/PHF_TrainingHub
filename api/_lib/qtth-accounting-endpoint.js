@@ -16,9 +16,11 @@
 //   -> streaming parse + classification + previewed version persisted in
 //      phf-hr-api (accounting.uploadPreview); returns the §16 preview report.
 //
-// AUTH: session (manager/admin) required here; QTTH manage-authority (Admin OR
-// active permission_manager_grant OR dev-operator) is enforced server-side in
-// api/_lib/qtth-actions.js + phf-hr-api. Client-supplied actor headers ignored.
+// AUTH: session (admin only) required here; Truth Data Admin-only is
+// independently re-enforced server-side in api/_lib/qtth-actions.js
+// (ensureTruthDataAdmin) + phf-hr-api (requireTruthDataAdmin). Never
+// permission_manager_grant / _devOperator / dev allow-list for this endpoint.
+// Client-supplied actor headers ignored.
 
 const { requireSession } = require('./auth');
 const { assertSameOrigin, publicError } = require('./request-guard');
@@ -65,7 +67,10 @@ async function handleQtthAccountingUpload(req, res) {
       res.setHeader('Allow', 'POST');
       throw httpError('Phương thức không được hỗ trợ.', 405, 'METHOD_NOT_ALLOWED');
     }
-    const session = await requireSession(req, ['manager', 'admin']);
+    // Truth Data (Accounting) upload is REAL SYSTEM ADMIN ONLY — tightened
+    // from ['manager','admin']. accountingUploadPreviewViaBridge() also
+    // independently re-checks Admin-only downstream (defense in depth).
+    const session = await requireSession(req, ['admin']);
 
     if (!isQtthBridgeEnabled()) {
       return sendJsonRaw(res, 503, { ok: false, code: 'QTTH_BRIDGE_DISABLED', error: 'Module Quản trị tổng hợp chưa được bật (PHF_QTTH_BRIDGE_ENABLED).' });

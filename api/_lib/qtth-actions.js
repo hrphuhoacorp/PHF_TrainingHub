@@ -61,6 +61,22 @@ async function ensureManageAuthority(actor) {
   return boot;
 }
 
+// Truth Data (Payroll / Accounting / BHXH / Processing Cost) is REAL SYSTEM
+// ADMIN ONLY. `actor.systemRole` here is the server-resolved value from
+// resolveQtthActor() (People Master / session — never client-supplied), so
+// this checks it directly rather than round-tripping through qtth.bootstrap's
+// canManagePermissions (which also allows permission_manager_grant/_devOperator/
+// dev allow-list — none of those may ever reach Truth Data). phf-hr-api
+// independently re-enforces the same Admin-only rule server-side.
+function ensureTruthDataAdmin(actor) {
+  if (!actor || actor.systemRole !== 'admin') {
+    const e = new Error('Truth Data chỉ dành cho System Admin (Control Tower).');
+    e.statusCode = 403;
+    e.code = 'QTTH_TRUTH_DATA_ADMIN_REQUIRED';
+    throw e;
+  }
+}
+
 // ---- composite: the Phân quyền roster --------------------------------------
 async function listRoster(session, rawPeriod) {
   const actor = await resolveQtthActor(session);
@@ -222,7 +238,7 @@ const PAYROLL_ACTION_MAP = {
 
 async function dispatchPayroll(session, payload, action) {
   const actor = await resolveQtthActor(session);
-  await ensureManageAuthority(actor);
+  ensureTruthDataAdmin(actor);
   const build = PAYROLL_ACTION_MAP[action](payload || {});
   const params = build.params;
   if (build.withKnownCodes) {
@@ -270,9 +286,104 @@ const ACCOUNTING_ACTION_MAP = {
 
 async function dispatchAccounting(session, payload, action) {
   const actor = await resolveQtthActor(session);
-  await ensureManageAuthority(actor);
+  ensureTruthDataAdmin(actor);
   const build = ACCOUNTING_ACTION_MAP[action](payload || {});
   return callQtthAction(build.remote, actor, build.params);
+}
+
+// QTTH Truth Data · BHXH (chi phí BHXH doanh nghiệp) — second Personnel Cost
+// source alongside payroll. Same verified-actor + bridge pattern; validatePreview
+// and mapIdentity also supply known People Master codes (identity resolution).
+const BHXH_ACTION_MAP = {
+  qtthBhxhStatus: (p) => ({ remote: 'bhxh.status', params: { periodMonth: str(p.period_month || p.period) } }),
+  qtthBhxhValidatePreview: (p) => ({ remote: 'bhxh.validatePreview', params: {
+    periodMonth: str(p.period_month || p.period), fileName: str(p.file_name), fileBase64: str(p.file_base64),
+  }, withKnownCodes: true }),
+  qtthBhxhAcknowledgePeriod: (p) => ({ remote: 'bhxh.acknowledgePeriod', params: {
+    fileId: str(p.file_id), acknowledgedPeriodMonth: str(p.acknowledged_period_month) } }),
+  qtthBhxhConfirm: (p) => ({ remote: 'bhxh.confirm', params: { fileId: str(p.file_id) } }),
+  qtthBhxhListNormalized: (p) => ({ remote: 'bhxh.listNormalized', params: {
+    periodMonth: str(p.period_month || p.period), classification: str(p.classification) },
+    withKnownCodes: true, withInactiveCodes: true, withQtthDepartments: true }),
+  qtthBhxhEmployeeDetail: (p) => ({ remote: 'bhxh.employeeDetail', params: {
+    periodMonth: str(p.period_month || p.period), normalizedId: (p.normalized_id != null ? Number(p.normalized_id) : undefined) } }),
+  qtthBhxhMapIdentity: (p) => ({ remote: 'bhxh.mapIdentity', params: {
+    normalizedId: (p.normalized_id != null ? Number(p.normalized_id) : undefined),
+    mode: (p.mode === 'local_identity' ? 'local_identity' : 'employee_code'),
+    employeeCode: code(p.employee_code), displayName: str(p.display_name), note: str(p.note),
+  }, withKnownCodes: true }),
+  qtthBhxhReconciliation: (p) => ({ remote: 'bhxh.reconciliation', params: { periodMonth: str(p.period_month || p.period) } }),
+};
+
+// active + inactive tokens mirror payroll's precedent (api/_lib/qtth-actions.js
+// PAYROLL flow) — "đã nghỉ" etc. treated as inactive for the warning-only check.
+function inactiveCodesFrom(rows) {
+  return rows.filter((r) => INACTIVE_TOKENS.some((t) => String(r.status || '').toLowerCase().includes(t)))
+    .map((r) => r.employeeCode);
+}
+
+// The QTTH Phân quyền screen's OWN canonical department source — same join
+// listRoster() already does (Company Postgres qtth.classification for this
+// period + qtth.dict for unit/group display names). Read-only, display only:
+// BHXH never writes here, and this is never persisted back into bhxh.* —
+// it's re-fetched live on every listNormalized call so it can never go stale
+// the way a cached copy could.
+async function loadQtthDepartments(actor, period) {
+  const [cls, dict] = await Promise.all([
+    callQtthAction('qtth.classification.list', actor, { period }),
+    callQtthAction('qtth.dict.list', actor, {}),
+  ]);
+  const unitNameById = new Map((dict.units || []).map((u) => [u.id, u.name]));
+  const groupNameById = new Map((dict.groups || []).map((g) => [g.id, g.name]));
+  const out = {};
+  for (const r of (cls.rows || [])) {
+    out[r.employeeCode] = {
+      unitName: r.unitId ? (unitNameById.get(r.unitId) || null) : null,
+      groupName: r.groupId ? (groupNameById.get(r.groupId) || null) : null,
+    };
+  }
+  return out;
+}
+
+async function dispatchBhxh(session, payload, action) {
+  const actor = await resolveQtthActor(session);
+  ensureTruthDataAdmin(actor);
+  const build = BHXH_ACTION_MAP[action](payload || {});
+  const params = build.params;
+  if (build.withKnownCodes || build.withInactiveCodes) {
+    const rows = await loadOrgRows();
+    if (build.withKnownCodes) params.knownEmployeeCodes = Array.from(new Set(rows.map((r) => r.employeeCode)));
+    if (build.withInactiveCodes) params.inactiveEmployeeCodes = inactiveCodesFrom(rows);
+  }
+  if (build.withQtthDepartments && params.periodMonth) {
+    params.qtthDepartments = await loadQtthDepartments(actor, params.periodMonth);
+  }
+  return callQtthAction(build.remote, actor, params);
+}
+
+// QTTH Truth Data · "Chi phí xử lý" (Processing cost V1) — third source under
+// CHI PHÍ NHÂN SỰ, alongside Payroll + BHXH. Same verified-actor + bridge
+// pattern as Payroll; validatePreview also supplies known People Master
+// employee codes (unknown-code = warning only, same precedent).
+const PROCESSING_COST_ACTION_MAP = {
+  qtthProcessingCostStatus: (p) => ({ remote: 'processingCost.status', params: { periodMonth: str(p.period_month || p.period) } }),
+  qtthProcessingCostValidatePreview: (p) => ({ remote: 'processingCost.validatePreview', params: {
+    periodMonth: str(p.period_month || p.period), fileName: str(p.file_name), fileBase64: str(p.file_base64),
+  }, withKnownCodes: true }),
+  qtthProcessingCostConfirm: (p) => ({ remote: 'processingCost.confirm', params: { fileId: str(p.file_id) } }),
+  qtthProcessingCostListNormalized: (p) => ({ remote: 'processingCost.listNormalized', params: { periodMonth: str(p.period_month || p.period) } }),
+};
+
+async function dispatchProcessingCost(session, payload, action) {
+  const actor = await resolveQtthActor(session);
+  ensureTruthDataAdmin(actor);
+  const build = PROCESSING_COST_ACTION_MAP[action](payload || {});
+  const params = build.params;
+  if (build.withKnownCodes) {
+    const rows = await loadOrgRows();
+    params.knownEmployeeCodes = Array.from(new Set(rows.map((r) => r.employeeCode)));
+  }
+  return callQtthAction(build.remote, actor, params);
 }
 
 async function dispatchQtthAction(session, payload) {
@@ -283,6 +394,12 @@ async function dispatchQtthAction(session, payload) {
   }
   if (ACCOUNTING_ACTION_MAP[action]) {
     return { handled: true, result: await dispatchAccounting(session, payload || {}, action) };
+  }
+  if (BHXH_ACTION_MAP[action]) {
+    return { handled: true, result: await dispatchBhxh(session, payload || {}, action) };
+  }
+  if (PROCESSING_COST_ACTION_MAP[action]) {
+    return { handled: true, result: await dispatchProcessingCost(session, payload || {}, action) };
   }
 
   if (action === 'qtthListRoster') {
@@ -318,14 +435,18 @@ const QTTH_ACTION_MANIFEST = Object.freeze([
   'qtthAccountingDictionaryStatus', 'qtthAccountingImportDictionary',
   'qtthAccountingListCategories', 'qtthAccountingDecideItem',
   'qtthAccountingListRememberedRules', 'qtthAccountingRuleHistory', 'qtthAccountingSetRuleActive',
+  'qtthBhxhStatus', 'qtthBhxhValidatePreview', 'qtthBhxhAcknowledgePeriod', 'qtthBhxhConfirm',
+  'qtthBhxhListNormalized', 'qtthBhxhEmployeeDetail', 'qtthBhxhMapIdentity', 'qtthBhxhReconciliation',
+  'qtthProcessingCostStatus', 'qtthProcessingCostValidatePreview', 'qtthProcessingCostConfirm',
+  'qtthProcessingCostListNormalized',
 ]);
 
 // The dedicated binary upload endpoint (api/qtth-accounting-upload.js) needs the
-// same verified-actor + manage-authority + bridge path without going through
-// /api/data. Exported for that endpoint only.
+// same verified-actor + Truth Data Admin-only + bridge path without going
+// through /api/data. Exported for that endpoint only.
 async function accountingUploadPreviewViaBridge(session, { periodMonth, fileName, buffer }) {
   const actor = await resolveQtthActor(session);
-  await ensureManageAuthority(actor);
+  ensureTruthDataAdmin(actor);
   return callQtthAction('accounting.uploadPreview', actor, {
     periodMonth: str(periodMonth),
     fileName: str(fileName),

@@ -33,7 +33,7 @@ ok('Vercel <-> phf-hr-api action parity', () => {
   // payroll.* is reached via the qtth-actions payroll map; accounting.* small
   // actions via the qtth-actions accounting map + accounting.uploadPreview via
   // the dedicated binary endpoint api/_lib/qtth-accounting-endpoint.js.
-  for (const a of svc.ACTIONS) assert.ok(remotes.has(a) || a.startsWith('payroll.') || a.startsWith('accounting.'), 'phf-hr-api has an unexpected handler: ' + a);
+  for (const a of svc.ACTIONS) assert.ok(remotes.has(a) || a.startsWith('payroll.') || a.startsWith('accounting.') || a.startsWith('bhxh.') || a.startsWith('processingCost.'), 'phf-hr-api has an unexpected handler: ' + a);
 });
 
 // 3. service authorization: non-admin non-manager rejected
@@ -62,7 +62,11 @@ ok('module app route + menu + guard logic', () => {
   assert.strictEqual(h.screenForPath('/ql/qtth/van-hanh'), 'van-hanh');
   assert.strictEqual(h.screenForPath('/hv/qtth/phan-quyen'), 'phan-quyen');
   assert.deepStrictEqual(h.menuModel({ canViewQtth: true }).map((x) => x.key), ['qtth']);
-  assert.deepStrictEqual(h.menuModel({ canViewQtth: true, canViewOperations: true, canManagePermissions: true }).map((x) => x.key), ['qtth', 'van-hanh', 'truth-data', 'phan-quyen']);
+  // Truth Data is System-Admin-only (canManageTruthData), independent of the
+  // delegable canManagePermissions ("Phân quyền") capability.
+  assert.deepStrictEqual(h.menuModel({ canViewQtth: true, canViewOperations: true, canManagePermissions: true, canManageTruthData: true }).map((x) => x.key), ['qtth', 'van-hanh', 'truth-data', 'phan-quyen']);
+  // A delegated (non-admin) permission manager sees "Phân quyền" but NOT "Truth Data".
+  assert.deepStrictEqual(h.menuModel({ canViewQtth: true, canViewOperations: true, canManagePermissions: true, canManageTruthData: false }).map((x) => x.key), ['qtth', 'van-hanh', 'phan-quyen']);
   assert.strictEqual(h.firstAllowed({ canViewOperations: true }), 'van-hanh');
   assert.strictEqual(h.firstAllowed({ canManagePermissions: true, canViewQtth: true }), 'phan-quyen');
   assert.strictEqual(h.firstAllowed({}), '');
