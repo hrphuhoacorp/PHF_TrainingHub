@@ -63,7 +63,7 @@ function menuModel(caps){
   var out=[];
   if(caps.canViewQtth) out.push({key:'qtth',label:'QTTH',href:p+'/qtth',icon:'grid'});
   if(caps.canViewOperations) out.push({key:'van-hanh',label:'Vận hành',href:p+'/van-hanh',icon:'flow'});
-  if(caps.canManagePermissions) out.push({key:'truth-data',label:'Truth Data',href:p+'/truth-data',icon:'data',sub:'Dữ liệu chuẩn quản trị'});
+  if(caps.canManageTruthData) out.push({key:'truth-data',label:'Truth Data',href:p+'/truth-data',icon:'data',sub:'Dữ liệu chuẩn quản trị'});
   if(caps.canManagePermissions) out.push({key:'phan-quyen',label:'Phân quyền',href:p+'/phan-quyen',icon:'shield'});
   return out;
 }
@@ -487,7 +487,7 @@ window.phfRenderQtth=async function(requestedPath){
   paintUserBlock(main,boot); // real server-resolved identity (People Master)
 
   // server-authoritative route guard — decided from caps, never the URL.
-  var need={'qtth':'canViewQtth','van-hanh':'canViewOperations','truth-data':'canManagePermissions','phan-quyen':'canManagePermissions'};
+  var need={'qtth':'canViewQtth','van-hanh':'canViewOperations','truth-data':'canManageTruthData','phan-quyen':'canManagePermissions'};
   if(!key || !caps[need[screenTop(key)]]){
     var target=firstAllowed(caps);
     if(target && key!==target){

@@ -18,6 +18,8 @@ const BRIDGE_TIMEOUT_MS_PAYROLL = 25000; // payroll import (parse + normalize + 
 // accounting.uploadPreview streams + classifies a ~73MB FAST worksheet then
 // persists ~350 rows — give it the same generous window as payroll import.
 const BRIDGE_TIMEOUT_MS_ACCOUNTING = 45000;
+const BRIDGE_TIMEOUT_MS_BHXH = 20000; // BHXH import is small like payroll, generous window
+const BRIDGE_TIMEOUT_MS_PROCESSING_COST = 20000; // 3-column upload, small like BHXH
 
 function isQtthBridgeEnabled() {
   return String(process.env.PHF_QTTH_BRIDGE_ENABLED || '').trim().toLowerCase() === 'true';
@@ -46,6 +48,8 @@ async function callQtthAction(action, actor, params) {
 
   const controller = new AbortController();
   const timeoutMs = /^payroll\./.test(action) ? BRIDGE_TIMEOUT_MS_PAYROLL
+    : /^bhxh\./.test(action) ? BRIDGE_TIMEOUT_MS_BHXH
+    : /^processingCost\./.test(action) ? BRIDGE_TIMEOUT_MS_PROCESSING_COST
     : (action === 'accounting.uploadPreview' || action === 'accounting.decideItem' || action === 'accounting.setRuleActive' || action === 'accounting.importDictionary') ? BRIDGE_TIMEOUT_MS_ACCOUNTING
       : BRIDGE_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), timeoutMs);

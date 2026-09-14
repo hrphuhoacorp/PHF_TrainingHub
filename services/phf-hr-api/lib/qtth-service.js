@@ -121,6 +121,14 @@ async function requirePermissionManager(config, actor) {
 function requireAdmin(actor) {
   if (!isAdmin(actor)) throw qErr('QTTH_ADMIN_REQUIRED', 'Chỉ Admin (Control Tower) được thực hiện thao tác này.', 403);
 }
+// Truth Data (Payroll / Accounting / BHXH / Processing Cost) is REAL SYSTEM
+// ADMIN ONLY. Deliberately NOT requirePermissionManager: qtth.permission_
+// manager_grant, actor._devOperator, and QTTH_DEV_ACCESS_ALLOW must never
+// elevate a non-Admin into Truth Data. This is the sole gate for those four
+// handler groups — do not swap it back to requirePermissionManager.
+function requireTruthDataAdmin(actor) {
+  requireAdmin(actor);
+}
 function auditCols(actor) { return [actor.accountId, actor.displayName || actor.employeeCode || null]; }
 
 // --- handlers ------------------------------------------------------------
@@ -138,7 +146,7 @@ const HANDLERS = {
           accountId: actor.accountId, employeeCode: actor.employeeCode,
           displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: admin,
         },
-        capabilities: { canManagePermissions: false, canViewQtth: false, canViewOperations: false },
+        capabilities: { canManagePermissions: false, canViewQtth: false, canViewOperations: false, canManageTruthData: false },
         devLocked: true,
         lockReason: 'QTTH đang trong giai đoạn phát triển — chỉ Admin và người vận hành được chỉ định mới truy cập được cho đến khi GO-LIVE.',
       };
@@ -152,7 +160,9 @@ const HANDLERS = {
           accountId: actor.accountId, employeeCode: actor.employeeCode,
           displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: false,
         },
-        capabilities: { canManagePermissions: true, canViewQtth: true, canViewOperations: true },
+        // devOperator elevates Phân quyền management for build/test, but MUST
+        // NOT elevate Truth Data — that stays Admin-only, always.
+        capabilities: { canManagePermissions: true, canViewQtth: true, canViewOperations: true, canManageTruthData: false },
         devLocked: true, devOperator: true,
       };
     }
@@ -180,7 +190,11 @@ const HANDLERS = {
         accountId: actor.accountId, employeeCode: actor.employeeCode,
         displayName: actor.displayName, systemRole: actor.systemRole, isAdmin: admin,
       },
-      capabilities: { canManagePermissions, canViewQtth, canViewOperations },
+      // canManageTruthData: REAL SYSTEM ADMIN ONLY. Never derived from
+      // permission_manager_grant/_devOperator/dev allow-list — Truth Data
+      // (Payroll/Accounting/BHXH/Processing Cost) authorization stays
+      // independent of Phân quyền delegation (canManagePermissions).
+      capabilities: { canManagePermissions, canViewQtth, canViewOperations, canManageTruthData: admin },
       devLocked: !!dg.locked,
     };
   },
@@ -489,25 +503,45 @@ const HANDLERS = {
   },
 };
 
-// QTTH Truth Data · Bảng lương (Batch 02). Payroll import actions run through
-// the SAME development-access lock + permission-manager gate as every other
-// QTTH management action — they are just delegated to qtth-payroll.js.
+// QTTH Truth Data · Bảng lương (Batch 02). REAL SYSTEM ADMIN ONLY — never
+// permission_manager_grant / _devOperator / dev allow-list.
 const payrollService = require('./qtth-payroll');
 for (const act of payrollService.ACTIONS) {
   HANDLERS[act] = async (config, actor, params) => {
-    await requirePermissionManager(config, actor); // Admin OR active permission_manager_grant OR dev-operator
+    requireTruthDataAdmin(actor);
     return payrollService.dispatch(config, actor, act, params);
   };
 }
 
-// QTTH Truth Data · Dữ liệu chi phí kế toán (Accounting Data V1). Same
-// development-access lock + permission-manager gate. FAST export -> streaming
-// parse -> classification engine -> Preview -> Confirm -> normalized cost truth.
+// QTTH Truth Data · Dữ liệu chi phí kế toán (Accounting Data V1). REAL SYSTEM
+// ADMIN ONLY. FAST export -> streaming parse -> classification engine ->
+// Preview -> Confirm -> normalized cost truth.
 const accountingService = require('./qtth-accounting');
 for (const act of accountingService.ACTIONS) {
   HANDLERS[act] = async (config, actor, params) => {
-    await requirePermissionManager(config, actor);
+    requireTruthDataAdmin(actor);
     return accountingService.dispatch(config, actor, act, params);
+  };
+}
+
+// QTTH Truth Data · BHXH (chi phí BHXH doanh nghiệp — second Personnel Cost
+// source, alongside payroll). REAL SYSTEM ADMIN ONLY.
+const bhxhService = require('./qtth-bhxh');
+for (const act of bhxhService.ACTIONS) {
+  HANDLERS[act] = async (config, actor, params) => {
+    requireTruthDataAdmin(actor);
+    return bhxhService.dispatch(config, actor, act, params);
+  };
+}
+
+// QTTH Truth Data · "Chi phí xử lý" (Processing cost V1). REAL SYSTEM ADMIN
+// ONLY. Upload foundation only — no aggregation/report logic, NOT wired into
+// payroll's Personnel Cost.
+const processingCostService = require('./qtth-processing-cost');
+for (const act of processingCostService.ACTIONS) {
+  HANDLERS[act] = async (config, actor, params) => {
+    requireTruthDataAdmin(actor);
+    return processingCostService.dispatch(config, actor, act, params);
   };
 }
 

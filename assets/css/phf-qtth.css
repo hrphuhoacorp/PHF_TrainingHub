@@ -144,6 +144,11 @@
 .phf-qtth-pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:4px;white-space:nowrap;}
 .phf-qtth-pill.is-on{background:#E7F3EC;color:#1B7B45;}
 .phf-qtth-pill.is-off{background:#EEF0F2;color:var(--qt-muted);}
+.phf-qtth-pill.is-warn{background:var(--qt-orange-wash);color:var(--qt-orange-ink);}
+
+.phf-qtth-map-form{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.phf-qtth-map-form input[type="text"]{border:1.5px solid var(--qt-line-strong);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;}
+.phf-qtth-map-tabs{display:flex;gap:6px;flex-wrap:wrap;}
 
 /* classification chips — rendered text, never raw markup */
 .phf-qtth-chip{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:4px;background:#EEF0F2;color:var(--qt-ink);white-space:nowrap;}
@@ -197,6 +202,9 @@
 .phf-qtth-toast.is-out{opacity:0;transform:translateX(12px);}
 
 /* ── Truth Data · Bảng lương (Batch 02) ─────────────────────────────────── */
+.phf-qtth-td-group{margin-top:18px;}
+.phf-qtth-td-group:first-of-type{margin-top:6px;}
+.phf-qtth-td-group-title{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--qt-muted);margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--qt-line-strong);}
 .phf-qtth-td-sources{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:6px;}
 .phf-qtth-td-source{border:1px solid var(--qt-line-strong);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:#fff;}
 .phf-qtth-td-source.is-off{opacity:.6;background:#FAFAFB;}
