@@ -70,6 +70,20 @@
     }
   }
 
+  // Hard rule (§1): a screen that asks for an upload-by-template MUST offer the
+  // template on the same screen. Static clean .xlsx generated from the BHXH
+  // canonical structure (scripts/qtth-bhxh-generate-canonical-template.js) —
+  // no real data.
+  var BHXH_TEMPLATE_HREF = 'assets/templates/PHF_BHXH_Canonical_V1.xlsx?v=1';
+  function templateCardHtml() {
+    return '<div class="phf-qtth-td-template">'
+      + '<div><b>Mẫu BHXH chuẩn</b>'
+      + '<span class="phf-qtth-muted">Dùng mẫu này để lập file BHXH các kỳ mới. '
+      + 'Phiên bản: <b>PHF BHXH Canonical Template V1</b>. Mẫu không chứa dữ liệu nhân viên.</span></div>'
+      + '<a class="phf-qtth-btn" href="' + BHXH_TEMPLATE_HREF + '" download="PHF_BHXH_Canonical_V1.xlsx">Tải mẫu Excel chuẩn</a>'
+      + '</div>';
+  }
+
   function paintBhxh(slot) {
     var st = BS.status || {};
     var cur = st.current || null;
@@ -84,6 +98,7 @@
       + '<button type="button" class="phf-qtth-btn" data-import>Nhập BHXH</button>'
       + '</div>'
       + '</div>'
+      + templateCardHtml()
       + effectiveVersionHtml(st, cur)
       + versionHistoryHtml(st)
       + '</section>'
